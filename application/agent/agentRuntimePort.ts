@@ -48,6 +48,7 @@ export type AgentPrivateToolProcess = Readonly<{
 export type AgentRuntimePort = {
   kind: AgentRuntimeKind;
   openSession(input: {
+    instructions: string;
     privateToolProcess?: AgentPrivateToolProcess;
     profileId: string;
     scope: AgentScope;

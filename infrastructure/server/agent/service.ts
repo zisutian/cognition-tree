@@ -6,6 +6,7 @@ import path from "node:path";
 import {
   commitAgentProposalExactly,
   confirmAgentProposalDestruction,
+  createAgentRuntimeInstructions,
   decideAgentProposal,
   markAgentProposalFailed,
   markAgentProposalStale,
@@ -283,6 +284,7 @@ export class AgentService {
 
       capability = privateToolProcess?.capability ?? null;
       const runtimeSession = await runtimePort.openSession({
+        instructions: createAgentRuntimeInstructions(scope),
         ...(privateToolProcess
           ? { privateToolProcess: privateToolProcess.process }
           : {}),

@@ -437,6 +437,7 @@ export class CodexRuntime implements AgentRuntimePort {
   }
 
   async openSession(input: {
+    instructions: string;
     privateToolProcess?: AgentPrivateToolProcess;
     profileId: string;
     scope: AgentScope;
@@ -472,8 +473,7 @@ export class CodexRuntime implements AgentRuntimePort {
       client.notify("initialized", {});
       const result = record(await withTimeout(client.request("thread/start", {
         approvalPolicy: "never",
-        baseInstructions:
-          "Use only the cognition_tree MCP tools. Never use shell, file edits, web, apps, skills, plugins, hooks, or subagents. Stage changes and submit a proposal; never claim a commit before the owner approves it.",
+        baseInstructions: input.instructions,
         config: mcpConfig(input.privateToolProcess),
         cwd: temporary.cwd,
         dynamicTools: [],

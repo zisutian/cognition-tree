@@ -24,7 +24,7 @@ export class AgentContextLimitError extends Error {
 }
 
 type ChatMessage =
-  | { content: string; role: "assistant" | "user" }
+  | { content: string; role: "assistant" | "system" | "user" }
   | {
       content: string | null;
       role: "assistant";
@@ -119,11 +119,17 @@ function appendToolDelta(
 class OpenAiChatRuntimeSession implements AgentRuntimeSession {
   readonly #apiKey: string;
   #activeController: AbortController | null = null;
+  readonly #instructions: string;
   readonly #profile: OpenAiChatAgentProfile;
 
-  constructor(profile: OpenAiChatAgentProfile, apiKey: string) {
+  constructor(
+    profile: OpenAiChatAgentProfile,
+    apiKey: string,
+    instructions: string,
+  ) {
     this.#profile = profile;
     this.#apiKey = apiKey;
+    this.#instructions = instructions;
   }
 
   async cancel() {
@@ -150,10 +156,13 @@ class OpenAiChatRuntimeSession implements AgentRuntimeSession {
     request.signal.addEventListener("abort", onAbort, { once: true });
     this.#activeController = controller;
     try {
-      const messages: ChatMessage[] = request.messages.map((message) => ({
-        content: message.content,
-        role: message.role,
-      }));
+      const messages: ChatMessage[] = [
+        { content: this.#instructions, role: "system" },
+        ...request.messages.map((message) => ({
+          content: message.content,
+          role: message.role,
+        })),
+      ];
       let finalText = "";
       let toolCalls = 0;
 
@@ -196,6 +205,7 @@ class OpenAiChatRuntimeSession implements AgentRuntimeSession {
         }
         const pending = new Map<number, PendingToolCall>();
         let messageText = "";
+        const messageDeltas: string[] = [];
 
         for await (const data of readSse(response)) {
           if (data === "[DONE]") break;
@@ -221,16 +231,16 @@ class OpenAiChatRuntimeSession implements AgentRuntimeSession {
           if (!delta) continue;
           if (typeof delta.content === "string") {
             messageText += delta.content;
-            finalText += delta.content;
-            await request.onEvent({
-              textDelta: delta.content,
-              type: "text-delta",
-            });
+            messageDeltas.push(delta.content);
           }
           appendToolDelta(pending, delta.tool_calls);
         }
         if (pending.size === 0) {
           messages.push({ content: messageText, role: "assistant" });
+          finalText = messageText;
+          for (const textDelta of messageDeltas) {
+            await request.onEvent({ textDelta, type: "text-delta" });
+          }
           return { finalText, toolCalls };
         }
         if (step === this.#profile.maxToolSteps) {
@@ -295,12 +305,17 @@ export class OpenAiChatRuntime implements AgentRuntimePort {
     this.#apiKey = apiKey;
   }
 
-  async openSession(_input: {
+  async openSession(input: {
+    instructions: string;
     privateToolProcess?: unknown;
     profileId: string;
     scope: AgentScope;
     sessionId: string;
   }) {
-    return new OpenAiChatRuntimeSession(this.#profile, this.#apiKey);
+    return new OpenAiChatRuntimeSession(
+      this.#profile,
+      this.#apiKey,
+      input.instructions,
+    );
   }
 }

@@ -37,6 +37,7 @@ const handleLine = (line) => {
     const mcpEnvironment =
       params.config["mcp_servers.cognition_tree.env"];
     const safe =
+      params.baseInstructions === "shared instructions" &&
       params.ephemeral === true &&
       params.permissions === "ctn-session" &&
       params.approvalPolicy === "never" &&
@@ -154,6 +155,7 @@ describe("Codex app-server Agent runtime", () => {
 
     try {
       const session = await runtime.openSession({
+        instructions: "shared instructions",
         privateToolProcess: {
           arguments: ["session-mcp.js"],
           command: process.execPath,
@@ -214,6 +216,7 @@ describe("Codex app-server Agent runtime", () => {
       });
 
       await expect(runtime.openSession({
+        instructions: "shared instructions",
         privateToolProcess: {
           arguments: [],
           command: process.execPath,

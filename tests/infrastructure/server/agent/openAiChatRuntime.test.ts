@@ -86,6 +86,7 @@ describe("OpenAI-compatible Agent runtime", () => {
       "server-secret",
     );
     const session = await runtime.openSession({
+      instructions: "shared instructions",
       profileId: "openai-test",
       scope: { domain: "journal", entryIds: null },
       sessionId: "00000000-0000-4000-8000-000000000001",
@@ -118,6 +119,10 @@ describe("OpenAI-compatible Agent runtime", () => {
       });
       expect(requests).toHaveLength(2);
       expect(requests[0]).toMatchObject({
+        messages: [
+          { content: "shared instructions", role: "system" },
+          { content: "创建一条日记", role: "user" },
+        ],
         model: "test-model",
         parallel_tool_calls: false,
         stream: true,
@@ -153,6 +158,7 @@ describe("OpenAI-compatible Agent runtime", () => {
       "server-secret",
     );
     const session = await runtime.openSession({
+      instructions: "shared instructions",
       profileId: "openai-test",
       scope: { collectionIds: null, domain: "todo" },
       sessionId: "00000000-0000-4000-8000-000000000001",
@@ -199,6 +205,7 @@ describe("OpenAI-compatible Agent runtime", () => {
       profile(`http://127.0.0.1:${address.port}/v1`),
       "server-secret",
     ).openSession({
+      instructions: "shared instructions",
       profileId: "openai-test",
       scope: { domain: "journal", entryIds: null },
       sessionId: "00000000-0000-4000-8000-000000000001",
@@ -249,6 +256,7 @@ describe("OpenAI-compatible Agent runtime", () => {
       profile(`http://127.0.0.1:${address.port}/v1`),
       "server-secret",
     ).openSession({
+      instructions: "shared instructions",
       profileId: "openai-test",
       scope: { domain: "journal", entryIds: null },
       sessionId: "00000000-0000-4000-8000-000000000001",
@@ -311,6 +319,7 @@ describe("OpenAI-compatible Agent runtime", () => {
       profile(`http://127.0.0.1:${address.port}/v1`),
       "server-secret",
     ).openSession({
+      instructions: "shared instructions",
       profileId: "openai-test",
       scope: { domain: "journal", entryIds: null },
       sessionId: "00000000-0000-4000-8000-000000000001",
@@ -334,10 +343,10 @@ describe("OpenAI-compatible Agent runtime", () => {
       });
 
       expect(result).toEqual({
-        finalText: "I will call a tool.完成",
+        finalText: "完成",
         toolCalls: 1,
       });
-      expect(deltas).toEqual(["I will call a tool.", "完成"]);
+      expect(deltas).toEqual(["完成"]);
     } finally {
       await session.dispose();
       server.close();
