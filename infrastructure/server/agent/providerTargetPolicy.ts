@@ -20,7 +20,10 @@ function isLoopbackHostname(hostname: string) {
 function isPrivateOrSpecialAddress(address: string) {
   const normalized = address.toLowerCase();
 
-  if (normalized === "::1") return false;
+  if (normalized.startsWith("::ffff:")) {
+    return isPrivateOrSpecialAddress(normalized.slice("::ffff:".length));
+  }
+  if (normalized === "::1") return true;
   if (normalized.includes(":")) {
     return normalized === "::" || normalized.startsWith("fc") ||
       normalized.startsWith("fd") || normalized.startsWith("fe8") ||
@@ -36,7 +39,8 @@ function isPrivateOrSpecialAddress(address: string) {
 
   return first === 0 || first === 10 || first === 100 && second >= 64 &&
       second <= 127 || first === 169 && second === 254 || first === 172 &&
-      second >= 16 && second <= 31 || first === 192 && second === 168 ||
+      second >= 16 && second <= 31 || first === 127 ||
+      first === 192 && second === 168 ||
       first >= 224;
 }
 
@@ -55,9 +59,20 @@ function parseOrigin(value: string) {
 
 export class AgentProviderTargetPolicy {
   readonly #allowedPrivateOrigins: ReadonlySet<string>;
+  readonly #resolveAddresses: (hostname: string) => Promise<readonly string[]>;
 
-  constructor(allowedPrivateOrigins: readonly string[] = []) {
+  constructor(
+    allowedPrivateOrigins: readonly string[] = [],
+    {
+      resolveAddresses = async (hostname: string) =>
+        (await lookup(hostname, { all: true, verbatim: true }))
+          .map(({ address }) => address),
+    }: {
+      resolveAddresses?: (hostname: string) => Promise<readonly string[]>;
+    } = {},
+  ) {
     this.#allowedPrivateOrigins = new Set(allowedPrivateOrigins.map(parseOrigin));
+    this.#resolveAddresses = resolveAddresses;
   }
 
   assertConfiguration(
@@ -90,8 +105,7 @@ export class AgentProviderTargetPolicy {
     }
     const addresses = isIP(endpoint.hostname)
       ? [endpoint.hostname]
-      : (await lookup(endpoint.hostname, { all: true, verbatim: true }))
-        .map(({ address }) => address);
+      : await this.#resolveAddresses(endpoint.hostname);
 
     if (addresses.length === 0 || addresses.some(isPrivateOrSpecialAddress)) {
       throw new AgentProviderTargetValidationError(
