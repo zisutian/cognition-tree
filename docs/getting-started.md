@@ -61,7 +61,8 @@ fallback。localStorage 只保存当前普通 repository id，以及用户在设
 设置页的“智能体”分区管理 provider、profile、模型参数与一次性写入的凭据。
 配置由服务端原子写入 `agent-config-v1/configuration.json`，响应永不回传 secret。
 首次使用必须显式选择默认 profile；已选 profile 不可用时，新会话会被阻止且不会
-切换到其他 profile。
+切换到其他 profile。Ollama 发现、provider 探测和 profile 符合性检查只在用户点击
+后执行，不自动联网、创建、选择或 fallback。
 
 
 ## 3. 安全边界
@@ -197,17 +198,20 @@ WebDAV 连接配置保存在：
     <CTN_SERVER_STATE_DIR>/agent-v2/operations.json
 
 automation secret 只在创建响应显示一次，磁盘只保存 SHA-256 哈希、只读 scopes、
-Workspace allowlist 与使用时间。Agent ledger 以 proposal UUID + version + digest
-幂等，只记录 owner、session/profile/runtime、store、before/after revision、变更
+Workspace allowlist 与使用时间。三个分区分别拥有 token、Agent 配置和 operation
+ledger；配置 aggregate、provider 与 profile 均有 version/digest，管理写入使用 exact
+CAS，会话固定创建时的有效参数。Agent ledger 以 proposal UUID + version + digest
+幂等，只记录 owner、session/profile/provider/runtime、store、before/after revision、变更
 资源/块 ID、结果和时间；不记录提示词、模型回复、正文、完整 diff 或 tool
 output。条目超过 `CTN_AGENT_MAX_AUDIT_ENTRIES` 时裁剪最旧记录。
 
-旧 `<CTN_SERVER_STATE_DIR>/api-v1/` 完全不读取、不迁移、不暴露；没有兼容 decoder。
+旧 `<CTN_SERVER_STATE_DIR>/api-v1/` 与 `agent-v1/` 完全不读取、不迁移、不暴露；没有兼容 decoder。
 文件原样保留供人工备份，新服务不会主动删除。既有 automation token 因而全部
 失效，必须在 v3 Settings 中重新创建只读 token；旧 receipt/audit 不再显示。
 
 内置数据目录与服务状态目录权限为 0700，含凭据或内容的文件权限为
-0600。密码不进入 API 响应、日志、普通仓库内容或前端 cache。
+0600。密码不进入 API 响应、日志、普通仓库内容或前端 cache；不承诺静态加密，
+能够读取服务账号状态文件的主体仍能取得 provider secret。
 
 v3 是破坏性切换：所有 `/api/v2` 请求返回 404；旧浏览器构建与新 Server 不兼容，
 必须同时部署。外部 automation 的写入、删除、preview/commit 全部失效且没有外部
@@ -231,8 +235,12 @@ submit_proposal。MCP 不导入 repository/store，只携带短期 capability �
 私有 Unix socket 或 Windows named pipe。项目不提供外部 MCP listener。Codex API
 key 只进入 app-server 环境，不进入 shell 或 MCP command 环境。
 
-OpenAI-compatible profile 直接调用 `<baseUrl>/chat/completions` SSE，并复用同一
-tool schema；它受 context、output、tool-step 和 timeout 限制。每个 profile 同时
+OpenAI-compatible profile 直接调用 `<baseUrl>/chat/completions` SSE。Ollama provider
+以服务根地址发现 `/api/tags`，推理直连 `/v1/chat/completions`，不经过本地代码
+Agent。`native` 只接受标准 streamed tool_calls；仅 Ollama 可固定为 `single-json`，
+其完整 completion 只有精确匹配当前工具名和唯一参数 schema 时才作为工具调用，
+疑似但无效的工具信封进入 Agent Problem，普通 JSON 仍作为最终回答。两者复用同一
+tool schema，并受 context、output、tool-step 和 timeout 限制。每个 profile 同时
 只运行一个推理，其余 turn FIFO；每个 session 只允许一个 active turn。达到
 maxResidentSessions 时拒绝新会话，不驱逐有效会话。Agent 对话与压缩摘要只在内存
 中保存；服务重启、1 小时 idle TTL、24 小时 absolute TTL 或 session 删除会丢失。
@@ -291,9 +299,10 @@ pnpm build 先清理旧构建，再输出客户端到 .artifacts/build/client、
     /data/repositories  -> CTN_REPOSITORY_ROOT（普通仓库与内置数据）
     /data/server        -> CTN_SERVER_STATE_DIR（WebDAV、access-v1、agent-config-v1、agent-v2）
 
-Local 仓库必须整体挂载，包含根部 .ctn/。当前项目不提供 Dockerfile、镜像或 Compose。
+Local 仓库必须整体挂载，包含根部 .ctn/。`/data/server` 必须持久挂载，否则
+provider、profile 和凭据会随容器 recreate 丢失。当前项目不提供 Dockerfile、镜像或 Compose。
 自行容器化时还必须提供可用的进程 sandbox、可写且受边界约束的临时目录、
-Codex 子进程与私有 IPC，并通过服务端 secret 注入 profile API key。此次 v3/Codex
+Codex 子进程与私有 IPC。Provider 凭据由设置页写入持久服务状态。此次 v3/Codex
 依赖改变了进程与镜像内容，升级不能只重启旧容器：必须重新构建镜像并 recreate
 容器，同时部署匹配的客户端构建。
 

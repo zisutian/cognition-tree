@@ -92,7 +92,7 @@ owner policy 判定为不可删除的规则不显示删除入口。其固定字�
 
 Repository Activity 只负责普通仓库 catalog、内置数据 descriptor、位置、故障和运维：
 
-    左侧依次显示“内置数据”的日记与代办、“新建仓库”，以及 Local、WebDAV 分组。
+    左侧依次显示“内置数据”的日记与代办，以及 Local、WebDAV 分组；Local 列表底部只有一个 `+` 新建入口。
     普通仓库行只显示名称和极简状态；当前仓库由前导图标表达，选中后才显示切换与重命名入口。
     右侧显示 adapter、只读 ID、位置、复制、重扫、重试、冲突恢复和危险操作。
     日记与代办右侧只显示存储位置、故障、重试和受保护说明。
@@ -109,7 +109,7 @@ conflict 和 sync-error 必须显式显示；远端冲突不能覆盖本地 pend
 
 ## 7. Activities 与 Problems
 
-ActivityBar 主区固定为“Agent、笔记、日记、代办、语法、搜索”，底部固定为“仓库、设置”。Activity 的 ID、名称、图标、分组、懒加载入口和可用条件由同一 descriptor catalog 声明。Agent 不依赖健康普通仓库，profile 不可用时仍显示原因。
+ActivityBar 主区固定为“笔记、日记、代办、语法”，底部固定为“智能体、搜索、仓库、设置”。Activity 的 ID、名称、图标、分组、懒加载入口和可用条件由同一 descriptor catalog 声明。智能体不依赖健康普通仓库，profile 不可用时仍显示原因。
 
 笔记内部提供“编辑、结构、图谱”三个模式。结构模式复用结构操作能力，图谱模式复用引用图谱能力；两者不再拥有独立顶层 Activity。模式按普通仓库保留，往返切换不改变当前笔记或编辑历史。
 
@@ -130,8 +130,9 @@ Notes、Journal、Todo、Syntax 和 Repository 的行操作只在选中项显示
 
 ## 8. Agent
 
-Agent Activity 是 owner 控制的内容修改入口。左侧选择服务端 allowlist profile、
-不可扩大的硬范围和驻留会话；中间显示增量对话与取消；右侧显示单 store
+Agent Activity 是 owner 控制的内容修改入口。左侧只显示驻留会话与唯一的新建 `+`；
+新建时在中间选择设置中已保存的默认 profile 和不可扩大的硬范围，创建后中间显示
+增量对话与取消；右侧显示单 store
 proposal 的 base revision、digest、change set、最终聚合 diff 与整批审批。界面
 不展示 raw chain-of-thought，也不允许提交 model、URL、凭据或安全参数。
 
@@ -157,6 +158,11 @@ Agent 对话、压缩摘要和会话只驻留服务内存。服务重启、1 小
 absolute TTL 或主动删除都会丢失会话。operation ledger 只记录 owner、session、
 profile/runtime、store、revision、变更资源/块 ID、结果与时间，不记录提示词、
 模型回复、正文、完整 diff 或 tool output。
+
+Provider、Profile、模型参数与凭据由“设置 → 智能体”管理。Ollama 发现、provider
+探测和 profile 符合性检查均为显式操作；不自动联网、创建、选模或 fallback。
+Ollama 直接连接模型层而不嵌套本地代码 Agent。会话固定创建时的 provider/profile
+version、digest 与有效参数；相关 resident session 会阻止危险配置删除或凭据变更。
 
 
 ## 9. 当前边界

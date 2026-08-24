@@ -459,6 +459,19 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
     pattern: /["'`](?:workspace|journal|todo):(?:write|delete)["'`]/,
   },
   {
+    corpus: sourceModules,
+    matches: 0,
+    name: "legacy Agent profile file authority",
+    pattern: /\b(?:CTN_AGENT_PROFILES_FILE|loadAgentProfileCatalog|apiKeyEnv)\b/,
+  },
+  {
+    corpus: infrastructureModules,
+    matches: 0,
+    name: "Ollama nested code Agent integration",
+    pattern: /["'`]\/api\/(?:tasks|mcp)(?:\/|["'`])/,
+    scope: /^infrastructure\/server\/agent\/(?:ollamaRuntime|providerOperations)\.ts$/,
+  },
+  {
     corpus: infrastructureModules,
     matches: 0,
     name: "duplicate API route-kind dispatch",

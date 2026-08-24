@@ -19,7 +19,7 @@ Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的�
 - 页面生命周期内的乐观编辑、内存待同步队列、CAS 同步与显式冲突处理。
 - Todo 支持按天、周、月的本地日历周期、规则阶段和不丢失的完成统计；规则在结构行内配置。
 - 提供唯一 `/api/v3` 契约：自动化只读内容/搜索/SSE，官方客户端 owner-only snapshot sync，以及 owner-only Agent 会话、proposal 审批与审计；不存在公开写 command API。
-- 固定 Agent Activity 支持 allowlist Codex app-server 与 OpenAI-compatible profile。模型只能在会话硬范围内读取和暂存，owner 审查聚合 diff 后才以 exact CAS 写入；删除还需要独立二次确认。
+- 固定智能体 Activity 支持 Codex app-server、OpenAI-compatible 与直连 Ollama profile。模型只能在会话硬范围内读取和暂存，owner 审查聚合 diff 后才以 exact CAS 写入；删除还需要独立二次确认。
 - 按 Activity 投影 diagnostics、运行故障和操作错误；短暂反馈与非稳定保存状态统一进入底栏，设置页不挂载问题面板。
 
 没有健康普通仓库时仍挂载完整工作台：日记、代办、仓库和设置保持可用，普通内容活动提供创建仓库入口。
@@ -104,7 +104,9 @@ ledger；令牌明文只在创建时显示一次。
 
 Agent provider、profile、模型参数与凭据由“设置 → 智能体”管理，内部状态保存于
 `<CTN_SERVER_STATE_DIR>/agent-config-v1/configuration.json`；该文件不是用户仓库
-文件，也不应手工编辑。Codex 依赖精确锁定为 `@openai/codex@0.148.0`，每个会话使用独立、
+文件，也不应手工编辑。secret 依赖 0600 文件权限，不承诺静态加密；能够读取服务
+账号文件的主体仍能取得密钥。Ollama 直接连接模型层，不调用其他代码 Agent 的任务
+API、MCP、Git、shell 或 ChangeSet。Codex 依赖精确锁定为 `@openai/codex@0.148.0`，每个会话使用独立、
 ephemeral、只读且无网络的 app-server 进程和会话专属私有 MCP。Agent 对话只在
 服务内存中驻留，重启、TTL 到期或回收会丢失。
 

@@ -204,19 +204,20 @@ proposal、problem、turn completion 与必要的 snapshot 使用单调 sequence
 只增量应用连续事件；发现缺口、越界 cursor 或刷新重连时重新读取
 AgentSessionSnapshot。两类 SSE 都不是正文真值来源。
 
-服务状态有两个独立 epoch owner：
+服务状态有三个独立 epoch owner：
 
     <CTN_SERVER_STATE_DIR>/access-v1/automation-tokens.json
     <CTN_SERVER_STATE_DIR>/agent-config-v1/configuration.json
     <CTN_SERVER_STATE_DIR>/agent-v2/operations.json
 
-前者只保存 automation token 的 SHA-256 哈希、只读授权与 Workspace allowlist；
-后者用 proposal UUID + version + digest 做幂等键，并保存 approving owner、
-session/profile/runtime、store、before/after revision、变更资源/块 ID、结果与时间。
+access 分区只保存 automation token 的 SHA-256 哈希、只读授权与 Workspace allowlist；
+agent-config 分区独占 provider、profile、凭据、version、digest 与符合性结果；agent-v2
+用 proposal UUID + version + digest 做幂等键，并保存 approving owner、
+session/profile/provider/runtime、store、before/after revision、变更资源/块 ID、结果与时间。
 operation ledger 不保存提示词、模型回复、正文、完整 diff 或 tool output，超过
 `CTN_AGENT_MAX_AUDIT_ENTRIES` 后裁剪最旧记录。
 
-旧 `<CTN_SERVER_STATE_DIR>/api-v1/` 完全不读取、不迁移、不暴露，也不存在兼容
+旧 `<CTN_SERVER_STATE_DIR>/api-v1/` 和 `agent-v1/` 完全不读取、不迁移、不暴露，也不存在兼容
 decoder；文件原样保留供人工备份，新服务不会主动删除。状态目录权限为 0700、
 文件权限为 0600；一个新分区损坏只使该能力 fail closed，不阻断内容领域。
 
@@ -295,10 +296,13 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 这些模块只拆职责，不改变 Local WAL 提交点、WebDAV 删除状态机或仓库内容
 schema。
 
-Agent 配置由设置界面写入独立的 versioned 服务端状态；固定 1 小时 idle TTL、
+Agent 配置由 application/agent 端口协调、设置界面操作并写入独立的 versioned 服务端状态；固定 1 小时 idle TTL、
 24 小时 absolute TTL，审计容量由必填环境变量提供。每个 profile 显式声明
 maxResidentSessions、model、timeout 与 tool/request limit；凭据只写入不回读。
-单个 profile 无效或缺少 secret 时只禁用该 profile，不回退到其它 profile。每个 profile 同时只运行一个推理，turn FIFO；每个 session 同时
+aggregate、provider 和 profile 均有 version/digest，管理 mutation 使用 exact CAS。
+会话固定创建时的有效配置；普通 profile 修改不影响旧会话，resident session 会阻止
+provider、凭据和 profile 删除。单个 profile 无效或缺少 secret 时只禁用该 profile，
+不回退到其它 profile。每个 profile 同时只运行一个推理，turn FIFO；每个 session 同时
 只有一个 active turn，达到 resident 上限时拒绝新会话而不驱逐有效会话。
 
 Codex adapter 精确锁定 `@openai/codex@0.148.0`，每条会话启动独立常驻
@@ -313,8 +317,11 @@ Codex 的会话专属 STDIO MCP 只定义 scope 内 list/read/search、三个
 stage_*_command 和 submit_proposal。MCP 进程不导入 repository/store，只通过
 Unix domain socket 或 Windows named pipe 连接父服务私有 IPC，并携带单会话短期
 capability。OpenAI-compatible adapter 直接消费同一 contracts/agent tool schema，
-使用 `/chat/completions` SSE、串行 tool call、context/output/tool-step limit 与
-timeout，不建立公开 MCP。项目不监听外部 MCP endpoint。
+使用 `/chat/completions` SSE。Ollama adapter 直接连接模型服务的 `/v1/chat/completions`，
+不调用本地代码 Agent 的 task API、MCP、Git、shell、ChangeSet 或审批层。native 与
+Ollama-only single-json 都由 runtime 分类，presentation 只消费最终字符串；工具信封
+与工具结果不生成聊天 delta。runtime 受串行 tool call、context/output/tool-step
+limit 与 timeout 约束，不建立公开 MCP。项目不监听外部 MCP endpoint。
 
 
 ## 9. Presentation 与 Problems
@@ -322,8 +329,8 @@ timeout，不建立公开 MCP。项目不监听外部 MCP endpoint。
 AppRoot 只创建 runtime/controller、订阅快照并维护当前 Activity。领域 session
 到 view application 的组合位于 presentation/shell/application；Activity
 descriptor catalog 是 ID、标签、图标、分组、可用条件与懒加载元数据的唯一
-owner。顶层主入口固定为 Agent、笔记、日记、代办、语法、搜索，管理入口固定为仓库、
-设置。
+owner。顶层主入口固定为笔记、日记、代办、语法，底部管理入口固定为智能体、搜索、
+仓库、设置。
 
 每个 Activity 采用纵向切片：controller、context、view、局部 hook 和样式位于
 presentation/activities/<activity>/。跨 Activity 的组合只存在于 shell，共享
@@ -341,8 +348,9 @@ Journal 左侧为不可编辑的“年 → 月 → 条目”树。年、月和�
 
 Todo 使用“集合列表 → CTN 编辑器 → 结构详情”。集合排序复用 presentation 的共享列表拖拽几何和落点样式；详情复用共享结构树的行、缩进、选中、诊断和行号视觉，以 checkbox 执行任务状态变更，不暴露任务拖动。只有选中的任务行显示周期图标；配置表单原地展开，编辑器只显示不可交互的周期标记。
 
-Agent 使用“profile/scope/session → 增量对话 → proposal diff/审批”三栏布局。UI
-只能选择服务端 allowlist profile，不提交 URL、model、凭据或安全覆盖；不显示 raw
+Agent 使用“会话列表 → 新会话硬范围或增量对话 → proposal diff/审批”三栏布局。
+Provider、profile、URL、model、凭据、发现、探测和符合性检查只在 Settings 的
+application facade 中管理；不显示 raw
 chain-of-thought。发送、批准与 destructive confirmation 前先同步范围对应的已加载
 session，失败即阻止 HTTP 操作。Agent event sequence 缺口通过重读 session snapshot
 恢复；message delta 直接增长现有 DOM，而不是等待 turn 完成后一次替换。
