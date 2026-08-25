@@ -158,3 +158,25 @@ export const AgentConformanceCheckRequestSchema = strictObject({
 export type AgentConformanceCheckRequestDto = Static<
   typeof AgentConformanceCheckRequestSchema
 >;
+
+export const AgentConformanceCheckStatusSchema = strictObject({
+  completedAt: nullable(ApiCanonicalTimestampSchema),
+  errorMessage: nullable(Type.String()),
+  id: ApiIdentifierSchema,
+  phase: Type.Union([
+    Type.Literal("calling-tool"),
+    Type.Literal("recording-result"),
+    Type.Literal("summarizing"),
+  ]),
+  profileId: ApiIdentifierSchema,
+  startedAt: ApiCanonicalTimestampSchema,
+  status: Type.Union([
+    Type.Literal("cancelled"),
+    Type.Literal("failed"),
+    Type.Literal("running"),
+    Type.Literal("succeeded"),
+  ]),
+});
+export type AgentConformanceCheckStatusDto = Static<
+  typeof AgentConformanceCheckStatusSchema
+>;

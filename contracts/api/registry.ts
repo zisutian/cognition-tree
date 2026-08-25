@@ -53,6 +53,7 @@ assertUniqueOperations();
 type ApiRouteParameters = {
   builtInId?: string;
   collectionId?: string;
+  conformanceCheckId?: string;
   entryId?: string;
   migrationId?: string;
   noteId?: string;

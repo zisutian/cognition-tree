@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
+  AgentConformanceCheckStatus,
   AgentConfigurationPort,
   AgentConfigurationSnapshot,
 } from "../../../application/agent";
 import {
   AgentConfigurationSnapshotSchema,
+  AgentConformanceCheckStatusSchema,
   AgentOllamaDiscoveryResultSchema,
   AgentProviderProbeResultSchema,
 } from "../../../contracts/agent/configurationSchemas";
@@ -31,6 +33,13 @@ function configuration(value: unknown) {
   ) as AgentConfigurationSnapshot;
 }
 
+function conformanceCheck(value: unknown) {
+  return parseAgentSchema(
+    AgentConformanceCheckStatusSchema,
+    value,
+  ) as AgentConformanceCheckStatus;
+}
+
 export function createHttpAgentConfigurationClient({
   baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
@@ -40,9 +49,20 @@ export function createHttpAgentConfigurationClient({
     requestApiJson(fetchFn, baseUrl, endpoint, init, token);
 
   return {
-    async checkConformance(baseRevision, profileId) {
-      return configuration(await request(
-        `/api/v3/admin/agent-profiles/${encodeURIComponent(profileId)}/conformance-check`,
+    async cancelConformance(checkId) {
+      return conformanceCheck(await request(
+        `/api/v3/admin/agent-conformance-checks/${encodeURIComponent(checkId)}`,
+        { method: "DELETE" },
+      ));
+    },
+    async getConformance(checkId) {
+      return conformanceCheck(await request(
+        `/api/v3/admin/agent-conformance-checks/${encodeURIComponent(checkId)}`,
+      ));
+    },
+    async startConformance(baseRevision, profileId) {
+      return conformanceCheck(await request(
+        `/api/v3/admin/agent-profiles/${encodeURIComponent(profileId)}/conformance-checks`,
         jsonRequest({ baseRevision }, "POST"),
       ));
     },

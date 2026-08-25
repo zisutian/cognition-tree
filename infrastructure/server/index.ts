@@ -199,6 +199,7 @@ try {
         path.join(projectRoot, ".artifacts", "build", "client"),
       );
 } catch (error) {
+  await agentProviderOperations.dispose();
   await agentService.dispose();
   await catalog.dispose();
   throw error;
@@ -213,6 +214,7 @@ shutdown = () => {
         closeOwnedResources: async () => {
           eventHub.dispose();
           await Promise.all([
+            agentProviderOperations.dispose(),
             agentService.dispose(),
             clientRuntime?.dispose() ?? Promise.resolve(),
           ]);

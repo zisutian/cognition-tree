@@ -178,7 +178,7 @@ export async function handleApiRoute(
     operation.operationId.startsWith("deleteAgentProvider")
     || operation.operationId === "discoverOllamaProvider"
     || operation.operationId === "probeAgentProvider"
-    || operation.operationId === "checkAgentProfileConformance"
+    || operation.operationId.endsWith("AgentProfileConformanceCheck")
   ) {
     return handleAgentConfigurationAdmin(authorizedContext);
   }

@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { AgentConformanceCheckStatus } from "../../../application/agent/agentConfiguration.ts";
 import type { AgentRuntimeTool } from "../../../application/agent/agentRuntimePort.ts";
 import { Type } from "@sinclair/typebox";
 import type { ApiRuntime } from "../api/http/runtime.ts";
 import { readApiRuntimeNow } from "../api/http/runtime.ts";
 import {
   AgentConfigurationStore,
+  AgentConfigurationConflictError,
   AgentConfigurationValidationError,
 } from "./configurationStore.ts";
 import { OllamaRuntime } from "./ollamaRuntime.ts";
@@ -15,6 +17,8 @@ import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 
 const responseByteLimit = 1024 * 1024;
 const probeTimeoutMilliseconds = 5_000;
+const conformanceResultLimit = 100;
+const conformanceOutputTokenLimit = 512;
 
 function validatedEndpoint(value: string) {
   let endpoint: URL;
@@ -130,8 +134,23 @@ const conformanceTool: AgentRuntimeTool = {
   name: "agent_conformance_check",
 };
 
+type AgentConformanceCheckRecord = Readonly<{
+  baseRevision: string;
+  controller: AbortController;
+  status: AgentConformanceCheckStatus;
+}>;
+
+export class AgentConformanceCheckConflictError extends Error {
+  constructor(message = "A conformance check is already running for this profile") {
+    super(message);
+    this.name = "AgentConformanceCheckConflictError";
+  }
+}
+
 export class AgentProviderOperations {
   readonly #configurationStore: AgentConfigurationStore;
+  readonly #conformanceChecks = new Map<string, AgentConformanceCheckRecord>();
+  readonly #conformanceExecutions = new Map<string, Promise<void>>();
   readonly #fetch: typeof fetch;
   readonly #runtime: ApiRuntime;
   readonly #targetPolicy: AgentProviderTargetPolicy;
@@ -192,7 +211,81 @@ export class AgentProviderOperations {
     return { models, reachable: true };
   }
 
-  async checkConformance(baseRevision: string, profileId: string) {
+  async startConformance(baseRevision: string, profileId: string) {
+    const configuration = await this.#configurationStore.readSnapshot();
+
+    if (configuration.revision !== baseRevision) {
+      throw new AgentConfigurationConflictError(configuration.revision);
+    }
+    if ([...this.#conformanceChecks.values()].some(({ status }) =>
+      status.profileId === profileId && status.status === "running"
+    )) {
+      throw new AgentConformanceCheckConflictError();
+    }
+    await this.#resolveConformanceProfile(profileId);
+    this.#pruneConformanceChecks();
+    if (this.#conformanceChecks.size >= conformanceResultLimit) {
+      throw new AgentConformanceCheckConflictError(
+        "Agent conformance check capacity has been reached",
+      );
+    }
+    const id = this.#runtime.createId();
+    const status: AgentConformanceCheckStatus = {
+      completedAt: null,
+      errorMessage: null,
+      id,
+      phase: "calling-tool",
+      profileId,
+      startedAt: readApiRuntimeNow(this.#runtime).timestamp,
+      status: "running",
+    };
+    const record: AgentConformanceCheckRecord = {
+      baseRevision,
+      controller: new AbortController(),
+      status,
+    };
+
+    this.#conformanceChecks.set(id, record);
+    const execution = new Promise<void>((resolve) => {
+      setTimeout(() => void this.#executeConformance(id).finally(resolve), 0);
+    });
+
+    this.#conformanceExecutions.set(id, execution);
+    void execution.finally(() => this.#conformanceExecutions.delete(id));
+    return status;
+  }
+
+  async dispose() {
+    for (const record of this.#conformanceChecks.values()) {
+      if (record.status.status !== "running" ||
+          record.status.phase === "recording-result") continue;
+      record.controller.abort(new Error("Agent provider operations are closing"));
+    }
+    await Promise.allSettled(this.#conformanceExecutions.values());
+  }
+
+  getConformance(checkId: string) {
+    return this.#conformanceChecks.get(checkId)?.status ?? null;
+  }
+
+  cancelConformance(checkId: string) {
+    const record = this.#conformanceChecks.get(checkId);
+
+    if (!record) return null;
+    if (record.status.status !== "running") return record.status;
+    if (record.status.phase === "recording-result") return record.status;
+    record.controller.abort(new Error("Agent conformance check was cancelled"));
+    const status: AgentConformanceCheckStatus = {
+      ...record.status,
+      completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+      status: "cancelled",
+    };
+
+    this.#conformanceChecks.set(checkId, { ...record, status });
+    return status;
+  }
+
+  async #resolveConformanceProfile(profileId: string) {
     const resolved = await this.#configurationStore.resolveProfile(profileId);
 
     if (!resolved) {
@@ -214,13 +307,39 @@ export class AgentProviderOperations {
         "Codex profiles do not require chat conformance",
       );
     }
+    return {
+      profile,
+      resolved,
+      toolCallMode: resolved.profile.parameters.toolCallMode,
+    };
+  }
+
+  async #runConformance(
+    profileId: string,
+    signal: AbortSignal,
+    onToolCall: () => void,
+  ) {
+    const { profile, resolved, toolCallMode } =
+      await this.#resolveConformanceProfile(profileId);
+    const verificationProfile = {
+      ...profile,
+      maxOutputTokens: Math.min(
+        profile.maxOutputTokens,
+        conformanceOutputTokenLimit,
+      ),
+      maxToolSteps: 1,
+    };
     const beforeRequest = () => this.#targetPolicy.assertRequestTarget(
       new URL(resolved.provider.baseUrl!),
       resolved.privateNetworkOrigin,
     );
-    const runtime = profile.kind === "ollama"
-      ? new OllamaRuntime(profile, beforeRequest)
-      : new OpenAiChatRuntime(profile, resolved.apiKey ?? "", beforeRequest);
+    const runtime = verificationProfile.kind === "ollama"
+      ? new OllamaRuntime(verificationProfile, beforeRequest)
+      : new OpenAiChatRuntime(
+        verificationProfile,
+        resolved.apiKey ?? "",
+        beforeRequest,
+      );
     const session = await runtime.openSession({
       instructions: "This is a tool-call conformance check. Call the offered tool exactly once with ack=true, then answer in natural language.",
       profileId,
@@ -236,9 +355,11 @@ export class AgentProviderOperations {
           return { accepted: true };
         },
         messages: [{ content: "Run the conformance check now.", role: "user" }],
-        onEvent: () => undefined,
+        onEvent: (event) => {
+          if (event.type === "tool-call") onToolCall();
+        },
         scope: { domain: "journal", entryIds: null },
-        signal: new AbortController().signal,
+        signal,
         tools: [conformanceTool],
       });
 
@@ -248,13 +369,81 @@ export class AgentProviderOperations {
     } finally {
       await session.dispose();
     }
-    return (await this.#configurationStore.setConformance(
-      baseRevision,
-      profileId,
-      {
-        checkedAt: readApiRuntimeNow(this.#runtime).timestamp,
-        toolCallMode: resolved.profile.parameters.toolCallMode,
-      },
-    )).configuration;
+    return toolCallMode;
+  }
+
+  async #executeConformance(checkId: string) {
+    const record = this.#conformanceChecks.get(checkId);
+
+    if (!record) return;
+    try {
+      record.controller.signal.throwIfAborted();
+      const toolCallMode = await this.#runConformance(
+        record.status.profileId,
+        record.controller.signal,
+        () => {
+          const current = this.#conformanceChecks.get(checkId);
+
+          if (!current || current.status.status !== "running") return;
+          this.#conformanceChecks.set(checkId, {
+            ...current,
+            status: { ...current.status, phase: "summarizing" },
+          });
+        },
+      );
+      let current = this.#conformanceChecks.get(checkId);
+
+      if (!current || current.status.status !== "running") return;
+      record.controller.signal.throwIfAborted();
+      current = {
+        ...current,
+        status: { ...current.status, phase: "recording-result" },
+      };
+      this.#conformanceChecks.set(checkId, current);
+      await this.#configurationStore.setConformance(
+        record.baseRevision,
+        record.status.profileId,
+        {
+          checkedAt: readApiRuntimeNow(this.#runtime).timestamp,
+          toolCallMode,
+        },
+      );
+      this.#conformanceChecks.set(checkId, {
+        ...current,
+        status: {
+          ...current.status,
+          completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+          status: "succeeded",
+        },
+      });
+    } catch (error) {
+      const current = this.#conformanceChecks.get(checkId);
+
+      if (!current || current.status.status === "cancelled") return;
+      const cancelled = record.controller.signal.aborted;
+
+      this.#conformanceChecks.set(checkId, {
+        ...current,
+        status: {
+          ...current.status,
+          completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+          errorMessage: cancelled
+            ? null
+            : error instanceof Error
+              ? error.message
+              : "Agent conformance check failed",
+          status: cancelled ? "cancelled" : "failed",
+        },
+      });
+    }
+  }
+
+  #pruneConformanceChecks() {
+    if (this.#conformanceChecks.size < conformanceResultLimit) return;
+    for (const [id, { status }] of this.#conformanceChecks) {
+      if (status.status === "running") continue;
+      this.#conformanceChecks.delete(id);
+      if (this.#conformanceChecks.size < conformanceResultLimit) return;
+    }
   }
 }

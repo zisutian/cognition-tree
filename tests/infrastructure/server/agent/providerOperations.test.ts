@@ -26,8 +26,9 @@ function writeSse(response: ServerResponse, content: string) {
 describe("Agent provider operations", () => {
   it("discovers Ollama and verifies the pinned single-json mode explicitly", async () => {
     let completion = 0;
+    const completionBodies: Array<Record<string, unknown>> = [];
     const requests: string[] = [];
-    const server = createServer((request, response) => {
+    const server = createServer(async (request, response) => {
       requests.push(request.url ?? "");
       if (request.url === "/api/tags") {
         response.writeHead(200, { "Content-Type": "application/json" });
@@ -36,6 +37,10 @@ describe("Agent provider operations", () => {
         }));
         return;
       }
+      let body = "";
+
+      for await (const chunk of request) body += chunk.toString();
+      completionBodies.push(JSON.parse(body) as Record<string, unknown>);
       completion += 1;
       writeSse(
         response,
@@ -99,10 +104,19 @@ describe("Agent provider operations", () => {
       });
 
       expect(profile.profile.availability).toBe("unavailable");
-      const verified = await operations.checkConformance(
+      const started = await operations.startConformance(
         profile.configuration.revision,
         profile.profile.id,
       );
+
+      expect(started).toMatchObject({
+        phase: "calling-tool",
+        status: "running",
+      });
+      await vi.waitFor(() => {
+        expect(operations.getConformance(started.id)?.status).toBe("succeeded");
+      });
+      const verified = await store.readSnapshot();
 
       expect(verified.profiles[0]).toMatchObject({
         availability: "available",
@@ -114,7 +128,12 @@ describe("Agent provider operations", () => {
         "/v1/chat/completions",
         "/v1/chat/completions",
       ]);
+      expect(completionBodies).toHaveLength(2);
+      expect(completionBodies.every(({ max_tokens: maxTokens }) =>
+        maxTokens === 512
+      )).toBe(true);
     } finally {
+      await operations.dispose();
       server.close();
       await once(server, "close");
       await rm(directory, { force: true, recursive: true });
@@ -135,6 +154,79 @@ describe("Agent provider operations", () => {
         .rejects.toThrow("empty, mixed, or forbidden");
       expect(fetchFn).not.toHaveBeenCalled();
     } finally {
+      await operations.dispose();
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("cancels an active conformance request without recording a result", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    let resolveCompletionStarted!: () => void;
+    const completionStarted = new Promise<void>((resolve) => {
+      resolveCompletionStarted = resolve;
+    });
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "Content-Type": "text/event-stream" });
+      response.write(": waiting\n\n");
+      resolveCompletionStarted();
+    });
+
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+
+    if (!address || typeof address === "string") throw new Error("Missing port");
+    const endpoint = `http://127.0.0.1:${address.port}`;
+    const ids = ["ollama", "writer"];
+    const store = new AgentConfigurationStore(directory, {
+      createId: () => ids.shift()!,
+    });
+    const operations = new AgentProviderOperations({
+      configurationStore: store,
+      runtime,
+    });
+
+    try {
+      let configuration = await store.readSnapshot();
+      const provider = await store.createProvider(configuration.revision, {
+        authenticationType: "none",
+        baseUrl: endpoint,
+        kind: "ollama",
+        label: "Local Ollama",
+        privateNetworkAccessConfirmed: false,
+      });
+      configuration = provider.configuration;
+      const profile = await store.createProfile(configuration.revision, {
+        label: "Local writer",
+        maxResidentSessions: 1,
+        model: "qwen3.8:27b",
+        parameters: {
+          contextWindowTokens: 16_384,
+          kind: "chat",
+          maxOutputTokens: 2_048,
+          maxToolSteps: 8,
+          toolCallMode: "native",
+        },
+        providerId: provider.provider.id,
+        timeoutMilliseconds: 900_000,
+      });
+      const started = await operations.startConformance(
+        profile.configuration.revision,
+        profile.profile.id,
+      );
+
+      await completionStarted;
+      expect(operations.cancelConformance(started.id)).toMatchObject({
+        status: "cancelled",
+      });
+      await vi.waitFor(() => {
+        expect(operations.getConformance(started.id)?.status).toBe("cancelled");
+      });
+      expect((await store.readSnapshot()).profiles[0]?.conformance).toBeNull();
+    } finally {
+      await operations.dispose();
+      server.close();
+      await once(server, "close");
       await rm(directory, { force: true, recursive: true });
     }
   });

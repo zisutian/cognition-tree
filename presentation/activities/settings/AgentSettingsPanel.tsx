@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import type {
   AgentApplication,
+  AgentConfigurationState,
   AgentProfileInput,
   AgentProviderInput,
   AgentProviderKind,
@@ -17,6 +18,24 @@ const authenticationLabels = {
   "not-required": "无需认证",
   unknown: "认证状态未知",
 } as const;
+
+function conformanceLabel(
+  check: AgentConfigurationState["conformanceChecks"][string] | undefined,
+) {
+  if (!check) return null;
+  if (check.status === "running") {
+    if (check.phase === "calling-tool") {
+      return "正在等待模型调用验证工具……";
+    }
+    if (check.phase === "summarizing") {
+      return "工具调用已通过，正在等待自然语言总结……";
+    }
+    return "验证已通过，正在记录结果……";
+  }
+  if (check.status === "succeeded") return "符合性检查已通过。";
+  if (check.status === "cancelled") return "符合性检查已取消。";
+  return `符合性检查失败：${check.errorMessage ?? "未知错误"}`;
+}
 
 type ProviderDraft = {
   apiKey: string;
@@ -285,11 +304,17 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
           <Section title="Profiles">
             {configuredProfiles.length === 0 ? <p className="settings-muted">尚未创建 Profile。</p> : (
               <ul className="settings-agent-card-list">
-                {configuredProfiles.map((profile) => (
-                  <li key={profile.id}>
+                {configuredProfiles.map((profile) => {
+                  const conformance = configurationState.conformanceChecks[profile.id];
+                  const conformanceMessage = conformanceLabel(conformance);
+
+                  return <li key={profile.id}>
                     <div><strong>{profile.label}</strong><p>{profile.model} · v{profile.version} · {profile.availability === "available" ? "可用" : profile.unavailableReason}</p></div>
                     <div className="ui-actions">
-                      {profile.parameters.kind === "chat" ? <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.checkConformance(profile.id))} type="button">符合性检查</Button> : null}
+                      {profile.parameters.kind === "chat" ? conformance?.status === "running"
+                        ? <Button disabled={conformance.phase === "recording-result"} onClick={() => void feedback.runAction(() => configurationController.cancelConformance(profile.id))} type="button">{conformance.phase === "recording-result" ? "正在记录" : "取消检查"}</Button>
+                        : <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.checkConformance(profile.id))} type="button">符合性检查</Button>
+                        : null}
                       <Button disabled={busy} onClick={() => {
                         setEditingProfileId(profile.id);
                         setProfileDraft({
@@ -309,8 +334,9 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                       }} type="button">编辑</Button>
                       <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.deleteProfile(profile.id))} type="button">删除</Button>
                     </div>
-                  </li>
-                ))}
+                    {conformanceMessage ? <p aria-live="polite" role="status">{conformanceMessage}</p> : null}
+                  </li>;
+                })}
               </ul>
             )}
             <form className="settings-managed-form" onSubmit={submitProfile}>

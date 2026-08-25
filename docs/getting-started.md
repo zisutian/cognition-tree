@@ -128,6 +128,9 @@ loopback Provider 自动允许。非 loopback 私网 origin 必须在创建或�
 Provider/Profile 与凭据继续保留，但所有旧 Provider 都从“没有私网许可”开始，私网
 地址必须在设置中重新确认。Provider digest 的变化也会使旧符合性摘要失效，chat
 Profile 需要重新执行符合性检查。该过程不读取环境变量或旧 profile 文件。
+符合性检查会显示“等待工具调用”“等待自然语言总结”和“记录结果”阶段，并可在记录
+结果前取消。大型本地模型可能需要数分钟；浏览器通过状态轮询观察检查，不受普通 API
+请求的 30 秒上限截断，模型本身仍受该 Profile 的 timeout 限制。
 
 Ollama 发现只在用户点击后执行，默认地址是 `http://127.0.0.1:11434`。认知树只调用
 模型层 `/api/tags` 与 `/v1/chat/completions`，不调用另一个代码 Agent 的任务、MCP、

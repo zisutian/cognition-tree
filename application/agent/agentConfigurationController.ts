@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
+  AgentConformanceCheckStatus,
   AgentConfigurationSnapshot,
   AgentOllamaDiscovery,
   AgentProfileInput,
@@ -9,10 +10,12 @@ import type {
 } from "./agentConfiguration.ts";
 
 export type AgentConfigurationPort = {
-  checkConformance(
+  cancelConformance(checkId: string): Promise<AgentConformanceCheckStatus>;
+  getConformance(checkId: string): Promise<AgentConformanceCheckStatus>;
+  startConformance(
     baseRevision: string,
     profileId: string,
-  ): Promise<AgentConfigurationSnapshot>;
+  ): Promise<AgentConformanceCheckStatus>;
   createProfile(
     baseRevision: string,
     profile: AgentProfileInput,
@@ -45,6 +48,7 @@ export type AgentConfigurationPort = {
 };
 
 export type AgentConfigurationState = Readonly<{
+  conformanceChecks: Readonly<Record<string, AgentConformanceCheckStatus>>;
   configuration: AgentConfigurationSnapshot | null;
   discovery: AgentOllamaDiscovery | null;
   errorMessage: string | null;
@@ -54,6 +58,7 @@ export type AgentConfigurationState = Readonly<{
 }>;
 
 export type AgentConfigurationController = {
+  cancelConformance(profileId: string): Promise<void>;
   checkConformance(profileId: string): Promise<void>;
   createProfile(profile: AgentProfileInput): Promise<void>;
   createProvider(provider: AgentProviderInput): Promise<void>;
@@ -74,13 +79,18 @@ function message(error: unknown) {
 
 export function createAgentConfigurationController({
   onConfigurationChanged,
+  pollConformance,
+  pollConformanceIntervalMilliseconds,
   port,
 }: {
   onConfigurationChanged(): Promise<void> | void;
+  pollConformance(milliseconds: number): Promise<void>;
+  pollConformanceIntervalMilliseconds: number;
   port: AgentConfigurationPort;
 }): AgentConfigurationController {
   const listeners = new Set<() => void>();
   let state: AgentConfigurationState = {
+    conformanceChecks: {},
     configuration: null,
     discovery: null,
     errorMessage: null,
@@ -95,6 +105,14 @@ export function createAgentConfigurationController({
   const requireRevision = () => {
     if (!state.configuration) throw new Error("Agent configuration is not loaded.");
     return state.configuration.revision;
+  };
+  const publishConformance = (check: AgentConformanceCheckStatus) => {
+    publish({
+      conformanceChecks: {
+        ...state.conformanceChecks,
+        [check.profileId]: check,
+      },
+    });
   };
   const mutate = async (
     operation: (revision: string) => Promise<AgentConfigurationSnapshot>,
@@ -112,9 +130,42 @@ export function createAgentConfigurationController({
   };
 
   return {
-    checkConformance: (profileId) => mutate((revision) =>
-      port.checkConformance(revision, profileId)
-    ),
+    async cancelConformance(profileId) {
+      const check = state.conformanceChecks[profileId];
+
+      if (!check || check.status !== "running") return;
+      publishConformance(await port.cancelConformance(check.id));
+    },
+    async checkConformance(profileId) {
+      publish({ errorMessage: null, operationStatus: "working" });
+      try {
+        let check = await port.startConformance(
+          requireRevision(),
+          profileId,
+        );
+
+        publishConformance(check);
+        while (check.status === "running") {
+          await pollConformance(pollConformanceIntervalMilliseconds);
+          check = await port.getConformance(check.id);
+          publishConformance(check);
+        }
+        if (check.status === "failed") {
+          throw new Error(check.errorMessage ?? "Agent conformance check failed.");
+        }
+        if (check.status === "cancelled") {
+          publish({ operationStatus: "idle" });
+          return;
+        }
+        const configuration = await port.load();
+
+        publish({ configuration, operationStatus: "idle" });
+        await onConfigurationChanged();
+      } catch (error) {
+        publish({ errorMessage: message(error), operationStatus: "idle" });
+        throw error;
+      }
+    },
     createProfile: (profile) => mutate((revision) =>
       port.createProfile(revision, profile)
     ),

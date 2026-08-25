@@ -69,6 +69,20 @@ describe("CTN API v3 registry", () => {
         .toEqual({ domain: "any", kind: "owner-or-automation-read" });
       expect(paths["/api/v3/admin/automation-tokens"]!.post.responses)
         .toMatchObject({ "201": expect.any(Object) });
+      expect(
+        paths["/api/v3/admin/agent-profiles/{profileId}/conformance-checks"]!
+          .post.responses,
+      ).toMatchObject({ "202": expect.any(Object) });
+      expect(paths["/api/v3/admin/agent-profiles/{profileId}/conformance-check"])
+        .toBeUndefined();
+
+      await expect(dispatch<{ code: string }>(handler, {
+        method: "GET",
+        url: "/api/v3/admin/agent-conformance-checks/missing",
+      })).resolves.toMatchObject({
+        body: { code: "not_found" },
+        statusCode: 404,
+      });
 
       const repository = await createRepository(handler);
       const snapshot = await dispatch<{ revision: string }>(handler, {

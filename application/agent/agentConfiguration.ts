@@ -88,3 +88,13 @@ export type AgentProviderProbe = Readonly<{
   models: readonly string[];
   reachable: boolean;
 }>;
+
+export type AgentConformanceCheckStatus = Readonly<{
+  completedAt: string | null;
+  errorMessage: string | null;
+  id: string;
+  phase: "calling-tool" | "recording-result" | "summarizing";
+  profileId: string;
+  startedAt: string;
+  status: "cancelled" | "failed" | "running" | "succeeded";
+}>;

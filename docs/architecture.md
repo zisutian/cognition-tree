@@ -382,7 +382,10 @@ Todo 使用“集合列表 → CTN 编辑器 → 结构详情”。集合排序�
 
 Agent 使用“会话列表 → 新会话硬范围或增量对话 → proposal diff/审批”三栏布局。
 Provider、profile、URL、model、凭据、发现、探测和符合性检查只在 Settings 的
-application facade 中管理；不显示 raw
+application facade 中管理。符合性检查是服务端内存后台操作：启动请求返回 202，
+客户端以短请求读取阶段或取消，不以延长通用 HTTP 超时维持单个请求；Profile timeout
+只约束模型 turn。检查只允许一次验证工具调用，并以受限输出完成自然语言收束。
+不显示 raw
 chain-of-thought。发送、批准与 destructive confirmation 前先同步范围对应的已加载
 session，失败即阻止 HTTP 操作。Agent event sequence 缺口通过重读 session snapshot
 恢复；message delta 直接增长现有 DOM，而不是等待 turn 完成后一次替换。

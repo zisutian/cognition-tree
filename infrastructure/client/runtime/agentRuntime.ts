@@ -25,6 +25,11 @@ export function createClientAgentRuntime(
   });
   const configuration = createAgentConfigurationController({
     onConfigurationChanged: session.refreshStatus,
+    pollConformance: (milliseconds) =>
+      new Promise<void>((resolve) =>
+        globalThis.setTimeout(resolve, milliseconds)
+      ),
+    pollConformanceIntervalMilliseconds: 1_000,
     port: createHttpAgentConfigurationClient({
       baseUrl: api.baseUrl,
     }),

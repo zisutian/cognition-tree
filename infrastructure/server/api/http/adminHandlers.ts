@@ -164,15 +164,31 @@ export async function handleAgentConfigurationAdmin(
       statusCode: 200,
     };
   }
-  if (operation.operationId === "checkAgentProfileConformance") {
+  if (operation.operationId === "startAgentProfileConformanceCheck") {
     const request = await context.readJsonBody() as
       AgentConformanceCheckRequestDto;
 
     return {
-      body: await context.agentProviderOperations.checkConformance(
+      body: await context.agentProviderOperations.startConformance(
         request.baseRevision,
         route.profileId ?? "",
       ),
+      statusCode: 202,
+    };
+  }
+  if (operation.operationId === "getAgentProfileConformanceCheck") {
+    return {
+      body: context.agentProviderOperations.getConformance(
+        route.conformanceCheckId ?? "",
+      ) ?? apiNotFound("Agent conformance check does not exist"),
+      statusCode: 200,
+    };
+  }
+  if (operation.operationId === "cancelAgentProfileConformanceCheck") {
+    return {
+      body: context.agentProviderOperations.cancelConformance(
+        route.conformanceCheckId ?? "",
+      ) ?? apiNotFound("Agent conformance check does not exist"),
       statusCode: 200,
     };
   }

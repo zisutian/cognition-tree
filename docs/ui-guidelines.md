@@ -63,7 +63,7 @@
 其他：
 
     搜索左侧显示查询与领域、仓库、更新时间条件，右侧按资源分组显示结果；只在 Enter 或“搜索”按钮时提交条件。修改草稿条件后保留旧结果和滚动位置，加载更多继续使用上次已提交条件。
-    设置左侧提供“界面”“服务”“智能体”和“API 访问”。服务分区管理网络、路径、审计容量、owner credential 与数据迁移，明确区分当前生效配置和待重启配置，并显示下一访问地址；owner secret 只展示一次。智能体分区管理 Provider、Profile、默认项、凭据、显式 Ollama 发现、逐 Provider 私网确认、探测和符合性检查；secret 只写入不回读。API 访问只管理只读 automation token 与 Agent operation audit；不挂载详情和 Problems。
+    设置左侧提供“界面”“服务”“智能体”和“API 访问”。服务分区管理网络、路径、审计容量、owner credential 与数据迁移，明确区分当前生效配置和待重启配置，并显示下一访问地址；owner secret 只展示一次。智能体分区管理 Provider、Profile、默认项、凭据、显式 Ollama 发现、逐 Provider 私网确认、探测和符合性检查；检查期间逐阶段显示等待工具、等待总结和记录结果，并在记录前提供取消；secret 只写入不回读。API 访问只管理只读 automation token 与 Agent operation audit；不挂载详情和 Problems。
     远程未登录时使用独立的 owner 登录门，不挂载工作台或提前加载内容；本机访问自动进入。数据迁移展示同步、复制、校验、失败和重启状态，不暗示失败目标已成为权威。
     顶层 Activity 仅保留智能体、笔记、日记、代办、语法、搜索、仓库和设置，不渲染 Data 占位入口；底部顺序固定为智能体、搜索、仓库、设置。
 

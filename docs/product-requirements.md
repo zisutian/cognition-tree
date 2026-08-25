@@ -160,7 +160,9 @@ profile/runtime、store、revision、变更资源/块 ID、结果与时间，不
 模型回复、正文、完整 diff 或 tool output。
 
 Provider、Profile、模型参数与凭据由“设置 → 智能体”管理。Ollama 发现、provider
-探测和 profile 符合性检查均为显式操作；不自动联网、创建、选模或 fallback。
+探测和 profile 符合性检查均为显式操作；不自动联网、创建、选模或 fallback。符合性
+检查必须作为可查询、可取消的后台操作运行，不能以一个长 HTTP 请求占用客户端；检查
+使用固定的一次工具调用与受限输出，生产 Profile timeout 仍是模型执行的最终时间上限。
 Ollama 直接连接模型层而不嵌套本地代码 Agent。会话固定创建时的 provider/profile
 version、digest 与有效参数；相关 resident session 会阻止危险配置删除或凭据变更。
 
