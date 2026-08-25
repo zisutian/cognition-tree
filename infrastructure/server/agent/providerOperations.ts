@@ -74,7 +74,15 @@ async function readLimitedJson(response: Response) {
 
 async function requestJson(
   url: URL,
-  { apiKey, fetch: fetchFn }: { apiKey: string | null; fetch: typeof fetch },
+  {
+    apiKey,
+    body,
+    fetch: fetchFn,
+  }: {
+    apiKey: string | null;
+    body?: unknown;
+    fetch: typeof fetch;
+  },
 ) {
   const controller = new AbortController();
   const timeout = setTimeout(
@@ -85,7 +93,12 @@ async function requestJson(
   timeout.unref();
   try {
     const response = await fetchFn(url, {
-      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: {
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      },
+      method: body === undefined ? "GET" : "POST",
       redirect: "manual",
       signal: controller.signal,
     });
@@ -98,6 +111,48 @@ async function requestJson(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function positiveSafeInteger(value: unknown) {
+  return Number.isSafeInteger(value) && (value as number) > 0
+    ? value as number
+    : null;
+}
+
+function parseLoadedContexts(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return new Map();
+  const candidates = (value as Record<string, unknown>).models;
+
+  if (!Array.isArray(candidates)) return new Map();
+  return new Map(candidates.flatMap((candidate): Array<[string, number]> => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+      return [];
+    }
+    const record = candidate as Record<string, unknown>;
+    const model = typeof record.model === "string"
+      ? record.model
+      : typeof record.name === "string"
+        ? record.name
+        : null;
+    const context = positiveSafeInteger(record.context_length);
+
+    return model && context !== null ? [[model, context]] : [];
+  }));
+}
+
+function parseDeclaredMaximumContext(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const modelInfo = (value as Record<string, unknown>).model_info;
+
+  if (!modelInfo || typeof modelInfo !== "object" || Array.isArray(modelInfo)) {
+    return null;
+  }
+  const candidates = Object.entries(modelInfo)
+    .filter(([key]) => key.endsWith(".context_length"))
+    .map(([, candidate]) => positiveSafeInteger(candidate))
+    .filter((candidate): candidate is number => candidate !== null);
+
+  return candidates.length > 0 ? Math.max(...candidates) : null;
 }
 
 function parseModels(value: unknown) {
@@ -195,23 +250,82 @@ export class AgentProviderOperations {
     }
     if (resolved.provider.kind === "codex") {
       return {
+        modelContexts: [],
         models: [],
+        probedAt: readApiRuntimeNow(this.#runtime).timestamp,
         reachable: resolved.provider.authenticationStatus === "configured",
       };
     }
     const endpoint = validatedEndpoint(resolved.provider.baseUrl!);
-    await this.#targetPolicy.assertRequestTarget(
-      endpoint,
-      resolved.privateNetworkOrigin,
-    );
     const path = resolved.provider.kind === "ollama" ? "api/tags" : "models";
     const url = new URL(path, `${endpoint.toString().replace(/\/?$/, "/")}`);
+    await this.#targetPolicy.assertRequestTarget(
+      url,
+      resolved.privateNetworkOrigin,
+    );
     const models = parseModels(await requestJson(url, {
       apiKey: resolved.apiKey,
       fetch: this.#fetch,
     }));
 
-    return { models, reachable: true };
+    if (resolved.provider.kind !== "ollama") {
+      return {
+        modelContexts: [],
+        models,
+        probedAt: readApiRuntimeNow(this.#runtime).timestamp,
+        reachable: true,
+      };
+    }
+    const snapshot = await this.#configurationStore.readSnapshot();
+    const configuredModels = [...new Set(snapshot.profiles
+      .filter(({ providerId: candidate }) => candidate === providerId)
+      .map(({ model }) => model))].sort();
+    const psUrl = new URL(
+      "api/ps",
+      `${endpoint.toString().replace(/\/?$/, "/")}`,
+    );
+
+    await this.#targetPolicy.assertRequestTarget(
+      psUrl,
+      resolved.privateNetworkOrigin,
+    );
+    const loadedContexts = parseLoadedContexts(await requestJson(psUrl, {
+      apiKey: resolved.apiKey,
+      fetch: this.#fetch,
+    }));
+    const modelContexts = [];
+
+    for (const model of configuredModels) {
+      const showUrl = new URL(
+        "api/show",
+        `${endpoint.toString().replace(/\/?$/, "/")}`,
+      );
+
+      await this.#targetPolicy.assertRequestTarget(
+        showUrl,
+        resolved.privateNetworkOrigin,
+      );
+      const declaredMaximumContextTokens = parseDeclaredMaximumContext(
+        await requestJson(showUrl, {
+          apiKey: resolved.apiKey,
+          body: { model },
+          fetch: this.#fetch,
+        }),
+      );
+
+      modelContexts.push({
+        declaredMaximumContextTokens,
+        loadedContextTokens: loadedContexts.get(model) ?? null,
+        model,
+      });
+    }
+
+    return {
+      modelContexts,
+      models,
+      probedAt: readApiRuntimeNow(this.#runtime).timestamp,
+      reachable: true,
+    };
   }
 
   async startConformance(baseRevision: string, profileId: string) {

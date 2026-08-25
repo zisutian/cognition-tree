@@ -124,7 +124,7 @@ async function createFixture(behavior: TurnBehavior) {
       maxResidentSessions: 2,
       model: "fake",
       parameters: {
-        contextWindowTokens: 8_192,
+        historyBudgetCharacters: 32_768,
         kind: "chat",
         maxOutputTokens: 1_024,
         maxToolSteps: 8,
@@ -396,14 +396,14 @@ describe("Agent service proposal lifecycle", () => {
       attempt += 1;
       if (attempt === 1) {
         await request.onEvent({
-          reason: "Configured context window reached",
+          reason: "会话历史预算已达到",
           type: "compaction-required",
         });
         throw new AgentContextLimitError();
       }
       const summary = request.messages[0]?.content ?? "";
 
-      expect(summary).toContain("上下文已压缩：Configured context window reached");
+      expect(summary).toContain("上下文已压缩：会话历史预算已达到");
       expect(summary.match(/上下文已压缩/g)).toHaveLength(1);
       return { finalText: "Retried after compaction.", toolCalls: 0 };
     });

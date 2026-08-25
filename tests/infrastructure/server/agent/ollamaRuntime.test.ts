@@ -19,7 +19,7 @@ function profile(
 ): OllamaAgentProfile {
   return {
     baseUrl,
-    contextWindowTokens: 8_192,
+    historyBudgetCharacters: 32_768,
     id: "ollama-test",
     kind: "ollama",
     label: "Ollama test",

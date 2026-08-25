@@ -62,7 +62,7 @@ export function createAgentRuntimeProfile(
     }
     return {
       baseUrl: `${provider.baseUrl.replace(/\/$/, "")}/v1`,
-      contextWindowTokens: profile.parameters.contextWindowTokens,
+      historyBudgetCharacters: profile.parameters.historyBudgetCharacters,
       id: profile.id,
       kind: "ollama",
       label: profile.label,
@@ -82,7 +82,7 @@ export function createAgentRuntimeProfile(
   }
   return {
     baseUrl: provider.baseUrl,
-    contextWindowTokens: profile.parameters.contextWindowTokens,
+    historyBudgetCharacters: profile.parameters.historyBudgetCharacters,
     id: profile.id,
     kind: "openai-chat",
     label: profile.label,

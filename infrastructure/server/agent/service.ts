@@ -731,7 +731,7 @@ export class AgentService {
         compacted = true;
         this.#compactHistory(
           record,
-          "Configured context window reached",
+          "会话历史预算已达到",
           messageId,
         );
         this.#emitSnapshot(record);

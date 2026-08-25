@@ -66,7 +66,7 @@ describe("Agent configuration store", () => {
     const fileStats = await stat(file);
 
     expect(source).toContain("provider-secret");
-    expect(JSON.parse(source)).toMatchObject({ formatVersion: 2 });
+    expect(JSON.parse(source)).toMatchObject({ formatVersion: 3 });
     expect(fileStats.mode & 0o777).toBe(0o600);
   });
 
@@ -140,7 +140,7 @@ describe("Agent configuration store", () => {
         maxResidentSessions: 1,
         model: "qwen2.5-coder:7b",
         parameters: {
-          contextWindowTokens: 32_768,
+          historyBudgetCharacters: 131_072,
           kind: "chat",
           maxOutputTokens: 4_096,
           maxToolSteps: 16,
@@ -236,9 +236,143 @@ describe("Agent configuration store", () => {
       privateNetworkAccess: "not-required",
     });
     expect(JSON.parse(await readFile(file, "utf8"))).toMatchObject({
-      formatVersion: 2,
+      formatVersion: 3,
       providers: [{ privateNetworkOrigin: null }],
     });
+  });
+
+  it("atomically migrates token estimates to character budgets and invalidates chat conformance", async () => {
+    const { directory, store } = await createStore();
+    let configuration = await store.readSnapshot();
+    const provider = await store.createProvider(configuration.revision, {
+      authenticationType: "none",
+      baseUrl: "http://127.0.0.1:11434",
+      kind: "ollama",
+      label: "Existing Ollama",
+      privateNetworkAccessConfirmed: false,
+    });
+
+    configuration = provider.configuration;
+    for (const historyBudgetCharacters of [65_536, 131_072]) {
+      const created = await store.createProfile(configuration.revision, {
+        label: `Budget ${historyBudgetCharacters}`,
+        maxResidentSessions: 1,
+        model: `model-${historyBudgetCharacters}`,
+        parameters: {
+          historyBudgetCharacters,
+          kind: "chat",
+          maxOutputTokens: 1_024,
+          maxToolSteps: 8,
+          toolCallMode: "single-json",
+        },
+        providerId: provider.provider.id,
+        timeoutMilliseconds: 60_000,
+      });
+
+      configuration = (await store.setConformance(
+        created.configuration.revision,
+        created.profile.id,
+        {
+          checkedAt: "2026-08-25T00:00:00.000Z",
+          toolCallMode: "single-json",
+        },
+      )).configuration;
+    }
+    const file = path.join(
+      directory,
+      "agent-config-v1",
+      "configuration.json",
+    );
+    const legacy = JSON.parse(await readFile(file, "utf8")) as {
+      formatVersion: number;
+      profiles: Array<{
+        parameters: Record<string, unknown>;
+      }>;
+    };
+
+    legacy.formatVersion = 2;
+    for (const profile of legacy.profiles) {
+      profile.parameters.contextWindowTokens =
+        Number(profile.parameters.historyBudgetCharacters) / 4;
+      delete profile.parameters.historyBudgetCharacters;
+    }
+    await writeFile(file, `${JSON.stringify(legacy)}\n`, { mode: 0o600 });
+
+    const migrated = await new AgentConfigurationStore(directory).readSnapshot();
+    const persisted = JSON.parse(await readFile(file, "utf8")) as Record<
+      string,
+      unknown
+    >;
+
+    expect(migrated.profiles.map((profile) => ({
+      budget: profile.parameters.kind === "chat"
+        ? profile.parameters.historyBudgetCharacters
+        : null,
+      conformance: profile.conformance,
+      id: profile.id,
+      version: profile.version,
+    }))).toEqual([
+      {
+        budget: 65_536,
+        conformance: null,
+        id: "agent-profile-profile-1",
+        version: 2,
+      },
+      {
+        budget: 131_072,
+        conformance: null,
+        id: "agent-profile-provider-2",
+        version: 2,
+      },
+    ]);
+    expect(persisted).toMatchObject({ formatVersion: 3 });
+    expect(JSON.stringify(persisted)).not.toContain("contextWindowTokens");
+  });
+
+  it("fails closed without rewriting an unsafe legacy character-budget migration", async () => {
+    const { directory, store } = await createStore();
+    const initial = await store.readSnapshot();
+    const provider = await store.createProvider(initial.revision, {
+      authenticationType: "none",
+      baseUrl: "http://127.0.0.1:11434",
+      kind: "ollama",
+      label: "Existing Ollama",
+      privateNetworkAccessConfirmed: false,
+    });
+    await store.createProfile(provider.configuration.revision, {
+      label: "Unsafe legacy budget",
+      maxResidentSessions: 1,
+      model: "legacy-model",
+      parameters: {
+        historyBudgetCharacters: 65_536,
+        kind: "chat",
+        maxOutputTokens: 1_024,
+        maxToolSteps: 8,
+        toolCallMode: "single-json",
+      },
+      providerId: provider.provider.id,
+      timeoutMilliseconds: 60_000,
+    });
+    const file = path.join(
+      directory,
+      "agent-config-v1",
+      "configuration.json",
+    );
+    const legacy = JSON.parse(await readFile(file, "utf8")) as {
+      formatVersion: number;
+      profiles: Array<{ parameters: Record<string, unknown> }>;
+    };
+
+    legacy.formatVersion = 2;
+    legacy.profiles[0]!.parameters.contextWindowTokens =
+      Number.MAX_SAFE_INTEGER;
+    delete legacy.profiles[0]!.parameters.historyBudgetCharacters;
+    const source = `${JSON.stringify(legacy)}\n`;
+
+    await writeFile(file, source, { mode: 0o600 });
+    await expect(new AgentConfigurationStore(directory).readSnapshot())
+      .rejects.toThrow("outside the safe integer range");
+    expect(await readFile(file, "utf8")).toBe(source);
   });
 
   it.each([

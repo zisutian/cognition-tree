@@ -47,7 +47,7 @@ type ProviderDraft = {
 };
 
 type ProfileDraft = {
-  contextWindowTokens: number;
+  historyBudgetCharacters: number;
   label: string;
   maxInputCharacters: number;
   maxOutputCharacters: number;
@@ -71,7 +71,7 @@ const emptyProvider = (): ProviderDraft => ({
 });
 
 const emptyProfile = (): ProfileDraft => ({
-  contextWindowTokens: 32_768,
+  historyBudgetCharacters: 131_072,
   label: "",
   maxInputCharacters: 100_000,
   maxOutputCharacters: 50_000,
@@ -116,7 +116,7 @@ function profileInput(
           reasoningEffort: draft.reasoningEffort,
         }
       : {
-          contextWindowTokens: draft.contextWindowTokens,
+          historyBudgetCharacters: draft.historyBudgetCharacters,
           kind: "chat",
           maxOutputTokens: draft.maxOutputTokens,
           maxToolSteps: draft.maxToolSteps,
@@ -250,7 +250,15 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                       <strong>{provider.label}</strong>
                       <p>{provider.kind} · {provider.baseUrl ?? "Codex app-server"} · {authenticationLabels[provider.authenticationStatus]}</p>
                       <p>私网许可：{provider.privateNetworkAccess === "confirmed" ? "已确认当前地址" : "不需要"}</p>
-                      {configurationState.probes[provider.id] ? <p>探测模型：{configurationState.probes[provider.id]!.models.join("、") || "无"}</p> : null}
+                      {configurationState.probes[provider.id] ? <>
+                        <p>探测模型：{configurationState.probes[provider.id]!.models.join("、") || "无"}</p>
+                        <p>探测时间：{configurationState.probes[provider.id]!.probedAt}</p>
+                        {configurationState.probes[provider.id]!.modelContexts.map((context) => (
+                          <p key={context.model}>
+                            {context.model} · 模型声明上限：{context.declaredMaximumContextTokens ?? "未知"} tokens · 当前加载：{context.loadedContextTokens ?? "未知"} tokens
+                          </p>
+                        ))}
+                      </> : null}
                     </div>
                     <div className="ui-actions">
                       <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.probeProvider(provider.id))} type="button">探测</Button>
@@ -318,7 +326,7 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                       <Button disabled={busy} onClick={() => {
                         setEditingProfileId(profile.id);
                         setProfileDraft({
-                          contextWindowTokens: profile.parameters.kind === "chat" ? profile.parameters.contextWindowTokens : 32_768,
+                          historyBudgetCharacters: profile.parameters.kind === "chat" ? profile.parameters.historyBudgetCharacters : 131_072,
                           label: profile.label,
                           maxInputCharacters: profile.parameters.kind === "codex" ? profile.parameters.maxInputCharacters : 100_000,
                           maxOutputCharacters: profile.parameters.kind === "codex" ? profile.parameters.maxOutputCharacters : 50_000,
@@ -370,7 +378,8 @@ function CodexProfileFields({ draft, setDraft }: { draft: ProfileDraft; setDraft
 function ChatProfileFields({ draft, providerKind, setDraft }: { draft: ProfileDraft; providerKind: AgentProviderKind; setDraft(value: ProfileDraft): void }) {
   return <>
     <label><span>工具模式</span><select aria-label="Profile 工具模式" className="ui-input" onChange={(event) => setDraft({ ...draft, toolCallMode: event.currentTarget.value as AgentToolCallMode })} value={draft.toolCallMode}><option value="native">native</option>{providerKind === "ollama" ? <option value="single-json">single-json</option> : null}</select></label>
-    <label><span>上下文</span><input aria-label="Profile 上下文" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, contextWindowTokens: event.currentTarget.valueAsNumber })} type="number" value={draft.contextWindowTokens} /></label>
+    <label><span>会话历史预算（字符）</span><input aria-label="Profile 会话历史预算（字符）" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, historyBudgetCharacters: event.currentTarget.valueAsNumber })} type="number" value={draft.historyBudgetCharacters} /></label>
+    <p className="settings-muted">仅控制 Cognition Tree 何时压缩内存对话；不会修改 Ollama num_ctx，也不代表模型的真实 token 上限。</p>
     <label><span>输出 tokens</span><input aria-label="Profile 输出 Tokens" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxOutputTokens: event.currentTarget.valueAsNumber })} type="number" value={draft.maxOutputTokens} /></label>
     <label><span>工具步数</span><input aria-label="Profile 工具步数" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxToolSteps: event.currentTarget.valueAsNumber })} type="number" value={draft.maxToolSteps} /></label>
   </>;

@@ -51,7 +51,7 @@ const AgentCodexProfileParametersSchema = strictObject({
   ]),
 });
 const AgentChatProfileParametersSchema = strictObject({
-  contextWindowTokens: positiveInteger,
+  historyBudgetCharacters: positiveInteger,
   kind: Type.Literal("chat"),
   maxOutputTokens: positiveInteger,
   maxToolSteps: positiveInteger,
@@ -143,7 +143,13 @@ export type AgentOllamaDiscoveryRequestDto = Static<
 >;
 
 export const AgentProviderProbeResultSchema = strictObject({
+  modelContexts: Type.Array(strictObject({
+    declaredMaximumContextTokens: nullable(positiveInteger),
+    loadedContextTokens: nullable(positiveInteger),
+    model: ApiIdentifierSchema,
+  })),
   models: Type.Array(ApiIdentifierSchema, { uniqueItems: true }),
+  probedAt: ApiCanonicalTimestampSchema,
   reachable: Type.Boolean(),
 });
 

@@ -27,6 +27,7 @@ describe("Agent provider operations", () => {
   it("discovers Ollama and verifies the pinned single-json mode explicitly", async () => {
     let completion = 0;
     const completionBodies: Array<Record<string, unknown>> = [];
+    const showBodies: Array<Record<string, unknown>> = [];
     const requests: string[] = [];
     const server = createServer(async (request, response) => {
       requests.push(request.url ?? "");
@@ -37,9 +38,24 @@ describe("Agent provider operations", () => {
         }));
         return;
       }
+      if (request.url === "/api/ps") {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({
+          models: [{ context_length: 24_576, name: "qwen3:8b" }],
+        }));
+        return;
+      }
       let body = "";
 
       for await (const chunk of request) body += chunk.toString();
+      if (request.url === "/api/show") {
+        showBodies.push(JSON.parse(body) as Record<string, unknown>);
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({
+          model_info: { "qwen3.context_length": 262_144 },
+        }));
+        return;
+      }
       completionBodies.push(JSON.parse(body) as Record<string, unknown>);
       completion += 1;
       writeSse(
@@ -88,16 +104,12 @@ describe("Agent provider operations", () => {
       });
 
       configuration = provider.configuration;
-      expect(await operations.probe(provider.provider.id)).toEqual({
-        models: ["qwen3:8b"],
-        reachable: true,
-      });
       const profile = await store.createProfile(configuration.revision, {
         label: "Local writer",
         maxResidentSessions: 1,
         model: "qwen3:8b",
         parameters: {
-          contextWindowTokens: 8_192,
+          historyBudgetCharacters: 32_768,
           kind: "chat",
           maxOutputTokens: 1_024,
           maxToolSteps: 2,
@@ -105,6 +117,17 @@ describe("Agent provider operations", () => {
         },
         providerId: provider.provider.id,
         timeoutMilliseconds: 5_000,
+      });
+
+      expect(await operations.probe(provider.provider.id)).toEqual({
+        modelContexts: [{
+          declaredMaximumContextTokens: 262_144,
+          loadedContextTokens: 24_576,
+          model: "qwen3:8b",
+        }],
+        models: ["qwen3:8b"],
+        probedAt: "2026-08-25T00:00:00.000Z",
+        reachable: true,
       });
 
       expect(profile.profile.availability).toBe("unavailable");
@@ -129,9 +152,12 @@ describe("Agent provider operations", () => {
       expect(requests).toEqual([
         "/api/tags",
         "/api/tags",
+        "/api/ps",
+        "/api/show",
         "/v1/chat/completions",
         "/v1/chat/completions",
       ]);
+      expect(showBodies).toEqual([{ model: "qwen3:8b" }]);
       expect(completionBodies).toHaveLength(2);
       const offered = completionBodies[0]?.tools as Array<{
         function: { name: string; parameters: Record<string, unknown> };
@@ -171,6 +197,86 @@ describe("Agent provider operations", () => {
       expect(fetchFn).not.toHaveBeenCalled();
     } finally {
       await operations.dispose();
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("reports unknown Ollama context facts without changing the profile", async () => {
+    const server = createServer(async (request, response) => {
+      if (request.url === "/api/tags") {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ models: [{ name: "configured-model" }] }));
+        return;
+      }
+      if (request.url === "/api/ps") {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ models: [] }));
+        return;
+      }
+      if (request.url === "/api/show") {
+        for await (const _chunk of request) {
+          // Drain the request before responding like Ollama.
+        }
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ model_info: {} }));
+        return;
+      }
+      response.writeHead(404).end();
+    });
+
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+
+    if (!address || typeof address === "string") throw new Error("Missing port");
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const store = new AgentConfigurationStore(directory);
+    const operations = new AgentProviderOperations({
+      configurationStore: store,
+      runtime,
+    });
+
+    try {
+      const initial = await store.readSnapshot();
+      const provider = await store.createProvider(initial.revision, {
+        authenticationType: "none",
+        baseUrl: `http://127.0.0.1:${address.port}`,
+        kind: "ollama",
+        label: "Local Ollama",
+        privateNetworkAccessConfirmed: false,
+      });
+      const profile = await store.createProfile(provider.configuration.revision, {
+        label: "Configured model",
+        maxResidentSessions: 1,
+        model: "configured-model",
+        parameters: {
+          historyBudgetCharacters: 65_536,
+          kind: "chat",
+          maxOutputTokens: 1_024,
+          maxToolSteps: 8,
+          toolCallMode: "single-json",
+        },
+        providerId: provider.provider.id,
+        timeoutMilliseconds: 60_000,
+      });
+
+      await expect(operations.probe(provider.provider.id)).resolves.toEqual({
+        modelContexts: [{
+          declaredMaximumContextTokens: null,
+          loadedContextTokens: null,
+          model: "configured-model",
+        }],
+        models: ["configured-model"],
+        probedAt: "2026-08-25T00:00:00.000Z",
+        reachable: true,
+      });
+      expect((await store.readSnapshot()).revision).toBe(
+        profile.configuration.revision,
+      );
+    } finally {
+      await operations.dispose();
+      server.close();
+      await once(server, "close");
       await rm(directory, { force: true, recursive: true });
     }
   });
@@ -217,7 +323,7 @@ describe("Agent provider operations", () => {
         maxResidentSessions: 1,
         model: "qwen3.8:27b",
         parameters: {
-          contextWindowTokens: 16_384,
+          historyBudgetCharacters: 65_536,
           kind: "chat",
           maxOutputTokens: 2_048,
           maxToolSteps: 8,

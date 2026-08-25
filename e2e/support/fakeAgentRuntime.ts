@@ -46,7 +46,7 @@ export async function createE2EAgentConfigurationStore(stateDirectory: string) {
       maxResidentSessions: 4,
       model,
       parameters: {
-        contextWindowTokens: 8_192,
+        historyBudgetCharacters: 32_768,
         kind: "chat",
         maxOutputTokens: 1_024,
         maxToolSteps: 8,
@@ -77,7 +77,7 @@ export async function createE2EAgentConfigurationStore(stateDirectory: string) {
       maxResidentSessions: 4,
       model: "deterministic-e2e-unavailable",
       parameters: {
-        contextWindowTokens: 8_192,
+        historyBudgetCharacters: 32_768,
         kind: "chat",
         maxOutputTokens: 1_024,
         maxToolSteps: 8,

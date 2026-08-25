@@ -154,6 +154,14 @@ test.describe("settings activity flows", () => {
     await expect(selection).toHaveValue("");
     await expect(panel).toContainText("deterministic-e2e");
     await expect(panel).toContainText("认证已配置");
+    await panel.getByRole("combobox", { name: "Profile Provider" })
+      .selectOption("agent-provider-e2e-provider");
+    await expect(panel.getByRole("spinbutton", {
+      name: "Profile 会话历史预算（字符）",
+    })).toHaveValue("131072");
+    await expect(panel).toContainText(
+      "不会修改 Ollama num_ctx，也不代表模型的真实 token 上限",
+    );
     await selection.selectOption(e2eAgentProfileId);
     await expect(selection).toHaveValue(e2eAgentProfileId);
 

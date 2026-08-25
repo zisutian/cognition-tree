@@ -23,7 +23,7 @@ import {
 import { createStateDigest } from "../state/stateDigest.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 
-const formatVersion = 2;
+const formatVersion = 3;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const requiresFormatRewrite = Symbol("requiresAgentConfigurationFormatRewrite");
 
@@ -201,7 +201,11 @@ function parseProvider(
   };
 }
 
-function parseParameters(value: unknown, pathLabel: string): AgentProfileParameters {
+function parseParameters(
+  value: unknown,
+  pathLabel: string,
+  legacyChatBudget: boolean,
+): AgentProfileParameters {
   const record = requireStateRecord(value, pathLabel);
 
   if (record.kind === "codex") {
@@ -231,18 +235,41 @@ function parseParameters(value: unknown, pathLabel: string): AgentProfileParamet
     };
   }
   if (record.kind === "chat") {
-    assertStateFields(record, [
-      "contextWindowTokens", "kind", "maxOutputTokens", "maxToolSteps",
-      "toolCallMode",
-    ], pathLabel);
+    assertStateFields(
+      record,
+      [
+        legacyChatBudget
+          ? "contextWindowTokens"
+          : "historyBudgetCharacters",
+        "kind",
+        "maxOutputTokens",
+        "maxToolSteps",
+        "toolCallMode",
+      ],
+      pathLabel,
+    );
     if (record.toolCallMode !== "native" && record.toolCallMode !== "single-json") {
       throw new Error(`${pathLabel}.toolCallMode is invalid.`);
     }
+    const storedBudget = positiveInteger(
+      legacyChatBudget
+        ? record.contextWindowTokens
+        : record.historyBudgetCharacters,
+      `${pathLabel}.${
+        legacyChatBudget
+          ? "contextWindowTokens"
+          : "historyBudgetCharacters"
+      }`,
+    );
+    const historyBudgetCharacters = legacyChatBudget
+      ? storedBudget * 4
+      : storedBudget;
+
+    if (!Number.isSafeInteger(historyBudgetCharacters)) {
+      throw new Error(`${pathLabel}.historyBudgetCharacters is outside the safe integer range.`);
+    }
     return {
-      contextWindowTokens: positiveInteger(
-        record.contextWindowTokens,
-        `${pathLabel}.contextWindowTokens`,
-      ),
+      historyBudgetCharacters,
       kind: "chat",
       maxOutputTokens: positiveInteger(
         record.maxOutputTokens,
@@ -279,7 +306,11 @@ function parseConformance(
   };
 }
 
-function parseProfile(value: unknown, index: number): StoredProfile {
+function parseProfile(
+  value: unknown,
+  index: number,
+  legacyChatBudget: boolean,
+): StoredProfile {
   const pathLabel = `profiles[${index}]`;
   const record = requireStateRecord(value, pathLabel);
 
@@ -287,8 +318,27 @@ function parseProfile(value: unknown, index: number): StoredProfile {
     "conformance", "id", "label", "maxResidentSessions", "model",
     "parameters", "providerId", "timeoutMilliseconds", "version",
   ], pathLabel);
+  const parameters = parseParameters(
+    record.parameters,
+    `${pathLabel}.parameters`,
+    legacyChatBudget,
+  );
+  const conformance = parseConformance(
+    record.conformance,
+    `${pathLabel}.conformance`,
+  );
+  const version = positiveInteger(record.version, `${pathLabel}.version`);
+  const migratedVersion = legacyChatBudget && parameters.kind === "chat"
+    ? version + 1
+    : version;
+
+  if (!Number.isSafeInteger(migratedVersion)) {
+    throw new Error(`${pathLabel}.version is outside the safe integer range.`);
+  }
   return {
-    conformance: parseConformance(record.conformance, `${pathLabel}.conformance`),
+    conformance: legacyChatBudget && parameters.kind === "chat"
+      ? null
+      : conformance,
     id: nonEmptyString(record.id, `${pathLabel}.id`),
     label: nonEmptyString(record.label, `${pathLabel}.label`),
     maxResidentSessions: positiveInteger(
@@ -296,13 +346,13 @@ function parseProfile(value: unknown, index: number): StoredProfile {
       `${pathLabel}.maxResidentSessions`,
     ),
     model: nonEmptyString(record.model, `${pathLabel}.model`),
-    parameters: parseParameters(record.parameters, `${pathLabel}.parameters`),
+    parameters,
     providerId: nonEmptyString(record.providerId, `${pathLabel}.providerId`),
     timeoutMilliseconds: positiveInteger(
       record.timeoutMilliseconds,
       `${pathLabel}.timeoutMilliseconds`,
     ),
-    version: positiveInteger(record.version, `${pathLabel}.version`),
+    version: migratedVersion,
   };
 }
 
@@ -337,20 +387,24 @@ function parseConfigurationState(value: unknown): AgentConfigurationState {
 
   assertStateFields(record, ["formatVersion", "profiles", "providers"], "Agent configuration state");
   const legacyWithoutPrivatePermission = record.formatVersion === 1;
+  const legacyChatBudget = record.formatVersion === 1 ||
+    record.formatVersion === 2;
 
-  if ((!legacyWithoutPrivatePermission && record.formatVersion !== formatVersion) ||
+  if ((!legacyChatBudget && record.formatVersion !== formatVersion) ||
       !Array.isArray(record.profiles) || !Array.isArray(record.providers)) {
     throw new Error("Agent configuration state has an invalid format.");
   }
   const state: AgentConfigurationState = {
     formatVersion,
-    profiles: record.profiles.map(parseProfile),
+    profiles: record.profiles.map((profile, index) =>
+      parseProfile(profile, index, legacyChatBudget)
+    ),
     providers: record.providers.map((provider, index) =>
       parseProvider(provider, index, legacyWithoutPrivatePermission)
     ),
   };
 
-  if (legacyWithoutPrivatePermission) {
+  if (record.formatVersion !== formatVersion) {
     Object.defineProperty(state, requiresFormatRewrite, {
       configurable: true,
       value: true,
@@ -514,7 +568,11 @@ function normalizeProfileInput(
   input: AgentProfileInput,
   provider: StoredProvider,
 ): Omit<StoredProfile, "conformance" | "id" | "version"> {
-  const parameters = parseParameters(input.parameters, "Profile parameters");
+  const parameters = parseParameters(
+    input.parameters,
+    "Profile parameters",
+    false,
+  );
 
   if ((provider.kind === "codex") !== (parameters.kind === "codex")) {
     throw new AgentConfigurationValidationError(

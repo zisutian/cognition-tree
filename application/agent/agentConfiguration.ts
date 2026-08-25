@@ -22,7 +22,7 @@ export type AgentCodexProfileParameters = Readonly<{
 }>;
 
 export type AgentChatProfileParameters = Readonly<{
-  contextWindowTokens: number;
+  historyBudgetCharacters: number;
   kind: "chat";
   maxOutputTokens: number;
   maxToolSteps: number;
@@ -85,7 +85,13 @@ export type AgentOllamaDiscovery = Readonly<{
 }>;
 
 export type AgentProviderProbe = Readonly<{
+  modelContexts: readonly Readonly<{
+    declaredMaximumContextTokens: number | null;
+    loadedContextTokens: number | null;
+    model: string;
+  }>[];
   models: readonly string[];
+  probedAt: string;
   reachable: boolean;
 }>;
 

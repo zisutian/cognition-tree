@@ -42,6 +42,32 @@ describe("Agent configuration admin API", () => {
         kind: "openai-chat",
       });
       expect(JSON.stringify(withProvider.body)).not.toContain(secret);
+      const legacyProfile = await dispatch<{ code: string }>(handler, {
+        body: {
+          baseRevision: withProvider.body!.revision,
+          profile: {
+            label: "Legacy writer",
+            maxResidentSessions: 2,
+            model: "local-model",
+            parameters: {
+              contextWindowTokens: 8192,
+              kind: "chat",
+              maxOutputTokens: 1024,
+              maxToolSteps: 8,
+              toolCallMode: "native",
+            },
+            providerId: withProvider.body!.providers[0]!.id,
+            timeoutMilliseconds: 5000,
+          },
+        },
+        method: "POST",
+        url: "/api/v3/admin/agent-profiles",
+      });
+
+      expect(legacyProfile).toMatchObject({
+        body: { code: "invalid_request" },
+        statusCode: 400,
+      });
       const profile = await dispatch<AgentConfigurationSnapshot>(handler, {
         body: {
           baseRevision: withProvider.body!.revision,
@@ -50,7 +76,7 @@ describe("Agent configuration admin API", () => {
             maxResidentSessions: 2,
             model: "local-model",
             parameters: {
-              contextWindowTokens: 8192,
+              historyBudgetCharacters: 32768,
               kind: "chat",
               maxOutputTokens: 1024,
               maxToolSteps: 8,
@@ -82,7 +108,7 @@ describe("Agent configuration admin API", () => {
             maxResidentSessions: 2,
             model: "local-model",
             parameters: {
-              contextWindowTokens: 8192,
+              historyBudgetCharacters: 32768,
               kind: "chat",
               maxOutputTokens: 1024,
               maxToolSteps: 8,

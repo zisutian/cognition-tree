@@ -43,7 +43,13 @@ function port(): AgentConfigurationPort {
     getConformance: vi.fn(async () => check("succeeded")),
     load: vi.fn(async () => snapshot("1")),
     probeProvider: vi.fn(async () => ({
+      modelContexts: [{
+        declaredMaximumContextTokens: 262_144,
+        loadedContextTokens: 24_576,
+        model: "qwen3:8b",
+      }],
       models: ["qwen3:8b"],
+      probedAt: "2026-08-25T00:00:00.000Z",
       reachable: true,
     })),
     startConformance: vi.fn(async () => check("running")),

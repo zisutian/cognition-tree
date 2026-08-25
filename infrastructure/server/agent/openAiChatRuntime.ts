@@ -24,7 +24,7 @@ export class AgentRuntimeProtocolError extends Error {
 
 export class AgentContextLimitError extends Error {
   constructor() {
-    super("Agent context is approaching the configured limit");
+    super("Agent conversation history reached its character budget");
     this.name = "AgentContextLimitError";
   }
 }
@@ -64,11 +64,9 @@ function endpoint(baseUrl: string) {
   return `${baseUrl.replace(/\/$/, "")}/chat/completions`;
 }
 
-function approximateTokens(messages: readonly ChatMessage[]) {
-  const characters = messages.reduce((total, message) =>
+function historyCharacters(messages: readonly ChatMessage[]) {
+  return messages.reduce((total, message) =>
     total + JSON.stringify(message).length, 0);
-
-  return Math.ceil(characters / 4);
 }
 
 function parseChunk(value: unknown) {
@@ -304,9 +302,11 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
       let toolCalls = 0;
 
       for (let step = 0; step <= this.#profile.maxToolSteps; step += 1) {
-        if (approximateTokens(messages) >= this.#profile.contextWindowTokens) {
+        if (
+          historyCharacters(messages) >= this.#profile.historyBudgetCharacters
+        ) {
           await request.onEvent({
-            reason: "Configured context window reached",
+            reason: "会话历史预算已达到",
             type: "compaction-required",
           });
           throw new AgentContextLimitError();

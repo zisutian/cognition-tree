@@ -33,7 +33,7 @@ function writeSse(response: ServerResponse, values: unknown[]) {
 function profile(baseUrl: string): OpenAiChatAgentProfile {
   return {
     baseUrl,
-    contextWindowTokens: 8_192,
+    historyBudgetCharacters: 32_768,
     id: "openai-test",
     kind: "openai-chat",
     label: "OpenAI test",
@@ -55,6 +55,42 @@ const journalCreateTool = {
 } as const;
 
 describe("OpenAI-compatible Agent runtime", () => {
+  it("requests compaction from the direct serialized character budget", async () => {
+    const runtimeProfile = {
+      ...profile("http://127.0.0.1:1/v1"),
+      historyBudgetCharacters: 1,
+    };
+    const session = await new OpenAiChatRuntime(
+      runtimeProfile,
+      "server-secret",
+    ).openSession({
+      instructions: "shared instructions",
+      profileId: "openai-test",
+      scope: { domain: "journal", entryIds: null },
+      sessionId: "00000000-0000-4000-8000-000000000001",
+    });
+    const events: unknown[] = [];
+
+    try {
+      await expect(session.runTurn({
+        executeTool: vi.fn(),
+        messages: [{ content: "hello", role: "user" }],
+        onEvent(event) {
+          events.push(event);
+        },
+        scope: { domain: "journal", entryIds: null },
+        signal: new AbortController().signal,
+        tools: [],
+      })).rejects.toMatchObject({ name: "AgentContextLimitError" });
+      expect(events).toEqual([{
+        reason: "会话历史预算已达到",
+        type: "compaction-required",
+      }]);
+    } finally {
+      await session.dispose();
+    }
+  });
+
   it("streams text and executes sequential tool calls through the supplied port", async () => {
     const requests: Record<string, unknown>[] = [];
     const server = createServer(async (request, response) => {
