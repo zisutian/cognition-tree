@@ -74,4 +74,28 @@ describe("HTTP Agent client", () => {
       `https://ctn.example/api/v3/agent/sessions/${sessionId}/events?afterSequence=8`,
     );
   });
+
+  it("treats a clean SSE end as a reconnect signal instead of an error", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.close();
+      },
+    });
+    const client = createHttpAgentClient({
+      baseUrl: "https://ctn.example",
+      fetch: vi.fn(async () => new Response(stream, {
+        headers: { "Content-Type": "text/event-stream" },
+      })) as typeof globalThis.fetch,
+    });
+    const closed = new Promise<unknown>((resolve) => {
+      client.openEvents({
+        afterSequence: 0,
+        onClose: resolve,
+        onEvent: vi.fn(),
+        sessionId,
+      });
+    });
+
+    await expect(closed).resolves.toBeNull();
+  });
 });

@@ -171,7 +171,8 @@ export function createHttpAgentClient({
               boundary = buffer.indexOf("\n\n");
             }
             if (done) {
-              throw new Error("Agent event stream ended.");
+              if (!closed && !controller.signal.aborted) onClose(null);
+              return;
             }
           }
         } catch (error) {

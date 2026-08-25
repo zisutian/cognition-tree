@@ -87,26 +87,14 @@ function replaceProposal(
 }
 
 function projectConfigurationProblems(status: AgentStatus): AgentClientProblem[] {
-  return [
-    ...(status.configurationProblem
-      ? [{
-          code: "configuration_unavailable",
-          id: "agent-configuration-problem",
-          message: status.configurationProblem,
-          sessionId: null,
-        }]
-      : []),
-    ...status.profiles.flatMap((profile) =>
-      profile.availability === "unavailable" && profile.unavailableReason
-        ? [{
-            code: "profile_unavailable",
-            id: `agent-profile-problem:${profile.id}`,
-            message: `${profile.label}: ${profile.unavailableReason}`,
-            sessionId: null,
-          }]
-        : []
-    ),
-  ];
+  return status.configurationProblem
+    ? [{
+        code: "configuration_unavailable",
+        id: "agent-configuration-problem",
+        message: status.configurationProblem,
+        sessionId: null,
+      }]
+    : [];
 }
 
 export function createAgentClientController({
@@ -157,10 +145,7 @@ export function createAgentClientController({
     return null;
   };
   const replaceConfigurationProblems = (status: AgentStatus) => [
-    ...state.problems.filter(({ id }) =>
-      !id.startsWith("agent-configuration-problem") &&
-      !id.startsWith("agent-profile-problem:")
-    ),
+    ...state.problems.filter(({ id }) => id !== "agent-configuration-problem"),
     ...projectConfigurationProblems(status),
   ];
   const recordProblem = (
@@ -200,6 +185,35 @@ export function createAgentClientController({
   };
 
   let connectEvents = () => undefined;
+  const reloadState = async () => {
+    update({ errorMessage: null, loadStatus: "loading" });
+    try {
+      const [status, sessions] = await Promise.all([
+        port.getStatus(),
+        port.listSessions(),
+      ]);
+      const activeSessionId = sessions.some(({ id }) =>
+          id === state.activeSessionId
+        )
+        ? state.activeSessionId
+        : sessions[0]?.id ?? null;
+
+      stopEvents();
+      update({
+        activeSessionId,
+        errorMessage: null,
+        loadStatus: "ready",
+        preferredProfileId: reconcilePreferredProfile(status),
+        problems: replaceConfigurationProblems(status),
+        sessions,
+        status,
+      });
+      connectEvents();
+    } catch (error) {
+      update({ errorMessage: errorMessage(error), loadStatus: "failed" });
+      throw error;
+    }
+  };
   const recoverActiveSession = (force = false): Promise<void> => {
     const sessionId = state.activeSessionId;
 
@@ -298,7 +312,15 @@ export function createAgentClientController({
         cancelReconnect?.();
         cancelReconnect = scheduler.schedule(() => {
           cancelReconnect = null;
-          connectEvents();
+          void reloadState().catch((reloadError: unknown) => {
+            if (!error) {
+              recordProblem(
+                "event_stream_failed",
+                errorMessage(reloadError),
+                session.id,
+              );
+            }
+          });
         }, reconnectDelayMilliseconds);
       },
       onEvent: applyEvent,
@@ -404,35 +426,7 @@ export function createAgentClientController({
         throw error;
       }
     }),
-    reload: () => runOperation(async () => {
-      update({ errorMessage: null, loadStatus: "loading" });
-      try {
-        const [status, sessions] = await Promise.all([
-          port.getStatus(),
-          port.listSessions(),
-        ]);
-        const activeSessionId = sessions.some(({ id }) =>
-            id === state.activeSessionId
-          )
-          ? state.activeSessionId
-          : sessions[0]?.id ?? null;
-
-        stopEvents();
-        update({
-          activeSessionId,
-          errorMessage: null,
-          loadStatus: "ready",
-          preferredProfileId: reconcilePreferredProfile(status),
-          problems: replaceConfigurationProblems(status),
-          sessions,
-          status,
-        });
-        connectEvents();
-      } catch (error) {
-        update({ errorMessage: errorMessage(error), loadStatus: "failed" });
-        throw error;
-      }
-    }),
+    reload: () => runOperation(reloadState),
     selectSession(sessionId) {
       if (!state.sessions.some(({ id }) => id === sessionId)) {
         recordProblem(

@@ -46,6 +46,7 @@ function createSession(sequence = 3): AgentSessionSnapshot {
 }
 
 function createHarness({
+  configurationProblem = null as string | null,
   flushScope = vi.fn(async () => undefined),
   preferredProfileId = null as string | null,
   profiles = [{
@@ -59,7 +60,9 @@ function createHarness({
   }] as AgentProfileSummary[],
 } = {}) {
   let currentSession = createSession();
+  let listedSessions: AgentSessionSnapshot[] = [currentSession];
   let eventInput: Parameters<AgentClientPort["openEvents"]>[0] | null = null;
+  let scheduled: (() => void) | null = null;
   const calls: string[] = [];
   const port: AgentClientPort = {
     cancel: vi.fn(async () => undefined),
@@ -78,11 +81,11 @@ function createHarness({
       return currentSession;
     }),
     getStatus: vi.fn(async () => ({
-      configurationProblem: null,
+      configurationProblem,
       enabled: true,
       profiles,
     })),
-    listSessions: vi.fn(async () => [currentSession]),
+    listSessions: vi.fn(async () => listedSessions),
     openEvents(input) {
       eventInput = input;
       return { close: vi.fn() };
@@ -105,7 +108,12 @@ function createHarness({
     port,
     profilePreference,
     scheduler: {
-      schedule: () => () => undefined,
+      schedule: (callback) => {
+        scheduled = callback;
+        return () => {
+          if (scheduled === callback) scheduled = null;
+        };
+      },
     },
   });
 
@@ -116,11 +124,25 @@ function createHarness({
       if (!eventInput) throw new Error("Event stream was not opened");
       eventInput.onEvent(event);
     },
+    endEvents(error: unknown = null) {
+      if (!eventInput) throw new Error("Event stream was not opened");
+      eventInput.onClose(error);
+    },
     flush,
     port,
     profilePreference,
     setSession(session: AgentSessionSnapshot) {
       currentSession = session;
+    },
+    setSessions(sessions: AgentSessionSnapshot[]) {
+      listedSessions = sessions;
+    },
+    runScheduled() {
+      if (!scheduled) throw new Error("No reconnect was scheduled");
+      const callback = scheduled;
+
+      scheduled = null;
+      callback();
     },
   };
 }
@@ -186,6 +208,55 @@ describe("Agent client controller", () => {
     expect(harness.controller.getSnapshot().preferredProfileId).toBeNull();
     expect(harness.profilePreference.clear).toHaveBeenCalledOnce();
     expect(harness.profilePreference.save).not.toHaveBeenCalled();
+    harness.controller.dispose();
+  });
+
+  it("keeps optional unavailable profiles in Settings instead of Problems", async () => {
+    const harness = createHarness({
+      profiles: [{
+        authenticationStatus: "configured",
+        availability: "unavailable",
+        id: "unverified-profile",
+        kind: "ollama",
+        label: "7B",
+        model: "qwen2.5-coder:7b",
+        unavailableReason: "Tool-call conformance has not been verified",
+      }],
+    });
+
+    await start(harness);
+    expect(harness.controller.getSnapshot().problems).toEqual([]);
+    harness.controller.dispose();
+  });
+
+  it("still reports a broken Agent configuration as a global problem", async () => {
+    const harness = createHarness({
+      configurationProblem: "Agent configuration is invalid",
+    });
+
+    await start(harness);
+    expect(harness.controller.getSnapshot().problems).toEqual([
+      expect.objectContaining({
+        code: "configuration_unavailable",
+        message: "Agent configuration is invalid",
+        sessionId: null,
+      }),
+    ]);
+    harness.controller.dispose();
+  });
+
+  it("reloads sessions silently after a clean event-stream end", async () => {
+    const harness = createHarness();
+
+    await start(harness);
+    harness.setSessions([]);
+    harness.endEvents();
+    harness.runScheduled();
+    await vi.waitFor(() => {
+      expect(harness.port.listSessions).toHaveBeenCalledTimes(2);
+      expect(harness.controller.getSnapshot().sessions).toEqual([]);
+    });
+    expect(harness.controller.getSnapshot().problems).toEqual([]);
     harness.controller.dispose();
   });
 
