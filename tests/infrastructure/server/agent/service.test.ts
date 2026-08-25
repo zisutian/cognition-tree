@@ -311,6 +311,38 @@ describe("Agent service proposal lifecycle", () => {
     }
   });
 
+  it("documents the generic union failure and retained empty assistant message", async () => {
+    const fixture = await createFixture(async (request) => {
+      await request.executeTool({
+        arguments: {},
+        callId: uuid(160),
+        name: "stage_journal_command",
+      });
+      return { finalText: "unreachable", toolCalls: 1 };
+    });
+
+    try {
+      const session = await fixture.service.createSession({
+        profileId,
+        scope: journalScope,
+      });
+
+      fixture.service.sendMessage(session.id, "Create an entry");
+      await vi.waitFor(() => {
+        expect(fixture.service.getSession(session.id)).toMatchObject({
+          messages: [
+            { content: "Create an entry", role: "user" },
+            { content: "", role: "assistant" },
+          ],
+          problem: "Invalid Cognition Tree Agent contract at $: Expected union value",
+          state: "idle",
+        });
+      });
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
   it("revokes a cancelled session runtime and prevents it from running again", async () => {
     let markStarted!: () => void;
     const started = new Promise<void>((resolve) => {

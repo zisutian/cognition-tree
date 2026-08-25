@@ -21,3 +21,17 @@ describe("Agent read tool contract", () => {
     })).toBe(false);
   });
 });
+
+describe("Agent mutation tool compatibility", () => {
+  it("documents the root union currently exposed to Ollama", () => {
+    const definition = agentToolDefinitions.find(({ name }) =>
+      name === "stage_workspace_command"
+    )!;
+    const schema = definition.inputSchema as unknown as Record<string, unknown>;
+
+    expect(schema.type).toBeUndefined();
+    expect(schema.properties).toBeUndefined();
+    expect(schema.anyOf).toBeInstanceOf(Array);
+    expect(Value.Check(definition.inputSchema, {})).toBe(false);
+  });
+});

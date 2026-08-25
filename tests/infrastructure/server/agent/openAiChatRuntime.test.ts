@@ -135,6 +135,82 @@ describe("OpenAI-compatible Agent runtime", () => {
     }
   });
 
+  it("documents that multiple native calls are currently executed from one completion", async () => {
+    let requestCount = 0;
+    const server = createServer((_request, response) => {
+      requestCount += 1;
+      if (requestCount === 1) {
+        writeSse(response, [{
+          choices: [{
+            delta: {
+              tool_calls: [{
+                function: { arguments: "{}", name: "list" },
+                id: "call-list",
+                index: 0,
+              }, {
+                function: {
+                  arguments: JSON.stringify({ query: "ctn" }),
+                  name: "search",
+                },
+                id: "call-search",
+                index: 1,
+              }],
+            },
+          }],
+        }]);
+        return;
+      }
+      writeSse(response, [{ choices: [{ delta: { content: "完成" } }] }]);
+    });
+
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+
+    if (!address || typeof address === "string") throw new Error("Missing port");
+    const session = await new OpenAiChatRuntime(
+      profile(`http://127.0.0.1:${address.port}/v1`),
+      "server-secret",
+    ).openSession({
+      instructions: "shared instructions",
+      profileId: "openai-test",
+      scope: {
+        domain: "workspace",
+        repositoryId: "repository-1",
+        target: { kind: "repository" },
+      },
+      sessionId: "00000000-0000-4000-8000-000000000001",
+    });
+    const executeTool = vi.fn(async () => ({ ok: true }));
+
+    try {
+      await expect(session.runTurn({
+        executeTool,
+        messages: [{ content: "inspect", role: "user" }],
+        onEvent: vi.fn(),
+        scope: {
+          domain: "workspace",
+          repositoryId: "repository-1",
+          target: { kind: "repository" },
+        },
+        signal: new AbortController().signal,
+        tools: [
+          { description: "List", inputSchema: { type: "object" }, name: "list" },
+          {
+            description: "Search",
+            inputSchema: { type: "object" },
+            name: "search",
+          },
+        ],
+      })).resolves.toEqual({ finalText: "完成", toolCalls: 2 });
+      expect(executeTool).toHaveBeenCalledTimes(2);
+    } finally {
+      await session.dispose();
+      server.close();
+      await once(server, "close");
+    }
+  });
+
   it("aborts an active stream when the session is cancelled", async () => {
     let response!: ServerResponse;
     let resolveReceived!: () => void;
