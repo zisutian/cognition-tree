@@ -1,4 +1,4 @@
-# 环境准备
+# 使用与部署
 
 ## 1. 工具与单一入口
 
@@ -135,15 +135,16 @@ Git 或 shell API，也不接管 Ollama 生命周期。
 
 ## 6. API v3
 
-公开基础操作：
+无需已有 owner session 的操作：
 
     GET /api/v3/health
     GET /api/v3/capabilities
     GET /api/v3/openapi.json
-    GET、POST、DELETE /api/v3/auth/session
+    GET、POST /api/v3/auth/session
 
 owner-only 服务管理操作：
 
+    DELETE /api/v3/auth/session
     GET、PATCH /api/v3/admin/system-configuration
     POST、DELETE /api/v3/admin/system-configuration/owner-credential
     POST /api/v3/admin/data-root-migrations
@@ -152,6 +153,9 @@ owner-only 服务管理操作：
 内容只读、snapshot sync、Agent 会话、Provider/Profile 管理、仓库管理与 automation
 token 均继续属于唯一 `/api/v3` registry。不存在 `/api/v2`、公开 command API、
 preview/commit、写入 automation scope 或兼容 parser。
+
+完整 method、path、schema 和访问策略从 `GET /api/v3/openapi.json` 读取；本节只列出
+服务配置与登录所需的主要入口，不维护第二份 operation catalog。
 
 ## 7. 构建与验证
 

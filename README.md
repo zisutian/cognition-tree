@@ -38,7 +38,7 @@ Journal 与 Todo 不依赖当前普通仓库。它们的存储位置、故障与
 
 `start.sh` 默认使用开发 middleware；`--production` 使用已构建静态资源。两者都会在
 首次运行时安装锁文件中的依赖、接入项目已有的 Git 提交钩子，并以
-单进程 supervisor 启动认知树。Node 同时拥有网页、API、开发 HMR 与生产静态资源；
+单一服务 supervisor 启动认知树。Node 同时拥有网页、API、开发 HMR 与生产静态资源；
 脚本不会启动、停止、下载或探测 Ollama。设置或数据迁移要求重启时，只有专用退出
 状态会触发自动重启，其他退出状态原样传播。
 
@@ -135,7 +135,7 @@ ephemeral、只读且无网络的 app-server 进程和会话专属私有 MCP。A
     presentation/     React shell、Activities、CodeMirror 和共享 UI
     contracts/        API registry、Agent、Workspace、Journal、Todo 与 built-ins wire contract
     tooling/          构建、Git、基准脚本与专用 TypeScript 配置
-    docs/             产品、架构、工程、环境与界面约定
+    docs/             文档索引以及产品、架构、工程、使用与界面约定
     tests/            单元、UI、contract 与架构测试
     e2e/              浏览器流程测试
 
@@ -148,8 +148,10 @@ ephemeral、只读且无网络的 app-server 进程和会话专属私有 MCP。A
 
 更具体的约束见：
 
+- [文档索引与事实所有权](docs/README.md)
 - [产品需求](docs/product-requirements.md)
 - [架构边界](docs/architecture.md)
+- [CTN 分析流水线](docs/ctn-analysis-pipeline.md)
 - [工程原则](docs/engineering-principles.md)
-- [环境准备](docs/getting-started.md)
-- [界面样式约定](docs/ui-guidelines.md)
+- [使用与部署](docs/getting-started.md)
+- [界面规范](docs/ui-guidelines.md)

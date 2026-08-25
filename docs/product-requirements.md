@@ -131,9 +131,9 @@ Notes、Journal、Todo、Syntax 和 Repository 的行操作只在选中项显示
 ## 8. Agent
 
 Agent Activity 是 owner 控制的内容修改入口。左侧只显示驻留会话与唯一的新建 `+`；
-新建时在中间选择设置中已保存的默认 profile 和不可扩大的硬范围，创建后中间显示
-增量对话与取消；右侧显示单 store
-proposal 的 base revision、digest、change set、最终聚合 diff 与整批审批。界面
+新建时在中间显示并使用设置中已保存的默认 profile，用户只选择不可扩大的硬范围，
+不能在此切换 profile；创建后中间显示增量对话与取消；右侧显示单 store proposal
+的 base revision、digest、change set、最终聚合 diff 与整批审批。界面
 不展示 raw chain-of-thought，也不允许提交 model、URL、凭据或安全参数。
 
 会话创建时只能选择一种领域范围：

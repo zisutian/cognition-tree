@@ -71,6 +71,10 @@ tooling 不属于运行时源码层，只持有工程脚本和专用配置。tes
 
 ## 4. 内容 contract
 
+CTN 编译、分析、失效与 multiline 语义的专门说明见
+[CTN 分析流水线](ctn-analysis-pipeline.md)；本节只拥有各领域内容 contract 和
+跨层传递边界。
+
 Workspace v4：
 
     服务端从真实目录、可见 `.ctn` 正文、隐藏 sidecar 和 `.ctn/syntax/` 重建 canonical content；`.ctn/repository.json` 的 durable atomic replace 是提交点。
@@ -289,7 +293,7 @@ application/search/SearchIndex 是三领域资源投影、Unicode 归一化、gr
 
 Journal 只理解日记内容、仓内引用和外部引用 token；Todo 只理解 CTN collection、任务结构和 completion。跨仓边不进入普通引用图谱，重命名也不跨独立 CAS 改写 Journal。
 
-application/repository/RepositoryCatalogController 独占 catalog 加载、活动仓库持久化、删除轮询、并发操作保护和 descriptor 复用。Workspace session 只管理生命周期、authoritative state 与保存队列；语法目录的创建、复制命名、启用、删除和 metadata reconcile 由独立 mutation service 计算。
+application/repository/RepositoryCatalogController 独占 catalog 加载、活动仓库持久化、创建/重命名/删除期间的并发保护和 descriptor 复用。Workspace session 只管理生命周期、authoritative state 与保存队列；语法目录的创建、复制命名、启用、删除和 metadata reconcile 由独立 mutation service 计算。
 
 Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 UUID、时间、页面事件和定时器实现由 infrastructure 注入。Problems 的选择与合并留在 application，Activity 切换和 DOM 聚焦只由 presentation 执行。
 
@@ -348,6 +352,9 @@ limit 与 timeout 约束，不建立公开 MCP。项目不监听外部 MCP endpo
 
 
 ## 9. Presentation 与 Problems
+
+本节只说明 Presentation 所有权与跨层边界；精确布局、交互、尺度和颜色由
+[界面规范](ui-guidelines.md) 独占。
 
 AppRoot 只创建 runtime/controller、订阅快照并维护当前 Activity。领域 session
 到 view application 的组合位于 presentation/shell/application；Activity
