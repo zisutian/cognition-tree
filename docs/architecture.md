@@ -320,7 +320,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 
 Agent 配置由 application/agent 端口协调、设置界面操作并写入独立的 versioned 服务端状态；固定 1 小时 idle TTL、
 24 小时 absolute TTL，审计容量来自 bootstrap 服务设置。每个 profile 显式声明
-maxResidentSessions、model、timeout 与 tool/request limit；凭据只写入不回读。
+maxResidentSessions、model、timeout 与 tool/request limit；chat profile 的
+`historyBudgetCharacters` 只是服务端内存会话历史的字符预算，不是模型 token 上限，
+也不会设置 Ollama `num_ctx`。凭据只写入不回读。
 aggregate、provider 和 profile 均有 version/digest，管理 mutation 使用 exact CAS。
 会话固定创建时的有效配置；普通 profile 修改不影响旧会话，resident session 会阻止
 provider、凭据和 profile 删除。单个 profile 无效或缺少 secret 时只禁用该 profile，
@@ -340,17 +342,37 @@ allowlist，API key 不进入 shell/MCP environment。缺少 sandbox、binary/ve
 不匹配或协议结果不满足这些断言时 profile fail closed。会话结束、过期或取消后
 撤销 capability、停止进程，并只清理服务为该 session 建立的临时目录。
 
-Codex 的会话专属 STDIO MCP 只定义 scope 内 list/read/search、三个
-stage_*_command 和 submit_proposal。MCP 进程不导入 repository/store，只通过
+Codex 的会话专属 STDIO MCP 只定义 scope 内 list/read/search、submit_proposal，
+以及当前领域的独立 staging 动作：Workspace 9 个、Journal 3 个、Todo 11 个。
+动作名拥有 intent kind，参数不再重复 kind；每个模型侧 JSON Schema 都以严格
+object/properties 为顶层，recurrence 的 daily、weekly、monthly 也各自独立。MCP 的
+tools/list 必须用会话 capability 从父服务取得这个范围化 catalog，不能持有全局
+静态工具表。MCP 进程不导入 repository/store，只通过
 Unix domain socket 或 Windows named pipe 连接父服务私有 IPC，并携带单会话短期
 capability。list 不接收参数，read 只接收 resourceId；领域、仓库和细粒度范围始终
 从不可变 session scope 派生，模型不能重复提交或覆盖范围事实。OpenAI-compatible
 adapter 直接消费同一 contracts/agent tool schema，
 使用 `/chat/completions` SSE。Ollama adapter 直接连接模型服务的 `/v1/chat/completions`，
 不调用本地代码 Agent 的 task API、MCP、Git、shell、ChangeSet 或审批层。native 与
-Ollama-only single-json 都由 runtime 分类，presentation 只消费最终字符串；工具信封
-与工具结果不生成聊天 delta。runtime 受串行 tool call、context/output/tool-step
-limit 与 timeout 约束，不建立公开 MCP。项目不监听外部 MCP endpoint。
+Ollama-only single-json 都由 runtime 分类，presentation 只消费最终字符串。一个
+completion 返回多项调用、未知工具、参数不满足 schema，或文本工具信封不符合当前
+模式时，runtime 一个都不执行，只把省略原始正文和完整参数的结构化错误写回私有模型
+历史，并要求逐项纠正；纠正仍受 maxToolSteps 限制。工具信封、错误与工具结果都不
+生成聊天 delta，最终失败会移除空 assistant 消息。runtime 直接统计序列化会话历史
+字符数决定压缩，不做字符数除以四的伪 token 换算；output/tool-step limit 与 timeout
+继续独立生效。项目不建立公开 MCP，也不监听外部 MCP endpoint。
+
+agent-config-v1 的当前内部 formatVersion 是 3。首次打开 format 1/2 时，chat profile
+的旧 token 估算值乘以四写为字符预算，profile version 加一并清除旧 conformance；
+Provider、Profile ID、凭据与浏览器默认 Profile ID 保留。迁移先完整解析并验证安全
+整数，再由安全状态分区原子写回；失败时 fail closed，不能留下部分迁移。当前 API
+只接受 `historyBudgetCharacters`，不存在双字段 wire reader。Profile digest 包含显式
+tool-contract version，因此工具 catalog 变化也会使旧 conformance 失效。
+
+Ollama Provider 的显式 probe 在既有 SSRF、超时、重定向和响应体限制下读取
+`/api/tags`、`/api/ps`，并只为该 Provider 已配置 Profile 引用的模型调用
+`/api/show`。返回的模型声明最大 context、当前加载 context 与探测时间只驻留客户端
+配置状态，不持久化、不自动填入 Profile，也不裁剪字符预算；缺字段或未加载显示未知。
 
 
 ## 9. Presentation 与 Problems
@@ -384,7 +406,9 @@ Agent 使用“会话列表 → 新会话硬范围或增量对话 → proposal d
 Provider、profile、URL、model、凭据、发现、探测和符合性检查只在 Settings 的
 application facade 中管理。符合性检查是服务端内存后台操作：启动请求返回 202，
 客户端以短请求读取阶段或取消，不以延长通用 HTTP 超时维持单个请求；Profile timeout
-只约束模型 turn。检查只允许一次验证工具调用，并以受限输出完成自然语言收束。
+只约束模型 turn。检查同时提供真实 `stage_workspace_create_note` schema 与一个干扰
+读取工具，要求一次只调用正确 staging 工具；宿主只运行无内容 mutation 的假 handler，
+随后以受限输出验证自然语言收束。
 不显示 raw
 chain-of-thought。发送、批准与 destructive confirmation 前先同步范围对应的已加载
 session，失败即阻止 HTTP 操作。Agent event sequence 缺口通过重读 session snapshot

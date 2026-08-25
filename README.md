@@ -108,10 +108,11 @@ contract、session 和 API：
 Agent provider、profile、模型参数与凭据由“设置 → 智能体”管理，内部状态保存于
 `<当前数据根>/server/agent-config-v1/configuration.json`；该文件不是用户仓库
 文件，也不应手工编辑。secret 依赖 0600 文件权限，不承诺静态加密；能够读取服务
-账号文件的主体仍能取得密钥。首次读取旧的无私网许可格式时，服务会原子升级该内部
-状态；既有 Provider/Profile 保留，但不会继承任何旧的私网许可。旧符合性摘要也会
-因 Provider digest 变化而失效，chat Profile 需要重新执行符合性检查。Ollama 直接
-连接模型层，不调用其他代码 Agent 的任务 API、MCP、Git、shell 或 ChangeSet。
+账号文件的主体仍能取得密钥。首次读取旧内部格式时，服务会原子升级该状态：format 1
+不会继承私网许可，format 1/2 都迁移为 format 3；既有 Provider/Profile、凭据和默认
+选择保留，但旧 chat Profile 的估算值改为等效字符预算、version 加一且符合性失效，
+需要重新执行检查。这个预算只控制认知树的内存对话压缩，不设置 Ollama `num_ctx`。
+Ollama 直接连接模型层，不调用其他代码 Agent 的任务 API、MCP、Git、shell 或 ChangeSet。
 Codex 依赖精确锁定为 `@openai/codex@0.148.0`，每个会话使用独立、
 ephemeral、只读且无网络的 app-server 进程和会话专属私有 MCP。Agent 对话只在
 服务内存中驻留，重启、TTL 到期或回收会丢失。
@@ -119,8 +120,10 @@ ephemeral、只读且无网络的 app-server 进程和会话专属私有 MCP。A
 本机 Ollama 的镜像、GPU、模型卷与生命周期由 Ollama 自身管理。认知树根部的
 `./start.sh` 不会接管它；在
 “设置 → 智能体”中添加 Ollama provider 时，服务根地址填写
-`http://127.0.0.1:11434`。认知树运行时只调用 `/api/tags` 与
-`/v1/chat/completions`，不会停止 Ollama 或下载模型。
+`http://127.0.0.1:11434`。认知树运行时只调用 `/api/tags`、显式探测所需的
+`/api/ps`、`/api/show`，以及 `/v1/chat/completions`；不会停止
+Ollama 或下载模型。工具、迁移与探测的详细边界见
+[架构边界](docs/architecture.md)和[使用与部署](docs/getting-started.md)。
 
 前端不持久化 Workspace、Journal、Todo、草稿、同步队列或冲突。它只在内存中
 保留当前页面会话的乐观状态，并用 `localStorage` 保存当前普通仓库 ID；刷新或

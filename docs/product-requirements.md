@@ -154,6 +154,13 @@ repository、Journal 或 Todo store，只能整批批准或拒绝；包含删除
 独立二次确认。任意 revision 变化都使 exact CAS stale，不自动 retry、merge 或
 rebase。跨 store 任务必须按顺序生成多份 proposal。
 
+模型每次 completion 最多请求一个工具。对多个调用、未知工具、缺字段、错类型或
+无效工具信封，宿主必须零执行并在既有 tool-step 限制内要求模型纠正；错误、工具
+信封和工具结果不得成为对话气泡，失败不得永久留下空 assistant 消息。模型只获得
+list/read/search/submit_proposal 和当前 scope 所属领域的独立业务动作工具，不能看到
+其他领域 mutation。符合性检查必须覆盖真实 Workspace staging schema，而不是只验证
+一个与生产工具无关的简单对象。
+
 Agent 对话、压缩摘要和会话只驻留服务内存。服务重启、1 小时 idle TTL、24 小时
 absolute TTL 或主动删除都会丢失会话。operation ledger 只记录 owner、session、
 profile/runtime、store、revision、变更资源/块 ID、结果与时间，不记录提示词、
@@ -165,6 +172,10 @@ Provider、Profile、模型参数与凭据由“设置 → 智能体”管理。
 使用固定的一次工具调用与受限输出，生产 Profile timeout 仍是模型执行的最终时间上限。
 Ollama 直接连接模型层而不嵌套本地代码 Agent。会话固定创建时的 provider/profile
 version、digest 与有效参数；相关 resident session 会阻止危险配置删除或凭据变更。
+chat Profile 的“会话历史预算（字符）”只决定 Cognition Tree 何时压缩内存对话，
+不代表真实 token 上限，也不能修改 Ollama `num_ctx`。Provider 探测可以显示模型声明
+上限、当前加载 context 与探测时间，但这些事实只读、非持久化，未知或失败不能改变
+Profile、自动选值或触发 fallback。
 
 
 ## 9. 服务设置与数据迁移
@@ -173,7 +184,7 @@ version、digest 与有效参数；相关 resident session 会阻止危险配置
 环境变量或客户端 JSON 配置监听、端口、路径、owner token、审计容量或 Provider
 私网目标；这些事实只能从“设置 → 服务”或“设置 → 智能体”修改。
 
-单一 origin 是部署契约，不是跨层调用许可。官方网页和未来浏览器界面只能通过
+单一 origin 是部署契约，不是跨层调用许可。官方网页、未来手机端和其他客户端只能通过
 registry 声明的 `/api/v3` HTTP/SSE operation 使用后端能力；不得导入或调用
 `infrastructure/server` 内部实现。该约束不禁止其他应用按授权策略访问公开 API。
 

@@ -124,17 +124,31 @@ loopback Provider 自动允许。非 loopback 私网 origin 必须在创建或�
 许可和旧符合性结果失效。metadata、link-local、unspecified、multicast，以及 DNS
 同时解析到不同安全类别的目标始终拒绝。带凭据的远程 Provider 必须使用 HTTPS。
 
-服务首次读取旧的无私网许可 Agent 配置格式时，会把内部状态原子升级为当前格式；
-Provider/Profile 与凭据继续保留，但所有旧 Provider 都从“没有私网许可”开始，私网
-地址必须在设置中重新确认。Provider digest 的变化也会使旧符合性摘要失效，chat
-Profile 需要重新执行符合性检查。该过程不读取环境变量或旧 profile 文件。
+服务首次读取 agent-config 内部 format 1/2 时，会原子升级为 format 3。Provider、
+Profile ID、凭据和浏览器已保存的默认 Profile ID 保留；format 1 的 Provider 从
+“没有私网许可”开始，私网地址必须在设置中重新确认。旧 chat Profile 的 context
+估算值乘以四后保存为“会话历史预算（字符）”，例如 16384 迁移为 65536、32768
+迁移为 131072；chat Profile version 加一并清除旧符合性。迁移后必须重新执行一次
+符合性检查，Profile 才可用于新会话。非安全整数、损坏状态或原子写入失败会让 Agent
+配置 fail closed，原文件不被部分改写。该过程不读取环境变量或旧 profile 文件；
+当前 API 也不接受旧字段。
+
+“会话历史预算（字符）”只控制 Cognition Tree 何时压缩驻留内存中的对话历史，
+不会向 Ollama 发送 `num_ctx`，也不表示模型的真实 token 上限。需要观察模型事实时，
+点击对应 Provider 的“探测”：Ollama 会为该 Provider 已配置 Profile 所引用的模型显示
+模型声明上限、当前已加载 context 和探测时间；未加载或未报告时显示“未知”。探测
+结果不持久化、不自动填写或裁剪 Profile。
+
 符合性检查会显示“等待工具调用”“等待自然语言总结”和“记录结果”阶段，并可在记录
 结果前取消。大型本地模型可能需要数分钟；浏览器通过状态轮询观察检查，不受普通 API
-请求的 30 秒上限截断，模型本身仍受该 Profile 的 timeout 限制。
+请求的 30 秒上限截断，模型本身仍受该 Profile 的 timeout 限制。检查使用真实的
+Workspace 新建笔记 schema，并同时提供一个干扰读取工具；假 handler 不会创建内容、
+staging 或 proposal，只有正确单工具调用和后续自然语言总结都完成才通过。
 
 Ollama 发现只在用户点击后执行，默认地址是 `http://127.0.0.1:11434`。认知树只调用
-模型层 `/api/tags` 与 `/v1/chat/completions`，不调用另一个代码 Agent 的任务、MCP、
-Git 或 shell API，也不接管 Ollama 生命周期。
+模型层 `/api/tags`、显式探测所需的 `/api/ps` 与 `/api/show`，以及推理所需的
+`/v1/chat/completions`；不调用另一个代码 Agent 的任务、MCP、Git 或 shell API，
+也不接管 Ollama 生命周期。
 
 ## 6. API v3
 
