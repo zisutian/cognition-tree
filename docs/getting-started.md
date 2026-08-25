@@ -1,291 +1,172 @@
 # 环境准备
 
+## 1. 工具与单一入口
 
-## 1. 工具与启动
+要求 Node.js 22.18.0 或更高版本、pnpm 11.1.3 与 Git。
 
-要求：
+    ./start.sh
 
-    Node.js >= 22.18.0
-    pnpm 11.1.3
-    Git 2.x
+默认进入开发模式。生产部署先构建，再由同一个根 supervisor 启动：
 
-安装与 hooks：
+    pnpm build
+    ./start.sh --production
 
-    pnpm install
-    pnpm hooks:install
+首次运行会按 lockfile 安装依赖并接入仓库已有的 Git 提交钩子。Node 是唯一监听
+权威：开发模式把 Vite middleware 与 HMR WebSocket 接入同一个 HTTP Server，生产
+模式由该 Server 提供 `.artifacts/build/client` 静态资源。网页和 API 始终同源，
+默认地址为 `http://127.0.0.1:3001`。
 
-启动：
+`start.sh` 只管理认知树。它不启动、停止、下载或探测 Ollama，也不依赖 Docker 或
+相邻仓库。只有服务设置或数据迁移产生的专用退出状态 75 会触发自动重启；其他退出
+状态原样传播。按 Ctrl+C 会先关闭 Content SSE、Agent SSE 与 Vite，最多等待 5 秒，
+随后才强制中断不合作连接。
 
-    pnpm server
-    pnpm dev
+## 2. 全内置设置
 
-默认地址：
+用户配置不使用环境变量。以下内容全部由“设置”管理：
 
-    前端 http://127.0.0.1:5173
-    后端 http://127.0.0.1:3001
+- “设置 → 服务”：本机/局域网模式、端口、HTTPS public origin、当前数据根、数据
+  迁移、宿主机显示路径、Agent operation audit 容量和 owner credential。
+- “设置 → 智能体”：Provider、Profile、模型、推理参数、凭据、Ollama 发现、Provider
+  探测、符合性检查和默认 Profile。
+- “设置 → API 访问”：只读 automation token 与 Agent operation audit。
 
+首次启动的服务初值是：
 
-## 2. 配置
+    dataRoot           <项目根>/.cognition-tree
+    listenMode         loopback
+    port               3001
+    publicOrigin       null
+    repositoryHostRoot null
+    maxAuditEntries    1000
+    owner credential   未创建
 
-后端环境变量：
+监听地址、端口、数据根和宿主机显示路径修改后受控重启生效。审计容量立即生效；缩小
+时立即裁剪最旧记录。局域网模式固定绑定 `0.0.0.0`，必须先创建 owner credential，
+并填写无凭据、query、fragment 的 HTTPS origin。TLS 证书仍由外部反向代理管理。
 
-    CTN_API_HOST                 默认 127.0.0.1
-    CTN_API_PORT                 默认 3001
-    CTN_REPOSITORY_ROOT          默认 .cognition-tree/repositories
-    CTN_REPOSITORY_HOST_ROOT     可选，仅用于显示宿主机路径
-    CTN_SERVER_STATE_DIR         默认 .cognition-tree/server
-    CTN_PUBLIC_URL               非 loopback 部署的 HTTPS 公开 URL
-    CTN_API_TOKEN                非 loopback 部署的 bearer token
-    CTN_AGENT_MAX_AUDIT_ENTRIES 必填，Agent 审计最大条数
-    CTN_AGENT_PRIVATE_TARGETS   可选，显式允许的私网 provider origin
+浏览器不读取独立 JSON 配置，也不保存 owner token。官方客户端只调用相对
+`/api/v3`，请求携带同源 Cookie。仅 CI、E2E、测试进程变量，以及 Codex 私有 MCP
+子进程的短期 capability 属于非用户运行参数；它们不会出现在设置或公开 API 中。
 
-前端启动配置：
+## 3. Owner 与 automation 认证
 
-    public/cognition-tree.config.json
+仅当请求 socket 和 Host 都是 loopback 时，服务才授予 `local-owner`。反向代理虽然
+可能从 loopback socket 连接，但公共 Host 不会被提升为本机 owner。
 
-    {
-      "formatVersion": 1,
-      "apiBaseUrl": "http://127.0.0.1:3001",
-      "apiToken": "可选 owner token"
-    }
+远程使用步骤：
 
-页面启动时以 no-store 读取该文件。生产构建中的对应位置是
-.artifacts/build/client/cognition-tree.config.json，可在启动静态站点前替换或
-挂载；配置不会写入 JavaScript bundle。apiBaseUrl 只接受根路径上的绝对
-HTTP(S) origin，不允许凭据、query 或 fragment。缺失或无效配置会阻止客户端
-启动。前端始终连接 Node 后端，不存在本地存储模式或后端不可用时的空仓库
-fallback。localStorage 只保存当前普通 repository id，以及用户在设置页显式选择的
-默认 Agent profile id；不保存 profile 配置、base URL 或凭据。
+1. 从本机打开“设置 → 服务”，创建 owner credential。
+2. 立即保存只展示一次的 owner secret。
+3. 配置 HTTPS public origin 与局域网模式，等待服务重启。
+4. 远程浏览器输入 secret；服务换发最长 12 小时的 `ctn_owner_session` Cookie。
 
-设置页的“智能体”分区管理 provider、profile、模型参数与一次性写入的凭据。
-配置由服务端原子写入 `agent-config-v1/configuration.json`，响应永不回传 secret。
-首次使用必须显式选择默认 profile；已选 profile 不可用时，新会话会被阻止且不会
-切换到其他 profile。Ollama 发现、provider 探测和 profile 符合性检查只在用户点击
-后执行，不自动联网、创建、选择或 fallback。
+Cookie 使用 `HttpOnly`、`SameSite=Strict`、`Secure`、`Path=/api/v3`。Cookie 鉴权的
+写请求必须带与设置完全相同的 Origin。轮换 secret 会立即废止旧 session，并给执行
+轮换的浏览器签发新 session。清除 credential 只允许在 loopback 模式中进行。
 
+automation 继续使用 Bearer token，但只能拥有 `workspace:read`、`journal:read`、
+`todo:read`；Workspace 受 repository ID allowlist 限制。任何显式但无效的 Bearer
+都返回 401，绝不会退化为 local-owner。旧 owner Bearer 不再存在。
 
-## 3. 安全边界
+## 4. 数据、控制区与迁移
 
-默认 loopback 服务只接受 loopback Host 和本机开发 Origin，不要求 token。
+固定启动控制区：
 
-绑定非 loopback 地址时，必须同时设置：
+    <项目根>/.cognition-tree/bootstrap-v1/configuration.json
 
-    至少 32 字符的 CTN_API_TOKEN
-    HTTPS CTN_PUBLIC_URL
+目录权限为 0700，文件权限为 0600。它由应用原子写入，不应手工编辑。控制区始终
+固定在项目根，不参与数据迁移。损坏时服务只在 `127.0.0.1:3001` 启动恢复页面，
+不加载内容、Agent 或凭据；本机可重置控制配置或重新指向一个已存在的常规目录。
 
-服务端从公开 URL 推导允许的 Host、Origin 与 CORS。启动配置中的 apiToken
-会由浏览器读取并发送，因此只适用于单用户受控客户端；静态站点必须与客户端
-采用相同的访问边界。
+当前数据根布局：
 
-## 4. API 与数据目录
+    <dataRoot>/
+      repositories/
+        <repository-id>/
+        .built-ins/journal/
+        .built-ins/todo/
+      server/
+        access-v1/automation-tokens.json
+        agent-config-v1/configuration.json
+        agent-v2/operations.json
 
-唯一 HTTP 契约是 `/api/v3`。同一个 registry 组合并校验 operationId、method/path、
-严格 body/query schema、访问策略和 OpenAPI 3.1：
+普通仓库只能位于服务端本地文件系统或容器持久卷。远程浏览器访问服务不等于远程
+仓库存储。
 
-    GET  /api/v3/health
-    GET  /api/v3/capabilities
-    GET  /api/v3/openapi.json
+“设置 → 服务”发起数据根迁移时，客户端先同步已加载的 Workspace、Journal、Todo。
+若存在 resident Agent session、未决 proposal、其他迁移或配置 CAS 冲突，服务拒绝
+启动迁移。目标必须是不存在的绝对路径，不能与源或控制区重叠，也不能经过符号链接。
 
-    GET  /api/v3/content/events
-    POST /api/v3/content/search
-    GET  /api/v3/content/workspaces
-    GET  /api/v3/content/workspaces/<repository-id>/tree
-    GET  /api/v3/content/workspaces/<repository-id>/notes/<note-id>
-    GET  /api/v3/content/journal/entries
-    GET  /api/v3/content/journal/entries/<entry-id>
-    GET  /api/v3/content/todo/collections
-    GET  /api/v3/content/todo/collections/<collection-id>
+迁移只复制以下权威分区：
 
-官方客户端 owner 独占完整 snapshot sync：
+    repositories/
+    server/access-v1/
+    server/agent-config-v1/
+    server/agent-v2/
 
-    GET、PUT /api/v3/sync/workspaces/<repository-id>
-    GET、PUT /api/v3/sync/journal
-    GET、PUT /api/v3/sync/todo
-
-Agent 会话同样只授权 owner：
-
-    GET       /api/v3/agent/status
-    GET、POST /api/v3/agent/sessions
-    GET、DELETE /api/v3/agent/sessions/<session-id>
-    POST      /api/v3/agent/sessions/<session-id>/messages
-    POST      /api/v3/agent/sessions/<session-id>/cancel
-    GET       /api/v3/agent/sessions/<session-id>/events?afterSequence=<n>
-    POST      /api/v3/agent/sessions/<session-id>/proposals/<proposal-id>/decision
-    POST      /api/v3/agent/sessions/<session-id>/proposals/<proposal-id>/destructive-confirmation
-
-管理接口位于 `/api/v3/admin/repositories`、`/api/v3/admin/built-ins`、
-`/api/v3/admin/automation-tokens` 和 `/api/v3/admin/agent-operations`，全部只授权
-owner。服务端不提供路径别名、版本协商、兼容开关或公开 command operation。
-
-认证 principal 是严格 union：loopback 无 token 请求映射为 local-owner；
-`CTN_API_TOKEN` 映射为 owner；设置页创建的 automation token 只能持有
-`workspace:read`、`journal:read`、`todo:read`，其中 Workspace 继续受 repository
-ID allowlist 限制。automation 不能取得 snapshot sync、Agent、仓库、token、
-write 或 delete 能力。Agent 的 session capability 只在服务端私有 IPC 中出现，
-浏览器和公共 token 无法取得。
-
-外部 automation 不再存在 preview、commit、commandId、resource precondition、
-write 或 delete 请求。内容写入只允许 owner 官方客户端 snapshot sync，以及 owner
-在 Agent Activity 中批准的 immutable proposal exact CAS。
-
-Todo 远程客户端真值表：
-
-    recurrence == null
-        从未配置周期；按普通 completed 状态显示和写入 occurrenceDate null。
-    recurrence != null 且 recurrence.active == false
-        保留 completedCount/totalCount 历史，但按普通任务显示和写入
-        occurrenceDate null。
-    recurrence.active == true 且 currentOccurrenceDate != null
-        显示活动周期和历史进度；完成当前 occurrence 时提交该精确日期。
-    recurrence.active == true 且 currentOccurrenceDate == null
-        不猜测日期；刷新投影后再提交。
-
-GET `/api/v3/content/events` 使用 SSE。连接时先发送带进程级 streamId 的 revision
-checkpoint，随后只发送不含正文的 change set；sequence 只在同一 stream
-内比较。客户端看到新 stream 的 checkpoint 时重置去重状态并重新比较资源。
-SSE 只是失效通知，资源查询和同步 snapshot 始终是真相；checkpoint 由轻量
-revision tracker 提供，不扫描仓库正文。
-
-Agent session SSE 使用另一套会话内单调 sequence。消息请求返回 202，浏览器按
-sequence 增量增长 assistant message；刷新后用当前 session snapshot 和
-`afterSequence` 重连。发现事件缺口或 cursor 不可恢复时重新读取 snapshot，不把
-SSE 历史当作真值。
-
-Local 普通仓库：
-
-    <CTN_REPOSITORY_ROOT>/<repository-id>/
-      .ctn/
-        repository.json
-        index.json
-        syntax/
-        note-metadata/
-        transactions/
-      根笔记.ctn
-      目录/笔记.ctn
-
-可见目录和 .ctn 正文是权威工作树；.ctn/ 保存稳定身份、顺序、语法、sidecar 与 WAL。文件系统只在加载、提交和手动重新扫描时读取，不运行 watcher。非 .ctn 文件属于 unmanaged 数据，不投影、不改写、不删除。
-
-HTTP 内容根目录：
-
-    <CTN_REPOSITORY_ROOT>/<repository-id>/
-    <CTN_REPOSITORY_ROOT>/.built-ins/journal/
-    <CTN_REPOSITORY_ROOT>/.built-ins/todo/
-
-.built-ins 是保留基础设施目录，普通仓库 catalog 不会将它解释为普通仓库。
-
-前端只在页面生命周期内为 Workspace、Journal 与 Todo 保留内存 cache、待同步
-队列和冲突。刷新或关闭页面不会恢复未同步内容。旧版本的 IndexedDB 数据不
-读取、不转换也不自动清理，需要时由用户在浏览器开发工具中手动删除。
-
-新服务状态分区保存在：
-
-    <CTN_SERVER_STATE_DIR>/access-v1/automation-tokens.json
-    <CTN_SERVER_STATE_DIR>/agent-config-v1/configuration.json
-    <CTN_SERVER_STATE_DIR>/agent-v2/operations.json
-
-automation secret 只在创建响应显示一次，磁盘只保存 SHA-256 哈希、只读 scopes、
-Workspace allowlist 与使用时间。三个分区分别拥有 token、Agent 配置和 operation
-ledger；配置 aggregate、provider 与 profile 均有 version/digest，管理写入使用 exact
-CAS，会话固定创建时的有效参数。Agent ledger 以 proposal UUID + version + digest
-幂等，只记录 owner、session/profile/provider/runtime、store、before/after revision、变更
-资源/块 ID、结果和时间；不记录提示词、模型回复、正文、完整 diff 或 tool
-output。条目超过 `CTN_AGENT_MAX_AUDIT_ENTRIES` 时裁剪最旧记录。
-
-旧 `<CTN_SERVER_STATE_DIR>/api-v1/` 与 `agent-v1/` 完全不读取、不迁移、不暴露；没有兼容 decoder。
-文件原样保留供人工备份，新服务不会主动删除。既有 automation token 因而全部
-失效，必须在 v3 Settings 中重新创建只读 token；旧 receipt/audit 不再显示。
-
-内置数据目录与服务状态目录权限为 0700，含凭据或内容的文件权限为
-0600。密码不进入 API 响应、日志、普通仓库内容或前端 cache；不承诺静态加密，
-能够读取服务账号状态文件的主体仍能取得 provider secret。
-
-v3 是破坏性切换：所有 `/api/v2` 请求返回 404；旧浏览器构建与新 Server 不兼容，
-必须同时部署。外部 automation 的写入、删除、preview/commit 全部失效且没有外部
-替代写接口。旧 command executor、DTO、operationId 和 schema 的源码导出也已删除，
-依赖它们的内部或外部代码必须直接迁移，不提供 re-export。Workspace、Journal、
-Todo 内容 schema 与持久布局不变，不迁移内容。
-
-### Agent 运行与资源
-
-Codex profile 使用精确锁定的 `@openai/codex@0.148.0` app-server，而不是默认
-持久化 thread SDK 路径。每条 session 对应独立常驻子进程、空临时 cwd 和隔离
-HOME/CODEX_HOME；thread 必须返回 `ephemeral: true`、无 instruction source、只读
-sandbox、network disabled，否则该 profile fail closed。它不读取个人 `.codex`、
-AGENTS、skills、hooks、plugins、sessions 或 MCP。参见
-[Codex app-server](https://developers.openai.com/codex/app-server) 与
-[Codex MCP](https://developers.openai.com/codex/mcp)。
-
-Codex 的 session-private STDIO MCP 只暴露 scope 内 list/read/search、
-stage_workspace_command、stage_journal_command、stage_todo_command 和
-submit_proposal。MCP 不导入 repository/store，只携带短期 capability 连接父服务
-私有 Unix socket 或 Windows named pipe。项目不提供外部 MCP listener。Codex API
-key 只进入 app-server 环境，不进入 shell 或 MCP command 环境。
-
-OpenAI-compatible profile 直接调用 `<baseUrl>/chat/completions` SSE。Ollama provider
-以服务根地址发现 `/api/tags`，推理直连 `/v1/chat/completions`，不经过本地代码
-Agent。`native` 只接受标准 streamed tool_calls；仅 Ollama 可固定为 `single-json`，
-其完整 completion 只有精确匹配当前工具名和唯一参数 schema 时才作为工具调用，
-疑似但无效的工具信封进入 Agent Problem，普通 JSON 仍作为最终回答。两者复用同一
-tool schema，并受 context、output、tool-step 和 timeout 限制。每个 profile 同时
-只运行一个推理，其余 turn FIFO；每个 session 只允许一个 active turn。达到
-maxResidentSessions 时拒绝新会话，不驱逐有效会话。Agent 对话与压缩摘要只在内存
-中保存；服务重启、1 小时 idle TTL、24 小时 absolute TTL 或 session 删除会丢失。
-`/cancel` 中断当前 turn、撤销 capability、停止 runtime 并将 session 置为
-unavailable，之后必须新建会话；session 删除或到期也会停止 Codex 子进程，并安全
-清理仅由该 session 创建的临时目录。
-
-
-## 5. Repository 行为
-
-普通仓库只有一个本地 catalog，仓库目录固定在 `CTN_REPOSITORY_ROOT` 下。创建请求
-只包含名称和初始内容，稳定 ID 由服务端分配；仓库名必须可移植、不能占用“日记”或
-“代办”，并且在 catalog 内唯一。
-
-删除前界面要求输入完整仓库名称。服务端确认目录只含托管数据后，以同一根目录内的
-durable rename 作为删除提交点，再执行可恢复的物理清理；成功的管理 API 返回
-`204 No Content`，没有删除模式、连接状态或轮询协议。
-
-浏览器仍通过 snapshot sync、CAS 与 SSE 访问服务端。本地仅描述仓库所在的服务端
-文件系统或容器持久卷，不限制页面与 API 从局域网访问。catalog cache 使用严格的新
-版本，旧缓存不读取；升级后首次离线启动不能依靠旧目录缓存，必须先成功连接一次服务端。
-
-普通 Workspace 使用 v4，Journal 使用 v3，Todo 使用 v4。它们是唯一合法格式；
-只有 epoch 与内容同时不存在时才初始化。部分状态、非当前版本、损坏内容和
-未来版本保持原样并投影故障，不迁移、不覆盖。
-
-
-## 6. 验证
+服务保留权限与时间元数据，不遍历符号链接，并比较文件数量、大小与 SHA-256。旧
+`api-v1`、`agent-v1`、WebDAV 目录、旧 profile 文件和其他备份不读取、不复制。
+验证成功后最后一次 CAS 更新 bootstrap 指针并重启；失败不会切换。旧数据根保持
+原权限作为人工备份，不自动删除。
+
+容器必须同时持久化项目 `.cognition-tree/bootstrap-v1` 和当前数据根。如果二者在
+同一挂载卷内，持久化整个项目 `.cognition-tree` 即可；如果在不同卷中，两者都必须
+独立挂载。迁移需要目标磁盘容纳完整权威数据的第二份副本。
+
+## 5. Agent Provider 网络边界
+
+Provider、Profile 和凭据只在“设置 → 智能体”管理。secret 以 0600 服务状态保存，
+响应永不回传；这依赖操作系统文件权限，不承诺静态加密。
+
+loopback Provider 自动允许。非 loopback 私网 origin 必须在创建或每次修改 Provider
+时显式确认；许可固定到 Provider version、digest 与精确 origin。修改 endpoint 会让
+许可和旧符合性结果失效。metadata、link-local、unspecified、multicast，以及 DNS
+同时解析到不同安全类别的目标始终拒绝。带凭据的远程 Provider 必须使用 HTTPS。
+
+服务首次读取旧的无私网许可 Agent 配置格式时，会把内部状态原子升级为当前格式；
+Provider/Profile 与凭据继续保留，但所有旧 Provider 都从“没有私网许可”开始，私网
+地址必须在设置中重新确认。Provider digest 的变化也会使旧符合性摘要失效，chat
+Profile 需要重新执行符合性检查。该过程不读取环境变量或旧 profile 文件。
+
+Ollama 发现只在用户点击后执行，默认地址是 `http://127.0.0.1:11434`。认知树只调用
+模型层 `/api/tags` 与 `/v1/chat/completions`，不调用另一个代码 Agent 的任务、MCP、
+Git 或 shell API，也不接管 Ollama 生命周期。
+
+## 6. API v3
+
+公开基础操作：
+
+    GET /api/v3/health
+    GET /api/v3/capabilities
+    GET /api/v3/openapi.json
+    GET、POST、DELETE /api/v3/auth/session
+
+owner-only 服务管理操作：
+
+    GET、PATCH /api/v3/admin/system-configuration
+    POST、DELETE /api/v3/admin/system-configuration/owner-credential
+    POST /api/v3/admin/data-root-migrations
+    GET  /api/v3/admin/data-root-migrations/<migration-id>
+
+内容只读、snapshot sync、Agent 会话、Provider/Profile 管理、仓库管理与 automation
+token 均继续属于唯一 `/api/v3` registry。不存在 `/api/v2`、公开 command API、
+preview/commit、写入 automation scope 或兼容 parser。
+
+## 7. 构建与验证
 
     pnpm check
     pnpm test
     pnpm test:architecture
-    pnpm test:e2e
-    pnpm benchmark:capacity
     pnpm build
+    pnpm test:e2e
     git diff --check
 
-后端类型检查包含在 pnpm check 中；生产构建与启动：
+生产构建输出：
 
-    pnpm server:build
-    pnpm server:start
+    .artifacts/build/client
+    .artifacts/build/server
 
-pnpm build 先清理旧构建，再输出客户端到 .artifacts/build/client、服务端到
-.artifacts/build/server。客户端目录中的 cognition-tree.config.json 是启动时
-配置，可以在部署启动前替换而无需重建 JavaScript。pnpm clean 清除全部可重建
-的 .artifacts，不会触碰 .cognition-tree 中的本地仓库与服务状态。
-
-## 7. 容器与双端
-
-未来容器路径约定：
-
-    /data/repositories  -> CTN_REPOSITORY_ROOT（普通仓库与内置数据）
-    /data/server        -> CTN_SERVER_STATE_DIR（access-v1、agent-config-v1、agent-v2）
-
-本地仓库目录必须整体挂载，包含根部 .ctn/。`/data/server` 必须持久挂载，否则
-provider、profile 和凭据会随容器 recreate 丢失。当前项目不提供 Dockerfile、镜像或 Compose。
-自行容器化时还必须提供可用的进程 sandbox、可写且受边界约束的临时目录、
-Codex 子进程与私有 IPC。Provider 凭据由设置页写入持久服务状态。此次 v3/Codex
-依赖改变了进程与镜像内容，升级不能只重启旧容器：必须重新构建镜像并 recreate
-容器，同时部署匹配的客户端构建。
-
-Linux 是主要开发与后端环境。Windows 可通过浏览器访问同一后端检查界面、输入法、路径和数据互通；项目目录建议使用普通英文路径，源码与数据文件使用 LF。
+运行 `pnpm server:start` 时，Node 从同一 origin 提供 API 与客户端静态资源。不存在
+可替换的客户端启动配置文件。`pnpm clean` 只清除 `.artifacts`，不会触碰
+`.cognition-tree`。

@@ -18,16 +18,16 @@ core/
 
 application/
 
-    框架无关的用例、端口、session controller、read model 和问题投影。application/persistence 持有通用 VersionedRepository、保存队列和 VersionedSessionController。跨领域协调只允许两个显式且互不导入的根：application/workbench 拥有工作台、跨仓导航和搜索组合；application/agent 拥有硬范围、runtime port、staging、proposal、审批状态机与 exact commit 用例。
+    框架无关的用例、端口、session controller、read model 和问题投影。application/persistence 持有通用 VersionedRepository、保存队列和 VersionedSessionController。跨内容领域协调只允许两个显式且互不导入的根：application/workbench 拥有工作台、跨仓导航、保存前 flush 和搜索组合；application/agent 拥有硬范围、runtime port、staging、proposal、审批状态机与 exact commit 用例。application/system 只拥有启动配置用例、端口和状态机，不感知内容领域。
 
 infrastructure/
 
     client 侧内存 cache、HTTP/SSE 适配、Node server、本地 working-tree repository，
     以及 Agent profile、模型 adapter、Codex 子进程、私有 IPC、内存会话和
     operation ledger。CAS 与保存队列策略属于 application，平台层只实现端口；
-    client 不直接导入 Server 存储 adapter。浏览器启动时只从独立的
-    cognition-tree.config.json 取得 API origin 与可选 token，构建产物不嵌入
-    部署地址。
+    client 不直接导入 Server 存储 adapter。Node 是开发与生产的唯一 HTTP
+    composition root；浏览器与 API 同源，客户端只使用相对 `/api/v3`，不存在
+    独立启动配置或客户端 owner token。
 
 presentation/
 
@@ -40,7 +40,7 @@ contracts/
     contract 仍按 common、agent、workspace、journal、todo、built-ins 分开。
     contracts/agent 独占 Agent tool、scope、session、proposal、event 与 IPC wire
     schema，但不承载 mutation；API operation catalog 按 foundation、content、
-    sync、agent、admin 分区，不存在第二个单体 schema catalog。
+    auth、sync、agent、admin 分区，不存在第二个单体 schema catalog。
 
 tooling 不属于运行时源码层，只持有工程脚本和专用配置。tests 与 e2e 验证边界，
 但生产层不得反向依赖它们。可重建产物只写入 .artifacts。
@@ -149,10 +149,10 @@ Workspace preparation；提交后的 validate 只检查读取完整性与 revisi
 
 HTTP 内置数据：
 
-    <CTN_REPOSITORY_ROOT>/.built-ins/journal/
-    <CTN_REPOSITORY_ROOT>/.built-ins/todo/
+    <dataRoot>/repositories/.built-ins/journal/
+    <dataRoot>/repositories/.built-ins/todo/
 
-物理共用 CTN_REPOSITORY_ROOT 不改变领域边界：.built-ins 是保留的基础设施
+物理共用 dataRoot/repositories 不改变领域边界：.built-ins 是保留的基础设施
 子树，不进入普通 Workspace catalog；Journal、Todo 仍使用各自的 contract、
 versioned store、session 和 API，也不获得普通仓库的创建、删除、重命名、
 切换能力。
@@ -163,7 +163,7 @@ versioned store、session 和 API，也不获得普通仓库的创建、删除�
 运行时输入，不读取、不迁移也不清理。
 
 唯一 HTTP 契约为 `/api/v3`。contracts/api 的唯一 registry composition root
-组合并校验 foundation、content、sync、agent、admin operation catalog 的
+组合并校验 foundation、auth、content、sync、agent、admin operation catalog 的
 operationId、method/path 与访问策略。`/api/v2`、公开 command endpoint、command
 envelope、preview/commit mode、resource precondition、公开 commandId 和兼容
 parser 都不存在。
@@ -174,6 +174,11 @@ API principal 是严格 union，不共享“全部 scopes”：
     automation：只能持有 workspace:read、journal:read、todo:read；Workspace
     继续受 repository ID allowlist 限制。
     agent-session capability：只存在于服务端私有 IPC，不属于 HTTP principal。
+
+local-owner 同时要求 socket remote address 与 Host 都是 loopback；公共 Host 经过
+loopback 反向代理不会提升权限。远程 owner 只来自签名 HttpOnly session Cookie，
+credential version 轮换立即使旧 Cookie 失效，Cookie 写请求还必须精确匹配设置中的
+HTTPS Origin。Bearer 只属于只读 automation，显式无效 Bearer 一律 401。
 
 每个 operation 只声明 public、owner 或 owner-or-automation-read(domain)。完整
 Workspace/Journal/Todo snapshot sync、Agent 会话/审批、repository、token 和 audit
@@ -204,22 +209,32 @@ proposal、problem、turn completion 与必要的 snapshot 使用单调 sequence
 只增量应用连续事件；发现缺口、越界 cursor 或刷新重连时重新读取
 AgentSessionSnapshot。两类 SSE 都不是正文真值来源。
 
-服务状态有三个独立 epoch owner：
+固定控制区与数据状态各有唯一 owner：
 
-    <CTN_SERVER_STATE_DIR>/access-v1/automation-tokens.json
-    <CTN_SERVER_STATE_DIR>/agent-config-v1/configuration.json
-    <CTN_SERVER_STATE_DIR>/agent-v2/operations.json
+    <项目根>/.cognition-tree/bootstrap-v1/configuration.json
+    <dataRoot>/server/access-v1/automation-tokens.json
+    <dataRoot>/server/agent-config-v1/configuration.json
+    <dataRoot>/server/agent-v2/operations.json
 
 access 分区只保存 automation token 的 SHA-256 哈希、只读授权与 Workspace allowlist；
 agent-config 分区独占 provider、profile、凭据、version、digest 与符合性结果；agent-v2
 用 proposal UUID + version + digest 做幂等键，并保存 approving owner、
 session/profile/provider/runtime、store、before/after revision、变更资源/块 ID、结果与时间。
 operation ledger 不保存提示词、模型回复、正文、完整 diff 或 tool output，超过
-`CTN_AGENT_MAX_AUDIT_ENTRIES` 后裁剪最旧记录。
+“设置 → 服务”的 maxAuditEntries 后立即裁剪最旧记录。bootstrap 固定在项目根，
+独占监听、端口、数据根指针、public origin、宿主机显示路径、审计容量和 owner
+credential 摘要；配置使用 exact CAS，损坏时只启动本机 recovery registry。
 
-旧 `<CTN_SERVER_STATE_DIR>/api-v1/` 和 `agent-v1/` 完全不读取、不迁移、不暴露，也不存在兼容
+旧 `<dataRoot>/server/api-v1/` 和 `agent-v1/` 完全不读取、不迁移、不暴露，也不存在兼容
 decoder；文件原样保留供人工备份，新服务不会主动删除。状态目录权限为 0700、
 文件权限为 0600；一个新分区损坏只使该能力 fail closed，不阻断内容领域。
+
+数据根迁移由 application/workbench 的 loaded-content flush、application/system 的
+迁移用例和 infrastructure/system 的文件协调器共同完成。maintenance gate 阻止新
+mutation 并等待已有请求结束；协调器只复制 repositories、access-v1、agent-config-v1
+和 agent-v2，拒绝符号链接与路径重叠，逐文件校验数量、大小和 SHA-256，最后才 CAS
+更新 bootstrap 指针。失败不切换指针；成功通过专用退出状态由根 supervisor 重启。
+旧数据根不删除。
 
 Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前
 周期。inactive recurrence 保留 completedCount/totalCount，但完成状态与写入按
@@ -296,13 +311,18 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 存储实现、组合 catalog、连接 registry 或存储回退路径。
 
 Agent 配置由 application/agent 端口协调、设置界面操作并写入独立的 versioned 服务端状态；固定 1 小时 idle TTL、
-24 小时 absolute TTL，审计容量由必填环境变量提供。每个 profile 显式声明
+24 小时 absolute TTL，审计容量来自 bootstrap 服务设置。每个 profile 显式声明
 maxResidentSessions、model、timeout 与 tool/request limit；凭据只写入不回读。
 aggregate、provider 和 profile 均有 version/digest，管理 mutation 使用 exact CAS。
 会话固定创建时的有效配置；普通 profile 修改不影响旧会话，resident session 会阻止
 provider、凭据和 profile 删除。单个 profile 无效或缺少 secret 时只禁用该 profile，
 不回退到其它 profile。每个 profile 同时只运行一个推理，turn FIFO；每个 session 同时
 只有一个 active turn，达到 resident 上限时拒绝新会话而不驱逐有效会话。
+
+Provider 私网许可不是全局 policy：loopback 自动允许，其他私网 origin 必须在每次
+Provider 创建或修改时显式确认，并进入该 Provider version/digest。推理、probe 和
+conformance 每次请求前重新解析目标；metadata、link-local、unspecified、multicast
+与混合 DNS 结果不可被确认绕过。endpoint 变化清除许可和符合性。
 
 Codex adapter 精确锁定 `@openai/codex@0.148.0`，每条会话启动独立常驻
 app-server。它使用空临时 cwd、隔离 HOME/CODEX_HOME、`ephemeral: true`、只读
