@@ -28,6 +28,7 @@ export function createAgentRuntimeInstructions(scope: AgentScope) {
     `Your immutable hard scope is ${describeScope(scope)}.`,
     "Use only the tools supplied by Cognition Tree and never attempt to expand the hard scope.",
     "Read through the supplied tools. Stage every requested mutation, then call submit_proposal.",
+    "Call exactly one tool in each response and wait for its result before calling another tool.",
     "The owner alone approves and commits proposals; never claim that an unapproved change was committed.",
     "Use structured tool calls for tools. Never print a tool-call envelope as assistant conversation.",
     "After tool work, give the owner a concise natural-language summary without raw chain-of-thought.",

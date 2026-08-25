@@ -122,16 +122,54 @@ describe("Ollama Agent runtime", () => {
     ["unknown tool", { arguments: { ack: true }, name: "unknown" }],
     ["invalid arguments", { arguments: { ack: false }, name: tool.name }],
     ["extra field", { arguments: { ack: true }, name: tool.name, extra: true }],
-  ])("rejects an invalid %s envelope", async (_label, value) => {
-    await withSession([JSON.stringify(value)], async (session) => {
+  ])("corrects an invalid %s envelope before executing", async (_label, value) => {
+    const corrected = JSON.stringify({
+      arguments: { ack: true },
+      name: tool.name,
+    });
+
+    await withSession([
+      JSON.stringify(value),
+      corrected,
+      "验证完成。",
+    ], async (session) => {
+      const executeTool = vi.fn(async () => ({ accepted: true }));
+      const deltas: string[] = [];
+      const result = await session.runTurn({
+        executeTool,
+        messages: [{ content: "验证工具", role: "user" }],
+        onEvent(event) {
+          if (event.type === "text-delta") deltas.push(event.textDelta);
+        },
+        scope: { domain: "journal", entryIds: null },
+        signal: new AbortController().signal,
+        tools: [tool],
+      });
+
+      expect(result).toEqual({ finalText: "验证完成。", toolCalls: 1 });
+      expect(executeTool).toHaveBeenCalledOnce();
+      expect(deltas).toEqual([result.finalText]);
+    });
+  });
+
+  it("fails with the tool name and field path after correction is exhausted", async () => {
+    const invalid = JSON.stringify({
+      arguments: { ack: false },
+      name: tool.name,
+    });
+
+    await withSession([invalid, invalid, invalid], async (session) => {
+      const executeTool = vi.fn();
+
       await expect(session.runTurn({
-        executeTool: vi.fn(),
+        executeTool,
         messages: [{ content: "验证工具", role: "user" }],
         onEvent: vi.fn(),
         scope: { domain: "journal", entryIds: null },
         signal: new AbortController().signal,
         tools: [tool],
-      })).rejects.toMatchObject({ name: "AgentRuntimeProtocolError" });
+      })).rejects.toThrow(/conformance_check.*\/ack/i);
+      expect(executeTool).not.toHaveBeenCalled();
     });
   });
 });

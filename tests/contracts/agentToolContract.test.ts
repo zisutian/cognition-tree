@@ -2,7 +2,10 @@
 
 import { Value } from "@sinclair/typebox/value";
 import { describe, expect, it } from "vitest";
-import { agentToolDefinitions } from "../../contracts/agent/tools.ts";
+import {
+  agentToolDefinitions,
+  agentToolDefinitionsForDomain,
+} from "../../contracts/agent/tools.ts";
 
 function tool(name: "list" | "read") {
   return agentToolDefinitions.find((definition) => definition.name === name)!;
@@ -23,15 +26,31 @@ describe("Agent read tool contract", () => {
 });
 
 describe("Agent mutation tool compatibility", () => {
-  it("documents the root union currently exposed to Ollama", () => {
-    const definition = agentToolDefinitions.find(({ name }) =>
-      name === "stage_workspace_command"
-    )!;
-    const schema = definition.inputSchema as unknown as Record<string, unknown>;
+  it("exposes only strict top-level object schemas", () => {
+    for (const definition of agentToolDefinitions) {
+      const schema = definition.inputSchema as unknown as Record<string, unknown>;
 
-    expect(schema.type).toBeUndefined();
-    expect(schema.properties).toBeUndefined();
-    expect(schema.anyOf).toBeInstanceOf(Array);
-    expect(Value.Check(definition.inputSchema, {})).toBe(false);
+      expect(schema.type, definition.name).toBe("object");
+      expect(schema.properties, definition.name).toBeTypeOf("object");
+      expect(schema.anyOf, definition.name).toBeUndefined();
+    }
+  });
+
+  it("offers common tools and exactly one mutation domain", () => {
+    const workspace = agentToolDefinitionsForDomain("workspace");
+
+    expect(workspace.map(({ name }) => name)).toContain("list");
+    expect(workspace.map(({ name }) => name)).toContain(
+      "stage_workspace_create_note",
+    );
+    expect(workspace.some(({ domain }) => domain === "journal")).toBe(false);
+    expect(workspace.some(({ domain }) => domain === "todo")).toBe(false);
+    expect(agentToolDefinitions.map(({ name }) => name)).not.toEqual(
+      expect.arrayContaining([
+        "stage_workspace_command",
+        "stage_journal_command",
+        "stage_todo_command",
+      ]),
+    );
   });
 });

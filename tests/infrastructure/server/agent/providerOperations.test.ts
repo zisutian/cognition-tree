@@ -46,8 +46,12 @@ describe("Agent provider operations", () => {
         response,
         completion === 1
           ? JSON.stringify({
-              arguments: { ack: true },
-              name: "agent_conformance_check",
+              arguments: {
+                body: "Conformance",
+                parentFolderId: null,
+                title: "Conformance",
+              },
+              name: "stage_workspace_create_note",
             })
           : "符合性验证完成。",
       );
@@ -129,6 +133,18 @@ describe("Agent provider operations", () => {
         "/v1/chat/completions",
       ]);
       expect(completionBodies).toHaveLength(2);
+      const offered = completionBodies[0]?.tools as Array<{
+        function: { name: string; parameters: Record<string, unknown> };
+      }>;
+
+      expect(offered.map(({ function: { name } }) => name)).toEqual([
+        "list",
+        "stage_workspace_create_note",
+      ]);
+      expect(offered[1]?.function.parameters).toMatchObject({
+        required: ["body", "parentFolderId", "title"],
+        type: "object",
+      });
       expect(completionBodies.every(({ max_tokens: maxTokens }) =>
         maxTokens === 512
       )).toBe(true);

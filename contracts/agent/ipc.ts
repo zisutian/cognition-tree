@@ -10,13 +10,31 @@ const toolCallSchema = Type.Union(agentToolDefinitions.map((definition) =>
   }, { additionalProperties: false })
 ));
 
-export const AgentIpcRequestSchema = Type.Object({
+const requestIdentity = {
   capability: Type.String({ minLength: 32 }),
   id: Type.String({ format: "uuid" }),
   sessionId: Type.String({ format: "uuid" }),
-  tool: toolCallSchema,
-}, { additionalProperties: false });
+};
+
+export const AgentIpcRequestSchema = Type.Union([
+  Type.Object({
+    ...requestIdentity,
+    kind: Type.Literal("list-tools"),
+  }, { additionalProperties: false }),
+  Type.Object({
+    ...requestIdentity,
+    kind: Type.Literal("call-tool"),
+    tool: toolCallSchema,
+  }, { additionalProperties: false }),
+]);
 export type AgentIpcRequestDto = Static<typeof AgentIpcRequestSchema>;
+
+export const AgentIpcToolCatalogSchema = Type.Array(Type.Object({
+  description: Type.String(),
+  inputSchema: Type.Record(Type.String(), Type.Unknown()),
+  name: Type.String({ minLength: 1 }),
+}, { additionalProperties: false }));
+export type AgentIpcToolCatalogDto = Static<typeof AgentIpcToolCatalogSchema>;
 
 export const AgentIpcResponseSchema = Type.Union([
   Type.Object({

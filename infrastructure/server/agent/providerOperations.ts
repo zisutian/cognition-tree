@@ -2,7 +2,7 @@
 
 import type { AgentConformanceCheckStatus } from "../../../application/agent/agentConfiguration.ts";
 import type { AgentRuntimeTool } from "../../../application/agent/agentRuntimePort.ts";
-import { Type } from "@sinclair/typebox";
+import { agentToolDefinitionsForDomain } from "../../../contracts/agent/tools.ts";
 import type { ApiRuntime } from "../api/http/runtime.ts";
 import { readApiRuntimeNow } from "../api/http/runtime.ts";
 import {
@@ -126,13 +126,16 @@ function parseModels(value: unknown) {
   }))].sort();
 }
 
-const conformanceTool: AgentRuntimeTool = {
-  description: "Verify that this model can call the offered host tool.",
-  inputSchema: Type.Object({ ack: Type.Literal(true) }, {
-    additionalProperties: false,
-  }),
-  name: "agent_conformance_check",
-};
+const conformanceTools: readonly AgentRuntimeTool[] =
+  agentToolDefinitionsForDomain("workspace")
+    .filter(({ name }) =>
+      name === "list" || name === "stage_workspace_create_note"
+    )
+    .map(({ description, inputSchema, name }) => ({
+      description,
+      inputSchema: inputSchema as unknown as Readonly<Record<string, unknown>>,
+      name,
+    }));
 
 type AgentConformanceCheckRecord = Readonly<{
   baseRevision: string;
@@ -341,16 +344,30 @@ export class AgentProviderOperations {
         beforeRequest,
       );
     const session = await runtime.openSession({
-      instructions: "This is a tool-call conformance check. Call the offered tool exactly once with ack=true, then answer in natural language.",
+      instructions: "This is a no-write tool-call conformance check. Call stage_workspace_create_note exactly once with title=Conformance, body=Conformance, and parentFolderId=null. Do not call list. After the fake tool result, answer in natural language.",
       profileId,
-      scope: { domain: "journal", entryIds: null },
+      scope: {
+        domain: "workspace",
+        repositoryId: "conformance-only",
+        target: { kind: "repository" },
+      },
       sessionId: this.#runtime.createId(),
     });
     let calls = 0;
 
     try {
       const result = await session.runTurn({
-        executeTool: async () => {
+        executeTool: async (call) => {
+          const argumentsValue = call.arguments as Record<string, unknown>;
+
+          if (
+            call.name !== "stage_workspace_create_note" ||
+            argumentsValue.body !== "Conformance" ||
+            argumentsValue.parentFolderId !== null ||
+            argumentsValue.title !== "Conformance"
+          ) {
+            throw new Error("Model called the wrong conformance tool or arguments");
+          }
           calls += 1;
           return { accepted: true };
         },
@@ -358,9 +375,13 @@ export class AgentProviderOperations {
         onEvent: (event) => {
           if (event.type === "tool-call") onToolCall();
         },
-        scope: { domain: "journal", entryIds: null },
+        scope: {
+          domain: "workspace",
+          repositoryId: "conformance-only",
+          target: { kind: "repository" },
+        },
         signal,
-        tools: [conformanceTool],
+        tools: conformanceTools,
       });
 
       if (calls !== 1 || result.toolCalls !== 1 || !result.finalText.trim()) {

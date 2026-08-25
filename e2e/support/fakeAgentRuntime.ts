@@ -130,9 +130,9 @@ async function runTurn(request: AgentRuntimeTurnRequest) {
   await request.onEvent({ textDelta: e2eAgentFirstDelta, type: "text-delta" });
   await waitForSecondDelta(request.signal);
   await request.executeTool({
-    arguments: { body: e2eAgentJournalBody, kind: "create-entry" },
+    arguments: { body: e2eAgentJournalBody },
     callId: "00000000-0000-4000-8000-000000000901",
-    name: "stage_journal_command",
+    name: "stage_journal_create_entry",
   });
   await request.executeTool({
     arguments: {},

@@ -6,6 +6,7 @@ import {
   type ServerResponse,
 } from "node:http";
 import { once } from "node:events";
+import { Type } from "@sinclair/typebox";
 import { describe, expect, it, vi } from "vitest";
 import {
   OpenAiChatRuntime,
@@ -45,6 +46,14 @@ function profile(baseUrl: string): OpenAiChatAgentProfile {
   };
 }
 
+const journalCreateTool = {
+  description: "Stage Journal entry creation",
+  inputSchema: Type.Object({ body: Type.String() }, {
+    additionalProperties: false,
+  }),
+  name: "stage_journal_create_entry",
+} as const;
+
 describe("OpenAI-compatible Agent runtime", () => {
   it("streams text and executes sequential tool calls through the supplied port", async () => {
     const requests: Record<string, unknown>[] = [];
@@ -58,9 +67,8 @@ describe("OpenAI-compatible Agent runtime", () => {
                 function: {
                   arguments: JSON.stringify({
                     body: "Agent entry",
-                    kind: "create-entry",
                   }),
-                  name: "stage_journal_command",
+                  name: "stage_journal_create_entry",
                 },
                 id: "call-1",
                 index: 0,
@@ -103,30 +111,29 @@ describe("OpenAI-compatible Agent runtime", () => {
         },
         scope: { domain: "journal", entryIds: null },
         signal: new AbortController().signal,
-        tools: [{
-          description: "Stage Journal intent",
-          inputSchema: { type: "object" },
-          name: "stage_journal_command",
-        }],
+        tools: [journalCreateTool],
       });
 
       expect(result).toEqual({ finalText: "已暂存", toolCalls: 1 });
       expect(deltas).toEqual(["已", "暂存"]);
       expect(executeTool).toHaveBeenCalledWith({
-        arguments: { body: "Agent entry", kind: "create-entry" },
+        arguments: { body: "Agent entry" },
         callId: "call-1",
-        name: "stage_journal_command",
+        name: "stage_journal_create_entry",
       });
       expect(requests).toHaveLength(2);
       expect(requests[0]).toMatchObject({
-        messages: [
-          { content: "shared instructions", role: "system" },
-          { content: "创建一条日记", role: "user" },
-        ],
         model: "test-model",
         parallel_tool_calls: false,
         stream: true,
       });
+      expect(requests[0]?.messages).toEqual([
+        {
+          content: expect.stringContaining("shared instructions"),
+          role: "system",
+        },
+        { content: "创建一条日记", role: "user" },
+      ]);
       expect(JSON.stringify(requests[1])).toContain('"role":"tool"');
     } finally {
       await session.dispose();
@@ -135,7 +142,7 @@ describe("OpenAI-compatible Agent runtime", () => {
     }
   });
 
-  it("documents that multiple native calls are currently executed from one completion", async () => {
+  it("rejects multiple native calls without executing either tool", async () => {
     let requestCount = 0;
     const server = createServer((_request, response) => {
       requestCount += 1;
@@ -202,8 +209,8 @@ describe("OpenAI-compatible Agent runtime", () => {
             name: "search",
           },
         ],
-      })).resolves.toEqual({ finalText: "完成", toolCalls: 2 });
-      expect(executeTool).toHaveBeenCalledTimes(2);
+      })).resolves.toEqual({ finalText: "完成", toolCalls: 0 });
+      expect(executeTool).not.toHaveBeenCalled();
     } finally {
       await session.dispose();
       server.close();
@@ -260,16 +267,39 @@ describe("OpenAI-compatible Agent runtime", () => {
     }
   });
 
-  it("documents that a text tool envelope is currently streamed as conversation", async () => {
+  it("corrects a text tool envelope without displaying or executing it", async () => {
     const envelope = JSON.stringify({
-      arguments: { body: "Agent entry", kind: "create-entry" },
-      name: "stage_journal_command",
+      arguments: { body: "Agent entry" },
+      name: "stage_journal_create_entry",
     });
+    let requestCount = 0;
     const server = createServer((_request, response) => {
-      writeSse(response, [
-        { choices: [{ delta: { content: envelope.slice(0, 20) } }] },
-        { choices: [{ delta: { content: envelope.slice(20) } }] },
-      ]);
+      requestCount += 1;
+      if (requestCount === 1) {
+        writeSse(response, [
+          { choices: [{ delta: { content: envelope.slice(0, 20) } }] },
+          { choices: [{ delta: { content: envelope.slice(20) } }] },
+        ]);
+        return;
+      }
+      if (requestCount === 2) {
+        writeSse(response, [{
+          choices: [{
+            delta: {
+              tool_calls: [{
+                function: {
+                  arguments: JSON.stringify({ body: "Agent entry" }),
+                  name: "stage_journal_create_entry",
+                },
+                id: "call-corrected",
+                index: 0,
+              }],
+            },
+          }],
+        }]);
+        return;
+      }
+      writeSse(response, [{ choices: [{ delta: { content: "已暂存。" } }] }]);
     });
 
     server.listen(0, "127.0.0.1");
@@ -286,7 +316,7 @@ describe("OpenAI-compatible Agent runtime", () => {
       scope: { domain: "journal", entryIds: null },
       sessionId: "00000000-0000-4000-8000-000000000001",
     });
-    const executeTool = vi.fn();
+    const executeTool = vi.fn(async () => ({ staged: true }));
     const deltas: string[] = [];
 
     try {
@@ -298,16 +328,12 @@ describe("OpenAI-compatible Agent runtime", () => {
         },
         scope: { domain: "journal", entryIds: null },
         signal: new AbortController().signal,
-        tools: [{
-          description: "Stage Journal intent",
-          inputSchema: { type: "object" },
-          name: "stage_journal_command",
-        }],
+        tools: [journalCreateTool],
       });
 
-      expect(result).toEqual({ finalText: envelope, toolCalls: 0 });
-      expect(deltas.join("")).toBe(envelope);
-      expect(executeTool).not.toHaveBeenCalled();
+      expect(result).toEqual({ finalText: "已暂存。", toolCalls: 1 });
+      expect(deltas).toEqual([result.finalText]);
+      expect(executeTool).toHaveBeenCalledOnce();
     } finally {
       await session.dispose();
       server.close();
@@ -315,10 +341,8 @@ describe("OpenAI-compatible Agent runtime", () => {
     }
   });
 
-  it.each([
-    ["ordinary JSON", JSON.stringify({ answer: "structured on request" })],
-    ["invalid tool JSON", '{"name":"stage_journal_command","arguments":'],
-  ])("streams %s as ordinary assistant content", async (_label, content) => {
+  it("preserves ordinary JSON as assistant content", async () => {
+    const content = JSON.stringify({ answer: "structured on request" });
     const server = createServer((_request, response) => {
       writeSse(response, [{ choices: [{ delta: { content } }] }]);
     });
@@ -348,11 +372,7 @@ describe("OpenAI-compatible Agent runtime", () => {
         },
         scope: { domain: "journal", entryIds: null },
         signal: new AbortController().signal,
-        tools: [{
-          description: "Stage Journal intent",
-          inputSchema: { type: "object" },
-          name: "stage_journal_command",
-        }],
+        tools: [journalCreateTool],
       });
 
       expect(result.finalText).toBe(content);
@@ -364,18 +384,85 @@ describe("OpenAI-compatible Agent runtime", () => {
     }
   });
 
-  it("documents that content preceding a native tool call currently enters the conversation", async () => {
+  it("corrects malformed text tool JSON without displaying it", async () => {
+    const invalid = '{"name":"stage_journal_create_entry","arguments":';
     let requestCount = 0;
     const server = createServer((_request, response) => {
       requestCount += 1;
-      if (requestCount === 1) {
+      writeSse(response, [{
+        choices: [{ delta: { content: requestCount === 1 ? invalid : "请重试。" } }],
+      }]);
+    });
+
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+
+    if (!address || typeof address === "string") throw new Error("Missing port");
+    const session = await new OpenAiChatRuntime(
+      profile(`http://127.0.0.1:${address.port}/v1`),
+      "server-secret",
+    ).openSession({
+      instructions: "shared instructions",
+      profileId: "openai-test",
+      scope: { domain: "journal", entryIds: null },
+      sessionId: "00000000-0000-4000-8000-000000000001",
+    });
+    const deltas: string[] = [];
+
+    try {
+      const result = await session.runTurn({
+        executeTool: vi.fn(),
+        messages: [{ content: "respond", role: "user" }],
+        onEvent(event) {
+          if (event.type === "text-delta") deltas.push(event.textDelta);
+        },
+        scope: { domain: "journal", entryIds: null },
+        signal: new AbortController().signal,
+        tools: [journalCreateTool],
+      });
+
+      expect(result).toEqual({ finalText: "请重试。", toolCalls: 0 });
+      expect(deltas).toEqual([result.finalText]);
+    } finally {
+      await session.dispose();
+      server.close();
+      await once(server, "close");
+    }
+  });
+
+  it("corrects invalid native arguments without executing or displaying them", async () => {
+    const requests: Record<string, unknown>[] = [];
+    const server = createServer(async (request, response) => {
+      requests.push(await readJson(request));
+      if (requests.length === 1) {
         writeSse(response, [{
           choices: [{
             delta: {
               content: "I will call a tool.",
               tool_calls: [{
-                function: { arguments: "{}", name: "stage_journal_command" },
+                function: {
+                  arguments: "{}",
+                  name: "stage_journal_create_entry",
+                },
                 id: "call-1",
+                index: 0,
+              }],
+            },
+          }],
+        }]);
+        return;
+      }
+      if (requests.length === 2) {
+        writeSse(response, [{
+          choices: [{
+            delta: {
+              tool_calls: [{
+                function: {
+                  arguments: JSON.stringify({ body: "Agent entry" }),
+                  name: "stage_journal_create_entry",
+                },
+                id: "call-2",
                 index: 0,
               }],
             },
@@ -401,28 +488,32 @@ describe("OpenAI-compatible Agent runtime", () => {
       sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const deltas: string[] = [];
+    const executeTool = vi.fn(async () => ({ staged: true }));
 
     try {
       const result = await session.runTurn({
-        executeTool: vi.fn(async () => ({ staged: true })),
+        executeTool,
         messages: [{ content: "创建一条日记", role: "user" }],
         onEvent(event) {
           if (event.type === "text-delta") deltas.push(event.textDelta);
         },
         scope: { domain: "journal", entryIds: null },
         signal: new AbortController().signal,
-        tools: [{
-          description: "Stage Journal intent",
-          inputSchema: { type: "object" },
-          name: "stage_journal_command",
-        }],
+        tools: [journalCreateTool],
       });
 
-      expect(result).toEqual({
-        finalText: "完成",
-        toolCalls: 1,
+      expect(result).toEqual({ finalText: "完成", toolCalls: 1 });
+      expect(executeTool).toHaveBeenCalledOnce();
+      expect(executeTool).toHaveBeenCalledWith({
+        arguments: { body: "Agent entry" },
+        callId: "call-2",
+        name: "stage_journal_create_entry",
       });
       expect(deltas).toEqual(["完成"]);
+      expect(JSON.stringify(requests[1])).toContain("/body");
+      expect(JSON.stringify(requests[1])).not.toContain(
+        "I will call a tool.",
+      );
     } finally {
       await session.dispose();
       server.close();

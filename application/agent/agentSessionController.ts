@@ -97,6 +97,23 @@ export class AgentSessionController {
     return this.#messages[index]!;
   }
 
+  discardEmptyAssistantMessage(messageId: string) {
+    const index = this.#messages.findIndex(({ id }) => id === messageId);
+
+    if (index < 0) return false;
+    const message = this.#messages[index]!;
+
+    if (message.role !== "assistant") {
+      throw new AgentSessionStateError(
+        "Assistant message does not belong to session",
+      );
+    }
+    if (message.content !== "") return false;
+    this.#messages.splice(index, 1);
+    this.#touch();
+    return true;
+  }
+
   beginTurn(turnId: string, queued: boolean) {
     if (this.#activeTurnId !== null) {
       throw new AgentSessionStateError("Session already has an active turn");

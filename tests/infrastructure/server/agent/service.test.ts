@@ -183,9 +183,9 @@ function createTwoEntries(request: AgentRuntimeTurnRequest) {
   return (async () => {
     for (const body of ["First staged entry", "Second staged entry"]) {
       await request.executeTool({
-        arguments: { body, kind: "create-entry" },
+        arguments: { body },
         callId: uuid(body.length),
-        name: "stage_journal_command",
+        name: "stage_journal_create_entry",
       });
     }
     await request.executeTool({
@@ -311,12 +311,12 @@ describe("Agent service proposal lifecycle", () => {
     }
   });
 
-  it("documents the generic union failure and retained empty assistant message", async () => {
+  it("reports a precise tool field failure without retaining an empty assistant message", async () => {
     const fixture = await createFixture(async (request) => {
       await request.executeTool({
         arguments: {},
         callId: uuid(160),
-        name: "stage_journal_command",
+        name: "stage_journal_create_entry",
       });
       return { finalText: "unreachable", toolCalls: 1 };
     });
@@ -332,9 +332,8 @@ describe("Agent service proposal lifecycle", () => {
         expect(fixture.service.getSession(session.id)).toMatchObject({
           messages: [
             { content: "Create an entry", role: "user" },
-            { content: "", role: "assistant" },
           ],
-          problem: "Invalid Cognition Tree Agent contract at $: Expected union value",
+          problem: expect.stringContaining("/body"),
           state: "idle",
         });
       });
@@ -554,9 +553,9 @@ describe("Agent service proposal lifecycle", () => {
     let entryId = "";
     const fixture = await createFixture(async (request) => {
       await request.executeTool({
-        arguments: { entryId, kind: "delete-entry" },
+        arguments: { entryId },
         callId: uuid(200),
-        name: "stage_journal_command",
+        name: "stage_journal_delete_entry",
       });
       await request.executeTool({
         arguments: {},

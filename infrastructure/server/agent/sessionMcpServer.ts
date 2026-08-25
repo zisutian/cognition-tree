@@ -3,10 +3,14 @@
 import { randomUUID } from "node:crypto";
 import net from "node:net";
 import readline from "node:readline";
-import { agentToolDefinitions } from "../../../contracts/agent/tools.ts";
+import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
 import type {
   AgentIpcRequestDto,
   AgentIpcResponseDto,
+} from "../../../contracts/agent/ipc.ts";
+import {
+  AgentIpcToolCatalogSchema,
+  type AgentIpcToolCatalogDto,
 } from "../../../contracts/agent/ipc.ts";
 
 const configuredEndpoint = process.env.CTN_AGENT_IPC_ENDPOINT;
@@ -24,7 +28,15 @@ function write(value: unknown) {
   process.stdout.write(`${JSON.stringify(value)}\n`);
 }
 
-function callPrivateIpc(tool: AgentIpcRequestDto["tool"]) {
+type AgentIpcToolCallRequest = Extract<
+  AgentIpcRequestDto,
+  { kind: "call-tool" }
+>;
+type AgentIpcRequestPayload =
+  | { kind: "list-tools" }
+  | { kind: "call-tool"; tool: AgentIpcToolCallRequest["tool"] };
+
+function callPrivateIpc(payload: AgentIpcRequestPayload) {
   return new Promise<unknown>((resolve, reject) => {
     const socket = net.createConnection(endpoint);
     let source = "";
@@ -52,13 +64,20 @@ function callPrivateIpc(tool: AgentIpcRequestDto["tool"]) {
       const request: AgentIpcRequestDto = {
         capability,
         id: randomUUID(),
+        ...payload,
         sessionId,
-        tool,
       };
 
       socket.write(`${JSON.stringify(request)}\n`);
     });
   });
+}
+
+async function listTools(): Promise<AgentIpcToolCatalogDto> {
+  return parseAgentSchema(
+    AgentIpcToolCatalogSchema,
+    await callPrivateIpc({ kind: "list-tools" }),
+  );
 }
 
 const input = readline.createInterface({ input: process.stdin });
@@ -88,36 +107,39 @@ input.on("line", (line) => {
       });
       return;
     }
-    if (request.method === "tools/list") {
-      write({
-        id,
-        jsonrpc: "2.0",
-        result: {
-          tools: agentToolDefinitions.map(({ description, inputSchema, name }) => ({
-            description,
-            inputSchema,
-            name,
-          })),
-        },
-      });
-      return;
-    }
-    if (request.method === "tools/call") {
-      const params = request.params && typeof request.params === "object" &&
-          !Array.isArray(request.params)
-        ? request.params as Record<string, unknown>
-        : {};
-      const definition = agentToolDefinitions.find(({ name }) => name === params.name);
+    try {
+      if (request.method === "tools/list") {
+        const tools = await listTools();
 
-      if (!definition) {
-        write({ error: { code: -32602, message: "Unknown Agent tool" }, id, jsonrpc: "2.0" });
+        write({
+          id,
+          jsonrpc: "2.0",
+          result: {
+            tools,
+          },
+        });
         return;
       }
-      try {
+      if (request.method === "tools/call") {
+        const params = request.params && typeof request.params === "object" &&
+            !Array.isArray(request.params)
+          ? request.params as Record<string, unknown>
+          : {};
+        const definition = (await listTools()).find(({ name }) =>
+          name === params.name
+        );
+
+        if (!definition) {
+          write({ error: { code: -32602, message: "Unknown Agent tool" }, id, jsonrpc: "2.0" });
+          return;
+        }
         const result = await callPrivateIpc({
-          input: params.arguments ?? {},
-          name: definition.name,
-        } as AgentIpcRequestDto["tool"]);
+          kind: "call-tool",
+          tool: {
+            input: params.arguments ?? {},
+            name: definition.name,
+          } as AgentIpcToolCallRequest["tool"],
+        });
 
         write({
           id,
@@ -127,19 +149,20 @@ input.on("line", (line) => {
             structuredContent: result,
           },
         });
-      } catch (error) {
-        write({
-          id,
-          jsonrpc: "2.0",
-          result: {
-            content: [{
-              text: error instanceof Error ? error.message : "Agent tool failed",
-              type: "text",
-            }],
-            isError: true,
-          },
-        });
+        return;
       }
+    } catch (error) {
+      write({
+        id,
+        jsonrpc: "2.0",
+        result: {
+          content: [{
+            text: error instanceof Error ? error.message : "Agent tool failed",
+            type: "text",
+          }],
+          isError: true,
+        },
+      });
       return;
     }
     write({ error: { code: -32601, message: "Method not found" }, id, jsonrpc: "2.0" });

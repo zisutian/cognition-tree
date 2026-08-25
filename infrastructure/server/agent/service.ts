@@ -64,7 +64,7 @@ import { AgentServiceError } from "./errors.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import {
   AgentSessionTools,
-  agentRuntimeTools,
+  agentRuntimeToolsForScope,
   toAgentProposalDto,
   type AgentStaging,
 } from "./sessionTools.ts";
@@ -576,6 +576,7 @@ export class AgentService {
   async #createPrivateToolProcess(sessionId: string, scope: AgentScope) {
     const endpoint = await this.#ipc.start();
     await this.#tools.assertScopeAvailable(scope);
+    const tools = agentRuntimeToolsForScope(scope);
     const expiresAt = Date.parse(readApiRuntimeNow(this.#runtime).timestamp) +
       this.#servicePolicy.absoluteTtlMilliseconds;
     const capability = this.#ipc.register({
@@ -585,6 +586,11 @@ export class AgentService {
         callId: request.id,
         name: request.tool.name,
       }),
+      listTools: () => tools.map((tool) => ({
+        description: tool.description,
+        inputSchema: { ...tool.inputSchema },
+        name: tool.name,
+      })),
       sessionId,
     });
 
@@ -631,14 +637,23 @@ export class AgentService {
     controller.startAssistantMessage(messageId);
     this.#emitSnapshot(record);
     try {
-      await this.#tools.assertScopeAvailable(controller.snapshot().scope);
-      await this.#runRuntimeWithCompaction(record, messageId, signal, agentRuntimeTools);
+      const scope = controller.snapshot().scope;
+
+      await this.#tools.assertScopeAvailable(scope);
+      await this.#runRuntimeWithCompaction(
+        record,
+        messageId,
+        signal,
+        agentRuntimeToolsForScope(scope),
+      );
+      controller.discardEmptyAssistantMessage(messageId);
       controller.finishTurn(turnId);
       record.abortController = null;
       this.#emit(record, { status: "completed", turnId, type: "turn-completed" });
       this.#emitSnapshot(record);
     } catch (error) {
       record.abortController = null;
+      controller.discardEmptyAssistantMessage(messageId);
       if (isAbort(error, signal)) {
         this.#completeCancelled(record, turnId);
         return;

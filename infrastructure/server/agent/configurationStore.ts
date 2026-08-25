@@ -14,6 +14,7 @@ import type {
   AgentToolCallMode,
 } from "../../../application/agent/agentConfiguration.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
+import { agentToolContractVersion } from "../../../contracts/agent/tools.ts";
 import {
   assertStateFields,
   requireStateRecord,
@@ -377,7 +378,7 @@ function providerDigest(provider: StoredProvider) {
 function profileDigest(profile: StoredProfile) {
   const { conformance: _conformance, ...configuration } = profile;
 
-  return digest(configuration);
+  return digest({ agentToolContractVersion, configuration });
 }
 
 function providerView(provider: StoredProvider): AgentProviderView {

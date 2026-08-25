@@ -48,6 +48,16 @@ type PendingToolCall = {
   name: string;
 };
 
+type ToolCorrection = Readonly<{
+  code: string;
+  message: string;
+}>;
+
+type SingleJsonClassification =
+  | { kind: "conversation" }
+  | { arguments: unknown; kind: "tool"; name: string }
+  | { correction: ToolCorrection; kind: "correction" };
+
 type CompatibleChatProfile = OllamaAgentProfile | OpenAiChatAgentProfile;
 
 function endpoint(baseUrl: string) {
@@ -124,49 +134,115 @@ function appendToolDelta(
   }
 }
 
+function validateToolCall(
+  name: string,
+  argumentsValue: unknown,
+  tools: readonly AgentRuntimeTool[],
+): ToolCorrection | null {
+  const tool = tools.find((candidate) => candidate.name === name);
+
+  if (!tool) {
+    return {
+      code: "tool_not_offered",
+      message: `Tool ${name} was not offered to this session. Call one offered tool.`,
+    };
+  }
+  const schema = tool.inputSchema as TSchema;
+
+  if (Value.Check(schema, argumentsValue)) return null;
+  const issue = Value.Errors(schema, argumentsValue).First();
+
+  return {
+    code: "invalid_tool_arguments",
+    message: `Tool ${name} arguments are invalid at ${issue?.path || "$"}: ${
+      issue?.message ?? "invalid value"
+    }`,
+  };
+}
+
 function classifySingleJsonToolCall(
   text: string,
   tools: readonly AgentRuntimeTool[],
-): { arguments: unknown; name: string } | null {
+): SingleJsonClassification {
   let parsed: unknown;
 
   try {
     parsed = JSON.parse(text) as unknown;
   } catch {
     if (/"(?:name|arguments)"\s*:/.test(text)) {
-      throw new AgentRuntimeProtocolError(
-        "Agent emitted an invalid single-json tool envelope",
-      );
+      return {
+        correction: {
+          code: "invalid_tool_envelope",
+          message: "Return exactly one JSON object with only name and arguments.",
+        },
+        kind: "correction",
+      };
     }
-    return null;
+    return { kind: "conversation" };
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { kind: "conversation" };
+  }
   const record = parsed as Record<string, unknown>;
   const fields = Object.keys(record);
   const resemblesTool = fields.includes("name") || fields.includes("arguments");
 
-  if (!resemblesTool) return null;
+  if (!resemblesTool) return { kind: "conversation" };
   if (
     fields.length !== 2 || !fields.includes("name") ||
     !fields.includes("arguments") || typeof record.name !== "string"
   ) {
-    throw new AgentRuntimeProtocolError(
-      "Agent emitted an invalid single-json tool envelope",
-    );
+    return {
+      correction: {
+        code: "invalid_tool_envelope",
+        message: "Return exactly one JSON object with only name and arguments.",
+      },
+      kind: "correction",
+    };
   }
-  const tool = tools.find(({ name }) => name === record.name);
+  const correction = validateToolCall(record.name, record.arguments, tools);
 
-  if (!tool) {
-    throw new AgentRuntimeProtocolError(
-      "Agent requested a tool that was not offered to this session",
-    );
+  return correction
+    ? { correction, kind: "correction" }
+    : { arguments: record.arguments, kind: "tool", name: record.name };
+}
+
+function correctionResult(correction: ToolCorrection) {
+  return JSON.stringify({ error: correction });
+}
+
+function appendTextCorrection(
+  messages: ChatMessage[],
+  correction: ToolCorrection,
+) {
+  messages.push({
+    content: "A tool call attempt was rejected by the host.",
+    role: "assistant",
+  });
+  messages.push({ content: correctionResult(correction), role: "user" });
+}
+
+function appendNativeCorrection(
+  messages: ChatMessage[],
+  calls: readonly PendingToolCall[],
+  correction: ToolCorrection,
+) {
+  messages.push({
+    content: null,
+    role: "assistant",
+    tool_calls: calls.map((call) => ({
+      function: { arguments: "{}", name: call.name },
+      id: call.callId,
+      type: "function" as const,
+    })),
+  });
+  for (const call of calls) {
+    messages.push({
+      content: correctionResult(correction),
+      role: "tool",
+      tool_call_id: call.callId,
+    });
   }
-  if (!Value.Check(tool.inputSchema as TSchema, record.arguments)) {
-    throw new AgentRuntimeProtocolError(
-      "Agent single-json tool arguments do not match the tool schema",
-    );
-  }
-  return { arguments: record.arguments, name: record.name };
 }
 
 export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
@@ -215,8 +291,8 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
       const messages: ChatMessage[] = [
         {
           content: this.#profile.toolCallMode === "single-json"
-            ? `${this.#instructions}\n\nWhen calling a tool, output exactly one JSON object with only name and arguments. Do not wrap it in Markdown. After tool results, answer in natural language.`
-            : this.#instructions,
+            ? `${this.#instructions}\n\nWhen calling a tool, output exactly one JSON object with only name and arguments. Do not wrap it in Markdown. Call one tool at a time and wait for its result. After tool results, answer in natural language.`
+            : `${this.#instructions}\n\nCall exactly one tool in each assistant response and wait for its result before calling another tool.`,
           role: "system",
         },
         ...request.messages.map((message) => ({
@@ -311,7 +387,14 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
             request.tools,
           );
 
-          if (singleJson) {
+          if (singleJson.kind === "correction") {
+            if (step === this.#profile.maxToolSteps) {
+              throw new AgentRuntimeProtocolError(singleJson.correction.message);
+            }
+            appendTextCorrection(messages, singleJson.correction);
+            continue;
+          }
+          if (singleJson.kind === "tool") {
             if (step === this.#profile.maxToolSteps) {
               throw new AgentRuntimeProtocolError(
                 "Agent tool-step limit was reached",
@@ -339,6 +422,27 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
           }
         }
         if (pending.size === 0) {
+          if (this.#profile.toolCallMode === "native") {
+            const textEnvelope = classifySingleJsonToolCall(
+              messageText,
+              request.tools,
+            );
+
+            if (textEnvelope.kind !== "conversation") {
+              const correction = textEnvelope.kind === "correction"
+                ? textEnvelope.correction
+                : {
+                    code: "native_tool_call_required",
+                    message: `Tool ${textEnvelope.name} must be called through a native tool_calls response.`,
+                  };
+
+              if (step === this.#profile.maxToolSteps) {
+                throw new AgentRuntimeProtocolError(correction.message);
+              }
+              appendTextCorrection(messages, correction);
+              continue;
+            }
+          }
           messages.push({ content: messageText, role: "assistant" });
           finalText = messageText;
           for (const textDelta of messageDeltas) {
@@ -352,42 +456,62 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
         const ordered = [...pending.entries()].sort(([left], [right]) => left - right)
           .map(([, call]) => call);
 
-        for (const call of ordered) {
-          if (!call.callId || !call.name) {
-            throw new AgentRuntimeProtocolError("Agent tool call is incomplete");
-          }
-          let argumentsValue: unknown;
-
-          try {
-            argumentsValue = JSON.parse(call.arguments || "{}") as unknown;
-          } catch {
-            throw new AgentRuntimeProtocolError("Agent tool arguments are invalid JSON");
-          }
-          const toolCall: AgentRuntimeToolCall = {
-            arguments: argumentsValue,
-            callId: call.callId,
-            name: call.name,
-          };
-
-          await request.onEvent({ call: toolCall, type: "tool-call" });
-          const result = await request.executeTool(toolCall);
-          messages.push({
-            content: messageText || null,
-            role: "assistant",
-            tool_calls: [{
-              function: { arguments: call.arguments || "{}", name: call.name },
-              id: call.callId,
-              type: "function",
-            }],
-          });
-          messages.push({
-            content: JSON.stringify(result),
-            role: "tool",
-            tool_call_id: call.callId,
-          });
-          toolCalls += 1;
-          messageText = "";
+        if (ordered.some((call) => !call.callId || !call.name)) {
+          throw new AgentRuntimeProtocolError("Agent tool call is incomplete");
         }
+        if (ordered.length > 1) {
+          appendNativeCorrection(messages, ordered, {
+            code: "multiple_tool_calls",
+            message: "Call exactly one tool and wait for its result before calling another.",
+          });
+          continue;
+        }
+        const call = ordered[0]!;
+        let argumentsValue: unknown;
+
+        try {
+          argumentsValue = JSON.parse(call.arguments || "{}") as unknown;
+        } catch {
+          appendNativeCorrection(messages, [call], {
+            code: "invalid_tool_arguments_json",
+            message: `Tool ${call.name} arguments must be one valid JSON object.`,
+          });
+          continue;
+        }
+        const correction = validateToolCall(
+          call.name,
+          argumentsValue,
+          request.tools,
+        );
+
+        if (correction) {
+          appendNativeCorrection(messages, [call], correction);
+          continue;
+        }
+        const toolCall: AgentRuntimeToolCall = {
+          arguments: argumentsValue,
+          callId: call.callId,
+          name: call.name,
+        };
+
+        await request.onEvent({ call: toolCall, type: "tool-call" });
+        const result = await request.executeTool(toolCall);
+
+        messages.push({
+          content: messageText || null,
+          role: "assistant",
+          tool_calls: [{
+            function: { arguments: call.arguments || "{}", name: call.name },
+            id: call.callId,
+            type: "function",
+          }],
+        });
+        messages.push({
+          content: JSON.stringify(result),
+          role: "tool",
+          tool_call_id: call.callId,
+        });
+        toolCalls += 1;
       }
       throw new AgentRuntimeProtocolError("Agent turn ended unexpectedly");
     } finally {

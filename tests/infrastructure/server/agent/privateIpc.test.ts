@@ -45,11 +45,17 @@ describe("private Agent IPC capability", () => {
     const capability = ipc.register({
       expiresAt: Date.now() + 60_000,
       handle,
+      listTools: () => [{
+        description: "List scoped resources",
+        inputSchema: { additionalProperties: false, properties: {}, type: "object" },
+        name: "list",
+      }],
       sessionId,
     });
     const request: AgentIpcRequestDto = {
       capability,
       id: requestId,
+      kind: "call-tool",
       sessionId,
       tool: { input: {}, name: "list" },
     };
@@ -74,6 +80,16 @@ describe("private Agent IPC capability", () => {
       expect(revoked).toMatchObject({
         error: { code: "invalid_capability" },
       });
+      const revokedList = await call(endpoint, {
+        capability,
+        id: requestId,
+        kind: "list-tools",
+        sessionId,
+      });
+
+      expect(revokedList).toMatchObject({
+        error: { code: "invalid_capability" },
+      });
       expect(handle).toHaveBeenCalledOnce();
     } finally {
       await ipc.dispose();
@@ -87,6 +103,7 @@ describe("private Agent IPC capability", () => {
     const capability = ipc.register({
       expiresAt: Date.now() - 1,
       handle,
+      listTools: () => [],
       sessionId,
     });
 
@@ -94,6 +111,7 @@ describe("private Agent IPC capability", () => {
       const response = await call(endpoint, {
         capability,
         id: requestId,
+        kind: "call-tool",
         sessionId,
         tool: { input: {}, name: "list" },
       });

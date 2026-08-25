@@ -10,11 +10,18 @@ import {
   AgentIpcRequestSchema,
   type AgentIpcRequestDto,
   type AgentIpcResponseDto,
+  type AgentIpcToolCatalogDto,
 } from "../../../contracts/agent/ipc.ts";
+
+type AgentIpcToolCallRequest = Extract<
+  AgentIpcRequestDto,
+  { kind: "call-tool" }
+>;
 
 type Capability = {
   expiresAt: number;
-  handle(request: AgentIpcRequestDto): Promise<unknown>;
+  handle(request: AgentIpcToolCallRequest): Promise<unknown>;
+  listTools(): AgentIpcToolCatalogDto;
   sessionId: string;
 };
 
@@ -55,15 +62,22 @@ export class AgentPrivateIpcServer {
   register({
     expiresAt,
     handle,
+    listTools,
     sessionId,
   }: {
     expiresAt: number;
-    handle(request: AgentIpcRequestDto): Promise<unknown>;
+    handle(request: AgentIpcToolCallRequest): Promise<unknown>;
+    listTools(): AgentIpcToolCatalogDto;
     sessionId: string;
   }) {
     const capability = randomBytes(32).toString("base64url");
 
-    this.#capabilities.set(capability, { expiresAt, handle, sessionId });
+    this.#capabilities.set(capability, {
+      expiresAt,
+      handle,
+      listTools,
+      sessionId,
+    });
     return capability;
   }
 
@@ -138,7 +152,11 @@ export class AgentPrivateIpcServer {
         });
         return;
       }
-      send(socket, { id: request.id, result: await capability.handle(request) });
+      const result = request.kind === "list-tools"
+        ? capability.listTools()
+        : await capability.handle(request);
+
+      send(socket, { id: request.id, result });
     } catch (error) {
       const id = input && typeof input === "object" && !Array.isArray(input) &&
           typeof (input as Record<string, unknown>).id === "string"
