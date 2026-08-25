@@ -9,6 +9,11 @@ type DiffChunk = {
   tokens: string[];
 };
 
+export type CtnLineDiffChunk = Readonly<{
+  kind: DiffKind;
+  lines: readonly string[];
+}>;
+
 function appendChunk(
   chunks: DiffChunk[],
   kind: DiffKind,
@@ -374,6 +379,39 @@ function createLineTokens(source: string): string[] | null {
     tokens.push(source.slice(tokenStart));
   }
   return tokens.length > maximumLineTokens ? null : tokens;
+}
+
+function displayLine(token: string) {
+  return token.endsWith("\r\n")
+    ? token.slice(0, -2)
+    : token.endsWith("\n") || token.endsWith("\r")
+      ? token.slice(0, -1)
+      : token;
+}
+
+export function createMyersLineDiff(
+  previousSource: string,
+  nextSource: string,
+): CtnLineDiffChunk[] {
+  const previousLines = createLineTokens(previousSource);
+  const nextLines = createLineTokens(nextSource);
+  const chunks = previousLines && nextLines
+    ? createTokenDiff(
+        previousLines,
+        nextLines,
+        maximumLineBisectDepth,
+      )
+    : [
+        { kind: "delete" as const, tokens: previousLines ?? [previousSource] },
+        { kind: "insert" as const, tokens: nextLines ?? [nextSource] },
+      ];
+
+  return chunks
+    .map(({ kind, tokens }) => ({
+      kind,
+      lines: tokens.map(displayLine),
+    }))
+    .filter(({ lines }) => lines.length > 0);
 }
 
 function chunksToTextEdits(

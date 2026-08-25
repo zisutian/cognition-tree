@@ -18,14 +18,23 @@ import {
   type AgentSyntaxKnowledge,
 } from "../../../application/agent/index.ts";
 import { prepareAgentJournalCommand } from "../../../application/journal/journalAgentCommandPreparation.ts";
-import { projectJournalContentChanges } from "../../../application/journal/journalContentProjection.ts";
+import {
+  projectJournalAgentProposalReview,
+  projectJournalContentChanges,
+} from "../../../application/journal/journalContentProjection.ts";
 import {
   prepareAgentTodoCommand,
   type TodoAgentCommandIntent,
 } from "../../../application/todo/todoAgentCommandPreparation.ts";
-import { projectTodoContentChanges } from "../../../application/todo/todoContentProjection.ts";
+import {
+  projectTodoAgentProposalReview,
+  projectTodoContentChanges,
+} from "../../../application/todo/todoContentProjection.ts";
 import { prepareAgentWorkspaceCommand } from "../../../application/workspace/commands/workspaceAgentCommandPreparation.ts";
-import { projectWorkspaceContentChanges } from "../../../application/workspace/commands/workspaceContentProjection.ts";
+import {
+  projectWorkspaceAgentProposalReview,
+  projectWorkspaceContentChanges,
+} from "../../../application/workspace/commands/workspaceContentProjection.ts";
 import type { PreparedVersionedSnapshot } from "../../../application/persistence/versionedRepository.ts";
 import type { WorkspaceRepositoryPreparation } from "../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import type { JournalParseIndex } from "../../../core/journal/indexes/journalParseIndex.ts";
@@ -268,6 +277,7 @@ export function toAgentProposalDto(
     digest: proposal.digest,
     diff: proposal.diff,
     id: proposal.id,
+    review: proposal.review,
     status: proposal.status,
     store: proposal.store,
     version: proposal.version,
@@ -336,7 +346,7 @@ export class AgentSessionTools {
       case "describe_syntax":
         return { result: await this.#describeSyntax(record) };
       case "submit_proposal": {
-        const proposal = this.#submitProposal(record);
+        const proposal = await this.#submitProposal(record);
 
         return { proposal, result: toAgentProposalDto(proposal) };
       }
@@ -767,7 +777,7 @@ export class AgentSessionTools {
     return { destructive: staging.destructive, staged: true };
   }
 
-  #submitProposal(record: AgentToolSession): AgentProposal {
+  async #submitProposal(record: AgentToolSession): Promise<AgentProposal> {
     const staging = record.staging;
 
     if (!staging) {
@@ -789,6 +799,17 @@ export class AgentSessionTools {
         staging.current.projection,
         workspaceResourceVersions,
       );
+      const catalog = await this.#catalog.listRepositories();
+      const descriptor = catalog.repositories.find(({ id }) =>
+        id === scope.repositoryId
+      );
+
+      if (!descriptor) {
+        throw new AgentServiceError(
+          "not_found",
+          "Workspace repository label is unavailable for proposal review",
+        );
+      }
 
       proposal = createAgentProposal({
         base: staging.base,
@@ -797,6 +818,12 @@ export class AgentSessionTools {
         digestPort: { digest: digestAgentProposal },
         diff: transition.diff,
         id,
+        review: projectWorkspaceAgentProposalReview({
+          afterPreparation: staging.current.projection,
+          beforePreparation: staging.base.projection,
+          changes: transition.changes,
+          repositoryLabel: descriptor.label,
+        }),
         staged: staging.current,
         store: { domain: "workspace", repositoryId: scope.repositoryId },
       });
@@ -817,6 +844,11 @@ export class AgentSessionTools {
         digestPort: { digest: digestAgentProposal },
         diff: transition.diff,
         id,
+        review: projectJournalAgentProposalReview({
+          afterIndex: staging.current.projection,
+          beforeIndex: staging.base.projection,
+          changes: transition.changes,
+        }),
         staged: staging.current,
         store: { domain: "journal" },
       });
@@ -837,6 +869,11 @@ export class AgentSessionTools {
         digestPort: { digest: digestAgentProposal },
         diff: transition.diff,
         id,
+        review: projectTodoAgentProposalReview({
+          afterIndex: staging.current.projection,
+          beforeIndex: staging.base.projection,
+          changes: transition.changes,
+        }),
         staged: staging.current,
         store: { domain: "todo" },
       });

@@ -113,6 +113,57 @@ export const AgentProposalStatusSchema = Type.Union([
   Type.Literal("failed"),
 ]);
 
+const AgentProposalReviewSnapshotSchema = strictObject({
+  label: Type.String(),
+  path: Type.String(),
+});
+const AgentProposalReviewActionSchema = Type.Union([
+  Type.Literal("content-updated"),
+  Type.Literal("created"),
+  Type.Literal("deleted"),
+  Type.Literal("moved"),
+  Type.Literal("renamed"),
+  Type.Literal("state-updated"),
+]);
+const AgentProposalReviewLineSchema = strictObject({
+  afterLineNumber: nullable(Type.Integer({ minimum: 1 })),
+  beforeLineNumber: nullable(Type.Integer({ minimum: 1 })),
+  kind: Type.Union([
+    Type.Literal("added"),
+    Type.Literal("context"),
+    Type.Literal("removed"),
+  ]),
+  text: Type.String(),
+});
+export const AgentProposalReviewSchema = strictObject({
+  resources: Type.Array(strictObject({
+    actions: Type.Array(AgentProposalReviewActionSchema, { uniqueItems: true }),
+    after: nullable(AgentProposalReviewSnapshotSchema),
+    before: nullable(AgentProposalReviewSnapshotSchema),
+    blockSummary: strictObject({
+      created: Type.Integer({ minimum: 0 }),
+      deleted: Type.Integer({ minimum: 0 }),
+      moved: Type.Integer({ minimum: 0 }),
+      stateUpdated: Type.Integer({ minimum: 0 }),
+      updated: Type.Integer({ minimum: 0 }),
+    }),
+    diff: Type.Array(strictObject({
+      lines: Type.Array(AgentProposalReviewLineSchema, { minItems: 1 }),
+    })),
+    resourceId: identifier,
+    type: Type.Union([
+      Type.Literal("journal-entry"),
+      Type.Literal("todo-collection"),
+      Type.Literal("workspace-folder"),
+      Type.Literal("workspace-note"),
+    ]),
+  })),
+  storeLabel: nullable(Type.String()),
+});
+export type AgentProposalReviewDto = Static<
+  typeof AgentProposalReviewSchema
+>;
+
 export const AgentProposalSchema = strictObject({
   baseRevision: revision,
   changes: DomainChangeSetSchema,
@@ -120,6 +171,7 @@ export const AgentProposalSchema = strictObject({
   digest,
   diff: Type.Array(DomainTextDiffHunkSchema),
   id: uuid,
+  review: AgentProposalReviewSchema,
   status: AgentProposalStatusSchema,
   store: AgentStoreReferenceSchema,
   version: Type.Integer({ minimum: 1 }),

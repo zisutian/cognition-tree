@@ -11,6 +11,7 @@ import type {
 } from "./agentTypes.ts";
 import type { DomainChangeSet } from "../../core/sync/domainChangeSet.ts";
 import type { DomainTextEdit } from "../../core/sync/domainTransition.ts";
+import type { AgentProposalReview } from "../commands/agentProposalReview.ts";
 
 export class AgentProposalStateError extends Error {
   constructor(message: string) {
@@ -34,9 +35,10 @@ export function createAgentProposal<
   digestPort,
   diff,
   id,
+  review,
   staged,
   store,
-  version = 1,
+  version = 2,
 }: {
   base: { content: Content; projection: Projection; revision: Revision };
   changes: DomainChangeSet;
@@ -44,6 +46,7 @@ export function createAgentProposal<
   digestPort: AgentProposalDigestPort;
   diff: readonly DomainTextEdit[];
   id: string;
+  review: AgentProposalReview;
   staged: { content: Content; projection: Projection };
   store: AgentStoreReference;
   version?: number;
@@ -58,6 +61,7 @@ export function createAgentProposal<
     destructive,
     diff,
     id,
+    review,
     store,
     version,
   });
@@ -69,6 +73,7 @@ export function createAgentProposal<
     digest,
     diff,
     id,
+    review,
     staged,
     status: "pending",
     store,

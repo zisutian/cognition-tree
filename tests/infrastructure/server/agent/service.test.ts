@@ -567,6 +567,13 @@ describe("Agent service proposal lifecycle", () => {
       expect(proposal.changes.resources.filter(({ kind }) => kind === "created"))
         .toHaveLength(2);
       expect(proposal.diff).toHaveLength(2);
+      expect(proposal.version).toBe(2);
+      expect(proposal.review.resources).toHaveLength(2);
+      expect(proposal.review.resources.map(({ actions }) => actions)).toEqual([
+        ["created"],
+        ["created"],
+      ]);
+      expect(JSON.stringify(proposal.review)).toContain("First staged entry");
       expect(before.revision).toBe(proposal.baseRevision);
       const committed = await fixture.service.decideProposal({
         decision: "approve",

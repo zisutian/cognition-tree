@@ -551,6 +551,7 @@ export class AgentService {
         digest: proposal.digest,
         diff: proposal.diff,
         id: proposal.id,
+        review: proposal.review,
         status: proposal.status,
         store: proposal.store,
         version: proposal.version,

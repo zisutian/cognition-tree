@@ -427,7 +427,7 @@ describe("activity slots", () => {
     );
   });
 
-  it("currently exposes raw proposal protocol fields as the review surface", () => {
+  it("renders a human review before collapsed technical proposal facts", () => {
     const fixture = createAgentApplicationFixture();
     const proposalId = "00000000-0000-4000-8000-000000000101";
     const resourceId = "note-00000000-0000-4000-8000-000000000102";
@@ -462,9 +462,34 @@ describe("activity slots", () => {
         digest,
         diff: [{ from: 0, insertedText: "- 新内容", resourceId, to: 0 }],
         id: proposalId,
+        review: {
+          resources: [{
+            actions: ["created" as const],
+            after: { label: "新笔记", path: "新笔记" },
+            before: null,
+            blockSummary: {
+              created: 1,
+              deleted: 0,
+              moved: 0,
+              stateUpdated: 0,
+              updated: 0,
+            },
+            diff: [{
+              lines: [{
+                afterLineNumber: 1,
+                beforeLineNumber: null,
+                kind: "added" as const,
+                text: "- 新内容",
+              }],
+            }],
+            resourceId,
+            type: "workspace-note" as const,
+          }],
+          storeLabel: "测试仓库",
+        },
         status: "pending" as const,
         store: { domain: "workspace" as const, repositoryId: "repository-a" },
-        version: 1,
+        version: 2,
       }],
       providerDigest: `sha256:${"5".repeat(64)}` as const,
       providerId: "provider-a",
@@ -493,9 +518,14 @@ describe("activity slots", () => {
       onSelectSession: () => undefined,
     }).detail);
 
-    expect(markup).toContain(baseRevision);
-    expect(markup).toContain(digest);
-    expect(markup).toContain(resourceId);
-    expect(markup).toContain("最终聚合 diff");
+    expect(markup).toContain("测试仓库");
+    expect(markup).toContain("新建 1 项");
+    expect(markup).toContain("新笔记");
+    expect(markup).toContain("- 新内容");
+    expect(markup).toContain("技术详情");
+    expect(markup).toContain("sha256:11111111…11111111");
+    expect(markup).not.toContain(baseRevision);
+    expect(markup).not.toContain(digest);
+    expect(markup).not.toContain(resourceId);
   });
 });

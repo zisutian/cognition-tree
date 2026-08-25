@@ -14,6 +14,10 @@ import {
   PanelHeader,
 } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
+import {
+  AgentProposalReview,
+  proposalStoreLabel,
+} from "./AgentProposalReview";
 
 const proposalStatusLabels: Record<AgentProposalView["status"], string> = {
   approved: "已批准",
@@ -24,14 +28,6 @@ const proposalStatusLabels: Record<AgentProposalView["status"], string> = {
   rejected: "已拒绝",
   stale: "已过期",
 };
-
-function storeLabel(proposal: AgentProposalView) {
-  return proposal.store.domain === "workspace"
-    ? `Workspace · ${proposal.store.repositoryId}`
-    : proposal.store.domain === "journal"
-      ? "Journal"
-      : "Todo";
-}
 
 export function AgentProposalPanel({
   agent,
@@ -95,53 +91,19 @@ export function AgentProposalPanel({
                     setSelectedProposalId(event.currentTarget.value)}
                   value={proposal.id}
                 >
-                  {session.proposals.map((item) => (
+                  {session.proposals.map((item, index) => (
                     <option key={item.id} value={item.id}>
-                      {item.id.slice(0, 8)} · {proposalStatusLabels[item.status]}
+                      {`第 ${index + 1} 份 · ${proposalStatusLabels[item.status]} · ${proposalStoreLabel(item)}`}
                     </option>
                   ))}
                 </select>
               </label>
             ) : null}
             <dl className="agent-proposal-meta">
-              <div><dt>目标</dt><dd>{storeLabel(proposal)}</dd></div>
+              <div><dt>目标</dt><dd>{proposalStoreLabel(proposal)}</dd></div>
               <div><dt>状态</dt><dd>{proposalStatusLabels[proposal.status]}</dd></div>
-              <div><dt>Base</dt><dd><code>{proposal.baseRevision}</code></dd></div>
-              <div><dt>Digest</dt><dd><code>{proposal.digest}</code></dd></div>
             </dl>
-            <section className="agent-change-summary">
-              <h3>变更摘要</h3>
-              <p>
-                {proposal.changes.resources.length} 个资源，
-                {proposal.changes.blocks.length} 个块
-                {proposal.destructive ? "，包含删除" : ""}
-              </p>
-              <ul>
-                {proposal.changes.resources.map((change, index) => (
-                  <li key={`${change.resourceId}:${change.kind}:${index}`}>
-                    <strong>{change.kind}</strong> {change.resourceId}
-                  </li>
-                ))}
-              </ul>
-            </section>
-            <section className="agent-diff">
-              <h3>最终聚合 diff</h3>
-              {proposal.diff.length === 0 ? (
-                <p className="agent-muted">没有文本 diff。</p>
-              ) : (
-                <ol>
-                  {proposal.diff.map((hunk, index) => (
-                    <li key={`${hunk.resourceId}:${hunk.from}:${index}`}>
-                      <header>
-                        <code>{hunk.resourceId}</code>
-                        <span>{hunk.from}–{hunk.to}</span>
-                      </header>
-                      <pre>{hunk.insertedText || "（删除所选范围）"}</pre>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </section>
+            <AgentProposalReview proposal={proposal} />
             {proposal.status === "pending" ? (
               <div className="agent-proposal-actions">
                 <Button
