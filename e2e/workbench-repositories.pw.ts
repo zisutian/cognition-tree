@@ -76,9 +76,12 @@ test.describe("repository and capacity flows", () => {
       .toBeVisible();
     const statusRows = page.locator(".repository-summary-list > div");
 
-    await expect(statusRows).toHaveCount(3);
+    await expect(statusRows).toHaveCount(2);
     await expect(page.locator(".repository-summary-list dt", {
       hasText: "名称",
+    })).toHaveCount(0);
+    await expect(page.locator(".repository-summary-list dt", {
+      hasText: "类型",
     })).toHaveCount(0);
     await getActivityButton(page, "笔记").click();
     await expect(page.getByLabel("笔记编辑")).toBeVisible();
@@ -100,7 +103,7 @@ test.describe("repository and capacity flows", () => {
     expect(createdRepositoryId).toMatch(
       /^repository-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
-    await expect(activeRepository).toHaveAttribute("title", "第二仓库 · 本地");
+    await expect(activeRepository).toHaveAttribute("title", "第二仓库");
     await openRepositoryFromContext(page, repositoryId);
     await expect(getActivityButton(page, "仓库")).toHaveAttribute(
       "aria-current",
