@@ -257,8 +257,36 @@ export function createApiRequestHandler({
   };
 }
 
-export function createApiServer(options: ApiServerOptions) {
-  const server = http.createServer(createApiRequestHandler(options));
+export function createApiServer(
+  options: ApiServerOptions,
+  fallbackRequestHandler?: ApiRequestHandler,
+) {
+  const apiRequestHandler = createApiRequestHandler(options);
+  const server = http.createServer((request, response) => {
+    let pathname: string;
+
+    try {
+      pathname = new URL(request.url ?? "/", "http://localhost").pathname;
+    } catch {
+      void apiRequestHandler(request, response);
+      return;
+    }
+    const handler = pathname === "/api" || pathname.startsWith("/api/") ||
+        !fallbackRequestHandler
+      ? apiRequestHandler
+      : fallbackRequestHandler;
+
+    void handler(request, response).catch((error: unknown) => {
+      if (response.headersSent) {
+        response.destroy(error instanceof Error ? error : undefined);
+        return;
+      }
+      response.writeHead(500, {
+        "Content-Type": "text/plain; charset=utf-8",
+      });
+      response.end("Internal server error");
+    });
+  });
 
   server.headersTimeout = 10_000;
   server.keepAliveTimeout = 5_000;
