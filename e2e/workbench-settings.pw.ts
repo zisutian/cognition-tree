@@ -25,6 +25,33 @@ test.describe("settings activity flows", () => {
     ]);
   });
 
+  test("manages the owner credential only in service settings", async ({
+    page,
+  }) => {
+    await openWorkbench(page, syntaxRepositoryId);
+    await getActivityButton(page, "设置").click();
+    await page.getByRole("button", { name: "服务", exact: true }).click();
+    const panel = page.getByRole("region", { name: "服务设置" });
+
+    await expect(panel).toContainText("当前数据根");
+    await expect(panel).toContainText("当前监听：仅本机 · 3001");
+    await expect(panel).toContainText("尚未创建；局域网模式不能启用");
+    await panel.getByRole("button", { name: "创建密钥" }).click();
+    const oneTimeSecret = panel.getByRole("status").filter({
+      hasText: "关闭后无法再次查看",
+    });
+
+    await expect(oneTimeSecret.locator("code")).toHaveText(
+      /^ctn_owner_[A-Za-z0-9_-]{43}$/,
+    );
+    await oneTimeSecret.getByRole("button", {
+      name: "我已保存，关闭显示",
+    }).click();
+    await expect(oneTimeSecret).toHaveCount(0);
+    await panel.getByRole("button", { name: "清除凭据" }).click();
+    await expect(panel).toContainText("尚未创建；局域网模式不能启用");
+  });
+
   test("creates only read-scoped tokens and retains only the prefix", async ({
     api,
     page,

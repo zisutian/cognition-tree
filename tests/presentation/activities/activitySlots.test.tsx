@@ -130,6 +130,9 @@ function createSlots(
           >[0]["apiAccess"]["administration"],
           repositories: [],
         },
+        system: {} as Parameters<
+          typeof createSettingsActivitySlots
+        >[0]["system"],
         workbench: {
           contextWidth: controls.contextWidth,
           onContextWidthChange: controls.onContextWidthChange,

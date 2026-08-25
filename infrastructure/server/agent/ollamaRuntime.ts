@@ -7,10 +7,15 @@ import type { OllamaAgentProfile } from "./runtimeProfiles.ts";
 
 export class OllamaRuntime implements AgentRuntimePort {
   readonly kind = "ollama" as const;
+  readonly #beforeRequest: () => Promise<void>;
   readonly #profile: OllamaAgentProfile;
 
-  constructor(profile: OllamaAgentProfile) {
+  constructor(
+    profile: OllamaAgentProfile,
+    beforeRequest: () => Promise<void> = async () => undefined,
+  ) {
     this.#profile = profile;
+    this.#beforeRequest = beforeRequest;
   }
 
   async openSession(input: {
@@ -24,6 +29,7 @@ export class OllamaRuntime implements AgentRuntimePort {
       this.#profile,
       null,
       input.instructions,
+      this.#beforeRequest,
     );
   }
 }

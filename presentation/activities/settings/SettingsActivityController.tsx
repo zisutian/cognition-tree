@@ -17,6 +17,7 @@ export function SettingsActivityController({
           apiAccess: application.apiAccess,
           onSectionChange: setSection,
           section,
+          system: application.system,
           workbench: { contextWidth, onContextWidthChange },
         }),
       )

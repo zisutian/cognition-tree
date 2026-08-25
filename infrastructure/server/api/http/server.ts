@@ -57,6 +57,8 @@ import type { AgentService } from "../../agent/service.ts";
 import type { AgentOperationLedger } from "../../agent/operationLedger.ts";
 import { AgentConfigurationStore } from "../../agent/configurationStore.ts";
 import { AgentProviderOperations } from "../../agent/providerOperations.ts";
+import type { SystemAdministrationPort } from "../../../../application/system/systemConfiguration.ts";
+import { ApiMaintenanceGate } from "./maintenanceGate.ts";
 
 export type ApiRequestHandler = (
   request: IncomingMessage,
@@ -72,11 +74,14 @@ export type ApiServerOptions = {
   catalog: WorkspaceRepositoryCatalog;
   eventHub?: ApiEventHub;
   logger?: Pick<Console, "error">;
+  maintenanceGate?: ApiMaintenanceGate;
   operationLedger?: AgentOperationLedger | null;
+  requestRestart?: () => void;
   runtime?: ApiRuntime;
   revisionTracker?: ApiRevisionTracker;
   security: ApiSecurityPolicy;
   stateDirectory?: string;
+  systemAdministration?: SystemAdministrationPort | null;
 };
 
 function mapSecurityError(error: ApiSecurityError) {
@@ -96,7 +101,9 @@ export function createApiRequestHandler({
   catalog,
   eventHub = new ApiEventHub(),
   logger = console,
+  maintenanceGate = new ApiMaintenanceGate(),
   operationLedger = null,
+  requestRestart = () => undefined,
   runtime = systemApiRuntime,
   revisionTracker = new ApiRevisionTracker(),
   security,
@@ -105,6 +112,7 @@ export function createApiRequestHandler({
     ".cognition-tree",
     "server",
   ),
+  systemAdministration = null,
 }: ApiServerOptions): ApiRequestHandler {
   const resolvedAccessStore = accessStore ?? new AutomationTokenStore(
     stateDirectory,
@@ -124,8 +132,10 @@ export function createApiRequestHandler({
   return async (request, response) => {
     const requestId = randomUUID();
     let responseHeaders = createApiResponseHeaders(null, requestId);
+    let leaveRequest: (() => void) | null = null;
 
     try {
+      leaveRequest = maintenanceGate.enter(request.method);
       const authorized = await authorizeApiRequest(
         request,
         security,
@@ -180,6 +190,7 @@ export function createApiRequestHandler({
         eventHub,
         operation,
         operationLedger,
+        ownerSessions: security.ownerSessions,
         principal: authorized.principal,
         query,
         readJsonBody: () => {
@@ -188,6 +199,7 @@ export function createApiRequestHandler({
           );
           return parsedBody;
         },
+        requestRestart,
         requestId,
         response,
         responseHeaders,
@@ -195,6 +207,7 @@ export function createApiRequestHandler({
         route,
         runtime,
         search,
+        systemAdministration,
       });
 
       if (result) {
@@ -235,12 +248,6 @@ export function createApiRequestHandler({
           createSafeApiLogError(error),
         );
       }
-      if (mapped.code === "unauthorized") {
-        responseHeaders = {
-          ...responseHeaders,
-          "WWW-Authenticate": "Bearer",
-        };
-      }
       if (mapped.statusCode === 405) {
         responseHeaders = {
           ...responseHeaders,
@@ -253,6 +260,8 @@ export function createApiRequestHandler({
         mapped.toDto(requestId),
         responseHeaders,
       );
+    } finally {
+      leaveRequest?.();
     }
   };
 }

@@ -7,10 +7,6 @@ import {
 import {
   createClientAgentProfilePreference,
 } from "../../../../infrastructure/client/platform/agentProfilePreference";
-import {
-  parseClientApiBaseUrl,
-  parseClientStartupConfiguration,
-} from "../../../../infrastructure/client/runtime/apiConfiguration";
 import { createClientTodoApplicationServices } from "../../../../infrastructure/client/platform/applicationServices";
 
 function createMemoryStorage(): Storage {
@@ -61,18 +57,7 @@ describe("client runtime", () => {
     expect(profile.load()).toBeNull();
   });
 
-  it("normalizes the startup configuration API origin and owner token", () => {
-    expect(parseClientApiBaseUrl("https://api.example.test/")).toBe(
-      "https://api.example.test",
-    );
-    expect(parseClientStartupConfiguration({
-      apiBaseUrl: "http://127.0.0.1:3001",
-      apiToken: "owner-token",
-      formatVersion: 1,
-    })).toEqual({
-      baseUrl: "http://127.0.0.1:3001",
-      token: "owner-token",
-    });
+  it("provides browser-owned Todo runtime services", () => {
     const services = createClientTodoApplicationServices();
 
     expect(services.createCollectionId()).toMatch(

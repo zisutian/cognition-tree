@@ -139,9 +139,14 @@ test.describe("workbench diagnostics", () => {
       name: "智能体",
       exact: true,
     });
+    const serviceSection = settingsContext.getByRole("button", {
+      name: "服务",
+      exact: true,
+    });
 
-    await expect(settingsContext.getByRole("button")).toHaveCount(3);
+    await expect(settingsContext.getByRole("button")).toHaveCount(4);
     await expect(interfaceSection).toHaveAttribute("aria-current", "page");
+    await expect(serviceSection).not.toHaveAttribute("aria-current", "page");
     await expect(agentSection).not.toHaveAttribute("aria-current", "page");
     await expect(apiSection).not.toHaveAttribute("aria-current", "page");
     await expect(settingsPanel.getByRole("heading", { name: "界面" }))

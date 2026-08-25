@@ -6,6 +6,7 @@ import { parseApiSchema } from "./parse.ts";
 import { ApiErrorSchema } from "./schemas/foundation.ts";
 import { adminApiOperations } from "./operations/admin.ts";
 import { agentApiOperations } from "./operations/agent.ts";
+import { authApiOperations } from "./operations/auth.ts";
 import { contentApiOperations } from "./operations/content.ts";
 import type { ApiOperationDefinition } from "./operations/definition.ts";
 import { foundationApiOperations } from "./operations/foundation.ts";
@@ -19,6 +20,7 @@ export type {
 
 export const apiOperationCatalogs = {
   foundation: foundationApiOperations,
+  auth: authApiOperations,
   content: contentApiOperations,
   sync: syncApiOperations,
   agent: agentApiOperations,
@@ -52,6 +54,7 @@ type ApiRouteParameters = {
   builtInId?: string;
   collectionId?: string;
   entryId?: string;
+  migrationId?: string;
   noteId?: string;
   proposalId?: string;
   profileId?: string;

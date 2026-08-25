@@ -8,18 +8,21 @@ import {
 } from "./SettingsPanel";
 import type { ApiAccessApplication } from "../../../application/apiAccess/apiAccessAdministration";
 import type { AgentApplication } from "../../../application/agent";
+import type { SystemApplication } from "../../../application/system";
 
 export function createSettingsActivitySlots({
   agent,
   apiAccess,
   onSectionChange = () => undefined,
   section = "interface",
+  system,
   workbench,
 }: {
   agent: AgentApplication;
   apiAccess: ApiAccessApplication;
   onSectionChange?(section: SettingsSection): void;
   section?: SettingsSection;
+  system: SystemApplication;
   workbench: SettingsWorkbenchPreferences;
 }): ActivitySlots {
   return {
@@ -38,6 +41,7 @@ export function createSettingsActivitySlots({
         agent={agent}
         apiAccess={apiAccess}
         section={section}
+        system={system}
         workbench={workbench}
       />
     ),

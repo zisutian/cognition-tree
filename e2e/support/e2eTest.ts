@@ -15,14 +15,9 @@ import {
   resetTodoRepository,
 } from "./builtInSeeds";
 import {
-  clientStartupConfigurationPath,
-} from "../../infrastructure/client/runtime/apiConfiguration";
-import {
   startE2EWorkspaceServer,
   type E2EWorkspaceServer,
 } from "./workspaceServer";
-
-const webOrigin = "http://127.0.0.1:4174";
 
 type E2EState = {
   setBuiltIns(input: {
@@ -36,6 +31,7 @@ type E2EState = {
 type E2EFixtures = {
   api: APIRequestContext;
   apiBaseUrl: string;
+  baseURL: string;
   e2eState: E2EState;
   repositoryRoot: string;
 };
@@ -50,7 +46,6 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
       path.join(os.tmpdir(), "cognition-tree-e2e-"),
     );
     const server = await startE2EWorkspaceServer({
-      allowedOrigin: webOrigin,
       rootDirectory,
     });
 
@@ -64,20 +59,11 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
   apiBaseUrl: async ({ e2eServer }, use) => {
     await use(e2eServer.baseUrl);
   },
+  baseURL: async ({ e2eServer }, use) => {
+    await use(e2eServer.baseUrl);
+  },
   repositoryRoot: async ({ e2eServer }, use) => {
     await use(e2eServer.repositoryDirectory);
-  },
-  page: async ({ e2eServer, page }, use) => {
-    await page.route(`**${clientStartupConfigurationPath}`, async (route) => {
-      await route.fulfill({
-        body: JSON.stringify({
-          apiBaseUrl: e2eServer.baseUrl,
-          formatVersion: 1,
-        }),
-        contentType: "application/json",
-      });
-    });
-    await use(page);
   },
   api: async ({ e2eServer }, use) => {
     const api = await createRequest.newContext({

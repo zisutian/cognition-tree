@@ -33,4 +33,9 @@ export default defineConfig({
   },
   plugins: [react()],
   clearScreen: false,
+  server: {
+    watch: {
+      ignored: ["**/.artifacts/**", "**/.cognition-tree/**"],
+    },
+  },
 });

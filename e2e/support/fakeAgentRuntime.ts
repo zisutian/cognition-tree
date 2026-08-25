@@ -33,6 +33,7 @@ export async function createE2EAgentConfigurationStore(stateDirectory: string) {
     baseUrl: "https://e2e-runtime.invalid/v1",
     kind: "openai-chat",
     label: "E2E provider",
+    privateNetworkAccessConfirmed: false,
   });
 
   configuration = provider.configuration;
@@ -67,6 +68,7 @@ export async function createE2EAgentConfigurationStore(stateDirectory: string) {
     baseUrl: "https://e2e-missing.invalid/v1",
     kind: "openai-chat",
     label: "E2E missing provider",
+    privateNetworkAccessConfirmed: false,
   });
   const unavailable = await store.createProfile(
     missingProvider.configuration.revision,

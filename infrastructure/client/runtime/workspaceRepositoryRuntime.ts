@@ -1,5 +1,5 @@
 import { createClientActiveRepositorySelection } from "../platform/activeRepositorySelection";
-import type { ClientApiConfiguration } from "./apiConfiguration";
+import type { OfficialClientApi } from "../http/apiTransport";
 import { createHttpWorkspaceRepositoryCatalog } from "../http/workspaceRepositoryCatalog";
 import type { ActiveRepositorySelection } from "../../../application/repository/activeRepositorySelection";
 import type { WorkspaceRepositoryCatalog } from "../../../application/repository/workspaceRepositoryCatalog";
@@ -17,12 +17,11 @@ export type WorkspaceRepositoryRuntime = {
 };
 
 export function createWorkspaceRepositoryRuntime(
-  api: ClientApiConfiguration,
+  api: OfficialClientApi,
 ): WorkspaceRepositoryRuntime {
   const repositories = createHttpWorkspaceRepositoryCatalog({
     baseUrl: api.baseUrl,
     cache: createMemoryRepositoryClientCache(),
-    token: api.token,
     preparation: workspaceRepositoryPreparation,
   });
 

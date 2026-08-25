@@ -16,6 +16,14 @@ import { parseCreateRepository, parseRenameRepository } from "../../workspace/pa
 import { parseApiCreateTokenRequest } from "../parse.ts";
 import { ApiCreateTokenRequestSchema, ApiCreatedTokenSchema, ApiRevokedSchema, ApiTokenListSchema } from "../schemas/admin.ts";
 import {
+  ApiDataRootMigrationRequestSchema,
+  ApiDataRootMigrationStatusSchema,
+  ApiOwnerCredentialRotationSchema,
+  ApiSystemConfigurationMutationSchema,
+  ApiSystemConfigurationRevisionSchema,
+  ApiSystemConfigurationSnapshotSchema,
+} from "../schemas/system.ts";
+import {
   ApiBuiltInCatalogSchema,
   ApiBuiltInRetryResultSchema,
   ApiCreateRepositorySchema,
@@ -31,6 +39,12 @@ const auditQuerySchema = Type.Object({
 }, { additionalProperties: false });
 
 export const adminApiOperations = [
+  { access: ownerAccess(), method: "GET", operationId: "getSystemConfiguration", path: "/api/v3/admin/system-configuration", responses: { 200: ApiSystemConfigurationSnapshotSchema } },
+  { access: ownerAccess(), body: apiBody(ApiSystemConfigurationMutationSchema), method: "PATCH", operationId: "updateSystemConfiguration", path: "/api/v3/admin/system-configuration", responses: { 200: ApiSystemConfigurationSnapshotSchema } },
+  { access: ownerAccess(), body: apiBody(ApiSystemConfigurationRevisionSchema), method: "POST", operationId: "rotateOwnerCredential", path: "/api/v3/admin/system-configuration/owner-credential", responses: { 200: ApiOwnerCredentialRotationSchema } },
+  { access: ownerAccess(), body: apiBody(ApiSystemConfigurationRevisionSchema), method: "DELETE", operationId: "clearOwnerCredential", path: "/api/v3/admin/system-configuration/owner-credential", responses: { 200: ApiSystemConfigurationSnapshotSchema } },
+  { access: ownerAccess(), body: apiBody(ApiDataRootMigrationRequestSchema), method: "POST", operationId: "createDataRootMigration", path: "/api/v3/admin/data-root-migrations", responses: { 202: ApiDataRootMigrationStatusSchema } },
+  { access: ownerAccess(), method: "GET", operationId: "getDataRootMigration", path: "/api/v3/admin/data-root-migrations/{migrationId}", responses: { 200: ApiDataRootMigrationStatusSchema } },
   { access: ownerAccess(), method: "GET", operationId: "getAgentConfiguration", path: "/api/v3/admin/agent-configuration", responses: { 200: AgentConfigurationSnapshotSchema } },
   { access: ownerAccess(), body: apiBody(AgentProviderMutationRequestSchema), method: "POST", operationId: "createAgentProvider", path: "/api/v3/admin/agent-providers", responses: { 201: AgentConfigurationSnapshotSchema } },
   { access: ownerAccess(), body: apiBody(AgentOllamaDiscoveryRequestSchema), method: "POST", operationId: "discoverOllamaProvider", path: "/api/v3/admin/agent-providers/discover-ollama", responses: { 200: AgentOllamaDiscoveryResultSchema } },

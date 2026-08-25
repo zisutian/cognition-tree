@@ -29,7 +29,7 @@ import { ApiSearchService } from "../../../../infrastructure/server/api/search.t
 import { journalResourceVersions } from "../../../../infrastructure/server/api/resources/versions.ts";
 import type { ApiRuntime } from "../../../../infrastructure/server/api/http/runtime.ts";
 import {
-  loadAgentServicePolicy,
+  agentServicePolicy,
 } from "../../../../infrastructure/server/agent/servicePolicy.ts";
 
 const journalScope = { domain: "journal" as const, entryIds: null };
@@ -112,6 +112,7 @@ async function createFixture(behavior: TurnBehavior) {
       baseUrl: "https://runtime.invalid/v1",
       kind: "openai-chat",
       label: "Fake OpenAI provider",
+      privateNetworkAccessConfirmed: false,
     },
   );
 
@@ -152,7 +153,7 @@ async function createFixture(behavior: TurnBehavior) {
       builtInCatalog,
       catalog: unavailableWorkspaceCatalog,
     }),
-    servicePolicy: loadAgentServicePolicy("100"),
+    servicePolicy: agentServicePolicy,
   });
 
   return {

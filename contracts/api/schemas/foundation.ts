@@ -82,7 +82,7 @@ export type ApiPrincipalDto = Static<typeof ApiPrincipalSchema>;
 
 export const ApiCapabilitiesSchema = strictObject({
   apiVersion: Type.Literal(3),
-  principal: ApiPrincipalSchema,
+  principal: nullable(ApiPrincipalSchema),
 });
 export type ApiCapabilitiesDto = Static<typeof ApiCapabilitiesSchema>;
 

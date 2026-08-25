@@ -47,6 +47,7 @@ describe("Agent configuration store", () => {
       baseUrl: null,
       kind: "codex",
       label: "Codex",
+      privateNetworkAccessConfirmed: false,
     });
 
     expect(created.provider).toMatchObject({
@@ -65,6 +66,7 @@ describe("Agent configuration store", () => {
     const fileStats = await stat(file);
 
     expect(source).toContain("provider-secret");
+    expect(JSON.parse(source)).toMatchObject({ formatVersion: 2 });
     expect(fileStats.mode & 0o777).toBe(0o600);
   });
 
@@ -77,6 +79,7 @@ describe("Agent configuration store", () => {
       baseUrl: null,
       kind: "codex",
       label: "Codex",
+      privateNetworkAccessConfirmed: false,
     });
     const profileResult = await store.createProfile(
       providerResult.configuration.revision,
@@ -128,6 +131,7 @@ describe("Agent configuration store", () => {
       baseUrl: "http://127.0.0.1:11434",
       kind: "ollama",
       label: "Local Ollama",
+      privateNetworkAccessConfirmed: false,
     });
     const profileResult = await store.createProfile(
       providerResult.configuration.revision,
@@ -169,6 +173,7 @@ describe("Agent configuration store", () => {
         baseUrl: "http://127.0.0.1:11435",
         kind: "ollama",
         label: "Local Ollama",
+        privateNetworkAccessConfirmed: false,
       },
     );
 
@@ -200,12 +205,48 @@ describe("Agent configuration store", () => {
     );
   });
 
+  it("atomically upgrades the pre-permission format with no private grant", async () => {
+    const { directory, store } = await createStore();
+
+    const initial = await store.readSnapshot();
+    await store.createProvider(initial.revision, {
+      authenticationType: "none",
+      baseUrl: "http://127.0.0.1:11434",
+      kind: "ollama",
+      label: "Existing Ollama",
+      privateNetworkAccessConfirmed: false,
+    });
+    const file = path.join(
+      directory,
+      "agent-config-v1",
+      "configuration.json",
+    );
+    const previous = JSON.parse(await readFile(file, "utf8")) as {
+      formatVersion: number;
+      providers: Array<Record<string, unknown>>;
+    };
+
+    previous.formatVersion = 1;
+    delete previous.providers[0]!.privateNetworkOrigin;
+    await writeFile(file, `${JSON.stringify(previous)}\n`, { mode: 0o600 });
+    const upgraded = await new AgentConfigurationStore(directory).readSnapshot();
+
+    expect(upgraded.providers[0]).toMatchObject({
+      label: "Existing Ollama",
+      privateNetworkAccess: "not-required",
+    });
+    expect(JSON.parse(await readFile(file, "utf8"))).toMatchObject({
+      formatVersion: 2,
+      providers: [{ privateNetworkOrigin: null }],
+    });
+  });
+
   it.each([
     [{
       authenticationType: "none" as const,
       baseUrl: "http://169.254.169.254",
       kind: "ollama" as const,
-    }, "auth:none is restricted to loopback or explicitly allowed private providers"],
+    }, "outside the allowed network targets"],
     [{
       apiKey: "secret",
       authenticationType: "bearer" as const,
@@ -219,6 +260,7 @@ describe("Agent configuration store", () => {
     await expect(store.createProvider(initial.revision, {
       ...input,
       label: "Unsafe provider",
+      privateNetworkAccessConfirmed: false,
     })).rejects.toThrow(message);
   });
 });

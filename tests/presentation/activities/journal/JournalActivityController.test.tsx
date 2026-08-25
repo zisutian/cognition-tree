@@ -31,6 +31,7 @@ function createApplicationWithoutWorkspace(): WorkbenchApplication {
     },
     repository: {} as WorkbenchApplication["repository"],
     search: {} as WorkbenchApplication["search"],
+    system: {} as WorkbenchApplication["system"],
     todo: { status: "loading" },
     workspace: { status: "absent" },
   };

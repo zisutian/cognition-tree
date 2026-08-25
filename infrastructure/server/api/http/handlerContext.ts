@@ -31,6 +31,8 @@ import type { AgentOperationLedger } from "../../agent/operationLedger.ts";
 import type { AgentService } from "../../agent/service.ts";
 import type { AgentConfigurationStore } from "../../agent/configurationStore.ts";
 import type { AgentProviderOperations } from "../../agent/providerOperations.ts";
+import type { SystemAdministrationPort } from "../../../../application/system/systemConfiguration.ts";
+import type { ApiOwnerSessionAuthority } from "./security.ts";
 
 export type HandlerResult = {
   body: unknown;
@@ -51,12 +53,14 @@ export function requireBuiltInCatalog(
 }
 
 export function assertOperationAccess(
-  principal: ApiPrincipalDto,
+  principal: ApiPrincipalDto | null,
   operation: ApiOperationDefinition,
 ) {
-  if (operation.access.kind === "public" || principal.kind !== "automation") {
-    return;
+  if (operation.access.kind === "public") return;
+  if (!principal) {
+    throw new ApiRequestError("unauthorized", "Owner authentication is required");
   }
+  if (principal.kind !== "automation") return;
   if (operation.access.kind === "owner") {
     throw new ApiRequestError(
       "forbidden",
@@ -113,9 +117,11 @@ export type ApiHandlerContext = {
   eventHub: ApiEventHub;
   operation: ApiOperationDefinition;
   operationLedger: AgentOperationLedger | null;
+  ownerSessions: ApiOwnerSessionAuthority;
   principal: ApiPrincipalDto;
   query: unknown;
   readJsonBody(): Promise<unknown>;
+  requestRestart(): void;
   requestId: string;
   response: ServerResponse;
   responseHeaders: OutgoingHttpHeaders;
@@ -123,6 +129,11 @@ export type ApiHandlerContext = {
   route: ResolvedApiRoute;
   runtime: ApiRuntime;
   search: ApiSearchService | null;
+  systemAdministration: SystemAdministrationPort | null;
+};
+
+export type ApiRouteHandlerContext = Omit<ApiHandlerContext, "principal"> & {
+  principal: ApiPrincipalDto | null;
 };
 
 export function publishTrackedChanges(

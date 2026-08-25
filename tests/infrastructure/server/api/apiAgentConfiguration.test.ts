@@ -29,6 +29,7 @@ describe("Agent configuration admin API", () => {
             baseUrl: "https://models.example.invalid/v1",
             kind: "openai-chat",
             label: "OpenAI compatible",
+            privateNetworkAccessConfirmed: false,
           },
         },
         method: "POST",

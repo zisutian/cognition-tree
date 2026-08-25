@@ -1,15 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createHash, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
-import { isIP } from "node:net";
 import type { ApiPrincipalDto } from "../../../../contracts/api/types.ts";
 import type { AutomationTokenStore } from "../../access/automationTokenStore.ts";
+import { isLoopbackAddress } from "../../network/loopbackAddress.ts";
 
-export const defaultApiAllowedOrigins = [
-  "http://127.0.0.1:5173",
-  "http://localhost:5173",
-] as const;
+export const ownerSessionCookieName = "ctn_owner_session";
+export const ownerSessionMaxAgeSeconds = 12 * 60 * 60;
+
+export function createOwnerSessionCookie(session: string) {
+  return `${ownerSessionCookieName}=${encodeURIComponent(session)}; HttpOnly; SameSite=Strict; Secure; Path=/api/v3; Max-Age=${ownerSessionMaxAgeSeconds}`;
+}
+
+export function clearOwnerSessionCookie() {
+  return `${ownerSessionCookieName}=; HttpOnly; SameSite=Strict; Secure; Path=/api/v3; Max-Age=0`;
+}
 
 type HostPattern = {
   hostname: string;
@@ -17,11 +22,17 @@ type HostPattern = {
   source: string;
 };
 
+export type ApiOwnerSessionAuthority = {
+  authenticateOwnerSecret(secret: string): Promise<boolean>;
+  createOwnerSession(now?: Date): Promise<string>;
+  verifyOwnerSession(session: string, now?: Date): Promise<boolean>;
+};
+
 export type ApiSecurityPolicy = {
   allowedHosts: readonly string[];
   allowedOrigins: readonly string[];
-  bearerTokenDigest: Buffer | null;
-  requiresBearerToken: boolean;
+  ownerSessions: ApiOwnerSessionAuthority;
+  publicOrigin: string | null;
 };
 
 export class ApiSecurityError extends Error {
@@ -41,11 +52,7 @@ export class ApiSecurityError extends Error {
 }
 
 function normalizeHostname(hostname: string) {
-  return hostname
-    .trim()
-    .toLowerCase()
-    .replace(/^\[|\]$/g, "")
-    .replace(/\.$/, "");
+  return hostname.trim().toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
 }
 
 function parseHostPattern(value: string): HostPattern {
@@ -54,15 +61,11 @@ function parseHostPattern(value: string): HostPattern {
   if (!source || /[\s/@]/.test(source) || source.includes("://")) {
     throw new Error(`Invalid API host: ${value}`);
   }
-
   const authorityMatch = source.startsWith("[")
     ? /^\[[^\]]+\](?::(\d+))?$/.exec(source)
     : /^([^:]+)(?::(\d+))?$/.exec(source);
 
-  if (!authorityMatch) {
-    throw new Error(`Invalid API host: ${value}`);
-  }
-
+  if (!authorityMatch) throw new Error(`Invalid API host: ${value}`);
   const explicitPort = authorityMatch[1] && source.startsWith("[")
     ? authorityMatch[1]
     : authorityMatch[2] ?? null;
@@ -73,24 +76,12 @@ function parseHostPattern(value: string): HostPattern {
   } catch {
     throw new Error(`Invalid API host: ${value}`);
   }
-
-  if (
-    url.username ||
-    url.password ||
-    url.pathname !== "/" ||
-    url.search ||
-    url.hash
-  ) {
+  if (url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
     throw new Error(`Invalid API host: ${value}`);
   }
-
-  if (
-    explicitPort &&
-    (Number(explicitPort) < 1 || Number(explicitPort) > 65_535)
-  ) {
+  if (explicitPort && (Number(explicitPort) < 1 || Number(explicitPort) > 65_535)) {
     throw new Error(`Invalid API host: ${value}`);
   }
-
   const hostname = normalizeHostname(url.hostname);
   const normalizedHost = hostname.includes(":") ? `[${hostname}]` : hostname;
 
@@ -101,35 +92,14 @@ function parseHostPattern(value: string): HostPattern {
   };
 }
 
-function isLoopbackHost(host: string) {
-  const hostname = normalizeHostname(host);
-
-  if (hostname === "localhost" || hostname === "::1") {
-    return true;
-  }
-  if (isIP(hostname) === 4) {
-    return hostname.startsWith("127.");
-  }
-  if (hostname.startsWith("::ffff:")) {
-    const mappedIpv4 = hostname.slice("::ffff:".length);
-
-    return isIP(mappedIpv4) === 4 && mappedIpv4.startsWith("127.");
-  }
-  return false;
-}
-
 function normalizeAllowedOrigin(value: string) {
-  const origin = new URL(value).origin;
+  const url = new URL(value);
 
-  if (!origin.startsWith("http://") && !origin.startsWith("https://")) {
+  if ((url.protocol !== "http:" && url.protocol !== "https:") ||
+      url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
     throw new Error(`Unsupported API origin: ${value}`);
   }
-
-  return origin;
-}
-
-function digestToken(token: string) {
-  return createHash("sha256").update(token, "utf8").digest();
+  return url.origin;
 }
 
 function readHeader(request: IncomingMessage, name: string) {
@@ -144,14 +114,25 @@ function parseBearerToken(value: string | undefined) {
   return match?.[1] ?? null;
 }
 
+function readCookie(value: string | undefined, name: string) {
+  for (const field of value?.split(";") ?? []) {
+    const separator = field.indexOf("=");
+
+    if (separator < 0 || field.slice(0, separator).trim() !== name) continue;
+    try {
+      return decodeURIComponent(field.slice(separator + 1).trim());
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 function assertAllowedHost(
   requestHost: string | undefined,
   allowedHosts: readonly string[],
 ) {
-  if (!requestHost) {
-    throw new ApiSecurityError(400, "Host header is required");
-  }
-
+  if (!requestHost) throw new ApiSecurityError(400, "Host header is required");
   let requestPattern: HostPattern;
 
   try {
@@ -159,7 +140,6 @@ function assertAllowedHost(
   } catch {
     throw new ApiSecurityError(400, "Host header is invalid");
   }
-
   const allowed = allowedHosts.some((allowedHost) => {
     const pattern = parseHostPattern(allowedHost);
 
@@ -167,64 +147,50 @@ function assertAllowedHost(
       (pattern.port === null || pattern.port === requestPattern.port);
   });
 
-  if (!allowed) {
-    throw new ApiSecurityError(403, "Host is not allowed");
-  }
+  if (!allowed) throw new ApiSecurityError(403, "Host is not allowed");
+  return requestPattern;
+}
+
+function isMutation(method: string | undefined) {
+  return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
 }
 
 export function createApiSecurityPolicy({
-  bearerToken,
-  host,
-  publicUrl,
+  ownerSessions,
+  port,
+  publicOrigin,
 }: {
-  bearerToken?: string;
-  host: string;
-  publicUrl?: string;
+  ownerSessions: ApiOwnerSessionAuthority;
+  port: number;
+  publicOrigin: string | null;
 }): ApiSecurityPolicy {
-  const loopback = isLoopbackHost(host);
-  const requiresBearerToken = !loopback || Boolean(bearerToken);
-
-  if (!loopback && (!bearerToken || !publicUrl)) {
-    throw new Error(
-      "CTN_API_TOKEN and CTN_PUBLIC_URL are required for a non-loopback API host",
-    );
+  const normalizedPublicOrigin = publicOrigin
+    ? normalizeAllowedOrigin(publicOrigin)
+    : null;
+  if (normalizedPublicOrigin && !normalizedPublicOrigin.startsWith("https://")) {
+    throw new Error("Public origin must use HTTPS");
   }
-  if (bearerToken !== undefined && bearerToken.length < 32) {
-    throw new Error("CTN_API_TOKEN must contain at least 32 characters");
-  }
-  let publicOrigin: string | null = null;
-  let publicHost: string | null = null;
-
-  if (publicUrl) {
-    const url = new URL(publicUrl);
-
-    if (url.protocol !== "https:" || url.username || url.password ||
-        url.pathname !== "/" || url.search || url.hash) {
-      throw new Error("CTN_PUBLIC_URL must be an HTTPS origin");
-    }
-    publicOrigin = url.origin;
-    publicHost = url.host;
-  }
-  if (!loopback && (!publicOrigin || !publicHost)) {
-    throw new Error("CTN_PUBLIC_URL must be configured for a non-loopback API host");
-  }
-
-  const resolvedHosts = publicHost
-    ? [publicHost]
-    : ["127.0.0.1", "localhost", "[::1]"];
-  const resolvedOrigins = publicOrigin
-    ? [publicOrigin]
-    : [...defaultApiAllowedOrigins];
+  const publicHost = normalizedPublicOrigin
+    ? new URL(normalizedPublicOrigin).host
+    : null;
+  const localHosts = ["127.0.0.1", "localhost", "[::1]"];
+  const localOrigins = [
+    `http://127.0.0.1:${port}`,
+    `http://localhost:${port}`,
+    `http://[::1]:${port}`,
+  ];
 
   return {
-    allowedHosts: [
-      ...new Set(resolvedHosts.map((value) => parseHostPattern(value).source)),
-    ],
-    allowedOrigins: [
-      ...new Set(resolvedOrigins.map(normalizeAllowedOrigin)),
-    ],
-    bearerTokenDigest: bearerToken ? digestToken(bearerToken) : null,
-    requiresBearerToken,
+    allowedHosts: [...new Set([
+      ...localHosts,
+      ...(publicHost ? [publicHost] : []),
+    ].map((value) => parseHostPattern(value).source))],
+    allowedOrigins: [...new Set([
+      ...localOrigins,
+      ...(normalizedPublicOrigin ? [normalizedPublicOrigin] : []),
+    ].map(normalizeAllowedOrigin))],
+    ownerSessions,
+    publicOrigin: normalizedPublicOrigin,
   };
 }
 
@@ -234,10 +200,12 @@ export async function authorizeApiRequest(
   accessStore: Pick<AutomationTokenStore, "authenticate">,
 ): Promise<{
   allowedOrigin: string | null;
-  principal: ApiPrincipalDto;
+  principal: ApiPrincipalDto | null;
 }> {
-  assertAllowedHost(readHeader(request, "host"), policy.allowedHosts);
-
+  const requestHost = assertAllowedHost(
+    readHeader(request, "host"),
+    policy.allowedHosts,
+  );
   const requestOrigin = readHeader(request, "origin");
   let allowedOrigin: string | null = null;
 
@@ -251,60 +219,46 @@ export async function authorizeApiRequest(
       throw new ApiSecurityError(403, "Origin is not allowed");
     }
   }
-  if (request.method === "OPTIONS") {
-    return {
-      allowedOrigin,
-      principal: {
-        id: "local-owner",
-        kind: "local-owner",
-        name: "本机官方客户端",
-      },
-    };
-  }
+  if (request.method === "OPTIONS") return { allowedOrigin, principal: null };
   const authorization = readHeader(request, "authorization");
 
-  if (authorization === undefined && !policy.requiresBearerToken) {
-    return {
-      allowedOrigin,
-      principal: {
-        id: "local-owner",
-        kind: "local-owner",
-        name: "本机官方客户端",
-      },
-    };
-  }
-  const token = parseBearerToken(authorization);
+  if (authorization !== undefined) {
+    const token = parseBearerToken(authorization);
 
-  if (!token) {
-    throw new ApiSecurityError(
-      401,
-      "Bearer token is invalid",
-      allowedOrigin,
-    );
-  }
-  const presentedDigest = digestToken(token);
+    if (!token) throw new ApiSecurityError(401, "Bearer token is invalid", allowedOrigin);
+    const principal = await accessStore.authenticate(token);
 
+    if (!principal) throw new ApiSecurityError(401, "Bearer token is invalid", allowedOrigin);
+    return { allowedOrigin, principal };
+  }
   if (
-    policy.bearerTokenDigest &&
-    timingSafeEqual(presentedDigest, policy.bearerTokenDigest)
+    isLoopbackAddress(request.socket.remoteAddress) &&
+    isLoopbackAddress(requestHost.hostname)
   ) {
     return {
       allowedOrigin,
       principal: {
-        id: "bootstrap-owner",
-        kind: "owner",
-        name: "Owner",
+        id: "local-owner",
+        kind: "local-owner",
+        name: "本机官方客户端",
       },
     };
   }
-  const principal = await accessStore.authenticate(token);
+  const session = readCookie(readHeader(request, "cookie"), ownerSessionCookieName);
 
-  if (!principal) {
+  if (!session || !await policy.ownerSessions.verifyOwnerSession(session)) {
+    return { allowedOrigin, principal: null };
+  }
+  if (isMutation(request.method) &&
+      (!policy.publicOrigin || allowedOrigin !== policy.publicOrigin)) {
     throw new ApiSecurityError(
-      401,
-      "Bearer token is invalid",
+      403,
+      "Owner session mutations require an exact Origin",
       allowedOrigin,
     );
   }
-  return { allowedOrigin, principal };
+  return {
+    allowedOrigin,
+    principal: { id: "owner-session", kind: "owner", name: "Owner" },
+  };
 }

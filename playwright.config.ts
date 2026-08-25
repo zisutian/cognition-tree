@@ -1,8 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const webHost = "127.0.0.1";
-const webPort = 4174;
-const webBaseUrl = `http://${webHost}:${webPort}`;
 const requestedWorkers = process.env.CTN_E2E_WORKERS
   ? Number(process.env.CTN_E2E_WORKERS)
   : process.env.CI
@@ -32,15 +29,8 @@ export default defineConfig({
   testMatch: "**/*.pw.ts",
   timeout: 30_000,
   use: {
-    baseURL: webBaseUrl,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
-  },
-  webServer: {
-    command: `pnpm dev --host ${webHost} --port ${webPort} --strictPort`,
-    reuseExistingServer: false,
-    timeout: 30_000,
-    url: webBaseUrl,
   },
   workers: requestedWorkers,
 });

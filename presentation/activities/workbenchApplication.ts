@@ -14,6 +14,7 @@ import type {
   ContentOpenOutcome,
 } from "../../application/navigation/contentDestination";
 import type { AgentApplication } from "../../application/agent";
+import type { SystemApplication } from "../../application/system";
 
 export type WorkbenchWorkspaceState =
   | { status: "absent" }
@@ -36,6 +37,7 @@ export type WorkbenchApplication = {
     openResult(result: SearchResult): ContentOpenOutcome;
     state: SearchControllerState;
   };
+  system: SystemApplication;
   todo: TodoApplication;
   workspace: WorkbenchWorkspaceState;
 };

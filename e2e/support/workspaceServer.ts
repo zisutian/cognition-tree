@@ -21,7 +21,7 @@ import {
 import { BuiltInCatalog } from "../../infrastructure/server/repository/built-ins/catalog.ts";
 import { AgentOperationLedger } from "../../infrastructure/server/agent/operationLedger.ts";
 import { AgentService } from "../../infrastructure/server/agent/service.ts";
-import { loadAgentServicePolicy } from "../../infrastructure/server/agent/servicePolicy.ts";
+import { agentServicePolicy } from "../../infrastructure/server/agent/servicePolicy.ts";
 import { ApiEventHub } from "../../infrastructure/server/api/sync/events.ts";
 import { ApiRevisionTracker } from "../../infrastructure/server/api/sync/revisionTracker.ts";
 import { ApiSearchService } from "../../infrastructure/server/api/search.ts";
@@ -30,6 +30,8 @@ import {
   createE2EAgentRuntime,
   createE2EAgentConfigurationStore,
 } from "./fakeAgentRuntime.ts";
+import { BootstrapConfigurationStore } from "../../infrastructure/server/system/bootstrapConfigurationStore.ts";
+import { SystemAdministrationService } from "../../infrastructure/server/system/systemAdministrationService.ts";
 
 const host = "127.0.0.1";
 
@@ -47,19 +49,27 @@ export type E2EWorkspaceServer = {
 };
 
 export async function startE2EWorkspaceServer({
-  allowedOrigin,
   repositoryHostRoot = "/host/e2e-repositories",
   rootDirectory,
 }: {
-  allowedOrigin: string;
   repositoryHostRoot?: string | null;
   rootDirectory: string;
 }): Promise<E2EWorkspaceServer> {
   const repositoryDirectory = path.join(rootDirectory, "repositories");
   const serverStateDirectory = path.join(rootDirectory, "server");
+  const bootstrap = new BootstrapConfigurationStore(rootDirectory);
+  const bootstrapInitial = await bootstrap.readSnapshot();
+  const bootstrapSnapshot = await bootstrap.setDataRoot(
+    bootstrapInitial.revision,
+    rootDirectory,
+  );
   const security = {
-    ...createApiSecurityPolicy({ host }),
-    allowedOrigins: [allowedOrigin],
+    ...createApiSecurityPolicy({
+      ownerSessions: bootstrap,
+      port: 3_001,
+      publicOrigin: null,
+    }),
+    allowedOrigins: [] as string[],
   };
 
   async function createRuntime(): Promise<E2ERuntime> {
@@ -72,7 +82,10 @@ export async function startE2EWorkspaceServer({
     await builtInCatalog.initialize();
     const eventHub = new ApiEventHub();
     const revisionTracker = new ApiRevisionTracker();
-    const operationLedger = new AgentOperationLedger(serverStateDirectory, 100);
+    const operationLedger = new AgentOperationLedger(
+      serverStateDirectory,
+      bootstrapSnapshot.configuration.maxAuditEntries,
+    );
     const agentConfigurationStore = await createE2EAgentConfigurationStore(
       serverStateDirectory,
     );
@@ -86,7 +99,7 @@ export async function startE2EWorkspaceServer({
       runtime: systemApiRuntime,
       runtimeFactory: createE2EAgentRuntime,
       search: new ApiSearchService({ builtInCatalog, catalog }),
-      servicePolicy: loadAgentServicePolicy("100"),
+      servicePolicy: agentServicePolicy,
     });
 
     return {
@@ -101,6 +114,19 @@ export async function startE2EWorkspaceServer({
         revisionTracker,
         security,
         stateDirectory: serverStateDirectory,
+        systemAdministration: new SystemAdministrationService({
+          bootstrap,
+          effectiveConfiguration: bootstrapSnapshot.configuration,
+          ledger: operationLedger,
+          migrations: {
+            get: async () => {
+              throw new Error("E2E migration status is unavailable");
+            },
+            start: async () => {
+              throw new Error("E2E data-root migration is unavailable");
+            },
+          },
+        }),
       }),
       catalog,
     };
@@ -181,6 +207,7 @@ export async function startE2EWorkspaceServer({
     }
   }
 
+  let vite: import("vite").ViteDevServer | null = null;
   const server = http.createServer((request, response) => {
     const url = new URL(request.url ?? "/", "http://localhost");
 
@@ -201,7 +228,28 @@ export async function startE2EWorkspaceServer({
       return;
     }
 
-    void runtime.apiHandler(request, response);
+    if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
+      void runtime.apiHandler(request, response);
+      return;
+    }
+    if (!vite) {
+      response.writeHead(503);
+      response.end("E2E client is starting");
+      return;
+    }
+    vite.middlewares(request, response, (error: unknown) => {
+      if (error && !response.headersSent) {
+        response.writeHead(500);
+        response.end("E2E client failed");
+      }
+    });
+  });
+
+  const { createServer: createViteServer } = await import("vite");
+
+  vite = await createViteServer({
+    appType: "spa",
+    server: { hmr: { server }, middlewareMode: { server } },
   });
 
   server.headersTimeout = 10_000;
@@ -217,13 +265,17 @@ export async function startE2EWorkspaceServer({
     });
   });
   const address = server.address() as AddressInfo;
+  const baseUrl = `http://${host}:${address.port}`;
+
+  security.allowedOrigins.push(baseUrl);
 
   return {
-    baseUrl: `http://${host}:${address.port}`,
+    baseUrl,
     repositoryDirectory,
     reset: resetRuntime,
     async close() {
       await resetQueue;
+      await vite?.close();
       await new Promise<void>((resolve, reject) => {
         server.close((error) => error ? reject(error) : resolve());
       });

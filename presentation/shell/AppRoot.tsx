@@ -7,24 +7,24 @@ import {
 } from "react";
 import { createWorkbenchFeedbackController } from "../../application/workbench/workbenchFeedbackController";
 import { projectWorkspaceSessionApplication } from "../../application/workspace/session/workspaceSessionApplication";
-import type {
-  ClientApiConfiguration,
-} from "../../infrastructure/client/runtime/apiConfiguration";
 import { clientApplicationScheduler } from "../../infrastructure/client/platform/applicationServices";
 import { createWorkbenchRuntime } from "../../infrastructure/client/runtime/workbenchRuntime";
 import { createClientAgentRuntime } from "../../infrastructure/client/runtime/agentRuntime";
+import { createClientSystemRuntime } from "../../infrastructure/client/runtime/systemRuntime";
 import type { ActivityId } from "../ui/activityTypes";
 import { useWorkbenchApplicationBindings } from "./application/useWorkbenchApplicationBindings";
 import { projectUnavailableWorkspace } from "./application/workbenchApplicationProjection";
 import { ReadyWorkspaceWorkbench } from "./workbench/ReadyWorkspaceWorkbench";
 import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench";
+import { OwnerLogin } from "./OwnerLogin";
 
-export function AppRoot({
-  api,
-}: {
-  api: ClientApiConfiguration;
-}) {
+export function AppRoot() {
+  const api = useMemo(() => ({ baseUrl: globalThis.location.origin }), []);
   const controller = useMemo(() => createWorkbenchRuntime(api), [api]);
+  const systemRuntime = useMemo(() => createClientSystemRuntime(
+    api,
+    controller.flushLoadedContent,
+  ), [api, controller]);
   const agentRuntime = useMemo(() => createClientAgentRuntime(
     api,
     async (scope) => {
@@ -70,6 +70,16 @@ export function AppRoot({
     agentConfigurationController.getSnapshot,
     agentConfigurationController.getSnapshot,
   );
+  const systemAuthenticationSnapshot = useSyncExternalStore(
+    systemRuntime.authentication.subscribe,
+    systemRuntime.authentication.getSnapshot,
+    systemRuntime.authentication.getSnapshot,
+  );
+  const systemConfigurationSnapshot = useSyncExternalStore(
+    systemRuntime.configuration.subscribe,
+    systemRuntime.configuration.getSnapshot,
+    systemRuntime.configuration.getSnapshot,
+  );
   const lifecycleEpochRef = useRef(0);
   const [activeActivityId, setActiveActivityId] =
     useState<ActivityId>("notes");
@@ -81,15 +91,25 @@ export function AppRoot({
     controller,
     feedbackController,
     snapshot,
+    systemAuthenticationController: systemRuntime.authentication,
+    systemAuthenticationState: systemAuthenticationSnapshot,
+    systemConfigurationController: systemRuntime.configuration,
+    systemConfigurationState: systemConfigurationSnapshot,
   });
 
   useEffect(() => {
+    void systemRuntime.authentication.load();
+  }, [systemRuntime]);
+
+  useEffect(() => {
+    if (!systemAuthenticationSnapshot.authenticated) return;
     const lifecycleEpoch = lifecycleEpochRef.current + 1;
 
     lifecycleEpochRef.current = lifecycleEpoch;
     controller.start();
     agentController.start();
     void agentConfigurationController.load();
+    void systemRuntime.configuration.load();
     return () => {
       queueMicrotask(() => {
         if (lifecycleEpochRef.current === lifecycleEpoch) {
@@ -99,7 +119,23 @@ export function AppRoot({
         }
       });
     };
-  }, [agentConfigurationController, agentController, controller, feedbackController]);
+  }, [
+    agentConfigurationController,
+    agentController,
+    controller,
+    feedbackController,
+    systemAuthenticationSnapshot.authenticated,
+    systemRuntime,
+  ]);
+
+  if (!systemAuthenticationSnapshot.authenticated) {
+    return (
+      <OwnerLogin
+        controller={systemRuntime.authentication}
+        state={systemAuthenticationSnapshot}
+      />
+    );
+  }
 
   if (snapshot.workspace.status === "ready") {
     const session = projectWorkspaceSessionApplication(
@@ -124,6 +160,7 @@ export function AppRoot({
         search={applications.search}
         session={session}
         snapshot={snapshot}
+        system={applications.system}
         todo={applications.todo}
       />
     );

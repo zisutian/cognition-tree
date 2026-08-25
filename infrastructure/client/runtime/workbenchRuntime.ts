@@ -9,9 +9,7 @@ import {
   clientWorkspaceSessionCommandDependencies,
   createClientInitialWorkspaceContent,
 } from "../platform/applicationServices";
-import type {
-  ClientApiConfiguration,
-} from "./apiConfiguration";
+import type { OfficialClientApi } from "../http/apiTransport";
 import { createBuiltInRuntime } from "./builtInRuntime";
 import { createHttpApiEventSource } from "../http/apiEvents";
 import { createHttpApiAdministration } from "../http/apiAdmin";
@@ -22,7 +20,7 @@ import {
 } from "../repository/versionedContentRevision";
 
 export function createWorkbenchRuntime(
-  api: ClientApiConfiguration,
+  api: OfficialClientApi,
 ): WorkbenchController {
   const workspace = createWorkspaceRepositoryRuntime(api);
   const builtIns = createBuiltInRuntime(api);
@@ -31,13 +29,11 @@ export function createWorkbenchRuntime(
     activeRepositorySelection: workspace.activeRepositorySelection,
     apiAccessAdministration: createHttpApiAdministration({
       baseUrl: api.baseUrl,
-      token: api.token,
     }),
     builtInCatalog: builtIns.catalog,
     journalRepositories: builtIns.journalRepositories,
     changeEvents: createHttpApiEventSource({
       baseUrl: api.baseUrl,
-      token: api.token,
     }),
     createInitialWorkspaceContent: createClientInitialWorkspaceContent,
     createSearchVersion: async (value) =>

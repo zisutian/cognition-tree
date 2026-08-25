@@ -29,6 +29,7 @@ function createApplicationWithoutWorkspace(): WorkbenchApplication {
     journal: { status: "loading" },
     repository: {} as WorkbenchApplication["repository"],
     search: {} as WorkbenchApplication["search"],
+    system: {} as WorkbenchApplication["system"],
     todo: {
       reload: async () => undefined,
       status: "ready",

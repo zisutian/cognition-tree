@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Bot, KeyRound, PanelLeft } from "lucide-react";
+import { Bot, KeyRound, PanelLeft, ServerCog } from "lucide-react";
 import type { AgentApplication } from "../../../application/agent";
 import type {
   ApiAccessApplication,
@@ -8,16 +8,19 @@ import type {
 import { cx } from "../../ui/shared/primitives";
 import { ApiAccessSettingsPanel } from "./ApiAccessSettingsPanel";
 import { AgentSettingsPanel } from "./AgentSettingsPanel";
+import type { SystemApplication } from "../../../application/system";
+import { SystemSettingsPanel } from "./SystemSettingsPanel";
 import {
   InterfaceSettingsPanel,
   type SettingsWorkbenchPreferences,
 } from "./InterfaceSettingsPanel";
 
-export type SettingsSection = "agent" | "api-access" | "interface";
+export type SettingsSection = "agent" | "api-access" | "interface" | "system";
 export type { SettingsWorkbenchPreferences } from "./InterfaceSettingsPanel";
 
 const settingsSections = [
   { icon: PanelLeft, id: "interface", label: "界面" },
+  { icon: ServerCog, id: "system", label: "服务" },
   { icon: Bot, id: "agent", label: "智能体" },
   { icon: KeyRound, id: "api-access", label: "API 访问" },
 ] as const;
@@ -67,14 +70,17 @@ export function SettingsPanel({
   agent,
   apiAccess,
   section = "interface",
+  system,
   workbench,
 }: {
   agent: AgentApplication;
   apiAccess: ApiAccessApplication;
   section?: SettingsSection;
+  system: SystemApplication;
   workbench: SettingsWorkbenchPreferences;
 }) {
   if (section === "agent") return <AgentSettingsPanel agent={agent} />;
+  if (section === "system") return <SystemSettingsPanel system={system} />;
   if (section === "api-access") {
     return <ApiAccessSettingsPanel apiAccess={apiAccess} />;
   }

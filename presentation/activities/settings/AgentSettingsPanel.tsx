@@ -24,6 +24,7 @@ type ProviderDraft = {
   baseUrl: string;
   kind: AgentProviderKind;
   label: string;
+  privateNetworkAccessConfirmed: boolean;
 };
 
 type ProfileDraft = {
@@ -47,6 +48,7 @@ const emptyProvider = (): ProviderDraft => ({
   baseUrl: "http://127.0.0.1:11434",
   kind: "ollama",
   label: "本地 Ollama",
+  privateNetworkAccessConfirmed: false,
 });
 
 const emptyProfile = (): ProfileDraft => ({
@@ -75,6 +77,7 @@ function providerInput(draft: ProviderDraft): AgentProviderInput {
     baseUrl: draft.kind === "codex" ? null : draft.baseUrl,
     kind: draft.kind,
     label: draft.label,
+    privateNetworkAccessConfirmed: draft.privateNetworkAccessConfirmed,
   };
 }
 
@@ -206,7 +209,7 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
           </Section>
 
           <Section title="发现本地 Ollama">
-            <div className="settings-agent-inline-form">
+            <div className="settings-managed-inline-form">
               <input aria-label="Ollama 地址" className="ui-input" onChange={(event) => setOllamaEndpoint(event.currentTarget.value)} value={ollamaEndpoint} />
               <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.discoverOllama(ollamaEndpoint))} type="button">发现本地 Ollama</Button>
             </div>
@@ -227,6 +230,7 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                     <div>
                       <strong>{provider.label}</strong>
                       <p>{provider.kind} · {provider.baseUrl ?? "Codex app-server"} · {authenticationLabels[provider.authenticationStatus]}</p>
+                      <p>私网许可：{provider.privateNetworkAccess === "confirmed" ? "已确认当前地址" : "不需要"}</p>
                       {configurationState.probes[provider.id] ? <p>探测模型：{configurationState.probes[provider.id]!.models.join("、") || "无"}</p> : null}
                     </div>
                     <div className="ui-actions">
@@ -239,6 +243,7 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                           baseUrl: provider.baseUrl ?? "",
                           kind: provider.kind,
                           label: provider.label,
+                          privateNetworkAccessConfirmed: provider.privateNetworkAccess === "confirmed",
                         });
                       }} type="button">编辑</Button>
                       {provider.authenticationStatus !== "not-required" ? (
@@ -248,6 +253,7 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                           baseUrl: provider.baseUrl,
                           kind: provider.kind,
                           label: provider.label,
+                          privateNetworkAccessConfirmed: provider.privateNetworkAccess === "confirmed",
                         }))} type="button">清除凭据</Button>
                       ) : null}
                       <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.deleteProvider(provider.id))} type="button">删除</Button>
@@ -256,7 +262,7 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                 ))}
               </ul>
             )}
-            <form className="settings-agent-form" onSubmit={submitProvider}>
+            <form className="settings-managed-form" onSubmit={submitProvider}>
               <label><span>名称</span><input aria-label="Provider 名称" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, label: event.currentTarget.value })} required value={providerDraft.label} /></label>
               <label><span>类型</span><select aria-label="Provider 类型" className="ui-input" onChange={(event) => {
                 const kind = event.currentTarget.value as AgentProviderKind;
@@ -265,12 +271,14 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                   authenticationType: kind === "ollama" ? "none" : "bearer",
                   baseUrl: kind === "ollama" ? "http://127.0.0.1:11434" : kind === "codex" ? "" : providerDraft.baseUrl,
                   kind,
+                  privateNetworkAccessConfirmed: false,
                 });
               }} value={providerDraft.kind}><option value="ollama">Ollama</option><option value="openai-chat">OpenAI-compatible</option><option value="codex">Codex</option></select></label>
-              {providerDraft.kind !== "codex" ? <label><span>地址</span><input aria-label="Provider 地址" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, baseUrl: event.currentTarget.value })} required value={providerDraft.baseUrl} /></label> : null}
+              {providerDraft.kind !== "codex" ? <label><span>地址</span><input aria-label="Provider 地址" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, baseUrl: event.currentTarget.value, privateNetworkAccessConfirmed: false })} required value={providerDraft.baseUrl} /></label> : null}
               {providerDraft.kind !== "codex" ? <label><span>认证</span><select aria-label="Provider 认证" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, authenticationType: event.currentTarget.value as "bearer" | "none" })} value={providerDraft.authenticationType}><option value="none">无需认证</option><option value="bearer">Bearer</option></select></label> : null}
               {(providerDraft.kind === "codex" || providerDraft.authenticationType === "bearer") ? <label><span>API Key</span><input aria-label="Provider API Key" autoComplete="new-password" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, apiKey: event.currentTarget.value })} placeholder={editingProviderId ? "留空则保留现有凭据" : "一次性写入"} required={!editingProviderId} type="password" value={providerDraft.apiKey} /></label> : null}
-              <div className="settings-agent-form-actions"><Button disabled={busy} type="submit" variant="primary">{editingProviderId ? "保存 Provider" : "创建 Provider"}</Button>{editingProviderId ? <Button onClick={() => { setEditingProviderId(null); setProviderDraft(emptyProvider()); }} type="button">取消</Button> : null}</div>
+              {providerDraft.kind !== "codex" ? <label><input aria-label="确认 Provider 私网访问" checked={providerDraft.privateNetworkAccessConfirmed} onChange={(event) => setProviderDraft({ ...providerDraft, privateNetworkAccessConfirmed: event.currentTarget.checked })} type="checkbox" /><span>明确允许当前地址访问非 loopback 私网；修改地址后必须重新确认</span></label> : null}
+              <div className="settings-managed-form-actions"><Button disabled={busy} type="submit" variant="primary">{editingProviderId ? "保存 Provider" : "创建 Provider"}</Button>{editingProviderId ? <Button onClick={() => { setEditingProviderId(null); setProviderDraft(emptyProvider()); }} type="button">取消</Button> : null}</div>
             </form>
           </Section>
 
@@ -305,14 +313,14 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                 ))}
               </ul>
             )}
-            <form className="settings-agent-form" onSubmit={submitProfile}>
+            <form className="settings-managed-form" onSubmit={submitProfile}>
               <label><span>Provider</span><select aria-label="Profile Provider" className="ui-input" onChange={(event) => setProfileDraft({ ...profileDraft, providerId: event.currentTarget.value })} required value={profileDraft.providerId}><option value="">请选择</option>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select></label>
               <label><span>名称</span><input aria-label="Profile 名称" className="ui-input" onChange={(event) => setProfileDraft({ ...profileDraft, label: event.currentTarget.value })} required value={profileDraft.label} /></label>
               <label><span>模型</span><input aria-label="Profile 模型" className="ui-input" list="agent-model-options" onChange={(event) => setProfileDraft({ ...profileDraft, model: event.currentTarget.value })} required value={profileDraft.model} /><datalist id="agent-model-options">{modelOptions.map((model) => <option key={model} value={model} />)}</datalist></label>
               <label><span>会话上限</span><input aria-label="Profile 会话上限" className="ui-input" min="1" onChange={(event) => setProfileDraft({ ...profileDraft, maxResidentSessions: event.currentTarget.valueAsNumber })} required type="number" value={profileDraft.maxResidentSessions} /></label>
               <label><span>超时毫秒</span><input aria-label="Profile 超时" className="ui-input" min="1" onChange={(event) => setProfileDraft({ ...profileDraft, timeoutMilliseconds: event.currentTarget.valueAsNumber })} required type="number" value={profileDraft.timeoutMilliseconds} /></label>
               {selectedProvider?.kind === "codex" ? <CodexProfileFields draft={profileDraft} setDraft={setProfileDraft} /> : selectedProvider ? <ChatProfileFields draft={profileDraft} providerKind={selectedProvider.kind} setDraft={setProfileDraft} /> : null}
-              <div className="settings-agent-form-actions"><Button disabled={busy || !selectedProvider} type="submit" variant="primary">{editingProfileId ? "保存 Profile" : "创建 Profile"}</Button>{editingProfileId ? <Button onClick={() => { setEditingProfileId(null); setProfileDraft(emptyProfile()); }} type="button">取消</Button> : null}</div>
+              <div className="settings-managed-form-actions"><Button disabled={busy || !selectedProvider} type="submit" variant="primary">{editingProfileId ? "保存 Profile" : "创建 Profile"}</Button>{editingProfileId ? <Button onClick={() => { setEditingProfileId(null); setProfileDraft(emptyProfile()); }} type="button">取消</Button> : null}</div>
             </form>
           </Section>
 

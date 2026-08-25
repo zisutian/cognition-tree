@@ -9,6 +9,7 @@ import {
 } from "../../../../presentation/ui/workbench/frameResize";
 import { expectMarkupSemantics } from "../../markupSemantics";
 import { createAgentApplicationFixture } from "../../fixtures/agentApplicationFixture";
+import type { SystemApplication } from "../../../../application/system";
 
 const apiAccess = {
   administration: {
@@ -22,6 +23,62 @@ const apiAccess = {
   repositories: [{ id: "primary", label: "主仓库" }],
 };
 const baseAgent = createAgentApplicationFixture();
+const systemConfiguration = {
+  configuration: {
+    dataRoot: "/srv/cognition-tree",
+    listenMode: "loopback" as const,
+    maxAuditEntries: 1_000,
+    port: 3_001,
+    publicOrigin: null,
+    repositoryHostRoot: null,
+  },
+  effectiveConfiguration: {
+    dataRoot: "/srv/cognition-tree",
+    listenMode: "loopback" as const,
+    maxAuditEntries: 1_000,
+    port: 3_001,
+    publicOrigin: null,
+    repositoryHostRoot: null,
+  },
+  ownerCredentialConfigured: false,
+  restartRequired: false,
+  revision: `sha256:${"4".repeat(64)}` as const,
+  version: 1,
+};
+const authenticationState = {
+  authenticated: true,
+  errorMessage: null,
+  status: "ready" as const,
+};
+const configurationState = {
+  configuration: systemConfiguration,
+  errorMessage: null,
+  loadStatus: "ready" as const,
+  migration: null,
+  operationStatus: "idle" as const,
+  revealedOwnerSecret: null,
+};
+const system = {
+  authenticationController: {
+    getSnapshot: () => authenticationState,
+    load: async () => undefined,
+    login: async () => undefined,
+    logout: async () => undefined,
+    subscribe: () => () => undefined,
+  },
+  authenticationState,
+  configurationController: {
+    clearOwnerCredential: async () => undefined,
+    dismissRevealedOwnerSecret: () => undefined,
+    getSnapshot: () => configurationState,
+    load: async () => undefined,
+    migrateDataRoot: async () => undefined,
+    rotateOwnerCredential: async () => undefined,
+    subscribe: () => () => undefined,
+    update: async () => undefined,
+  },
+  configurationState,
+} satisfies SystemApplication;
 const agent = {
   ...baseAgent,
   configurationState: {
@@ -53,6 +110,7 @@ const agent = {
         id: "codex-provider",
         kind: "codex" as const,
         label: "Codex",
+        privateNetworkAccess: "not-required" as const,
         version: 1,
       }],
       revision: `sha256:${"3".repeat(64)}` as const,
@@ -84,6 +142,7 @@ describe("settings activity", () => {
       <SettingsPanel
         agent={agent}
         apiAccess={apiAccess}
+        system={system}
         workbench={{
           contextWidth: appContextDefaultWidth,
           onContextWidthChange: () => undefined,
@@ -96,6 +155,7 @@ describe("settings activity", () => {
         agent={agent}
         apiAccess={apiAccess}
         section="api-access"
+        system={system}
         workbench={{
           contextWidth: appContextDefaultWidth,
           onContextWidthChange: () => undefined,
@@ -107,6 +167,19 @@ describe("settings activity", () => {
         agent={agent}
         apiAccess={apiAccess}
         section="agent"
+        system={system}
+        workbench={{
+          contextWidth: appContextDefaultWidth,
+          onContextWidthChange: () => undefined,
+        }}
+      />,
+    );
+    const serviceMarkup = renderToStaticMarkup(
+      <SettingsPanel
+        agent={agent}
+        apiAccess={apiAccess}
+        section="system"
+        system={system}
         workbench={{
           contextWidth: appContextDefaultWidth,
           onContextWidthChange: () => undefined,
@@ -114,9 +187,9 @@ describe("settings activity", () => {
       />,
     );
 
-    expect(contextMarkup.match(/<li/g)).toHaveLength(3);
+    expect(contextMarkup.match(/<li/g)).toHaveLength(4);
     expectMarkupSemantics(contextMarkup, {
-      has: ['aria-current="page"', "界面", "智能体", "API 访问", "<button"],
+      has: ['aria-current="page"', "界面", "服务", "智能体", "API 访问", "<button"],
     });
     expectMarkupSemantics(panelMarkup, {
       has: [
@@ -161,6 +234,18 @@ describe("settings activity", () => {
         "刷新状态",
       ],
       lacks: ["provider-secret"],
+    });
+    expectMarkupSemantics(serviceMarkup, {
+      has: [
+        'aria-label="服务设置"',
+        "当前数据根",
+        "/srv/cognition-tree",
+        "当前配置已经生效",
+        "所有者凭据",
+        "迁移数据根",
+        "智能体审计保留条数",
+      ],
+      lacks: ["CTN_", "owner token"],
     });
   });
 });

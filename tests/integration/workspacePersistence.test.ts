@@ -75,9 +75,7 @@ async function listen(server: Server) {
   return `http://127.0.0.1:${address.port}`;
 }
 
-async function startRepositoryServer(
-  token?: string,
-): Promise<TestRepositoryServer> {
+async function startRepositoryServer(): Promise<TestRepositoryServer> {
   const rootDir = await mkdtemp(
     path.join(os.tmpdir(), "cognition-tree-integration-"),
   );
@@ -92,8 +90,13 @@ async function startRepositoryServer(
   const server = createApiServer({
     catalog,
     security: createApiSecurityPolicy({
-      bearerToken: token,
-      host: "127.0.0.1",
+      ownerSessions: {
+        authenticateOwnerSecret: async () => false,
+        createOwnerSession: async () => "unused",
+        verifyOwnerSession: async () => false,
+      },
+      port: 3_001,
+      publicOrigin: null,
     }),
   });
   const baseUrl = await listen(server);
@@ -305,29 +308,29 @@ describe("workspace persistence integration", () => {
     expect(reloadedState.persistence).toEqual({ status: "saved" });
   });
 
-  it("authenticates a local-first HTTP session before touching repository content", async () => {
+  it("never degrades an invalid Bearer token to local owner", async () => {
     const token = "integration-token-with-at-least-32-characters";
-    const server = await startRepositoryServer(token);
-    const unauthorizedCatalog = createHttpWorkspaceRepositoryCatalog({
-      baseUrl: server.baseUrl,
-      preparation: workspaceRepositoryPreparation,
-    });
-
-    await expect(
-      createRepository(unauthorizedCatalog, "unauthorized"),
-    ).rejects.toThrow("Bearer token is invalid");
-
-    const authenticatedCatalog = createHttpWorkspaceRepositoryCatalog({
+    const server = await startRepositoryServer();
+    const invalidBearerCatalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: server.baseUrl,
       token,
       preparation: workspaceRepositoryPreparation,
     });
+
+    await expect(
+      createRepository(invalidBearerCatalog, "unauthorized"),
+    ).rejects.toThrow("Bearer token is invalid");
+
+    const localCatalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: server.baseUrl,
+      preparation: workspaceRepositoryPreparation,
+    });
     const descriptor: WorkspaceRepositoryDescriptor = await createRepository(
-      authenticatedCatalog,
-      "authenticated",
+      localCatalog,
+      "local-owner",
     );
     const controller = startController(
-      authenticatedCatalog.openRepository(descriptor),
+      localCatalog.openRepository(descriptor),
     );
     const ready = await waitForWorkspaceSessionState(
       controller,

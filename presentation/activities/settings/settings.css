@@ -218,18 +218,21 @@
   color: var(--color-fg-muted);
 }
 
-.settings-agent-content {
+.settings-agent-content,
+.settings-service-content {
   display: grid;
   gap: calc(var(--ui-gap) * 2);
   padding: var(--ui-gap);
 }
 
-.settings-agent-content .ui-section {
+.settings-agent-content .ui-section,
+.settings-service-content .ui-section {
   display: grid;
   gap: var(--ui-gap);
 }
 
-.settings-agent-content .ui-section + .ui-section {
+.settings-agent-content .ui-section + .ui-section,
+.settings-service-content .ui-section + .ui-section {
   padding-top: var(--ui-gap);
   border-top: var(--ui-border-width) solid var(--color-border);
 }
@@ -274,32 +277,32 @@
   overflow-wrap: anywhere;
 }
 
-.settings-agent-inline-form {
+.settings-managed-inline-form {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) auto;
   gap: var(--ui-gap);
 }
 
-.settings-agent-form {
+.settings-managed-form {
   display: grid;
   gap: var(--ui-gap-tight);
   max-width: 720px;
   padding-top: var(--ui-gap);
 }
 
-.settings-agent-form > label {
+.settings-managed-form > label {
   display: grid;
   grid-template-columns: 112px minmax(180px, 400px);
   align-items: center;
   gap: var(--ui-gap);
 }
 
-.settings-agent-form > label > span {
+.settings-managed-form > label > span {
   color: var(--color-fg-muted);
   font-size: var(--ui-control-font-size);
 }
 
-.settings-agent-form-actions {
+.settings-managed-form-actions {
   display: flex;
   gap: var(--ui-gap);
   margin-left: calc(112px + var(--ui-gap));
@@ -338,8 +341,8 @@
   }
 
   .settings-api-form-row,
-  .settings-agent-form > label,
-  .settings-agent-inline-form,
+  .settings-managed-form > label,
+  .settings-managed-inline-form,
   .settings-agent-profile-selection,
   .settings-api-secret {
     grid-template-columns: minmax(0, 1fr);
@@ -349,7 +352,7 @@
     margin-left: 0;
   }
 
-  .settings-agent-form-actions {
+  .settings-managed-form-actions {
     margin-left: 0;
   }
 }

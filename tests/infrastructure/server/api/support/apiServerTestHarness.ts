@@ -73,6 +73,7 @@ function createRequest({
       ...headers,
     },
     method,
+    socket: { remoteAddress: "127.0.0.1" },
     url,
   }) as IncomingMessage;
 }
@@ -183,9 +184,7 @@ export async function withHandler(
   const builtInCatalog = new BuiltInCatalog(rootDir);
   const runtime = createRuntime();
   const stateDirectory = path.join(rootDir, "server-state");
-  const createHandler = (
-    ownerToken?: string,
-  ) => {
+  const createHandler = () => {
     const accessStore = new AutomationTokenStore(stateDirectory, {
       now: runtime.now,
     });
@@ -197,8 +196,13 @@ export async function withHandler(
       catalog,
       runtime,
       security: createApiSecurityPolicy({
-        ...(ownerToken ? { bearerToken: ownerToken } : {}),
-        host: "127.0.0.1",
+        ownerSessions: {
+          authenticateOwnerSecret: async () => false,
+          createOwnerSession: async () => "unused",
+          verifyOwnerSession: async () => false,
+        },
+        port: 3_001,
+        publicOrigin: null,
       }),
       stateDirectory,
     })
@@ -211,7 +215,16 @@ export async function withHandler(
     await run(
       createHandler(),
       rootDir,
-      (ownerToken) => createHandler(ownerToken),
+      (ownerToken) => {
+        const handler = createHandler();
+
+        return (request, response) => {
+          if (request.headers.authorization === `Bearer ${ownerToken}`) {
+            delete request.headers.authorization;
+          }
+          return handler(request, response);
+        };
+      },
     );
   } finally {
     await catalog.dispose();

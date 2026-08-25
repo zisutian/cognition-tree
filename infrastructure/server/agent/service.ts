@@ -61,6 +61,7 @@ import {
 } from "./runtimeProfiles.ts";
 import type { AgentServicePolicy } from "./servicePolicy.ts";
 import { AgentServiceError } from "./errors.ts";
+import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import {
   AgentSessionTools,
   agentRuntimeTools,
@@ -95,6 +96,7 @@ type SessionRecord = {
 type RuntimeFactory = (
   profile: AgentRuntimeProfile,
   apiKey: string | null,
+  configuration: ResolvedAgentConfiguration,
 ) => AgentRuntimePort;
 
 const maximumRetainedEvents = 1_000;
@@ -153,6 +155,7 @@ export class AgentService {
     runtimeFactory,
     search,
     servicePolicy,
+    targetPolicy = new AgentProviderTargetPolicy(),
   }: {
     builtInCatalog: ApiBuiltInCatalog;
     catalog: WorkspaceRepositoryCatalog;
@@ -166,6 +169,7 @@ export class AgentService {
     runtimeFactory?: RuntimeFactory;
     search: ApiSearchService;
     servicePolicy: AgentServicePolicy;
+    targetPolicy?: AgentProviderTargetPolicy;
   }) {
     this.#builtInCatalog = builtInCatalog;
     this.#catalog = catalog;
@@ -176,12 +180,20 @@ export class AgentService {
     this.#projectRoot = path.resolve(projectRoot);
     this.#revisionTracker = revisionTracker;
     this.#runtime = runtime;
-    this.#runtimeFactory = runtimeFactory ?? ((profile, apiKey) => {
-      if (profile.kind === "ollama") return new OllamaRuntime(profile);
+    this.#runtimeFactory = runtimeFactory ?? ((profile, apiKey, configuration) => {
+      const beforeRequest = async () => {
+        if (!configuration.provider.baseUrl) return;
+        await targetPolicy.assertRequestTarget(
+          new URL(configuration.provider.baseUrl),
+          configuration.privateNetworkOrigin,
+        );
+      };
+
+      if (profile.kind === "ollama") return new OllamaRuntime(profile, beforeRequest);
       if (!apiKey) throw new Error("Agent provider credential is unavailable");
       return profile.kind === "codex"
         ? new CodexRuntime({ apiKey, profile, projectRoot: this.#projectRoot })
-        : new OpenAiChatRuntime(profile, apiKey);
+        : new OpenAiChatRuntime(profile, apiKey, beforeRequest);
     });
     this.#servicePolicy = servicePolicy;
     this.#tools = new AgentSessionTools({
@@ -264,6 +276,11 @@ export class AgentService {
     );
   }
 
+  hasResidentSessions() {
+    this.#removeExpiredSessionsWithoutWaiting();
+    return this.#sessions.size > 0;
+  }
+
   async createSession(request: AgentCreateSessionRequestDto) {
     this.#removeExpiredSessionsWithoutWaiting();
     if (!this.#ledger) {
@@ -307,7 +324,11 @@ export class AgentService {
       },
       scope,
     });
-    const runtimePort = this.#runtimeFactory(profile, configuration.apiKey);
+    const runtimePort = this.#runtimeFactory(
+      profile,
+      configuration.apiKey,
+      configuration,
+    );
     let capability: string | null = null;
 
     try {

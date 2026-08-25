@@ -32,6 +32,10 @@ export const AgentProviderViewSchema = strictObject({
   id: ApiIdentifierSchema,
   kind: providerKind,
   label: ApiIdentifierSchema,
+  privateNetworkAccess: Type.Union([
+    Type.Literal("confirmed"),
+    Type.Literal("not-required"),
+  ]),
   version: positiveInteger,
 });
 
@@ -99,6 +103,7 @@ export const AgentProviderMutationRequestSchema = strictObject({
     baseUrl: nullable(Type.String({ minLength: 1 })),
     kind: providerKind,
     label: ApiIdentifierSchema,
+    privateNetworkAccessConfirmed: Type.Boolean(),
   }),
 });
 export type AgentProviderMutationRequestDto = Static<

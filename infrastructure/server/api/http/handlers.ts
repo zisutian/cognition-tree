@@ -10,6 +10,7 @@ import {
   createCheckpoint,
   requireBuiltInCatalog,
   type ApiHandlerContext,
+  type ApiRouteHandlerContext,
   type HandlerResult,
 } from "./handlerContext.ts";
 import { handleAgentOperation } from "./agentHandlers.ts";
@@ -31,9 +32,13 @@ import {
   parseAuditQuery,
 } from "./adminHandlers.ts";
 import { ApiSearchService } from "../search.ts";
+import {
+  handleOwnerSession,
+  handleSystemAdministration,
+} from "./systemHandlers.ts";
 
 export async function handleApiRoute(
-  context: ApiHandlerContext,
+  context: ApiRouteHandlerContext,
 ): Promise<HandlerResult | null> {
   assertOperationAccess(context.principal, context.operation);
   const { operation, route } = context;
@@ -47,24 +52,34 @@ export async function handleApiRoute(
       statusCode: 200,
     };
   }
+  if (operation.path === "/api/v3/auth/session") {
+    return handleOwnerSession(context);
+  }
   if (operation.operationId === "getOpenApi") {
     return { body: createApiOpenApiDocument(), statusCode: 200 };
   }
+  if (!context.principal) {
+    throw new ApiRequestError("unauthorized", "Owner authentication is required");
+  }
+  const authorizedContext: ApiHandlerContext = {
+    ...context,
+    principal: context.principal,
+  };
   if (operation.operationId === "streamContentEvents") {
-    requireBuiltInCatalog(context.builtInCatalog);
-    context.eventHub.connect({
+    requireBuiltInCatalog(authorizedContext.builtInCatalog);
+    authorizedContext.eventHub.connect({
       checkpoint: createCheckpoint({
-        eventHub: context.eventHub,
-        revisionTracker: context.revisionTracker,
+        eventHub: authorizedContext.eventHub,
+        revisionTracker: authorizedContext.revisionTracker,
       }),
-      headers: context.responseHeaders,
-      principal: context.principal,
-      response: context.response,
+      headers: authorizedContext.responseHeaders,
+      principal: authorizedContext.principal,
+      response: authorizedContext.response,
     });
     return null;
   }
   if (operation.operationId === "searchContent") {
-    const search = context.search;
+    const search = authorizedContext.search;
 
     if (!search) {
       throw new ApiRequestError(
@@ -74,8 +89,8 @@ export async function handleApiRoute(
     }
     return {
       body: await search.search(
-        await context.readJsonBody() as ApiSearchRequestDto,
-        context.principal,
+        await authorizedContext.readJsonBody() as ApiSearchRequestDto,
+        authorizedContext.principal,
       ),
       statusCode: 200,
     };
@@ -85,20 +100,20 @@ export async function handleApiRoute(
     "getWorkspaceTree",
     "getWorkspaceNote",
   ].includes(operation.operationId)) {
-    return handleWorkspaceQuery(context);
+    return handleWorkspaceQuery(authorizedContext);
   }
   if (["listJournalEntries", "getJournalEntry"].includes(
     operation.operationId,
   )) {
-    return handleJournalQuery(context);
+    return handleJournalQuery(authorizedContext);
   }
   if (["listTodoCollections", "getTodoCollection"].includes(
     operation.operationId,
   )) {
-    return handleTodoQuery(context);
+    return handleTodoQuery(authorizedContext);
   }
   if (operation.path.startsWith("/api/v3/agent/")) {
-    return handleAgentOperation(context);
+    return handleAgentOperation(authorizedContext);
   }
   if ([
     "getWorkspaceSyncSnapshot",
@@ -108,7 +123,7 @@ export async function handleApiRoute(
     "getTodoSyncSnapshot",
     "putTodoSyncSnapshot",
   ].includes(operation.operationId)) {
-    return handleApiSync(context, {
+    return handleApiSync(authorizedContext, {
       journal: journalResourceVersions,
       todo: todoResourceVersions,
       workspace: workspaceResourceVersions,
@@ -120,17 +135,17 @@ export async function handleApiRoute(
     "renameAdminRepository",
     "deleteAdminRepository",
   ].includes(operation.operationId)) {
-    return handleRepositoryAdmin(context);
+    return handleRepositoryAdmin(authorizedContext);
   }
   if (operation.operationId === "listBuiltIns") {
     return {
-      body: await requireBuiltInCatalog(context.builtInCatalog).listBuiltIns(),
+      body: await requireBuiltInCatalog(authorizedContext.builtInCatalog).listBuiltIns(),
       statusCode: 200,
     };
   }
   if (operation.operationId === "retryBuiltIn") {
     return {
-      body: await requireBuiltInCatalog(context.builtInCatalog).retry(
+      body: await requireBuiltInCatalog(authorizedContext.builtInCatalog).retry(
         route.builtInId,
       ),
       statusCode: 200,
@@ -139,17 +154,17 @@ export async function handleApiRoute(
   if (["listApiTokens", "createApiToken", "revokeToken"].includes(
     operation.operationId,
   )) {
-    return handleTokenAdmin(context);
+    return handleTokenAdmin(authorizedContext);
   }
   if (operation.operationId === "listAgentOperations") {
-    if (!context.operationLedger) {
+    if (!authorizedContext.operationLedger) {
       throw new ApiRequestError(
         "profile_unavailable",
         "Agent operation audit is unavailable",
       );
     }
     return {
-      body: await context.operationLedger.list(parseAuditQuery(context.query)),
+      body: await authorizedContext.operationLedger.list(parseAuditQuery(authorizedContext.query)),
       statusCode: 200,
     };
   }
@@ -165,7 +180,12 @@ export async function handleApiRoute(
     || operation.operationId === "probeAgentProvider"
     || operation.operationId === "checkAgentProfileConformance"
   ) {
-    return handleAgentConfigurationAdmin(context);
+    return handleAgentConfigurationAdmin(authorizedContext);
+  }
+  if (operation.operationId.includes("SystemConfiguration") ||
+      operation.operationId.includes("OwnerCredential") ||
+      operation.operationId.includes("DataRootMigration")) {
+    return handleSystemAdministration(authorizedContext);
   }
   throw new ApiRequestError("not_found", "Not found");
 }

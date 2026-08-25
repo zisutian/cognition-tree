@@ -100,6 +100,10 @@ describe("Agent operation ledger", () => {
         entry(3).proposalId,
         entry(2).proposalId,
       ]);
+      await ledger.updateMaximumEntries(1);
+      expect((await ledger.list({ cursor: 0, limit: 10 })).entries.map(
+        ({ proposalId }) => proposalId,
+      )).toEqual([entry(3).proposalId]);
       const persisted = await readFile(
         path.join(directory, "agent-v2", "operations.json"),
         "utf8",

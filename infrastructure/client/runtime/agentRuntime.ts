@@ -9,17 +9,16 @@ import { createHttpAgentClient } from "../http/agentClient";
 import { createHttpAgentConfigurationClient } from "../http/agentConfigurationClient";
 import { clientApplicationScheduler } from "../platform/applicationServices";
 import { createClientAgentProfilePreference } from "../platform/agentProfilePreference";
-import type { ClientApiConfiguration } from "./apiConfiguration";
+import type { OfficialClientApi } from "../http/apiTransport";
 
 export function createClientAgentRuntime(
-  api: ClientApiConfiguration,
+  api: OfficialClientApi,
   flushScope: (scope: AgentScope) => Promise<void>,
 ) {
   const session = createAgentClientController({
     flushScope,
     port: createHttpAgentClient({
       baseUrl: api.baseUrl,
-      token: api.token,
     }),
     profilePreference: createClientAgentProfilePreference(),
     scheduler: clientApplicationScheduler,
@@ -28,7 +27,6 @@ export function createClientAgentRuntime(
     onConfigurationChanged: session.refreshStatus,
     port: createHttpAgentConfigurationClient({
       baseUrl: api.baseUrl,
-      token: api.token,
     }),
   });
 

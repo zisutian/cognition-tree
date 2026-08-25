@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ClientApiConfiguration } from "./apiConfiguration";
+import type { OfficialClientApi } from "../http/apiTransport";
 import {
   createHttpBuiltInCatalog,
   createMemoryBuiltInCatalogCache,
@@ -19,11 +19,10 @@ export type BuiltInRuntime = {
 };
 
 export function createBuiltInRuntime(
-  api: ClientApiConfiguration,
+  api: OfficialClientApi,
 ): BuiltInRuntime {
   const fetchOptions = {
     baseUrl: api.baseUrl,
-    token: api.token,
   };
 
   return {

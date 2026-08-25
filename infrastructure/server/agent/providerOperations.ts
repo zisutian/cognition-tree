@@ -155,7 +155,7 @@ export class AgentProviderOperations {
 
   async discoverOllama(endpointValue: string) {
     const endpoint = validatedEndpoint(endpointValue);
-    await this.#targetPolicy.assertRequestTarget(endpoint);
+    await this.#targetPolicy.assertRequestTarget(endpoint, null);
     const url = new URL("api/tags", `${endpoint.toString().replace(/\/?$/, "/")}`);
     const models = parseModels(await requestJson(url, {
       apiKey: null,
@@ -178,7 +178,10 @@ export class AgentProviderOperations {
       };
     }
     const endpoint = validatedEndpoint(resolved.provider.baseUrl!);
-    await this.#targetPolicy.assertRequestTarget(endpoint);
+    await this.#targetPolicy.assertRequestTarget(
+      endpoint,
+      resolved.privateNetworkOrigin,
+    );
     const path = resolved.provider.kind === "ollama" ? "api/tags" : "models";
     const url = new URL(path, `${endpoint.toString().replace(/\/?$/, "/")}`);
     const models = parseModels(await requestJson(url, {
@@ -211,9 +214,13 @@ export class AgentProviderOperations {
         "Codex profiles do not require chat conformance",
       );
     }
+    const beforeRequest = () => this.#targetPolicy.assertRequestTarget(
+      new URL(resolved.provider.baseUrl!),
+      resolved.privateNetworkOrigin,
+    );
     const runtime = profile.kind === "ollama"
-      ? new OllamaRuntime(profile)
-      : new OpenAiChatRuntime(profile, resolved.apiKey ?? "");
+      ? new OllamaRuntime(profile, beforeRequest)
+      : new OpenAiChatRuntime(profile, resolved.apiKey ?? "", beforeRequest);
     const session = await runtime.openSession({
       instructions: "This is a tool-call conformance check. Call the offered tool exactly once with ack=true, then answer in natural language.",
       profileId,

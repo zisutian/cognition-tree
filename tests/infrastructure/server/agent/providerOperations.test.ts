@@ -75,6 +75,7 @@ describe("Agent provider operations", () => {
         baseUrl: endpoint,
         kind: "ollama",
         label: "Local Ollama",
+        privateNetworkAccessConfirmed: false,
       });
 
       configuration = provider.configuration;
@@ -131,7 +132,7 @@ describe("Agent provider operations", () => {
 
     try {
       await expect(operations.discoverOllama("http://169.254.169.254"))
-        .rejects.toThrow("outside the allowed network targets");
+        .rejects.toThrow("empty, mixed, or forbidden");
       expect(fetchFn).not.toHaveBeenCalled();
     } finally {
       await rm(directory, { force: true, recursive: true });

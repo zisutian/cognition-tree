@@ -53,7 +53,7 @@ export class AgentOperationLedger {
     digest: string;
     promise: Promise<{ entry: AgentOperationAuditEntryDto; replayed: boolean }>;
   }>();
-  readonly #maxAuditEntries: number;
+  #maxAuditEntries: number;
   readonly #partition: SecureJsonPartition<OperationState>;
 
   constructor(stateDirectory: string, maxAuditEntries: number) {
@@ -125,6 +125,20 @@ export class AgentOperationLedger {
         cursor: next < descending.length ? String(next) : null,
         entries,
       };
+    });
+  }
+
+  updateMaximumEntries(maxAuditEntries: number) {
+    if (!Number.isSafeInteger(maxAuditEntries) || maxAuditEntries < 1) {
+      return Promise.reject(new Error("maxAuditEntries must be a positive integer"));
+    }
+    return this.#partition.mutate((state) => {
+      this.#maxAuditEntries = maxAuditEntries;
+      const removeCount = Math.max(0, state.entries.length - maxAuditEntries);
+
+      if (removeCount === 0) return { changed: false, result: undefined };
+      state.entries.splice(0, removeCount);
+      return { changed: true, result: undefined };
     });
   }
 }

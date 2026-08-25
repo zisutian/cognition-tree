@@ -11,6 +11,8 @@ export type HttpApiTransportOptions = {
   token?: string;
 };
 
+export type OfficialClientApi = Readonly<{ baseUrl: string }>;
+
 export class HttpApiResponseError extends Error {
   apiCode: ApiErrorCodeDto | null;
   details: Record<string, unknown> | null;
@@ -135,6 +137,7 @@ async function requestApiResponse<Result>(
   try {
     const response = await fetchFn(resolveApiUrl(baseUrl, endpoint), {
       ...init,
+      credentials: "same-origin",
       headers,
       signal: controller.signal,
     });

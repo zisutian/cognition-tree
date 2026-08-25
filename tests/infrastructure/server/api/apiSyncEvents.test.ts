@@ -80,13 +80,17 @@ describe("CTN API v3", () => {
       revisionTracker: tracker,
       runtime: createRuntime(),
       security: createApiSecurityPolicy({
-        bearerToken: "owner-token-with-at-least-32-characters",
-        host: "127.0.0.1",
+        ownerSessions: {
+          authenticateOwnerSecret: async () => false,
+          createOwnerSession: async () => "unused",
+          verifyOwnerSession: async () => false,
+        },
+        port: 3_001,
+        publicOrigin: null,
       }),
     });
     const events = await dispatchRaw(handler, {
       method: "GET",
-      token: "owner-token-with-at-least-32-characters",
       url: "/api/v3/content/events",
     });
 

@@ -7,10 +7,11 @@ import { AutomationTokenStore } from "./access/automationTokenStore.ts";
 import { AgentConfigurationStore } from "./agent/configurationStore.ts";
 import { AgentOperationLedger } from "./agent/operationLedger.ts";
 import { AgentProviderOperations } from "./agent/providerOperations.ts";
-import { parseAgentPrivateTargets } from "./agent/providerTargetPolicy.ts";
+import { AgentProviderTargetPolicy } from "./agent/providerTargetPolicy.ts";
 import { AgentService } from "./agent/service.ts";
-import { loadAgentServicePolicy } from "./agent/servicePolicy.ts";
+import { agentServicePolicy } from "./agent/servicePolicy.ts";
 import { createApiServer } from "./api/http/server.ts";
+import { ApiMaintenanceGate } from "./api/http/maintenanceGate.ts";
 import { closeApiServer } from "./api/http/serverLifecycle.ts";
 import { systemApiRuntime } from "./api/http/runtime.ts";
 import { createApiSecurityPolicy } from "./api/http/security.ts";
@@ -21,6 +22,10 @@ import { createStaticClientRuntime } from "./client/staticClientRuntime.ts";
 import { BuiltInCatalog } from "./repository/built-ins/catalog.ts";
 import { LocalRepositoryCatalog } from
   "./repository/workspace/local/localRepositoryCatalog.ts";
+import { BootstrapConfigurationStore } from "./system/bootstrapConfigurationStore.ts";
+import { FileDataRootMigrationCoordinator } from "./system/dataRootMigrationCoordinator.ts";
+import { SystemAdministrationService } from "./system/systemAdministrationService.ts";
+import { runBootstrapRecoveryServer } from "./system/recoveryServer.ts";
 
 type ClientRuntime = {
   dispose(): Promise<void>;
@@ -34,6 +39,7 @@ async function createDevelopmentClientRuntime(
   const vite = await createViteServer({
     appType: "spa",
     server: {
+      hmr: { server },
       middlewareMode: { server },
     },
   });
@@ -70,24 +76,33 @@ if (commandArguments.length > 0 && !development) {
 }
 
 const projectRoot = process.cwd();
-const host = process.env.CTN_API_HOST ?? "127.0.0.1";
-const port = Number(process.env.CTN_API_PORT ?? "3001");
-const repositoryRoot = process.env.CTN_REPOSITORY_ROOT ??
-  path.join(projectRoot, ".cognition-tree", "repositories");
-const repositoryHostRootValue = process.env.CTN_REPOSITORY_HOST_ROOT?.trim();
-const repositoryHostRoot = repositoryHostRootValue
-  ? repositoryHostRootValue
-  : null;
+const bootstrapStore = new BootstrapConfigurationStore(projectRoot);
+const bootstrapSnapshot = await bootstrapStore.readSnapshot().catch(
+  async (failure: unknown) => {
+    await runBootstrapRecoveryServer({ bootstrap: bootstrapStore, failure });
+    return null;
+  },
+);
 
-if (repositoryHostRoot !== null && !path.isAbsolute(repositoryHostRoot)) {
-  throw new Error("CTN_REPOSITORY_HOST_ROOT must be an absolute path");
-}
-const serverStateDirectory = process.env.CTN_SERVER_STATE_DIR ??
-  path.join(projectRoot, ".cognition-tree", "server");
+if (bootstrapSnapshot !== null) {
+const effectiveConfiguration = bootstrapSnapshot.configuration;
+const host = effectiveConfiguration.listenMode === "loopback"
+  ? "127.0.0.1"
+  : "0.0.0.0";
+const port = effectiveConfiguration.port;
+const repositoryRoot = path.join(
+  effectiveConfiguration.dataRoot,
+  "repositories",
+);
+const repositoryHostRoot = effectiveConfiguration.repositoryHostRoot;
+const serverStateDirectory = path.join(
+  effectiveConfiguration.dataRoot,
+  "server",
+);
 const security = createApiSecurityPolicy({
-  bearerToken: process.env.CTN_API_TOKEN,
-  host,
-  publicUrl: process.env.CTN_PUBLIC_URL,
+  ownerSessions: bootstrapStore,
+  port,
+  publicOrigin: effectiveConfiguration.publicOrigin,
 });
 const catalog = new LocalRepositoryCatalog(repositoryRoot, {
   hostRoot: repositoryHostRoot,
@@ -98,22 +113,15 @@ await catalog.initialize();
 await builtInCatalog.initialize();
 
 const accessStore = new AutomationTokenStore(serverStateDirectory);
-const agentTargetPolicy = parseAgentPrivateTargets(
-  process.env.CTN_AGENT_PRIVATE_TARGETS,
-);
+const agentTargetPolicy = new AgentProviderTargetPolicy();
 const agentConfigurationStore = new AgentConfigurationStore(
   serverStateDirectory,
   { targetPolicy: agentTargetPolicy },
 );
-const agentServicePolicy = loadAgentServicePolicy(
-  process.env.CTN_AGENT_MAX_AUDIT_ENTRIES,
+const operationLedger = new AgentOperationLedger(
+  serverStateDirectory,
+  effectiveConfiguration.maxAuditEntries,
 );
-const operationLedger = agentServicePolicy.maxAuditEntries === null
-  ? null
-  : new AgentOperationLedger(
-      serverStateDirectory,
-      agentServicePolicy.maxAuditEntries,
-    );
 const eventHub = new ApiEventHub();
 const revisionTracker = new ApiRevisionTracker();
 const search = new ApiSearchService({ builtInCatalog, catalog });
@@ -127,6 +135,7 @@ const agentService = new AgentService({
   runtime: systemApiRuntime,
   search,
   servicePolicy: agentServicePolicy,
+  targetPolicy: agentTargetPolicy,
 });
 const agentProviderOperations = new AgentProviderOperations({
   configurationStore: agentConfigurationStore,
@@ -134,6 +143,31 @@ const agentProviderOperations = new AgentProviderOperations({
   targetPolicy: agentTargetPolicy,
 });
 let clientRuntime: ClientRuntime | null = null;
+const maintenanceGate = new ApiMaintenanceGate();
+let shutdown: () => Promise<void> = async () => undefined;
+const migrations = new FileDataRootMigrationCoordinator({
+  agentService,
+  bootstrap: bootstrapStore,
+  controlRoot: path.join(projectRoot, ".cognition-tree", "bootstrap-v1"),
+  maintenance: maintenanceGate,
+  requestRestart: async () => {
+    process.exitCode = 75;
+    await shutdown();
+  },
+});
+const systemAdministration = new SystemAdministrationService({
+  bootstrap: bootstrapStore,
+  effectiveConfiguration,
+  ledger: operationLedger,
+  migrations,
+});
+const requestConfiguredRestart = () => {
+  process.exitCode = 75;
+  void shutdown().catch((error: unknown) => {
+    console.error("Failed to restart Cognition Tree", error);
+    process.exitCode = 1;
+  });
+};
 const server = createApiServer({
   accessStore,
   agentConfigurationStore,
@@ -142,10 +176,13 @@ const server = createApiServer({
   builtInCatalog,
   catalog,
   eventHub,
+  maintenanceGate,
   operationLedger,
   revisionTracker,
+  requestRestart: requestConfiguredRestart,
   security,
   stateDirectory: serverStateDirectory,
+  systemAdministration,
 }, async (request, response) => {
   if (!clientRuntime) {
     response.writeHead(503, { "Content-Type": "text/plain; charset=utf-8" });
@@ -169,7 +206,7 @@ try {
 
 const agentStatus = await agentService.status();
 let shutdownPromise: Promise<void> | null = null;
-const shutdown = () => {
+shutdown = () => {
   shutdownPromise ??= (async () => {
     try {
       await closeApiServer({
@@ -210,8 +247,6 @@ console.log(`Server state: ${serverStateDirectory}`);
 console.log(`Allowed hosts: ${security.allowedHosts.join(", ")}`);
 console.log(`Allowed origins: ${security.allowedOrigins.join(", ") || "none"}`);
 console.log(
-  `Bearer authentication: ${security.requiresBearerToken ? "required" : "disabled"}`,
-);
-console.log(
   `Agent profiles: ${agentStatus.enabled ? "available" : "unavailable"}`,
 );
+}

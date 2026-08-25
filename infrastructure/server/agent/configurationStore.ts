@@ -22,8 +22,9 @@ import {
 import { createStateDigest } from "../state/stateDigest.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 
-const formatVersion = 1;
+const formatVersion = 2;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
+const requiresFormatRewrite = Symbol("requiresAgentConfigurationFormatRewrite");
 
 type StoredAuthentication =
   | { apiKey: string | null; type: "bearer" }
@@ -35,6 +36,7 @@ type StoredProvider = {
   id: string;
   kind: AgentProviderKind;
   label: string;
+  privateNetworkOrigin: string | null;
   version: number;
 };
 
@@ -54,16 +56,19 @@ type AgentConfigurationState = {
   formatVersion: typeof formatVersion;
   profiles: StoredProfile[];
   providers: StoredProvider[];
+  [requiresFormatRewrite]?: true;
 };
 
 export type ResolvedAgentConfiguration = Readonly<{
   apiKey: string | null;
+  privateNetworkOrigin: string | null;
   profile: AgentProfileView;
   provider: AgentProviderView;
 }>;
 
 export type ResolvedAgentProvider = Readonly<{
   apiKey: string | null;
+  privateNetworkOrigin: string | null;
   provider: AgentProviderView;
 }>;
 
@@ -145,13 +150,20 @@ function parseAuthentication(value: unknown, pathLabel: string): StoredAuthentic
   throw new Error(`${pathLabel}.type is invalid.`);
 }
 
-function parseProvider(value: unknown, index: number): StoredProvider {
+function parseProvider(
+  value: unknown,
+  index: number,
+  legacyWithoutPrivatePermission = false,
+): StoredProvider {
   const pathLabel = `providers[${index}]`;
   const record = requireStateRecord(value, pathLabel);
 
-  assertStateFields(record, [
-    "authentication", "baseUrl", "id", "kind", "label", "version",
-  ], pathLabel);
+  assertStateFields(record, legacyWithoutPrivatePermission
+    ? ["authentication", "baseUrl", "id", "kind", "label", "version"]
+    : [
+        "authentication", "baseUrl", "id", "kind", "label",
+        "privateNetworkOrigin", "version",
+      ], pathLabel);
   if (!(["codex", "ollama", "openai-chat"] as const).includes(
     record.kind as AgentProviderKind,
   )) {
@@ -180,6 +192,10 @@ function parseProvider(value: unknown, index: number): StoredProvider {
     id: nonEmptyString(record.id, `${pathLabel}.id`),
     kind,
     label: nonEmptyString(record.label, `${pathLabel}.label`),
+    privateNetworkOrigin: legacyWithoutPrivatePermission ||
+        record.privateNetworkOrigin === null
+      ? null
+      : parseBaseUrl(record.privateNetworkOrigin, `${pathLabel}.privateNetworkOrigin`),
     version: positiveInteger(record.version, `${pathLabel}.version`),
   };
 }
@@ -319,17 +335,26 @@ function parseConfigurationState(value: unknown): AgentConfigurationState {
   const record = requireStateRecord(value, "Agent configuration state");
 
   assertStateFields(record, ["formatVersion", "profiles", "providers"], "Agent configuration state");
-  if (
-    record.formatVersion !== formatVersion || !Array.isArray(record.profiles) ||
-    !Array.isArray(record.providers)
-  ) {
+  const legacyWithoutPrivatePermission = record.formatVersion === 1;
+
+  if ((!legacyWithoutPrivatePermission && record.formatVersion !== formatVersion) ||
+      !Array.isArray(record.profiles) || !Array.isArray(record.providers)) {
     throw new Error("Agent configuration state has an invalid format.");
   }
   const state: AgentConfigurationState = {
     formatVersion,
     profiles: record.profiles.map(parseProfile),
-    providers: record.providers.map(parseProvider),
+    providers: record.providers.map((provider, index) =>
+      parseProvider(provider, index, legacyWithoutPrivatePermission)
+    ),
   };
+
+  if (legacyWithoutPrivatePermission) {
+    Object.defineProperty(state, requiresFormatRewrite, {
+      configurable: true,
+      value: true,
+    });
+  }
 
   validateRelationships(state);
   return state;
@@ -367,6 +392,9 @@ function providerView(provider: StoredProvider): AgentProviderView {
     id: provider.id,
     kind: provider.kind,
     label: provider.label,
+    privateNetworkAccess: provider.privateNetworkOrigin
+      ? "confirmed"
+      : "not-required",
     version: provider.version,
   };
 }
@@ -448,10 +476,6 @@ function normalizeProviderInput(
   if (input.kind === "codex" && input.authenticationType !== "bearer") {
     throw new AgentConfigurationValidationError("Codex authentication must be bearer");
   }
-  if (baseUrl !== null) {
-    const url = new URL(baseUrl);
-    targetPolicy.assertConfiguration(url, input.authenticationType);
-  }
   if (input.authenticationType === "none" && input.apiKey !== undefined) {
     throw new AgentConfigurationValidationError("auth:none cannot include an API key");
   }
@@ -468,7 +492,21 @@ function normalizeProviderInput(
   if (authentication.type === "bearer" && authentication.apiKey === "") {
     throw new AgentConfigurationValidationError("API key cannot be empty");
   }
-  return { authentication, baseUrl, kind: input.kind, label };
+  const privateNetworkOrigin = baseUrl === null
+    ? null
+    : targetPolicy.configurationPermission(
+        new URL(baseUrl),
+        input.authenticationType,
+        input.privateNetworkAccessConfirmed,
+      );
+
+  return {
+    authentication,
+    baseUrl,
+    kind: input.kind,
+    label,
+    privateNetworkOrigin,
+  };
 }
 
 function normalizeProfileInput(
@@ -508,6 +546,7 @@ function normalizeProfileInput(
 
 export class AgentConfigurationStore {
   readonly #createId: () => string;
+  #initialize: Promise<void> | null = null;
   readonly #partition: SecureJsonPartition<AgentConfigurationState>;
   readonly #targetPolicy: AgentProviderTargetPolicy;
 
@@ -523,7 +562,7 @@ export class AgentConfigurationStore {
   ) {
     this.#createId = createId;
     this.#targetPolicy = targetPolicy;
-    this.#partition = new SecureJsonPartition({
+    this.#partition = new SecureJsonPartition<AgentConfigurationState>({
       createInitial: () => ({ formatVersion, profiles: [], providers: [] }),
       directory: path.join(path.resolve(stateDirectory), "agent-config-v1"),
       fileName: "configuration.json",
@@ -533,11 +572,11 @@ export class AgentConfigurationStore {
   }
 
   readSnapshot() {
-    return this.#partition.read(configurationSnapshot);
+    return this.#read(configurationSnapshot);
   }
 
   resolveProfile(profileId: string): Promise<ResolvedAgentConfiguration | null> {
-    return this.#partition.read((state) => {
+    return this.#read((state) => {
       const storedProfile = state.profiles.find(({ id }) => id === profileId);
 
       if (!storedProfile) return null;
@@ -548,6 +587,7 @@ export class AgentConfigurationStore {
         apiKey: storedProvider.authentication.type === "bearer"
           ? storedProvider.authentication.apiKey
           : null,
+        privateNetworkOrigin: storedProvider.privateNetworkOrigin,
         profile: profileView(storedProfile, storedProvider),
         provider: providerView(storedProvider),
       };
@@ -555,7 +595,7 @@ export class AgentConfigurationStore {
   }
 
   resolveProvider(providerId: string): Promise<ResolvedAgentProvider | null> {
-    return this.#partition.read((state) => {
+    return this.#read((state) => {
       const storedProvider = state.providers.find(({ id }) => id === providerId);
 
       if (!storedProvider) return null;
@@ -563,13 +603,14 @@ export class AgentConfigurationStore {
         apiKey: storedProvider.authentication.type === "bearer"
           ? storedProvider.authentication.apiKey
           : null,
+        privateNetworkOrigin: storedProvider.privateNetworkOrigin,
         provider: providerView(storedProvider),
       };
     });
   }
 
   createProvider(baseRevision: string, input: AgentProviderInput) {
-    return this.#partition.mutate((state) => {
+    return this.#mutate((state) => {
       assertBaseRevision(state, baseRevision);
       const provider: StoredProvider = {
         ...normalizeProviderInput(input, this.#targetPolicy),
@@ -593,7 +634,7 @@ export class AgentConfigurationStore {
     providerId: string,
     input: AgentProviderInput,
   ) {
-    return this.#partition.mutate((state) => {
+    return this.#mutate((state) => {
       assertBaseRevision(state, baseRevision);
       const index = state.providers.findIndex(({ id }) => id === providerId);
 
@@ -622,7 +663,7 @@ export class AgentConfigurationStore {
   }
 
   deleteProvider(baseRevision: string, providerId: string) {
-    return this.#partition.mutate((state) => {
+    return this.#mutate((state) => {
       assertBaseRevision(state, baseRevision);
       if (state.profiles.some(({ providerId: candidate }) => candidate === providerId)) {
         throw new AgentConfigurationValidationError(
@@ -640,7 +681,7 @@ export class AgentConfigurationStore {
   }
 
   createProfile(baseRevision: string, input: AgentProfileInput) {
-    return this.#partition.mutate((state) => {
+    return this.#mutate((state) => {
       assertBaseRevision(state, baseRevision);
       const provider = state.providers.find(({ id }) => id === input.providerId);
 
@@ -670,7 +711,7 @@ export class AgentConfigurationStore {
     profileId: string,
     input: AgentProfileInput,
   ) {
-    return this.#partition.mutate((state) => {
+    return this.#mutate((state) => {
       assertBaseRevision(state, baseRevision);
       const index = state.profiles.findIndex(({ id }) => id === profileId);
 
@@ -702,7 +743,7 @@ export class AgentConfigurationStore {
   }
 
   deleteProfile(baseRevision: string, profileId: string) {
-    return this.#partition.mutate((state) => {
+    return this.#mutate((state) => {
       assertBaseRevision(state, baseRevision);
       const index = state.profiles.findIndex(({ id }) => id === profileId);
 
@@ -719,7 +760,7 @@ export class AgentConfigurationStore {
     profileId: string,
     input: { checkedAt: string; toolCallMode: AgentToolCallMode },
   ) {
-    return this.#partition.mutate((state) => {
+    return this.#mutate((state) => {
       assertBaseRevision(state, baseRevision);
       const profile = state.profiles.find(({ id }) => id === profileId);
 
@@ -755,5 +796,32 @@ export class AgentConfigurationStore {
         },
       };
     });
+  }
+
+  #mutate<Result>(
+    operation: (
+      state: AgentConfigurationState,
+    ) => { changed: boolean; result: Result } | Promise<{
+      changed: boolean;
+      result: Result;
+    }>,
+  ) {
+    return this.#ensureInitialized().then(() =>
+      this.#partition.mutate(operation)
+    );
+  }
+
+  #read<Result>(project: (state: AgentConfigurationState) => Result) {
+    return this.#ensureInitialized().then(() => this.#partition.read(project));
+  }
+
+  #ensureInitialized() {
+    this.#initialize ??= this.#partition.mutate((state) => {
+      const changed = state[requiresFormatRewrite] === true;
+
+      delete state[requiresFormatRewrite];
+      return { changed, result: undefined };
+    });
+    return this.#initialize;
   }
 }

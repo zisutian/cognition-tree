@@ -61,6 +61,7 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
     "api/http",
     "api/resources",
     "api/sync",
+    "network",
     "repository",
   ],
   "api/resources": ["api/resources"],
@@ -70,9 +71,11 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
     "repository",
   ],
   catalog: ["catalog", "repository"],
+  network: ["network"],
   persistence: ["persistence"],
   repository: ["persistence", "repository"],
   state: ["persistence", "state"],
+  system: ["network", "persistence", "state", "system"],
 };
 
 const clientAreaImports: Readonly<Record<string, readonly string[]>> = {
@@ -381,7 +384,7 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
     scope,
   })),
   {
-    allowedPath: /^contracts\/api\/operations\/(?:admin|agent|content|foundation|sync)\.ts$/,
+    allowedPath: /^contracts\/api\/operations\/(?:admin|agent|auth|content|foundation|sync)\.ts$/,
     corpus: contractModules,
     matches: { min: 1 },
     name: "CTN API v3 feature operation declarations",
@@ -465,6 +468,18 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
   {
     corpus: sourceModules,
     matches: 0,
+    name: "retired user environment configuration",
+    pattern: /\bCTN_(?:API_HOST|API_PORT|API_TOKEN|PUBLIC_URL|REPOSITORY_ROOT|REPOSITORY_HOST_ROOT|SERVER_STATE_DIR|AGENT_MAX_AUDIT_ENTRIES|AGENT_PRIVATE_TARGETS)\b/,
+  },
+  {
+    corpus: sourceModules,
+    matches: 0,
+    name: "retired client startup configuration",
+    pattern: /\bcognition-tree\.config\.json\b|\b(?:loadClientApiConfiguration|parseClientStartupConfiguration)\b/,
+  },
+  {
+    corpus: sourceModules,
+    matches: 0,
     name: "retired remote repository authority",
     pattern: new RegExp([
       "web",
@@ -492,9 +507,9 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
   {
     corpus: sourceModules,
     matches: 0,
-    name: "runtime content migrations",
+    name: "runtime content migrations outside the system control plane",
     pattern: /\b(?:migrate|migration)(?:[A-Z_]|[a-z]+\b)/i,
-    scope: /^(?:application|contracts|core|infrastructure|presentation)\//,
+    scope: /^(?:core|application\/(?:workspace|journal|todo)|infrastructure\/server\/repository)\//,
   },
 ];
 

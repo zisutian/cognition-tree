@@ -10,6 +10,7 @@ export type AgentProviderView = Readonly<{
   id: string;
   kind: AgentProviderKind;
   label: string;
+  privateNetworkAccess: "confirmed" | "not-required";
   version: number;
 }>;
 
@@ -66,6 +67,7 @@ export type AgentProviderInput = Readonly<{
   baseUrl: string | null;
   kind: AgentProviderKind;
   label: string;
+  privateNetworkAccessConfirmed: boolean;
 }>;
 
 export type AgentProfileInput = Readonly<{

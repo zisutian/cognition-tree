@@ -58,6 +58,13 @@ import {
 import {
   WorkspacePayloadValidationError,
 } from "../../repository/workspace/layout.ts";
+import {
+  SystemConfigurationConflictError,
+  SystemConfigurationValidationError,
+  SystemMigrationConflictError,
+  SystemMigrationNotFoundError,
+  SystemMigrationValidationError,
+} from "../../../../application/system/systemConfiguration.ts";
 
 const statusByCode: Record<ApiErrorCodeDto, number> = {
   adapter_unavailable: 503,
@@ -132,6 +139,31 @@ export function mapApiError(error: unknown): ApiRequestError {
       error.message,
       { details: { currentRevision: error.currentRevision } },
     );
+  }
+  if (error instanceof SystemConfigurationConflictError) {
+    return new ApiRequestError(
+      "resource_conflict",
+      error.message,
+      { details: { currentRevision: error.currentRevision } },
+    );
+  }
+  if (error instanceof SystemConfigurationValidationError) {
+    return new ApiRequestError("domain_validation_failed", error.message);
+  }
+  if (error instanceof SystemMigrationConflictError) {
+    return new ApiRequestError(
+      "resource_conflict",
+      error.message,
+      error.currentRevision
+        ? { details: { currentRevision: error.currentRevision } }
+        : undefined,
+    );
+  }
+  if (error instanceof SystemMigrationNotFoundError) {
+    return new ApiRequestError("not_found", error.message);
+  }
+  if (error instanceof SystemMigrationValidationError) {
+    return new ApiRequestError("domain_validation_failed", error.message);
   }
   if (
     error instanceof AgentConfigurationValidationError ||

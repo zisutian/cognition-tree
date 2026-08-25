@@ -1,0 +1,46 @@
+.owner-login {
+  display: grid;
+  min-height: 100dvh;
+  padding: calc(var(--ui-panel-padding) * 2);
+  place-items: center;
+  background: var(--color-editor);
+}
+
+.owner-login-card {
+  display: grid;
+  width: min(100%, 420px);
+  gap: calc(var(--ui-gap) * 2);
+  padding: calc(var(--ui-panel-padding) * 2);
+  border: var(--ui-border-width) solid var(--color-border-strong);
+  border-radius: var(--ui-radius);
+  background: var(--color-panel);
+  box-shadow: var(--shadow-float);
+}
+
+.owner-login-card h1,
+.owner-login-card p {
+  margin: 0;
+}
+
+.owner-login-card h1 {
+  color: var(--color-fg-strong);
+  font-size: var(--ui-title-font-size);
+}
+
+.owner-login-card p,
+.owner-login-card label > span {
+  color: var(--color-fg-muted);
+}
+
+.owner-login-card [role="alert"] {
+  color: var(--color-error);
+}
+
+.owner-login-card label {
+  display: grid;
+  gap: var(--ui-gap-tight);
+}
+
+.owner-login-card .ui-button {
+  justify-self: start;
+}

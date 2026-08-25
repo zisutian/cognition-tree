@@ -51,6 +51,7 @@ describe("Agent configuration controller", () => {
       baseUrl: "http://127.0.0.1:11434",
       kind: "ollama",
       label: "Local Ollama",
+      privateNetworkAccessConfirmed: false,
     });
 
     expect(adapter.createProvider).toHaveBeenCalledWith(
@@ -82,6 +83,7 @@ describe("Agent configuration controller", () => {
       baseUrl: "http://127.0.0.1:11434",
       kind: "ollama",
       label: "Local Ollama",
+      privateNetworkAccessConfirmed: false,
     })).rejects.toThrow("revision changed");
     expect(controller.getSnapshot()).toMatchObject({
       configuration: { revision: revision("1") },

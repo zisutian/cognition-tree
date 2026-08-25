@@ -4,6 +4,7 @@ import type { RepositoryApplication } from "../../../application/repository/repo
 import type { TodoApplication } from "../../../application/todo";
 import type { ApiAccessApplication } from "../../../application/apiAccess/apiAccessAdministration";
 import type { AgentApplication } from "../../../application/agent";
+import type { SystemApplication } from "../../../application/system";
 import type {
   WorkbenchController,
   WorkbenchControllerSnapshot,
@@ -27,6 +28,7 @@ export function ReadyWorkspaceWorkbench({
   search,
   session,
   snapshot,
+  system,
   todo,
 }: {
   activeActivityId: ActivityId;
@@ -40,6 +42,7 @@ export function ReadyWorkspaceWorkbench({
   search: WorkbenchApplication["search"];
   session: ActiveWorkspaceSession;
   snapshot: WorkbenchControllerSnapshot;
+  system: SystemApplication;
   todo: TodoApplication;
 }) {
   const workspace = useWorkspaceApplication(session);
@@ -80,6 +83,7 @@ export function ReadyWorkspaceWorkbench({
         journal,
         repository,
         search,
+        system,
         todo,
         workspace: { application: workspace, status: "ready" },
       }}

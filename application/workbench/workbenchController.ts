@@ -153,6 +153,7 @@ export type WorkbenchController = {
   discardJournalPendingChangesAndReload(): Promise<void>;
   discardTodoPendingChangesAndReload(): Promise<void>;
   dispose(): void;
+  flushLoadedContent(): Promise<void>;
   getSnapshot(): WorkbenchControllerSnapshot;
   reloadBuiltIns(): Promise<void>;
   refreshRepositories(): Promise<void>;
@@ -545,6 +546,21 @@ export function createWorkbenchController({
       listeners.clear();
     },
     getSnapshot: () => snapshot,
+    async flushLoadedContent() {
+      const current = snapshot;
+      const operations: Promise<unknown>[] = [];
+
+      if (current.workspace.status === "ready") {
+        operations.push(workspaceFacade.synchronizePendingChanges());
+      }
+      if (current.builtIns.journal.state.status === "ready") {
+        operations.push(journalFacade.synchronizePendingChanges());
+      }
+      if (current.builtIns.todo.state.status === "ready") {
+        operations.push(todoFacade.synchronizePendingChanges());
+      }
+      await Promise.all(operations);
+    },
     reloadBuiltIns: builtInCatalogController.reload,
     async refreshRepositories() {
       await workspaceSlot.flushReady();

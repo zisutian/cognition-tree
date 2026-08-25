@@ -27,6 +27,12 @@ import type {
   AgentConfigurationState,
   AgentScopeCatalog,
 } from "../../../application/agent";
+import type {
+  OwnerAuthenticationController,
+  OwnerAuthenticationState,
+  SystemConfigurationController,
+  SystemConfigurationState,
+} from "../../../application/system";
 
 const workspaceFeedbackActivities = [
   "notes",
@@ -42,6 +48,10 @@ export function useWorkbenchApplicationBindings({
   controller,
   feedbackController,
   snapshot,
+  systemAuthenticationController,
+  systemAuthenticationState,
+  systemConfigurationController,
+  systemConfigurationState,
 }: {
   agentConfigurationController: AgentConfigurationController;
   agentConfigurationState: AgentConfigurationState;
@@ -50,6 +60,10 @@ export function useWorkbenchApplicationBindings({
   controller: WorkbenchController;
   feedbackController: WorkbenchFeedbackController<ActivityId>;
   snapshot: WorkbenchControllerSnapshot;
+  systemAuthenticationController: OwnerAuthenticationController;
+  systemAuthenticationState: OwnerAuthenticationState;
+  systemConfigurationController: SystemConfigurationController;
+  systemConfigurationState: SystemConfigurationState;
 }) {
   const navigation = useRepositoryNavigation();
   const previousFeedbackRepositoryIdRef = useRef<string | null | undefined>(
@@ -232,6 +246,12 @@ export function useWorkbenchApplicationBindings({
       controller: controller.search,
       openResult: openSearchResult,
       state: snapshot.search,
+    },
+    system: {
+      authenticationController: systemAuthenticationController,
+      authenticationState: systemAuthenticationState,
+      configurationController: systemConfigurationController,
+      configurationState: systemConfigurationState,
     },
     todo,
   };

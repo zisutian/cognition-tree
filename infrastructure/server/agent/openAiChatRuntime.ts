@@ -174,15 +174,18 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
   #activeController: AbortController | null = null;
   readonly #instructions: string;
   readonly #profile: CompatibleChatProfile;
+  readonly #beforeRequest: () => Promise<void>;
 
   constructor(
     profile: CompatibleChatProfile,
     apiKey: string | null,
     instructions: string,
+    beforeRequest: () => Promise<void> = async () => undefined,
   ) {
     this.#profile = profile;
     this.#apiKey = apiKey;
     this.#instructions = instructions;
+    this.#beforeRequest = beforeRequest;
   }
 
   async cancel() {
@@ -232,6 +235,7 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
           });
           throw new AgentContextLimitError();
         }
+        await this.#beforeRequest();
         const response = await fetch(endpoint(this.#profile.baseUrl), {
           body: JSON.stringify({
             messages,
@@ -255,6 +259,7 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
             "Content-Type": "application/json",
           },
           method: "POST",
+          redirect: "error",
           signal: controller.signal,
         });
 
@@ -397,10 +402,16 @@ export class OpenAiChatRuntime implements AgentRuntimePort {
   readonly #apiKey: string;
   readonly #profile: OpenAiChatAgentProfile;
   readonly kind = "openai-chat" as const;
+  readonly #beforeRequest: () => Promise<void>;
 
-  constructor(profile: OpenAiChatAgentProfile, apiKey: string) {
+  constructor(
+    profile: OpenAiChatAgentProfile,
+    apiKey: string,
+    beforeRequest: () => Promise<void> = async () => undefined,
+  ) {
     this.#profile = profile;
     this.#apiKey = apiKey;
+    this.#beforeRequest = beforeRequest;
   }
 
   async openSession(input: {
@@ -414,6 +425,7 @@ export class OpenAiChatRuntime implements AgentRuntimePort {
       this.#profile,
       this.#apiKey,
       input.instructions,
+      this.#beforeRequest,
     );
   }
 }
