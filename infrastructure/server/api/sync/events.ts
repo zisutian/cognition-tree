@@ -91,6 +91,7 @@ function writeSseEvent(
 
 export class ApiEventHub {
   readonly #connections = new Set<EventConnection>();
+  #disposed = false;
   #sequence = 0;
   readonly #streamId: string;
 
@@ -109,6 +110,9 @@ export class ApiEventHub {
     principal: ApiPrincipalDto;
     response: ServerResponse;
   }) {
+    if (this.#disposed) {
+      throw new Error("API event hub is disposed");
+    }
     const connection = { principal, response };
 
     response.writeHead(200, {
@@ -170,6 +174,15 @@ export class ApiEventHub {
       connection.response.end();
       this.#connections.delete(connection);
     }
+  }
+
+  dispose() {
+    if (this.#disposed) return;
+    this.#disposed = true;
+    for (const connection of this.#connections) {
+      connection.response.end();
+    }
+    this.#connections.clear();
   }
 
   get sequence() {

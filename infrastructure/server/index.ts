@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   createApiServer,
 } from "./api/http/server.ts";
+import { closeApiServer } from "./api/http/serverLifecycle.ts";
 import {
   createApiSecurityPolicy,
 } from "./api/http/security.ts";
@@ -109,11 +110,13 @@ const shutdown = async () => {
     return;
   }
   shuttingDown = true;
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => error ? reject(error) : resolve());
-    server.closeIdleConnections();
+  await closeApiServer({
+    closeOwnedResources: async () => {
+      eventHub.dispose();
+      await agentService.dispose();
+    },
+    server,
   });
-  await agentService.dispose();
   await catalog.dispose();
 };
 
