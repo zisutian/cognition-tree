@@ -381,6 +381,6 @@ function ChatProfileFields({ draft, providerKind, setDraft }: { draft: ProfileDr
     <label><span>会话历史预算（字符）</span><input aria-label="Profile 会话历史预算（字符）" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, historyBudgetCharacters: event.currentTarget.valueAsNumber })} type="number" value={draft.historyBudgetCharacters} /></label>
     <p className="settings-muted">仅控制 Cognition Tree 何时压缩内存对话；不会修改 Ollama num_ctx，也不代表模型的真实 token 上限。</p>
     <label><span>输出 tokens</span><input aria-label="Profile 输出 Tokens" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxOutputTokens: event.currentTarget.valueAsNumber })} type="number" value={draft.maxOutputTokens} /></label>
-    <label><span>工具步数</span><input aria-label="Profile 工具步数" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxToolSteps: event.currentTarget.valueAsNumber })} type="number" value={draft.maxToolSteps} /></label>
+    <label><span>工具步数</span><input aria-label="Profile 工具步数" className="ui-input" min="3" onChange={(event) => setDraft({ ...draft, maxToolSteps: event.currentTarget.valueAsNumber })} type="number" value={draft.maxToolSteps} /></label>
   </>;
 }

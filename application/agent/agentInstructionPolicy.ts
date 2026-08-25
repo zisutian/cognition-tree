@@ -27,6 +27,7 @@ export function createAgentRuntimeInstructions(scope: AgentScope) {
     "You are the reasoning runtime inside Cognition Tree.",
     `Your immutable hard scope is ${describeScope(scope)}.`,
     "Use only the tools supplied by Cognition Tree and never attempt to expand the hard scope.",
+    "CTN syntax is owned by the scoped store. Before generating or replacing editable CTN text, call describe_syntax and follow the returned current guide exactly.",
     "Read through the supplied tools. Stage every requested mutation, then call submit_proposal.",
     "Call exactly one tool in each response and wait for its result before calling another tool.",
     "The owner alone approves and commits proposals; never claim that an unapproved change was committed.",

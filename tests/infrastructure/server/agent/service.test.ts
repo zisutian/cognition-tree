@@ -181,6 +181,16 @@ async function waitForProposal(service: AgentService, sessionId: string) {
 
 function createTwoEntries(request: AgentRuntimeTurnRequest) {
   return (async () => {
+    const syntax = await request.executeTool({
+      arguments: {},
+      callId: uuid(8),
+      name: "describe_syntax",
+    });
+
+    expect(syntax).toMatchObject({
+      available: true,
+      guide: { domain: "journal", indentation: { character: "tab" } },
+    });
     for (const body of ["First staged entry", "Second staged entry"]) {
       await request.executeTool({
         arguments: { body },
@@ -194,7 +204,7 @@ function createTwoEntries(request: AgentRuntimeTurnRequest) {
       name: "submit_proposal",
     });
     await request.onEvent({ textDelta: "Proposal ready.", type: "text-delta" });
-    return { finalText: "Proposal ready.", toolCalls: 3 };
+    return { finalText: "Proposal ready.", toolCalls: 4 };
   })();
 }
 
@@ -334,6 +344,116 @@ describe("Agent service proposal lifecycle", () => {
             { content: "Create an entry", role: "user" },
           ],
           problem: expect.stringContaining("/body"),
+          state: "idle",
+        });
+      });
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  it("requires current syntax before staging editable CTN text", async () => {
+    const fixture = await createFixture(async (request) => {
+      const blocked = await request.executeTool({
+        arguments: { body: "Blocked" },
+        callId: uuid(170),
+        name: "stage_journal_create_entry",
+      });
+
+      expect(blocked).toMatchObject({
+        error: { code: "syntax_read_required" },
+        staged: false,
+      });
+      const described = await request.executeTool({
+        arguments: {},
+        callId: uuid(171),
+        name: "describe_syntax",
+      });
+
+      expect(described).toMatchObject({
+        available: true,
+        guide: {
+          bodyInputsExcludeTitle: true,
+          domain: "journal",
+          title: { kind: "managed-by-host" },
+        },
+      });
+      expect(await request.executeTool({
+        arguments: { body: "Allowed" },
+        callId: uuid(172),
+        name: "stage_journal_create_entry",
+      })).toMatchObject({ staged: true });
+      await request.executeTool({
+        arguments: {},
+        callId: uuid(173),
+        name: "submit_proposal",
+      });
+      return { finalText: "Proposal ready.", toolCalls: 4 };
+    });
+
+    try {
+      const session = await fixture.service.createSession({
+        profileId,
+        scope: journalScope,
+      });
+
+      fixture.service.sendMessage(session.id, "Create an entry safely");
+      const proposal = await waitForProposal(fixture.service, session.id);
+
+      expect(proposal.changes.resources.filter(({ kind }) => kind === "created"))
+        .toHaveLength(1);
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  it("keeps the complete syntax guide behind describe_syntax", async () => {
+    let entryId = "";
+    const fixture = await createFixture(async (request) => {
+      const resource = await request.executeTool({
+        arguments: { resourceId: entryId },
+        callId: uuid(180),
+        name: "read",
+      });
+
+      expect(resource).toMatchObject({ resourceId: entryId });
+      expect(resource).not.toHaveProperty("writingGuide");
+      expect(await request.executeTool({
+        arguments: {},
+        callId: uuid(181),
+        name: "describe_syntax",
+      })).toHaveProperty("guide.blocks");
+      return { finalText: "Read safely.", toolCalls: 2 };
+    });
+
+    try {
+      const store = await fixture.builtInCatalog.getStore("journal");
+      const empty = await store.loadSnapshot();
+      const seeded = prepareAgentJournalCommand({
+        intent: { body: "Readable", kind: "create-entry" },
+        runtime: fixture.runtime,
+        snapshot: empty,
+        versionPolicy: journalResourceVersions,
+      });
+
+      if (seeded.outcome.kind !== "journal-entry-created") {
+        throw new Error("Journal seed was not created");
+      }
+      entryId = seeded.outcome.entryId;
+      await store.commit({
+        baseRevision: empty.revision,
+        content: seeded.content,
+        projection: seeded.projection,
+      });
+      const session = await fixture.service.createSession({
+        profileId,
+        scope: journalScope,
+      });
+
+      fixture.service.sendMessage(session.id, "Read the entry");
+      await vi.waitFor(() => {
+        expect(fixture.service.getSession(session.id)).toMatchObject({
+          problem: null,
           state: "idle",
         });
       });

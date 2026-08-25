@@ -19,6 +19,7 @@ function stringEnum<const Values extends readonly string[]>(values: Values) {
 
 const identifier = Type.String({ minLength: 1 });
 const nullableIdentifier = Type.Union([identifier, Type.Null()]);
+const nullableString = Type.Union([Type.String(), Type.Null()]);
 const localDate = Type.String({ format: "ctn-local-date" }) as
   TUnsafe<TodoLocalDateDto>;
 const todoRule = Type.Union([
@@ -104,7 +105,57 @@ export type AgentTodoCommandIntentDto = Static<
 
 const targetKind = stringEnum(["above", "below", "end", "inside"] as const);
 
-export const agentToolContractVersion = 2;
+export const AgentSyntaxGuideSchema = strictObject({
+  blocks: Type.Array(strictObject({
+    example: Type.String(),
+    kind: stringEnum(["line", "multiline"] as const),
+    label: Type.String(),
+    marker: Type.String(),
+    semanticId: identifier,
+  })),
+  bodyInputsExcludeTitle: Type.Literal(true),
+  domain: stringEnum(["workspace", "journal", "todo"] as const),
+  indentation: strictObject({
+    character: Type.Literal("tab"),
+    displayWidth: Type.Integer({ minimum: 1 }),
+    nestedExample: nullableString,
+  }),
+  inline: Type.Array(strictObject({
+    close: nullableString,
+    example: Type.String(),
+    kind: stringEnum(["paired", "single"] as const),
+    label: Type.String(),
+    open: Type.String(),
+    semanticId: identifier,
+  })),
+  name: Type.String(),
+  root: Type.Union([
+    strictObject({
+      example: Type.String(),
+      label: Type.String(),
+      semanticId: identifier,
+    }),
+    Type.Null(),
+  ]),
+  title: Type.Union([
+    strictObject({ kind: Type.Literal("first-line"), label: Type.String() }),
+    strictObject({ kind: Type.Literal("managed-by-host") }),
+  ]),
+});
+export type AgentSyntaxGuideDto = Static<typeof AgentSyntaxGuideSchema>;
+
+export const AgentSyntaxDescriptionSchema = Type.Union([
+  strictObject({ available: Type.Literal(true), guide: AgentSyntaxGuideSchema }),
+  strictObject({
+    available: Type.Literal(false),
+    reason: Type.String({ minLength: 1 }),
+  }),
+]);
+export type AgentSyntaxDescriptionDto = Static<
+  typeof AgentSyntaxDescriptionSchema
+>;
+
+export const agentToolContractVersion = 3;
 
 export const agentToolDefinitions = [
   {
@@ -126,6 +177,12 @@ export const agentToolDefinitions = [
     name: "search",
   },
   {
+    description: "Read the current store-owned CTN syntax before generating or replacing editable CTN text. This tool takes no arguments.",
+    domain: null,
+    inputSchema: strictObject({}),
+    name: "describe_syntax",
+  },
+  {
     description: "Stage creation of a Workspace folder. Use null for the repository root.",
     domain: "workspace",
     inputSchema: strictObject({
@@ -135,7 +192,7 @@ export const agentToolDefinitions = [
     name: "stage_workspace_create_folder",
   },
   {
-    description: "Stage creation of a Workspace CTN note. Use null for the repository root.",
+    description: "Stage creation of a Workspace CTN note after describe_syntax. The body excludes the separate title. Use null for the repository root.",
     domain: "workspace",
     inputSchema: strictObject({
       body: Type.String(),
@@ -192,13 +249,13 @@ export const agentToolDefinitions = [
     name: "stage_workspace_rename_note",
   },
   {
-    description: "Stage replacement of one Workspace note's complete editable CTN source.",
+    description: "Stage replacement of one Workspace note's complete editable CTN source after describe_syntax. The first line is the unmarked title.",
     domain: "workspace",
     inputSchema: strictObject({ editableText: Type.String(), noteId: identifier }),
     name: "stage_workspace_replace_note_source",
   },
   {
-    description: "Stage creation of one Journal entry.",
+    description: "Stage creation of one Journal entry after describe_syntax. The body excludes the host-managed title.",
     domain: "journal",
     inputSchema: strictObject({ body: Type.String() }),
     name: "stage_journal_create_entry",
@@ -210,13 +267,13 @@ export const agentToolDefinitions = [
     name: "stage_journal_delete_entry",
   },
   {
-    description: "Stage replacement of one Journal entry body.",
+    description: "Stage replacement of one Journal entry body after describe_syntax. The body excludes the host-managed title.",
     domain: "journal",
     inputSchema: strictObject({ body: Type.String(), entryId: identifier }),
     name: "stage_journal_replace_entry_body",
   },
   {
-    description: "Stage creation of one Todo collection.",
+    description: "Stage creation of one Todo collection after describe_syntax. The body excludes the separate collection name.",
     domain: "todo",
     inputSchema: strictObject({ body: Type.String(), name: Type.String() }),
     name: "stage_todo_create_collection",
@@ -306,7 +363,7 @@ export const agentToolDefinitions = [
     name: "stage_todo_rename_collection",
   },
   {
-    description: "Stage replacement of one Todo collection body.",
+    description: "Stage replacement of one Todo collection body after describe_syntax. The body excludes the separate collection name.",
     domain: "todo",
     inputSchema: strictObject({ body: Type.String(), collectionId: identifier }),
     name: "stage_todo_replace_collection_body",

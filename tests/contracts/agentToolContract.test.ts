@@ -24,10 +24,19 @@ describe("Agent read tool contract", () => {
     })).toBe(false);
   });
 
-  it("does not currently expose an explicit syntax-read tool", () => {
-    expect(agentToolDefinitions.map(({ name }) => name)).not.toContain(
+  it("exposes one strict syntax-read tool to every domain", () => {
+    expect(agentToolDefinitions.map(({ name }) => name)).toContain(
       "describe_syntax",
     );
+    for (const domain of ["workspace", "journal", "todo"] as const) {
+      expect(agentToolDefinitionsForDomain(domain).map(({ name }) => name))
+        .toContain("describe_syntax");
+    }
+    expect(Value.Check(
+      agentToolDefinitions.find(({ name }) => name === "describe_syntax")!
+        .inputSchema,
+      {},
+    )).toBe(true);
   });
 });
 

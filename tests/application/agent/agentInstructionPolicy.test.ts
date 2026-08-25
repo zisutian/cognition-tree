@@ -21,13 +21,14 @@ describe("Agent runtime instruction policy", () => {
     expect(instructions).toContain("Never print a tool-call envelope");
   });
 
-  it("does not currently establish an explicit syntax-read contract", () => {
+  it("requires the current CTN syntax before editable text generation", () => {
     const instructions = createAgentRuntimeInstructions({
       domain: "workspace",
       repositoryId: "repository-a",
       target: { kind: "repository" },
     });
     expect(instructions).toContain("Stage every requested mutation");
-    expect(instructions).not.toContain("describe_syntax");
+    expect(instructions).toContain("describe_syntax");
+    expect(instructions).toContain("CTN syntax is owned by the scoped store");
   });
 });

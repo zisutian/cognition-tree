@@ -187,6 +187,56 @@ describe("Agent configuration store", () => {
     )).rejects.toBeInstanceOf(AgentConfigurationValidationError);
   });
 
+  it("requires enough chat tool steps for syntax, staging, and proposal submission", async () => {
+    const { directory, store } = await createStore();
+    const initial = await store.readSnapshot();
+    const provider = await store.createProvider(initial.revision, {
+      authenticationType: "none",
+      baseUrl: "http://127.0.0.1:11434",
+      kind: "ollama",
+      label: "Local Ollama",
+      privateNetworkAccessConfirmed: false,
+    });
+    const input = {
+      label: "Local writer",
+      maxResidentSessions: 1,
+      model: "qwen3:27b",
+      parameters: {
+        historyBudgetCharacters: 131_072,
+        kind: "chat" as const,
+        maxOutputTokens: 4_096,
+        maxToolSteps: 2,
+        toolCallMode: "single-json" as const,
+      },
+      providerId: provider.provider.id,
+      timeoutMilliseconds: 600_000,
+    };
+
+    await expect(store.createProfile(provider.configuration.revision, input))
+      .rejects.toThrow("at least 3 tool steps");
+    const created = await store.createProfile(
+      provider.configuration.revision,
+      {
+        ...input,
+        parameters: { ...input.parameters, maxToolSteps: 3 },
+      },
+    );
+    const file = path.join(directory, "agent-config-v1", "configuration.json");
+    const persisted = JSON.parse(await readFile(file, "utf8")) as {
+      profiles: Array<{ parameters: { maxToolSteps: number } }>;
+    };
+
+    persisted.profiles[0]!.parameters.maxToolSteps = 2;
+    await writeFile(file, `${JSON.stringify(persisted)}\n`, { mode: 0o600 });
+    const reloaded = await new AgentConfigurationStore(directory).readSnapshot();
+
+    expect(created.profile.parameters).toMatchObject({ maxToolSteps: 3 });
+    expect(reloaded.profiles[0]).toMatchObject({
+      availability: "unavailable",
+      unavailableReason: "Chat profiles require at least 3 tool steps",
+    });
+  });
+
   it("fails closed when the persisted state is invalid", async () => {
     const { directory, store } = await createStore();
 

@@ -184,7 +184,8 @@ function parseModels(value: unknown) {
 const conformanceTools: readonly AgentRuntimeTool[] =
   agentToolDefinitionsForDomain("workspace")
     .filter(({ name }) =>
-      name === "list" || name === "stage_workspace_create_note"
+      name === "list" || name === "describe_syntax" ||
+      name === "stage_workspace_create_note"
     )
     .map(({ description, inputSchema, name }) => ({
       description,
@@ -444,7 +445,7 @@ export class AgentProviderOperations {
         profile.maxOutputTokens,
         conformanceOutputTokenLimit,
       ),
-      maxToolSteps: 1,
+      maxToolSteps: 2,
     };
     const beforeRequest = () => this.#targetPolicy.assertRequestTarget(
       new URL(resolved.provider.baseUrl!),
@@ -458,7 +459,7 @@ export class AgentProviderOperations {
         beforeRequest,
       );
     const session = await runtime.openSession({
-      instructions: "This is a no-write tool-call conformance check. Call stage_workspace_create_note exactly once with title=Conformance, body=Conformance, and parentFolderId=null. Do not call list. After the fake tool result, answer in natural language.",
+      instructions: "This is a no-write tool-call conformance check. First call describe_syntax with no arguments. After its fake guide, call stage_workspace_create_note exactly once with title=Conformance, body='- Conformance', and parentFolderId=null. Do not call list. After the fake staging result, answer in natural language.",
       profileId,
       scope: {
         domain: "workspace",
@@ -467,22 +468,49 @@ export class AgentProviderOperations {
       },
       sessionId: this.#runtime.createId(),
     });
-    let calls = 0;
+    const calls: string[] = [];
 
     try {
       const result = await session.runTurn({
         executeTool: async (call) => {
+          if (call.name === "describe_syntax" && calls.length === 0) {
+            calls.push(call.name);
+            return {
+              available: true,
+              guide: {
+                blocks: [{
+                  example: "- 示例内容",
+                  kind: "line",
+                  label: "组分",
+                  marker: "-",
+                  semanticId: "component",
+                }],
+                bodyInputsExcludeTitle: true,
+                domain: "workspace",
+                indentation: {
+                  character: "tab",
+                  displayWidth: 8,
+                  nestedExample: "\t- 示例内容",
+                },
+                inline: [],
+                name: "Conformance syntax",
+                root: null,
+                title: { kind: "first-line", label: "标题" },
+              },
+            };
+          }
           const argumentsValue = call.arguments as Record<string, unknown>;
 
           if (
             call.name !== "stage_workspace_create_note" ||
-            argumentsValue.body !== "Conformance" ||
+            calls.length !== 1 ||
+            argumentsValue.body !== "- Conformance" ||
             argumentsValue.parentFolderId !== null ||
             argumentsValue.title !== "Conformance"
           ) {
             throw new Error("Model called the wrong conformance tool or arguments");
           }
-          calls += 1;
+          calls.push(call.name);
           return { accepted: true };
         },
         messages: [{ content: "Run the conformance check now.", role: "user" }],
@@ -498,7 +526,11 @@ export class AgentProviderOperations {
         tools: conformanceTools,
       });
 
-      if (calls !== 1 || result.toolCalls !== 1 || !result.finalText.trim()) {
+      if (
+        calls.join(",") !==
+          "describe_syntax,stage_workspace_create_note" ||
+        result.toolCalls !== 2 || !result.finalText.trim()
+      ) {
         throw new Error("Model did not complete the required tool-call sequence");
       }
     } finally {

@@ -468,11 +468,15 @@ function profileView(
     profile.conformance.providerDigest === currentProviderDigest &&
     profile.parameters.kind === "chat" &&
     profile.conformance.toolCallMode === profile.parameters.toolCallMode;
+  const toolStepLimitTooSmall = profile.parameters.kind === "chat" &&
+    profile.parameters.maxToolSteps < 3;
   const unavailableReason = authenticationMissing
     ? "Provider authentication is missing"
-    : requiresConformance && !conformanceCurrent
-      ? "Tool-call conformance has not been verified"
-      : null;
+    : toolStepLimitTooSmall
+      ? "Chat profiles require at least 3 tool steps"
+      : requiresConformance && !conformanceCurrent
+        ? "Tool-call conformance has not been verified"
+        : null;
 
   return {
     availability: unavailableReason === null ? "available" : "unavailable",
@@ -585,6 +589,11 @@ function normalizeProfileInput(
   ) {
     throw new AgentConfigurationValidationError(
       "single-json is only valid for Ollama profiles",
+    );
+  }
+  if (parameters.kind === "chat" && parameters.maxToolSteps < 3) {
+    throw new AgentConfigurationValidationError(
+      "Chat profiles require at least 3 tool steps",
     );
   }
   return {

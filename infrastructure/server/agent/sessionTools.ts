@@ -5,13 +5,17 @@ import {
   AgentScopeUnavailableError,
   AgentScopeViolationError,
   AgentSessionController,
+  agentSyntaxKnowledgeMatches,
   assertAgentResourceInScope,
+  createAgentSyntaxKnowledge,
   createAgentProposal,
+  projectAgentSyntaxGuide,
   resolveWorkspaceAgentScope,
   type AgentProposal,
   type AgentRuntimeTool,
   type AgentRuntimeToolCall,
   type AgentScope,
+  type AgentSyntaxKnowledge,
 } from "../../../application/agent/index.ts";
 import { prepareAgentJournalCommand } from "../../../application/journal/journalAgentCommandPreparation.ts";
 import { projectJournalContentChanges } from "../../../application/journal/journalContentProjection.ts";
@@ -34,6 +38,7 @@ import {
 } from "../../../contracts/agent/schemas.ts";
 import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
 import {
+  AgentSyntaxDescriptionSchema,
   agentToolDefinitions,
   agentToolDefinitionsForDomain,
   type AgentJournalCommandIntentDto,
@@ -112,6 +117,7 @@ export type AgentStaging =
 export type AgentToolSession = {
   controller: AgentSessionController;
   staging: AgentStaging | null;
+  syntaxKnowledge: AgentSyntaxKnowledge | null;
 };
 
 export type AgentToolExecution = {
@@ -242,6 +248,16 @@ function todoIntent(name: string, input: unknown): AgentTodoCommandIntentDto {
   }
 }
 
+function syntaxRequiredResult(reason: string) {
+  return {
+    error: {
+      code: "syntax_read_required",
+      message: reason,
+    },
+    staged: false,
+  };
+}
+
 export function toAgentProposalDto(
   proposal: AgentProposal,
 ): AgentProposalDto {
@@ -317,6 +333,8 @@ export class AgentSessionTools {
             (input as { query: string }).query,
           ),
         };
+      case "describe_syntax":
+        return { result: await this.#describeSyntax(record) };
       case "submit_proposal": {
         const proposal = this.#submitProposal(record);
 
@@ -418,7 +436,11 @@ export class AgentSessionTools {
       if (resolved.noteIds.has(input.resourceId)) {
         const note = projectApiWorkspaceNote(analysis, input.resourceId);
 
-        if (note) return note;
+        if (note) {
+          const { writingGuide: _writingGuide, ...resource } = note;
+
+          return resource;
+        }
       }
       if (resolved.folderIds === null || resolved.folderIds.has(input.resourceId)) {
         const tree = projectApiWorkspaceTree(scope.repositoryId, snapshot.revision, analysis);
@@ -443,7 +465,10 @@ export class AgentSessionTools {
         : null;
 
       if (!parsed) throw new AgentServiceError("not_found", "Journal entry does not exist");
-      return projectApiJournalEntry(parsed);
+      const { writingGuide: _writingGuide, ...resource } =
+        projectApiJournalEntry(parsed);
+
+      return resource;
     }
     assertAgentResourceInScope(scope, {
       collectionId: input.resourceId,
@@ -457,7 +482,52 @@ export class AgentSessionTools {
       : null;
 
     if (!parsed) throw new AgentServiceError("not_found", "Todo collection does not exist");
-    return projectApiTodoCollection(parsed, this.#runtime.today(this.#runtime.now()));
+    const collection = projectApiTodoCollection(
+      parsed,
+      this.#runtime.today(this.#runtime.now()),
+    );
+    const { writingGuide: _writingGuide, ...document } = collection.document;
+
+    return { ...collection, document };
+  }
+
+  async #describeSyntax(record: AgentToolSession) {
+    const scope = record.controller.snapshot().scope;
+    let syntax;
+
+    if (record.staging?.kind === "workspace") {
+      syntax = record.staging.current.projection.workspaceSyntax?.syntax ?? null;
+    } else if (record.staging?.kind === "journal" ||
+      record.staging?.kind === "todo") {
+      syntax = record.staging.current.projection.syntax;
+    } else if (scope.domain === "workspace") {
+      const snapshot = await this.#catalog.getStore(scope.repositoryId)
+        .then((store) => store.loadSnapshot());
+
+      syntax = snapshot.projection.workspaceSyntax?.syntax ?? null;
+    } else if (scope.domain === "journal") {
+      const snapshot = await this.#builtInCatalog.getStore("journal")
+        .then((store) => store.loadSnapshot());
+
+      syntax = snapshot.projection.syntax;
+    } else {
+      const snapshot = await this.#builtInCatalog.getStore("todo")
+        .then((store) => store.loadSnapshot());
+
+      syntax = snapshot.projection.syntax;
+    }
+    if (!syntax) {
+      record.syntaxKnowledge = null;
+      return parseAgentSchema(AgentSyntaxDescriptionSchema, {
+        available: false,
+        reason: "The scoped Workspace repository has no active CTN syntax",
+      });
+    }
+    record.syntaxKnowledge = createAgentSyntaxKnowledge(syntax);
+    return parseAgentSchema(AgentSyntaxDescriptionSchema, {
+      available: true,
+      guide: projectAgentSyntaxGuide(syntax),
+    });
   }
 
   async #searchResources(record: AgentToolSession, query: string) {
@@ -532,6 +602,17 @@ export class AgentSessionTools {
     } else {
       throw new AgentScopeViolationError("A proposal can only stage one store");
     }
+    if (
+      (intent.kind === "create-note" || intent.kind === "replace-note-source") &&
+      !agentSyntaxKnowledgeMatches(
+        record.syntaxKnowledge,
+        staging.current.projection.workspaceSyntax?.syntax ?? null,
+      )
+    ) {
+      return syntaxRequiredResult(
+        "Call describe_syntax before generating Workspace CTN text. If the syntax changed, read it again.",
+      );
+    }
     this.#assertWorkspaceIntentScope(scope, staging.current.content.workspace, intent);
     const prepared = prepareAgentWorkspaceCommand({
       intent,
@@ -579,6 +660,17 @@ export class AgentSessionTools {
       staging = record.staging;
     } else {
       throw new AgentScopeViolationError("A proposal can only stage one store");
+    }
+    if (
+      (intent.kind === "create-entry" || intent.kind === "replace-entry-body") &&
+      !agentSyntaxKnowledgeMatches(
+        record.syntaxKnowledge,
+        staging.current.projection.syntax,
+      )
+    ) {
+      return syntaxRequiredResult(
+        "Call describe_syntax before generating Journal CTN text. If the syntax changed, read it again.",
+      );
     }
     if (intent.kind === "create-entry" && scope.entryIds !== null) {
       throw new AgentScopeViolationError();
@@ -632,6 +724,18 @@ export class AgentSessionTools {
       staging = record.staging;
     } else {
       throw new AgentScopeViolationError("A proposal can only stage one store");
+    }
+    if (
+      (intent.kind === "create-collection" ||
+        intent.kind === "replace-collection-body") &&
+      !agentSyntaxKnowledgeMatches(
+        record.syntaxKnowledge,
+        staging.current.projection.syntax,
+      )
+    ) {
+      return syntaxRequiredResult(
+        "Call describe_syntax before generating Todo CTN text. If the syntax changed, read it again.",
+      );
     }
     if (intent.kind === "create-collection" && scope.collectionIds !== null) {
       throw new AgentScopeViolationError();

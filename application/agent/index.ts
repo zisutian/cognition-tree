@@ -11,4 +11,5 @@ export * from "./agentProfilePreference.ts";
 export * from "./agentRuntimePort.ts";
 export * from "./agentScope.ts";
 export * from "./agentSessionController.ts";
+export * from "./agentSyntaxPolicy.ts";
 export * from "./agentTypes.ts";

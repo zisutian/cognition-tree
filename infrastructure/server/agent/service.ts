@@ -20,6 +20,7 @@ import {
   type AgentRuntimeTool,
   type AgentRuntimeToolCall,
   type AgentScope,
+  type AgentSyntaxKnowledge,
 } from "../../../application/agent/index.ts";
 import type {
   AgentCreateSessionRequestDto,
@@ -91,6 +92,7 @@ type SessionRecord = {
   runtime: AgentRuntimePort;
   runtimeSession: AgentRuntimeSession;
   staging: AgentStaging | null;
+  syntaxKnowledge: AgentSyntaxKnowledge | null;
 };
 
 type RuntimeFactory = (
@@ -358,6 +360,7 @@ export class AgentService {
         runtime: runtimePort,
         runtimeSession,
         staging: null,
+        syntaxKnowledge: null,
       };
 
       this.#sessions.set(sessionId, record);

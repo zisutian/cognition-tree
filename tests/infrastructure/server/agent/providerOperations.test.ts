@@ -61,9 +61,11 @@ describe("Agent provider operations", () => {
       writeSse(
         response,
         completion === 1
+          ? JSON.stringify({ arguments: {}, name: "describe_syntax" })
+          : completion === 2
           ? JSON.stringify({
               arguments: {
-                body: "Conformance",
+                body: "- Conformance",
                 parentFolderId: null,
                 title: "Conformance",
               },
@@ -112,7 +114,7 @@ describe("Agent provider operations", () => {
           historyBudgetCharacters: 32_768,
           kind: "chat",
           maxOutputTokens: 1_024,
-          maxToolSteps: 2,
+          maxToolSteps: 3,
           toolCallMode: "single-json",
         },
         providerId: provider.provider.id,
@@ -156,18 +158,20 @@ describe("Agent provider operations", () => {
         "/api/show",
         "/v1/chat/completions",
         "/v1/chat/completions",
+        "/v1/chat/completions",
       ]);
       expect(showBodies).toEqual([{ model: "qwen3:8b" }]);
-      expect(completionBodies).toHaveLength(2);
+      expect(completionBodies).toHaveLength(3);
       const offered = completionBodies[0]?.tools as Array<{
         function: { name: string; parameters: Record<string, unknown> };
       }>;
 
       expect(offered.map(({ function: { name } }) => name)).toEqual([
         "list",
+        "describe_syntax",
         "stage_workspace_create_note",
       ]);
-      expect(offered[1]?.function.parameters).toMatchObject({
+      expect(offered[2]?.function.parameters).toMatchObject({
         required: ["body", "parentFolderId", "title"],
         type: "object",
       });
