@@ -98,6 +98,11 @@ test.describe("Agent activity flows", () => {
     const proposal = page.getByRole("region", { name: "Agent Proposal" });
 
     await expect(proposal).toContainText("等待审批");
+    await expect(proposal).toContainText("日记");
+    await expect(proposal).toContainText("新建 1 项");
+    await expect(proposal).toContainText(e2eAgentJournalBody);
+    await expect(proposal.locator("details")).not.toHaveAttribute("open", "");
+    await expect(proposal.locator("summary")).toHaveText("技术详情");
     await page.reload();
     await expect(page.getByRole("navigation", { name: "工作区功能" }))
       .toBeVisible();
