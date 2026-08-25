@@ -20,8 +20,8 @@ import type {
 } from "../../application/repository/workspaceRepositoryCatalog";
 import { createApiServer } from "../../infrastructure/server/api/http/server.ts";
 import { createApiSecurityPolicy } from "../../infrastructure/server/api/http/security.ts";
-import { LocalRepositoryCatalog } from "../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
-import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
+import { LocalRepositoryCatalog } from
+  "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
 import { createInitialWorkspaceData } from "../../core/workspace/model/workspaceData";
 import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
 import { createInitialWorkspaceSyntax } from "../../core/workspace/context/workspaceSyntax";
@@ -34,7 +34,7 @@ import { testApplicationScheduler } from "../support/testApplicationScheduler";
 
 type TestRepositoryServer = {
   baseUrl: string;
-  catalog: CompositeRepositoryCatalog;
+  catalog: LocalRepositoryCatalog;
   close: () => Promise<void>;
   rootDir: string;
 };
@@ -81,21 +81,8 @@ async function startRepositoryServer(
   const rootDir = await mkdtemp(
     path.join(os.tmpdir(), "cognition-tree-integration-"),
   );
-  const localCatalog = new LocalRepositoryCatalog(rootDir);
   let nextRepositoryId = 0;
-  const webDavRegistry: ConstructorParameters<typeof CompositeRepositoryCatalog>[1] = {
-    async deleteManagedData() { return { status: "deleted" }; },
-    async dispose() {},
-    async getStore() { throw new Error("missing WebDAV store"); },
-    hasEntry() { return false; },
-    async initialize() {},
-    async listEntries() { return { issues: [], repositories: [] }; },
-    async register() { throw new Error("WebDAV registration is not used here"); },
-    async renameConnection() { throw new Error("WebDAV rename is not used here"); },
-    async removeConnection() { return false; },
-    async retryDeletion() { return { status: "deleted" }; },
-  };
-  const catalog = new CompositeRepositoryCatalog(localCatalog, webDavRegistry, {
+  const catalog = new LocalRepositoryCatalog(rootDir, {
     createId: () =>
       `00000000-0000-4000-8000-${String(++nextRepositoryId).padStart(12, "0")}`,
   });
@@ -148,7 +135,6 @@ async function createRepository(
   const workspace = createInitialWorkspaceData();
 
   return catalog.createRepository({
-    adapter: "local",
     content: {
       schemaVersion: 4,
       syntax: { activeFileId: null, files: [] },

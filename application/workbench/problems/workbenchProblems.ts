@@ -12,10 +12,8 @@ import type {
   UiWorkbenchDiagnostic,
   UiWorkbenchDiagnostics,
 } from "../../workspace/projection/viewDiagnostics";
-import {
-  projectRepositoryIssueMessage,
-  repositoryAdapterLabels,
-} from "../../repository/repositoryIssueProjection";
+import { projectRepositoryIssueMessage } from
+  "../../repository/repositoryIssueProjection";
 import type { BuiltInId } from "../../repository/builtInCatalog";
 import type {
   WorkspaceRepositoryCatalogIssue,
@@ -137,9 +135,9 @@ export function projectUiRepositoryProblems(
   return issues.map((issue) => ({
     code: issue.code,
     id: `repository:${issue.id}`,
-    locationLabel: `${repositoryAdapterLabels[issue.adapter]} · ${issue.id}`,
+    locationLabel: `本地 · ${issue.id}`,
     message: projectRepositoryIssueMessage(issue),
-    severity: issue.status === "fault" ? "error" : "warning",
+    severity: "error",
     source: "repository",
     target: {
       issueId: issue.id,
@@ -156,8 +154,7 @@ export function projectUiRepositoryLabelProblems(
       ? [{
           code: `repository-name-${repository.labelIssue}` as const,
           id: `repository-label-${repository.labelIssue}:${repository.id}`,
-          locationLabel:
-            `${repositoryAdapterLabels[repository.adapter]} · ${repository.label}`,
+          locationLabel: `本地 · ${repository.label}`,
           message: repository.labelIssue === "nonportable"
             ? "仓库名称包含不可移植字符，请重命名。"
             : repository.labelIssue === "reserved"
@@ -225,8 +222,7 @@ export function projectUiWorkspaceRepositoryRuntimeProblems(
       : {
           code: issue.code,
           id: `repository-runtime:${issue.repositoryId}`,
-          locationLabel:
-            `${repositoryAdapterLabels[issue.adapter]} · ${issue.repositoryLabel}`,
+          locationLabel: `本地 · ${issue.repositoryLabel}`,
           message: issue.message,
           severity: "error",
           source: "repository",

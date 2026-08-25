@@ -2,10 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   reuseUnchangedRepositoryDescriptors,
 } from "../../../application/repository/repositoryCatalog";
-import {
-  createRepositoryCatalogController,
-  repositoryDeletionPollDelayMs,
-} from "../../../application/repository/repositoryCatalogController";
+import { createRepositoryCatalogController } from
+  "../../../application/repository/repositoryCatalogController";
 import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryCatalogData,
@@ -13,13 +11,11 @@ import type {
 } from "../../../application/repository/workspaceRepositoryCatalog";
 
 const descriptor: WorkspaceRepositoryDescriptor = {
-  adapter: "local",
   id: "primary",
   label: "Primary",
   location: {
     hostPath: "/host/primary",
     serverPath: "/data/primary",
-    type: "local",
   },
   labelIssue: null,
 };
@@ -28,7 +24,6 @@ function catalogData(
   repositories: WorkspaceRepositoryDescriptor[] = [descriptor],
 ): WorkspaceRepositoryCatalogData {
   return {
-    creatableAdapters: ["local", "webdav"],
     issues: [],
     repositories,
   };
@@ -43,11 +38,6 @@ function createHarness(initial = catalogData()) {
     renameRepository: vi.fn(),
   };
   const provisionRepository = vi.fn();
-  const scheduled: Array<{
-    callback: () => void;
-    cancelled: boolean;
-    delayMs: number;
-  }> = [];
   const controller = createRepositoryCatalogController({
     activeRepositorySelection: {
       clear: () => {
@@ -60,16 +50,6 @@ function createHarness(initial = catalogData()) {
     },
     catalog,
     provisionRepository,
-    scheduler: {
-      schedule(callback, delayMs) {
-        const task = { callback, cancelled: false, delayMs };
-
-        scheduled.push(task);
-        return () => {
-          task.cancelled = true;
-        };
-      },
-    },
   });
 
   return {
@@ -77,7 +57,6 @@ function createHarness(initial = catalogData()) {
     catalog,
     controller,
     provisionRepository,
-    scheduled,
   };
 }
 
@@ -112,12 +91,11 @@ describe("repository catalog controller", () => {
     harness.provisionRepository.mockResolvedValueOnce(created);
     await harness.controller.reload();
     await expect(harness.controller.createRepository({
-      adapter: "local",
       name: "  Created  ",
     })).resolves.toBe(created);
 
     expect(harness.provisionRepository).toHaveBeenCalledWith(
-      { adapter: "local", name: "  Created  " },
+      { name: "  Created  " },
       "Created",
     );
     expect(harness.controller.getSnapshot().activeDescriptor).toBe(created);
@@ -156,29 +134,21 @@ describe("repository catalog controller", () => {
     expect(harness.controller.getSnapshot().activeDescriptor).toBe(secondary);
   });
 
-  it("polls deleting issues only while started", async () => {
-    const deleting = {
-      ...catalogData([]),
-      issues: [{
-        adapter: "webdav" as const,
-        code: "repository_busy" as const,
-        id: "remote",
-        location: { type: "webdav" as const, url: "https://example.test" },
-        message: "Deleting",
-        status: "deleting" as const,
-      }],
-    };
-    const harness = createHarness(deleting);
+  it("publishes synchronous local deletion without background polling", async () => {
+    const harness = createHarness();
 
-    harness.controller.start();
-    await vi.waitFor(() => {
-      expect(harness.controller.getSnapshot().state.status).toBe("ready");
-    });
-    expect(harness.scheduled.at(-1)?.delayMs).toBe(
-      repositoryDeletionPollDelayMs,
+    await harness.controller.reload();
+    vi.mocked(harness.catalog.listRepositories).mockResolvedValueOnce(
+      catalogData([]),
     );
+    await harness.controller.deleteRepository({ id: descriptor.id });
 
-    harness.controller.stop();
-    expect(harness.scheduled.at(-1)?.cancelled).toBe(true);
+    expect(harness.catalog.deleteRepository).toHaveBeenCalledWith({
+      id: descriptor.id,
+    });
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      activeDescriptor: null,
+      state: { activeRepositoryId: null, repositories: [] },
+    });
   });
 });

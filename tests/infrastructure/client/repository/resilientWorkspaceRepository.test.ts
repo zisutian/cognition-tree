@@ -135,7 +135,7 @@ function createRepository(
         `00000000-0000-4000-8000-${String(++draftSequence).padStart(12, "0")}`,
       label: "Remote catalog label",
       loadPolicy,
-      location: { type: "webdav", url: "https://dav.test/primary/" },
+      location: { hostPath: null, serverPath: "/data/repositories/primary" },
       repositoryIdentity: "https://api.test#primary#token-digest",
       preparation: createTestPreparation(validateContent),
     }),
@@ -393,7 +393,7 @@ describe("local-first workspace repository", () => {
         `00000000-0000-4000-8000-${String(++sequence).padStart(12, "0")}`,
       label: "Remote",
       loadPolicy: { mode: "cache-first" },
-      location: { type: "webdav", url: "https://dav.test/primary/" },
+      location: { hostPath: null, serverPath: "/data/repositories/primary" },
       repositoryIdentity: "primary",
       preparation: createTestPreparation(() => undefined),
     });
@@ -721,7 +721,7 @@ describe("local-first workspace repository", () => {
       createDraftId: () => "00000000-0000-4000-8000-000000000001",
       label: "Remote",
       loadPolicy: { mode: "cache-first" },
-      location: { type: "webdav", url: "https://dav.test/primary/" },
+      location: { hostPath: null, serverPath: "/data/repositories/primary" },
       repositoryIdentity: "primary",
       subscribeReconnect(listener) {
         subscription.reconnect = listener;

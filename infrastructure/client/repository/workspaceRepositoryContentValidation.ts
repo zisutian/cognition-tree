@@ -8,7 +8,7 @@ import type { VersionedContentPreparationPolicy } from "../../../application/per
 
 /**
  * Application-owned semantic validation composed at the storage runtime edge.
- * Repository adapters remain CTN-agnostic, while no remote content is admitted
+ * Repository persistence remains CTN-agnostic, while no remote content is admitted
  * to the durable local cache before its canonical metadata can be opened by a
  * workspace session.
  */

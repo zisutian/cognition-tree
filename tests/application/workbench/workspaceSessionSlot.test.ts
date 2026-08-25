@@ -26,7 +26,6 @@ function createRepository(label: string): WorkspaceRepository {
     location: {
       hostPath: null,
       serverPath: `/repositories/${label}`,
-      type: "local",
     },
     resolveConflictAndSynchronize: async () => {
       throw new Error("Unexpected conflict resolution in session slot test.");
@@ -47,7 +46,6 @@ describe("workspace session slot", () => {
     const repositoryA = createRepository("A");
     const repositoryB = createRepository("B");
     const descriptorA: WorkspaceRepositoryDescriptor = {
-      adapter: "local",
       id: "repository-a",
       label: "A",
       labelIssue: null,

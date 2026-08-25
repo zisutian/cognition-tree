@@ -1,27 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type {
-  RepositoryAuthentication,
-  WorkspaceRepositoryDescriptor,
-} from "../../repository/workspaceRepositoryCatalog";
+import type { WorkspaceRepositoryDescriptor } from
+  "../../repository/workspaceRepositoryCatalog";
 import type {
   WorkspaceRepository,
   WorkspaceRepositoryContent,
 } from "./workspaceRepository";
 
-export type ProvisionWorkspaceRepositoryInput =
-  | {
-      adapter: "local";
-      content: WorkspaceRepositoryContent;
-      label: string;
-    }
-  | {
-      adapter: "webdav";
-      authentication: RepositoryAuthentication;
-      initialContent: WorkspaceRepositoryContent;
-      label: string;
-      url: string;
-    };
+export type ProvisionWorkspaceRepositoryInput = {
+  content: WorkspaceRepositoryContent;
+  label: string;
+};
 
 export type WorkspaceRepositoryProvider = {
   openRepository(

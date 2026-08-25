@@ -255,7 +255,6 @@ test.describe("Journal activity flows", () => {
       if (route.request().method() === "GET") {
         await route.fulfill({
           body: JSON.stringify({
-            creatableAdapters: ["local", "webdav"],
             issues: [],
             repositories: [],
           }),

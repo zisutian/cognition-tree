@@ -7,10 +7,8 @@ import {
 import {
   createApiSecurityPolicy,
 } from "./api/http/security.ts";
-import { LocalRepositoryCatalog } from "./adapters/local/localRepositoryCatalog.ts";
-import { CompositeRepositoryCatalog } from "./catalog/compositeRepositoryCatalog.ts";
-import { WebDavConnectionRegistry } from "./adapters/webdav/webDavConnectionRegistry.ts";
-import { parseWebDavPrivateTargets } from "./adapters/webdav/webDavTargetPolicy.ts";
+import { LocalRepositoryCatalog } from
+  "./repository/workspace/local/localRepositoryCatalog.ts";
 import { BuiltInCatalog } from "./repository/built-ins/catalog.ts";
 import { AutomationTokenStore } from "./access/automationTokenStore.ts";
 import { AgentOperationLedger } from "./agent/operationLedger.ts";
@@ -47,16 +45,7 @@ const security = createApiSecurityPolicy({
 const localCatalog = new LocalRepositoryCatalog(repositoryRoot, {
   hostRoot: repositoryHostRoot,
 });
-const webDavRegistry = new WebDavConnectionRegistry({
-  privateTargetPolicy: parseWebDavPrivateTargets(
-    process.env.CTN_WEBDAV_PRIVATE_TARGETS,
-  ),
-  stateDirectory: serverStateDirectory,
-});
-const catalog = new CompositeRepositoryCatalog(
-  localCatalog,
-  webDavRegistry,
-);
+const catalog = localCatalog;
 const builtInCatalog = new BuiltInCatalog(repositoryRoot);
 
 await catalog.initialize();
@@ -145,7 +134,7 @@ server.listen(port, host, () => {
   console.log(`Cognition Tree API listening on http://${host}:${port}`);
   console.log(`Local repository root: ${localCatalog.rootPath}`);
   console.log(`Built-in data root: ${path.join(localCatalog.rootPath, ".built-ins")}`);
-  console.log(`WebDAV server state: ${serverStateDirectory}`);
+  console.log(`Server state: ${serverStateDirectory}`);
   console.log(`Allowed hosts: ${security.allowedHosts.join(", ")}`);
   console.log(`Allowed origins: ${security.allowedOrigins.join(", ") || "none"}`);
   console.log(

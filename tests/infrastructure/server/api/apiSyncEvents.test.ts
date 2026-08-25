@@ -168,25 +168,21 @@ describe("CTN API v3", () => {
     const goodContent = createContent();
     const descriptors: RepositoryDescriptorDto[] = [
       {
-        adapter: "local",
         id: "good",
         label: "可读仓库",
         labelIssue: null,
         location: {
           hostPath: null,
           serverPath: "/repositories/good",
-          type: "local",
         },
       },
       {
-        adapter: "local",
         id: "broken",
         label: "损坏仓库",
         labelIssue: null,
         location: {
           hostPath: null,
           serverPath: "/repositories/broken",
-          type: "local",
         },
       },
     ];
@@ -195,7 +191,7 @@ describe("CTN API v3", () => {
         throw new Error("not used");
       },
       async deleteRepository() {
-        return { status: "deleted" };
+        return undefined;
       },
       async getStore(repositoryId: string) {
         return {
@@ -214,7 +210,6 @@ describe("CTN API v3", () => {
       },
       async listRepositories() {
         return {
-          creatableAdapters: ["local" as const],
           issues: [],
           repositories: descriptors,
         };

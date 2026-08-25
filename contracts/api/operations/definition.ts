@@ -22,7 +22,7 @@ export type ApiOperationDefinition = {
   path: string;
   query?: TSchema;
   responseMediaType?: "application/json" | "text/event-stream";
-  responses: Readonly<Record<number, TSchema>>;
+  responses: Readonly<Record<number, TSchema | null>>;
 };
 
 export function apiBody<Schema extends TSchema>(

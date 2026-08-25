@@ -44,8 +44,6 @@ export const sourceLayerImports: Readonly<
 
 const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   access: ["access", "state"],
-  "adapters/local": ["adapters/local", "persistence", "repository"],
-  "adapters/webdav": ["adapters/webdav", "persistence", "repository"],
   agent: [
     "agent",
     "api",
@@ -463,6 +461,19 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
     matches: 0,
     name: "legacy Agent profile file authority",
     pattern: /\b(?:CTN_AGENT_PROFILES_FILE|loadAgentProfileCatalog|apiKeyEnv)\b/,
+  },
+  {
+    corpus: sourceModules,
+    matches: 0,
+    name: "retired remote repository authority",
+    pattern: new RegExp([
+      "web",
+      "dav",
+      "|CTN_WEB",
+      "DAV_PRIVATE_TARGETS",
+      "|CompositeRepository",
+      "Catalog",
+    ].join(""), "i"),
   },
   {
     corpus: infrastructureModules,

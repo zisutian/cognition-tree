@@ -23,7 +23,6 @@ function createRepository(
     location: {
       hostPath: null,
       serverPath: "/repositories/test",
-      type: "local",
     },
     resolveConflictAndSynchronize: async () => {
       throw new Error("Unexpected conflict resolution in snapshot test.");

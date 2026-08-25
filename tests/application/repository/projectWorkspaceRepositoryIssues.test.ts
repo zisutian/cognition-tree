@@ -3,14 +3,12 @@ import { projectWorkspaceRepositoryRuntimeIssues } from "../../../application/re
 import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
 
 const descriptor = {
-  adapter: "local" as const,
   id: "primary",
   label: "主要笔记",
   labelIssue: null,
   location: {
     hostPath: null,
     serverPath: "/data/repositories/primary",
-    type: "local" as const,
   },
 };
 
@@ -24,7 +22,6 @@ function source(
     activeDescriptor: descriptor,
     catalogState: {
       activeRepositoryId: descriptor.id,
-      creatableAdapters: ["local"],
       issues: [],
       operation: "idle",
       repositories: [descriptor],
@@ -55,7 +52,6 @@ describe("ordinary repository runtime issue projection", () => {
       status: "failed",
       storageLabel: "本地仓库",
     }))).toEqual([{
-      adapter: "local",
       code: "session_load_failed",
       kind: "repository",
       message: "仓库索引损坏。",

@@ -17,9 +17,7 @@ import {
 import {
   LocalRepositoryCatalog,
   type CreateLocalRepositoryWithId,
-} from "../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
-import { WebDavConnectionRegistry } from "../../infrastructure/server/adapters/webdav/webDavConnectionRegistry.ts";
-import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
+} from "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
 import { BuiltInCatalog } from "../../infrastructure/server/repository/built-ins/catalog.ts";
 import { AgentOperationLedger } from "../../infrastructure/server/agent/operationLedger.ts";
 import { AgentService } from "../../infrastructure/server/agent/service.ts";
@@ -38,8 +36,7 @@ const host = "127.0.0.1";
 type E2ERuntime = {
   agentService: AgentService;
   apiHandler: ApiRequestHandler;
-  catalog: CompositeRepositoryCatalog;
-  localCatalog: LocalRepositoryCatalog;
+  catalog: LocalRepositoryCatalog;
 };
 
 export type E2EWorkspaceServer = {
@@ -66,13 +63,9 @@ export async function startE2EWorkspaceServer({
   };
 
   async function createRuntime(): Promise<E2ERuntime> {
-    const localCatalog = new LocalRepositoryCatalog(repositoryDirectory, {
+    const catalog = new LocalRepositoryCatalog(repositoryDirectory, {
       hostRoot: repositoryHostRoot,
     });
-    const webDavRegistry = new WebDavConnectionRegistry({
-      stateDirectory: serverStateDirectory,
-    });
-    const catalog = new CompositeRepositoryCatalog(localCatalog, webDavRegistry);
     const builtInCatalog = new BuiltInCatalog(repositoryDirectory);
 
     await catalog.initialize();
@@ -110,7 +103,6 @@ export async function startE2EWorkspaceServer({
         stateDirectory: serverStateDirectory,
       }),
       catalog,
-      localCatalog,
     };
   }
 
@@ -153,7 +145,7 @@ export async function startE2EWorkspaceServer({
     response: ServerResponse,
   ) {
     try {
-      const descriptor = await runtime.localCatalog.createRepositoryWithId(
+      const descriptor = await runtime.catalog.createRepositoryWithId(
         await readSeedRequest(request),
       );
 

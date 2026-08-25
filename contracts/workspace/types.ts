@@ -60,25 +60,12 @@ export type WorkspaceRepositoryCommitResultDto = {
   revision: RepositoryRevisionDto;
 };
 
-export type RepositoryAdapterKindDto = "local" | "webdav";
-
-export type RepositoryLocationDto =
-  | {
-      hostPath: string | null;
-      serverPath: string;
-      type: "local";
-    }
-  | {
-      type: "webdav";
-      url: string;
-    };
-
-export type RepositoryAuthenticationDto =
-  | { type: "none" }
-  | { password: string; type: "basic"; username: string };
+export type RepositoryLocationDto = {
+  hostPath: string | null;
+  serverPath: string;
+};
 
 export type RepositoryDescriptorDto = {
-  adapter: RepositoryAdapterKindDto;
   id: string;
   label: string;
   labelIssue: "conflict" | "nonportable" | "reserved" | null;
@@ -102,7 +89,6 @@ export type RepositoryApiErrorCodeDto =
   | "internal_error";
 
 export type RepositoryCatalogIssueDto = {
-  adapter: RepositoryAdapterKindDto;
   code: Extract<
     RepositoryApiErrorCodeDto,
     | "adapter_unavailable"
@@ -113,33 +99,14 @@ export type RepositoryCatalogIssueDto = {
   id: string;
   location: RepositoryLocationDto | null;
   message: string;
-  status: "deleting" | "fault";
 };
 
 export type RepositoryCatalogDto = {
-  creatableAdapters: RepositoryAdapterKindDto[];
   issues: RepositoryCatalogIssueDto[];
   repositories: RepositoryDescriptorDto[];
 };
 
-export type CreateRepositoryDto =
-  | {
-      adapter: "local";
-      content: WorkspaceRepositoryContentDto;
-      label: string;
-    }
-  | {
-      adapter: "webdav";
-      authentication: RepositoryAuthenticationDto;
-      initialContent: WorkspaceRepositoryContentDto;
-      label: string;
-      url: string;
-    };
-
-export type RepositoryDeletionModeDto =
-  | "delete-managed-data"
-  | "remove-connection";
-
-export type RepositoryDeletionResultDto = {
-  status: "deleted" | "deleting";
+export type CreateRepositoryDto = {
+  content: WorkspaceRepositoryContentDto;
+  label: string;
 };

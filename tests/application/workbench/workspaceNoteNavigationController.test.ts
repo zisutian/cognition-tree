@@ -14,14 +14,12 @@ const destination = {
 };
 
 const descriptor = {
-  adapter: "local" as const,
   id: "repository-b",
   label: "仓库B",
   labelIssue: null,
   location: {
     hostPath: null,
     serverPath: "/repositories/b",
-    type: "local" as const,
   },
 };
 
@@ -33,7 +31,6 @@ function readyCatalog(
     catalogLabel: "Repositories",
     state: {
       activeRepositoryId,
-      creatableAdapters: ["local"],
       issues: [],
       operation: "idle",
       repositories: [descriptor],

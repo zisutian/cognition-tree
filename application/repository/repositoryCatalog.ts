@@ -1,28 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  RepositoryAdapterKind,
-  RepositoryAuthentication,
-  RepositoryDeletionMode,
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
 } from "./workspaceRepositoryCatalog";
 
-export type CreateRepositoryRequest =
-  | {
-      adapter: "local";
-      name: string;
-    }
-  | {
-      adapter: "webdav";
-      authentication: RepositoryAuthentication;
-      name: string;
-      url: string;
-    };
+export type CreateRepositoryRequest = { name: string };
 
 export type DeleteRepositoryRequest = {
   id: string;
-  mode: RepositoryDeletionMode;
 };
 
 export type RenameRepositoryRequest = {
@@ -39,7 +25,6 @@ export type RepositoryCatalogOperation =
 
 export type ReadyRepositoryCatalogState = {
   activeRepositoryId: string | null;
-  creatableAdapters: RepositoryAdapterKind[];
   issues: WorkspaceRepositoryCatalogIssue[];
   operation: RepositoryCatalogOperation;
   repositories: WorkspaceRepositoryDescriptor[];
@@ -55,16 +40,8 @@ function repositoryLocationsEqual(
   left: WorkspaceRepositoryDescriptor["location"],
   right: WorkspaceRepositoryDescriptor["location"],
 ) {
-  if (left.type !== right.type) return false;
-
-  switch (left.type) {
-    case "local":
-      return right.type === "local" &&
-        left.hostPath === right.hostPath &&
-        left.serverPath === right.serverPath;
-    case "webdav":
-      return right.type === "webdav" && left.url === right.url;
-  }
+  return left.hostPath === right.hostPath &&
+    left.serverPath === right.serverPath;
 }
 
 export function reuseUnchangedRepositoryDescriptors(
@@ -79,7 +56,6 @@ export function reuseUnchangedRepositoryDescriptors(
     const existing = previousById.get(descriptor.id);
 
     return existing &&
-        existing.adapter === descriptor.adapter &&
         existing.label === descriptor.label &&
         existing.labelIssue === descriptor.labelIssue &&
         repositoryLocationsEqual(existing.location, descriptor.location)

@@ -16,20 +16,11 @@ import {
 } from "../../contracts/workspace/types.ts";
 import {
   WorkspaceFileStore,
-} from "../../infrastructure/server/adapters/local/workspaceFileStore.ts";
+} from "../../infrastructure/server/repository/workspace/local/workspaceFileStore.ts";
 import {
   provisionWorkspaceFileRepository,
-} from "../../infrastructure/server/adapters/local/workspaceFileRepositoryProvisioning.ts";
-import {
-  WebDavRequestError,
-  type WebDavCollectionCreationResult,
-  type WebDavCollectionEntry,
-  type WebDavTransport,
-  type WebDavWriteConditions,
-} from "../../infrastructure/server/adapters/webdav/webDavTransport.ts";
-import { WebDavWorkspaceStore } from "../../infrastructure/server/adapters/webdav/webDavWorkspaceStore.ts";
+} from "../../infrastructure/server/repository/workspace/local/workspaceFileRepositoryProvisioning.ts";
 import { createWorkspaceRepositoryRevision } from "../../infrastructure/server/repository/workspace/revision.ts";
-import { createEmptyRepositoryContent } from "../../infrastructure/server/repository/workspace/layout.ts";
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparationObserver,
@@ -109,136 +100,6 @@ async function measure<Result>(
 
 function createBlockId(index: number) {
   return `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
-}
-
-type BenchmarkWebDavResource = {
-  etag: string;
-  modifiedAt: number;
-  source: string;
-};
-
-class BenchmarkWebDavTransport implements WebDavTransport {
-  #directories = new Map<string, number>();
-  #etag = 0;
-  #modifiedAt = Date.now();
-  #resources = new Map<string, BenchmarkWebDavResource>();
-  #activeGenerationWrites = 0;
-  maxConcurrentGenerationWrites = 0;
-
-  async createCollection(
-    relativePath: string,
-  ): Promise<WebDavCollectionCreationResult> {
-    const existed = this.#directories.has(relativePath);
-
-    this.#directories.set(relativePath, this.#tick());
-    return existed ? "already-exists" : "created";
-  }
-
-  async listCollection(relativePath: string): Promise<WebDavCollectionEntry[]> {
-    const prefix = relativePath ? `${relativePath}/` : "";
-
-    return [
-      ...[...this.#directories].map(([entryPath, lastModified]) => ({
-        lastModified,
-        path: entryPath,
-      })),
-      ...[...this.#resources].map(([entryPath, resource]) => ({
-        lastModified: resource.modifiedAt,
-        path: entryPath,
-      })),
-    ].filter((entry) => entry.path.startsWith(prefix));
-  }
-
-  async readText(relativePath: string) {
-    const resource = this.#resources.get(relativePath);
-
-    return resource
-      ? { etag: resource.etag, source: resource.source }
-      : null;
-  }
-
-  async remove(
-    relativePath: string,
-    conditions: Pick<WebDavWriteConditions, "ifMatch"> = {},
-  ) {
-    const resource = this.#resources.get(relativePath);
-
-    if (resource) {
-      if (conditions.ifMatch && resource.etag !== conditions.ifMatch) {
-        throw new WebDavRequestError("DELETE", relativePath, 412);
-      }
-      this.#resources.delete(relativePath);
-      return true;
-    }
-
-    const prefix = `${relativePath}/`;
-    const resourcePaths = [...this.#resources.keys()].filter((entryPath) =>
-      entryPath.startsWith(prefix)
-    );
-    const directoryPaths = [...this.#directories.keys()].filter(
-      (entryPath) =>
-        entryPath === relativePath || entryPath.startsWith(prefix),
-    );
-
-    resourcePaths.forEach((entryPath) => this.#resources.delete(entryPath));
-    directoryPaths.forEach((entryPath) => this.#directories.delete(entryPath));
-    return resourcePaths.length > 0 || directoryPaths.length > 0;
-  }
-
-  async writeText(
-    relativePath: string,
-    source: string,
-    conditions: WebDavWriteConditions = {},
-  ) {
-    const generationFile = relativePath.startsWith(".ctn-generations/") &&
-      !relativePath.endsWith("/.ctn-generations");
-
-    if (generationFile) {
-      this.#activeGenerationWrites += 1;
-      this.maxConcurrentGenerationWrites = Math.max(
-        this.maxConcurrentGenerationWrites,
-        this.#activeGenerationWrites,
-      );
-    }
-
-    try {
-      // Make the production store's worker pool observable without adding
-      // network variability to the benchmark.
-      if (generationFile) {
-        await new Promise<void>((resolve) => setImmediate(resolve));
-      }
-      const current = this.#resources.get(relativePath);
-
-      if (conditions.ifNoneMatch === "*" && current) {
-        throw new WebDavRequestError("PUT", relativePath, 412);
-      }
-      if (conditions.ifMatch && current?.etag !== conditions.ifMatch) {
-        throw new WebDavRequestError("PUT", relativePath, 412);
-      }
-
-      const etag = `"benchmark-etag-${++this.#etag}"`;
-
-      this.#resources.set(relativePath, {
-        etag,
-        modifiedAt: this.#tick(),
-        source,
-      });
-      return etag;
-    } finally {
-      if (generationFile) {
-        this.#activeGenerationWrites -= 1;
-      }
-    }
-  }
-
-  resetConcurrencyMeasurement() {
-    this.maxConcurrentGenerationWrites = 0;
-  }
-
-  #tick() {
-    this.#modifiedAt += 1;
-    return this.#modifiedAt;
-  }
 }
 
 function jsonResponse(value: unknown) {
@@ -718,46 +579,6 @@ assert.equal(httpCommitResult.revision, editedRevision);
 assert.equal(httpSnapshot.revision, editedRevision);
 assertRepositoryContentEqual(httpSnapshot.content, editedContent, "HTTP commit");
 
-const webDavTransport = new BenchmarkWebDavTransport();
-let nextWebDavId = 0;
-const webDavStore = new WebDavWorkspaceStore({
-  createId: () => `capacity-generation-${++nextWebDavId}`,
-  initialization: {
-    content: createEmptyRepositoryContent(
-      "capacity-webdav",
-      "Capacity WebDAV",
-    ),
-    mode: "initialize-empty",
-  },
-  transport: webDavTransport,
-});
-const emptyWebDavSnapshot = await webDavStore.loadSnapshot();
-
-webDavTransport.resetConcurrencyMeasurement();
-const webDavCommitResult = await measure(
-  "repository.webdav.commit",
-  () => webDavStore.commit({
-    baseRevision: emptyWebDavSnapshot.revision,
-    content,
-    projection: coldPreparation,
-  }),
-);
-const webDavLoadedSnapshot = await measure(
-  "repository.webdav.load",
-  () => webDavStore.loadSnapshot(),
-);
-
-assert.equal(webDavCommitResult.revision, revision);
-assert.equal(webDavLoadedSnapshot.revision, revision);
-assertRepositoryContentEqual(webDavLoadedSnapshot.content, content, "WebDAV load");
-assert(
-  webDavTransport.maxConcurrentGenerationWrites > 1,
-  "WebDAV upload did not use concurrent generation writes.",
-);
-assert(
-  webDavTransport.maxConcurrentGenerationWrites <= 8,
-  "WebDAV upload exceeded the eight-request concurrency limit.",
-);
 const repositoryDirectory = await mkdtemp(
   path.join(os.tmpdir(), "cognition-tree-capacity-"),
 );
@@ -839,8 +660,6 @@ try {
       memoryChangedNoteIds,
       memoryLocalRevision: memorySnapshot.localRevision,
       memoryStageAttempts,
-      webDavMaxConcurrentWrites:
-        webDavTransport.maxConcurrentGenerationWrites,
     },
     validationCounts,
   }, null, 2)}\n`);

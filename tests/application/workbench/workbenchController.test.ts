@@ -56,25 +56,21 @@ function deferred<Value>() {
 
 const workspaceDescriptors: WorkspaceRepositoryDescriptor[] = [
   {
-    adapter: "local",
     id: "repository-a",
     label: "仓库A",
     labelIssue: null,
     location: {
       hostPath: null,
       serverPath: "/repositories/a",
-      type: "local",
     },
   },
   {
-    adapter: "local",
     id: "repository-b",
     label: "仓库B",
     labelIssue: null,
     location: {
       hostPath: null,
       serverPath: "/repositories/b",
-      type: "local",
     },
   },
 ];
@@ -216,10 +212,9 @@ function createHarness({
     ],
   ]);
   const workspaceCatalog: WorkspaceRepositoryCatalog = {
-    deleteRepository: vi.fn(async () => ({ status: "deleted" as const })),
+    deleteRepository: vi.fn(async () => undefined),
     label: "Repositories",
     listRepositories: vi.fn(async () => ({
-      creatableAdapters: ["local" as const],
       issues: [],
       repositories: workspaceDescriptors,
     })),
@@ -629,7 +624,6 @@ describe("Workbench controller", () => {
 
     await expect(controller.deleteRepository({
       id: "repository-a",
-      mode: "delete-managed-data",
     })).rejects.toThrow("delete failed");
     expect(resume).toHaveBeenCalledOnce();
     controller.dispose();

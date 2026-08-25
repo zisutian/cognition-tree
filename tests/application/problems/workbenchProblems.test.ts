@@ -29,31 +29,25 @@ const diagnostic: UiWorkbenchDiagnostic = {
 
 const issues: WorkspaceRepositoryCatalogIssue[] = [
   {
-    adapter: "local",
     code: "repository_corrupt",
     id: "aaa",
     location: null,
     message: "仓库元数据损坏。",
-    status: "fault",
   },
   {
-    adapter: "local",
     code: "repository_busy",
     id: "bbb",
     location: null,
-    message: "正在清理仓库。",
-    status: "deleting",
+    message: "仓库暂时不可用。",
   },
 ];
 
 const repositories: WorkspaceRepositoryDescriptor[] = [{
-  adapter: "local",
   id: "conflicted",
   label: "日记",
   location: {
     hostPath: null,
     serverPath: "/data/repositories/conflicted",
-    type: "local",
   },
   labelIssue: "conflict",
 }];
@@ -77,7 +71,6 @@ const runtimeIssues: WorkspaceRepositoryRuntimeIssue[] = [
     message: "普通仓库目录不可用。",
   },
   {
-    adapter: "local",
     code: "session_load_failed",
     kind: "repository",
     message: "仓库内容载入失败。",
@@ -87,7 +80,7 @@ const runtimeIssues: WorkspaceRepositoryRuntimeIssue[] = [
 ];
 
 describe("workbench problem projection", () => {
-  it("maps fault issues to errors and deleting issues to warnings", () => {
+  it("maps repository issues to errors", () => {
     expect(projectUiRepositoryProblems(issues)).toEqual([
       expect.objectContaining({
         id: "repository:aaa",
@@ -99,7 +92,7 @@ describe("workbench problem projection", () => {
       expect.objectContaining({
         id: "repository:bbb",
         locationLabel: "本地 · bbb",
-        severity: "warning",
+        severity: "error",
         source: "repository",
         target: { issueId: "bbb", kind: "repository-issue" },
       }),
@@ -108,16 +101,13 @@ describe("workbench problem projection", () => {
 
   it("turns an unsupported Local layout into manual-removal guidance", () => {
     expect(projectUiRepositoryProblems([{
-      adapter: "local",
       code: "unsupported_repository_version",
       id: "default",
       location: {
         hostPath: "/host/repositories/default",
         serverPath: "/data/repositories/default",
-        type: "local",
       },
       message: "Repository version is not supported",
-      status: "fault",
     }])).toEqual([
       expect.objectContaining({
         id: "repository:default",
@@ -208,18 +198,18 @@ describe("workbench problem projection", () => {
       builtInIssues,
       runtimeIssues,
     )).toEqual({
-      errorCount: 5,
+      errorCount: 6,
       problems: [
         expect.objectContaining({ id: "repository-label-conflict:conflicted" }),
         expect.objectContaining({ id: "repository-runtime:conflicted" }),
         expect.objectContaining({ id: "repository:aaa" }),
+        expect.objectContaining({ id: "repository:bbb" }),
         expect.objectContaining({ id: "built-in:journal" }),
         expect.objectContaining({ id: "repository-runtime:catalog" }),
-        expect.objectContaining({ id: "repository:bbb" }),
         diagnostic,
       ],
       status: "collecting",
-      warningCount: 2,
+      warningCount: 1,
     });
     expect(diagnostics.diagnostics).toEqual([diagnostic]);
   });

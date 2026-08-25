@@ -21,13 +21,64 @@ import {
 } from "./support/apiServerTestHarness.ts";
 
 describe("CTN API v3 authorization", () => {
+  it("accepts only the local repository create and delete wire shapes", async () => {
+    await withHandler(async (_handler, _rootDir, authenticated) => {
+      const ownerToken = "owner-token-with-at-least-32-characters";
+      const handler = authenticated(ownerToken);
+      const obsoleteCreate = await dispatch<{ code: string }>(handler, {
+        body: {
+          adapter: "remote",
+          authentication: { type: "none" },
+          content: createContent(),
+          label: "旧远端仓库",
+          url: "https://storage.example.test/repository",
+        },
+        method: "POST",
+        token: ownerToken,
+        url: "/api/v3/admin/repositories",
+      });
+
+      expect(obsoleteCreate).toMatchObject({
+        body: { code: "invalid_request" },
+        statusCode: 400,
+      });
+      const created = await dispatch<RepositoryDescriptorDto>(handler, {
+        body: { content: createContent(), label: "本地仓库" },
+        method: "POST",
+        token: ownerToken,
+        url: "/api/v3/admin/repositories",
+      });
+      const obsoleteDelete = await dispatch<{ code: string }>(handler, {
+        method: "DELETE",
+        token: ownerToken,
+        url: `/api/v3/admin/repositories/${created.body!.id}?mode=legacy`,
+      });
+
+      expect(obsoleteDelete).toMatchObject({
+        body: { code: "invalid_request" },
+        statusCode: 400,
+      });
+      const deleted = await dispatch<never>(handler, {
+        method: "DELETE",
+        token: ownerToken,
+        url: `/api/v3/admin/repositories/${created.body!.id}`,
+      });
+
+      expect(deleted).toEqual({
+        body: null,
+        headers: expect.any(Object),
+        statusCode: 204,
+      });
+    });
+  });
+
   it("keeps automation read-only, repository-scoped, and separate from old state", async () => {
     await withHandler(async (_handler, rootDir, authenticated) => {
       const ownerToken = "owner-token-with-at-least-32-characters";
       const handler = authenticated(ownerToken);
       const createRepository = (label: string) =>
         dispatch<RepositoryDescriptorDto>(handler, {
-          body: { adapter: "local", content: createContent(), label },
+          body: { content: createContent(), label },
           method: "POST",
           token: ownerToken,
           url: "/api/v3/admin/repositories",

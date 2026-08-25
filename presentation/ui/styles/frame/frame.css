@@ -356,15 +356,10 @@
     display: none;
   }
 }
-.repository-create-adapter,
 .repository-create-error {
   margin: 0;
   font-size: var(--ui-micro-font-size);
   line-height: var(--ui-micro-line-height);
-}
-
-.repository-create-adapter {
-  color: var(--color-fg-subtle);
 }
 
 .repository-create-error {

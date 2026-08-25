@@ -17,6 +17,7 @@ import { parseRepositoryRevision } from "../../../contracts/workspace/revision";
 import {
   HttpApiResponseError,
   HttpApiUnavailableError,
+  requestApiNoContent,
   requestApiJson,
 } from "./apiTransport";
 
@@ -97,6 +98,16 @@ export async function requestWorkspaceApiJson(
 ) {
   try {
     return await requestApiJson(...args);
+  } catch (error) {
+    throwWorkspaceApiAdapterError(error);
+  }
+}
+
+export async function requestWorkspaceApiNoContent(
+  ...args: Parameters<typeof requestApiNoContent>
+) {
+  try {
+    return await requestApiNoContent(...args);
   } catch (error) {
     throwWorkspaceApiAdapterError(error);
   }

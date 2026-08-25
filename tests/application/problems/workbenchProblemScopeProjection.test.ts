@@ -80,12 +80,10 @@ const systemSyntaxDiagnostic: UiWorkbenchDiagnostic = {
 };
 
 const repositoryIssue: WorkspaceRepositoryCatalogIssue = {
-  adapter: "local",
   code: "repository_corrupt",
   id: "broken",
   location: null,
   message: "仓库元数据损坏。",
-  status: "fault",
 };
 
 const builtInIssue: BuiltInRuntimeIssue = {
@@ -216,7 +214,6 @@ describe("workbench problem scope projection", () => {
         },
       },
       catalogState: {
-        creatableAdapters: ["local"],
         issues: [repositoryIssue],
         repositories: [],
         status: "ready",

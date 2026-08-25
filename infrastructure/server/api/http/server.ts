@@ -203,12 +203,16 @@ export function createApiRequestHandler({
           result.statusCode,
           result.body,
         );
-        sendApiJson(
-          response,
-          result.statusCode,
-          result.body,
-          responseHeaders,
-        );
+        if (result.statusCode === 204) {
+          sendApiNoContent(response, responseHeaders);
+        } else {
+          sendApiJson(
+            response,
+            result.statusCode,
+            result.body,
+            responseHeaders,
+          );
+        }
       }
     } catch (error) {
       if (response.headersSent) {

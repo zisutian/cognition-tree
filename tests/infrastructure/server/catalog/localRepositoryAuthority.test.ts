@@ -7,9 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { WorkspaceRepositoryContentDto } from
   "../../../../contracts/workspace/types.ts";
 import { LocalRepositoryCatalog } from
-  "../../../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
-import { CompositeRepositoryCatalog } from
-  "../../../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
+  "../../../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
 
 const firstUuid = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA";
 const secondUuid = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -22,50 +20,14 @@ function createContent(name: string): WorkspaceRepositoryContentDto {
   };
 }
 
-function createUnusedRemoteRegistry(): ConstructorParameters<
-  typeof CompositeRepositoryCatalog
->[1] {
-  return {
-    async deleteManagedData() {
-      throw new Error("WebDAV must not own local repository behavior");
-    },
-    async dispose() {},
-    async getStore() {
-      throw new Error("WebDAV must not own local repository behavior");
-    },
-    hasEntry() {
-      return false;
-    },
-    async initialize() {},
-    async listEntries() {
-      return { issues: [], repositories: [] };
-    },
-    async register() {
-      throw new Error("WebDAV must not own local repository behavior");
-    },
-    async removeConnection() {
-      throw new Error("WebDAV must not own local repository behavior");
-    },
-    async renameConnection() {
-      throw new Error("WebDAV must not own local repository behavior");
-    },
-    async retryDeletion() {
-      throw new Error("WebDAV must not own local repository behavior");
-    },
-  };
-}
-
 async function withLocalAuthority(
   createIds: string[],
-  run: (catalog: CompositeRepositoryCatalog) => Promise<void>,
+  run: (catalog: LocalRepositoryCatalog) => Promise<void>,
 ) {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-local-authority-"));
-  const localCatalog = new LocalRepositoryCatalog(rootDir);
-  const catalog = new CompositeRepositoryCatalog(
-    localCatalog,
-    createUnusedRemoteRegistry(),
-    { createId: () => createIds.shift() ?? secondUuid },
-  );
+  const catalog = new LocalRepositoryCatalog(rootDir, {
+    createId: () => createIds.shift() ?? secondUuid,
+  });
 
   try {
     await run(catalog);
@@ -82,12 +44,10 @@ describe("local repository authority characterization", () => {
       async (catalog) => {
         const firstContent = createContent("First workspace");
         const first = await catalog.createRepository({
-          adapter: "local",
           content: firstContent,
           label: "First",
         });
         const second = await catalog.createRepository({
-          adapter: "local",
           content: createContent("Second workspace"),
           label: "Second",
         });
@@ -110,7 +70,6 @@ describe("local repository authority characterization", () => {
   it("owns portable unique labels, renaming, and idempotent managed deletion", async () => {
     await withLocalAuthority([firstUuid], async (catalog) => {
       const descriptor = await catalog.createRepository({
-        adapter: "local",
         content: createContent("Workspace"),
         label: "Original",
       });
@@ -118,12 +77,10 @@ describe("local repository authority characterization", () => {
         .loadSnapshot();
 
       await expect(catalog.createRepository({
-        adapter: "local",
         content: createContent("Duplicate"),
         label: "ＯＲＩＧＩＮＡＬ",
       })).rejects.toMatchObject({ code: "invalid_request" });
       await expect(catalog.createRepository({
-        adapter: "local",
         content: createContent("Reserved"),
         label: " 日记 ",
       })).rejects.toMatchObject({ code: "invalid_request" });
@@ -136,14 +93,10 @@ describe("local repository authority characterization", () => {
       });
       await expect((await catalog.getStore(descriptor.id)).loadSnapshot())
         .resolves.toEqual(beforeRename);
-      await expect(catalog.deleteRepository(
-        descriptor.id,
-        "delete-managed-data",
-      )).resolves.toEqual({ status: "deleted" });
-      await expect(catalog.deleteRepository(
-        descriptor.id,
-        "delete-managed-data",
-      )).resolves.toEqual({ status: "deleted" });
+      await expect(catalog.deleteRepository(descriptor.id))
+        .resolves.toBeUndefined();
+      await expect(catalog.deleteRepository(descriptor.id))
+        .resolves.toBeUndefined();
     });
   });
 });

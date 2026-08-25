@@ -21,14 +21,12 @@ import {
 } from "../workspace/session/workspaceSessionTestFixture";
 
 const descriptor = {
-  adapter: "local",
   id: "repository-notes",
   label: "知识库",
   labelIssue: null,
   location: {
     hostPath: null,
     serverPath: "/repositories/notes",
-    type: "local",
   },
 } as const satisfies WorkspaceRepositoryDescriptor;
 
@@ -87,7 +85,6 @@ describe("journal workspace reference resolver", () => {
     const openRepository = vi.fn(() => opened);
     const resolver = createResolver({
       listRepositories: vi.fn(async () => ({
-        creatableAdapters: [],
         issues: [],
         repositories: [descriptor, {
           ...descriptor,
@@ -162,7 +159,6 @@ describe("journal workspace reference resolver", () => {
     for (const current of cases) {
       const resolver = createResolver({
         listRepositories: async () => ({
-          creatableAdapters: [],
           issues: [],
           repositories: current.descriptor ? [current.descriptor] : [],
         }),
@@ -186,7 +182,6 @@ describe("journal workspace reference resolver", () => {
     }));
     const resolver = createResolver({
       listRepositories: async () => ({
-        creatableAdapters: [],
         issues: [],
         repositories,
       }),
@@ -221,7 +216,6 @@ describe("journal workspace reference resolver", () => {
   it("uses the active in-memory snapshot for note rename and deletion", async () => {
     const catalog = {
       listRepositories: async () => ({
-        creatableAdapters: [],
         issues: [],
         repositories: [descriptor],
       }),
@@ -263,7 +257,6 @@ describe("journal workspace reference resolver", () => {
   it("returns to loading while a generation re-resolution is pending", async () => {
     const initialResolutions = await createResolver({
       listRepositories: async () => ({
-        creatableAdapters: [],
         issues: [],
         repositories: [descriptor],
       }),

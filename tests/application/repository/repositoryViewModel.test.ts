@@ -28,13 +28,11 @@ function createSource(
   persistence: RepositoryPersistenceState = { status: "saved" },
 ): RepositoryApplication {
   const descriptor = {
-    adapter: "local" as const,
     id: "primary",
     label: "Primary",
     location: {
       hostPath: "/home/zisu/notes/primary",
       serverPath: "/data/repositories/primary",
-      type: "local" as const,
     },
     labelIssue: null,
   };
@@ -45,7 +43,6 @@ function createSource(
     catalogLabel: "普通仓库",
     catalogState: {
       activeRepositoryId: descriptor.id,
-      creatableAdapters: ["local", "webdav"],
       issues: [],
       operation: "idle",
       repositories: [descriptor],
@@ -177,36 +174,39 @@ describe("repository view model", () => {
 
   it("projects each repository location without hiding copyable values", () => {
     expect(projectRepositoryLocation({
-      type: "webdav",
-      url: "https://dav.example.test/notes/",
-    })).toEqual([{
-      copyValue: "https://dav.example.test/notes/",
-      label: "WebDAV 地址",
-      value: "https://dav.example.test/notes/",
-    }]);
+      hostPath: "/host/notes",
+      serverPath: "/data/notes",
+    })).toEqual([
+      {
+        copyValue: "/host/notes",
+        label: "主机路径",
+        value: "/host/notes",
+      },
+      {
+        copyValue: "/data/notes",
+        label: "服务端路径",
+        value: "/data/notes",
+      },
+    ]);
     expect(projectRepositoryLocation(null)).toEqual([]);
   });
 
   it("requires manual deletion for unsupported Local layouts and chooses one copyable path", () => {
     const issue = {
-      adapter: "local" as const,
       code: "unsupported_repository_version" as const,
       id: "default",
       location: {
         hostPath: "/home/zisu/notes/default",
         serverPath: "/data/repositories/default",
-        type: "local" as const,
       },
       message: "Repository version is not supported",
-      status: "fault" as const,
     };
 
     expect(requiresManualLocalDeletion(issue)).toBe(true);
     expect(projectRepositoryIssueActions(issue)).toEqual([]);
     expect(projectRepositoryIssues([issue])).toEqual([{
       ...issue,
-      adapterLabel: "本地",
-      displayLabel: "default · 本地",
+      displayLabel: "default",
       locationRows: [{
         copyValue: "/home/zisu/notes/default",
         label: "主机路径",
@@ -227,46 +227,18 @@ describe("repository view model", () => {
     }]);
   });
 
-  it("projects repository issue actions by lifecycle and adapter", () => {
+  it("projects the single local repository issue action", () => {
     const source = {
       code: "repository_corrupt" as const,
       id: "broken",
-      status: "fault" as const,
     };
 
     expect(projectRepositoryIssueActions({
       ...source,
-      adapter: "webdav",
-    })).toEqual([{
-      confirmation: "将移除故障 WebDAV 连接 broken；远端数据不会被删除。",
-      label: "移除连接",
-      mode: "remove-connection",
-    }]);
-    expect(projectRepositoryIssueActions({
-      ...source,
-      adapter: "local",
     })).toEqual([{
       confirmation: "将删除故障仓库条目 broken。",
       label: "清理",
-      mode: "delete-managed-data",
     }]);
-    expect(projectRepositoryIssueActions({
-      ...source,
-      adapter: "webdav",
-      status: "deleting",
-    })).toEqual([
-      {
-        confirmation: null,
-        label: "重试清理",
-        mode: "delete-managed-data",
-      },
-      {
-        confirmation:
-          "停止跟踪会保留远端删除标记，并可能留下尚未清理的 generations。",
-        label: "停止跟踪",
-        mode: "remove-connection",
-      },
-    ]);
   });
 
   it.each([
@@ -319,10 +291,6 @@ describe("repository view model", () => {
       activeSessionRecoveryAction: null,
       catalogErrorMessage: "",
       catalogStatus: "ready",
-      creatableAdapters: [
-        { label: "本地", value: "local" },
-        { label: "WebDAV", value: "webdav" },
-      ],
       deletionBlocked: false,
       deletionWarning: "存在同步冲突；删除会永久丢弃当前本地修改。",
       hasSaveConflict: true,
@@ -330,15 +298,12 @@ describe("repository view model", () => {
       operation: "idle",
       repositories: [
         {
-          adapter: "local",
-          adapterLabel: "本地",
-          displayLabel: "Primary · 本地",
+          displayLabel: "Primary",
           id: "primary",
           label: "Primary",
           location: {
             hostPath: "/home/zisu/notes/primary",
             serverPath: "/data/repositories/primary",
-            type: "local",
           },
           locationRows: [
             {
@@ -426,7 +391,6 @@ describe("repository view model", () => {
       activeSessionRecoveryAction: null,
       catalogErrorMessage: "无法读取普通仓库目录。",
       catalogStatus: "failed",
-      creatableAdapters: [],
       repositories: [],
     });
   });
@@ -500,10 +464,6 @@ describe("repository view model", () => {
         label: "日记",
       })],
     });
-    expect(view.creatableAdapters).toEqual([
-      { label: "本地", value: "local" },
-      { label: "WebDAV", value: "webdav" },
-    ]);
     expect(view.retryBuiltIn).toBe(
       source.builtIns.catalog.retry,
     );

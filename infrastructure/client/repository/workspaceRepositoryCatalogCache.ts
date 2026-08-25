@@ -2,7 +2,7 @@ import { parseRepositoryCatalog } from "../../../contracts/workspace/parseCatalo
 import type { RepositoryCatalogDto } from "../../../contracts/workspace/types";
 
 export type WorkspaceRepositoryCatalogCacheState = RepositoryCatalogDto & {
-  version: 4;
+  version: 5;
 };
 
 export type WorkspaceRepositoryCatalogCache = {
@@ -25,19 +25,18 @@ export function parseWorkspaceRepositoryCatalogCacheState(
   const fields = Object.keys(record).sort();
 
   if (
-    fields.join(",") !== "creatableAdapters,issues,repositories,version" ||
-    record.version !== 4
+    fields.join(",") !== "issues,repositories,version" ||
+    record.version !== 5
   ) {
     throw new Error("Unsupported repository catalog cache version");
   }
 
   return {
     ...parseRepositoryCatalog({
-      creatableAdapters: record.creatableAdapters,
       issues: record.issues,
       repositories: record.repositories,
     }),
-    version: 4,
+    version: 5,
   };
 }
 

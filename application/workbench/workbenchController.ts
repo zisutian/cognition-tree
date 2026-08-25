@@ -215,22 +215,11 @@ export function createWorkbenchController({
   const repositoryCatalogController = createRepositoryCatalogController({
     activeRepositorySelection,
     catalog: workspaceCatalog,
-    provisionRepository(input, label) {
+    provisionRepository(_input, label) {
       const content = createInitialWorkspaceContent(label);
 
-      return workspaceRepositories.createRepository(
-        input.adapter === "webdav"
-          ? {
-              adapter: "webdav",
-              authentication: input.authentication,
-              initialContent: content,
-              label,
-              url: input.url.trim(),
-            }
-          : { adapter: "local", content, label },
-      );
+      return workspaceRepositories.createRepository({ content, label });
     },
-    scheduler,
   });
   const builtInCatalogController = createBuiltInCatalogController(
     builtInCatalog,

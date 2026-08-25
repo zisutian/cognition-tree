@@ -17,7 +17,6 @@ import type {
   CreateRepositoryDto,
   RenameRepositoryDto,
   RepositoryCatalogDto,
-  RepositoryDeletionResultDto,
   RepositoryDescriptorDto,
   WorkspaceRepositoryCommitDto,
   WorkspaceRepositorySnapshotDto,
@@ -153,23 +152,12 @@ export const ApiCommitResultSchema = strictObject({
   revision: ApiResourceVersionSchema,
 });
 
-const repositoryLocationSchema = Type.Union([
-  strictObject({
-    hostPath: nullable(Type.String()),
-    serverPath: Type.String(),
-    type: Type.Literal("local"),
-  }),
-  strictObject({
-    type: Type.Literal("webdav"),
-    url: Type.String({ format: "uri" }),
-  }),
-]);
+const repositoryLocationSchema = strictObject({
+  hostPath: nullable(Type.String()),
+  serverPath: Type.String(),
+});
 const repositoryDescriptorSchema = schemaAs<RepositoryDescriptorDto>(
   strictObject({
-    adapter: Type.Union([
-      Type.Literal("local"),
-      Type.Literal("webdav"),
-    ]),
     id: ApiIdentifierSchema,
     label: Type.String(),
     labelIssue: nullable(Type.Union([
@@ -183,15 +171,7 @@ const repositoryDescriptorSchema = schemaAs<RepositoryDescriptorDto>(
 
 export const ApiRepositoryCatalogSchema = schemaAs<RepositoryCatalogDto>(
   strictObject({
-    creatableAdapters: Type.Array(Type.Union([
-      Type.Literal("local"),
-      Type.Literal("webdav"),
-    ])),
     issues: Type.Array(strictObject({
-      adapter: Type.Union([
-        Type.Literal("local"),
-        Type.Literal("webdav"),
-      ]),
       code: Type.Union([
         Type.Literal("adapter_unavailable"),
         Type.Literal("repository_busy"),
@@ -201,44 +181,20 @@ export const ApiRepositoryCatalogSchema = schemaAs<RepositoryCatalogDto>(
       id: ApiIdentifierSchema,
       location: nullable(repositoryLocationSchema),
       message: Type.String(),
-      status: Type.Union([Type.Literal("deleting"), Type.Literal("fault")]),
     })),
     repositories: Type.Array(repositoryDescriptorSchema),
   }),
 );
 export const ApiRepositoryDescriptorSchema = repositoryDescriptorSchema;
 export const ApiCreateRepositorySchema = schemaAs<CreateRepositoryDto>(
-  Type.Union([
-    strictObject({
-      adapter: Type.Literal("local"),
-      content: workspaceContentSchema,
-      label: ApiIdentifierSchema,
-    }),
-    strictObject({
-      adapter: Type.Literal("webdav"),
-      authentication: Type.Union([
-        strictObject({ type: Type.Literal("none") }),
-        strictObject({
-          password: Type.String(),
-          type: Type.Literal("basic"),
-          username: Type.String(),
-        }),
-      ]),
-      initialContent: workspaceContentSchema,
-      label: ApiIdentifierSchema,
-      url: Type.String({ format: "uri" }),
-    }),
-  ]),
+  strictObject({
+    content: workspaceContentSchema,
+    label: ApiIdentifierSchema,
+  }),
 );
 export const ApiRenameRepositorySchema = schemaAs<RenameRepositoryDto>(
   strictObject({ label: ApiIdentifierSchema }),
 );
-export const ApiRepositoryDeletionResultSchema = schemaAs<
-  RepositoryDeletionResultDto
->(strictObject({
-  status: Type.Union([Type.Literal("deleted"), Type.Literal("deleting")]),
-}));
-
 const builtInLocationSchema = strictObject({
   serverPath: Type.String(),
   type: Type.Literal("server"),

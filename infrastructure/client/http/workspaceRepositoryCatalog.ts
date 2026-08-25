@@ -2,8 +2,6 @@ import {
   isRepositoryId,
   parseCreateRepository,
   parseRepositoryCatalog,
-  parseRepositoryDeletionMode,
-  parseRepositoryDeletionResult,
   parseRepositoryDescriptor,
   parseRenameRepository,
 } from "../../../contracts/workspace/parseCatalog";
@@ -14,7 +12,10 @@ import {
   type HttpApiTransportOptions,
 } from "./apiTransport";
 import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity";
-import { requestWorkspaceApiJson } from "./workspaceApiAdapter";
+import {
+  requestWorkspaceApiJson,
+  requestWorkspaceApiNoContent,
+} from "./workspaceApiAdapter";
 import type { WorkspaceRepositoryCatalog } from "../../../application/repository/workspaceRepositoryCatalog";
 import type {
   WorkspaceRepositoryProvider,
@@ -63,7 +64,7 @@ export function createHttpWorkspaceRepositoryCatalog({
     try {
       await cache.catalogs.save(await catalogIdentity, {
         ...catalog,
-        version: 4,
+        version: 5,
       });
     } catch {
       // The remote catalog is authoritative; cache failure is reported only
@@ -86,11 +87,7 @@ export function createHttpWorkspaceRepositoryCatalog({
         label: parsePortableName(decoded.label, "Repository label"),
       };
 
-      preparation.prepare(
-        outbound.adapter === "local"
-          ? outbound.content
-          : outbound.initialContent,
-      );
+      preparation.prepare(outbound.content);
       const descriptor = parseRepositoryDescriptor(
         await requestWorkspaceApiJson(
           fetchFn,
@@ -111,25 +108,21 @@ export function createHttpWorkspaceRepositoryCatalog({
       ].sort((left, right) => left.id.localeCompare(right.id));
 
       await saveCatalogBestEffort({
-        creatableAdapters: cached?.creatableAdapters ?? [],
         issues: cached?.issues.filter(({ id }) => id !== descriptor.id) ?? [],
         repositories,
       });
       return descriptor;
     },
-    async deleteRepository({ id, mode }) {
+    async deleteRepository({ id }) {
       if (!isRepositoryId(id)) {
         throw new Error(`Invalid repository id: ${id}`);
       }
-      const deletionMode = parseRepositoryDeletionMode(mode);
-      const result = parseRepositoryDeletionResult(
-        await requestWorkspaceApiJson(
-          fetchFn,
-          baseUrl,
-          `/api/v3/admin/repositories/${encodeURIComponent(id)}?mode=${encodeURIComponent(deletionMode)}`,
-          { method: "DELETE" },
-          token,
-        ),
+      await requestWorkspaceApiNoContent(
+        fetchFn,
+        baseUrl,
+        `/api/v3/admin/repositories/${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+        token,
       );
 
       await cache.deleteRepositoryAtomically({
@@ -141,7 +134,6 @@ export function createHttpWorkspaceRepositoryCatalog({
           token,
         }),
       });
-      return result;
     },
     label: "HTTP 后端",
     async listRepositories() {
@@ -195,7 +187,6 @@ export function createHttpWorkspaceRepositoryCatalog({
         }
 
         return {
-          creatableAdapters: cached.creatableAdapters,
           issues: cached.issues,
           repositories: cached.repositories,
         };
@@ -212,11 +203,7 @@ export function createHttpWorkspaceRepositoryCatalog({
         cache: cache.snapshots,
         createDraftId: () => globalThis.crypto.randomUUID(),
         label: descriptor.label,
-        loadPolicy: {
-          mode: descriptor.adapter === "local"
-            ? "refresh-remote"
-            : "cache-first",
-        },
+        loadPolicy: { mode: "refresh-remote" },
         location: descriptor.location,
         repositoryIdentity: createHttpRepositoryCacheIdentity({
           baseUrl,

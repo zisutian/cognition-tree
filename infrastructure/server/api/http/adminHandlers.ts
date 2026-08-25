@@ -5,7 +5,6 @@ import {
   type AutomationApiScope,
   type ApiCreateTokenRequestDto,
 } from "../../../../contracts/api/types.ts";
-import { parseRepositoryDeletionMode } from "../../../../contracts/workspace/parseCatalog.ts";
 import type {
   CreateRepositoryDto,
   RenameRepositoryDto,
@@ -79,13 +78,7 @@ export async function handleRepositoryAdmin(context: ApiHandlerContext) {
     });
     return { body: descriptor, statusCode: 200 };
   }
-  const query = context.query as {
-    mode: "delete-managed-data" | "remove-connection";
-  };
-  const result = await catalog.deleteRepository(
-    repositoryId,
-    parseRepositoryDeletionMode(query.mode),
-  );
+  await catalog.deleteRepository(repositoryId);
 
   context.revisionTracker.removeWorkspace(repositoryId);
   await publishTrackedChanges(context, {
@@ -99,8 +92,8 @@ export async function handleRepositoryAdmin(context: ApiHandlerContext) {
     }],
   });
   return {
-    body: result,
-    statusCode: result.status === "deleting" ? 202 : 200,
+    body: undefined,
+    statusCode: 204,
   };
 }
 export async function handleTokenAdmin(context: ApiHandlerContext) {

@@ -5,11 +5,9 @@ import {
   createRepositoryCreateFormDraft,
   createRepositoryRequest,
   RepositoryCreateForm,
-  repositoryPasswordInputAttributes,
 } from "../../../../presentation/ui/RepositoryCreateForm";
 import {
   canDeleteManagedRepositoryData,
-  getRepositoryDeletionChoices,
   RepositoryDeleteConfirmation,
 } from "../../../../presentation/activities/repository/RepositoryDeleteConfirmation";
 import {
@@ -26,15 +24,12 @@ import { createRepositoryView } from "../../fixtures/repositoryViewFixture";
 import { expectMarkupSemantics } from "../../markupSemantics";
 
 const localRepository: RepositoryOption = {
-  adapter: "local",
-  adapterLabel: "本地",
-  displayLabel: "本地笔记 · 本地",
+  displayLabel: "本地笔记",
   id: "repository-local",
   label: "本地笔记",
   location: {
     hostPath: "/home/zisu/notes/local",
     serverPath: "/data/repositories/local",
-    type: "local",
   },
   locationRows: [
     {
@@ -51,134 +46,44 @@ const localRepository: RepositoryOption = {
   labelIssue: null,
 };
 
-const webDavRepository: RepositoryOption = {
-  adapter: "webdav",
-  adapterLabel: "WebDAV",
-  displayLabel: "远端笔记 · WebDAV",
-  id: "repository-webdav",
-  label: "远端笔记",
+const secondaryRepository: RepositoryOption = {
+  ...localRepository,
+  displayLabel: "第二仓库",
+  id: "repository-secondary",
+  label: "第二仓库",
   location: {
-    type: "webdav",
-    url: "https://dav.example/notes/",
+    hostPath: "/home/zisu/notes/secondary",
+    serverPath: "/data/repositories/secondary",
   },
-  locationRows: [{
-    copyValue: "https://dav.example/notes/",
-    label: "WebDAV 地址",
-    value: "https://dav.example/notes/",
-  }],
-  labelIssue: null,
+  locationRows: [],
 };
 
 describe("repository creation form", () => {
   it("does not expose a manual repository ID and hides a redundant adapter selector", () => {
     const markup = renderToStaticMarkup(
       <RepositoryCreateForm
-        adapters={[{ label: "本地", value: "local" }]}
         onCreate={async () => undefined}
       />,
     );
 
     expectMarkupSemantics(markup, {
-      has: ["存储：本地", "名称"],
+      has: ["名称", "创建仓库"],
       lacks: ['aria-label="仓库存储类型"', "仓库 ID"],
     });
     expect(markup.match(/<input/g) ?? []).toHaveLength(1);
-    expect(createRepositoryRequest("local", {
+    expect(createRepositoryRequest({
       ...createRepositoryCreateFormDraft(),
       name: "  我的仓库  ",
-    })).toEqual({ adapter: "local", name: "我的仓库" });
+    })).toEqual({ name: "我的仓库" });
   });
 
-  it("builds Basic credentials without normalizing the password and clears fields after success", () => {
-    const draft = {
-      authenticationType: "basic" as const,
-      name: "  远端笔记  ",
-      password: "  keep surrounding whitespace  ",
-      url: "  https://dav.example/notes/  ",
-      username: "  owner  ",
-    };
-
-    expect(createRepositoryRequest("webdav", draft)).toEqual({
-      adapter: "webdav",
-      authentication: {
-        password: "  keep surrounding whitespace  ",
-        type: "basic",
-        username: "owner",
-      },
-      name: "远端笔记",
-      url: "https://dav.example/notes/",
-    });
-    expect(repositoryPasswordInputAttributes).toEqual({
-      autoComplete: "new-password",
-      maxLength: 4_096,
-      type: "password",
-    });
-    expect(clearRepositoryCreateFormAfterSuccess(draft)).toEqual({
-      authenticationType: "basic",
-      name: "",
-      password: "",
-      url: "",
-      username: "",
-    });
-  });
-
-  it("renders the WebDAV connection and authentication choices with form semantics", () => {
-    const markup = renderToStaticMarkup(
-      <RepositoryCreateForm
-        adapters={[{ label: "WebDAV", value: "webdav" }]}
-        onCreate={async () => undefined}
-      />,
-    );
-
-    expectMarkupSemantics(markup, {
-      has: [
-        "地址", 'type="url"', 'autoComplete="url"',
-        '<option value="none" selected="">无认证</option>',
-        '<option value="basic">Basic</option>',
-        'type="submit"', "添加连接",
-      ],
-      lacks: ["仓库 ID"],
-    });
+  it("clears the only repository field after success", () => {
+    expect(clearRepositoryCreateFormAfterSuccess()).toEqual({ name: "" });
   });
 });
 
 describe("repository inline deletion confirmation", () => {
-  it("offers both WebDAV deletion modes and requires an exact label for remote deletion", () => {
-    const markup = renderToStaticMarkup(
-      <RepositoryDeleteConfirmation
-        repository={webDavRepository}
-        warning="仍有内容等待同步。"
-        onCancel={() => undefined}
-        onDelete={async () => true}
-      />,
-    );
-
-    expect(getRepositoryDeletionChoices(webDavRepository)).toEqual([
-      {
-        label: "仅移除连接",
-        mode: "remove-connection",
-        requiresLabelConfirmation: false,
-      },
-      {
-        label: "删除远端数据",
-        mode: "delete-managed-data",
-        requiresLabelConfirmation: true,
-      },
-    ]);
-    expect(canDeleteManagedRepositoryData(webDavRepository, "远端笔记")).toBe(true);
-    expect(canDeleteManagedRepositoryData(webDavRepository, " 远端笔记")).toBe(false);
-    expect(canDeleteManagedRepositoryData(webDavRepository, "远端笔记 ")).toBe(false);
-    expectMarkupSemantics(markup, {
-      has: [
-        'role="group"', "仅移除连接", "删除远端数据",
-        "删除远端数据前请输入仓库名称", "仍有内容等待同步。", 'value=""',
-        /<button[^>]*disabled=""[^>]*>删除远端数据<\/button>/,
-      ],
-      lacks: ['role="alertdialog"'],
-    });
-  });
-
-  it("uses only managed-data deletion for Local repositories", () => {
+  it("requires the exact label for permanent local deletion", () => {
     const markup = renderToStaticMarkup(
       <RepositoryDeleteConfirmation
         repository={localRepository}
@@ -188,13 +93,6 @@ describe("repository inline deletion confirmation", () => {
       />,
     );
 
-    expect(getRepositoryDeletionChoices(localRepository)).toEqual([
-      {
-        label: "永久删除",
-        mode: "delete-managed-data",
-        requiresLabelConfirmation: true,
-      },
-    ]);
     expect(canDeleteManagedRepositoryData(localRepository, "本地笔记")).toBe(true);
     expect(canDeleteManagedRepositoryData(localRepository, "本地笔记 ")).toBe(false);
     expectMarkupSemantics(markup, {
@@ -229,7 +127,7 @@ describe("repository setup and management semantics", () => {
       ...baseView,
       activeRepositoryId: localRepository.id,
       activeRepositoryLabel: localRepository.label,
-      repositories: [localRepository, webDavRepository],
+      repositories: [localRepository, secondaryRepository],
     };
     const markup = renderToStaticMarkup(
       <FeedbackProvider>
@@ -237,14 +135,14 @@ describe("repository setup and management semantics", () => {
           focusRequest={null}
           onConsumeFocusRequest={() => undefined}
           selection={{
-            id: webDavRepository.id,
+            id: secondaryRepository.id,
             kind: "ordinary-repository",
           }}
           view={view}
         />
         <RepositoryPanel
           selection={{
-            id: webDavRepository.id,
+            id: secondaryRepository.id,
             kind: "ordinary-repository",
           }}
           view={view}
@@ -254,12 +152,11 @@ describe("repository setup and management semantics", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        'aria-current="page"', "本地笔记 · 本地", "远端笔记 · WebDAV",
-        "仓库 ID", webDavRepository.id,
-        'aria-label="重命名仓库 远端笔记"',
-        'aria-label="打开仓库 远端笔记"',
-        'aria-label="当前仓库"', "未打开", "WebDAV 地址",
-        'aria-label="复制WebDAV 地址"', "危险区", "删除仓库",
+        'aria-current="page"', "本地笔记", "第二仓库",
+        "仓库 ID", secondaryRepository.id,
+        'aria-label="重命名仓库 第二仓库"',
+        'aria-label="打开仓库 第二仓库"',
+        'aria-label="当前仓库"', "未打开", "危险区", "删除仓库",
       ],
       lacks: [
         "<dt>名称</dt>", "新仓库 ID",
@@ -267,8 +164,8 @@ describe("repository setup and management semantics", () => {
         ">当前</span>", ">打开此仓库<", ">新建仓库</span>",
       ],
       ordered: [
-        ">内置数据</span>", ">本地</span>", "本地笔记 · 本地",
-        'aria-label="新建仓库"', ">WebDAV</span>",
+        ">内置数据</span>", ">本地</span>", "本地笔记",
+        "第二仓库", 'aria-label="新建仓库"',
       ],
     });
     expect(markup.match(/aria-label="新建仓库"/g) ?? []).toHaveLength(1);
@@ -283,16 +180,13 @@ describe("repository setup and management semantics", () => {
       activeRepositoryId: null,
       activeRepositoryLabel: "尚未选择普通仓库",
       issues: projectRepositoryIssues([{
-        adapter: "local",
         code: "unsupported_repository_version",
         id: "default",
         location: {
           hostPath: "/home/zisu/notes/default",
           serverPath: "/data/repositories/default",
-          type: "local",
         },
         message: "Repository version is not supported",
-        status: "fault",
       }]),
       persistenceStatusLabel: "未挂载",
       repositories: [],
@@ -343,8 +237,9 @@ describe("repository setup and management semantics", () => {
     });
     expectMarkupSemantics(createMarkup, {
       has: [
-        "新建普通仓库", 'aria-label="仓库存储类型"', 'type="submit"',
+        "新建普通仓库", "名称", 'type="submit"',
       ],
+      lacks: ['aria-label="仓库存储类型"'],
     });
   });
 
@@ -353,7 +248,6 @@ describe("repository setup and management semantics", () => {
       ...createRepositoryView(),
       catalogErrorMessage: "无法读取普通仓库目录。",
       catalogStatus: "failed" as const,
-      creatableAdapters: [],
       repositories: [],
     };
     const contextMarkup = renderToStaticMarkup(
@@ -375,7 +269,7 @@ describe("repository setup and management semantics", () => {
     expectMarkupSemantics(contextMarkup, {
       has: [
         ">本地</span>", 'aria-label="新建仓库"',
-        'data-repository-catalog="true"', "disabled=\"\"",
+        'data-repository-catalog="true"',
       ],
       lacks: [">新建仓库</span>", "无法读取普通仓库目录。"],
     });
@@ -388,28 +282,16 @@ describe("repository setup and management semantics", () => {
     const baseView = createRepositoryView();
     const issues = projectRepositoryIssues([
       {
-        adapter: "webdav",
         code: "repository_corrupt",
-        id: "webdav-broken",
+        id: "broken-first",
         location: null,
-        message: "连接配置损坏。",
-        status: "fault",
+        message: "仓库配置损坏。",
       },
       {
-        adapter: "webdav",
-        code: "repository_busy",
-        id: "webdav-deleting",
-        location: null,
-        message: "正在删除。",
-        status: "deleting",
-      },
-      {
-        adapter: "local",
         code: "repository_corrupt",
-        id: "local-broken",
+        id: "broken-second",
         location: null,
         message: "仓库元数据损坏。",
-        status: "fault",
       },
     ]);
     const view = { ...baseView, issues };
@@ -418,7 +300,7 @@ describe("repository setup and management semantics", () => {
         <RepositoryContext
           focusRequest={null}
           onConsumeFocusRequest={() => undefined}
-          selection={{ id: "webdav-deleting", kind: "ordinary-issue" }}
+          selection={{ id: "broken-second", kind: "ordinary-issue" }}
           view={view}
         />
       </FeedbackProvider>,
@@ -426,7 +308,7 @@ describe("repository setup and management semantics", () => {
     const panelMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
-          selection={{ id: "webdav-deleting", kind: "ordinary-issue" }}
+          selection={{ id: "broken-second", kind: "ordinary-issue" }}
           view={view}
         />
       </FeedbackProvider>,
@@ -434,15 +316,14 @@ describe("repository setup and management semantics", () => {
 
     expectMarkupSemantics(contextMarkup, {
       has: [
-        'data-repository-issue-id="webdav-broken"',
-        'data-repository-issue-id="webdav-deleting"',
-        'data-repository-issue-id="local-broken"',
+        'data-repository-issue-id="broken-first"',
+        'data-repository-issue-id="broken-second"',
       ],
-      lacks: [">移除连接<", ">重试清理<", ">停止跟踪<", ">清理<"],
+      lacks: [">清理<"],
     });
     expectMarkupSemantics(panelMarkup, {
-      has: ["webdav-deleting", ">重试清理<", ">停止跟踪<"],
-      lacks: ["webdav-broken", "local-broken"],
+      has: ["broken-second", ">清理<"],
+      lacks: ["broken-first"],
     });
   });
 
@@ -632,7 +513,7 @@ describe("repository setup and management semantics", () => {
         run: async () => undefined,
       },
       persistenceStatusLabel: "挂载失败",
-      repositories: [localRepository, webDavRepository],
+      repositories: [localRepository, secondaryRepository],
     };
     const contextMarkup = renderToStaticMarkup(
       <FeedbackProvider>
@@ -662,7 +543,7 @@ describe("repository setup and management semantics", () => {
       <FeedbackProvider>
         <RepositoryPanel
           selection={{
-            id: webDavRepository.id,
+            id: secondaryRepository.id,
             kind: "ordinary-repository",
           }}
           view={view}

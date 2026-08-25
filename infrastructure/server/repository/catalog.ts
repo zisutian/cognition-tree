@@ -5,8 +5,6 @@ import type { parseRenameRepository } from "../../../contracts/workspace/parseCa
 import type {
   RepositoryApiErrorCodeDto,
   RepositoryCatalogDto,
-  RepositoryDeletionModeDto,
-  RepositoryDeletionResultDto,
   RepositoryDescriptorDto,
 } from "../../../contracts/workspace/types.ts";
 import type { WorkspaceRepositoryStore } from "./store.ts";
@@ -15,10 +13,7 @@ export type WorkspaceRepositoryCatalog = {
   createRepository: (
     value: ReturnType<typeof parseCreateRepository>,
   ) => Promise<RepositoryDescriptorDto>;
-  deleteRepository: (
-    repositoryId: string,
-    mode: RepositoryDeletionModeDto,
-  ) => Promise<RepositoryDeletionResultDto>;
+  deleteRepository: (repositoryId: string) => Promise<void>;
   getStore: (repositoryId: string) => Promise<WorkspaceRepositoryStore>;
   listRepositories: () => Promise<RepositoryCatalogDto>;
   renameRepository: (

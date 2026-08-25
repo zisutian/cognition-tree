@@ -8,7 +8,7 @@ import {
 } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 
 /**
- * Server-side semantic validation for untrusted HTTP and persisted adapter
+ * Server-side semantic validation for untrusted HTTP and persisted repository
  * content. The wire contract owns catalog shape; CTN remains the sole syntax
  * compiler and supplies the syntax name used for catalog uniqueness.
  */

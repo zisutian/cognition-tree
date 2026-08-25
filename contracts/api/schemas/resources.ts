@@ -87,7 +87,6 @@ export const ApiCtnDocumentSchema = strictObject({
 export type ApiCtnDocumentDto = Static<typeof ApiCtnDocumentSchema>;
 
 export const ApiWorkspaceSummarySchema = strictObject({
-  adapter: Type.Union([Type.Literal("local"), Type.Literal("webdav")]),
   id: ApiIdentifierSchema,
   label: Type.String(),
 });

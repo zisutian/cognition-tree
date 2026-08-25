@@ -70,7 +70,6 @@ export function createWorkspaceSessionSlot({
     reconcile(descriptor) {
       const nextConnectionKey = descriptor
         ? JSON.stringify({
-            adapter: descriptor.adapter,
             id: descriptor.id,
             location: descriptor.location,
           })

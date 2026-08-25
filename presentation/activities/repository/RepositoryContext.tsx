@@ -2,7 +2,6 @@ import {
   AlertTriangle,
   CalendarDays,
   Check,
-  Cloud,
   HardDrive,
   ListChecks,
   Plus,
@@ -35,16 +34,8 @@ import {
 
 const ignoreSelectionChange = () => undefined;
 
-function RepositoryAdapterIcon({
-  adapter,
-}: {
-  adapter: RepositoryOption["adapter"];
-}) {
-  const Icon = adapter === "local"
-    ? HardDrive
-    : Cloud;
-
-  return <Icon aria-hidden="true" size={13} />;
+function RepositoryStorageIcon() {
+  return <HardDrive aria-hidden="true" size={13} />;
 }
 
 function BuiltInIcon({ id }: { id: BuiltInId }) {
@@ -73,12 +64,6 @@ export function RepositoryContext({
   const [renameValue, setRenameValue] = useState("");
   const currentSelection = selection ?? createDefaultRepositorySelection(view);
   const busy = view.operation !== "idle";
-  const adapterGroups = (["local", "webdav"] as const).filter(
-    (adapter) =>
-      adapter === "local" ||
-      view.repositories.some((repository) => repository.adapter === adapter) ||
-      view.issues.some((issue) => issue.adapter === adapter),
-  );
 
   useEffect(() => {
     if (
@@ -210,25 +195,14 @@ export function RepositoryContext({
         })}
       </CompactContextGroup>
 
-      {adapterGroups.map((adapter) => {
-        const repositories = view.repositories.filter(
-          (repository) => repository.adapter === adapter,
-        );
-        const issues = view.issues.filter((issue) => issue.adapter === adapter);
-        const adapterLabel = repositories[0]?.adapterLabel ??
-          issues[0]?.adapterLabel ??
-          (adapter === "local" ? "本地" : "WebDAV");
-
-        return (
-          <CompactContextGroup
-            className="repository-group"
-            count={repositories.length + issues.length}
-            headingId={`repository-group-${adapter}`}
-            key={adapter}
-            label={adapterLabel}
-            listClassName="repository-list"
-          >
-            {repositories.map((repository) => {
+      <CompactContextGroup
+        className="repository-group"
+        count={view.repositories.length + view.issues.length}
+        headingId="repository-group-local"
+        label="本地"
+        listClassName="repository-list"
+      >
+            {view.repositories.map((repository) => {
               const active = repository.id === view.activeRepositoryId;
               const hasRuntimeProblem = active &&
                 Boolean(view.activeSessionErrorMessage);
@@ -277,7 +251,7 @@ export function RepositoryContext({
                         />
                       </CompactContextStatusIcon>
                     )
-                    : <RepositoryAdapterIcon adapter={repository.adapter} />}
+                    : <RepositoryStorageIcon />}
                   inlineRename={renaming
                     ? {
                         ariaLabel: `重命名仓库 ${repository.label}`,
@@ -322,7 +296,7 @@ export function RepositoryContext({
                 />
               );
             })}
-            {issues.map((issue) => {
+            {view.issues.map((issue) => {
               const selected = currentSelection.kind === "ordinary-issue" &&
                 currentSelection.id === issue.id;
 
@@ -336,49 +310,41 @@ export function RepositoryContext({
                     id: issue.id,
                     kind: "ordinary-issue",
                   })}
-                  rowClassName={cx(
-                    "repository-row repository-issue-row",
-                    issue.status === "deleting" && "is-deleting",
-                  )}
+                  rowClassName="repository-row repository-issue-row"
                   selected={selected}
                   title={issue.displayLabel}
                   trailing={(
                     <span className="repository-row-status is-fault">
-                      {issue.status === "deleting" ? "清理中" : "故障"}
+                      故障
                     </span>
                   )}
                 />
               );
             })}
-            {adapter === "local" ? (
-              <li
+            <li
+              className={cx(
+                "ui-tree-row-frame ui-compact-context-row-frame",
+                currentSelection.kind === "create" && "is-selected",
+              )}
+            >
+              <button
+                aria-current={currentSelection.kind === "create"
+                  ? "page"
+                  : undefined}
+                aria-label="新建仓库"
                 className={cx(
-                  "ui-tree-row-frame ui-compact-context-row-frame",
+                  "ui-tree-row repository-create-row",
                   currentSelection.kind === "create" && "is-selected",
                 )}
+                data-repository-catalog="true"
+                onClick={() => onSelectionChange({ kind: "create" })}
+                title="新建仓库"
+                type="button"
               >
-                <button
-                  aria-current={currentSelection.kind === "create"
-                    ? "page"
-                    : undefined}
-                  aria-label="新建仓库"
-                  className={cx(
-                    "ui-tree-row repository-create-row",
-                    currentSelection.kind === "create" && "is-selected",
-                  )}
-                  data-repository-catalog="true"
-                  disabled={view.creatableAdapters.length === 0}
-                  onClick={() => onSelectionChange({ kind: "create" })}
-                  title="新建仓库"
-                  type="button"
-                >
-                  <Plus aria-hidden="true" size={13} />
-                </button>
-              </li>
-            ) : null}
-          </CompactContextGroup>
-        );
-      })}
+                <Plus aria-hidden="true" size={13} />
+              </button>
+            </li>
+      </CompactContextGroup>
 
       {view.catalogStatus === "loading" ? (
         <p className="context-empty">正在载入普通仓库列表。</p>

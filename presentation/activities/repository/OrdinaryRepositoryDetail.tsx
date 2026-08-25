@@ -1,5 +1,4 @@
 import { RefreshCw } from "lucide-react";
-import type { DeleteRepositoryRequest } from "../../../application/repository/repositoryCatalog";
 import {
   projectRepositoryLabelIssueMessage,
   type RepositoryOption,
@@ -31,7 +30,7 @@ export function OrdinaryRepositoryDetail({
   view: RepositoryViewModel;
   onCancelDelete: () => void;
   onCopy: (label: string, value: string) => void;
-  onDelete: (mode: DeleteRepositoryRequest["mode"]) => Promise<boolean>;
+  onDelete: () => Promise<boolean>;
   onRunAction: (action: () => Promise<void>) => void;
   onStartDelete: () => void;
 }) {
@@ -44,7 +43,6 @@ export function OrdinaryRepositoryDetail({
         title="状态"
       >
         <RepositoryMetadata rows={[
-          { label: "类型", value: repository.adapterLabel },
           {
             label: "状态",
             value: active ? view.persistenceStatusLabel : "未打开",

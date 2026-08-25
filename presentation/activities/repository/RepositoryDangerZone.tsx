@@ -1,5 +1,4 @@
 import { Trash2 } from "lucide-react";
-import type { DeleteRepositoryRequest } from "../../../application/repository/repositoryCatalog";
 import type {
   RepositoryOption,
 } from "../../../application/repository/ordinaryRepositoryViewModel";
@@ -22,7 +21,7 @@ export function RepositoryDangerZone({
   repository: RepositoryOption;
   view: RepositoryViewModel;
   onCancel: () => void;
-  onDelete: (mode: DeleteRepositoryRequest["mode"]) => Promise<boolean>;
+  onDelete: () => Promise<boolean>;
   onStart: () => void;
 }) {
   const active = repository.id === view.activeRepositoryId;
@@ -40,11 +39,7 @@ export function RepositoryDangerZone({
       >
         <div>
           <strong>删除仓库</strong>
-          <p>
-            {repository.adapter === "webdav"
-              ? "可以只移除本机连接；删除远端托管数据后无法恢复。"
-              : "删除托管数据后无法恢复。"}
-          </p>
+          <p>删除托管数据后无法恢复。</p>
           {!confirming && active && view.deletionWarning ? (
             <p className="repository-warning" role="alert">
               {view.deletionWarning}

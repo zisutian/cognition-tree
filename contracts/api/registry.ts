@@ -199,10 +199,19 @@ export function assertApiOperationResponse(
 ) {
   const schema = operation.responses[statusCode];
 
-  if (!schema) {
+  if (!Object.prototype.hasOwnProperty.call(operation.responses, statusCode)) {
     throw new Error(
       `API operation ${operation.operationId} does not declare status ${statusCode}.`,
     );
+  }
+  if (schema === null) {
+    if (input !== undefined) {
+      throw new ApiResponseContractError(
+        `${operation.operationId} produced content for a ${statusCode} no-content response.`,
+        new Error("Expected undefined response body"),
+      );
+    }
+    return;
   }
   try {
     parseApiSchema(schema, input);

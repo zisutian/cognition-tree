@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  RepositoryAdapterKind,
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
 } from "./workspaceRepositoryCatalog";
@@ -16,7 +15,6 @@ import type {
 } from "./repositoryCatalog";
 import {
   projectRepositoryIssueMessage,
-  repositoryAdapterLabels,
   requiresManualLocalDeletion,
 } from "./repositoryIssueProjection";
 import type {
@@ -35,19 +33,12 @@ const persistenceLabels: Record<RepositoryPersistenceState["status"], string> = 
   syncing: "正在同步",
 };
 
-export type RepositoryAdapterOption = {
-  label: string;
-  value: RepositoryAdapterKind;
-};
-
 export type RepositoryOption = WorkspaceRepositoryDescriptor & {
-  adapterLabel: string;
   displayLabel: string;
   locationRows: RepositoryLocationRow[];
 };
 
 export type RepositoryIssueView = WorkspaceRepositoryCatalogIssue & {
-  adapterLabel: string;
   displayLabel: string;
   locationRows: RepositoryLocationRow[];
 };
@@ -55,7 +46,6 @@ export type RepositoryIssueView = WorkspaceRepositoryCatalogIssue & {
 export type RepositoryIssueActionView = {
   confirmation: string | null;
   label: string;
-  mode: DeleteRepositoryRequest["mode"];
 };
 
 export type OrdinaryRepositoryViewModel = {
@@ -67,7 +57,6 @@ export type OrdinaryRepositoryViewModel = {
   catalogErrorMessage: string;
   catalogStatus: "failed" | "loading" | "ready";
   createRepository: (input: CreateRepositoryRequest) => Promise<void>;
-  creatableAdapters: RepositoryAdapterOption[];
   deleteRepository: (input: DeleteRepositoryRequest) => Promise<void>;
   deletionBlocked: boolean;
   deletionWarning: string;
@@ -99,40 +88,15 @@ type OrdinaryRepositoryProjectionSource = Pick<
 export function projectRepositoryIssueActions(
   issue: Pick<
     WorkspaceRepositoryCatalogIssue,
-    "adapter" | "code" | "id" | "status"
+    "code" | "id"
   >,
 ): RepositoryIssueActionView[] {
   if (requiresManualLocalDeletion(issue)) {
     return [];
   }
-  if (issue.status === "deleting") {
-    return [
-      {
-        confirmation: null,
-        label: "重试清理",
-        mode: "delete-managed-data",
-      },
-      ...(issue.adapter === "webdav"
-        ? [{
-            confirmation:
-              "停止跟踪会保留远端删除标记，并可能留下尚未清理的 generations。",
-            label: "停止跟踪",
-            mode: "remove-connection" as const,
-          }]
-        : []),
-    ];
-  }
-  if (issue.adapter === "webdav") {
-    return [{
-      confirmation: `将移除故障 WebDAV 连接 ${issue.id}；远端数据不会被删除。`,
-      label: "移除连接",
-      mode: "remove-connection",
-    }];
-  }
   return [{
     confirmation: `将删除故障仓库条目 ${issue.id}。`,
     label: "清理",
-    mode: "delete-managed-data",
   }];
 }
 
@@ -142,53 +106,30 @@ export function projectRepositoryLocation(
   if (!location) {
     return [];
   }
-  switch (location.type) {
-    case "local":
-      return [
-        ...(location.hostPath
-          ? [{
-              copyValue: location.hostPath,
-              label: "主机路径",
-              value: location.hostPath,
-            }]
-          : []),
-        {
-          copyValue: location.serverPath,
-          label: "服务端路径",
-          value: location.serverPath,
-        },
-      ];
-    case "webdav":
-      return [{
-        copyValue: location.url,
-        label: "WebDAV 地址",
-        value: location.url,
-      }];
-  }
-}
-
-export function projectRepositoryAdapterOptions(
-  adapters: RepositoryAdapterKind[],
-): RepositoryAdapterOption[] {
-  return adapters.map((value) => ({
-    label: repositoryAdapterLabels[value],
-    value,
-  }));
+  return [
+    ...(location.hostPath
+      ? [{
+          copyValue: location.hostPath,
+          label: "主机路径",
+          value: location.hostPath,
+        }]
+      : []),
+    {
+      copyValue: location.serverPath,
+      label: "服务端路径",
+      value: location.serverPath,
+    },
+  ];
 }
 
 export function projectRepositoryOptions(
   repositories: WorkspaceRepositoryDescriptor[],
 ): RepositoryOption[] {
-  return repositories.map((repository) => {
-    const adapterLabel = repositoryAdapterLabels[repository.adapter];
-
-    return {
-      ...repository,
-      adapterLabel,
-      displayLabel: `${repository.label} · ${adapterLabel}`,
-      locationRows: projectRepositoryLocation(repository.location),
-    };
-  });
+  return repositories.map((repository) => ({
+    ...repository,
+    displayLabel: repository.label,
+    locationRows: projectRepositoryLocation(repository.location),
+  }));
 }
 
 export function projectRepositoryLabelIssueMessage(
@@ -210,14 +151,12 @@ export function projectRepositoryIssues(
   issues: WorkspaceRepositoryCatalogIssue[],
 ): RepositoryIssueView[] {
   return issues.map((issue) => {
-    const adapterLabel = repositoryAdapterLabels[issue.adapter];
     const locationRows = projectRepositoryLocation(issue.location);
     const manualLocalDeletion = requiresManualLocalDeletion(issue);
 
     return {
       ...issue,
-      adapterLabel,
-      displayLabel: `${issue.id} · ${adapterLabel}`,
+      displayLabel: issue.id,
       locationRows: manualLocalDeletion ? locationRows.slice(0, 1) : locationRows,
       message: projectRepositoryIssueMessage(issue),
     };
@@ -324,9 +263,6 @@ export function projectOrdinaryRepositoryViewModel(
       : "",
     catalogStatus: source.catalogState.status,
     createRepository: source.createRepository,
-    creatableAdapters: projectRepositoryAdapterOptions(
-      catalog?.creatableAdapters ?? [],
-    ),
     deleteRepository: source.deleteRepository,
     deletionBlocked: deletion.blocked,
     deletionWarning: deletion.warning,
@@ -343,6 +279,6 @@ export function projectOrdinaryRepositoryViewModel(
         : source.refreshRepositories,
     repositories,
     selectRepository: source.selectRepository,
-    storageLabel: active?.adapterLabel ?? source.catalogLabel,
+    storageLabel: active ? "本地" : source.catalogLabel,
   };
 }

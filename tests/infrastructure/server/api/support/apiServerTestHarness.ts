@@ -20,7 +20,8 @@ import type {
   RepositoryDescriptorDto,
   WorkspaceRepositoryContentDto,
 } from "../../../../../contracts/workspace/types.ts";
-import { LocalRepositoryCatalog } from "../../../../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
+import { LocalRepositoryCatalog } from
+  "../../../../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
 import {
   createApiRequestHandler,
   type ApiRequestHandler,
@@ -30,7 +31,6 @@ import {
   createApiSecurityPolicy,
 } from "../../../../../infrastructure/server/api/http/security.ts";
 import { AutomationTokenStore } from "../../../../../infrastructure/server/access/automationTokenStore.ts";
-import { CompositeRepositoryCatalog } from "../../../../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
 import { BuiltInCatalog } from "../../../../../infrastructure/server/repository/built-ins/catalog.ts";
 
 type RequestOptions = {
@@ -176,37 +176,8 @@ export async function withHandler(
   ) => Promise<void>,
 ) {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-api-v3-"));
-  const local = new LocalRepositoryCatalog(rootDir);
   let nextRepositoryId = 1;
-  const remote: ConstructorParameters<typeof CompositeRepositoryCatalog>[1] = {
-    async deleteManagedData() {
-      return { status: "deleted" };
-    },
-    async dispose() {},
-    async getStore() {
-      throw new Error("WebDAV is not configured");
-    },
-    hasEntry() {
-      return false;
-    },
-    async initialize() {},
-    async listEntries() {
-      return { issues: [], repositories: [] };
-    },
-    async register() {
-      throw new Error("WebDAV is not used by this test");
-    },
-    async removeConnection() {
-      return false;
-    },
-    async renameConnection() {
-      throw new Error("WebDAV is not used by this test");
-    },
-    async retryDeletion() {
-      return { status: "deleted" };
-    },
-  };
-  const catalog = new CompositeRepositoryCatalog(local, remote, {
+  const catalog = new LocalRepositoryCatalog(rootDir, {
     createId: () => uuid(nextRepositoryId++),
   });
   const builtInCatalog = new BuiltInCatalog(rootDir);
@@ -251,7 +222,6 @@ export async function withHandler(
 export async function createRepository(handler: ApiRequestHandler) {
   const response = await dispatch<RepositoryDescriptorDto>(handler, {
     body: {
-      adapter: "local",
       content: createContent(),
       label: "API 仓库",
     },

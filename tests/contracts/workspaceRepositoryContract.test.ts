@@ -4,8 +4,6 @@ import { parseApiError } from "../../contracts/api/parseError";
 import {
   parseCreateRepository,
   parseRepositoryCatalog,
-  parseRepositoryDeletionMode,
-  parseRepositoryDeletionResult,
   parseRenameRepository,
 } from "../../contracts/workspace/parseCatalog";
 import { createPortableNameKey } from "../../core/naming/portableName";
@@ -51,23 +49,9 @@ describe("workspace repository v4 contract", () => {
     });
     expect(parseWorkspaceRepositoryCommitResult({ revision: revisionA }))
       .toEqual({ revision: revisionA });
-    expect(parseCreateRepository({ adapter: "local", content, label: "Primary" })).toEqual({
-      adapter: "local",
+    expect(parseCreateRepository({ content, label: "Primary" })).toEqual({
       content,
       label: "Primary",
-    });
-    expect(parseCreateRepository({
-      adapter: "webdav",
-      authentication: { type: "basic", username: "writer", password: "secret" },
-      initialContent: content,
-      label: "Remote",
-      url: "https://dav.example.test/notes",
-    })).toEqual({
-      adapter: "webdav",
-      authentication: { type: "basic", username: "writer", password: "secret" },
-      initialContent: content,
-      label: "Remote",
-      url: "https://dav.example.test/notes",
     });
     expect(parseRenameRepository({ label: "  Renamed  " })).toEqual({
       label: "  Renamed  ",
@@ -234,35 +218,24 @@ describe("workspace repository v4 contract", () => {
 
   it("parses healthy catalog entries, isolated issues, and structured errors", () => {
     const catalog = {
-      creatableAdapters: ["local", "webdav"],
       issues: [{
-        adapter: "local",
         code: "repository_corrupt",
         id: "broken",
         location: null,
         message: "Repository metadata is invalid",
-        status: "fault",
       }],
       repositories: [{
-        adapter: "local",
         id: "primary",
         label: "Primary",
         labelIssue: null,
         location: {
           hostPath: "/home/user/repositories/primary",
           serverPath: "/data/repositories/primary",
-          type: "local",
         },
       }],
     } as const;
 
     expect(parseRepositoryCatalog(catalog)).toEqual(catalog);
-    expect(parseRepositoryDeletionMode("delete-managed-data")).toBe(
-      "delete-managed-data",
-    );
-    expect(parseRepositoryDeletionResult({ status: "deleting" })).toEqual({
-      status: "deleting",
-    });
     expect(parseApiError({
       code: "resource_conflict",
       details: { currentRevision: revisionA },
@@ -276,7 +249,7 @@ describe("workspace repository v4 contract", () => {
     });
   });
 
-  it("requires exact structured locations matching their adapters", () => {
+  it("requires exact local filesystem locations", () => {
     const base = {
       id: "primary",
       label: "Primary",
@@ -284,70 +257,53 @@ describe("workspace repository v4 contract", () => {
     };
 
     expect(() => parseRepositoryCatalog({
-      creatableAdapters: [],
       issues: [],
       repositories: [{
-        adapter: "local",
         ...base,
-        location: { type: "webdav", url: "https://dav.example.test/" },
+        location: { type: "remote", url: "https://storage.example.test/" },
       }],
-    })).toThrow("does not match adapter local");
+    })).toThrow("unsupported field");
     expect(() => parseRepositoryCatalog({
-      creatableAdapters: [],
       issues: [],
       repositories: [{
-        adapter: "local",
         ...base,
         location: {
           hostPath: null,
           serverPath: "relative/repository",
-          type: "local",
         },
       }],
     })).toThrow("expected an absolute path");
     expect(() => parseRepositoryCatalog({
-      creatableAdapters: [],
       issues: [],
       repositories: [{
-        adapter: "webdav",
         ...base,
-        location: {
-          type: "webdav",
-          url: "https://user:secret@dav.example.test/?token=secret",
-        },
+        location: { url: "https://storage.example.test/repository" },
       }],
-    })).toThrow("without credentials");
+    })).toThrow("unsupported field");
     expect(() => parseRepositoryCatalog({
-      creatableAdapters: [],
       issues: [],
       repositories: [{
-        adapter: "local",
         ...base,
         unsupportedLocation: "ignored",
       }],
     })).toThrow("unsupported field");
   });
 
-  it("rejects manual ids, invalid create variants, and invalid deletion results", () => {
+  it("rejects manual ids and removed remote create variants", () => {
     const content = createWorkspaceRepositoryContent();
 
     expect(() => parseCreateRepository({
-      adapter: "local",
       content,
       id: "manual-id",
       label: "Primary",
     })).toThrow("unsupported field");
     expect(() => parseCreateRepository({
-      adapter: "webdav",
+      adapter: "remote",
       authentication: { type: "none", password: "must-not-cross" },
       initialContent: content,
       label: "Remote",
-      url: "https://dav.example.test/notes",
+      url: "https://storage.example.test/notes",
     })).toThrow("unsupported field");
-    expect(() => parseRepositoryDeletionMode("delete-everything"))
-      .toThrow("unsupported repository deletion mode");
-    expect(() => parseRepositoryDeletionResult({ status: "finished" }))
-      .toThrow("unsupported repository deletion status");
     expect(parseRenameRepository({ label: "   " })).toEqual({ label: "   " });
     expect(parseRenameRepository({ label: "bad:name" })).toEqual({
       label: "bad:name",

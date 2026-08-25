@@ -259,11 +259,9 @@ test.describe("repository and capacity flows", () => {
     );
 
     expect(catalogResponse.ok()).toBe(true);
-    expect(externalRepository?.location.type).toBe("local");
-    expect(rawRepository?.location.type).toBe("local");
     if (
-      externalRepository?.location.type !== "local" ||
-      rawRepository?.location.type !== "local" ||
+      !externalRepository ||
+      !rawRepository ||
       externalRepository.location.hostPath === null ||
       rawRepository.location.hostPath === null
     ) {
@@ -634,7 +632,7 @@ test.describe("repository and capacity flows", () => {
         continue;
       }
       const deleteResponse = await api.delete(
-        `/api/v3/admin/repositories/${encodeURIComponent(repository.id)}?mode=delete-managed-data`,
+        `/api/v3/admin/repositories/${encodeURIComponent(repository.id)}`,
       );
 
       expect(deleteResponse.ok()).toBe(true);

@@ -5,31 +5,27 @@ import {
 } from "../../../../infrastructure/client/repository/workspaceRepositoryCatalogCache";
 
 const descriptor = {
-  adapter: "webdav" as const,
-  id: "remote",
+  id: "primary",
   label: "Stable catalog label",
   labelIssue: null,
   location: {
-    type: "webdav" as const,
-    url: "https://dav.example.test/notes/",
+    hostPath: "/home/user/repositories/primary",
+    serverPath: "/data/repositories/primary",
   },
 };
 const issue = {
-  adapter: "local" as const,
   code: "repository_corrupt" as const,
   id: "broken",
   location: null,
   message: "Repository head is invalid",
-  status: "fault" as const,
 };
 
 describe("workspace repository catalog cache", () => {
-  it("strictly parses v4 descriptors and per-repository issues", () => {
+  it("strictly parses v5 local descriptors and per-repository issues", () => {
     const state = {
-      creatableAdapters: ["local" as const, "webdav" as const],
       issues: [issue],
       repositories: [descriptor],
-      version: 4 as const,
+      version: 5 as const,
     };
 
     expect(parseWorkspaceRepositoryCatalogCacheState(state)).toEqual(state);
@@ -40,16 +36,14 @@ describe("workspace repository catalog cache", () => {
       }),
     ).toThrow("Unsupported repository catalog cache version");
     expect(() =>
-      parseWorkspaceRepositoryCatalogCacheState({ ...state, version: 3 }),
+      parseWorkspaceRepositoryCatalogCacheState({ ...state, version: 4 }),
     ).toThrow("Unsupported repository catalog cache version");
     expect(() =>
       parseWorkspaceRepositoryCatalogCacheState({
         ...state,
         repositories: [{
-          adapter: "webdav",
-          id: "unsupported",
-          label: "Unsupported",
-          unsupportedLocation: "WebDAV",
+          ...descriptor,
+          unsupportedLocation: "remote",
         }],
       }),
     ).toThrow("unsupported field");
@@ -59,20 +53,18 @@ describe("workspace repository catalog cache", () => {
     const { labelIssue: _labelIssue, ...incompleteDescriptor } = descriptor;
 
     expect(() => parseWorkspaceRepositoryCatalogCacheState({
-      creatableAdapters: ["webdav"],
       issues: [],
       repositories: [incompleteDescriptor],
-      version: 4,
+      version: 5,
     })).toThrow("labelIssue: missing field");
   });
 
   it("isolates cached labels, structured locations, and issues from mutation", async () => {
     const cache = createMemoryWorkspaceRepositoryCatalogCache();
     const state = {
-      creatableAdapters: ["local" as const, "webdav" as const],
       issues: [{ ...issue }],
       repositories: [{ ...descriptor }],
-      version: 4 as const,
+      version: 5 as const,
     };
 
     await cache.save("catalog", state);
@@ -80,10 +72,9 @@ describe("workspace repository catalog cache", () => {
     state.issues[0]!.message = "Mutated";
 
     await expect(cache.load("catalog")).resolves.toEqual({
-      creatableAdapters: ["local", "webdav"],
       issues: [issue],
       repositories: [descriptor],
-      version: 4,
+      version: 5,
     });
   });
 });

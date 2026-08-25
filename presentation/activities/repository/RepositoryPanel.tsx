@@ -82,7 +82,6 @@ export function RepositoryPanel({
     const completed = await feedback.runAction(async () => {
       await view.deleteRepository({
         id: pending.issue.id,
-        mode: pending.action.mode,
       });
       return true;
     });
@@ -104,19 +103,12 @@ export function RepositoryPanel({
               id="repository-create-region"
               title="新建普通仓库"
             >
-              {view.creatableAdapters.length > 0 ? (
-                <RepositoryCreateForm
-                  adapters={view.creatableAdapters}
-                  className="repository-create"
-                  disabled={busy}
-                  onCreate={view.createRepository}
-                  onError={feedback.notifyError}
-                />
-              ) : (
-                <p className="repository-warning" role="alert">
-                  当前没有可用的普通仓库存储方式。
-                </p>
-              )}
+              <RepositoryCreateForm
+                className="repository-create"
+                disabled={busy}
+                onCreate={view.createRepository}
+                onError={feedback.notifyError}
+              />
               {view.catalogErrorMessage ? (
                 <div className="repository-create-catalog-error">
                   <p className="repository-warning" role="alert">
@@ -145,12 +137,9 @@ export function RepositoryPanel({
               view={view}
               onCancelDelete={() => setDeleteRepository(null)}
               onCopy={copyLocation}
-              onDelete={async (mode) =>
+              onDelete={async () =>
                 await feedback.runAction(async () => {
-                  await view.deleteRepository({
-                    id: target.repository!.id,
-                    mode,
-                  });
+                  await view.deleteRepository({ id: target.repository!.id });
                   return true;
                 }) === true}
               onRunAction={runAction}

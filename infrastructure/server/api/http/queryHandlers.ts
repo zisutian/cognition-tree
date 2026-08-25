@@ -55,7 +55,7 @@ export async function handleWorkspaceQuery(context: ApiHandlerContext) {
               principal.repositoryIds === null ||
               principal.repositoryIds.includes(id))
           )
-          .map(({ adapter, id, label }) => ({ adapter, id, label })),
+          .map(({ id, label }) => ({ id, label })),
       },
       statusCode: 200,
     };

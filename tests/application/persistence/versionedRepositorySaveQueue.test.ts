@@ -71,7 +71,6 @@ function createQueueHarness({
     location: {
       hostPath: null,
       serverPath: "/repositories/test",
-      type: "local",
     },
     async resolveConflictAndSynchronize() {
       throw new Error("Unexpected conflict resolution in save queue test.");

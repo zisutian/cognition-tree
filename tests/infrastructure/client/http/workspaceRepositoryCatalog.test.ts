@@ -17,26 +17,21 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 const descriptor = {
-  adapter: "local" as const,
   id: "primary",
   label: "Stable label",
   location: {
     hostPath: "/home/user/repositories/primary",
     serverPath: "/data/repositories/primary",
-    type: "local" as const,
   },
   labelIssue: null,
 };
 const issue = {
-  adapter: "local" as const,
   code: "repository_corrupt" as const,
   id: "broken",
   location: null,
   message: "Repository head is invalid",
-  status: "fault" as const,
 };
-const remoteCatalog = {
-  creatableAdapters: ["local", "webdav"] as const,
+const serverCatalog = {
   issues: [issue],
   repositories: [descriptor],
 };
@@ -51,12 +46,11 @@ describe("HTTP workspace repository catalog", () => {
   it("lists healthy repositories separately from per-repository issues", async () => {
     const catalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: "http://api.test/base",
-      fetch: async () => jsonResponse(remoteCatalog),
+      fetch: async () => jsonResponse(serverCatalog),
       preparation,
     });
 
     await expect(catalog.listRepositories()).resolves.toEqual({
-      creatableAdapters: ["local", "webdav"],
       issues: [issue],
       repositories: [descriptor],
     });
@@ -78,7 +72,6 @@ describe("HTTP workspace repository catalog", () => {
       preparation,
     });
     const input = {
-      adapter: "local" as const,
       content: createWorkspaceRepositoryContent("Workspace name"),
       label: "Stable label",
     };
@@ -108,7 +101,7 @@ describe("HTTP workspace repository catalog", () => {
         });
         return init?.method === "PATCH"
           ? jsonResponse(renamed)
-          : jsonResponse(remoteCatalog);
+          : jsonResponse(serverCatalog);
       },
       preparation,
     });
@@ -141,7 +134,6 @@ describe("HTTP workspace repository catalog", () => {
       preparation,
     });
     const input = {
-      adapter: "local" as const,
       content: createWorkspaceRepositoryContent(),
       label: "Primary",
       repositoryPath: "/must/not/cross/the/wire",
@@ -220,48 +212,26 @@ describe("HTTP workspace repository catalog", () => {
     });
   });
 
-  it("refreshes Local working trees on load without making WebDAV cache-first reads remote-first", async () => {
-    const createCatalog = (adapter: "local" | "webdav") => {
-      let loadCount = 0;
-      const catalog = createHttpWorkspaceRepositoryCatalog({
-        baseUrl: "http://api.test",
-        fetch: async () => {
-          loadCount += 1;
-          return jsonResponse({
-            content: createWorkspaceRepositoryContent(`Remote ${loadCount}`),
-            revision: loadCount === 1 ? revisionA : revisionC,
-          });
-        },
+  it("refreshes the server-backed local working tree on every load", async () => {
+    let loadCount = 0;
+    const catalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: "http://api.test",
+      fetch: async () => {
+        loadCount += 1;
+        return jsonResponse({
+          content: createWorkspaceRepositoryContent(`Remote ${loadCount}`),
+          revision: loadCount === 1 ? revisionA : revisionC,
+        });
+      },
       preparation,
-      });
-      const repository = catalog.openRepository(adapter === "local"
-        ? descriptor
-        : {
-            adapter: "webdav",
-            id: "remote",
-            label: "Remote",
-            location: {
-              type: "webdav",
-              url: "https://dav.example.test/notes/",
-            },
-            labelIssue: null,
-          });
+    });
+    const repository = catalog.openRepository(descriptor);
 
-      return { getLoadCount: () => loadCount, repository };
-    };
-    const local = createCatalog("local");
-    const webDav = createCatalog("webdav");
-
-    await local.repository.loadSnapshot();
-    await expect(local.repository.loadSnapshot()).resolves.toMatchObject({
+    await repository.loadSnapshot();
+    await expect(repository.loadSnapshot()).resolves.toMatchObject({
       content: { workspace: { name: "Remote 2" } },
     });
-    await webDav.repository.loadSnapshot();
-    await expect(webDav.repository.loadSnapshot()).resolves.toMatchObject({
-      content: { workspace: { name: "Remote 1" } },
-    });
-    expect(local.getLoadCount()).toBe(2);
-    expect(webDav.getLoadCount()).toBe(1);
+    expect(loadCount).toBe(2);
   });
 
   it("reuses the complete cached catalog only for offline failures", async () => {
@@ -271,7 +241,7 @@ describe("HTTP workspace repository catalog", () => {
       if (unavailable) {
         throw new TypeError("network unavailable");
       }
-      return jsonResponse(remoteCatalog);
+      return jsonResponse(serverCatalog);
     });
     const createCatalog = () =>
       createHttpWorkspaceRepositoryCatalog({
@@ -283,13 +253,11 @@ describe("HTTP workspace repository catalog", () => {
       });
 
     await expect(createCatalog().listRepositories()).resolves.toEqual({
-      creatableAdapters: ["local", "webdav"],
       issues: [issue],
       repositories: [descriptor],
     });
     unavailable = true;
     await expect(createCatalog().listRepositories()).resolves.toEqual({
-      creatableAdapters: ["local", "webdav"],
       issues: [issue],
       repositories: [descriptor],
     });
@@ -311,11 +279,7 @@ describe("HTTP workspace repository catalog", () => {
               },
               500,
             )
-          : jsonResponse({
-              creatableAdapters: ["local", "webdav"],
-              issues: [],
-              repositories: [descriptor],
-            }),
+          : jsonResponse({ issues: [], repositories: [descriptor] }),
       preparation,
     });
 
@@ -326,46 +290,7 @@ describe("HTTP workspace repository catalog", () => {
     );
   });
 
-  it("sends the exact WebDAV create variant without reflecting credentials", async () => {
-    const webDavDescriptor = {
-      adapter: "webdav" as const,
-      id: "remote",
-      label: "Remote",
-      location: {
-        type: "webdav" as const,
-        url: "https://dav.example.test/notes/",
-      },
-      labelIssue: null,
-    };
-    let body = "";
-    const catalog = createHttpWorkspaceRepositoryCatalog({
-      baseUrl: "http://api.test",
-      fetch: async (_input, init) => {
-        body = String(init?.body);
-        return jsonResponse(webDavDescriptor, 201);
-      },
-      preparation,
-    });
-    const input = {
-      adapter: "webdav" as const,
-      authentication: {
-        password: "secret",
-        type: "basic" as const,
-        username: "writer",
-      },
-      initialContent: createWorkspaceRepositoryContent(),
-      label: "Remote",
-      url: "https://dav.example.test/notes",
-    };
-
-    await expect(catalog.createRepository(input)).resolves.toEqual(
-      webDavDescriptor,
-    );
-    expect(JSON.parse(body)).toEqual(input);
-    expect(JSON.stringify(webDavDescriptor)).not.toContain("secret");
-  });
-
-  it("deletes through the mode query and atomically clears cached catalog/state", async () => {
+  it("deletes without a mode query and atomically clears cached catalog/state", async () => {
     const cache = createMemoryRepositoryClientCache();
     const atomicDelete = vi.spyOn(cache, "deleteRepositoryAtomically");
     const calls: Array<{ method: string; url: string }> = [];
@@ -374,7 +299,7 @@ describe("HTTP workspace repository catalog", () => {
       cache,
       fetch: async (input, init) => {
         calls.push({ method: init?.method ?? "GET", url: String(input) });
-        return jsonResponse({ status: "deleted" });
+        return new Response(null, { status: 204 });
       },
       token: "token-a",
       preparation,
@@ -382,11 +307,10 @@ describe("HTTP workspace repository catalog", () => {
 
     await expect(catalog.deleteRepository({
       id: "primary",
-      mode: "delete-managed-data",
-    })).resolves.toEqual({ status: "deleted" });
+    })).resolves.toBeUndefined();
     expect(calls).toEqual([{
       method: "DELETE",
-      url: "http://api.test/base/api/v3/admin/repositories/primary?mode=delete-managed-data",
+      url: "http://api.test/base/api/v3/admin/repositories/primary",
     }]);
     expect(atomicDelete).toHaveBeenCalledWith(expect.objectContaining({
       repositoryId: "primary",
@@ -400,7 +324,6 @@ describe("HTTP workspace repository catalog", () => {
       baseUrl: "http://api.test",
       cache,
       fetch: async () => jsonResponse({
-        creatableAdapters: ["local", "webdav"],
         issues: [],
         repositories: present ? [descriptor] : [],
       }),
@@ -422,7 +345,6 @@ describe("HTTP workspace repository catalog", () => {
     });
     present = false;
     await expect(catalog.listRepositories()).resolves.toEqual({
-      creatableAdapters: ["local", "webdav"],
       issues: [],
       repositories: [],
     });

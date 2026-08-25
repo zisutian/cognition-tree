@@ -24,7 +24,6 @@
     "test:architecture": "vitest run tests/architecture tests/presentation/designContract.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
-    "verify:webdav:live": "CTN_RUN_LIVE_WEBDAV=1 vitest run tests/infrastructure/server/adapters/webdav/webDavLive.test.ts --testTimeout=90000",
     "test:watch": "vitest",
     "verify:bundle": "node tooling/build/verifyClientBundle.ts",
     "preview": "vite preview"

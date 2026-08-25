@@ -43,13 +43,12 @@ export function createMemoryRepositoryClientCache(): RepositoryClientCache {
 
       await catalogs.save(catalogIdentity, {
         ...projectWorkspaceRepositoryLabelIssues({
-          creatableAdapters: catalog.creatableAdapters,
           issues: catalog.issues.filter(({ id }) => id !== repositoryId),
           repositories: catalog.repositories.filter(
             ({ id }) => id !== repositoryId,
           ),
         }),
-        version: 4,
+        version: 5,
       });
     },
     async renameRepositoryAtomically({
@@ -70,7 +69,6 @@ export function createMemoryRepositoryClientCache(): RepositoryClientCache {
         throw new Error(`Repository does not exist: ${repositoryId}`);
       }
       const projected = projectWorkspaceRepositoryLabelIssues({
-        creatableAdapters: catalog.creatableAdapters,
         issues: catalog.issues,
         repositories: catalog.repositories.map((repository) =>
           repository.id === repositoryId
@@ -79,7 +77,7 @@ export function createMemoryRepositoryClientCache(): RepositoryClientCache {
         ),
       });
 
-      await catalogs.save(catalogIdentity, { ...projected, version: 4 });
+      await catalogs.save(catalogIdentity, { ...projected, version: 5 });
     },
     snapshots,
   };

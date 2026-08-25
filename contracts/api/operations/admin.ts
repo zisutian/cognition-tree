@@ -21,14 +21,10 @@ import {
   ApiCreateRepositorySchema,
   ApiRenameRepositorySchema,
   ApiRepositoryCatalogSchema,
-  ApiRepositoryDeletionResultSchema,
   ApiRepositoryDescriptorSchema,
 } from "../schemas/storage.ts";
 import { apiBody, ownerAccess, type ApiOperationDefinition } from "./definition.ts";
 
-const repositoryDeleteQuerySchema = Type.Object({
-  mode: Type.Union([Type.Literal("delete-managed-data"), Type.Literal("remove-connection")]),
-}, { additionalProperties: false });
 const auditQuerySchema = Type.Object({
   cursor: Type.Optional(Type.Integer({ minimum: 0 })),
   limit: Type.Optional(Type.Integer({ maximum: 100, minimum: 1 })),
@@ -48,7 +44,7 @@ export const adminApiOperations = [
   { access: ownerAccess(), method: "GET", operationId: "listAdminRepositories", path: "/api/v3/admin/repositories", responses: { 200: ApiRepositoryCatalogSchema } },
   { access: ownerAccess(), body: apiBody(ApiCreateRepositorySchema, parseCreateRepository), method: "POST", operationId: "createAdminRepository", path: "/api/v3/admin/repositories", responses: { 201: ApiRepositoryDescriptorSchema } },
   { access: ownerAccess(), body: apiBody(ApiRenameRepositorySchema, parseRenameRepository), method: "PATCH", operationId: "renameAdminRepository", path: "/api/v3/admin/repositories/{repositoryId}", responses: { 200: ApiRepositoryDescriptorSchema } },
-  { access: ownerAccess(), method: "DELETE", operationId: "deleteAdminRepository", path: "/api/v3/admin/repositories/{repositoryId}", query: repositoryDeleteQuerySchema, responses: { 200: ApiRepositoryDeletionResultSchema, 202: ApiRepositoryDeletionResultSchema } },
+  { access: ownerAccess(), method: "DELETE", operationId: "deleteAdminRepository", path: "/api/v3/admin/repositories/{repositoryId}", responses: { 204: null } },
   { access: ownerAccess(), method: "GET", operationId: "listBuiltIns", path: "/api/v3/admin/built-ins", responses: { 200: ApiBuiltInCatalogSchema } },
   { access: ownerAccess(), method: "POST", operationId: "retryBuiltIn", path: "/api/v3/admin/built-ins/{builtInId}/retry", responses: { 200: ApiBuiltInRetryResultSchema } },
   { access: ownerAccess(), method: "GET", operationId: "listApiTokens", path: "/api/v3/admin/automation-tokens", responses: { 200: ApiTokenListSchema } },

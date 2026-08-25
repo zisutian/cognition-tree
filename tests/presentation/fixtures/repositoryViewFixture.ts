@@ -12,10 +12,6 @@ export function createRepositoryView(
     activeSessionRecoveryAction: null,
     catalogErrorMessage: "",
     catalogStatus: "ready",
-    creatableAdapters: [
-      { label: "本地", value: "local" },
-      { label: "WebDAV", value: "webdav" },
-    ],
     createRepository: async () => undefined,
     deleteRepository: async () => undefined,
     deletionBlocked: false,
@@ -26,15 +22,12 @@ export function createRepositoryView(
     reload: async () => undefined,
     repositories: [
       {
-        adapter: "local",
-        adapterLabel: "本地",
-        displayLabel: "Primary · 本地",
+        displayLabel: "Primary",
         id: "primary",
         label: "Primary",
         location: {
           hostPath: null,
           serverPath: "/data/repositories/primary",
-          type: "local",
         },
         locationRows: [{
           copyValue: "/data/repositories/primary",

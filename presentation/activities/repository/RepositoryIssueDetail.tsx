@@ -50,11 +50,7 @@ export function RepositoryIssueDetail({
         title="状态"
       >
         <RepositoryMetadata rows={[
-          { label: "类型", value: issue.adapterLabel },
-          {
-            label: "状态",
-            value: issue.status === "deleting" ? "正在清理" : "故障",
-          },
+          { label: "状态", value: "故障" },
           { label: "仓库 ID", value: issue.id },
         ]} />
         <p className="repository-warning" role="alert">
@@ -88,16 +84,13 @@ export function RepositoryIssueDetail({
             <Button
               className={action.confirmation ? "ui-button-danger" : undefined}
               disabled={busy}
-              key={`${action.mode}-${action.label}`}
+              key={action.label}
               onClick={() => {
                 if (action.confirmation) {
                   onBeginAction({ action, issue });
                   return;
                 }
-                onRunAction(() => view.deleteRepository({
-                  id: issue.id,
-                  mode: action.mode,
-                }));
+                onRunAction(() => view.deleteRepository({ id: issue.id }));
               }}
               type="button"
               variant="secondary"

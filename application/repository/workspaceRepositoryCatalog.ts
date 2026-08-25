@@ -1,11 +1,7 @@
-export type RepositoryAdapterKind = "local" | "webdav";
-export type RepositoryLocation =
-  | {
-      hostPath: string | null;
-      serverPath: string;
-      type: "local";
-    }
-  | { type: "webdav"; url: string };
+export type RepositoryLocation = {
+  hostPath: string | null;
+  serverPath: string;
+};
 export type RepositoryApiErrorCode =
   | "invalid_request"
   | "repository_not_found"
@@ -17,18 +13,13 @@ export type RepositoryApiErrorCode =
   | "insufficient_storage"
   | "unauthorized"
   | "internal_error";
-export type RepositoryAuthentication =
-  | { type: "none" }
-  | { password: string; type: "basic"; username: string };
 export type WorkspaceRepositoryDescriptor = {
-  adapter: RepositoryAdapterKind;
   id: string;
   label: string;
   labelIssue: "conflict" | "nonportable" | "reserved" | null;
   location: RepositoryLocation;
 };
 export type WorkspaceRepositoryCatalogIssue = {
-  adapter: RepositoryAdapterKind;
   code: Extract<
     RepositoryApiErrorCode,
     | "adapter_unavailable"
@@ -39,27 +30,20 @@ export type WorkspaceRepositoryCatalogIssue = {
   id: string;
   location: RepositoryLocation | null;
   message: string;
-  status: "deleting" | "fault";
 };
-export type RepositoryDeletionMode =
-  | "delete-managed-data"
-  | "remove-connection";
-export type RepositoryDeletionResult = { status: "deleted" | "deleting" };
 export type WorkspaceRepositoryCatalogData = {
-  creatableAdapters: RepositoryAdapterKind[];
   issues: WorkspaceRepositoryCatalogIssue[];
   repositories: WorkspaceRepositoryDescriptor[];
 };
 
 export type DeleteWorkspaceRepositoryInput = {
   id: string;
-  mode: RepositoryDeletionMode;
 };
 
 export type WorkspaceRepositoryCatalog = {
   deleteRepository(
     input: DeleteWorkspaceRepositoryInput,
-  ): Promise<RepositoryDeletionResult>;
+  ): Promise<void>;
   label: string;
   listRepositories(): Promise<WorkspaceRepositoryCatalogData>;
   renameRepository(input: {

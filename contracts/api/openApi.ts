@@ -58,14 +58,16 @@ export function createApiOpenApiDocument() {
     const responses = Object.fromEntries([
       ...Object.entries(operation.responses).map(([status, schema]) => [
         status,
-        {
-          content: {
-            [mediaType]: { schema: jsonSchema(schema) },
-          },
-          description: mediaType === "text/event-stream"
-            ? "Checkpoint followed by change notifications"
-            : "Successful response",
-        },
+        schema === null
+          ? { description: "No content" }
+          : {
+              content: {
+                [mediaType]: { schema: jsonSchema(schema) },
+              },
+              description: mediaType === "text/event-stream"
+                ? "Checkpoint followed by change notifications"
+                : "Successful response",
+            },
       ]),
       ...[
         400,

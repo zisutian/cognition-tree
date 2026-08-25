@@ -12,14 +12,12 @@ function descriptor(
   label: string,
 ): RepositoryDescriptorDto {
   return {
-    adapter: "local",
     id,
     label,
     labelIssue: null,
     location: {
       hostPath: null,
       serverPath: `/repositories/${id}`,
-      type: "local",
     },
   };
 }
@@ -48,7 +46,6 @@ describe("repository label policy", () => {
       descriptor("unsafe", "bad/name"),
     ];
     const projected = projectWorkspaceRepositoryLabelIssues({
-      creatableAdapters: ["local"],
       issues: [],
       repositories,
     });

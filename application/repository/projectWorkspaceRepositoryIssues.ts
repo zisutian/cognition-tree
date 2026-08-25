@@ -7,7 +7,6 @@ export type WorkspaceRepositoryRuntimeIssue =
       message: string;
     }
   | {
-      adapter: NonNullable<RepositoryApplication["activeDescriptor"]>["adapter"];
       code:
         | "repository_conflict"
         | "repository_persistence_error"
@@ -44,7 +43,6 @@ export function projectWorkspaceRepositoryRuntimeIssues(
   }
   if (source.session.status === "failed") {
     projected.push({
-      adapter: descriptor.adapter,
       code: "session_load_failed",
       kind: "repository",
       message: source.session.errorMessage,
@@ -58,7 +56,6 @@ export function projectWorkspaceRepositoryRuntimeIssues(
   }
   if (source.session.persistence.status === "conflict") {
     projected.push({
-      adapter: descriptor.adapter,
       code: "repository_conflict",
       kind: "repository",
       message:
@@ -68,7 +65,6 @@ export function projectWorkspaceRepositoryRuntimeIssues(
     });
   } else if (source.session.persistence.status === "error") {
     projected.push({
-      adapter: descriptor.adapter,
       code: "repository_persistence_error",
       kind: "repository",
       message: source.session.persistence.message,

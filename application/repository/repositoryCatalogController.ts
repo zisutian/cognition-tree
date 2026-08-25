@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { parsePortableName } from "../../core/naming/portableName";
-import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 import type { ActiveRepositorySelection } from "./activeRepositorySelection";
 import {
   reuseUnchangedRepositoryDescriptors,
@@ -13,13 +12,10 @@ import {
   type RepositoryCatalogState,
 } from "./repositoryCatalog";
 import type {
-  RepositoryDeletionResult,
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryCatalogData,
   WorkspaceRepositoryDescriptor,
 } from "./workspaceRepositoryCatalog";
-
-export const repositoryDeletionPollDelayMs = 1_000;
 
 export type RepositoryCatalogControllerSnapshot = {
   activeDescriptor: WorkspaceRepositoryDescriptor | null;
@@ -29,7 +25,7 @@ export type RepositoryCatalogControllerSnapshot = {
 
 export type RepositoryCatalogController = {
   createRepository(input: CreateRepositoryRequest): Promise<WorkspaceRepositoryDescriptor>;
-  deleteRepository(input: DeleteRepositoryRequest): Promise<RepositoryDeletionResult>;
+  deleteRepository(input: DeleteRepositoryRequest): Promise<void>;
   getSnapshot(): RepositoryCatalogControllerSnapshot;
   reload(): Promise<void>;
   renameRepository(input: RenameRepositoryRequest): Promise<void>;
@@ -47,7 +43,6 @@ export function createRepositoryCatalogController({
   activeRepositorySelection,
   catalog,
   provisionRepository,
-  scheduler,
 }: {
   activeRepositorySelection: ActiveRepositorySelection;
   catalog: WorkspaceRepositoryCatalog;
@@ -55,10 +50,8 @@ export function createRepositoryCatalogController({
     input: CreateRepositoryRequest,
     label: string,
   ): Promise<WorkspaceRepositoryDescriptor>;
-  scheduler: Pick<ApplicationScheduler, "schedule">;
 }): RepositoryCatalogController {
   const listeners = new Set<() => void>();
-  let cancelDeletionPoll: (() => void) | null = null;
   let operation: RepositoryCatalogOperation = "idle";
   let started = false;
   let snapshot: RepositoryCatalogControllerSnapshot = {
@@ -80,25 +73,9 @@ export function createRepositoryCatalogController({
       state,
     };
   };
-  const scheduleDeletionPoll = () => {
-    cancelDeletionPoll?.();
-    cancelDeletionPoll = null;
-    if (
-      !started ||
-      snapshot.state.status !== "ready" ||
-      !snapshot.state.issues.some(({ status }) => status === "deleting")
-    ) {
-      return;
-    }
-    cancelDeletionPoll = scheduler.schedule(() => {
-      cancelDeletionPoll = null;
-      void reload().catch(() => undefined);
-    }, repositoryDeletionPollDelayMs);
-  };
   const publish = (state: RepositoryCatalogState) => {
     operation = state.status === "ready" ? state.operation : "idle";
     snapshot = projectSnapshot(state);
-    scheduleDeletionPoll();
     listeners.forEach((listener) => listener());
   };
   const persistActiveRepository = (repositoryId: string | null) => {
@@ -128,7 +105,6 @@ export function createRepositoryCatalogController({
     persistActiveRepository(activeRepositoryId);
     publish({
       activeRepositoryId,
-      creatableAdapters: nextCatalog.creatableAdapters,
       issues: nextCatalog.issues,
       operation: current.status === "ready" ? current.operation : "idle",
       repositories,
@@ -176,9 +152,6 @@ export function createRepositoryCatalogController({
       const current = beginOperation("creating");
 
       try {
-        if (!current.creatableAdapters.includes(input.adapter)) {
-          throw new Error(`Repository adapter is unavailable: ${input.adapter}`);
-        }
         const label = parsePortableName(input.name, "Repository label");
         const descriptor = await provisionRepository(input, label);
         const latest = snapshot.state;
@@ -206,32 +179,14 @@ export function createRepositoryCatalogController({
       const previous = beginOperation("deleting");
 
       try {
-        const result = await catalog.deleteRepository(input);
+        await catalog.deleteRepository(input);
         let nextCatalog: WorkspaceRepositoryCatalogData;
 
         try {
           nextCatalog = await catalog.listRepositories();
         } catch {
-          const deletedEntry = previous.repositories.find(
-            ({ id }) => id === input.id,
-          );
-          const deletingIssue = result.status === "deleting" && deletedEntry
-            ? {
-                adapter: deletedEntry.adapter,
-                code: "repository_busy" as const,
-                id: deletedEntry.id,
-                location: deletedEntry.location,
-                message: "WebDAV managed data deletion is still being completed",
-                status: "deleting" as const,
-              }
-            : null;
-
           nextCatalog = {
-            creatableAdapters: previous.creatableAdapters,
-            issues: [
-              ...previous.issues.filter(({ id }) => id !== input.id),
-              ...(deletingIssue ? [deletingIssue] : []),
-            ],
+            issues: previous.issues.filter(({ id }) => id !== input.id),
             repositories: previous.repositories.filter(
               ({ id }) => id !== input.id,
             ),
@@ -247,7 +202,6 @@ export function createRepositoryCatalogController({
 
         publishCatalog(nextCatalog, preferredRepositoryId);
         finishOperation();
-        return result;
       } catch (error) {
         publish({ ...previous, operation: "idle" });
         throw error;
@@ -300,8 +254,6 @@ export function createRepositoryCatalogController({
     stop() {
       if (!started) return;
       started = false;
-      cancelDeletionPoll?.();
-      cancelDeletionPoll = null;
     },
     subscribe(listener) {
       listeners.add(listener);

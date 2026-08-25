@@ -127,7 +127,6 @@ function createRepositoryHarness({
     location: {
       hostPath: null,
       serverPath: "/repositories/test",
-      type: "local",
     },
     async resolveConflictAndSynchronize() {
       throw new Error("Unexpected conflict resolution in workspace session test.");
@@ -374,7 +373,6 @@ describe("workspace session controller", () => {
       location: {
         hostPath: null,
         serverPath: "/repositories/test",
-        type: "local",
       },
       persistence: { remoteRevision: conflictRevision, status: "conflict" },
       status: "ready",

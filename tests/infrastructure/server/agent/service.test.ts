@@ -63,7 +63,7 @@ const unavailableWorkspaceCatalog: WorkspaceRepositoryCatalog = {
     throw new Error("Workspace is outside this test");
   },
   async listRepositories() {
-    return { creatableAdapters: [], issues: [], repositories: [] };
+    return { issues: [], repositories: [] };
   },
   async renameRepository() {
     throw new Error("Workspace is outside this test");

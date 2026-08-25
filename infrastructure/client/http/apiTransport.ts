@@ -108,13 +108,14 @@ async function assertSuccessfulResponse(response: Response) {
   });
 }
 
-export async function requestApiJson(
+async function requestApiResponse<Result>(
   fetchFn: typeof fetch,
   baseUrl: string,
   endpoint: string,
+  consumeResponse: (response: Response) => Promise<Result>,
   init?: RequestInit,
   token?: string,
-): Promise<unknown> {
+): Promise<Result> {
   const controller = new AbortController();
   const headers = new Headers(init?.headers);
 
@@ -139,7 +140,7 @@ export async function requestApiJson(
     });
 
     await assertSuccessfulResponse(response);
-    return await readResponseJson(response);
+    return await consumeResponse(response);
   } catch (error) {
     if (controller.signal.aborted) {
       throw new HttpApiUnavailableError(
@@ -164,4 +165,45 @@ export async function requestApiJson(
     globalThis.clearTimeout(timeout);
     init?.signal?.removeEventListener("abort", abortFromCaller);
   }
+}
+
+export async function requestApiJson(
+  fetchFn: typeof fetch,
+  baseUrl: string,
+  endpoint: string,
+  init?: RequestInit,
+  token?: string,
+): Promise<unknown> {
+  return requestApiResponse(
+    fetchFn,
+    baseUrl,
+    endpoint,
+    readResponseJson,
+    init,
+    token,
+  );
+}
+
+export async function requestApiNoContent(
+  fetchFn: typeof fetch,
+  baseUrl: string,
+  endpoint: string,
+  init?: RequestInit,
+  token?: string,
+): Promise<void> {
+  return requestApiResponse(
+    fetchFn,
+    baseUrl,
+    endpoint,
+    async (response) => {
+      if (response.status !== 204 || await response.text() !== "") {
+        throw new HttpApiResponseError(
+          `API returned content where 204 No Content was required (${response.status}).`,
+          { statusCode: response.status },
+        );
+      }
+    },
+    init,
+    token,
+  );
 }
