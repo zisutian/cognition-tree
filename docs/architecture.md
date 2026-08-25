@@ -343,7 +343,9 @@ allowlist，API key 不进入 shell/MCP environment。缺少 sandbox、binary/ve
 Codex 的会话专属 STDIO MCP 只定义 scope 内 list/read/search、三个
 stage_*_command 和 submit_proposal。MCP 进程不导入 repository/store，只通过
 Unix domain socket 或 Windows named pipe 连接父服务私有 IPC，并携带单会话短期
-capability。OpenAI-compatible adapter 直接消费同一 contracts/agent tool schema，
+capability。list 不接收参数，read 只接收 resourceId；领域、仓库和细粒度范围始终
+从不可变 session scope 派生，模型不能重复提交或覆盖范围事实。OpenAI-compatible
+adapter 直接消费同一 contracts/agent tool schema，
 使用 `/chat/completions` SSE。Ollama adapter 直接连接模型服务的 `/v1/chat/completions`，
 不调用本地代码 Agent 的 task API、MCP、Git、shell、ChangeSet 或审批层。native 与
 Ollama-only single-json 都由 runtime 分类，presentation 只消费最终字符串；工具信封

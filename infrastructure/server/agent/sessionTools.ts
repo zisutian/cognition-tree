@@ -190,16 +190,13 @@ export class AgentSessionTools {
     switch (definition.name) {
       case "list":
         return {
-          result: await this.#listResources(
-            record,
-            input as { domain: AgentScope["domain"] },
-          ),
+          result: await this.#listResources(record),
         };
       case "read":
         return {
           result: await this.#readResource(
             record,
-            input as { domain: AgentScope["domain"]; resourceId: string },
+            input as { resourceId: string },
           ),
         };
       case "search":
@@ -238,13 +235,9 @@ export class AgentSessionTools {
     }
   }
 
-  async #listResources(
-    record: AgentToolSession,
-    input: { domain: AgentScope["domain"] },
-  ) {
+  async #listResources(record: AgentToolSession) {
     const scope = record.controller.snapshot().scope;
 
-    if (scope.domain !== input.domain) throw new AgentScopeViolationError();
     if (scope.domain === "workspace") {
       const snapshot = await this.#catalog.getStore(scope.repositoryId)
         .then((store) => store.loadSnapshot());
@@ -296,11 +289,10 @@ export class AgentSessionTools {
 
   async #readResource(
     record: AgentToolSession,
-    input: { domain: AgentScope["domain"]; resourceId: string },
+    input: { resourceId: string },
   ) {
     const scope = record.controller.snapshot().scope;
 
-    if (scope.domain !== input.domain) throw new AgentScopeViolationError();
     if (scope.domain === "workspace") {
       const snapshot = await this.#catalog.getStore(scope.repositoryId)
         .then((store) => store.loadSnapshot());

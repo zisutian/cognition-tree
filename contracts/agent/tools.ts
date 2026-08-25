@@ -99,8 +99,8 @@ export type AgentTodoCommandIntentDto = Static<
 >;
 
 export const agentToolDefinitions = [
-  { description: "List resources inside the immutable session scope.", inputSchema: strictObject({ domain: Type.Union([Type.Literal("workspace"), Type.Literal("journal"), Type.Literal("todo")]) }), name: "list" },
-  { description: "Read one resource inside the immutable session scope.", inputSchema: strictObject({ domain: Type.Union([Type.Literal("workspace"), Type.Literal("journal"), Type.Literal("todo")]), resourceId: identifier }), name: "read" },
+  { description: "List resources inside the immutable session scope. This tool takes no arguments.", inputSchema: strictObject({}), name: "list" },
+  { description: "Read one resource by ID inside the immutable session scope.", inputSchema: strictObject({ resourceId: identifier }), name: "read" },
   { description: "Search content inside the immutable session scope.", inputSchema: strictObject({ query: Type.String({ minLength: 1 }) }), name: "search" },
   { description: "Stage a Workspace business intent without committing it.", inputSchema: AgentWorkspaceCommandIntentSchema, name: "stage_workspace_command" },
   { description: "Stage a Journal business intent without committing it.", inputSchema: AgentJournalCommandIntentSchema, name: "stage_journal_command" },

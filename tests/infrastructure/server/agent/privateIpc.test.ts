@@ -51,7 +51,7 @@ describe("private Agent IPC capability", () => {
       capability,
       id: requestId,
       sessionId,
-      tool: { input: { domain: "journal" }, name: "list" },
+      tool: { input: {}, name: "list" },
     };
 
     try {
@@ -95,7 +95,7 @@ describe("private Agent IPC capability", () => {
         capability,
         id: requestId,
         sessionId,
-        tool: { input: { domain: "todo" }, name: "list" },
+        tool: { input: {}, name: "list" },
       });
 
       expect(response).toMatchObject({
