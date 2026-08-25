@@ -8,12 +8,12 @@
 - Journal：全局唯一。手动创建一天多条日记，固定标题为 `YYYY-MM-DD-0001`，左侧按“年 → 月 → 条目”倒序显示；支持仓内引用和 `[[仓库名:笔记名]]`。
 - Todo：全局唯一。每个事项集合是一篇 CTN，`[]` 表示任务，缩进表示父子关系；普通完成与周期阶段、发生日期和完成历史保存于独立 sidecar。
 
-Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的存储位置、故障与重试统一显示在“仓库 → 内置数据”中。
+Journal 与 Todo 不依赖当前普通仓库。它们的存储位置、故障与重试统一显示在“仓库 → 内置数据”中。
 
 ## 主要能力
 
-- Local 与 WebDAV 普通仓库的创建、切换、重命名和安全删除。
-- Local 所见即所得目录：文件夹对应目录，笔记对应以标题命名的 `.ctn` 文件。
+- 本地普通仓库的创建、切换、重命名和安全删除。
+- 所见即所得的本地目录：文件夹对应目录，笔记对应以标题命名的 `.ctn` 文件。
 - CTN 编辑、块结构、跨笔记结构移动、引用导航和图谱。
 - 系统语法（日记、代办）与笔记库多语法配置；普通语法的“打开编辑”和“实际启用”相互独立。
 - 页面生命周期内的乐观编辑、内存待同步队列、CAS 同步与显式冲突处理。
@@ -47,7 +47,7 @@ Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的�
     pnpm build
     git diff --check
 
-真实 WebDAV 协议验收使用 `pnpm verify:webdav:live`，会运行超过一分钟。容量基准使用 `pnpm benchmark:capacity`。
+容量基准使用 `pnpm benchmark:capacity`，覆盖本地文件仓库与浏览器到服务端的同步路径。
 
 ## 运行配置
 
@@ -58,7 +58,6 @@ Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的�
     CTN_REPOSITORY_ROOT=.cognition-tree/repositories
     CTN_REPOSITORY_HOST_ROOT=
     CTN_SERVER_STATE_DIR=.cognition-tree/server
-    CTN_WEBDAV_PRIVATE_TARGETS=
     CTN_PUBLIC_URL=
     CTN_API_TOKEN=
     CTN_AGENT_MAX_AUDIT_ENTRIES=1000
@@ -81,7 +80,7 @@ Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的�
 
 ## 数据位置
 
-Local 仓库的可见目录是权威工作树：
+本地仓库的可见目录是权威工作树：
 
     仓库/
       .ctn/                  身份、顺序、语法、块元数据和事务
@@ -89,7 +88,7 @@ Local 仓库的可见目录是权威工作树：
       项目/
         设计.ctn
 
-可见 `.ctn` 文件只保存编辑器正文；稳定 ID、时间和事务事实位于根部保留目录 `.ctn/`。Local 在加载、提交和手动“重新扫描文件”时读取真实目录，不运行文件 watcher。非 `.ctn` 文件不会进入笔记树，也不会被仓库操作改写或删除。
+可见 `.ctn` 文件只保存编辑器正文；稳定 ID、时间和事务事实位于根部保留目录 `.ctn/`。服务在加载、提交和手动“重新扫描文件”时读取真实目录，不运行文件 watcher。非 `.ctn` 文件不会进入笔记树，也不会被仓库操作改写或删除。
 
 Server 模式下，普通仓库与内置数据共用一个内容根目录，但保持独立
 contract、session 和 API：
@@ -97,10 +96,14 @@ contract、session 和 API：
     <CTN_REPOSITORY_ROOT>/.built-ins/journal/
     <CTN_REPOSITORY_ROOT>/.built-ins/todo/
 
-`.built-ins/` 是受保护的基础设施目录，不会被 Local catalog 识别为普通
-Workspace。`CTN_SERVER_STATE_DIR` 保存 WebDAV 连接、只读 automation token
-哈希，以及不含提示词、正文、完整 diff 或 tool output 的 Agent operation
-ledger；令牌明文只在创建时显示一次。
+`.built-ins/` 是受保护的基础设施目录，不会被普通仓库 catalog 识别。
+`CTN_SERVER_STATE_DIR` 保存只读 automation token 哈希、Agent 配置，以及不含
+提示词、正文、完整 diff 或 tool output 的 Agent operation ledger；令牌明文只在
+创建时显示一次。
+
+普通仓库只能位于服务端本地文件系统中的 `CTN_REPOSITORY_ROOT`。容器部署必须将
+该目录完整挂载为持久卷；从局域网浏览页面或调用 API 只是在远程访问服务，不会把
+仓库存储变成远程文件系统。
 
 Agent provider、profile、模型参数与凭据由“设置 → 智能体”管理，内部状态保存于
 `<CTN_SERVER_STATE_DIR>/agent-config-v1/configuration.json`；该文件不是用户仓库

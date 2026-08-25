@@ -34,7 +34,6 @@
     CTN_REPOSITORY_ROOT          默认 .cognition-tree/repositories
     CTN_REPOSITORY_HOST_ROOT     可选，仅用于显示宿主机路径
     CTN_SERVER_STATE_DIR         默认 .cognition-tree/server
-    CTN_WEBDAV_PRIVATE_TARGETS   可选，允许的私网 origin/CIDR
     CTN_PUBLIC_URL               非 loopback 部署的 HTTPS 公开 URL
     CTN_API_TOKEN                非 loopback 部署的 bearer token
     CTN_AGENT_MAX_AUDIT_ENTRIES 必填，Agent 审计最大条数
@@ -77,15 +76,6 @@ fallback。localStorage 只保存当前普通 repository id，以及用户在设
 服务端从公开 URL 推导允许的 Host、Origin 与 CORS。启动配置中的 apiToken
 会由浏览器读取并发送，因此只适用于单用户受控客户端；静态站点必须与客户端
 采用相同的访问边界。
-
-WebDAV Basic 认证只允许 HTTPS。URL 不允许 userinfo、query 或 fragment；请求不跟随重定向，不读取代理环境变量，并在每次访问前重新解析目标地址。默认只允许 global-unicast。
-
-私网目标通过精确 origin 或 CIDR 显式授权：
-
-    CTN_WEBDAV_PRIVATE_TARGETS='https://nas.example:5006,192.168.1.0/24 fd00::/8'
-
-link-local、metadata、unspecified、multicast、broadcast 和 reserved 地址始终拒绝。
-
 
 ## 4. API 与数据目录
 
@@ -181,15 +171,11 @@ HTTP 内容根目录：
     <CTN_REPOSITORY_ROOT>/.built-ins/journal/
     <CTN_REPOSITORY_ROOT>/.built-ins/todo/
 
-.built-ins 是保留基础设施目录，Local catalog 不会将它解释为普通仓库。
+.built-ins 是保留基础设施目录，普通仓库 catalog 不会将它解释为普通仓库。
 
 前端只在页面生命周期内为 Workspace、Journal 与 Todo 保留内存 cache、待同步
 队列和冲突。刷新或关闭页面不会恢复未同步内容。旧版本的 IndexedDB 数据不
 读取、不转换也不自动清理，需要时由用户在浏览器开发工具中手动删除。
-
-WebDAV 连接配置保存在：
-
-    <CTN_SERVER_STATE_DIR>/webdav-connections/<repository-id>.json
 
 新服务状态分区保存在：
 
@@ -251,14 +237,17 @@ unavailable，之后必须新建会话；session 删除或到期也会停止 Cod
 
 ## 5. Repository 行为
 
-Local 只支持删除托管数据。WebDAV 支持：
+普通仓库只有一个本地 catalog，仓库目录固定在 `CTN_REPOSITORY_ROOT` 下。创建请求
+只包含名称和初始内容，稳定 ID 由服务端分配；仓库名必须可移植、不能占用“日记”或
+“代办”，并且在 catalog 内唯一。
 
-    remove-connection       删除本地连接，保留远端内容
-    delete-managed-data     发布 deletion tombstone，再清理托管 generations
+删除前界面要求输入完整仓库名称。服务端确认目录只含托管数据后，以同一根目录内的
+durable rename 作为删除提交点，再执行可恢复的物理清理；成功的管理 API 返回
+`204 No Content`，没有删除模式、连接状态或轮询协议。
 
-WebDAV 以不可变 generation、60 秒 writer lease 和 ETag CAS 提交。远端删除保留无关文件；清理未完成时 catalog 显示 deleting 并可恢复或停止跟踪。
-
-添加 WebDAV 时会探测 ETag、条件请求、PROPFIND、MKCOL、PUT、GET 和 DELETE。空目标可以初始化为 v4；已有合法 v4 保持为远端事实；非空 unmanaged、旧版本和 tombstone 目标不会被接管。
+浏览器仍通过 snapshot sync、CAS 与 SSE 访问服务端。本地仅描述仓库所在的服务端
+文件系统或容器持久卷，不限制页面与 API 从局域网访问。catalog cache 使用严格的新
+版本，旧缓存不读取；升级后首次离线启动不能依靠旧目录缓存，必须先成功连接一次服务端。
 
 普通 Workspace 使用 v4，Journal 使用 v3，Todo 使用 v4。它们是唯一合法格式；
 只有 epoch 与内容同时不存在时才初始化。部分状态、非当前版本、损坏内容和
@@ -285,21 +274,14 @@ pnpm build 先清理旧构建，再输出客户端到 .artifacts/build/client、
 配置，可以在部署启动前替换而无需重建 JavaScript。pnpm clean 清除全部可重建
 的 .artifacts，不会触碰 .cognition-tree 中的本地仓库与服务状态。
 
-真实 WebDAV 验收：
-
-    pnpm verify:webdav:live
-
-该命令启动 loopback 文件系统 WebDAV，验证条件请求、双 writer fencing、断线恢复、交错读写和 lease 续租，耗时至少一分钟。
-
-
 ## 7. 容器与双端
 
 未来容器路径约定：
 
     /data/repositories  -> CTN_REPOSITORY_ROOT（普通仓库与内置数据）
-    /data/server        -> CTN_SERVER_STATE_DIR（WebDAV、access-v1、agent-config-v1、agent-v2）
+    /data/server        -> CTN_SERVER_STATE_DIR（access-v1、agent-config-v1、agent-v2）
 
-Local 仓库必须整体挂载，包含根部 .ctn/。`/data/server` 必须持久挂载，否则
+本地仓库目录必须整体挂载，包含根部 .ctn/。`/data/server` 必须持久挂载，否则
 provider、profile 和凭据会随容器 recreate 丢失。当前项目不提供 Dockerfile、镜像或 Compose。
 自行容器化时还必须提供可用的进程 sandbox、可写且受边界约束的临时目录、
 Codex 子进程与私有 IPC。Provider 凭据由设置页写入持久服务状态。此次 v3/Codex

@@ -22,7 +22,7 @@ application/
 
 infrastructure/
 
-    client 侧内存 cache、HTTP/SSE 适配、Node server、Local/WebDAV adapter，
+    client 侧内存 cache、HTTP/SSE 适配、Node server、本地 working-tree repository，
     以及 Agent profile、模型 adapter、Codex 子进程、私有 IPC、内存会话和
     operation ledger。CAS 与保存队列策略属于 application，平台层只实现端口；
     client 不直接导入 Server 存储 adapter。浏览器启动时只从独立的
@@ -61,7 +61,7 @@ tooling 不属于运行时源码层，只持有工程脚本和专用配置。tes
     infrastructure/client 内部依赖方向固定为：platform 只依赖 platform；repository
     只依赖 repository；http 可依赖 http 与 repository；runtime 作为组合根可依赖
     runtime、http、platform 与 repository。
-    Local 与 WebDAV adapter 互不依赖。
+    Workspace 本地 repository 实现只依赖 repository 与 persistence 基础设施。
     生产依赖图无环；相对 import 必须能由 NodeNext 处理。
 
 
@@ -69,7 +69,7 @@ tooling 不属于运行时源码层，只持有工程脚本和专用配置。tes
 
 Workspace v4：
 
-    Local 从真实目录、可见 .ctn 正文、隐藏 sidecar 和 .ctn/syntax/ 重建 canonical content；.ctn/repository.json 的 durable atomic replace 是提交点。WebDAV 使用不可变 generation、writer lease 与 ETag CAS。
+    服务端从真实目录、可见 `.ctn` 正文、隐藏 sidecar 和 `.ctn/syntax/` 重建 canonical content；`.ctn/repository.json` 的 durable atomic replace 是提交点。
 
 Journal v3：
 
@@ -103,8 +103,8 @@ Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation �
 同一份内容依次经过四类边界，边界职责不得重叠：
 
     unknown ingress：contracts/api registry 是 HTTP request body 的唯一
-    unknown → DTO 入口；HTTP client codec、磁盘 reader 和 WebDAV generation
-    reader 分别负责各自来源的 wire decode。内存 cache 接收 typed value，只做
+    unknown → DTO 入口；HTTP client codec 与磁盘 reader 分别负责各自来源的 wire
+    decode。内存 cache 接收 typed value，只做
     structuredClone 隔离；未来若改为持久化 cache，必须在反序列化入口重新 decode。
 
     typed handoff：decode 后只传递领域 Content。HTTP backend、cache、save queue
@@ -122,7 +122,7 @@ Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation �
     复用旧 projection。
 
     transition authority：客户端 local-first repository 负责页面内 optimistic
-    transition；服务端 store 在 CAS 锁或 WebDAV lease 内，以真正读到的 before 和
+    transition；服务端 store 在 CAS 锁内，以真正读到的 before 和
     待提交的 after prepared snapshot 执行 authoritative transition。commit receipt
     携带实际 before/after，事件投影直接消费 receipt。use case 可以先读 snapshot
     以增量准备 after projection，但该预读结果不是 authoritative before；若其后 CAS
@@ -141,8 +141,8 @@ staged content。`commitAgentProposalExactly` 只接收已批准 proposal 内冻
 query、search、resource projection 与 change projection 消费 store/session 已准备的
 projection，不得重新建立全量索引。merge、冲突恢复和 working-tree reconciliation
 生成新内容时只 preparation 一次，并用 analysis override 传递已经完成的单
-note/entry/collection 分析。WebDAV 在上传 generation 和发布 pointer 前完成完整
-Workspace preparation；上传后的 validate 只检查读取完整性与 revision。
+note/entry/collection 分析。本地 store 在发布 repository metadata 提交点前完成完整
+Workspace preparation；提交后的 validate 只检查读取完整性与 revision。
 
 
 ## 6. 存储与 API
@@ -153,9 +153,9 @@ HTTP 内置数据：
     <CTN_REPOSITORY_ROOT>/.built-ins/todo/
 
 物理共用 CTN_REPOSITORY_ROOT 不改变领域边界：.built-ins 是保留的基础设施
-子树，不进入普通 Local catalog；Journal、Todo 仍使用各自的 contract、
+子树，不进入普通 Workspace catalog；Journal、Todo 仍使用各自的 contract、
 versioned store、session 和 API，也不获得普通仓库的创建、删除、重命名、
-切换或 WebDAV 能力。
+切换能力。
 
 前端始终通过 HTTP/SSE 访问 Server。Workspace、Journal 与 Todo 各自拥有页面
 生命周期内的内存 cache、draft 和冲突；runtime 重建后从 Server 重新加载，不
@@ -282,8 +282,7 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     repository；client/http 只实现 /api/v3 transport 与两类 SSE；client/runtime 只负责把
     这些实现注入 application 端口。源码中不存在 IndexedDB 或存储模式分支。
     server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
-    Local adapter 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。
-    WebDAV adapter 分为连接 config codec、配置持久化、registry facade、registry lease、删除协调器、generation store、transport 和 writer lease。registry lease 独占安全目录与进程锁；删除协调器独占 deleting issue、远端清理、配置提交与退避重试。
+    repository/workspace/local 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。LocalRepositoryCatalog 独占稳定 ID 分配、名称约束、目录枚举、受控删除与 store 组合。
     API server 的 api/http 拥有 request lifecycle、认证、限制和 registry 分派；
     api/resources、api/sync 分别拥有只读资源投影与 owner snapshot 同步，search
     保持独立查询入口。server/access 只拥有 automation token；server/agent 拥有
@@ -293,8 +292,8 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     系统内容、通用版本存储和 Workspace 持久布局。只有 contracts/api registry
     定义 HTTP wire，只有 owner sync 与 Agent exact commit 可以写内容。
 
-这些模块只拆职责，不改变 Local WAL 提交点、WebDAV 删除状态机或仓库内容
-schema。
+这些模块只拆职责，不改变本地 WAL 提交点或仓库内容 schema。普通仓库没有第二种
+存储实现、组合 catalog、连接 registry 或存储回退路径。
 
 Agent 配置由 application/agent 端口协调、设置界面操作并写入独立的 versioned 服务端状态；固定 1 小时 idle TTL、
 24 小时 absolute TTL，审计容量由必填环境变量提供。每个 profile 显式声明
