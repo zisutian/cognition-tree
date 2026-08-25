@@ -171,6 +171,10 @@ version、digest 与有效参数；相关 resident session 会阻止危险配置
 环境变量或客户端 JSON 配置监听、端口、路径、owner token、审计容量或 Provider
 私网目标；这些事实只能从“设置 → 服务”或“设置 → 智能体”修改。
 
+单一 origin 是部署契约，不是跨层调用许可。官方网页和未来浏览器界面只能通过
+registry 声明的 `/api/v3` HTTP/SSE operation 使用后端能力；不得导入或调用
+`infrastructure/server` 内部实现。该约束不禁止其他应用按授权策略访问公开 API。
+
 首次服务只监听 `127.0.0.1:3001`。局域网模式必须已有 owner credential 与 HTTPS
 public origin，TLS 由外部代理终止。远程浏览器通过 owner secret 建立 HttpOnly
 session；本机 owner 同时检查 socket 与 Host。显式错误 Bearer 永远 401。

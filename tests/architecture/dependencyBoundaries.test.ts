@@ -154,6 +154,19 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("requires browser code to reach the server through the public API", () => {
+    const violations = auditImportPolicies([{
+      filePath: "../../presentation/shell/AppRoot.tsx",
+      importPath: "../../infrastructure/server/agent/service",
+      targetPath: "../../infrastructure/server/agent/service.ts",
+      targetRoot: "infrastructure",
+    }], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "browser-to-server API boundary: ../../presentation/shell/AppRoot.tsx imports ../../infrastructure/server/agent/service",
+    ]);
+  });
+
   it("allows cross-domain application coordination only in explicit roots", () => {
     const imports = [
       {

@@ -229,7 +229,7 @@ export const dependencyImportPolicies: readonly ImportPolicy[] = [
     applies: ({ filePath, targetPath }) =>
       !filePath.startsWith("../../infrastructure/server/") &&
       targetPath.startsWith("../../infrastructure/server/"),
-    name: "client independence from server storage",
+    name: "browser-to-server API boundary",
   },
 ];
 

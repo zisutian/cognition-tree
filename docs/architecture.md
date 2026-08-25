@@ -25,9 +25,10 @@ infrastructure/
     client 侧内存 cache、HTTP/SSE 适配、Node server、本地 working-tree repository，
     以及 Agent profile、模型 adapter、Codex 子进程、私有 IPC、内存会话和
     operation ledger。CAS 与保存队列策略属于 application，平台层只实现端口；
-    client 不直接导入 Server 存储 adapter。Node 是开发与生产的唯一 HTTP
-    composition root；浏览器与 API 同源，客户端只使用相对 `/api/v3`，不存在
-    独立启动配置或客户端 owner token。
+    client 不直接导入任何 Server 实现。Node 是开发与生产的唯一 HTTP composition
+    root；浏览器与 API 同源，客户端只使用相对 `/api/v3`，不存在独立启动配置或
+    客户端 owner token。同端口、同进程只是运行与部署事实，不授予前端调用服务端
+    内部模块的能力。
 
 presentation/
 
@@ -61,6 +62,9 @@ tooling 不属于运行时源码层，只持有工程脚本和专用配置。tes
     infrastructure/client 内部依赖方向固定为：platform 只依赖 platform；repository
     只依赖 repository；http 可依赖 http 与 repository；runtime 作为组合根可依赖
     runtime、http、platform 与 repository。
+    presentation 与其它浏览器侧源码不得导入 infrastructure/server；所有后端能力
+    必须通过 infrastructure/client 的 HTTP/SSE adapter 调用 registry 声明的公开
+    `/api/v3` 契约。是否同源、同端口或同一进程不改变该边界。
     Workspace 本地 repository 实现只依赖 repository 与 persistence 基础设施。
     生产依赖图无环；相对 import 必须能由 NodeNext 处理。
 
