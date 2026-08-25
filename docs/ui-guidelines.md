@@ -15,7 +15,7 @@
     左侧只显示与仓库/笔记列表同密度的内存会话和唯一新建 `+`；profile、认证、刷新和硬范围表单不放在侧栏。
     点击 `+` 后在主区选择不可扩大的硬范围；只展示设置中显式选择的默认 profile，不在此切换。Workspace folder/note 细粒度范围只在对应仓库已加载时可选。
     主区按事件 sequence 增量增长对话，显示 idle、queued、running、等待审批和 unavailable 状态；“取消并停止”会终止 runtime，之后必须新建会话；不显示 raw chain-of-thought。
-    右侧显示 proposal store、base revision、digest、change set 和最终聚合 diff，只提供整批批准/拒绝。destructive proposal 批准后显示独立 checkbox 与确认提交，不把确认混入第一步审批。
+    右侧默认显示冻结的仓库/领域名称、资源路径、中文动作摘要、块计数和带前后行号的正文 diff，不显示资源 ID 作为标题。删除警告保持醒目，只提供整批批准/拒绝；destructive proposal 批准后显示独立 checkbox 与确认提交，不把确认混入第一步审批。base revision、digest、资源/块 ID、change set 和字符级 diff 放入默认关闭的“技术详情”；长标识显示前后各 8 位并可复制完整值。多份 Proposal 用“序号 · 状态 · 人类目标名称”选择。
 
 笔记：
 

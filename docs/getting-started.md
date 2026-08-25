@@ -143,7 +143,12 @@ Profile ID、凭据和浏览器已保存的默认 Profile ID 保留；format 1 �
 结果前取消。大型本地模型可能需要数分钟；浏览器通过状态轮询观察检查，不受普通 API
 请求的 30 秒上限截断，模型本身仍受该 Profile 的 timeout 限制。检查使用真实的
 Workspace 新建笔记 schema，并同时提供一个干扰读取工具；假 handler 不会创建内容、
-staging 或 proposal，只有正确单工具调用和后续自然语言总结都完成才通过。
+staging 或 proposal。当前检查依次验证读取检查专用的写作指南、正确单工具调用和
+后续自然语言总结；因此 chat Profile 的“最大工具步骤”不能小于 3。
+
+本版本的 Agent tool contract 已升级。现有 chat Profile 会因旧符合性 digest 失效而
+暂时 unavailable；升级并重启 Cognition Tree 后，在“设置 → 智能体”重新执行一次
+符合性检查即可继续创建新会话。检查不会写入仓库内容。
 
 Ollama 发现只在用户点击后执行，默认地址是 `http://127.0.0.1:11434`。认知树只调用
 模型层 `/api/tags`、显式探测所需的 `/api/ps` 与 `/api/show`，以及推理所需的

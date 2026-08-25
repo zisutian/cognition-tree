@@ -281,9 +281,12 @@ presentation composition root 注入，避免任一应用协调根反向调用�
 
 一份 proposal 只允许一个 Workspace repository、Journal store 或 Todo store；跨
 store 意图必须顺序生成多份 proposal。proposal 是带 UUID、version、SHA-256
-digest、base revision、change set、最终 diff 与 destructive 标记的只读值，只能
-整批批准或拒绝。任意 store revision 变化使其 stale；删除批准后必须再经过独立
-destructive confirmation。
+digest、base revision、change set、最终 diff、冻结 review 与 destructive 标记的
+只读值，只能整批批准或拒绝。各领域 projection 从同一原始 base 与最终 staged
+projection 生成资源标题/路径、语义动作、块计数和带有限上下文的行 diff；review
+进入 proposal v2 digest，presentation 只渲染它，不重新解析 CTN 或请求模型总结。
+Workspace 仓库名称无法解析时 proposal fail closed，不回退显示 repository ID。任意
+store revision 变化使其 stale；删除批准后必须再经过独立 destructive confirmation。
 
 application/search/SearchIndex 是三领域资源投影、Unicode 归一化、grapheme
 源码偏移、片段、过滤、排序、fault 与 cursor 的唯一 owner。过滤在命中折叠前
@@ -342,7 +345,8 @@ allowlist，API key 不进入 shell/MCP environment。缺少 sandbox、binary/ve
 不匹配或协议结果不满足这些断言时 profile fail closed。会话结束、过期或取消后
 撤销 capability、停止进程，并只清理服务为该 session 建立的临时目录。
 
-Codex 的会话专属 STDIO MCP 只定义 scope 内 list/read/search、submit_proposal，
+Codex 的会话专属 STDIO MCP 只定义 scope 内 list/read/search、describe_syntax、
+submit_proposal，
 以及当前领域的独立 staging 动作：Workspace 9 个、Journal 3 个、Todo 11 个。
 动作名拥有 intent kind，参数不再重复 kind；每个模型侧 JSON Schema 都以严格
 object/properties 为顶层，recurrence 的 daily、weekly、monthly 也各自独立。MCP 的
@@ -361,6 +365,14 @@ completion 返回多项调用、未知工具、参数不满足 schema，或文�
 生成聊天 delta，最终失败会移除空 assistant 消息。runtime 直接统计序列化会话历史
 字符数决定压缩，不做字符数除以四的伪 token 换算；output/tool-step limit 与 timeout
 继续独立生效。项目不建立公开 MCP，也不监听外部 MCP endpoint。
+
+CTN 写作语法由内容 store 独占，不固化在 prompt、runtime 或模型知识中。
+`describe_syntax` 从当前 staged projection（没有 staging 时从当前 store snapshot）
+投影名称、标题边界、tab 缩进宽度、root/block/inline 规则和最小示例，并把已读的
+owner + presentation fingerprint 记录在会话内。create/replace 正文工具只有在该
+fingerprint 仍匹配时才可进入领域 preparation；否则返回私有
+`syntax_read_required` 并零 staging。普通 read 响应剥离重复 writing guide，确保
+此工具是唯一语法知识入口。
 
 agent-config-v1 的当前内部 formatVersion 是 3。首次打开 format 1/2 时，chat profile
 的旧 token 估算值乘以四写为字符预算，profile version 加一并清除旧 conformance；
@@ -402,17 +414,22 @@ Journal 左侧为不可编辑的“年 → 月 → 条目”树。年、月和�
 
 Todo 使用“集合列表 → CTN 编辑器 → 结构详情”。集合排序复用 presentation 的共享列表拖拽几何和落点样式；详情复用共享结构树的行、缩进、选中、诊断和行号视觉，以 checkbox 执行任务状态变更，不暴露任务拖动。只有选中的任务行显示周期图标；配置表单原地展开，编辑器只显示不可交互的周期标记。
 
-Agent 使用“会话列表 → 新会话硬范围或增量对话 → proposal diff/审批”三栏布局。
+Agent 使用“会话列表 → 新会话硬范围或增量对话 → proposal 审查/审批”三栏布局。
 Provider、profile、URL、model、凭据、发现、探测和符合性检查只在 Settings 的
 application facade 中管理。符合性检查是服务端内存后台操作：启动请求返回 202，
 客户端以短请求读取阶段或取消，不以延长通用 HTTP 超时维持单个请求；Profile timeout
 只约束模型 turn。检查同时提供真实 `stage_workspace_create_note` schema 与一个干扰
-读取工具，要求一次只调用正确 staging 工具；宿主只运行无内容 mutation 的假 handler，
-随后以受限输出验证自然语言收束。
+读取工具，要求一次只调用正确 staging 工具；宿主只运行无内容 mutation 的假 handler。
+检查流程实际要求 `describe_syntax → stage_workspace_create_note →` 自然语言总结，
+随后以受限输出验证收束；因此 chat Profile 的生产 `maxToolSteps` 下限为 3。
 不显示 raw
 chain-of-thought。发送、批准与 destructive confirmation 前先同步范围对应的已加载
 session，失败即阻止 HTTP 操作。Agent event sequence 缺口通过重读 session snapshot
 恢复；message delta 直接增长现有 DOM，而不是等待 turn 完成后一次替换。
+右侧默认只显示冻结的 store 名称、资源路径、动作摘要、块计数和行级 diff；删除警告
+必须先于审批动作可见。协议 ID、revision、digest、change set 与字符级 diff 位于默认
+关闭的技术详情中，长值显示前后各 8 位并提供复制完整值。Proposal 选择器使用序号、
+状态和人类目标名称，不把 UUID 当作主标签。
 
 Problems 所有权：
 

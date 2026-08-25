@@ -133,7 +133,9 @@ Notes、Journal、Todo、Syntax 和 Repository 的行操作只在选中项显示
 Agent Activity 是 owner 控制的内容修改入口。左侧只显示驻留会话与唯一的新建 `+`；
 新建时在中间显示并使用设置中已保存的默认 profile，用户只选择不可扩大的硬范围，
 不能在此切换 profile；创建后中间显示增量对话与取消；右侧显示单 store proposal
-的 base revision、digest、change set、最终聚合 diff 与整批审批。界面
+冻结的目标名称、动作摘要和带行号的正文 diff，并提供整批审批。base revision、digest、
+资源/块 ID、change set 与字符级 diff 只进入默认折叠的技术详情；长标识默认缩写并可复制
+完整值。界面
 不展示 raw chain-of-thought，也不允许提交 model、URL、凭据或安全参数。
 
 会话创建时只能选择一种领域范围：
@@ -152,14 +154,20 @@ Agent 操作。
 base 和最终 staged content 计算一次。proposal 只读、只属于一个 Workspace
 repository、Journal 或 Todo store，只能整批批准或拒绝；包含删除时，批准后还需
 独立二次确认。任意 revision 变化都使 exact CAS stale，不自动 retry、merge 或
-rebase。跨 store 任务必须按顺序生成多份 proposal。
+rebase。跨 store 任务必须按顺序生成多份 proposal。人类审查投影由对应领域在提交
+proposal 时从同一 base 与最终 staged projection 一次性计算，并纳入 proposal version
+与 digest；presentation 不重新解析正文，也不使用模型生成审批摘要。
 
 模型每次 completion 最多请求一个工具。对多个调用、未知工具、缺字段、错类型或
 无效工具信封，宿主必须零执行并在既有 tool-step 限制内要求模型纠正；错误、工具
 信封和工具结果不得成为对话气泡，失败不得永久留下空 assistant 消息。模型只获得
-list/read/search/submit_proposal 和当前 scope 所属领域的独立业务动作工具，不能看到
-其他领域 mutation。符合性检查必须覆盖真实 Workspace staging schema，而不是只验证
-一个与生产工具无关的简单对象。
+list/read/search/describe_syntax/submit_proposal 和当前 scope 所属领域的独立业务动作
+工具，不能看到其他领域 mutation。创建或替换任何 CTN 可编辑正文前，模型必须先调用
+`describe_syntax` 读取当前 store 的已编译写作指南；宿主按 syntax fingerprint 记录
+会话知识，未读取、语法不可用或指纹已变化时必须零 staging 并要求重新读取。普通 read
+不重复携带写作指南。符合性检查必须覆盖 `describe_syntax →` 真实 Workspace staging
+schema `→` 自然语言总结，而不是只验证一个与生产工具无关的简单对象；chat Profile
+必须至少允许 3 个 tool steps。
 
 Agent 对话、压缩摘要和会话只驻留服务内存。服务重启、1 小时 idle TTL、24 小时
 absolute TTL 或主动删除都会丢失会话。operation ledger 只记录 owner、session、

@@ -19,7 +19,7 @@ Journal 与 Todo 不依赖当前普通仓库。它们的存储位置、故障与
 - 页面生命周期内的乐观编辑、内存待同步队列、CAS 同步与显式冲突处理。
 - Todo 支持按天、周、月的本地日历周期、规则阶段和不丢失的完成统计；规则在结构行内配置。
 - 提供唯一 `/api/v3` 契约：自动化只读内容/搜索/SSE，官方客户端 owner-only snapshot sync，以及 owner-only Agent 会话、proposal 审批与审计；不存在公开写 command API。
-- 固定智能体 Activity 支持 Codex app-server、OpenAI-compatible 与直连 Ollama profile。模型只能在会话硬范围内读取和暂存，owner 审查聚合 diff 后才以 exact CAS 写入；删除还需要独立二次确认。
+- 固定智能体 Activity 支持 Codex app-server、OpenAI-compatible 与直连 Ollama profile。模型只能在会话硬范围内读取和暂存，生成 CTN 正文前必须读取当前 store 的实际语法；owner 通过资源名称、动作摘要和行级 diff 审查 Proposal 后才以 exact CAS 写入，删除还需要独立二次确认。
 - 按 Activity 投影 diagnostics、运行故障和操作错误；短暂反馈与非稳定保存状态统一进入底栏，设置页不挂载问题面板。
 
 没有健康普通仓库时仍挂载完整工作台：日记、代办、仓库和设置保持可用，普通内容活动提供创建仓库入口。
