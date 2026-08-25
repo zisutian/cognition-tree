@@ -9,10 +9,12 @@ import {
 import path from "node:path";
 import { chmod, lstat, mkdir } from "node:fs/promises";
 import {
-  SystemConfiguration,
   SystemConfigurationConflictError,
-  SystemConfigurationInput,
   SystemConfigurationValidationError,
+} from "../../../application/system/systemConfiguration.ts";
+import type {
+  SystemConfiguration,
+  SystemConfigurationInput,
 } from "../../../application/system/systemConfiguration.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import {

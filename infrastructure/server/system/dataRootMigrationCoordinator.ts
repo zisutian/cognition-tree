@@ -15,10 +15,12 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import {
-  DataRootMigrationStatus,
   SystemMigrationConflictError,
   SystemMigrationNotFoundError,
   SystemMigrationValidationError,
+} from "../../../application/system/systemConfiguration.ts";
+import type {
+  DataRootMigrationStatus,
   SystemMaintenancePort,
 } from "../../../application/system/systemConfiguration.ts";
 import type { BootstrapConfigurationStore } from "./bootstrapConfigurationStore.ts";
