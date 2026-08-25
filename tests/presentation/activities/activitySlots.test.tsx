@@ -426,4 +426,76 @@ describe("activity slots", () => {
       "在左侧选择 allowlist profile 和不可扩大的硬范围。",
     );
   });
+
+  it("currently exposes raw proposal protocol fields as the review surface", () => {
+    const fixture = createAgentApplicationFixture();
+    const proposalId = "00000000-0000-4000-8000-000000000101";
+    const resourceId = "note-00000000-0000-4000-8000-000000000102";
+    const baseRevision = `sha256:${"1".repeat(64)}` as const;
+    const digest = `sha256:${"2".repeat(64)}` as const;
+    const session = {
+      activeTurnId: null,
+      createdAt: "2026-08-25T00:00:00.000Z",
+      id: "00000000-0000-4000-8000-000000000100",
+      lastActiveAt: "2026-08-25T00:00:00.000Z",
+      messages: [],
+      problem: null,
+      profileDigest: `sha256:${"3".repeat(64)}` as const,
+      profileId: "profile-a",
+      profileLabel: "27B",
+      profileModel: "qwen3.8:27b",
+      profileVersion: 1,
+      proposals: [{
+        baseRevision,
+        changes: {
+          blocks: [],
+          occurredAt: "2026-08-25T00:00:00.000Z",
+          resources: [{
+            domain: "workspace" as const,
+            kind: "created" as const,
+            repositoryId: "repository-a",
+            resourceId,
+            version: `sha256:${"4".repeat(64)}` as const,
+          }],
+        },
+        destructive: false,
+        digest,
+        diff: [{ from: 0, insertedText: "- 新内容", resourceId, to: 0 }],
+        id: proposalId,
+        status: "pending" as const,
+        store: { domain: "workspace" as const, repositoryId: "repository-a" },
+        version: 1,
+      }],
+      providerDigest: `sha256:${"5".repeat(64)}` as const,
+      providerId: "provider-a",
+      providerVersion: 1,
+      scope: {
+        domain: "workspace" as const,
+        repositoryId: "repository-a",
+        target: { kind: "repository" as const },
+      },
+      sequence: 1,
+      state: "awaiting-approval" as const,
+    };
+    const agent = {
+      ...fixture,
+      state: {
+        ...fixture.state,
+        activeSessionId: session.id,
+        sessions: [session],
+      },
+    };
+    const markup = renderSlot(createAgentActivitySlots({
+      agent,
+      creatingSession: false,
+      onBeginCreateSession: () => undefined,
+      onCollapseDetail: controls.onCollapseDetail,
+      onSelectSession: () => undefined,
+    }).detail);
+
+    expect(markup).toContain(baseRevision);
+    expect(markup).toContain(digest);
+    expect(markup).toContain(resourceId);
+    expect(markup).toContain("最终聚合 diff");
+  });
 });

@@ -23,6 +23,12 @@ describe("Agent read tool contract", () => {
       resourceId: "note-1",
     })).toBe(false);
   });
+
+  it("does not currently expose an explicit syntax-read tool", () => {
+    expect(agentToolDefinitions.map(({ name }) => name)).not.toContain(
+      "describe_syntax",
+    );
+  });
 });
 
 describe("Agent mutation tool compatibility", () => {

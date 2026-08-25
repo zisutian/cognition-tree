@@ -20,4 +20,14 @@ describe("Agent runtime instruction policy", () => {
     expect(instructions).toContain("owner alone approves and commits");
     expect(instructions).toContain("Never print a tool-call envelope");
   });
+
+  it("does not currently establish an explicit syntax-read contract", () => {
+    const instructions = createAgentRuntimeInstructions({
+      domain: "workspace",
+      repositoryId: "repository-a",
+      target: { kind: "repository" },
+    });
+    expect(instructions).toContain("Stage every requested mutation");
+    expect(instructions).not.toContain("describe_syntax");
+  });
 });
