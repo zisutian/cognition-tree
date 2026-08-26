@@ -12,15 +12,11 @@ import {
   cx,
 } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
-
-const stateLabels = {
-  idle: "空闲",
-  queued: "排队中",
-  running: "正在推理",
-  "awaiting-approval": "等待审批",
-  "awaiting-destructive-confirmation": "等待删除确认",
-  unavailable: "不可用",
-} as const;
+import { StatusBadge } from "../../ui/shared/StatusPresentation";
+import {
+  agentSessionStateLabels,
+  formatAgentScopeLabel,
+} from "./agentViewLabels";
 
 export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
   const feedback = useFeedback();
@@ -43,6 +39,7 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
     return (
       <Panel aria-label="Agent 对话" className="agent-conversation-panel">
         <EmptyState
+          compact
           description="使用左侧的 + 在主界面选择不可扩大的硬范围；默认 profile 在设置中选择。"
           title="创建或选择一个 Agent 会话"
         />
@@ -65,8 +62,14 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
   return (
     <Panel aria-label="Agent 对话" className="agent-conversation-panel">
       <PanelHeader
-        actions={
-          canCancel ? (
+        actions={(
+          <>
+            <StatusBadge
+              tone={session.state === "unavailable" ? "danger" : "neutral"}
+            >
+              {agentSessionStateLabels[session.state]}
+            </StatusBadge>
+            {canCancel ? (
             <Button
               onClick={() => void feedback.runAction(agent.controller.cancel)}
               title="取消推理并停止此会话 runtime"
@@ -76,11 +79,16 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
               <Square aria-hidden="true" size={12} />
               取消并停止
             </Button>
-          ) : null
-        }
-        title={`Agent 对话 · ${stateLabels[session.state]}`}
+            ) : null}
+          </>
+        )}
+        title={`${session.profileLabel} · ${session.profileModel}`}
       />
       <PanelBody className="agent-conversation-body">
+        <div className="agent-conversation-summary">
+          <span>{formatAgentScopeLabel(session.scope)}</span>
+          <span>Profile v{session.profileVersion}</span>
+        </div>
         <div
           aria-live="polite"
           className="agent-message-scroll ui-scroll-surface"

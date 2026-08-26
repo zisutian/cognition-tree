@@ -14,7 +14,6 @@
   align-content: start;
 }
 
-.agent-create-form > label,
 .agent-proposal-picker {
   display: grid;
   gap: var(--ui-gap-tight);
@@ -88,8 +87,13 @@
   padding: calc(var(--ui-gap) * 2);
 }
 
+.agent-session-create-content > .ui-section + .ui-section {
+  padding-top: calc(var(--ui-gap) * 2);
+  border-top: var(--ui-border-width) solid var(--color-border);
+}
+
 .agent-create-form {
-  max-width: 560px;
+  max-width: 720px;
 }
 
 .agent-conversation-panel,
@@ -104,9 +108,19 @@
 }
 
 .agent-conversation-body {
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   min-height: 0;
   padding: 0;
+}
+
+.agent-conversation-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-gap-tight) var(--ui-gap);
+  padding: var(--ui-gap-tight) calc(var(--ui-gap) * 2);
+  border-bottom: var(--ui-border-width) solid var(--color-border);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
 }
 
 .agent-message-scroll {
@@ -127,12 +141,12 @@
   gap: var(--ui-gap-tight);
   max-width: min(86%, 720px);
   padding: var(--ui-gap) calc(var(--ui-gap) * 1.25);
-  border: var(--ui-border-width) solid var(--color-border);
-  border-radius: calc(var(--ui-radius) * 2);
+  border-left: var(--ui-border-width) solid var(--color-border);
 }
 
 .agent-message.is-user {
   justify-self: end;
+  border-left: 0;
   background: var(--color-accent-subtle);
 }
 
@@ -178,6 +192,20 @@
   display: grid;
   gap: var(--ui-gap-tight);
   margin: 0;
+}
+
+.agent-proposal-body {
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0;
+  min-height: 0;
+}
+
+.agent-proposal-scroll {
+  display: grid;
+  align-content: start;
+  gap: var(--ui-gap);
+  min-height: 0;
+  overflow: auto;
 }
 
 .agent-proposal-meta > div {
@@ -416,12 +444,18 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--ui-gap);
-  padding-top: var(--ui-gap);
+  padding: var(--ui-gap);
   border-top: var(--ui-border-width) solid var(--color-border);
 }
 
 .agent-destructive-confirmation {
+  padding: var(--ui-gap);
+  border-top: var(--ui-border-width) solid var(--color-border);
   color: var(--color-error);
+}
+
+.agent-destructive-confirmation p {
+  margin: 0;
 }
 
 .agent-destructive-confirmation label {

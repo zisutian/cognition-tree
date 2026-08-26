@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { MessageSquare, Plus } from "lucide-react";
-import type {
-  AgentApplication,
-  AgentScope,
-} from "../../../application/agent";
+import type { AgentApplication } from "../../../application/agent";
 import { Button } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
@@ -12,35 +9,10 @@ import {
   CompactContextList,
   CompactContextRow,
 } from "../../ui/shared/CompactContextList";
-
-const sessionStateLabels = {
-  idle: "空闲",
-  queued: "排队中",
-  running: "推理中",
-  "awaiting-approval": "等待审批",
-  "awaiting-destructive-confirmation": "等待删除确认",
-  unavailable: "不可用",
-} as const;
-
-function sessionScopeLabel(scope: AgentScope) {
-  if (scope.domain === "workspace") {
-    const target = scope.target.kind === "repository"
-      ? "整个仓库"
-      : scope.target.kind === "folder"
-        ? `文件夹 ${scope.target.folderId}`
-        : `笔记 ${scope.target.noteId}`;
-
-    return `Workspace · ${target}`;
-  }
-  if (scope.domain === "journal") {
-    return scope.entryIds === null
-      ? "Journal · 全域"
-      : `Journal · ${scope.entryIds.length} 篇日记`;
-  }
-  return scope.collectionIds === null
-    ? "Todo · 全域"
-    : `Todo · ${scope.collectionIds.length} 个集合`;
-}
+import {
+  agentSessionStateLabels,
+  formatAgentScopeLabel,
+} from "./agentViewLabels";
 
 export function AgentContextPanel({
   agent,
@@ -81,7 +53,7 @@ export function AgentContextPanel({
 
           return (
             <CompactContextRow
-              actions={(
+              actions={selected ? (
                 <CompactContextActionButtons
                   actions={[{
                     ariaLabel: `删除会话 ${session.id}`,
@@ -96,7 +68,7 @@ export function AgentContextPanel({
                     tone: "danger",
                   }]}
                 />
-              )}
+              ) : undefined}
               icon={<MessageSquare aria-hidden="true" size={13} />}
               key={session.id}
               label={(
@@ -105,7 +77,7 @@ export function AgentContextPanel({
                     {session.profileLabel}
                   </strong>
                   <span>{session.profileModel} · v{session.profileVersion}</span>
-                  <span>{sessionScopeLabel(session.scope)}</span>
+                  <span>{formatAgentScopeLabel(session.scope)}</span>
                 </span>
               )}
               onSelect={() => {
@@ -114,10 +86,10 @@ export function AgentContextPanel({
               }}
               rowClassName="agent-session-row"
               selected={selected}
-              title={`${session.profileLabel} · ${session.profileModel} · v${session.profileVersion} · ${sessionScopeLabel(session.scope)}`}
+              title={`${session.profileLabel} · ${session.profileModel} · v${session.profileVersion} · ${formatAgentScopeLabel(session.scope)}`}
               trailing={(
                 <span className="agent-session-state">
-                  {sessionStateLabels[session.state]}
+                  {agentSessionStateLabels[session.state]}
                 </span>
               )}
             />
@@ -125,7 +97,7 @@ export function AgentContextPanel({
         })}
       </CompactContextList>
       {state.sessions.length === 0 ? (
-        <p className="agent-muted">没有驻留中的 Agent 会话。</p>
+        <p className="context-empty">没有驻留中的 Agent 会话。</p>
       ) : null}
     </div>
   );

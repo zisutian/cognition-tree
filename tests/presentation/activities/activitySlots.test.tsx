@@ -421,7 +421,7 @@ describe("activity slots", () => {
     expect(mainMarkup).not.toContain('aria-label="新建会话"');
     expect(mainMarkup).toContain(">领域<");
     expect(mainMarkup).toContain(">硬范围<");
-    expect(mainMarkup).toContain("请先在设置中选择");
+    expect(mainMarkup).toContain("需要在设置中完成配置");
 
     const emptyConversationMarkup = renderSlot(createAgentActivitySlots({
       agent,
@@ -538,6 +538,8 @@ describe("activity slots", () => {
     }).detail);
 
     expect(markup).toContain("测试仓库");
+    expect(markup).toContain('aria-label="Proposal 摘要"');
+    expect(markup).toContain("1 项");
     expect(markup).toContain("新建 1 项");
     expect(markup).toContain("新笔记");
     expect(markup).toContain("- 新内容");
