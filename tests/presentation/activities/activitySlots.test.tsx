@@ -560,5 +560,39 @@ describe("activity slots", () => {
     expect(markup).not.toContain(baseRevision);
     expect(markup).not.toContain(digest);
     expect(markup).not.toContain(resourceId);
+
+    const destructiveSession = {
+      ...session,
+      proposals: [{
+        ...session.proposals[0]!,
+        destructive: true,
+        status: "awaiting-destructive-confirmation" as const,
+      }, {
+        ...session.proposals[0]!,
+        id: "00000000-0000-4000-8000-000000000103",
+        status: "rejected" as const,
+      }],
+      state: "awaiting-destructive-confirmation" as const,
+    };
+    const destructiveMarkup = renderSlot(createAgentActivitySlots({
+      agent: {
+        ...fixture,
+        state: {
+          ...fixture.state,
+          activeSessionId: destructiveSession.id,
+          sessions: [destructiveSession],
+        },
+      },
+      creatingSession: false,
+      onBeginCreateSession: () => undefined,
+      onCollapseDetail: controls.onCollapseDetail,
+      onSelectSession: () => undefined,
+    }).detail);
+
+    expect(destructiveMarkup).toContain("第 1 份");
+    expect(destructiveMarkup).toContain("第 2 份");
+    expect(destructiveMarkup).toContain("独立删除确认");
+    expect(destructiveMarkup).toContain('type="checkbox"');
+    expect(destructiveMarkup).toContain("确认删除并提交");
   });
 });

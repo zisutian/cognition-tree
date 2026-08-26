@@ -32,6 +32,7 @@ test.describe("Agent activity flows", () => {
     api,
     page,
   }) => {
+    await page.setViewportSize({ height: 720, width: 1280 });
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "日记").click();
     await expect(page.getByRole("region", { name: "日记编辑" })).toBeVisible();
@@ -101,6 +102,19 @@ test.describe("Agent activity flows", () => {
     await expect(proposal).toContainText(e2eAgentJournalBody);
     await expect(proposal.locator("details")).not.toHaveAttribute("open", "");
     await expect(proposal.locator("summary")).toHaveText("技术详情");
+    const proposalBox = await proposal.boundingBox();
+    const approvalBox = await proposal.locator(".agent-proposal-actions")
+      .boundingBox();
+
+    expect(proposalBox).not.toBeNull();
+    expect(approvalBox).not.toBeNull();
+    expect(Math.abs(
+      proposalBox!.y + proposalBox!.height -
+        (approvalBox!.y + approvalBox!.height),
+    )).toBeLessThanOrEqual(12);
+    expect(await page.evaluate(() =>
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth
+    )).toBe(true);
     await page.reload();
     await expect(page.getByRole("navigation", { name: "工作区功能" }))
       .toBeVisible();

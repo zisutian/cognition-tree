@@ -131,5 +131,8 @@ test.describe("search activity flows", () => {
     await expect.poll(() =>
       resultBody.evaluate((element) => element.scrollTop)
     ).toBeCloseTo(resultScrollTop, 0);
+    expect(await page.evaluate(() =>
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth
+    )).toBe(true);
   });
 });
