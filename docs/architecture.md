@@ -470,6 +470,8 @@ presentation/activities/<activity>/。跨 Activity 的组合只存在于 shell�
 
 Repository context、普通仓库详情、故障详情、内置数据详情和危险区是独立 view；确认状态由顶层 RepositoryPanel 持有。Todo 的集合列表、编辑器与结构详情彼此独立。引用图谱 Canvas 只声明 DOM，模拟、位置缓存、缩放和平移生命周期位于专用 hook/controller。
 
+ToolSurface 负责设置、仓库正文、搜索结果、智能体、语法和 Problems 的共享高密度正文组合。Activity 提供领域内容和回调，面板标题、正文宽度、分区、基础列表、工具栏与分割线由共享组件表达；左侧 context 与笔记、日记、代办编辑正文不进入该作用域。
+
 笔记 Activity 内部拥有 edit、structure、graph 三种原生 tab 模式，并按仓库
 保存所选模式。编辑模式持续挂载，因此模式往返不替换当前笔记或 CodeMirror
 历史；结构操作和引用图谱复用同一 Workspace session、selection 与导航，不再

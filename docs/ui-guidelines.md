@@ -38,7 +38,7 @@
 
 语法：
 
-    左侧分“系统语法”和“笔记库语法”，两个分组都不显示计数。选中普通语法只打开编辑；行内“用”才改变启用项。当前启用项用固定前导状态图标替换文件图标，不在行尾重复“启用”文字。仓库与语法的小按钮只在该行 selected 后渲染。
+    左侧先列出系统语法，再列出笔记库语法，不显示“系统语法 / 笔记库语法”可见标题或计数；新建按钮位于两类列表之间并左对齐。选中普通语法只打开编辑；行内“用”才改变启用项。当前启用项用固定前导状态图标替换文件图标，不在行尾重复“启用”文字。仓库与语法的小按钮只在该行 selected 后渲染。
     语法名称只在左侧列表和主区标题显示，重命名只发生在左侧原行；右侧基础设置不重复名称字段。
     日记与代办只显示实际可见正文相关规则；synthetic title 是内部解析事实，不出现在系统语法表格或预览。
     普通笔记语法仍显示标题规则。无效草稿存在时禁止离开，并提供“撤销无效更改”。
@@ -78,9 +78,9 @@ Agent 故障，以及 API、同步、设置和 UI action 的 operational inciden
 不隐藏其他来源问题；点击行再导航到拥有恢复能力的笔记、仓库、Agent 会话或来源
 Activity。
 
-Problems 常态高度为 24px，默认折叠；展开状态和高度按普通仓库保存。左侧固定显示标题和计数，右侧显示最新的五秒短暂反馈，随后恢复 Notes、Journal 或 Todo 的非稳定保存状态；稳定时为空，不显示“已保存”。右侧文本必须省略，不能挤压左侧计数。
+Problems 常态高度为 22px，默认折叠；展开状态和高度按普通仓库保存。左侧固定显示标题和计数，右侧显示最新的五秒短暂反馈，随后恢复 Notes、Journal 或 Todo 的非稳定保存状态；稳定时为空，不显示“已保存”。右侧文本必须省略，不能挤压左侧计数。
 
-面板提供来源、严重度和可重试性筛选。状态型故障恢复后自动消失；操作错误按
+面板使用共享紧凑工具栏提供来源、严重度和可重试性筛选，并使用共享 22px 紧凑工具行展示问题。状态型故障恢复后自动消失；操作错误按
 source、code、target 与安全详情聚合，显示重复次数和最近发生时间，最多保留 200 条，
 页面刷新后清空。requestId 不参与聚合，只保留最近一个并提供“复制编号”；操作错误可
 独立关闭，状态型 diagnostics 不提供关闭。新错误不得自动展开 Problems。专注模式隐藏
@@ -108,6 +108,7 @@ source、code、target 与安全详情聚合，显示重复次数和最近发生
     数字：tabular-nums。
 
 字号、字重和颜色必须通过角色 token 进入样式；Activity CSS 只描述布局和业务状态。
+工具正文是明确的局部密度作用域：页面标题仍为 16px，其余小标题、正文、说明、状态、控件和等宽代码统一使用 13px；单行列表、输入、切换和按钮统一为 22px，垂直节奏及水平内边距以 4px 为基准。该作用域不得改变左侧 context、笔记、日记或代办正文的全局尺度。
 
 
 ## 5. 颜色与状态
@@ -147,9 +148,17 @@ selected、focus、drag 和 diagnostic 使用背景、文字或细边界表达�
 
 控件：
 
-    Button、ToggleButton、SegmentedControl、Panel 和 Section 提供基础控件；SubsectionTabs 独占页内 tablist、方向键、Home/End 与 tabpanel 关联。
+    Button、ToggleButton、SegmentedControl、Panel 和 Section 提供基础控件；SubsectionTabs 独占页内 tablist、方向键、Home/End 与 tabpanel 关联，但视觉与笔记页 SegmentedControl 使用同一中性分段选择规则。
     FormLayout、FieldRow 和 FormActions 独占标签、帮助、错误关联与标准操作行；ManagementList/ManagementRow 独占主区管理列表，CompactContextList 继续只服务左侧上下文区，二者不得混用业务语义。
     StatusSummary/StatusBadge 统一呈现事实与状态；EmptyState 的 compact 模式用于详情栏和顶部对齐空白页。Activity 只组合业务布局、局部 presentation 状态和回调，不复制私有表单行或管理卡片。
+
+工具页面：
+
+    设置、仓库正文、搜索结果、智能体、语法和 Problems 采用统一工具界面层，共享页面壳、滚动容器、分区分隔线、筛选栏和基础结果行。CodeMirror 只用于真实文本编辑，不模拟这些结构化界面。ToolPanel 统一表达 16px 页面标题和 13px/22px 局部密度；ToolPanelBody 按 form、table、results 三种内容类型分别限制为 880px、可用宽度和 920px。
+    ToolSectionStack/ToolSection 统一表达弱化小标题、说明、操作区和相邻细线；ToolToolbar 负责紧凑筛选栏；ToolDivider 服务摘要栏、输入区和操作栏等固定边界。普通列表行之间不画线。
+    ToolListRow 必须显式选择 single-line 或 wrap：前者固定 22px 并截断，供窗口化 Problems 使用；后者最小 22px 并自然换行，供搜索结果和静态信息使用。静态行不得渲染伪按钮。Activity 样式只保留匹配列、严重度、diff、危险状态和窗口化定位等领域表达。
+    智能体对话使用平铺转录，不使用用户气泡、右对齐或角色背景；角色标题弱化，消息和 Proposal 正文遵守同一 13px/4px 节奏，diff 只保留等宽字体和增删颜色差异。
+    CollapsibleContextGroup 是独立受控能力，expanded/onExpandedChange 由调用方提供；会话状态只保存在内存中，切换 Activity 后保留、刷新后恢复默认。
 
 
 ## 7. 桌面验收边界
