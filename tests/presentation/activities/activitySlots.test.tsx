@@ -345,7 +345,11 @@ describe("activity slots", () => {
     expect(searchContext).toContain("仓库 A");
     expect(searchMain).toContain("部分来源不可用");
     expect(searchMain).toContain("块内共同词");
+    expect(searchMain).toContain(
+      'aria-label="打开Alpha中的匹配块"',
+    );
     expect(searchMain).not.toContain("整篇共同词");
+    expect(searchSlots.detail).toBeNull();
 
     const renderSearchState = (
       override: Partial<ReturnType<typeof searchController.getState>>,
@@ -410,9 +414,11 @@ describe("activity slots", () => {
     const mainMarkup = renderSlot(slots.main);
 
     expect(contextMarkup).toContain('aria-label="新建会话"');
+    expect(contextMarkup.match(/aria-label="新建会话"/g)).toHaveLength(1);
     expect(contextMarkup).toContain('aria-label="Agent 会话"');
     expect(contextMarkup).not.toContain('aria-label="领域"');
     expect(mainMarkup).toContain('aria-label="新建 Agent 会话"');
+    expect(mainMarkup).not.toContain('aria-label="新建会话"');
     expect(mainMarkup).toContain(">领域<");
     expect(mainMarkup).toContain(">硬范围<");
     expect(mainMarkup).toContain("请先在设置中选择");
@@ -431,6 +437,13 @@ describe("activity slots", () => {
     expect(emptyConversationMarkup).not.toContain(
       "在左侧选择 allowlist profile 和不可扩大的硬范围。",
     );
+    expect(createAgentActivitySlots({
+      agent,
+      creatingSession: false,
+      onBeginCreateSession: () => undefined,
+      onCollapseDetail: controls.onCollapseDetail,
+      onSelectSession: () => undefined,
+    }).detail).not.toBeNull();
   });
 
   it("renders a human review before collapsed technical proposal facts", () => {
