@@ -218,8 +218,6 @@ test.describe("Journal activity flows", () => {
       hasText: "无法解析日记引用“Missing Journal”",
     });
 
-    await expect(problems.locator(".problems-panel-warning-count"))
-      .toContainText("1");
     await waitUntilNextClockSecond(page, diagnosticEntry.createdAt);
     await context.getByRole("button", { name: "新建日记" }).click();
     entries = await waitForJournalEntryCount(api, 2);

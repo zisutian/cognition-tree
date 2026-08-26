@@ -228,7 +228,6 @@ test.describe("repository and capacity flows", () => {
       (source) => `${source}\n\t- 外部文件修改已载入`,
     );
 
-    await getActivityButton(page, "仓库").click();
     const rescanResponse = page.waitForResponse((response) =>
       response.request().method() === "GET" &&
       response.url().endsWith(
@@ -240,7 +239,6 @@ test.describe("repository and capacity flows", () => {
     const response = await rescanResponse;
 
     expect(response.ok(), await response.text()).toBe(true);
-    await getActivityButton(page, "笔记").click();
     await page.locator(".app-context").getByTitle("Alpha").click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "外部文件修改已载入",
@@ -410,7 +408,7 @@ test.describe("repository and capacity flows", () => {
       `/api/v3/sync/workspaces/${repositoryId}`,
       {
         data: {
-          baseRevision: snapshot.revision,
+          base: snapshot,
           content: remoteContent,
         },
       },
@@ -563,11 +561,6 @@ test.describe("repository and capacity flows", () => {
       if (await problemsHeader.getAttribute("aria-expanded") === "false") {
         await problemsHeader.click();
       }
-      await expect(problems).not.toContainText(
-        "仓库格式不受支持，需要手工删除该目录。",
-      );
-
-      await getActivityButton(page, "仓库").click();
       const repositoryProblem = problems.locator(".problems-row").filter({
         hasText: "仓库格式不受支持，需要手工删除该目录。",
       });
@@ -577,6 +570,7 @@ test.describe("repository and capacity flows", () => {
       const repositoryPanel = page.getByRole("region", { name: "仓库" });
 
       await expect(repositoryProblem).toBeVisible();
+      await getActivityButton(page, "仓库").click();
       await repositoryProblem.click();
       await expect(issueRow).toBeFocused();
       await expect(issueRow).toContainText("故障");
@@ -600,9 +594,7 @@ test.describe("repository and capacity flows", () => {
       ).toBeVisible();
 
       await getActivityButton(page, "笔记").click();
-      await expect(problems).not.toContainText(
-        "仓库格式不受支持，需要手工删除该目录。",
-      );
+      await expect(repositoryProblem).toBeVisible();
       await getActivityButton(page, "仓库").click();
       await expect(issueRow).toBeVisible();
       await expect(issueRow).not.toBeFocused();

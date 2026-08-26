@@ -170,7 +170,7 @@ export async function resetJournalRepository(
 
     const response = await api.put(journalSnapshotEndpoint, {
       data: {
-        baseRevision: current.revision,
+        base: current,
         content: {
           ...content,
           days: [...days.values()].sort((left, right) =>
@@ -217,7 +217,7 @@ export async function resetTodoRepository(
     const current = await readTodoSnapshot(api);
     const response = await api.put(todoSnapshotEndpoint, {
       data: {
-        baseRevision: current.revision,
+        base: current,
         content,
       },
     });

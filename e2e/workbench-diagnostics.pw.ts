@@ -143,22 +143,30 @@ test.describe("workbench diagnostics", () => {
       name: "服务",
       exact: true,
     });
+    const auditSection = settingsContext.getByRole("button", {
+      name: "审计",
+      exact: true,
+    });
 
-    await expect(settingsContext.getByRole("button")).toHaveCount(4);
+    await expect(settingsContext.getByRole("button")).toHaveCount(5);
     await expect(interfaceSection).toHaveAttribute("aria-current", "page");
     await expect(serviceSection).not.toHaveAttribute("aria-current", "page");
     await expect(agentSection).not.toHaveAttribute("aria-current", "page");
     await expect(apiSection).not.toHaveAttribute("aria-current", "page");
+    await expect(auditSection).not.toHaveAttribute("aria-current", "page");
     await expect(settingsPanel.getByRole("heading", { name: "界面" }))
       .toBeVisible();
     await expect(
       settingsPanel.getByRole("spinbutton", { name: "左侧栏宽度" }),
     ).toBeVisible();
     await expect(settingsPanel.locator("input")).toHaveCount(1);
-    await expect(page.locator(".app-problems")).toHaveCount(0);
+    await expect(page.locator(".app-problems")).toHaveCount(1);
+    await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
 
     await page.keyboard.press("Control+Shift+M");
-    await expect(page.locator(".app-problems")).toHaveCount(0);
+    await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
+    await page.keyboard.press("Control+Shift+M");
+    await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
     await getActivityButton(page, "笔记").click();
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
     await expect(problemsResize).toHaveAttribute(
@@ -192,8 +200,10 @@ test.describe("workbench diagnostics", () => {
           await route.fulfill({
             body: JSON.stringify({
               code: "internal_error",
+              details: {},
               message: "syntax persistence failed",
               requestId: "e2e-syntax-persistence-failure",
+              retryable: false,
             }),
             contentType: "application/json",
             status: 500,

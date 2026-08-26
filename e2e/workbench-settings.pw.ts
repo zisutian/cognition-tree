@@ -62,7 +62,8 @@ test.describe("settings activity flows", () => {
     const panel = page.getByRole("region", { name: "API 访问" });
 
     await expect(panel).toBeVisible();
-    await panel.getByRole("textbox", { name: "名称" }).fill("E2E AI");
+    await panel.getByRole("textbox", { name: "名称", exact: true })
+      .fill("E2E AI");
     await panel.getByRole("combobox", { name: "Workspace 权限" })
       .selectOption("read");
     await panel.getByRole("combobox", { name: "日记权限" })
