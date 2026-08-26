@@ -153,6 +153,10 @@ selected、focus、drag 和 diagnostic 使用背景、文字或细边界表达�
     普通输入使用 content 尺度，从 72px 随值扩展并在 320px 封顶；结构输入使用 container 尺度占满容器。FormLayout、FieldRow 和 FormActions 独占 128px 标签列、8px 列间距、校验错误关联与从值列起点开始的标准操作行；字段不提供通用解释性 description。ManagementList/ManagementRow 独占主区管理列表，CompactContextList 继续只服务左侧上下文区，二者不得混用业务语义。
     StatusBadge 统一呈现状态；EmptyState 的 compact 模式用于详情栏和顶部对齐空白页。Activity 只组合业务布局、局部 presentation 状态和回调，不复制私有表单行或管理卡片。
 
+CTN 文档：
+
+    笔记、日记和代办保留各自的 view model、命令和编辑变更处理，但共享同一个编辑器面板壳与专注模式入口。笔记和日记的“统计、文档时间、当前块时间、结构树”共享同一个详情组件；Todo 右侧包含勾选与周期配置，继续保留独立业务组件。日记与代办未就绪时共享内置数据故障、重试和“前往仓库”页面，不复制状态分支与按钮组件。
+
 工具页面：
 
     设置、仓库正文、搜索结果、智能体、语法和 Problems 采用统一工具界面层，共享页面壳、滚动容器、分区分隔线、筛选栏和基础结果行。CodeMirror 只用于真实文本编辑，不模拟这些结构化界面。ToolPanel 统一表达 16px 页面标题和 13px/22px 局部密度；ToolPanelBody 按 form、table、results、detail 四种内容类型分别限制为 880px、可用宽度、920px和详情栏可用宽度。

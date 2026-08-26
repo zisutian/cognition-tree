@@ -1,13 +1,12 @@
-import { Maximize2, Minimize2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { NotesViewModel } from "../../../../application/workspace/notes/edit/notesViewModel";
 import { CtnEditor } from "../../../editor/CtnEditor";
+import { CtnEditorPanel } from "../../../editor/CtnEditorPanel";
 import { rawCtnEditorTabDisplayWidth } from "../../../editor/ctnEditorRuntime";
 import {
   Button,
   EmptyState,
   Panel,
-  PanelHeader,
 } from "../../../ui/shared/primitives";
 import { useFeedback } from "../../../ui/shared/FeedbackProvider";
 import { useReferenceNavigation } from "../../../ui/shared/useReferenceNavigation";
@@ -75,7 +74,7 @@ export function NoteEditorPanel({
 
   if (!activeNote) {
     return (
-      <Panel className="note-editor-panel" aria-label="笔记编辑">
+      <Panel className="ctn-editor-panel" aria-label="笔记编辑">
         <EmptyState
           action={
             <Button onClick={view.directory.createNote} type="button" variant="primary">
@@ -100,25 +99,12 @@ export function NoteEditorPanel({
       };
 
   return (
-    <Panel className="note-editor-panel" aria-label="笔记编辑">
-      <PanelHeader
-        title={activeNote.title}
-        actions={
-          <Button
-            aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
-            onClick={onToggleFocusMode}
-            title={focusMode ? "退出专注模式" : "进入专注模式"}
-            type="button"
-            variant="icon"
-          >
-            {focusMode ? (
-              <Minimize2 aria-hidden="true" size={14} />
-            ) : (
-              <Maximize2 aria-hidden="true" size={14} />
-            )}
-          </Button>
-        }
-      />
+    <CtnEditorPanel
+      ariaLabel="笔记编辑"
+      focusMode={focusMode}
+      onToggleFocusMode={onToggleFocusMode}
+      title={activeNote.title}
+    >
       <CtnEditor
         {...editorRuntime}
         key={activeNote.id}
@@ -147,6 +133,6 @@ export function NoteEditorPanel({
         onOpenReference={referenceNavigation.openReference}
       />
       {referenceNavigation.picker}
-    </Panel>
+    </CtnEditorPanel>
   );
 }

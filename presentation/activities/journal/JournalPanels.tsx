@@ -2,8 +2,6 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
-  Maximize2,
-  Minimize2,
   Plus,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -12,6 +10,8 @@ import type {
   JournalViewModel,
 } from "../../../application/journal";
 import { CtnEditor } from "../../editor/CtnEditor";
+import { CtnDocumentDetailPanel } from "../../editor/CtnDocumentDetailPanel";
+import { CtnEditorPanel } from "../../editor/CtnEditorPanel";
 import {
   CompactContextList,
   CompactContextActionButtons,
@@ -20,13 +20,9 @@ import {
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
   Button,
-  DetailPanel,
   EmptyState,
   Panel,
-  PanelBody,
-  PanelHeader,
 } from "../../ui/shared/primitives";
-import { StructureTree } from "../../ui/shared/tree";
 import { useReferenceNavigation } from "../../ui/shared/useReferenceNavigation";
 
 type JournalViewProps = {
@@ -43,24 +39,6 @@ export function submitJournalEntryCreation({
   return runAction(() => {
     createEntry();
   });
-}
-
-const timestampFormatter = new Intl.DateTimeFormat("zh-CN", {
-  day: "2-digit",
-  hour: "2-digit",
-  hour12: false,
-  minute: "2-digit",
-  month: "2-digit",
-  second: "2-digit",
-  year: "numeric",
-});
-
-function formatTimestamp(timestamp: string) {
-  const date = new Date(timestamp);
-
-  return Number.isNaN(date.getTime())
-    ? timestamp
-    : timestampFormatter.format(date);
 }
 
 export function JournalContext({ view }: JournalViewProps) {
@@ -207,7 +185,7 @@ export function JournalEditorPanel({
 
   if (!view.activeEntry) {
     return (
-      <Panel aria-label="日记编辑" className="journal-editor-panel">
+      <Panel aria-label="日记编辑" className="ctn-editor-panel">
         <EmptyState
           action={
             <Button
@@ -229,25 +207,12 @@ export function JournalEditorPanel({
   }
 
   return (
-    <Panel aria-label="日记编辑" className="journal-editor-panel">
-      <PanelHeader
-        actions={
-          <Button
-            aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
-            onClick={onToggleFocusMode}
-            title={focusMode ? "退出专注模式" : "进入专注模式"}
-            type="button"
-            variant="icon"
-          >
-            {focusMode ? (
-              <Minimize2 aria-hidden="true" size={14} />
-            ) : (
-              <Maximize2 aria-hidden="true" size={14} />
-            )}
-          </Button>
-        }
-        title={view.activeEntry.title}
-      />
+    <CtnEditorPanel
+      ariaLabel="日记编辑"
+      focusMode={focusMode}
+      onToggleFocusMode={onToggleFocusMode}
+      title={view.activeEntry.title}
+    >
       <CtnEditor
         key={view.activeEntry.id}
         contentMode={view.editor.contentMode}
@@ -260,7 +225,7 @@ export function JournalEditorPanel({
         onOpenReference={referenceNavigation.openReference}
       />
       {referenceNavigation.picker}
-    </Panel>
+    </CtnEditorPanel>
   );
 }
 
@@ -278,67 +243,18 @@ export function JournalDetailPanel({
     : undefined;
 
   return (
-    <DetailPanel
-      aria-label="日记详情"
-      className="journal-detail-panel"
-      onCollapse={onCollapseDetail}
-      title="结构"
-    >
-      <PanelBody className="detail-panel-stack" scroll>
-        <dl aria-label="日记统计" className="detail-summary-strip">
-          <div><dd>{view.editor.stats.lineCount}</dd><dt>行</dt></div>
-          <div><dd>{view.editor.stats.totalBlocks}</dd><dt>块</dt></div>
-          <div><dd>{view.editor.stats.rootCount}</dd><dt>根</dt></div>
-        </dl>
-        <dl aria-label="日记时间" className="journal-time-details">
-          <div>
-            <dt>创建</dt>
-            <dd>
-              <time dateTime={view.activeEntry.createdAt}>
-                {formatTimestamp(view.activeEntry.createdAt)}
-              </time>
-            </dd>
-          </div>
-          <div>
-            <dt>修改</dt>
-            <dd>
-              <time dateTime={view.activeEntry.updatedAt}>
-                {formatTimestamp(view.activeEntry.updatedAt)}
-              </time>
-            </dd>
-          </div>
-          {selectedBlock ? (
-            <>
-              <div>
-                <dt>当前块创建</dt>
-                <dd>
-                  <time dateTime={selectedBlock.metadata.createdAt}>
-                    {formatTimestamp(selectedBlock.metadata.createdAt)}
-                  </time>
-                </dd>
-              </div>
-              <div>
-                <dt>当前块更新</dt>
-                <dd>
-                  <time dateTime={selectedBlock.metadata.updatedAt}>
-                    {formatTimestamp(selectedBlock.metadata.updatedAt)}
-                  </time>
-                </dd>
-              </div>
-            </>
-          ) : null}
-        </dl>
-        {view.outline.nodes.length > 0 ? (
-          <StructureTree
-            indentUnitCount={view.editor.syntax.tabDisplayWidth}
-            nodes={view.outline.nodes}
-            selectedLineNumbers={selectedLineNumbers}
-            onSelectLine={view.outline.onSelectLine}
-          />
-        ) : (
-          <p className="ui-muted">没有可解析结构。</p>
-        )}
-      </PanelBody>
-    </DetailPanel>
+    <CtnDocumentDetailPanel
+      blockMetadata={selectedBlock?.metadata ?? null}
+      documentLabel="日记"
+      documentMetadata={view.activeEntry}
+      onCollapseDetail={onCollapseDetail}
+      stats={view.editor.stats}
+      structure={{
+        indentUnitCount: view.editor.syntax.tabDisplayWidth,
+        nodes: view.outline.nodes,
+        onSelectLine: view.outline.onSelectLine,
+        selectedLineNumbers,
+      }}
+    />
   );
 }

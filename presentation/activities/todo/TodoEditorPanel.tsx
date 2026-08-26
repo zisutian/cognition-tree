@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Maximize2, Minimize2 } from "lucide-react";
 import type { TodoViewModel } from "../../../application/todo";
 import { CtnEditor } from "../../editor/CtnEditor";
+import { CtnEditorPanel } from "../../editor/CtnEditorPanel";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
   Button,
   EmptyState,
   Panel,
-  PanelHeader,
 } from "../../ui/shared/primitives";
 
 export function TodoEditorPanel({
@@ -24,7 +23,7 @@ export function TodoEditorPanel({
 
   if (!view.activeCollection) {
     return (
-      <Panel aria-label="代办编辑" className="todo-editor-panel">
+      <Panel aria-label="代办编辑" className="ctn-editor-panel">
         <EmptyState
           action={(
             <Button
@@ -42,23 +41,12 @@ export function TodoEditorPanel({
     );
   }
   return (
-    <Panel aria-label="代办编辑" className="todo-editor-panel">
-      <PanelHeader
-        actions={(
-          <Button
-            aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
-            onClick={onToggleFocusMode}
-            title={focusMode ? "退出专注模式" : "进入专注模式"}
-            type="button"
-            variant="icon"
-          >
-            {focusMode
-              ? <Minimize2 aria-hidden="true" size={14} />
-              : <Maximize2 aria-hidden="true" size={14} />}
-          </Button>
-        )}
-        title={view.activeCollection.name}
-      />
+    <CtnEditorPanel
+      ariaLabel="代办编辑"
+      focusMode={focusMode}
+      onToggleFocusMode={onToggleFocusMode}
+      title={view.activeCollection.name}
+    >
       <CtnEditor
         checkableBlocks={view.editor.checkableBlocks}
         contentMode={view.editor.contentMode}
@@ -74,6 +62,6 @@ export function TodoEditorPanel({
           view.toggleBlock(view.activeCollection!.id, blockId)
         )}
       />
-    </Panel>
+    </CtnEditorPanel>
   );
 }

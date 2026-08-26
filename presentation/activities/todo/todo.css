@@ -10,10 +10,6 @@
   scrollbar-width: thin;
 }
 
-.todo-editor-panel {
-  border-right: var(--ui-border-width) solid var(--color-border);
-}
-
 .todo-structure-row {
   cursor: default;
 }

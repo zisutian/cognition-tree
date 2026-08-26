@@ -188,6 +188,39 @@ describe("UI design contract", () => {
     });
   });
 
+  it("keeps repeated CTN document chrome in shared editor owners", () => {
+    const editorPanel = readStyle("editor/CtnEditorPanel.css");
+    const documentDetail = readStyle("editor/CtnDocumentDetailPanel.css");
+    const activityStyles = [
+      readStyle("activities/notes/edit/notes.css"),
+      readStyle("activities/journal/journal.css"),
+      readStyle("activities/todo/todo.css"),
+    ].join("\n");
+
+    expectFragments(editorPanel, {
+      required: [
+        ".ctn-editor-panel",
+        "border-right: var(--ui-border-width) solid var(--color-border)",
+      ],
+    });
+    expectFragments(documentDetail, {
+      required: [
+        ".ctn-document-time-details",
+        ".ctn-document-time-row",
+        ".ctn-document-time-value",
+      ],
+    });
+    expectFragments(activityStyles, {
+      forbidden: [
+        ".note-editor-panel",
+        ".journal-editor-panel",
+        ".todo-editor-panel",
+        ".note-time-details",
+        ".journal-time-details",
+      ],
+    });
+  });
+
   it("uses one non-blue interaction accent while preserving editor content color", () => {
     const theme = readStyle("ui/styles/foundation/theme.css");
     const frame = readStyle("ui/styles/frame/frame.css");

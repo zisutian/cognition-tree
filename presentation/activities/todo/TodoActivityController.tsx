@@ -2,104 +2,25 @@
 
 import type { TodoApplication } from "../../../application/todo";
 import { createTodoActivitySlots } from "./TodoActivitySlots";
-import {
-  Button,
-  EmptyState,
-  Panel,
-} from "../../ui/shared/primitives";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import type { ActivityControllerProps } from "../activityController";
+import {
+  BuiltInUnavailableActivity,
+  resolveBuiltInActivityRetry,
+} from "../unavailable/BuiltInUnavailableActivity";
 
 type TodoBuiltInsApplication = ActivityControllerProps[
   "application"
 ]["repository"]["builtIns"];
 
-function TodoRetryButton({ retry }: { retry: () => Promise<void> }) {
-  const feedback = useFeedback();
-
-  return (
-    <Button
-      onClick={() => void feedback.runAction(retry)}
-      type="button"
-      variant="secondary"
-    >
-      重试
-    </Button>
-  );
-}
-
 export function resolveTodoRetry(
   todo: Exclude<TodoApplication, { status: "ready" }>,
   builtIns: TodoBuiltInsApplication,
 ) {
-  if (todo.status === "failed") {
-    return todo.reload;
-  }
-  const builtInCatalog = builtIns.catalog.state;
-
-  if (todo.status === "unavailable") {
-    const hasTodoIssue = builtInCatalog.status === "ready" &&
-      builtInCatalog.issues.some(({ id }) => id === "todo");
-
-    return hasTodoIssue
-      ? () => builtIns.catalog.retry("todo")
-      : builtIns.catalog.reload;
-  }
-  return builtInCatalog.status === "failed"
-    ? builtIns.catalog.reload
-    : null;
-}
-
-function renderUnavailableTodo(
-  todo: Exclude<TodoApplication, { status: "ready" }>,
-  application: ActivityControllerProps["application"],
-  onActiveActivityChange:
-    ActivityControllerProps["onActiveActivityChange"],
-  renderActivity: ActivityControllerProps["renderActivity"],
-) {
-  const builtInCatalog = application.repository.builtIns.catalog.state;
-  const title = todo.status === "loading"
-    ? "正在载入代办"
-    : todo.status === "failed"
-      ? "代办无法挂载"
-      : builtInCatalog.status === "failed"
-        ? "内置数据无法载入"
-        : "代办尚未就绪";
-  const description = todo.status === "loading"
-    ? "正在读取受保护的内置代办仓库。"
-    : todo.status === "failed"
-      ? todo.errorMessage
-      : builtInCatalog.status === "failed"
-        ? builtInCatalog.errorMessage
-        : "内置代办数据正在等待创建或重新连接。";
-  const retry = resolveTodoRetry(todo, application.repository.builtIns);
-
-  return renderActivity(() => ({
-    context: null,
-    detail: null,
-    main: (
-      <Panel aria-label={title} className="placeholder-panel">
-        <EmptyState
-          action={
-            <>
-              {retry ? (
-                <TodoRetryButton retry={retry} />
-              ) : null}
-              <Button
-                onClick={() => onActiveActivityChange("repository")}
-                type="button"
-                variant="primary"
-              >
-                前往仓库
-              </Button>
-            </>
-          }
-          description={description}
-          title={title}
-        />
-      </Panel>
-    ),
-  }));
+  return resolveBuiltInActivityRetry(
+    todo,
+    builtIns.catalog,
+    "todo",
+  );
 }
 
 export function TodoActivityController({
@@ -114,12 +35,19 @@ export function TodoActivityController({
     return null;
   }
   if (todo.status !== "ready") {
-    return renderUnavailableTodo(
-      todo,
-      application,
-      onActiveActivityChange,
-      renderActivity,
-    );
+    return renderActivity(() => ({
+      context: null,
+      detail: null,
+      main: (
+        <BuiltInUnavailableActivity
+          application={todo}
+          builtInId="todo"
+          catalog={application.repository.builtIns.catalog}
+          label="代办"
+          onOpenRepository={() => onActiveActivityChange("repository")}
+        />
+      ),
+    }));
   }
 
   return renderActivity((controls) =>

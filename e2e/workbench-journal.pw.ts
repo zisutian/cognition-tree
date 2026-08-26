@@ -206,7 +206,7 @@ test.describe("Journal activity flows", () => {
     let entries = await waitForJournalEntryCount(api, 1);
     const diagnosticEntry = entries[0];
     const diagnosticTitle = entryTitle(diagnosticEntry);
-    const editor = page.locator(".journal-editor-panel .source-editor");
+    const editor = page.locator(".ctn-editor-panel .source-editor");
 
     await editor.locator(".cm-content").click();
     await page.keyboard.insertText("引用检查");

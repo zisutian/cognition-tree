@@ -10,7 +10,6 @@ import {
   NoteEditorPanel,
   submitNotesEditorChange,
 } from "../../../../../presentation/activities/notes/edit/NoteEditorPanel";
-import { NoteTimeDetails } from "../../../../../presentation/activities/notes/edit/NoteTimeDetails";
 import {
   FeedbackProvider,
   runFeedbackAction,
@@ -196,30 +195,6 @@ describe("notes panels", () => {
 
     expect(onNormalized).not.toHaveBeenCalled();
     expect(onSynchronize).not.toHaveBeenCalled();
-  });
-
-  it("keeps block timestamps in a compact detail view", () => {
-    const markup = renderToStaticMarkup(
-      <NoteTimeDetails
-        blockMetadata={{
-          createdAt: "2026-07-15T00:00:00.000Z",
-          updatedAt: "2026-07-15T01:00:00.000Z",
-        }}
-        noteMetadata={{
-          createdAt: "2026-07-14T00:00:00.000Z",
-          updatedAt: "2026-07-14T01:00:00.000Z",
-        }}
-      />,
-    );
-
-    expect(markup).toContain('aria-label="块时间"');
-    expect(markup).toContain('aria-label="笔记时间"');
-    expect(markup).toContain('aria-label="时间信息"');
-    expect(markup).toContain("当前块");
-    expect(markup).toContain("创建");
-    expect(markup).toContain("更新");
-    expect(markup).toContain('dateTime="2026-07-15T00:00:00.000Z"');
-    expect(markup).not.toContain("@ctn-block");
   });
 
   it("shows note timestamps independently from the active block", () => {
