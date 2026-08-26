@@ -66,6 +66,9 @@ const expectedCapabilities = [
   ["GET", "listApiTokens"],
   ["POST", "createApiToken"],
   ["DELETE", "revokeToken"],
+  ["GET", "listTrustedClientTokens"],
+  ["POST", "createTrustedClientToken"],
+  ["DELETE", "revokeTrustedClientToken"],
   ["GET", "getOperationAuditStatus"],
   ["GET", "listOperations"],
 ] as const;

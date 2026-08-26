@@ -61,6 +61,7 @@ function hasScope(
     case "agent-session":
     case "local-owner":
     case "owner":
+    case "trusted-client":
       return true;
     case "automation":
       return principal.scopes.includes(scope);
@@ -86,6 +87,7 @@ function allowedWorkspaceRepositoryIds(principal: SearchPrincipal) {
     case "agent-session":
     case "local-owner":
     case "owner":
+    case "trusted-client":
       return null;
     case "automation":
       return principal.repositoryIds

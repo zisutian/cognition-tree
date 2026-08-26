@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createHash } from "node:crypto";
+import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
+
 import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
 import type {
   WorkspaceResourceVersionPolicy,
@@ -10,7 +13,7 @@ import type {
 import type {
   TodoDomainVersions,
 } from "../../../../application/todo/todoDomainCommands.ts";
-import { apiNotFound } from "../http/errors.ts";
+import { ApiRequestError, apiNotFound } from "../http/errors.ts";
 import {
   assertRepositoryAllowed,
   publishTrackedChanges,
@@ -22,6 +25,12 @@ import {
   synchronizeApiTodo,
   synchronizeApiWorkspace,
 } from "./service.ts";
+import {
+  OperationAuditFinalizeError,
+  OperationAuditUnavailableError,
+  type TrustedClientOperationStore,
+} from "../../operations/operationLedger.ts";
+import { readApiRuntimeNow } from "../http/runtime.ts";
 
 async function publishApiChanges(
   context: ApiHandlerContext,
@@ -91,7 +100,7 @@ async function handleTodoSync(
   });
 }
 
-export function handleApiSync(
+function executeApiSync(
   context: ApiHandlerContext,
   versionPolicies: {
     journal: JournalDomainVersions;
@@ -120,4 +129,99 @@ export function handleApiSync(
       operationId === "putJournalSyncSnapshot"
     ? handleJournalSync(context, mode, versionPolicies.journal)
     : handleTodoSync(context, mode, versionPolicies.todo);
+}
+
+function intentDigest(value: unknown) {
+  return `sha256:${createHash("sha256")
+    .update(serializeJsonIteratively(value, { sortObjectKeys: true }))
+    .digest("hex")}` as `sha256:${string}`;
+}
+
+export async function handleApiSync(
+  context: ApiHandlerContext,
+  versionPolicies: {
+    journal: JournalDomainVersions;
+    todo: TodoDomainVersions;
+    workspace: WorkspaceResourceVersionPolicy;
+  },
+) {
+  if (
+    context.operation.method !== "PUT" ||
+    context.principal.kind !== "trusted-client"
+  ) {
+    return executeApiSync(context, versionPolicies);
+  }
+  const ledger = context.operationLedger;
+
+  if (!ledger) {
+    throw new OperationAuditUnavailableError(
+      "Operation audit is required for trusted-client writes",
+    );
+  }
+  const store: TrustedClientOperationStore =
+    context.operation.operationId === "putWorkspaceSyncSnapshot"
+      ? {
+          domain: "workspace",
+          repositoryId: context.route.repositoryId ?? apiNotFound(),
+        }
+      : context.operation.operationId === "putJournalSyncSnapshot"
+        ? { domain: "journal" }
+        : { domain: "todo" };
+  const occurredAt = readApiRuntimeNow(context.runtime).timestamp;
+  const operationId = await ledger.beginAuthenticatedAttempt({
+    occurredAt,
+    principalId: context.principal.id,
+    requestId: context.requestId,
+    route: context.operation.operationId,
+    store,
+  });
+  const auditedContext: ApiHandlerContext = {
+    ...context,
+    readJsonBody: async () => {
+      const request = await context.readJsonBody() as {
+        base: { revision: `sha256:${string}` };
+      };
+
+      await ledger.attachIntent(operationId, {
+        beforeRevision: request.base.revision,
+        intentDigest: intentDigest(request),
+        updatedAt: readApiRuntimeNow(context.runtime).timestamp,
+      });
+      return request;
+    },
+  };
+
+  try {
+    const result = await executeApiSync(auditedContext, versionPolicies);
+
+    if (!result.audit) {
+      throw new Error("Trusted-client PUT did not produce sync audit facts");
+    }
+    await ledger.finalizeTrustedAttempt(operationId, {
+      afterRevision: result.audit.afterRevision,
+      changeMetadata: {
+        blockIds: [...new Set(result.audit.changeMetadata.blockIds)],
+        resourceIds: [...new Set(result.audit.changeMetadata.resourceIds)],
+      },
+      result: result.audit.outcome,
+      updatedAt: readApiRuntimeNow(context.runtime).timestamp,
+    });
+    return result;
+  } catch (error) {
+    if (
+      error instanceof OperationAuditUnavailableError ||
+      error instanceof OperationAuditFinalizeError
+    ) {
+      throw error;
+    }
+    await ledger.finalizeTrustedAttempt(operationId, {
+      afterRevision: null,
+      changeMetadata: { blockIds: [], resourceIds: [] },
+      result: error instanceof ApiRequestError && error.code === "merge_conflict"
+        ? "conflict"
+        : "failed",
+      updatedAt: readApiRuntimeNow(context.runtime).timestamp,
+    });
+    throw error;
+  }
 }

@@ -26,11 +26,27 @@ export type CreatedAutomationApiToken = {
   token: AutomationApiToken;
 };
 
+export type TrustedClientToken = {
+  createdAt: string;
+  id: string;
+  lastUsedAt: string | null;
+  name: string;
+  prefix: string;
+};
+
+export type CreatedTrustedClientToken = {
+  secret: string;
+  token: TrustedClientToken;
+};
+
 export type ApiAccessAdministration = {
   createToken(
     request: CreateAutomationApiTokenRequest,
   ): Promise<CreatedAutomationApiToken>;
+  createTrustedClientToken(name: string): Promise<CreatedTrustedClientToken>;
+  listTrustedClientTokens(): Promise<TrustedClientToken[]>;
   listTokens(): Promise<AutomationApiToken[]>;
+  revokeTrustedClientToken(tokenId: string): Promise<void>;
   revokeToken(tokenId: string): Promise<void>;
 };
 

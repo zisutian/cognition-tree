@@ -27,6 +27,7 @@ import {
 } from "./runtime.ts";
 import type { ApiSearchService } from "../search.ts";
 import type { AutomationTokenStore } from "../../access/automationTokenStore.ts";
+import type { TrustedClientTokenStore } from "../../access/trustedClientTokenStore.ts";
 import type { OperationLedger } from "../../operations/operationLedger.ts";
 import type { AgentService } from "../../agent/service.ts";
 import type { AgentConfigurationStore } from "../../agent/configurationStore.ts";
@@ -87,6 +88,17 @@ export function assertOperationAccess(
       }
       return;
     }
+    case "trusted-client":
+      if (access.kind === "content-read" || access.kind === "content-sync") {
+        return;
+      }
+      if (access.kind === "owner") {
+        throw new ApiRequestError(
+          "forbidden",
+          "Trusted clients cannot access owner operations",
+        );
+      }
+      return rejectUnknownAccess(access);
     default:
       return rejectUnknownPrincipal(principal);
   }
@@ -109,6 +121,7 @@ export function isOwnerPrincipal(principal: ApiPrincipalDto | null) {
     case "owner":
       return true;
     case "automation":
+    case "trusted-client":
       return false;
     default:
       return rejectUnknownPrincipal(principal);
@@ -122,6 +135,7 @@ export function assertRepositoryAllowed(
   switch (principal.kind) {
     case "local-owner":
     case "owner":
+    case "trusted-client":
       return;
     case "automation":
       if (
@@ -175,6 +189,7 @@ export type ApiHandlerContext = {
   runtime: ApiRuntime;
   search: ApiSearchService | null;
   systemAdministration: SystemAdministrationPort | null;
+  trustedClientTokenStore: TrustedClientTokenStore;
 };
 
 export type ApiRouteHandlerContext = Omit<ApiHandlerContext, "principal"> & {

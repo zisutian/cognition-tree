@@ -20,7 +20,15 @@ import {
 } from "../../agent/configurationSchemas.ts";
 import { parseCreateRepository, parseRenameRepository } from "../../workspace/parseCatalog.ts";
 import { parseApiCreateTokenRequest } from "../parse.ts";
-import { ApiCreateTokenRequestSchema, ApiCreatedTokenSchema, ApiRevokedSchema, ApiTokenListSchema } from "../schemas/admin.ts";
+import {
+  ApiCreateTokenRequestSchema,
+  ApiCreatedTokenSchema,
+  ApiCreatedTrustedClientTokenSchema,
+  ApiCreateTrustedClientTokenRequestSchema,
+  ApiRevokedSchema,
+  ApiTokenListSchema,
+  ApiTrustedClientTokenListSchema,
+} from "../schemas/admin.ts";
 import {
   ApiDataRootMigrationRequestSchema,
   ApiDataRootMigrationStatusSchema,
@@ -76,6 +84,9 @@ export const adminApiOperations = [
   { access: ownerAccess(), method: "GET", operationId: "listApiTokens", path: "/api/v3/admin/automation-tokens", responses: { 200: ApiTokenListSchema } },
   { access: ownerAccess(), body: apiBody(ApiCreateTokenRequestSchema, parseApiCreateTokenRequest), method: "POST", operationId: "createApiToken", path: "/api/v3/admin/automation-tokens", responses: { 201: ApiCreatedTokenSchema } },
   { access: ownerAccess(), method: "DELETE", operationId: "revokeToken", path: "/api/v3/admin/automation-tokens/{tokenId}", responses: { 200: ApiRevokedSchema } },
+  { access: ownerAccess(), method: "GET", operationId: "listTrustedClientTokens", path: "/api/v3/admin/trusted-client-tokens", responses: { 200: ApiTrustedClientTokenListSchema } },
+  { access: ownerAccess(), body: apiBody(ApiCreateTrustedClientTokenRequestSchema), method: "POST", operationId: "createTrustedClientToken", path: "/api/v3/admin/trusted-client-tokens", responses: { 201: ApiCreatedTrustedClientTokenSchema } },
+  { access: ownerAccess(), method: "DELETE", operationId: "revokeTrustedClientToken", path: "/api/v3/admin/trusted-client-tokens/{trustedClientTokenId}", responses: { 200: ApiRevokedSchema } },
   { access: ownerAccess(), method: "GET", operationId: "getOperationAuditStatus", path: "/api/v3/admin/operations/status", responses: { 200: ApiOperationAuditStatusSchema } },
   { access: ownerAccess(), method: "GET", operationId: "listOperations", path: "/api/v3/admin/operations", query: auditQuerySchema, responses: { 200: ApiOperationAuditPageSchema } },
 ] as const satisfies readonly ApiOperationDefinition[];

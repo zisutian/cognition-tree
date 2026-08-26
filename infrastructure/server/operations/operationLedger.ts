@@ -20,7 +20,7 @@ import {
   SecureJsonPartition,
 } from "../state/secureJsonPartition.ts";
 
-const formatVersion = 1;
+const formatVersion = 2;
 const defaultReceiptRetentionMilliseconds = 24 * 60 * 60 * 1_000;
 
 type AgentOperationIdentity = Readonly<{
@@ -66,7 +66,10 @@ type AgentReceiptState = {
 
 type OperationState = {
   agentReceipts: AgentReceiptState[];
-  auditEntries: ApiOperationAuditEntryDto[];
+  auditEntries: Array<{
+    entry: ApiOperationAuditEntryDto;
+    pending: boolean;
+  }>;
   formatVersion: typeof formatVersion;
 };
 
@@ -223,9 +226,18 @@ function parseOperationState(value: unknown): OperationState {
   }
   return {
     agentReceipts: record.agentReceipts.map(parseReceipt),
-    auditEntries: record.auditEntries.map((entry) =>
-      parseApiSchema(ApiOperationAuditEntrySchema, entry)
-    ),
+    auditEntries: record.auditEntries.map((value, index) => {
+      const stored = requireStateRecord(value, `auditEntries[${index}]`);
+
+      assertStateFields(stored, ["entry", "pending"], `auditEntries[${index}]`);
+      if (typeof stored.pending !== "boolean") {
+        throw new Error(`auditEntries[${index}].pending must be boolean.`);
+      }
+      return {
+        entry: parseApiSchema(ApiOperationAuditEntrySchema, stored.entry),
+        pending: stored.pending,
+      };
+    }),
     formatVersion,
   };
 }
@@ -285,6 +297,18 @@ export type OperationAuditStatus =
   | Readonly<{ status: "available" }>
   | Readonly<{ message: string; status: "unavailable" }>;
 
+export type TrustedClientOperationStore =
+  | { domain: "journal" }
+  | { domain: "todo" }
+  | { domain: "workspace"; repositoryId: string };
+
+export type TrustedClientOperationResult =
+  | "auto-merged"
+  | "committed"
+  | "conflict"
+  | "failed"
+  | "unchanged";
+
 export class OperationLedger {
   readonly #inFlight = new Map<string, {
     digest: string;
@@ -332,7 +356,18 @@ export class OperationLedger {
   async initialize(): Promise<OperationAuditStatus> {
     if (this.#unavailableMessage) return this.status();
     try {
-      await this.#partition.read(() => undefined);
+      await this.#partition.mutate((state) => {
+        let changed = false;
+
+        for (const stored of state.auditEntries) {
+          if (!stored.pending) continue;
+          stored.pending = false;
+          stored.entry.result = "indeterminate";
+          stored.entry.updatedAt = this.#now();
+          changed = true;
+        }
+        return { changed, result: undefined };
+      });
       await this.#removeLegacyAuditFile("agent-v2", "operations.json");
       await this.#removeLegacyAuditFile("api-v1", "audit.json");
       return { status: "available" };
@@ -384,9 +419,102 @@ export class OperationLedger {
     return promise;
   }
 
+  beginAuthenticatedAttempt(input: {
+    occurredAt: string;
+    principalId: string;
+    requestId: string;
+    route: string;
+    store: TrustedClientOperationStore;
+  }) {
+    return this.#mutate((state) => {
+      if (state.auditEntries.some(({ entry }) => entry.id === input.requestId)) {
+        throw new Error("Operation requestId is already present in the audit ledger");
+      }
+      const entry = parseApiSchema(ApiOperationAuditEntrySchema, {
+        afterRevision: null,
+        beforeRevision: null,
+        changeMetadata: { blockIds: [], resourceIds: [] },
+        id: input.requestId,
+        intentDigest: null,
+        occurredAt: input.occurredAt,
+        principalId: input.principalId,
+        requestId: input.requestId,
+        result: "indeterminate",
+        route: input.route,
+        source: "trusted-client",
+        store: input.store,
+        updatedAt: input.occurredAt,
+      });
+
+      state.auditEntries.push({ entry, pending: true });
+      this.#trimAudit(state);
+      return { changed: true, result: input.requestId };
+    });
+  }
+
+  attachIntent(
+    operationId: string,
+    input: {
+      beforeRevision: `sha256:${string}`;
+      intentDigest: `sha256:${string}`;
+      updatedAt: string;
+    },
+  ) {
+    return this.#mutate((state) => {
+      const stored = state.auditEntries.find(({ entry }) =>
+        entry.id === operationId
+      );
+
+      if (!stored || !stored.pending || stored.entry.source !== "trusted-client") {
+        throw new Error("Pending trusted-client operation is unavailable");
+      }
+      stored.entry.beforeRevision = input.beforeRevision;
+      stored.entry.intentDigest = input.intentDigest;
+      stored.entry.updatedAt = input.updatedAt;
+      return { changed: true, result: undefined };
+    });
+  }
+
+  async finalizeTrustedAttempt(
+    operationId: string,
+    input: {
+      afterRevision: `sha256:${string}` | null;
+      changeMetadata: { blockIds: string[]; resourceIds: string[] };
+      result: TrustedClientOperationResult;
+      updatedAt: string;
+    },
+  ) {
+    try {
+      await this.#mutate((state) => {
+        const stored = state.auditEntries.find(({ entry }) =>
+          entry.id === operationId
+        );
+
+        if (!stored || !stored.pending || stored.entry.source !== "trusted-client") {
+          throw new Error("Pending trusted-client operation is unavailable");
+        }
+        stored.entry.afterRevision = input.afterRevision;
+        stored.entry.changeMetadata = input.changeMetadata;
+        stored.entry.result = input.result;
+        stored.entry.updatedAt = input.updatedAt;
+        stored.pending = false;
+        this.#trimAudit(state);
+        return { changed: true, result: undefined };
+      });
+    } catch (error) {
+      if (
+        (input.result === "committed" || input.result === "auto-merged") &&
+        input.afterRevision
+      ) {
+        throw new OperationAuditFinalizeError(input.afterRevision);
+      }
+      throw error;
+    }
+  }
+
   list({ cursor, limit }: { cursor: number; limit: number }): Promise<ApiOperationAuditPageDto> {
     return this.#read((state) => {
-      const descending = [...state.auditEntries].reverse();
+      const descending = state.auditEntries.map(({ entry }) => entry).reverse();
       const entries = descending.slice(cursor, cursor + limit);
       const next = cursor + entries.length;
 
@@ -406,7 +534,7 @@ export class OperationLedger {
       const removeCount = Math.max(0, state.auditEntries.length - maxAuditEntries);
 
       if (removeCount === 0) return { changed: false, result: undefined };
-      state.auditEntries.splice(0, removeCount);
+      this.#trimAudit(state);
       return { changed: true, result: undefined };
     });
   }
@@ -466,7 +594,10 @@ export class OperationLedger {
         if (existing.status === "pending") {
           existing.status = "indeterminate";
           existing.updatedAt = this.#now();
-          state.auditEntries.push(this.#projectIndeterminateAgentAudit(existing));
+          state.auditEntries.push({
+            entry: this.#projectIndeterminateAgentAudit(existing),
+            pending: false,
+          });
           this.#trimAudit(state);
           return {
             changed: true,
@@ -512,7 +643,10 @@ export class OperationLedger {
       receipt.entry = entry;
       receipt.status = entry.result;
       receipt.updatedAt = this.#now();
-      state.auditEntries.push(this.#projectAgentAudit(receipt, entry));
+      state.auditEntries.push({
+        entry: this.#projectAgentAudit(receipt, entry),
+        pending: false,
+      });
       this.#trimAudit(state);
       return { changed: true, result: undefined };
     });
@@ -529,7 +663,10 @@ export class OperationLedger {
       }
       receipt.status = "indeterminate";
       receipt.updatedAt = this.#now();
-      state.auditEntries.push(this.#projectIndeterminateAgentAudit(receipt));
+      state.auditEntries.push({
+        entry: this.#projectIndeterminateAgentAudit(receipt),
+        pending: false,
+      });
       this.#trimAudit(state);
       return { changed: true, result: undefined };
     });
@@ -544,12 +681,12 @@ export class OperationLedger {
   }
 
   #trimAudit(state: OperationState) {
-    const removeCount = Math.max(
-      0,
-      state.auditEntries.length - this.#maxAuditEntries,
-    );
+    while (state.auditEntries.length > this.#maxAuditEntries) {
+      const removable = state.auditEntries.findIndex(({ pending }) => !pending);
 
-    if (removeCount > 0) state.auditEntries.splice(0, removeCount);
+      if (removable < 0) return;
+      state.auditEntries.splice(removable, 1);
+    }
   }
 
   #projectAgentAudit(

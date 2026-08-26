@@ -59,5 +59,8 @@ export type {
 export type {
   ApiCreateTokenRequestDto,
   ApiCreatedTokenDto,
+  ApiCreatedTrustedClientTokenDto,
+  ApiCreateTrustedClientTokenRequestDto,
   ApiTokenDto,
+  ApiTrustedClientTokenDto,
 } from "./schemas/admin.ts";

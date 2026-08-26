@@ -19,7 +19,7 @@ function projectEntry(
 ): OperationAuditEntry {
   const common = {
     afterRevision: entry.afterRevision as `sha256:${string}` | null,
-    beforeRevision: entry.beforeRevision as `sha256:${string}`,
+    beforeRevision: entry.beforeRevision as `sha256:${string}` | null,
     blockIds: entry.changeMetadata.blockIds,
     id: entry.id,
     occurredAt: entry.occurredAt,
@@ -52,7 +52,7 @@ function projectEntry(
         ...common,
         source: "trusted-client",
         technical: {
-          intentDigest: entry.intentDigest as `sha256:${string}`,
+          intentDigest: entry.intentDigest as `sha256:${string}` | null,
         },
       };
 }

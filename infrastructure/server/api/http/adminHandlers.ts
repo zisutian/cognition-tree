@@ -4,6 +4,7 @@ import {
   apiAutomationScopes,
   type AutomationApiScope,
   type ApiCreateTokenRequestDto,
+  type ApiCreateTrustedClientTokenRequestDto,
 } from "../../../../contracts/api/types.ts";
 import type {
   CreateRepositoryDto,
@@ -139,6 +140,31 @@ export async function handleTokenAdmin(context: ApiHandlerContext) {
 
   if (!removed) apiNotFound("API token does not exist");
   context.eventHub.revokePrincipal(tokenId);
+  return { body: { revoked: true }, statusCode: 200 };
+}
+
+export async function handleTrustedClientTokenAdmin(context: ApiHandlerContext) {
+  const { eventHub, operation, route, trustedClientTokenStore } = context;
+
+  if (operation.operationId === "listTrustedClientTokens") {
+    return {
+      body: { tokens: await trustedClientTokenStore.listTokens() },
+      statusCode: 200,
+    };
+  }
+  if (operation.operationId === "createTrustedClientToken") {
+    return {
+      body: await trustedClientTokenStore.createToken(
+        await context.readJsonBody() as ApiCreateTrustedClientTokenRequestDto,
+      ),
+      statusCode: 201,
+    };
+  }
+  const tokenId = route.trustedClientTokenId ?? "";
+  const removed = await trustedClientTokenStore.revokeToken(tokenId);
+
+  if (!removed) apiNotFound("Trusted client token does not exist");
+  eventHub.revokePrincipal(tokenId);
   return { body: { revoked: true }, statusCode: 200 };
 }
 

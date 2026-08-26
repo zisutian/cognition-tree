@@ -64,6 +64,7 @@ type ApiRouteParameters = {
   repositoryId?: string;
   sessionId?: string;
   tokenId?: string;
+  trustedClientTokenId?: string;
 };
 
 export type ApiRouteDefinition = {

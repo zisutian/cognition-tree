@@ -16,7 +16,12 @@ const apiAccess = {
     createToken: async () => {
       throw new Error("not called during server rendering");
     },
+    createTrustedClientToken: async () => {
+      throw new Error("not called during server rendering");
+    },
+    listTrustedClientTokens: async () => [],
     listTokens: async () => [],
+    revokeTrustedClientToken: async () => undefined,
     revokeToken: async () => undefined,
   },
   repositories: [{ id: "primary", label: "主仓库" }],

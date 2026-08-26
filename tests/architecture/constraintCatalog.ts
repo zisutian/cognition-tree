@@ -70,6 +70,7 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   "api/sync": [
     "api/http",
     "api/sync",
+    "operations",
     "repository",
   ],
   catalog: ["catalog", "repository"],

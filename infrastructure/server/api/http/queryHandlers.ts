@@ -54,6 +54,7 @@ export async function handleWorkspaceQuery(context: ApiHandlerContext) {
             switch (principal.kind) {
               case "local-owner":
               case "owner":
+              case "trusted-client":
                 return true;
               case "automation":
                 return principal.repositoryIds === null ||

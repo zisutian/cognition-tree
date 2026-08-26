@@ -7,7 +7,7 @@ export type OperationStoreReference =
 
 type OperationAuditEntryBase = {
   afterRevision: `sha256:${string}` | null;
-  beforeRevision: `sha256:${string}`;
+  beforeRevision: `sha256:${string}` | null;
   blockIds: string[];
   id: string;
   occurredAt: string;
@@ -44,7 +44,7 @@ export type OperationAuditEntry = OperationAuditEntryBase & (
     }
   | {
       source: "trusted-client";
-      technical: { intentDigest: `sha256:${string}` };
+      technical: { intentDigest: `sha256:${string}` | null };
     }
 );
 

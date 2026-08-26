@@ -9,7 +9,7 @@ import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import { apiAllowedMethods } from "../../../../contracts/api/registry.ts";
 import { ApiRequestError } from "./errors.ts";
 
-const maximumBodyBytes = 20 * 1024 * 1024;
+export const defaultMaximumBodyBytes = 20 * 1024 * 1024;
 
 function getRequestHeader(request: IncomingMessage, name: string) {
   const value = request.headers[name.toLowerCase()];
@@ -66,7 +66,11 @@ export function assertApiRequestHasNoBody(request: IncomingMessage) {
 
 export async function readApiJsonBody(
   request: IncomingMessage,
+  maximumBodyBytes = defaultMaximumBodyBytes,
 ): Promise<unknown> {
+  if (!Number.isSafeInteger(maximumBodyBytes) || maximumBodyBytes < 1) {
+    throw new Error("API operation body limit must be a positive integer");
+  }
   const contentType = getRequestHeader(request, "content-type")
     ?.split(";", 1)[0]?.trim().toLowerCase();
 

@@ -19,6 +19,7 @@ export type ApiOperationDefinition = {
   access: ApiAccessPolicy;
   body?: ApiBodyDefinition;
   method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
+  maximumBodyBytes?: number;
   operationId: string;
   path: string;
   query?: TSchema;

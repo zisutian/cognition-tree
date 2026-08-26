@@ -29,6 +29,7 @@ import {
   handleAgentConfigurationAdmin,
   handleRepositoryAdmin,
   handleTokenAdmin,
+  handleTrustedClientTokenAdmin,
   parseAuditQuery,
 } from "./adminHandlers.ts";
 import { ApiSearchService } from "../search.ts";
@@ -48,7 +49,8 @@ export async function handleApiRoute(
   }
   if (operation.operationId === "getCapabilities") {
     const exposesAuditStatus = context.principal?.kind === "local-owner" ||
-      context.principal?.kind === "owner";
+      context.principal?.kind === "owner" ||
+      context.principal?.kind === "trusted-client";
     const auditStatus = exposesAuditStatus && context.operationLedger
       ? (await context.operationLedger.status()).status
       : exposesAuditStatus ? "unavailable" : null;
@@ -165,6 +167,9 @@ export async function handleApiRoute(
     operation.operationId,
   )) {
     return handleTokenAdmin(authorizedContext);
+  }
+  if (operation.operationId.includes("TrustedClientToken")) {
+    return handleTrustedClientTokenAdmin(authorizedContext);
   }
   if (
     operation.operationId === "listOperations" ||

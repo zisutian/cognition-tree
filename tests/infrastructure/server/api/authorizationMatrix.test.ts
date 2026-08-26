@@ -22,6 +22,11 @@ const principals = {
   },
   "local-owner": { id: "local-owner", kind: "local-owner", name: "Local" },
   owner: { id: "owner", kind: "owner", name: "Owner" },
+  "trusted-client": {
+    id: "trusted-client",
+    kind: "trusted-client",
+    name: "Trusted",
+  },
 } as const satisfies Record<string, ApiPrincipalDto>;
 
 const policies = {
@@ -94,6 +99,13 @@ describe("API authorization matrix", () => {
         "content-read-workspace": "allow",
         "content-sync": "allow",
         owner: "allow",
+        public: "allow",
+      },
+      "trusted-client": {
+        "content-read-journal": "allow",
+        "content-read-workspace": "allow",
+        "content-sync": "allow",
+        owner: "forbidden",
         public: "allow",
       },
     });

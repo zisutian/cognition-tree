@@ -32,6 +32,7 @@ import {
 } from "../../../../../infrastructure/server/api/http/security.ts";
 import { AutomationTokenStore } from "../../../../../infrastructure/server/access/automationTokenStore.ts";
 import { BuiltInCatalog } from "../../../../../infrastructure/server/repository/built-ins/catalog.ts";
+import type { OperationLedger } from "../../../../../infrastructure/server/operations/operationLedger.ts";
 
 type RequestOptions = {
   body?: unknown;
@@ -173,6 +174,7 @@ export async function withHandler(
     rootDir: string,
     createAuthenticatedHandler: (
       ownerToken: string,
+      options?: { operationLedger?: OperationLedger },
     ) => ApiRequestHandler,
   ) => Promise<void>,
 ) {
@@ -184,7 +186,7 @@ export async function withHandler(
   const builtInCatalog = new BuiltInCatalog(rootDir);
   const runtime = createRuntime();
   const stateDirectory = path.join(rootDir, "server-state");
-  const createHandler = () => {
+  const createHandler = (operationLedger?: OperationLedger) => {
     const accessStore = new AutomationTokenStore(stateDirectory, {
       now: runtime.now,
     });
@@ -194,6 +196,7 @@ export async function withHandler(
       accessStore,
       builtInCatalog,
       catalog,
+      operationLedger,
       runtime,
       security: createApiSecurityPolicy({
         ownerSessions: {
@@ -215,8 +218,8 @@ export async function withHandler(
     await run(
       createHandler(),
       rootDir,
-      (ownerToken) => {
-        const handler = createHandler();
+      (ownerToken, options = {}) => {
+        const handler = createHandler(options.operationLedger);
 
         return (request, response) => {
           if (request.headers.authorization === `Bearer ${ownerToken}`) {

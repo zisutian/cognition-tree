@@ -8,6 +8,7 @@ import type {
   ApiAccessApplication,
   AutomationApiScope,
   AutomationApiToken,
+  TrustedClientToken,
 } from "../../../application/apiAccess/apiAccessAdministration";
 import {
   Button,
@@ -124,6 +125,32 @@ function TokenList({
   );
 }
 
+function TrustedClientTokenList({
+  onRevoke,
+  tokens,
+}: {
+  onRevoke(tokenId: string): void;
+  tokens: TrustedClientToken[];
+}) {
+  if (tokens.length === 0) {
+    return <p className="settings-muted">尚未创建可信客户端令牌。</p>;
+  }
+  return (
+    <ul aria-label="可信客户端令牌" className="settings-api-token-list">
+      {tokens.map((token) => (
+        <li key={token.id}>
+          <div className="settings-api-token-name">
+            <strong>{token.name}</strong><code>{token.prefix}…</code>
+          </div>
+          <p>Workspace、日记与代办完整同步权限</p>
+          <p>{token.lastUsedAt ? `最近使用 ${formatApiAccessTimestamp(token.lastUsedAt)}` : "尚未使用"}</p>
+          <Button onClick={() => onRevoke(token.id)} type="button">撤销</Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function ApiAccessSettingsPanel({
   apiAccess,
 }: {
@@ -136,14 +163,16 @@ export function ApiAccessSettingsPanel({
   const [repositoryIds, setRepositoryIds] = useState<string[] | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [tokens, setTokens] = useState<AutomationApiToken[]>([]);
+  const [trustedClientName, setTrustedClientName] = useState("");
+  const [trustedClientTokens, setTrustedClientTokens] = useState<TrustedClientToken[]>([]);
   const administration = apiAccess.administration;
   const load = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
-    const tokenResult = await administration.listTokens().then(
-      (value) => ({ status: "fulfilled" as const, value }),
-      (reason: unknown) => ({ reason, status: "rejected" as const }),
-    );
+    const [tokenResult, trustedResult] = await Promise.allSettled([
+      administration.listTokens(),
+      administration.listTrustedClientTokens(),
+    ]);
     const failures: string[] = [];
 
     if (tokenResult.status === "fulfilled") {
@@ -153,6 +182,15 @@ export function ApiAccessSettingsPanel({
         tokenResult.reason instanceof Error
           ? `无法加载自动化令牌：${tokenResult.reason.message}`
           : "无法加载自动化令牌。",
+      );
+    }
+    if (trustedResult.status === "fulfilled") {
+      setTrustedClientTokens(trustedResult.value);
+    } else {
+      failures.push(
+        trustedResult.reason instanceof Error
+          ? `无法加载可信客户端令牌：${trustedResult.reason.message}`
+          : "无法加载可信客户端令牌。",
       );
     }
     setErrorMessage(failures.length > 0 ? failures.join(" ") : null);
@@ -217,6 +255,33 @@ export function ApiAccessSettingsPanel({
       );
     }
   };
+  const createTrustedClientToken = async () => {
+    const tokenName = trustedClientName.trim();
+
+    if (!tokenName) return;
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const created = await administration.createTrustedClientToken(tokenName);
+
+      setSecret(created.secret);
+      setTrustedClientName("");
+      setTrustedClientTokens((current) => [created.token, ...current]);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "无法创建可信客户端令牌。");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const revokeTrustedClientToken = async (tokenId: string) => {
+    setErrorMessage(null);
+    try {
+      await administration.revokeTrustedClientToken(tokenId);
+      setTrustedClientTokens((current) => current.filter(({ id }) => id !== tokenId));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "无法撤销可信客户端令牌。");
+    }
+  };
 
   return (
     <Panel aria-label="API 访问" className="settings-panel">
@@ -226,6 +291,10 @@ export function ApiAccessSettingsPanel({
           <p className="settings-muted">
             自动化令牌仅用于 <code>/api/v3/content/*</code> 只读接口，
             不能访问 sync、agent 或 admin。
+          </p>
+          <p className="settings-muted">
+            可信客户端令牌可通过 <code>/api/v3/sync/*</code> 读取并同步全部内容，
+            但不能访问 admin、agent、auth 或仓库管理。
           </p>
           {errorMessage
             ? <p className="settings-api-error" role="alert">{errorMessage}</p>
@@ -384,6 +453,34 @@ export function ApiAccessSettingsPanel({
                     tokens={tokens}
                   />
                 )}
+          </Section>
+          <Section className="settings-api-section" title="可信客户端">
+            <div className="settings-api-form">
+              <label className="settings-api-form-row">
+                <span>名称</span>
+                <input
+                  aria-label="可信客户端名称"
+                  className="ui-input"
+                  maxLength={80}
+                  onChange={(event) => setTrustedClientName(event.currentTarget.value)}
+                  placeholder="例如：每日 Codex"
+                  value={trustedClientName}
+                />
+              </label>
+              <p className="settings-muted">
+                该令牌等价于全部 Workspace、日记和代办内容的读取、创建、修改与删除权限。
+              </p>
+              <Button
+                disabled={loading || trustedClientName.trim().length === 0}
+                onClick={() => void createTrustedClientToken()}
+                type="button"
+                variant="primary"
+              >创建可信客户端令牌</Button>
+            </div>
+            <TrustedClientTokenList
+              onRevoke={(id) => void revokeTrustedClientToken(id)}
+              tokens={trustedClientTokens}
+            />
           </Section>
           <Section className="settings-api-section" title="操作">
             <div className="settings-api-operation">

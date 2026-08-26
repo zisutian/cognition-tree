@@ -52,3 +52,33 @@ export const ApiHealthSchema = strictObject({ ok: Type.Literal(true) });
 export const ApiRevokedSchema = strictObject({
   revoked: Type.Literal(true),
 });
+
+export const ApiTrustedClientTokenSchema = strictObject({
+  createdAt: ApiCanonicalTimestampSchema,
+  id: ApiIdentifierSchema,
+  lastUsedAt: nullable(ApiCanonicalTimestampSchema),
+  name: ApiIdentifierSchema,
+  prefix: ApiIdentifierSchema,
+});
+export type ApiTrustedClientTokenDto = Static<
+  typeof ApiTrustedClientTokenSchema
+>;
+
+export const ApiCreateTrustedClientTokenRequestSchema = strictObject({
+  name: Type.String({ maxLength: 80, minLength: 1 }),
+});
+export type ApiCreateTrustedClientTokenRequestDto = Static<
+  typeof ApiCreateTrustedClientTokenRequestSchema
+>;
+
+export const ApiCreatedTrustedClientTokenSchema = strictObject({
+  secret: ApiIdentifierSchema,
+  token: ApiTrustedClientTokenSchema,
+});
+export type ApiCreatedTrustedClientTokenDto = Static<
+  typeof ApiCreatedTrustedClientTokenSchema
+>;
+
+export const ApiTrustedClientTokenListSchema = strictObject({
+  tokens: Type.Array(ApiTrustedClientTokenSchema),
+});

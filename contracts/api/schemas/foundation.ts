@@ -77,6 +77,11 @@ export const ApiPrincipalSchema = Type.Union([
     })),
     scopes: Type.Array(apiAutomationScopeSchema, { uniqueItems: true }),
   }),
+  strictObject({
+    id: ApiIdentifierSchema,
+    kind: Type.Literal("trusted-client"),
+    name: ApiIdentifierSchema,
+  }),
 ]);
 export type ApiPrincipalDto = Static<typeof ApiPrincipalSchema>;
 

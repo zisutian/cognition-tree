@@ -6,6 +6,7 @@ import path from "node:path";
 import { AutomationTokenStore } from "./access/automationTokenStore.ts";
 import { AgentConfigurationStore } from "./agent/configurationStore.ts";
 import { OperationLedger } from "./operations/operationLedger.ts";
+import { TrustedClientTokenStore } from "./access/trustedClientTokenStore.ts";
 import { AgentProviderOperations } from "./agent/providerOperations.ts";
 import { AgentProviderTargetPolicy } from "./agent/providerTargetPolicy.ts";
 import { AgentService } from "./agent/service.ts";
@@ -113,6 +114,7 @@ await catalog.initialize();
 await builtInCatalog.initialize();
 
 const accessStore = new AutomationTokenStore(serverStateDirectory);
+const trustedClientTokenStore = new TrustedClientTokenStore(serverStateDirectory);
 const agentTargetPolicy = new AgentProviderTargetPolicy();
 const agentConfigurationStore = new AgentConfigurationStore(
   serverStateDirectory,
@@ -186,6 +188,7 @@ const server = createApiServer({
   security,
   stateDirectory: serverStateDirectory,
   systemAdministration,
+  trustedClientTokenStore,
 }, async (request, response) => {
   if (!clientRuntime) {
     response.writeHead(503, { "Content-Type": "text/plain; charset=utf-8" });

@@ -11,9 +11,12 @@ import {
 import path from "node:path";
 import type {
   ApiCreatedTokenDto,
+  ApiCreatedTrustedClientTokenDto,
   ApiWorkspaceTreeDto,
 } from "../../../../contracts/api/types.ts";
 import type { RepositoryDescriptorDto } from "../../../../contracts/workspace/types.ts";
+import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/types.ts";
+import { OperationLedger } from "../../../../infrastructure/server/operations/operationLedger.ts";
 import {
   createContent,
   dispatch,
@@ -206,6 +209,202 @@ describe("CTN API v3 authorization", () => {
         body: { code: "unauthorized" },
         statusCode: 401,
       });
+    });
+  });
+
+  it("grants trusted clients content sync but no owner authority", async () => {
+    await withHandler(async (_handler, rootDir, authenticated) => {
+      const ownerToken = "owner-token-with-at-least-32-characters";
+      const handler = authenticated(ownerToken);
+      const repository = await dispatch<RepositoryDescriptorDto>(handler, {
+        body: { content: createContent(), label: "可信同步仓库" },
+        method: "POST",
+        token: ownerToken,
+        url: "/api/v3/admin/repositories",
+      });
+      const created = await dispatch<ApiCreatedTrustedClientTokenDto>(handler, {
+        body: { name: "每日 Codex" },
+        method: "POST",
+        token: ownerToken,
+        url: "/api/v3/admin/trusted-client-tokens",
+      });
+
+      expect(created.statusCode).toBe(201);
+      expect(created.body!.secret).toMatch(/^ctt_/);
+      const secret = created.body!.secret;
+      const capabilities = await dispatch<{
+        operationAuditStatus: string;
+        principal: { kind: string };
+      }>(handler, {
+        method: "GET",
+        token: secret,
+        url: "/api/v3/capabilities",
+      });
+
+      expect(capabilities.body).toMatchObject({
+        operationAuditStatus: "unavailable",
+        principal: { kind: "trusted-client" },
+      });
+      await expect(dispatch(handler, {
+        method: "GET",
+        token: secret,
+        url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+      })).resolves.toMatchObject({ statusCode: 200 });
+      for (const url of [
+        "/api/v3/admin/repositories",
+        "/api/v3/agent/status",
+        "/api/v3/auth/session",
+      ]) {
+        const response = await dispatch<{ code?: string; authenticated?: boolean }>(handler, {
+          method: "GET",
+          token: secret,
+          url,
+        });
+
+        if (url === "/api/v3/auth/session") {
+          expect(response).toMatchObject({
+            body: { authenticated: false },
+            statusCode: 200,
+          });
+        } else {
+          expect(response).toMatchObject({
+            body: { code: "forbidden" },
+            statusCode: 403,
+          });
+        }
+      }
+      const snapshot = await dispatch<{ content: unknown; revision: string }>(handler, {
+        method: "GET",
+        token: secret,
+        url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+      });
+      await expect(dispatch<{ code: string }>(handler, {
+        body: {
+          base: snapshot.body,
+          content: snapshot.body!.content,
+        },
+        method: "PUT",
+        token: secret,
+        url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+      })).resolves.toMatchObject({
+        body: { code: "operation_audit_unavailable" },
+        statusCode: 503,
+      });
+      const tokenFile = path.join(
+        rootDir,
+        "server-state/access-v1/trusted-client-tokens.json",
+      );
+
+      expect((await lstat(tokenFile)).mode & 0o777).toBe(0o600);
+      expect(await readFile(tokenFile, "utf8")).not.toContain(secret);
+      await expect(dispatch(handler, {
+        method: "DELETE",
+        token: ownerToken,
+        url: `/api/v3/admin/trusted-client-tokens/${created.body!.token.id}`,
+      })).resolves.toMatchObject({ statusCode: 200 });
+      await expect(dispatch(handler, {
+        method: "GET",
+        token: secret,
+        url: "/api/v3/capabilities",
+      })).resolves.toMatchObject({ statusCode: 401 });
+    });
+  });
+
+  it("audits a trusted-client sync before and after the content CAS", async () => {
+    await withHandler(async (_handler, rootDir, authenticated) => {
+      const ownerToken = "owner-token-with-at-least-32-characters";
+      const ledger = new OperationLedger(path.join(rootDir, "server-state"), 100);
+
+      await ledger.initialize();
+      const handler = authenticated(ownerToken, { operationLedger: ledger });
+      const repository = await dispatch<RepositoryDescriptorDto>(handler, {
+        body: { content: createContent(), label: "受审计同步" },
+        method: "POST",
+        token: ownerToken,
+        url: "/api/v3/admin/repositories",
+      });
+      const created = await dispatch<ApiCreatedTrustedClientTokenDto>(handler, {
+        body: { name: "可信 Codex" },
+        method: "POST",
+        token: ownerToken,
+        url: "/api/v3/admin/trusted-client-tokens",
+      });
+      const snapshot = await dispatch<{
+        content: WorkspaceRepositoryContentDto;
+        revision: `sha256:${string}`;
+      }>(handler, {
+        method: "GET",
+        token: created.body!.secret,
+        url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+      });
+      const content = {
+        ...snapshot.body!.content,
+        workspace: {
+          ...snapshot.body!.content.workspace,
+          name: "可信客户端已同步",
+        },
+      };
+      const committed = await dispatch<{
+        outcome: string;
+        snapshot: { revision: string };
+      }>(handler, {
+        body: { base: snapshot.body, content },
+        method: "PUT",
+        token: created.body!.secret,
+        url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+      });
+
+      expect(committed).toMatchObject({
+        body: { outcome: "committed" },
+        statusCode: 200,
+      });
+      const conflicted = await dispatch<{ code: string }>(handler, {
+        body: {
+          base: snapshot.body,
+          content: {
+            ...snapshot.body!.content,
+            workspace: {
+              ...snapshot.body!.content.workspace,
+              name: "与远端重叠的名称",
+            },
+          },
+        },
+        method: "PUT",
+        token: created.body!.secret,
+        url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+      });
+
+      expect(conflicted).toMatchObject({
+        body: { code: "merge_conflict" },
+        statusCode: 409,
+      });
+      const operations = await dispatch<{
+        entries: Array<{
+          afterRevision: string;
+          principalId: string;
+          result: string;
+          source: string;
+        }>;
+      }>(handler, {
+        method: "GET",
+        token: ownerToken,
+        url: "/api/v3/admin/operations",
+      });
+
+      expect(operations.body!.entries).toEqual([
+        expect.objectContaining({
+          afterRevision: null,
+          principalId: created.body!.token.id,
+          result: "conflict",
+          source: "trusted-client",
+        }),
+        expect.objectContaining({
+          afterRevision: committed.body!.snapshot.revision,
+          principalId: created.body!.token.id,
+          result: "committed",
+          source: "trusted-client",
+        }),
+      ]);
     });
   });
 });

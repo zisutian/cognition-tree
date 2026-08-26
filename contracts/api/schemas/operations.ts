@@ -24,7 +24,7 @@ const changeMetadata = strictObject({
 });
 const common = {
   afterRevision: nullable(ApiResourceVersionSchema),
-  beforeRevision: ApiResourceVersionSchema,
+  beforeRevision: nullable(ApiResourceVersionSchema),
   changeMetadata,
   id: ApiIdentifierSchema,
   occurredAt: ApiCanonicalTimestampSchema,
@@ -65,7 +65,7 @@ export const ApiOperationAuditEntrySchema = Type.Union([
   }),
   strictObject({
     ...common,
-    intentDigest: digest,
+    intentDigest: nullable(digest),
     result: Type.Union([
       Type.Literal("auto-merged"),
       Type.Literal("committed"),

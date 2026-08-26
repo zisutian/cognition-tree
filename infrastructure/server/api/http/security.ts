@@ -2,7 +2,6 @@
 
 import type { IncomingMessage } from "node:http";
 import type { ApiPrincipalDto } from "../../../../contracts/api/types.ts";
-import type { AutomationTokenStore } from "../../access/automationTokenStore.ts";
 import { isLoopbackAddress } from "../../network/loopbackAddress.ts";
 
 export const ownerSessionCookieName = "ctn_owner_session";
@@ -197,7 +196,7 @@ export function createApiSecurityPolicy({
 export async function authorizeApiRequest(
   request: IncomingMessage,
   policy: ApiSecurityPolicy,
-  accessStore: Pick<AutomationTokenStore, "authenticate">,
+  accessStore: { authenticate(secret: string): Promise<ApiPrincipalDto | null> },
 ): Promise<{
   allowedOrigin: string | null;
   principal: ApiPrincipalDto | null;

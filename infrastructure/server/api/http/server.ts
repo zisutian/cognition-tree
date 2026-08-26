@@ -53,6 +53,7 @@ import {
   ApiRevisionTracker,
 } from "../sync/revisionTracker.ts";
 import { AutomationTokenStore } from "../../access/automationTokenStore.ts";
+import { TrustedClientTokenStore } from "../../access/trustedClientTokenStore.ts";
 import type { AgentService } from "../../agent/service.ts";
 import type { OperationLedger } from "../../operations/operationLedger.ts";
 import { AgentConfigurationStore } from "../../agent/configurationStore.ts";
@@ -82,6 +83,7 @@ export type ApiServerOptions = {
   security: ApiSecurityPolicy;
   stateDirectory?: string;
   systemAdministration?: SystemAdministrationPort | null;
+  trustedClientTokenStore?: TrustedClientTokenStore;
 };
 
 function mapSecurityError(error: ApiSecurityError) {
@@ -113,10 +115,18 @@ export function createApiRequestHandler({
     "server",
   ),
   systemAdministration = null,
+  trustedClientTokenStore,
 }: ApiServerOptions): ApiRequestHandler {
   const resolvedAccessStore = accessStore ?? new AutomationTokenStore(
     stateDirectory,
   );
+  const resolvedTrustedClientTokenStore = trustedClientTokenStore ??
+    new TrustedClientTokenStore(stateDirectory);
+  const bearerAuthenticator = {
+    authenticate: async (secret: string) =>
+      await resolvedAccessStore.authenticate(secret) ??
+      await resolvedTrustedClientTokenStore.authenticate(secret),
+  };
   const resolvedAgentConfigurationStore = agentConfigurationStore ??
     new AgentConfigurationStore(stateDirectory);
   const resolvedAgentProviderOperations = agentProviderOperations ??
@@ -139,7 +149,7 @@ export function createApiRequestHandler({
       const authorized = await authorizeApiRequest(
         request,
         security,
-        resolvedAccessStore,
+        bearerAuthenticator,
       );
 
       responseHeaders = createApiResponseHeaders(
@@ -194,7 +204,10 @@ export function createApiRequestHandler({
         principal: authorized.principal,
         query,
         readJsonBody: () => {
-          parsedBody ??= readApiJsonBody(request).then((input) =>
+          parsedBody ??= readApiJsonBody(
+            request,
+            operation.maximumBodyBytes,
+          ).then((input) =>
             parseApiOperationRequest(operation, input)
           );
           return parsedBody;
@@ -208,6 +221,7 @@ export function createApiRequestHandler({
         runtime,
         search,
         systemAdministration,
+        trustedClientTokenStore: resolvedTrustedClientTokenStore,
       });
 
       if (result) {

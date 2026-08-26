@@ -26,6 +26,7 @@ function canRead(
   switch (principal.kind) {
     case "local-owner":
     case "owner":
+    case "trusted-client":
       return true;
     case "automation":
       return principal.scopes.includes(`${domain}:read`);
@@ -40,6 +41,7 @@ function repositoryAllowed(
   switch (principal.kind) {
     case "local-owner":
     case "owner":
+    case "trusted-client":
       return true;
     case "automation":
       return principal.repositoryIds === null ||
