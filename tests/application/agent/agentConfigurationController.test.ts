@@ -45,8 +45,11 @@ function port(): AgentConfigurationPort {
     probeProvider: vi.fn(async () => ({
       modelContexts: [{
         declaredMaximumContextTokens: 262_144,
-        loadedContextTokens: 24_576,
         model: "qwen3:8b",
+        residentContext: {
+          allocatedContextTokens: 24_576,
+          status: "loaded" as const,
+        },
       }],
       models: ["qwen3:8b"],
       probedAt: "2026-08-25T00:00:00.000Z",

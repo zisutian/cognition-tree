@@ -91,11 +91,19 @@ export type AgentOllamaDiscovery = Readonly<{
   models: readonly string[];
 }>;
 
+export type AgentOllamaResidentContext =
+  | Readonly<{
+      allocatedContextTokens: number;
+      status: "loaded";
+    }>
+  | Readonly<{ status: "loaded-unreported" }>
+  | Readonly<{ status: "not-loaded" }>;
+
 export type AgentProviderProbe = Readonly<{
   modelContexts: readonly Readonly<{
     declaredMaximumContextTokens: number | null;
-    loadedContextTokens: number | null;
     model: string;
+    residentContext: AgentOllamaResidentContext;
   }>[];
   models: readonly string[];
   probedAt: string;

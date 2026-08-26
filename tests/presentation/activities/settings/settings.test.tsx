@@ -148,8 +148,19 @@ const agent = {
       "ollama-provider": {
         modelContexts: [{
           declaredMaximumContextTokens: 262_144,
-          loadedContextTokens: 24_576,
           model: "qwen3.8:27b",
+          residentContext: {
+            allocatedContextTokens: 24_576,
+            status: "loaded" as const,
+          },
+        }, {
+          declaredMaximumContextTokens: 262_144,
+          model: "qwen3.5:9b",
+          residentContext: { status: "not-loaded" as const },
+        }, {
+          declaredMaximumContextTokens: null,
+          model: "unreported-model",
+          residentContext: { status: "loaded-unreported" as const },
         }],
         models: ["qwen3.8:27b"],
         probedAt: "2026-08-25T00:00:00.000Z",
@@ -270,8 +281,10 @@ describe("settings activity", () => {
         "codex",
         "认证已配置",
         "发现本地 Ollama",
-        "模型声明上限：262144 tokens",
-        "当前加载：24576 tokens",
+        "模型架构上限：262144 tokens",
+        "当前驻留上下文：24576 tokens",
+        "未加载，无法测量实际值",
+        "已加载，但 Ollama 未报告实际值",
         "凭据保存后",
         "创建 Profile",
         "刷新状态",

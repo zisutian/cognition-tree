@@ -153,8 +153,15 @@ export type AgentOllamaDiscoveryRequestDto = Static<
 export const AgentProviderProbeResultSchema = strictObject({
   modelContexts: Type.Array(strictObject({
     declaredMaximumContextTokens: nullable(positiveInteger),
-    loadedContextTokens: nullable(positiveInteger),
     model: ApiIdentifierSchema,
+    residentContext: Type.Union([
+      strictObject({ status: Type.Literal("not-loaded") }),
+      strictObject({ status: Type.Literal("loaded-unreported") }),
+      strictObject({
+        allocatedContextTokens: positiveInteger,
+        status: Type.Literal("loaded"),
+      }),
+    ]),
   })),
   models: Type.Array(ApiIdentifierSchema, { uniqueItems: true }),
   probedAt: ApiCanonicalTimestampSchema,

@@ -120,11 +120,13 @@ function positiveSafeInteger(value: unknown) {
 }
 
 function parseLoadedContexts(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return new Map();
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return new Map<string, number | null>();
+  }
   const candidates = (value as Record<string, unknown>).models;
 
-  if (!Array.isArray(candidates)) return new Map();
-  return new Map(candidates.flatMap((candidate): Array<[string, number]> => {
+  if (!Array.isArray(candidates)) return new Map<string, number | null>();
+  return new Map(candidates.flatMap((candidate): Array<[string, number | null]> => {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
       return [];
     }
@@ -136,7 +138,7 @@ function parseLoadedContexts(value: unknown) {
         : null;
     const context = positiveSafeInteger(record.context_length);
 
-    return model && context !== null ? [[model, context]] : [];
+    return model ? [[model, context]] : [];
   }));
 }
 
@@ -316,8 +318,15 @@ export class AgentProviderOperations {
 
       modelContexts.push({
         declaredMaximumContextTokens,
-        loadedContextTokens: loadedContexts.get(model) ?? null,
         model,
+        residentContext: !loadedContexts.has(model)
+          ? { status: "not-loaded" as const }
+          : loadedContexts.get(model) === null
+            ? { status: "loaded-unreported" as const }
+            : {
+                allocatedContextTokens: loadedContexts.get(model)!,
+                status: "loaded" as const,
+              },
       });
     }
 

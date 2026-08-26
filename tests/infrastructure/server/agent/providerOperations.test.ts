@@ -128,8 +128,11 @@ describe("Agent provider operations", () => {
       expect(await operations.probe(provider.provider.id)).toEqual({
         modelContexts: [{
           declaredMaximumContextTokens: 262_144,
-          loadedContextTokens: 24_576,
           model: "qwen3:8b",
+          residentContext: {
+            allocatedContextTokens: 24_576,
+            status: "loaded",
+          },
         }],
         models: ["qwen3:8b"],
         probedAt: "2026-08-25T00:00:00.000Z",
@@ -213,12 +216,17 @@ describe("Agent provider operations", () => {
     const server = createServer(async (request, response) => {
       if (request.url === "/api/tags") {
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ models: [{ name: "configured-model" }] }));
+        response.end(JSON.stringify({
+          models: [
+            { name: "configured-model" },
+            { name: "not-loaded-model" },
+          ],
+        }));
         return;
       }
       if (request.url === "/api/ps") {
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ models: [] }));
+        response.end(JSON.stringify({ models: [{ name: "configured-model" }] }));
         return;
       }
       if (request.url === "/api/show") {
@@ -268,19 +276,44 @@ describe("Agent provider operations", () => {
         providerId: provider.provider.id,
         timeoutMilliseconds: 60_000,
       });
+      const notLoadedProfile = await store.createProfile(
+        profile.configuration.revision,
+        {
+          label: "Not loaded model",
+          maxResidentSessions: 1,
+          model: "not-loaded-model",
+          parameters: {
+            historyBudgetCharacters: 65_536,
+            kind: "chat",
+            maxOutputTokens: 1_024,
+            maxToolSteps: 8,
+            reasoningEffort: "model-default",
+            toolCallMode: "single-json",
+          },
+          providerId: provider.provider.id,
+          timeoutMilliseconds: 60_000,
+        },
+      );
 
       await expect(operations.probe(provider.provider.id)).resolves.toEqual({
-        modelContexts: [{
-          declaredMaximumContextTokens: null,
-          loadedContextTokens: null,
-          model: "configured-model",
-        }],
-        models: ["configured-model"],
+        modelContexts: [
+          {
+            declaredMaximumContextTokens: null,
+            model: "configured-model",
+            residentContext: { status: "loaded-unreported" },
+          },
+          {
+            declaredMaximumContextTokens: null,
+            model: "not-loaded-model",
+            residentContext: { status: "not-loaded" },
+          },
+        ],
+        models: ["configured-model", "not-loaded-model"],
         probedAt: "2026-08-25T00:00:00.000Z",
         reachable: true,
       });
       expect((await store.readSnapshot()).revision).toBe(
-        profile.configuration.revision,
+        notLoadedProfile.configuration.revision,
       );
     } finally {
       await operations.dispose();

@@ -5,6 +5,7 @@ import type {
   AgentApplication,
   AgentChatReasoningEffort,
   AgentConfigurationState,
+  AgentOllamaResidentContext,
   AgentProfileInput,
   AgentProviderInput,
   AgentProviderKind,
@@ -259,7 +260,7 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                         <p>探测时间：{configurationState.probes[provider.id]!.probedAt}</p>
                         {configurationState.probes[provider.id]!.modelContexts.map((context) => (
                           <p key={context.model}>
-                            {context.model} · 模型声明上限：{context.declaredMaximumContextTokens ?? "未知"} tokens · 当前加载：{context.loadedContextTokens ?? "未知"} tokens
+                            {context.model} · 模型架构上限：{context.declaredMaximumContextTokens === null ? "未知" : `${context.declaredMaximumContextTokens} tokens`} · 当前驻留上下文：{residentContextLabel(context.residentContext)}
                           </p>
                         ))}
                       </> : null}
@@ -370,6 +371,14 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
       </PanelBody>
     </Panel>
   );
+}
+
+function residentContextLabel(
+  context: AgentOllamaResidentContext,
+) {
+  if (context.status === "not-loaded") return "未加载，无法测量实际值";
+  if (context.status === "loaded-unreported") return "已加载，但 Ollama 未报告实际值";
+  return `${context.allocatedContextTokens} tokens`;
 }
 
 function CodexProfileFields({ draft, setDraft }: { draft: ProfileDraft; setDraft(value: ProfileDraft): void }) {
