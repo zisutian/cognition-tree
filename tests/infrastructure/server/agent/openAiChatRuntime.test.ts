@@ -27,6 +27,13 @@ function writeSse(response: ServerResponse, values: unknown[]) {
   for (const value of values) {
     response.write(`data: ${JSON.stringify(value)}\n\n`);
   }
+  const finishReason = JSON.stringify(values).includes('"tool_calls"')
+    ? "tool_calls"
+    : "stop";
+
+  response.write(`data: ${JSON.stringify({
+    choices: [{ delta: {}, finish_reason: finishReason }],
+  })}\n\n`);
   response.end("data: [DONE]\n\n");
 }
 
@@ -55,7 +62,7 @@ const journalCreateTool = {
 } as const;
 
 describe("OpenAI-compatible Agent runtime", () => {
-  it("characterizes reasoning-only length completions as empty success", async () => {
+  it("rejects reasoning-only length completions without emitting empty deltas", async () => {
     const server = createServer((_request, response) => {
       response.writeHead(200, { "Content-Type": "text/event-stream" });
       for (const reasoning of ["Thinking", " about", " tools"]) {
@@ -99,9 +106,176 @@ describe("OpenAI-compatible Agent runtime", () => {
         scope: { domain: "journal", entryIds: null },
         signal: new AbortController().signal,
         tools: [journalCreateTool],
-      })).resolves.toEqual({ finalText: "", toolCalls: 0 });
-      expect(deltas).toEqual(["", "", ""]);
+      })).rejects.toThrow(/output token limit/i);
+      expect(deltas).toEqual([]);
       expect(executeTool).not.toHaveBeenCalled();
+    } finally {
+      await session.dispose();
+      server.close();
+      await once(server, "close");
+    }
+  });
+
+  it("keeps reasoning private while streaming the final natural-language reply", async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "Content-Type": "text/event-stream" });
+      response.write(`data: ${JSON.stringify({
+        choices: [{
+          delta: { content: "", reasoning: "private reasoning" },
+          finish_reason: null,
+        }],
+      })}\n\n`);
+      response.write(`data: ${JSON.stringify({
+        choices: [{ delta: { content: "完成。" }, finish_reason: null }],
+      })}\n\n`);
+      response.write(`data: ${JSON.stringify({
+        choices: [{ delta: {}, finish_reason: "stop" }],
+      })}\n\n`);
+      response.end("data: [DONE]\n\n");
+    });
+
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+
+    if (!address || typeof address === "string") throw new Error("Missing port");
+    const session = await new OpenAiChatRuntime(
+      profile(`http://127.0.0.1:${address.port}/v1`),
+      "server-secret",
+    ).openSession({
+      instructions: "shared instructions",
+      profileId: "openai-test",
+      scope: { domain: "journal", entryIds: null },
+      sessionId: "00000000-0000-4000-8000-000000000001",
+    });
+    const deltas: string[] = [];
+
+    try {
+      await expect(session.runTurn({
+        executeTool: vi.fn(),
+        messages: [{ content: "创建一条日记", role: "user" }],
+        onEvent(event) {
+          if (event.type === "text-delta") deltas.push(event.textDelta);
+        },
+        scope: { domain: "journal", entryIds: null },
+        signal: new AbortController().signal,
+        tools: [journalCreateTool],
+      })).resolves.toEqual({ finalText: "完成。", toolCalls: 0 });
+      expect(deltas).toEqual(["\u5b8c\u6210\u3002"]);
+      expect(JSON.stringify(deltas)).not.toContain("private reasoning");
+    } finally {
+      await session.dispose();
+      server.close();
+      await once(server, "close");
+    }
+  });
+
+  it("passes reasoning back only in transient tool history", async () => {
+    const requests: Record<string, unknown>[] = [];
+    const server = createServer(async (request, response) => {
+      requests.push(await readJson(request));
+      if (requests.length === 1) {
+        response.writeHead(200, { "Content-Type": "text/event-stream" });
+        response.write(`data: ${JSON.stringify({
+          choices: [{
+            delta: {
+              content: "",
+              reasoning: "choose the journal tool",
+              tool_calls: [{
+                function: {
+                  arguments: JSON.stringify({ body: "Agent entry" }),
+                  name: "stage_journal_create_entry",
+                },
+                id: "call-reasoning",
+                index: 0,
+              }],
+            },
+            finish_reason: null,
+          }],
+        })}\n\n`);
+        response.write(`data: ${JSON.stringify({
+          choices: [{ delta: {}, finish_reason: "tool_calls" }],
+        })}\n\n`);
+        response.end("data: [DONE]\n\n");
+        return;
+      }
+      writeSse(response, [{ choices: [{ delta: { content: "已暂存。" } }] }]);
+    });
+
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+
+    if (!address || typeof address === "string") throw new Error("Missing port");
+    const session = await new OpenAiChatRuntime(
+      profile(`http://127.0.0.1:${address.port}/v1`),
+      "server-secret",
+    ).openSession({
+      instructions: "shared instructions",
+      profileId: "openai-test",
+      scope: { domain: "journal", entryIds: null },
+      sessionId: "00000000-0000-4000-8000-000000000001",
+    });
+    const deltas: string[] = [];
+
+    try {
+      await session.runTurn({
+        executeTool: vi.fn(async () => ({ staged: true })),
+        messages: [{ content: "创建一条日记", role: "user" }],
+        onEvent(event) {
+          if (event.type === "text-delta") deltas.push(event.textDelta);
+        },
+        scope: { domain: "journal", entryIds: null },
+        signal: new AbortController().signal,
+        tools: [journalCreateTool],
+      });
+      expect(requests[1]?.messages).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          reasoning: "choose the journal tool",
+          role: "assistant",
+        }),
+      ]));
+      expect(JSON.stringify(deltas)).not.toContain("choose the journal tool");
+    } finally {
+      await session.dispose();
+      server.close();
+      await once(server, "close");
+    }
+  });
+
+  it("rejects streams that end without a finish reason", async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "Content-Type": "text/event-stream" });
+      response.write(`data: ${JSON.stringify({
+        choices: [{ delta: { content: "unfinished" } }],
+      })}\n\n`);
+      response.end("data: [DONE]\n\n");
+    });
+
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+
+    if (!address || typeof address === "string") throw new Error("Missing port");
+    const session = await new OpenAiChatRuntime(
+      profile(`http://127.0.0.1:${address.port}/v1`),
+      "server-secret",
+    ).openSession({
+      instructions: "shared instructions",
+      profileId: "openai-test",
+      scope: { domain: "journal", entryIds: null },
+      sessionId: "00000000-0000-4000-8000-000000000001",
+    });
+
+    try {
+      await expect(session.runTurn({
+        executeTool: vi.fn(),
+        messages: [{ content: "respond", role: "user" }],
+        onEvent: vi.fn(),
+        scope: { domain: "journal", entryIds: null },
+        signal: new AbortController().signal,
+        tools: [journalCreateTool],
+      })).rejects.toThrow(/without a finish reason/i);
     } finally {
       await session.dispose();
       server.close();

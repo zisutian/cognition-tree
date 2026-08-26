@@ -30,9 +30,14 @@ export class AgentContextLimitError extends Error {
 }
 
 type ChatMessage =
-  | { content: string; role: "assistant" | "system" | "user" }
+  | {
+      content: string;
+      reasoning?: string;
+      role: "assistant" | "system" | "user";
+    }
   | {
       content: string | null;
+      reasoning?: string;
       role: "assistant";
       tool_calls: Array<{
         function: { arguments: string; name: string };
@@ -346,7 +351,9 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
         }
         const pending = new Map<number, PendingToolCall>();
         let messageText = "";
+        let reasoningText = "";
         const messageDeltas: string[] = [];
+        let finishReason: string | null = null;
 
         for await (const data of readSse(response)) {
           if (data === "[DONE]") break;
@@ -368,13 +375,56 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
               !Array.isArray(choice.delta)
             ? choice.delta as Record<string, unknown>
             : null;
+          const rawFinishReason = choice?.finish_reason;
+
+          if (rawFinishReason !== null && rawFinishReason !== undefined) {
+            if (typeof rawFinishReason !== "string") {
+              throw new AgentRuntimeProtocolError(
+                "OpenAI-compatible runtime emitted an invalid finish reason",
+              );
+            }
+            if (finishReason !== null) {
+              throw new AgentRuntimeProtocolError(
+                "OpenAI-compatible runtime emitted multiple finish reasons",
+              );
+            }
+            finishReason = rawFinishReason;
+          }
 
           if (!delta) continue;
-          if (typeof delta.content === "string") {
+          if (typeof delta.content === "string" && delta.content.length > 0) {
             messageText += delta.content;
             messageDeltas.push(delta.content);
           }
+          if (typeof delta.reasoning === "string" && delta.reasoning.length > 0) {
+            reasoningText += delta.reasoning;
+          }
           appendToolDelta(pending, delta.tool_calls);
+        }
+        if (finishReason === null) {
+          throw new AgentRuntimeProtocolError(
+            "OpenAI-compatible runtime ended without a finish reason",
+          );
+        }
+        if (finishReason === "length") {
+          throw new AgentRuntimeProtocolError(
+            "Agent completion reached the output token limit before producing a complete response",
+          );
+        }
+        if (finishReason !== "stop" && finishReason !== "tool_calls") {
+          throw new AgentRuntimeProtocolError(
+            `Agent completion ended with unsupported finish reason: ${finishReason}`,
+          );
+        }
+        if (pending.size > 0 && finishReason !== "tool_calls") {
+          throw new AgentRuntimeProtocolError(
+            "Agent completion included tool calls without a tool_calls finish reason",
+          );
+        }
+        if (pending.size === 0 && finishReason !== "stop") {
+          throw new AgentRuntimeProtocolError(
+            "Agent completion ended with tool_calls but omitted a tool call",
+          );
         }
         if (this.#profile.toolCallMode === "single-json") {
           if (pending.size > 0) {
@@ -409,7 +459,11 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
             await request.onEvent({ call, type: "tool-call" });
             const result = await request.executeTool(call);
 
-            messages.push({ content: messageText, role: "assistant" });
+            messages.push({
+              content: messageText,
+              ...(reasoningText ? { reasoning: reasoningText } : {}),
+              role: "assistant",
+            });
             messages.push({
               content: JSON.stringify({
                 tool: call.name,
@@ -442,6 +496,13 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
               appendTextCorrection(messages, correction);
               continue;
             }
+          }
+          if (!messageText) {
+            throw new AgentRuntimeProtocolError(
+              reasoningText
+                ? "Agent completed its reasoning without producing a reply or tool call"
+                : "Agent completion did not contain a reply or tool call",
+            );
           }
           messages.push({ content: messageText, role: "assistant" });
           finalText = messageText;
@@ -499,6 +560,7 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
 
         messages.push({
           content: messageText || null,
+          ...(reasoningText ? { reasoning: reasoningText } : {}),
           role: "assistant",
           tool_calls: [{
             function: { arguments: call.arguments || "{}", name: call.name },

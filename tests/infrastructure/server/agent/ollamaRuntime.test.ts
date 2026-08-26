@@ -10,6 +10,9 @@ import type { OllamaAgentProfile } from "../../../../infrastructure/server/agent
 function writeSse(response: ServerResponse, content: string) {
   response.writeHead(200, { "Content-Type": "text/event-stream" });
   response.write(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`);
+  response.write(`data: ${JSON.stringify({
+    choices: [{ delta: {}, finish_reason: "stop" }],
+  })}\n\n`);
   response.end("data: [DONE]\n\n");
 }
 
