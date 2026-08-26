@@ -174,14 +174,17 @@ describe("HTTP built-in catalog and data repositories", () => {
         details: { currentRevision: journalRevisionB },
         message: "journal changed",
         requestId: "request-conflict",
+        retryable: false,
       }, 409),
     });
     const unavailable = createHttpJournalRepositoryBackend({
       baseUrl: "https://api.test",
       fetch: async () => jsonResponse({
         code: "adapter_unavailable",
+        details: {},
         message: "journal unavailable",
         requestId: "request-unavailable",
+        retryable: true,
       }, 503),
     });
 

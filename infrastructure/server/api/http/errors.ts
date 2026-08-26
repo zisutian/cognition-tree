@@ -13,6 +13,7 @@ import type {
   ApiErrorCodeDto,
   ApiErrorDto,
 } from "../../../../contracts/api/types.ts";
+import { parseApiError } from "../../../../contracts/api/parseError.ts";
 import {
   TodoOccurrenceConflictError,
 } from "../../../../core/todo/recurrence/todoOccurrenceConflict.ts";
@@ -67,25 +68,31 @@ import {
   SystemMigrationValidationError,
 } from "../../../../application/system/systemConfiguration.ts";
 
-const statusByCode: Record<ApiErrorCodeDto, number> = {
-  adapter_unavailable: 503,
-  domain_validation_failed: 422,
-  forbidden: 403,
-  idempotency_conflict: 409,
-  insufficient_storage: 507,
-  internal_error: 500,
-  invalid_request: 400,
-  not_found: 404,
-  occurrence_conflict: 409,
-  profile_unavailable: 503,
-  proposal_stale: 409,
-  repository_busy: 423,
-  repository_corrupt: 500,
-  resource_conflict: 409,
-  session_capacity_reached: 429,
-  session_unavailable: 409,
-  unauthorized: 401,
-};
+export const ApiErrorCatalog = {
+  adapter_unavailable: { retryable: true, statusCode: 503 },
+  domain_validation_failed: { retryable: false, statusCode: 422 },
+  forbidden: { retryable: false, statusCode: 403 },
+  idempotency_conflict: { retryable: false, statusCode: 409 },
+  insufficient_storage: { retryable: false, statusCode: 507 },
+  internal_error: { retryable: false, statusCode: 500 },
+  invalid_request: { retryable: false, statusCode: 400 },
+  merge_conflict: { retryable: false, statusCode: 409 },
+  not_found: { retryable: false, statusCode: 404 },
+  occurrence_conflict: { retryable: false, statusCode: 409 },
+  operation_audit_finalize_failed: { retryable: false, statusCode: 500 },
+  operation_audit_unavailable: { retryable: false, statusCode: 503 },
+  profile_unavailable: { retryable: true, statusCode: 503 },
+  proposal_stale: { retryable: false, statusCode: 409 },
+  repository_busy: { retryable: true, statusCode: 423 },
+  repository_corrupt: { retryable: false, statusCode: 500 },
+  resource_conflict: { retryable: false, statusCode: 409 },
+  session_capacity_reached: { retryable: true, statusCode: 429 },
+  session_unavailable: { retryable: false, statusCode: 409 },
+  unauthorized: { retryable: false, statusCode: 401 },
+} as const satisfies Record<
+  ApiErrorCodeDto,
+  { retryable: boolean; statusCode: number }
+>;
 
 function createConflictId(kind: string, currentVersion: string) {
   const digest = createHash("sha256")
@@ -97,7 +104,8 @@ function createConflictId(kind: string, currentVersion: string) {
 
 export class ApiRequestError extends Error {
   readonly code: ApiErrorCodeDto;
-  readonly details?: Record<string, unknown>;
+  readonly details: Record<string, unknown>;
+  readonly retryable: boolean;
   readonly statusCode: number;
 
   constructor(
@@ -105,26 +113,30 @@ export class ApiRequestError extends Error {
     message: string,
     {
       details,
-      statusCode = statusByCode[code],
+      retryable = ApiErrorCatalog[code].retryable,
+      statusCode = ApiErrorCatalog[code].statusCode,
     }: {
       details?: Record<string, unknown>;
+      retryable?: boolean;
       statusCode?: number;
     } = {},
   ) {
     super(message);
     this.name = "ApiRequestError";
     this.code = code;
-    this.details = details;
+    this.details = details ?? {};
+    this.retryable = retryable;
     this.statusCode = statusCode;
   }
 
   toDto(requestId: string): ApiErrorDto {
-    return {
+    return parseApiError({
       code: this.code,
-      ...(this.details ? { details: this.details } : {}),
+      details: this.details,
       message: this.message,
       requestId,
-    };
+      retryable: this.retryable,
+    });
   }
 }
 
@@ -271,10 +283,14 @@ export function mapApiError(error: unknown): ApiRequestError {
   }
   if (
     error instanceof WorkspaceRepositoryContractError ||
-    error instanceof WireContractError ||
     error instanceof WorkspacePayloadValidationError
   ) {
     return new ApiRequestError("invalid_request", error.message);
+  }
+  if (error instanceof WireContractError) {
+    return new ApiRequestError("invalid_request", error.message, {
+      details: { issues: [{ path: error.path, reason: error.detail }] },
+    });
   }
   if (
     error instanceof JournalContentValidationError ||

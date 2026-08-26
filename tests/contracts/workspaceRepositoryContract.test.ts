@@ -241,12 +241,33 @@ describe("workspace repository v4 contract", () => {
       details: { currentRevision: revisionA },
       message: "changed",
       requestId: "request-1",
+      retryable: false,
     })).toEqual({
       code: "resource_conflict",
       details: { currentRevision: revisionA },
       message: "changed",
       requestId: "request-1",
+      retryable: false,
     });
+    expect(parseApiError({
+      code: "proposal_stale",
+      details: {
+        baseRevision: revisionA,
+        currentRevision: `sha256:${"b".repeat(64)}`,
+        proposalId: "00000000-0000-4000-8000-000000000001",
+        proposalVersion: 1,
+      },
+      message: "stale",
+      requestId: "request-2",
+      retryable: false,
+    }).code).toBe("proposal_stale");
+    expect(() => parseApiError({
+      code: "operation_audit_finalize_failed",
+      details: { afterRevision: revisionA },
+      message: "audit failed",
+      requestId: "request-3",
+      retryable: false,
+    })).toThrow("expected union value");
   });
 
   it("requires exact local filesystem locations", () => {

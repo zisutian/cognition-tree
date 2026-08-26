@@ -274,8 +274,10 @@ describe("HTTP workspace repository catalog", () => {
           ? jsonResponse(
               {
                 code: "repository_corrupt",
+                details: {},
                 message: "catalog metadata is corrupt",
                 requestId: "request-9",
+                retryable: false,
               },
               500,
             )

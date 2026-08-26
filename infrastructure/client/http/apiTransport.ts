@@ -83,29 +83,24 @@ async function readResponseJson(response: Response, retryable = false) {
 async function assertSuccessfulResponse(response: Response) {
   if (response.ok) return;
 
-  const retryableStatus = [408, 423, 429, 502, 503, 504].includes(
-    response.status,
-  );
   let apiError;
 
   try {
     apiError = parseApiError(
-      await readResponseJson(response, retryableStatus),
+      await readResponseJson(response),
     );
   } catch (error) {
     if (error instanceof HttpApiResponseError) throw error;
     throw new HttpApiResponseError(
       `API request failed (${response.status}).`,
-      { retryable: retryableStatus, statusCode: response.status },
+      { retryable: false, statusCode: response.status },
     );
   }
 
   throw new HttpApiResponseError(apiError.message, {
     apiCode: apiError.code,
-    details: apiError.details ?? null,
-    retryable: retryableStatus ||
-      apiError.code === "repository_busy" ||
-      apiError.code === "adapter_unavailable",
+    details: apiError.details,
+    retryable: apiError.retryable,
     statusCode: response.status,
   });
 }

@@ -28,6 +28,7 @@ describe("HTTP API transport", () => {
         details: { currentRevision: `sha256:${"a".repeat(64)}` },
         message: "content changed",
         requestId: "request-1",
+        retryable: true,
       }, 409),
       "https://api.test",
       "/api/v3/content/resource",
@@ -39,7 +40,7 @@ describe("HTTP API transport", () => {
         details: {
           currentRevision: `sha256:${"a".repeat(64)}`,
         },
-        retryable: false,
+        retryable: true,
         statusCode: 409,
       }),
     );

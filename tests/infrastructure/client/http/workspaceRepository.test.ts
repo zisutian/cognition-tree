@@ -41,9 +41,10 @@ function apiError(
   code: string,
   message: string,
   requestId = "request-1",
-  details?: Record<string, unknown>,
+  details: Record<string, unknown> = {},
+  retryable = false,
 ) {
-  return { code, ...(details ? { details } : {}), message, requestId };
+  return { code, details, message, requestId, retryable };
 }
 
 afterEach(() => {
@@ -203,7 +204,7 @@ describe("HTTP workspace repository backend", () => {
         jsonResponse(
           apiError("resource_conflict", "content changed", "request-2", {
             currentRevision: revisionB,
-          }),
+          }, false),
           409,
         ),
       repositoryId: "primary",
@@ -223,7 +224,10 @@ describe("HTTP workspace repository backend", () => {
 
   it("classifies retryable and terminal structured errors without retrying", async () => {
     const transientFetch = vi.fn(async () =>
-      jsonResponse(apiError("adapter_unavailable", "temporarily offline"), 503),
+      jsonResponse(
+        apiError("adapter_unavailable", "temporarily offline", "request-1", {}, true),
+        503,
+      ),
     );
     const terminalFetch = vi.fn(async () =>
       jsonResponse(apiError("repository_corrupt", "repository is corrupt"), 500),
@@ -255,7 +259,7 @@ describe("HTTP workspace repository backend", () => {
     expect(terminalFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps retryable HTTP status semantics when a gateway returns invalid JSON", async () => {
+  it("does not invent retryability when a gateway returns invalid JSON", async () => {
     const backend = createHttpWorkspaceRepositoryBackend({
       baseUrl: "http://api.test",
       fetch: async () => new Response("bad gateway", { status: 503 }),
@@ -264,7 +268,7 @@ describe("HTTP workspace repository backend", () => {
 
     await expect(backend.loadRemoteSnapshot()).rejects.toEqual(
       expect.objectContaining<Partial<WorkspaceRepositoryRemoteError>>({
-        retryable: true,
+        retryable: false,
       }),
     );
   });
