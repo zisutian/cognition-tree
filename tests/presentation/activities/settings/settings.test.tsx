@@ -347,7 +347,7 @@ describe("settings activity", () => {
         "当前配置已经生效",
         "所有者凭据",
         "迁移数据根",
-        "智能体审计保留条数",
+        "操作审计保留条数",
       ],
       lacks: ["CTN_", "owner token"],
     });

@@ -92,7 +92,7 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
               <label><span>端口</span><input aria-label="服务端口" className="ui-input" max="65535" min="1" onChange={(event) => setDraft({ ...draft, port: event.currentTarget.valueAsNumber })} required type="number" value={draft.port} /></label>
               {draft.listenMode === "lan" ? <label><span>HTTPS 公开地址</span><input aria-label="HTTPS 公开地址" className="ui-input" onChange={(event) => setDraft({ ...draft, publicOrigin: event.currentTarget.value || null })} placeholder="https://tree.example.com" required value={draft.publicOrigin ?? ""} /></label> : null}
               <label><span>宿主机仓库显示路径（可选）</span><input aria-label="宿主机仓库显示路径" className="ui-input" onChange={(event) => setDraft({ ...draft, repositoryHostRoot: event.currentTarget.value || null })} value={draft.repositoryHostRoot ?? ""} /></label>
-              <label><span>智能体审计保留条数</span><input aria-label="智能体审计保留条数" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxAuditEntries: event.currentTarget.valueAsNumber })} required type="number" value={draft.maxAuditEntries} /></label>
+              <label><span>操作审计保留条数</span><input aria-label="操作审计保留条数" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxAuditEntries: event.currentTarget.valueAsNumber })} required type="number" value={draft.maxAuditEntries} /></label>
               <Button disabled={busy} type="submit" variant="primary">保存服务设置</Button>
             </form>
           </Section>
