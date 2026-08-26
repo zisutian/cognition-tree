@@ -10,7 +10,7 @@
 | [架构边界](architecture.md) | 源码所有权、依赖方向、数据流、持久化、API 与运行时边界 |
 | [CTN 分析流水线](ctn-analysis-pipeline.md) | CTN v2 编译、分析、失效和 multiline 语义 |
 | [界面规范](ui-guidelines.md) | Activity 布局、交互、Problems、尺度、颜色和共享 UI 结构 |
-| [使用与部署](getting-started.md) | 环境准备、启动、设置、认证、迁移、API 入口和验证命令 |
+| [使用与部署](getting-started.md) | 环境准备、启动、设置、认证、迁移、API/CLI 入口和验证命令 |
 | [工程原则](engineering-principles.md) | 修改方式、代码组织、测试策略和生成产物约束 |
 
 ## 维护规则

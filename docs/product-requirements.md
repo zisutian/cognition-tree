@@ -94,14 +94,16 @@ Repository Activity 只负责普通仓库 catalog、内置数据 descriptor、�
 
     左侧依次显示“内置数据”的日记与代办，以及唯一的“本地”分组；本地列表底部只有一个 `+` 新建入口。
     普通仓库行只显示名称和极简状态；当前仓库由前导图标表达，选中后才显示切换与重命名入口。
-    右侧显示只读 ID、位置、复制、重扫、重试、冲突恢复和危险操作，不重复显示固定的存储类型。
+    右侧显示只读 ID、位置、复制、故障重试、冲突恢复和危险操作，不重复显示固定的存储类型；健康活动仓库不在这里重复提供文件重扫。
     日记与代办右侧只显示存储位置、故障、重试和受保护说明。
 
 本地可见目录与 `.ctn` 文件是权威工作树；根部 `.ctn/` 保存身份、顺序、语法、sidecar 和 WAL。非 `.ctn` 文件属于 unmanaged 数据，不投影、不改写、不删除。普通仓库必须位于服务端配置的内容根目录；浏览器或 API 可从局域网访问，但不改变存储权威。
 
 普通 Workspace 只接受 v4，Journal 只接受 v3，Todo 只接受 v4。Journal/Todo 使用彼此隔离的 storage、epoch、draft/cache 和同步队列；一个领域的故障或重置不能影响另一个。旧版、未来版本、部分状态和损坏内容一律关闭写入并显示可重试故障，不执行运行时迁移、自动清空或空内容回退。
 
-页面内保存先以 local revision CAS 写入内存 draft，再异步同步 Server。offline、
+页面内保存先以 local revision CAS 写入内存 draft，再异步提交 `{base, content}` 给
+Server 的 merge-aware sync。请求期间继续编辑得到的新草稿必须以原提交内容、本地新
+草稿和服务端最终 snapshot 再做一次三方合并，不能只替换 base revision。offline、
 conflict 和 sync-error 必须显式显示；远端冲突不能覆盖本地 pending 内容。
 刷新或关闭页面不会恢复尚未同步的 draft、队列或冲突，Server 不可用时必须
 显示失败与重试，不创建本地空仓库。
@@ -112,18 +114,17 @@ conflict 和 sync-error 必须显式显示；远端冲突不能覆盖本地 pend
 ActivityBar 主区固定为“笔记、日记、代办、语法”，底部固定为“智能体、搜索、仓库、设置”。Activity 的 ID、名称、图标、分组、懒加载入口和可用条件由同一 descriptor catalog 声明。智能体不依赖健康普通仓库，profile 不可用时仍显示原因。
 
 笔记内部提供“编辑、结构、图谱”三个模式。结构模式复用结构操作能力，图谱模式复用引用图谱能力；两者不再拥有独立顶层 Activity。模式按普通仓库保留，往返切换不改变当前笔记或编辑历史。
+编辑模式目录工具栏从左到右固定为“重新扫描文件、新建文件夹、新建笔记”；扫描复用
+当前 Workspace session 的 reload，执行期间禁用工具栏 mutation，失败进入 ProblemCenter。
 
-Problems 按 Activity 投影：
+Problems 在全部 Activity（包括 Settings）全局展示领域 diagnostics、状态型故障与运行期
+操作错误，并支持来源、严重度和可重试性筛选。操作错误按来源、code、target 与安全
+详情聚合，显示重复次数和最近发生时间，页面刷新后清空；requestId 可复制但不参与
+聚合。状态型 diagnostics 只能随源状态恢复而消失，操作错误可独立关闭。
 
-    普通活动：当前 Workspace diagnostics、普通仓库运行故障和来源 Activity 操作错误。
-    Repository：Workspace diagnostics、普通仓库问题、内置数据问题、名称问题、运行故障和来源 Activity 操作错误。
-    Journal：正文、系统语法、仓内引用、跨普通仓库引用诊断、日记运行故障和来源 Activity 操作错误。
-    Todo：系统语法、CTN、缺少任务标记诊断、代办运行故障和来源 Activity 操作错误。
-    Syntax：当前编辑 owner 的 profile 诊断，并附加该 owner 的内容诊断、运行故障和来源 Activity 操作错误。
-    Agent：profile、模型、IPC、事件流、队列和 commit 故障；问题可定位回对应会话。
-    Settings：完全不挂载 Problems。
-
-问题行只定位内容、来源 Activity 或仓库详情，不执行破坏性操作；操作错误可独立关闭。保存成功不显示“已保存”，非稳定保存状态和五秒短暂反馈只显示在 24px 底栏右侧，不使用标题文字或通知浮层。
+问题行只导航到内容、来源 Activity、Agent 会话或仓库详情，不执行破坏性操作或自动
+重放 mutation。保存成功不显示“已保存”，非稳定保存状态和五秒短暂反馈只显示在
+24px 底栏右侧，不使用标题文字或通知浮层。
 
 Notes、Journal、Todo、Syntax 和 Repository 的行操作只在选中项显示，固定使用“开/用、改、删”的顺序。重命名、删除和仓库危险操作都原地确认；切换选择取消未提交状态，不使用确认弹窗。Todo 详情树使用统一选中态、诊断和完成划线表达状态。
 
@@ -223,4 +224,11 @@ session；本机 owner 同时检查 socket 与 Host。显式错误 Bearer 永远
 
 搜索覆盖所有普通仓库、日记和代办，按领域、仓库和更新时间筛选；结果以稳定资源与块身份导航。单个来源故障不阻断其他来源，分页游标失效时要求使用当前条件重新搜索。
 
-Todo 不包含截止日期、优先级、备注、筛选或跨集合任务移动。Journal 跨仓引用不进入普通仓库引用图谱。唯一 HTTP 契约是 `/api/v3`；外部 automation 只有 Workspace、Journal、Todo 只读能力，没有 command、preview、commit、write 或 delete 接口。完整 snapshot sync、Agent、仓库与 token 管理只授权 owner。本项目不提供外部 MCP、专用手机契约、Dockerfile、镜像或 Compose；只保留未来容器路径约定。
+Todo 不包含截止日期、优先级、备注、筛选或跨集合任务移动。Journal 跨仓引用不进入
+普通仓库引用图谱。唯一 HTTP 契约是 `/api/v3`；外部 automation 只有
+Workspace、Journal、Todo 只读能力，没有 command、preview、commit、write 或 delete
+接口。trusted-client 可经与浏览器相同的 merge-aware snapshot sync 修改全部内容，
+但不能访问 Agent、管理或认证；根 `./ctn` 是该能力的参考客户端。真正重叠的变更仍需
+调用方或用户决策，不提供 force 或 fallback。Agent 继续只由 owner 审批并执行 exact
+CAS。本项目不提供外部 MCP、专用手机契约、Dockerfile、镜像或 Compose；只保留未来
+容器路径约定。

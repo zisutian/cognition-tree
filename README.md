@@ -18,9 +18,9 @@ Journal 与 Todo 不依赖当前普通仓库。它们的存储位置、故障与
 - 系统语法（日记、代办）与笔记库多语法配置；普通语法的“打开编辑”和“实际启用”相互独立。
 - 页面生命周期内的乐观编辑、内存待同步队列、CAS 同步与显式冲突处理。
 - Todo 支持按天、周、月的本地日历周期、规则阶段和不丢失的完成统计；规则在结构行内配置。
-- 提供唯一 `/api/v3` 契约：自动化只读内容/搜索/SSE，官方客户端 owner-only snapshot sync，以及 owner-only Agent 会话、proposal 审批与审计；不存在公开写 command API。
+- 提供唯一 `/api/v3` 契约：automation 只读，官方浏览器与 trusted-client 共用服务端三方合并 snapshot sync，Agent proposal 则保持 owner 审批后的 exact CAS；不存在公开写 command API。
 - 固定智能体 Activity 支持 Codex app-server、OpenAI-compatible 与直连 Ollama profile。模型只能在会话硬范围内读取和暂存，生成 CTN 正文前必须读取当前 store 的实际语法；owner 通过资源名称、动作摘要和行级 diff 审查 Proposal 后才以 exact CAS 写入，删除还需要独立二次确认。
-- 按 Activity 投影 diagnostics、运行故障和操作错误；短暂反馈与非稳定保存状态统一进入底栏，设置页不挂载问题面板。
+- 全局 Problems 合并 diagnostics、运行故障和结构化操作错误，支持来源、严重度与可重试性筛选；短暂反馈与非稳定保存状态统一进入底栏。
 
 没有健康普通仓库时仍挂载完整工作台：日记、代办、仓库和设置保持可用，普通内容活动提供创建仓库入口。
 
@@ -57,25 +57,39 @@ Journal 与 Todo 不依赖当前普通仓库。它们的存储位置、故障与
 
 容量基准使用 `pnpm benchmark:capacity`，覆盖本地文件仓库与浏览器到服务端的同步路径。
 
+## 外部可信客户端
+
+外部 Codex 等受信任程序可以在“设置 → API 访问”创建一次性展示的 trusted-client
+secret，再通过根入口 `./ctn` 使用同一个 merge-aware sync API：
+
+    ./ctn auth add --profile daily --server https://tree.example.com
+    ./ctn sync checkout workspace --repository <repository-id> --output workspace.json
+    ./ctn sync commit workspace --repository <repository-id> --file workspace.json
+
+CLI 只经 `/api/v3` 工作，不读取服务端控制区或直接改仓库文件。凭据只从 TTY 输入并
+保存在用户配置目录的 0600 文件中；完整 profile、checkout、错误对账和退出码说明见
+[使用与部署](docs/getting-started.md)。
+
 ## 运行配置
 
 所有用户配置都在“设置”内管理，不读取监听、端口、路径、owner token、审计容量或
 私网目标环境变量。首次启动固定为本机 `127.0.0.1:3001`，数据根为项目
-`.cognition-tree`，Agent 审计容量为 1000。浏览器与 API 必须同源，客户端只请求
+`.cognition-tree`，操作审计容量为 1000。浏览器与 API 必须同源，客户端只请求
 相对 `/api/v3`，不存在独立启动配置文件。
 
 “设置 → 服务”管理本机/局域网模式、端口、HTTPS 公开 origin、数据根、宿主机显示
 路径、审计容量和 owner credential。局域网模式固定绑定 `0.0.0.0`，必须先创建
 owner credential，并填写由外部反向代理终止 TLS 的 HTTPS origin。远程浏览器用
 一次展示的 owner secret 换取 12 小时 HttpOnly Cookie；automation Bearer token
-仍严格只读。Provider 的非 loopback 私网许可在对应 Provider 中逐版本确认。
+仍严格只读。trusted-client token 可同步全部 Workspace、Journal 与 Todo，但不能访问
+Agent、设置、认证或仓库管理。Provider 的非 loopback 私网许可在对应 Provider 中逐版本确认。
 
 ## 数据位置
 
 固定控制区是项目根 `.cognition-tree/bootstrap-v1/configuration.json`；它只保存当前
 数据根指针、服务配置、owner credential 摘要和 session 签名材料，不随数据根迁移。
 数据根迁移只复制 `repositories/`、`server/access-v1/`、`server/agent-auth-v1/`、
-`server/agent-config-v1/` 与 `server/agent-v2/`，逐文件比较数量、大小和 SHA-256
+`server/agent-config-v1/` 与 `server/operations-v1/`，逐文件比较数量、大小和 SHA-256
 后才切换指针；旧数据根原样保留，不自动删除。bootstrap 损坏时只在
 `127.0.0.1:3001` 启动恢复页面，不加载
 内容、Agent 或凭据。
@@ -88,7 +102,7 @@ owner credential，并填写由外部反向代理终止 TLS 的 HTTPS origin。�
       项目/
         设计.ctn
 
-可见 `.ctn` 文件只保存编辑器正文；稳定 ID、时间和事务事实位于根部保留目录 `.ctn/`。服务在加载、提交和手动“重新扫描文件”时读取真实目录，不运行文件 watcher。非 `.ctn` 文件不会进入笔记树，也不会被仓库操作改写或删除。
+可见 `.ctn` 文件只保存编辑器正文；稳定 ID、时间和事务事实位于根部保留目录 `.ctn/`。服务在加载、提交和通过笔记工具栏“重新扫描文件”时读取真实目录，不运行文件 watcher。非 `.ctn` 文件不会进入笔记树，也不会被仓库操作改写或删除。
 
 Server 模式下，普通仓库与内置数据共用一个内容根目录，但保持独立
 contract、session 和 API：
@@ -97,9 +111,10 @@ contract、session 和 API：
     <当前数据根>/repositories/.built-ins/todo/
 
 `.built-ins/` 是受保护的基础设施目录，不会被普通仓库 catalog 识别。
-`<当前数据根>/server` 保存只读 automation token 哈希、Agent 配置，以及不含
-提示词、正文、完整 diff 或 tool output 的 Agent operation ledger；令牌明文只在
-创建时显示一次。
+`<当前数据根>/server` 保存 automation 与 trusted-client token 哈希、Agent 配置，
+以及不含提示词、正文、完整 diff 或 tool output 的统一操作账本；令牌明文只在创建时
+显示一次。浏览器 autosave 不进入账本，trusted-client 的认证后同步尝试与 Agent 审批
+写入必须先完成持久审计；账本不可用时两者 fail closed，本地官方浏览器仍可同步。
 
 普通仓库只能位于 `<当前数据根>/repositories`。容器部署必须将
 该目录完整挂载为持久卷；从局域网浏览页面或调用 API 只是在远程访问服务，不会把
@@ -138,7 +153,7 @@ Ollama 或下载模型。工具、迁移与探测的详细边界见
     infrastructure/   client memory/HTTP adapter、versioned persistence 与 Node server
     presentation/     React shell、Activities、CodeMirror 和共享 UI
     contracts/        API registry、Agent、Workspace、Journal、Todo 与 built-ins wire contract
-    tooling/          构建、Git、基准脚本与专用 TypeScript 配置
+    tooling/          CLI、构建、Git、基准脚本与专用 TypeScript 配置
     docs/             文档索引以及产品、架构、工程、使用与界面约定
     tests/            单元、UI、contract 与架构测试
     e2e/              浏览器流程测试

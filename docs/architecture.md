@@ -176,38 +176,72 @@ operationId、method/path 与访问策略。`/api/v2`、公开 command endpoint�
 envelope、preview/commit mode、resource precondition、公开 commandId 和兼容
 parser 都不存在。
 
+`ApiErrorSchema` 是错误 code、DTO 与 parser 的唯一 wire owner；Server 的
+`ApiErrorCatalog` 穷举 error class 到 status、retryable 与安全 details。客户端不得按
+HTTP status 推测可重试性。`merge_conflict` 携带 store、base/current revision 与冲突
+单元；`operation_audit_unavailable` 表示 CAS 尚未执行；
+`operation_audit_finalize_failed` 明确携带 `commitState:"committed"` 和
+`afterRevision`，调用方只能 GET 对账，不能重放 mutation。错误响应不得包含正文、
+diff、secret、stack、提示词或 tool output。
+
+request body 上限属于 operation definition：默认与既有 operation 为 20 MiB，三个
+包含 base 与 local 双份 snapshot 的 sync PUT 为 42 MiB。Content-Length 与 streamed
+body 使用同一个已匹配 operation 上限，不扩大其他 API 的输入面。
+
 API principal 是严格 union，不共享“全部 scopes”：
 
     local-owner、owner：按 operation 的 owner policy 授权，不构造 scopes。
     automation：只能持有 workspace:read、journal:read、todo:read；Workspace
     继续受 repository ID allowlist 限制。
+    trusted-client：可读取并同步全部当前及未来 Workspace、Journal 与 Todo；不能访问
+    owner、Agent、admin 或 auth operation。
     agent-session capability：只存在于服务端私有 IPC，不属于 HTTP principal。
 
 local-owner 同时要求 socket remote address 与 Host 都是 loopback；公共 Host 经过
 loopback 反向代理不会提升权限。远程 owner 只来自签名 HttpOnly session Cookie，
 credential version 轮换立即使旧 Cookie 失效，Cookie 写请求还必须精确匹配设置中的
-HTTPS Origin。Bearer 只属于只读 automation，显式无效 Bearer 一律 401。
+HTTPS Origin。Bearer 只属于 automation 或 trusted-client，显式无效 Bearer 一律 401。
 
-每个 operation 只声明 public、owner 或 owner-or-automation-read(domain)。完整
-Workspace/Journal/Todo snapshot sync、Agent 会话/审批、repository、token 和 audit
-管理只属于 owner。automation 只能调用 `/api/v3/content/*` 的只读资源、搜索与
-无正文 change event，不能取得 sync、write、delete、Agent 或管理能力。
+每个 operation 只声明 `public`、`owner`、`content-read(domain)` 或
+`content-sync`。授权矩阵穷举 principal 与 policy 的全部组合，未知 kind 默认拒绝；
+不得使用“不是 automation 就是 owner”一类隐式分支。automation 只能调用
+`/api/v3/content/*` 的已授权只读资源、搜索与无正文 change event；trusted-client
+拥有全部内容读取与三个 sync operation，但不能取得 Agent、仓库管理、Provider、
+系统设置或 owner-session 能力。
 
-内容写入只有两个入口：owner 官方客户端 sync 与已批准 Agent proposal 的 exact
-CAS。领域 transition、preparation 和 change projection 仍是内容语义的唯一 owner；
-HTTP handler、runtime、MCP、SSE、audit 和 presentation 不重建领域命令或变化。
-官方 sync 和 Agent commit 都只生成一次 DomainChangeSet，供事件和失效刷新消费。
+内容写入只有三个授权来源：owner 官方浏览器 sync、trusted-client 同步，以及已批准
+Agent proposal。前两者共用服务端 merge-aware sync；Agent 始终使用冻结 proposal 的
+exact CAS，revision 变化即 stale，不能进入自动合并。领域 transition、preparation 和
+change projection 仍是内容语义的唯一 owner；HTTP handler、runtime、MCP、SSE、audit
+和 presentation 不重建领域命令或变化。成功且 revision 实际变化时只生成并发布一次
+DomainChangeSet；no-op、校验失败和 conflict 不发布 change event。
 
 资源版本是内容 SHA-256；canonical block metadata 是 block createdAt/updatedAt
 的唯一来源。Todo 正文、位置、completion 与 recurrence 语义变化都更新目标
 block updatedAt，但并发判断不使用时间戳。
 
-官方客户端在内存中保存当前页面会话的 clean base 和 conflict
-base/local/remote。Workspace 以语法、树和单篇 note 为单元，Journal 以 entry
-为单元，Todo 以 collection body、collection order、单任务 completion 和
-recurrence 为单元执行三方合并。不同单元自动 rebase；同一单元双改、删改竞争
-进入冲突。刷新不会恢复尚未同步的 base 或 conflict。语法变化是 barrier，
-不能跨 grammar 自动合并。SSE 只发送带
+sync PUT 只接受 `{ base: { revision, content }, content }`，先验证 base 正文与
+revision 相符，再 direct commit 或执行 `merge(base, local, current)`；响应返回
+`{ outcome, snapshot }`。CAS 竞争最多重新读取并计算三次，耗尽后返回可重试
+`resource_conflict`。Workspace 以语法、树和单篇 note 为单元，Journal 以 entry
+为单元，Todo 以 collection body、collection order、单任务 completion 和 recurrence
+为单元三方合并；不同单元可自动合并，同一单元双改或删改返回 `merge_conflict`。
+语法变化是 barrier，不能跨 grammar 自动合并。
+
+浏览器发起同步时固定已提交内容 `L` 与 local revision `R`。响应 snapshot `S` 到达后，
+若本地未变则安装 `S`；若已产生 `L2`，必须执行 `merge(L, L2, S)`，再以 local-revision
+CAS 安装为基于 `S.revision` 的 pending。重叠时保存 `L/L2/S` 为本地 conflict；安装中
+再次编辑最多重新计算三次，绝不能只把 `L2` 挂到新 revision。服务端
+`merge_conflict.currentRevision=C` 后的 GET 只有 revision 仍等于 `C` 才能使用旧冲突
+单元，否则再次把原 base/local 交给服务端计算。刷新不会恢复尚未同步的 base 或
+conflict。
+
+`application/sync` 是通用协调器，只消费组合根注入的 `revisionOf`、`prepare`、
+`merge`、`projectChanges` 与 prepared store port，不导入三个内容领域、HTTP 或
+基础设施。trusted-client 先提交会使既有 Agent proposal stale；Agent 先提交后，
+trusted-client 的非重叠变更可合并，重叠变更仍返回冲突。
+
+SSE 只发送带
 `streamId` 的 checkpoint 与无正文 change set；sequence 只在同一 stream
 内部有序，进程重启产生的新 stream 会使客户端重置去重状态。轻量 revision
 tracker 维护 checkpoint，建立连接不会扫描仓库正文。
@@ -221,28 +255,43 @@ AgentSessionSnapshot。两类 SSE 都不是正文真值来源。
 
     <项目根>/.cognition-tree/bootstrap-v1/configuration.json
     <dataRoot>/server/access-v1/automation-tokens.json
+    <dataRoot>/server/access-v1/trusted-client-tokens.json
     <dataRoot>/server/agent-auth-v1/providers/<providerId>/
     <dataRoot>/server/agent-config-v1/configuration.json
-    <dataRoot>/server/agent-v2/operations.json
+    <dataRoot>/server/operations-v1/operations.json
 
-access 分区只保存 automation token 的 SHA-256 哈希、只读授权与 Workspace allowlist；
-agent-auth 分区独占 API Key 与 Codex 托管登录态，agent-config 分区只保存 provider、
-profile、认证模式、凭据引用/version/digest 与符合性结果；agent-v2
-用 proposal UUID + version + digest 做幂等键，并保存 approving owner、
-session/profile/provider/runtime、store、before/after revision、变更资源/块 ID、结果与时间。
-operation ledger 不保存提示词、模型回复、正文、完整 diff 或 tool output，超过
-“设置 → 服务”的 maxAuditEntries 后立即裁剪最旧记录。bootstrap 固定在项目根，
-独占监听、端口、数据根指针、public origin、宿主机显示路径、审计容量和 owner
-credential 摘要；配置使用 exact CAS，损坏时只启动本机 recovery registry。
+access 分区分别保存 automation 与 trusted-client token 的 SHA-256 哈希；前者保存
+只读 scopes 和 Workspace allowlist，后者固定为全部内容读写。agent-auth 分区独占
+API Key 与 Codex 托管登录态，agent-config 分区只保存 provider、profile、认证模式、
+凭据引用/version/digest 与符合性结果。
 
-旧 `<dataRoot>/server/api-v1/` 和 `agent-v1/` 完全不读取、不迁移、不暴露，也不存在兼容
-decoder；文件原样保留供人工备份，新服务不会主动删除。状态目录权限为 0700、
-文件权限为 0600；一个新分区损坏只使该能力 fail closed，不阻断内容领域。
+operations-v1 在一个原子状态中分离 `auditEntries` 与 `agentReceipts`。受审计 mutation
+先以短事务持久化认证尝试，body 解码后再附加 store、base revision 与 intent digest；
+释放账本锁后才执行内容 CAS，发布真实 change event，最后以短事务写终态。任一写前
+步骤失败都不得越过对应 CAS 边界；CAS 已成功但 finalize 失败则内容不回滚，pending
+记录保留并返回明确对账错误。不同内容 operation 的 CAS 可并发，账本锁只保护短暂
+状态替换。
+
+Agent receipt 唯一键仍为 proposal UUID + version，并校验 digest；同进程 pending
+请求复用 promise，已完成同 digest 返回原 receipt，不同 digest 冲突，重启后孤立
+pending 标记为 indeterminate 且禁止重放。receipt 在 24 小时会话生命周期后清理，
+不受审计展示容量直接裁剪；auditEntries 才按“设置 → 服务”的操作审计保留条数裁剪。
+账本不保存提示词、模型回复、正文、完整 diff、secret 或 tool output。初始化状态通过
+capabilities 与 admin status 投影；不可用时 Agent 与 trusted-client fail closed，本地
+浏览器 autosave 继续可用。
+
+权威切换时只安全删除旧 `<dataRoot>/server/agent-v2/operations.json` 与
+`<dataRoot>/server/api-v1/audit.json`；`api-v1/tokens.json`、agent-v1、Agent 配置、凭据
+与内容不删除也不读取为新账本。删除目标必须是预期目录中的普通文件并拒绝符号链接；
+删除失败使新账本 unavailable。状态目录权限为 0700、文件权限为 0600。
+bootstrap 固定在项目根，独占监听、端口、数据根指针、public origin、宿主机显示路径、
+审计容量和 owner credential 摘要；配置使用 exact CAS，损坏时只启动本机 recovery
+registry。
 
 数据根迁移由 application/workbench 的 loaded-content flush、application/system 的
 迁移用例和 infrastructure/system 的文件协调器共同完成。maintenance gate 阻止新
 mutation 并等待已有请求结束；协调器只复制 repositories、access-v1、agent-auth-v1、
-agent-config-v1 和 agent-v2，拒绝符号链接与路径重叠，逐文件校验数量、大小和
+agent-config-v1 和 operations-v1，拒绝符号链接与路径重叠，逐文件校验数量、大小和
 SHA-256，最后才 CAS 更新 bootstrap 指针。失败不切换指针；成功通过专用退出状态由
 根 supervisor 重启。
 旧数据根不删除。
@@ -313,13 +362,13 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
     repository/workspace/local 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。LocalRepositoryCatalog 独占稳定 ID 分配、名称约束、目录枚举、受控删除与 store 组合。
     API server 的 api/http 拥有 request lifecycle、认证、限制和 registry 分派；
-    api/resources、api/sync 分别拥有只读资源投影与 owner snapshot 同步，search
-    保持独立查询入口。server/access 只拥有 automation token；server/agent 拥有
-    store 组合、runtime adapter、私有 IPC、内存会话和 operation ledger，不重写
-    领域 command。
+    api/resources、api/sync 分别拥有只读资源投影与 merge-aware snapshot 同步，search
+    保持独立查询入口。server/access 独占 automation 与 trusted-client token；
+    server/operations 独占统一账本、审计状态和 Agent receipt；server/agent 拥有
+    store 组合、runtime adapter、私有 IPC 与内存会话，不重写领域 command。
     repository/built-ins、repository/versioned、repository/workspace 分别拥有
     系统内容、通用版本存储和 Workspace 持久布局。只有 contracts/api registry
-    定义 HTTP wire，只有 owner sync 与 Agent exact commit 可以写内容。
+    定义 HTTP wire；只有 owner/trusted-client sync 与 Agent exact commit 可以写内容。
 
 这些模块只拆职责，不改变本地 WAL 提交点或仓库内容 schema。普通仓库没有第二种
 存储实现、组合 catalog、连接 registry 或存储回退路径。
@@ -447,19 +496,23 @@ session，失败即阻止 HTTP 操作。Agent event sequence 缺口通过重读 
 关闭的技术详情中，长值显示前后各 8 位并提供复制完整值。Proposal 选择器使用序号、
 状态和人类目标名称，不把 UUID 当作主标签。
 
-Problems 所有权：
+`application/problems` 的 ProblemCenter 是运行期 operational incident 的唯一 owner。
+API、Agent、同步、Settings 与 UI action 只通过 `ProblemReporter` 上报 source、code、
+severity、target、message、retryable、requestId、path 与安全 details。它按
+source/code/target/path/安全详情指纹聚合，requestId 只保留最近一个；记录
+first/last occurred time 与 occurrence count，最多保存 200 项，刷新后清空。未知异常
+映射为 `unexpected_client_error`，不暴露 stack。
 
-    普通活动 -> Workspace diagnostics、普通仓库运行故障、来源 Activity 操作错误
-    Repository -> Workspace、普通仓库、内置数据、名称、运行故障、来源 Activity 操作错误
-    Journal -> Journal 文档、语法、仓内与跨仓引用、Journal 运行故障、来源 Activity 操作错误
-    Todo -> Todo 语法与 CTN、Todo 运行故障、来源 Activity 操作错误
-    Syntax -> 当前 owner profile，并附加该 owner 内容诊断、运行故障和来源 Activity 操作错误
-    Agent -> profile、runtime、IPC、队列、event stream 和 commit 故障，可定位会话
-    Settings -> 不挂载
+领域语法、名称、引用和仓库状态仍是源状态派生 diagnostics，不进入 ProblemCenter
+持久副本。Presentation shell 在每个 Activity（包括 Settings）全局合并 diagnostics、
+可恢复状态故障与全部 operational incidents；筛选只改变展示，不改变所有权。问题行
+可按来源、严重度和可重试性筛选，操作错误可关闭并复制最近 requestId；状态型
+diagnostics 只能随源状态恢复消失。点击问题只导航到拥有恢复能力的 Activity，不执行
+mutation 或盲目重试。
 
-application/workbench 的 WorkbenchFeedbackController 提供 subscribe、getSnapshot、reportInfo、reportError、dismiss，以及作用域清理和生命周期释放，不依赖 React。Presentation binding 在操作开始时捕获 ActivityId；异步完成后仍写回原 Activity。相同 Activity 与消息的错误合并，每个 Activity 最多保留 20 条，页面刷新后清空。
-
-Presentation shell 统一合并 diagnostics、可恢复运行故障和操作错误。状态故障随 session 恢复自动消失；操作错误只在关闭、普通仓库作用域失效或刷新时消失。短暂反馈覆盖五秒后恢复领域非稳定持久化状态，稳定状态不产生文字；反馈和错误不得使用通知浮层或标题区重复投影。
+ProblemCenter 同时拥有五秒 transient feedback；Presentation binding 在操作开始时捕获
+ActivityId，异步完成后仍使用原 target。短暂反馈结束后恢复领域非稳定持久化状态，
+稳定状态不产生“已保存”文字；反馈和错误不得使用通知浮层或标题区重复投影。
 
 编辑器只接收 editable source、语义角色和展示数据，不解释仓库元数据。canonical
 页面只消费 application 已准备的 syntax、document 与 parse index；只有未保存 draft
