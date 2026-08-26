@@ -1,7 +1,12 @@
 import { Copy } from "lucide-react";
 import type { RepositoryLocationRow } from
   "../../../application/repository/repositoryViewTypes";
-import { Button, Section } from "../../ui/shared/primitives";
+import { Button } from "../../ui/shared/primitives";
+import {
+  ToolList,
+  ToolListRow,
+  ToolSection,
+} from "../../ui/shared/ToolSurface";
 
 export function RepositoryMetadata({
   rows,
@@ -9,20 +14,24 @@ export function RepositoryMetadata({
   rows: Array<{ label: string; value: string }>;
 }) {
   return (
-    <dl className="repository-summary-list">
+    <ToolList aria-label="仓库状态">
       {rows.map((row) => (
-        <div key={row.label}>
-          <dt>{row.label}</dt>
-          <dd
-            className={row.label.endsWith("ID")
-              ? "repository-identity-value"
-              : undefined}
-          >
-            {row.value}
-          </dd>
-        </div>
+        <ToolListRow
+          flow="wrap"
+          key={row.label}
+          leading={row.label}
+          main={(
+            <span
+              className={row.label.endsWith("ID")
+                ? "repository-identity-value"
+                : undefined}
+            >
+              {row.value}
+            </span>
+          )}
+        />
       ))}
-    </dl>
+    </ToolList>
   );
 }
 
@@ -37,13 +46,11 @@ export function RepositoryLocations({
 }) {
   if (rows.length === 0) return null;
   return (
-    <Section className="repository-section" title="位置">
-      <div className="repository-location-list">
+    <ToolSection title="位置">
+      <ToolList aria-label="仓库位置">
         {rows.map((row) => (
-          <div className="repository-location-row" key={row.label}>
-            <span className="repository-row-label">{row.label}</span>
-            <div className="repository-location-value">
-              <span title={row.value}>{row.value}</span>
+          <ToolListRow
+            actions={(
               <Button
                 aria-label={`复制${row.label}`}
                 disabled={busy}
@@ -54,10 +61,18 @@ export function RepositoryLocations({
               >
                 <Copy aria-hidden="true" size={13} />
               </Button>
-            </div>
-          </div>
+            )}
+            flow="wrap"
+            key={row.label}
+            leading={row.label}
+            main={(
+              <span className="repository-location-path" title={row.value}>
+                {row.value}
+              </span>
+            )}
+          />
         ))}
-      </div>
-    </Section>
+      </ToolList>
+    </ToolSection>
   );
 }

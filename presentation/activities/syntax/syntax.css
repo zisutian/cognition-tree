@@ -2,27 +2,10 @@
   gap: var(--ui-gap-tight);
 }
 
-.syntax-context .ui-compact-context-group-title,
-.syntax-workspace-group-header,
-.syntax-group-label,
 .syntax-setting-label,
 .syntax-rule-header,
 .syntax-readonly {
   user-select: none;
-}
-
-.syntax-workspace-group-header {
-  display: flex;
-  align-items: center;
-  min-height: var(--ui-row-height);
-  padding: 0 var(--ui-gap-tight);
-  color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  font-weight: var(--ui-micro-strong-weight);
-}
-
-.syntax-workspace-group-header > :first-child {
-  flex: 1;
 }
 
 .syntax-invalid-draft {
@@ -45,50 +28,22 @@
   color: var(--color-error);
 }
 
-.syntax-settings-stack {
+.syntax-rule-sections {
   --syntax-rule-row-width: calc(
     var(--ui-control-height) * 15.5 + var(--ui-icon-size) +
       var(--ui-gap-tight) * 5
   );
 
-  display: grid;
-  gap: var(--ui-gap);
-  min-width: 0;
-}
-
-.syntax-settings-group {
-  display: grid;
-  gap: calc(var(--ui-gap-tight) / 2);
-  min-width: 0;
 }
 
 .syntax-panel:focus,
-.syntax-settings-group:focus,
 .syntax-rule-row:focus {
   outline: none;
 }
 
-.syntax-settings-group:focus > .syntax-group-label,
 .syntax-rule-row:focus {
   color: var(--color-fg-strong);
   background: var(--color-selected);
-}
-
-.syntax-group-label {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  min-height: var(--ui-row-height);
-  color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  font-weight: var(--ui-micro-strong-weight);
-  line-height: var(--ui-micro-line-height);
-}
-
-.syntax-group-label span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .syntax-setting-line {

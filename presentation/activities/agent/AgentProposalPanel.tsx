@@ -9,9 +9,7 @@ import type {
 import {
   Button,
   EmptyState,
-  Panel,
   PanelBody,
-  PanelHeader,
 } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
@@ -22,6 +20,12 @@ import {
   StatusBadge,
   StatusSummary,
 } from "../../ui/shared/StatusPresentation";
+import {
+  ToolDivider,
+  ToolPanel,
+  ToolSection,
+  ToolSectionStack,
+} from "../../ui/shared/ToolSurface";
 
 const proposalStatusLabels: Record<AgentProposalView["status"], string> = {
   approved: "已批准",
@@ -116,21 +120,23 @@ export function AgentProposalPanel({
   ) : null;
 
   return (
-    <Panel aria-label="Agent Proposal" className="agent-proposal-panel" tone="detail">
-      <PanelHeader
-        actions={
-          <Button
-            aria-label="折叠 Proposal"
-            onClick={onCollapseDetail}
-            title="折叠 Proposal"
-            type="button"
-            variant="icon"
-          >
-            <ChevronRight aria-hidden="true" size={14} />
-          </Button>
-        }
-        title="Proposal"
-      />
+    <ToolPanel
+      actions={
+        <Button
+          aria-label="折叠 Proposal"
+          onClick={onCollapseDetail}
+          title="折叠 Proposal"
+          type="button"
+          variant="icon"
+        >
+          <ChevronRight aria-hidden="true" size={14} />
+        </Button>
+      }
+      aria-label="Agent Proposal"
+      className="agent-proposal-panel"
+      title="Proposal"
+      tone="detail"
+    >
       <PanelBody className="agent-proposal-body">
         {!proposal ? (
           <EmptyState
@@ -140,49 +146,51 @@ export function AgentProposalPanel({
           />
         ) : (
           <>
-            <div className="agent-proposal-scroll ui-scroll-surface">
-              {session && session.proposals.length > 1 ? (
-                <label className="agent-proposal-picker">
-                  <span>Proposal</span>
-                  <select
-                    className="ui-input"
-                    onChange={(event) =>
-                      setSelectedProposalId(event.currentTarget.value)}
-                    value={proposal.id}
-                  >
-                    {session.proposals.map((item, index) => (
-                      <option key={item.id} value={item.id}>
-                        {`第 ${index + 1} 份 · ${proposalStatusLabels[item.status]} · ${proposalStoreLabel(item)}`}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              <StatusSummary
-                ariaLabel="Proposal 摘要"
-                items={[
-                  { label: "目标", value: proposalStoreLabel(proposal) },
-                  {
-                    label: "状态",
-                    value: (
-                      <StatusBadge tone={proposalStatusTone(proposal.status)}>
-                        {proposalStatusLabels[proposal.status]}
-                      </StatusBadge>
-                    ),
-                  },
-                  {
-                    label: "变更",
-                    value: `${proposal.review.resources.length} 项`,
-                  },
-                ]}
-              />
+            <ToolSectionStack className="agent-proposal-scroll ui-scroll-surface">
+              <ToolSection aria-label="Proposal 摘要">
+                {session && session.proposals.length > 1 ? (
+                  <label className="agent-proposal-picker">
+                    <span>Proposal</span>
+                    <select
+                      className="ui-input"
+                      onChange={(event) =>
+                        setSelectedProposalId(event.currentTarget.value)}
+                      value={proposal.id}
+                    >
+                      {session.proposals.map((item, index) => (
+                        <option key={item.id} value={item.id}>
+                          {`第 ${index + 1} 份 · ${proposalStatusLabels[item.status]} · ${proposalStoreLabel(item)}`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                <StatusSummary
+                  ariaLabel="Proposal 摘要"
+                  items={[
+                    { label: "目标", value: proposalStoreLabel(proposal) },
+                    {
+                      label: "状态",
+                      value: (
+                        <StatusBadge tone={proposalStatusTone(proposal.status)}>
+                          {proposalStatusLabels[proposal.status]}
+                        </StatusBadge>
+                      ),
+                    },
+                    {
+                      label: "变更",
+                      value: `${proposal.review.resources.length} 项`,
+                    },
+                  ]}
+                />
+              </ToolSection>
               <AgentProposalReview proposal={proposal} />
-            </div>
-            {footer}
+            </ToolSectionStack>
+            {footer ? <><ToolDivider />{footer}</> : null}
           </>
         )}
       </PanelBody>
-    </Panel>
+    </ToolPanel>
   );
 }
 

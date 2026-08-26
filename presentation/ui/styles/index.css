@@ -3,6 +3,7 @@
 @import "./frame/frame.css";
 @import "./frame/problems.css";
 @import "./shared/primitives.css";
+@import "./shared/toolSurface.css";
 @import "./shared/forms.css";
 @import "./shared/management.css";
 @import "./shared/tree.css";

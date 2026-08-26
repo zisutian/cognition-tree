@@ -15,7 +15,6 @@ import { syntaxFieldIds } from
   "../../../application/workspace/projection/viewSyntaxFields";
 import {
   CompactContextActionButtons,
-  CompactContextGroup,
   CompactContextList,
   CompactContextRow,
   CompactContextStatusIcon,
@@ -135,11 +134,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
 
   return (
     <div className="activity-context-content syntax-context">
-      <CompactContextGroup
-        headingId="syntax-system-heading"
-        label="系统语法"
-        listAriaLabel="系统语法"
-      >
+      <CompactContextList aria-label="系统语法">
         {view.systemConfigurations.map((configuration) => (
           <CompactContextRow
             buttonProps={{
@@ -170,10 +165,9 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
             }}
           />
         ))}
-      </CompactContextGroup>
+      </CompactContextList>
 
-      <div className="syntax-workspace-group-header">
-        <span>笔记库语法</span>
+      <div className="context-toolbar">
         <Button
           aria-label="新建笔记库语法"
           disabled={mutationBlocked || !view.workspaceAvailable}

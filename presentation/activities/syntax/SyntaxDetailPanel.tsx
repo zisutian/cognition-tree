@@ -5,11 +5,10 @@ import type {
 import type { UiSyntaxTone } from "../../../application/workspace/projection/viewSyntax";
 import {
   Button,
-  Panel,
   PanelBody,
-  PanelHeader,
   cx,
 } from "../../ui/shared/primitives";
+import { ToolPanel } from "../../ui/shared/ToolSurface";
 import {
   createToneStyle,
   getTextColorClassName,
@@ -66,21 +65,22 @@ export function SyntaxDetailPanel({
   view: AvailableSyntaxViewModel;
 }) {
   return (
-    <Panel aria-label="语法预览" tone="detail">
-      <PanelHeader
-        title="语法预览"
-        actions={
-          <Button
-            aria-label="收回右侧详情"
-            onClick={onCollapseDetail}
-            title="收回右侧详情"
-            type="button"
-            variant="icon"
-          >
-            <ChevronRight aria-hidden="true" size={14} />
-          </Button>
-        }
-      />
+    <ToolPanel
+      actions={
+        <Button
+          aria-label="收回右侧详情"
+          onClick={onCollapseDetail}
+          title="收回右侧详情"
+          type="button"
+          variant="icon"
+        >
+          <ChevronRight aria-hidden="true" size={14} />
+        </Button>
+      }
+      aria-label="语法预览"
+      title="语法预览"
+      tone="detail"
+    >
       <PanelBody className="detail-panel-stack" scroll>
         <div aria-label="语法预览内容" className="syntax-render-list">
           {view.selectedTarget.kind === "workspace-file" &&
@@ -120,6 +120,6 @@ export function SyntaxDetailPanel({
           ))}
         </div>
       </PanelBody>
-    </Panel>
+    </ToolPanel>
   );
 }

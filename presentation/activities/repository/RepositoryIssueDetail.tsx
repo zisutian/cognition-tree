@@ -8,7 +8,8 @@ import { requiresManualLocalDeletion } from
   "../../../application/repository/repositoryIssueProjection";
 import type { RepositoryViewModel } from
   "../../../application/repository/repositoryViewModel";
-import { Button, Section } from "../../ui/shared/primitives";
+import { Button } from "../../ui/shared/primitives";
+import { ToolSection } from "../../ui/shared/ToolSurface";
 import {
   RepositoryLocations,
   RepositoryMetadata,
@@ -45,10 +46,7 @@ export function RepositoryIssueDetail({
 
   return (
     <>
-      <Section
-        className="repository-section repository-status-section"
-        title="状态"
-      >
+      <ToolSection title="状态">
         <RepositoryMetadata rows={[
           { label: "状态", value: "故障" },
           { label: "仓库 ID", value: issue.id },
@@ -56,13 +54,13 @@ export function RepositoryIssueDetail({
         <p className="repository-warning" role="alert">
           {issue.message}
         </p>
-      </Section>
+      </ToolSection>
       <RepositoryLocations
         busy={busy}
         rows={issue.locationRows}
         onCopy={onCopy}
       />
-      <Section className="repository-section" title="处理">
+      <ToolSection title="处理">
         {manualDeletion ? (
           <p className="repository-manual-removal">
             该格式不受支持，请在文件系统中手工删除上述目录。
@@ -127,7 +125,7 @@ export function RepositoryIssueDetail({
             </div>
           </div>
         ) : null}
-      </Section>
+      </ToolSection>
     </>
   );
 }

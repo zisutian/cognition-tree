@@ -1,16 +1,14 @@
-.agent-context,
 .agent-create-form,
-.agent-session-create-content,
 .agent-conversation-body,
 .agent-proposal-body,
-.agent-change-summary,
-.agent-review-resources,
 .agent-destructive-confirmation {
   display: grid;
-  gap: var(--ui-gap);
+  gap: var(--ui-gap-tight);
 }
 
 .agent-context {
+  display: grid;
+  gap: var(--ui-gap);
   align-content: start;
 }
 
@@ -33,7 +31,7 @@
 .agent-scope-options legend,
 .agent-scope-options p {
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-body-font-size);
 }
 
 .agent-scope-options p {
@@ -44,10 +42,12 @@
   display: flex;
   gap: var(--ui-gap-tight);
   align-items: center;
+  min-height: var(--ui-row-height);
+  padding: 0 var(--ui-gap-tight);
 }
 
 .agent-message-list,
-.agent-review-resources ol,
+.agent-review-resource-list,
 .agent-technical-change-list,
 .agent-technical-diff-list {
   margin: 0;
@@ -82,18 +82,8 @@
   min-height: 0;
 }
 
-.agent-session-create-content {
-  width: min(100%, 720px);
-  padding: calc(var(--ui-gap) * 2);
-}
-
-.agent-session-create-content > .ui-section + .ui-section {
-  padding-top: calc(var(--ui-gap) * 2);
-  border-top: var(--ui-border-width) solid var(--color-border);
-}
-
 .agent-create-form {
-  max-width: 720px;
+  width: 100%;
 }
 
 .agent-conversation-panel,
@@ -108,30 +98,24 @@
 }
 
 .agent-conversation-body {
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
   min-height: 0;
   padding: 0;
 }
 
 .agent-conversation-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ui-gap-tight) var(--ui-gap);
-  padding: var(--ui-gap-tight) calc(var(--ui-gap) * 2);
-  border-bottom: var(--ui-border-width) solid var(--color-border);
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
 }
 
 .agent-message-scroll {
   min-height: 0;
   overflow-y: auto;
-  padding: calc(var(--ui-gap) * 2);
+  padding: var(--ui-gap-tight);
 }
 
 .agent-message-list {
   display: grid;
-  gap: calc(var(--ui-gap) * 1.5);
+  gap: var(--ui-gap-tight);
   width: min(100%, 880px);
   margin: 0 auto;
 }
@@ -139,20 +123,18 @@
 .agent-message {
   display: grid;
   gap: var(--ui-gap-tight);
-  max-width: min(86%, 720px);
-  padding: var(--ui-gap) calc(var(--ui-gap) * 1.25);
-  border-left: var(--ui-border-width) solid var(--color-border);
+  width: 100%;
+  padding: var(--ui-gap-tight);
 }
 
-.agent-message.is-user {
-  justify-self: end;
-  border-left: 0;
-  background: var(--color-accent-subtle);
+.agent-message + .agent-message {
+  border-top: var(--ui-border-width) solid var(--color-border);
 }
 
 .agent-message > span {
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-body-font-size);
+  font-weight: var(--ui-micro-strong-weight);
 }
 
 .agent-message p {
@@ -164,8 +146,7 @@
 .agent-composer {
   display: grid;
   gap: var(--ui-gap-tight);
-  padding: var(--ui-gap);
-  border-top: var(--ui-border-width) solid var(--color-border);
+  padding: var(--ui-gap-tight);
 }
 
 .agent-composer textarea {
@@ -176,16 +157,16 @@
   background: var(--color-input);
   color: var(--color-fg);
   font: inherit;
-  padding: var(--ui-gap);
+  padding: var(--ui-gap-tight);
 }
 
 .agent-composer > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--ui-gap);
+  gap: var(--ui-gap-tight);
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-body-font-size);
 }
 
 .agent-proposal-meta {
@@ -195,15 +176,13 @@
 }
 
 .agent-proposal-body {
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   gap: 0;
   min-height: 0;
 }
 
 .agent-proposal-scroll {
-  display: grid;
   align-content: start;
-  gap: var(--ui-gap);
   min-height: 0;
   overflow: auto;
 }
@@ -211,7 +190,7 @@
 .agent-proposal-meta > div {
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
-  gap: var(--ui-gap);
+  gap: var(--ui-gap-tight);
 }
 
 .agent-proposal-meta dt,
@@ -229,22 +208,12 @@
   overflow-wrap: anywhere;
 }
 
-.agent-change-summary,
-.agent-review-resources,
-.agent-proposal-technical,
-.agent-destructive-confirmation {
-  padding-top: var(--ui-gap);
-  border-top: var(--ui-border-width) solid var(--color-border);
-}
-
-.agent-change-summary h3,
-.agent-review-resources h3,
-.agent-change-summary p,
+.agent-proposal-scroll p,
 .agent-destructive-confirmation p {
   margin: 0;
 }
 
-.agent-review-resources ol,
+.agent-review-resource-list,
 .agent-technical-change-list,
 .agent-technical-diff-list {
   display: grid;
@@ -263,8 +232,8 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--ui-gap);
-  padding: var(--ui-gap);
+  gap: var(--ui-gap-tight);
+  padding: var(--ui-gap-tight);
   background: var(--color-hover);
 }
 
@@ -291,7 +260,7 @@
 .agent-review-path-change,
 .agent-review-block-summary {
   margin: 0;
-  padding: 0 var(--ui-gap);
+  padding: 0 var(--ui-gap-tight);
   color: var(--color-fg-muted);
   font-size: var(--ui-micro-font-size);
 }
@@ -303,7 +272,7 @@
 }
 
 .agent-review-resource > .agent-muted {
-  padding: 0 var(--ui-gap) var(--ui-gap);
+  padding: 0 var(--ui-gap-tight) var(--ui-gap-tight);
 }
 
 .agent-line-diff {
@@ -354,9 +323,9 @@
 
 .agent-proposal-destructive-warning {
   display: flex;
-  gap: var(--ui-gap);
+  gap: var(--ui-gap-tight);
   align-items: flex-start;
-  padding: var(--ui-gap);
+  padding: var(--ui-gap-tight);
   border: var(--ui-border-width) solid var(--color-warning);
   border-radius: var(--ui-radius);
   color: var(--color-warning);
@@ -369,28 +338,17 @@
 
 .agent-proposal-destructive-warning span {
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-body-font-size);
 }
 
-.agent-proposal-technical > summary {
+.agent-proposal-technical > details > summary {
   color: var(--color-fg-muted);
   cursor: pointer;
 }
 
 .agent-proposal-technical-body {
   display: grid;
-  gap: var(--ui-gap);
-  padding-top: var(--ui-gap);
-}
-
-.agent-proposal-technical-body > section {
-  display: grid;
-  gap: var(--ui-gap-tight);
-}
-
-.agent-proposal-technical-body h4,
-.agent-proposal-technical-body p {
-  margin: 0;
+  padding-top: var(--ui-gap-tight);
 }
 
 .agent-technical-value {
@@ -426,7 +384,7 @@
 .agent-technical-diff-list header {
   display: flex;
   justify-content: space-between;
-  gap: var(--ui-gap);
+  gap: var(--ui-gap-tight);
   padding: var(--ui-gap-tight);
   background: var(--color-hover);
   color: var(--color-fg-muted);
@@ -435,7 +393,7 @@
 
 .agent-technical-diff-list pre {
   margin: 0;
-  padding: var(--ui-gap);
+  padding: var(--ui-gap-tight);
   overflow-x: auto;
   white-space: pre-wrap;
 }
@@ -443,14 +401,12 @@
 .agent-proposal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--ui-gap);
-  padding: var(--ui-gap);
-  border-top: var(--ui-border-width) solid var(--color-border);
+  gap: var(--ui-gap-tight);
+  padding: var(--ui-gap-tight);
 }
 
 .agent-destructive-confirmation {
-  padding: var(--ui-gap);
-  border-top: var(--ui-border-width) solid var(--color-border);
+  padding: var(--ui-gap-tight);
   color: var(--color-error);
 }
 

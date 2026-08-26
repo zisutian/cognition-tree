@@ -8,7 +8,7 @@
   display: grid;
   grid-template-columns: 112px minmax(180px, 400px);
   align-items: start;
-  gap: var(--ui-gap);
+  gap: var(--ui-gap-tight);
   min-height: var(--ui-control-height);
 }
 
@@ -45,7 +45,7 @@
 .ui-form-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ui-gap);
-  margin-left: calc(112px + var(--ui-gap));
+  gap: var(--ui-gap-tight);
+  margin-left: calc(112px + var(--ui-gap-tight));
   padding-top: var(--ui-gap-tight);
 }

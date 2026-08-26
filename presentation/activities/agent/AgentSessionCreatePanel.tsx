@@ -8,10 +8,6 @@ import type {
 } from "../../../application/agent";
 import {
   Button,
-  Panel,
-  PanelBody,
-  PanelHeader,
-  Section,
 } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
@@ -23,6 +19,12 @@ import {
   StatusBadge,
   StatusSummary,
 } from "../../ui/shared/StatusPresentation";
+import {
+  ToolPanel,
+  ToolPanelBody,
+  ToolSection,
+  ToolSectionStack,
+} from "../../ui/shared/ToolSurface";
 
 type ScopeDomain = AgentScope["domain"];
 type WorkspaceTargetKind = Extract<
@@ -155,11 +157,14 @@ export function AgentSessionCreatePanel({
   };
 
   return (
-    <Panel aria-label="新建 Agent 会话" className="agent-session-create-panel">
-      <PanelHeader title="新建会话" />
-      <PanelBody scroll>
-        <div className="agent-session-create-content">
-          <Section title="使用的 Profile">
+    <ToolPanel
+      aria-label="新建 Agent 会话"
+      className="agent-session-create-panel"
+      title="新建会话"
+    >
+      <ToolPanelBody layout="form">
+        <ToolSectionStack>
+          <ToolSection title="使用的 Profile">
             <StatusSummary
               ariaLabel="新会话 Profile"
               items={[
@@ -184,8 +189,8 @@ export function AgentSessionCreatePanel({
                 },
               ]}
             />
-          </Section>
-          <Section title="硬范围">
+          </ToolSection>
+          <ToolSection title="硬范围">
             <form
               className="agent-create-form"
               onSubmit={(event) => {
@@ -396,9 +401,9 @@ export function AgentSessionCreatePanel({
                 </FormActions>
               </FormLayout>
             </form>
-          </Section>
-        </div>
-      </PanelBody>
-    </Panel>
+          </ToolSection>
+        </ToolSectionStack>
+      </ToolPanelBody>
+    </ToolPanel>
   );
 }

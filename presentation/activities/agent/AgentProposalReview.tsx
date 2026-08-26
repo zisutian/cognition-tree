@@ -4,6 +4,10 @@ import { AlertTriangle, Copy } from "lucide-react";
 import type { AgentProposalView } from "../../../application/agent";
 import { Button } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
+import {
+  ToolSection,
+  ToolSectionStack,
+} from "../../ui/shared/ToolSurface";
 
 type ReviewResource = AgentProposalView["review"]["resources"][number];
 
@@ -40,8 +44,7 @@ export function AgentProposalReview({
 
   return (
     <>
-      <section className="agent-change-summary">
-        <h3>变更摘要</h3>
+      <ToolSection title="变更摘要">
         <p>
           {summary.created > 0 ? `新建 ${summary.created} 项` : null}
           {summary.created > 0 && summary.updated > 0 ? "，" : null}
@@ -54,22 +57,21 @@ export function AgentProposalReview({
             ? "没有可展示的资源变更"
             : null}
         </p>
-      </section>
-      {proposal.destructive ? (
-        <div className="agent-proposal-destructive-warning" role="alert">
-          <AlertTriangle aria-hidden="true" size={16} />
-          <div>
-            <strong>这份 Proposal 包含删除</strong>
-            <span>批准后仍需再次独立确认，才会执行写入。</span>
+        {proposal.destructive ? (
+          <div className="agent-proposal-destructive-warning" role="alert">
+            <AlertTriangle aria-hidden="true" size={16} />
+            <div>
+              <strong>这份 Proposal 包含删除</strong>
+              <span>批准后仍需再次独立确认，才会执行写入。</span>
+            </div>
           </div>
-        </div>
-      ) : null}
-      <section className="agent-review-resources">
-        <h3>逐项审查</h3>
+        ) : null}
+      </ToolSection>
+      <ToolSection title="逐项审查">
         {proposal.review.resources.length === 0 ? (
           <p className="agent-muted">没有可展示的资源变更。</p>
         ) : (
-          <ol>
+          <ol className="agent-review-resource-list">
             {proposal.review.resources.map((resource) => (
               <AgentProposalReviewResource
                 key={resource.resourceId}
@@ -78,7 +80,7 @@ export function AgentProposalReview({
             ))}
           </ol>
         )}
-      </section>
+      </ToolSection>
       <AgentProposalTechnicalDetails proposal={proposal} />
     </>
   );
@@ -151,76 +153,80 @@ function AgentProposalTechnicalDetails({
   proposal: AgentProposalView;
 }) {
   return (
-    <details className="agent-proposal-technical">
-      <summary>技术详情</summary>
-      <div className="agent-proposal-technical-body">
-        <dl className="agent-proposal-meta">
-          <TechnicalValue label="Proposal ID" value={proposal.id} />
-          <div><dt>版本</dt><dd>{proposal.version}</dd></div>
-          <TechnicalValue label="Base revision" value={proposal.baseRevision} />
-          <TechnicalValue label="Digest" value={proposal.digest} />
-          {proposal.store.domain === "workspace" ? (
-            <TechnicalValue
-              label="Repository ID"
-              value={proposal.store.repositoryId}
-            />
-          ) : null}
-        </dl>
-        <section>
-          <h4>资源变更</h4>
-          {proposal.changes.resources.length === 0 ? (
-            <p className="agent-muted">无</p>
-          ) : (
-            <ul className="agent-technical-change-list">
-              {proposal.changes.resources.map((change, index) => (
-                <li key={`${change.resourceId}:${change.kind}:${index}`}>
-                  <strong>{technicalChangeLabels[change.kind]}</strong>
-                  <TechnicalInlineValue value={change.resourceId} />
-                  {change.version ? (
-                    <TechnicalInlineValue value={change.version} />
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-        <section>
-          <h4>块变更</h4>
-          {proposal.changes.blocks.length === 0 ? (
-            <p className="agent-muted">无</p>
-          ) : (
-            <ul className="agent-technical-change-list">
-              {proposal.changes.blocks.map((change, index) => (
-                <li key={`${change.blockId}:${change.kind}:${index}`}>
-                  <strong>{technicalChangeLabels[change.kind]}</strong>
-                  <TechnicalInlineValue value={change.blockId} />
-                  <span>所属资源</span>
-                  <TechnicalInlineValue value={change.resourceId} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-        <section>
-          <h4>字符级 diff</h4>
-          {proposal.diff.length === 0 ? (
-            <p className="agent-muted">无</p>
-          ) : (
-            <ul className="agent-technical-diff-list">
-              {proposal.diff.map((hunk, index) => (
-                <li key={`${hunk.resourceId}:${hunk.from}:${index}`}>
-                  <header>
-                    <TechnicalInlineValue value={hunk.resourceId} />
-                    <span>{hunk.from}–{hunk.to}</span>
-                  </header>
-                  <pre>{hunk.insertedText || "（删除所选范围）"}</pre>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
-    </details>
+    <ToolSection className="agent-proposal-technical">
+      <details>
+        <summary>技术详情</summary>
+        <ToolSectionStack className="agent-proposal-technical-body">
+          <ToolSection aria-label="Proposal 技术元数据">
+            <dl className="agent-proposal-meta">
+              <TechnicalValue label="Proposal ID" value={proposal.id} />
+              <div><dt>版本</dt><dd>{proposal.version}</dd></div>
+              <TechnicalValue
+                label="Base revision"
+                value={proposal.baseRevision}
+              />
+              <TechnicalValue label="Digest" value={proposal.digest} />
+              {proposal.store.domain === "workspace" ? (
+                <TechnicalValue
+                  label="Repository ID"
+                  value={proposal.store.repositoryId}
+                />
+              ) : null}
+            </dl>
+          </ToolSection>
+          <ToolSection title="资源变更">
+            {proposal.changes.resources.length === 0 ? (
+              <p className="agent-muted">无</p>
+            ) : (
+              <ul className="agent-technical-change-list">
+                {proposal.changes.resources.map((change, index) => (
+                  <li key={`${change.resourceId}:${change.kind}:${index}`}>
+                    <strong>{technicalChangeLabels[change.kind]}</strong>
+                    <TechnicalInlineValue value={change.resourceId} />
+                    {change.version ? (
+                      <TechnicalInlineValue value={change.version} />
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ToolSection>
+          <ToolSection title="块变更">
+            {proposal.changes.blocks.length === 0 ? (
+              <p className="agent-muted">无</p>
+            ) : (
+              <ul className="agent-technical-change-list">
+                {proposal.changes.blocks.map((change, index) => (
+                  <li key={`${change.blockId}:${change.kind}:${index}`}>
+                    <strong>{technicalChangeLabels[change.kind]}</strong>
+                    <TechnicalInlineValue value={change.blockId} />
+                    <span>所属资源</span>
+                    <TechnicalInlineValue value={change.resourceId} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ToolSection>
+          <ToolSection title="字符级 diff">
+            {proposal.diff.length === 0 ? (
+              <p className="agent-muted">无</p>
+            ) : (
+              <ul className="agent-technical-diff-list">
+                {proposal.diff.map((hunk, index) => (
+                  <li key={`${hunk.resourceId}:${hunk.from}:${index}`}>
+                    <header>
+                      <TechnicalInlineValue value={hunk.resourceId} />
+                      <span>{hunk.from}–{hunk.to}</span>
+                    </header>
+                    <pre>{hunk.insertedText || "（删除所选范围）"}</pre>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ToolSection>
+        </ToolSectionStack>
+      </details>
+    </ToolSection>
   );
 }
 

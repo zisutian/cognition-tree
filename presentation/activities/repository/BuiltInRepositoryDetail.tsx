@@ -12,8 +12,8 @@ import type {
 import {
   Button,
   EmptyState,
-  Section,
 } from "../../ui/shared/primitives";
+import { ToolSection } from "../../ui/shared/ToolSurface";
 import {
   RepositoryLocations,
   RepositoryMetadata,
@@ -41,23 +41,20 @@ export function BuiltInRepositoryDetail({
   if (issue) {
     return (
       <>
-        <Section
-          className="repository-section repository-status-section"
-          title="状态"
-        >
+        <ToolSection title="状态">
           <RepositoryMetadata rows={[
             { label: "状态", value: "故障" },
             { label: "数据 ID", value: issue.id },
             { label: "保护", value: "受保护内置数据" },
           ]} />
           <p className="repository-warning" role="alert">{issue.message}</p>
-        </Section>
+        </ToolSection>
         <RepositoryLocations
           busy={busy}
           rows={issue.locationRows}
           onCopy={onCopy}
         />
-        <Section className="repository-section" title="操作">
+        <ToolSection title="操作">
           <div className="repository-operation-strip">
             <Button
               disabled={busy || view.retryingBuiltInId !== null}
@@ -69,7 +66,7 @@ export function BuiltInRepositoryDetail({
               重试
             </Button>
           </div>
-        </Section>
+        </ToolSection>
       </>
     );
   }
@@ -95,10 +92,7 @@ export function BuiltInRepositoryDetail({
   }
   return (
     <>
-      <Section
-        className="repository-section repository-status-section"
-        title="状态"
-      >
+      <ToolSection title="状态">
         <RepositoryMetadata rows={[
           { label: "状态", value: repository.statusLabel },
           { label: "数据 ID", value: repository.id },
@@ -109,7 +103,7 @@ export function BuiltInRepositoryDetail({
             {repository.errorMessage}
           </p>
         ) : null}
-      </Section>
+      </ToolSection>
       <RepositoryLocations
         busy={busy}
         rows={repository.locationRows}
@@ -127,7 +121,7 @@ export function BuiltInRepositoryDetail({
       {repository.conflictResolution
         ? null
         : (
-            <Section className="repository-section" title="操作">
+            <ToolSection title="操作">
               <div className="repository-operation-strip">
                 <Button
                   disabled={busy}
@@ -141,7 +135,7 @@ export function BuiltInRepositoryDetail({
                   {repository.recoveryAction?.label ?? "重新加载"}
                 </Button>
               </div>
-            </Section>
+            </ToolSection>
           )}
     </>
   );

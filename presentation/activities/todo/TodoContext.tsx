@@ -8,7 +8,7 @@ import type {
 } from "../../../application/todo";
 import {
   CompactContextActionButtons,
-  CompactContextGroup,
+  CompactContextList,
   CompactContextRow,
 } from "../../ui/shared/CompactContextList";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
@@ -138,11 +138,7 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
         </Button>
       </div>
       <div className="todo-collection-scroll">
-        <CompactContextGroup
-          headingId="todo-collections-heading"
-          label="事项集合"
-          listAriaLabel="事项集合"
-        >
+        <CompactContextList aria-label="事项集合">
           {view.collections.map((collection, index) => (
             <CompactContextRow
               actions={collection.isActive && editing?.id !== collection.id
@@ -311,7 +307,7 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
               onSelect={() => undefined}
             />
           ) : null}
-        </CompactContextGroup>
+        </CompactContextList>
         {view.collections.length === 0 && !creating ? (
           <p className="context-empty">没有事项集合。</p>
         ) : null}

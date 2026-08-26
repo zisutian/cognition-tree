@@ -6,13 +6,15 @@ import type { AgentApplication } from "../../../application/agent";
 import {
   Button,
   EmptyState,
-  Panel,
   PanelBody,
-  PanelHeader,
-  cx,
 } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import { StatusBadge } from "../../ui/shared/StatusPresentation";
+import {
+  ToolDivider,
+  ToolPanel,
+  ToolToolbar,
+} from "../../ui/shared/ToolSurface";
 import {
   agentSessionStateLabels,
   formatAgentScopeLabel,
@@ -37,13 +39,17 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
 
   if (!session) {
     return (
-      <Panel aria-label="Agent 对话" className="agent-conversation-panel">
+      <ToolPanel
+        aria-label="Agent 对话"
+        className="agent-conversation-panel"
+        title="智能体"
+      >
         <EmptyState
           compact
           description="使用左侧的 + 在主界面选择不可扩大的硬范围；默认 profile 在设置中选择。"
           title="创建或选择一个 Agent 会话"
         />
-      </Panel>
+      </ToolPanel>
     );
   }
   const canSend = session.state === "idle" &&
@@ -60,16 +66,15 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
   };
 
   return (
-    <Panel aria-label="Agent 对话" className="agent-conversation-panel">
-      <PanelHeader
-        actions={(
-          <>
-            <StatusBadge
-              tone={session.state === "unavailable" ? "danger" : "neutral"}
-            >
-              {agentSessionStateLabels[session.state]}
-            </StatusBadge>
-            {canCancel ? (
+    <ToolPanel
+      actions={(
+        <>
+          <StatusBadge
+            tone={session.state === "unavailable" ? "danger" : "neutral"}
+          >
+            {agentSessionStateLabels[session.state]}
+          </StatusBadge>
+          {canCancel ? (
             <Button
               onClick={() => void feedback.runAction(agent.controller.cancel)}
               title="取消推理并停止此会话 runtime"
@@ -79,16 +84,18 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
               <Square aria-hidden="true" size={12} />
               取消并停止
             </Button>
-            ) : null}
-          </>
-        )}
-        title={`${session.profileLabel} · ${session.profileModel}`}
-      />
+          ) : null}
+        </>
+      )}
+      aria-label="Agent 对话"
+      className="agent-conversation-panel"
+      title={`${session.profileLabel} · ${session.profileModel}`}
+    >
       <PanelBody className="agent-conversation-body">
-        <div className="agent-conversation-summary">
+        <ToolToolbar aria-label="会话范围" className="agent-conversation-summary">
           <span>{formatAgentScopeLabel(session.scope)}</span>
           <span>Profile v{session.profileVersion}</span>
-        </div>
+        </ToolToolbar>
         <div
           aria-live="polite"
           className="agent-message-scroll ui-scroll-surface"
@@ -100,11 +107,9 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
             <ol className="agent-message-list">
               {session.messages.map((message) => (
                 <li
-                  className={cx(
-                    "agent-message",
-                    message.role === "user" ? "is-user" : "is-assistant",
-                  )}
+                  className="agent-message"
                   data-message-id={message.id}
+                  data-message-role={message.role}
                   key={message.id}
                 >
                   <span>{message.role === "user" ? "你" : "Agent"}</span>
@@ -117,6 +122,7 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
         {session.problem ? (
           <p className="agent-error" role="alert">{session.problem}</p>
         ) : null}
+        <ToolDivider />
         <form
           className="agent-composer"
           onSubmit={(event) => {
@@ -145,6 +151,6 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
           </div>
         </form>
       </PanelBody>
-    </Panel>
+    </ToolPanel>
   );
 }

@@ -11,10 +11,16 @@ import type {
 import {
   Button,
   EmptyState,
-  Panel,
-  PanelBody,
-  PanelHeader,
 } from "../../ui/shared/primitives";
+import {
+  ToolDivider,
+  ToolList,
+  ToolListRow,
+  ToolPanel,
+  ToolPanelBody,
+  ToolSection,
+  ToolSectionStack,
+} from "../../ui/shared/ToolSurface";
 import type { SearchRepositoryOption } from "./searchViewTypes";
 import { StatusBadge } from "../../ui/shared/StatusPresentation";
 
@@ -110,9 +116,8 @@ export function SearchPanel({
   }, [controller, state.scrollTop, state.submitted]);
 
   return (
-    <Panel aria-label="搜索结果" className="search-panel">
-      <PanelHeader
-        actions={state.submitted ? (
+    <ToolPanel
+      actions={state.submitted ? (
           <>
             <span className="search-header-counts">
               {groups.length} 个资源 · {state.results.length} 个命中
@@ -121,17 +126,18 @@ export function SearchPanel({
               <StatusBadge tone="warning">条件已修改</StatusBadge>
             ) : null}
           </>
-        ) : null}
-        title={state.submitted
+      ) : null}
+      aria-label="搜索结果"
+      className="search-panel"
+      title={state.submitted
           ? `搜索 · ${state.submitted.query}`
           : "搜索结果"}
-      />
-      <PanelBody
-        className="search-panel-body"
+    >
+      <ToolPanelBody
+        layout="results"
         onScroll={(event) =>
           controller.updateScrollTop(event.currentTarget.scrollTop)}
         ref={bodyRef}
-        scroll
       >
         <p
           aria-live="polite"
@@ -223,7 +229,11 @@ export function SearchPanel({
                 title="没有结果"
               />
             ) : (
-              <ol className="search-result-groups" aria-label="搜索结果列表">
+              <ToolSectionStack
+                aria-label="搜索结果列表"
+                className="search-result-groups"
+                role="list"
+              >
                 {groups.map((group) => {
                   const repositoryLabel = group.repositoryId
                     ? repositoryLabelById.get(group.repositoryId) ??
@@ -231,39 +241,51 @@ export function SearchPanel({
                     : null;
 
                   return (
-                    <li className="search-result-group" key={group.key}>
-                      <header>
-                        <h3>{group.title}</h3>
-                        <p>
+                    <ToolSection
+                      className="search-result-group"
+                      description={(
+                        <>
                           {domainLabels[group.domain]}
                           {repositoryLabel ? ` · ${repositoryLabel}` : ""}
                           {" · "}
                           {formatTimestamp(group.updatedAt)}
-                        </p>
-                      </header>
-                      <ul>
+                        </>
+                      )}
+                      key={group.key}
+                      role="listitem"
+                      title={group.title}
+                    >
+                      <ToolList
+                        aria-label={`${group.title}的匹配项`}
+                        className="search-result-group-list"
+                      >
                         {group.hits.map((hit) => (
-                          <li key={hit.blockId ?? "document"}>
-                            <button
-                              aria-label={`打开${group.title}${
+                          <ToolListRow
+                            buttonProps={{
+                              "aria-label": `打开${group.title}${
                                 hit.blockId ? "中的匹配块" : "的整篇匹配"
-                              }`}
-                              className="search-result-hit"
-                              onClick={() => onOpenResult(hit)}
-                              type="button"
-                            >
-                              <span className="search-result-hit-kind">
+                              }`,
+                            }}
+                            flow="wrap"
+                            key={hit.blockId ?? "document"}
+                            leading={(
+                              <span className="search-result-kind">
                                 {hit.blockId ? "块匹配" : "整篇匹配"}
                               </span>
-                              <span>{hit.snippet}</span>
-                            </button>
-                          </li>
+                            )}
+                            main={(
+                              <span className="search-result-snippet">
+                                {hit.snippet}
+                              </span>
+                            )}
+                            onSelect={() => onOpenResult(hit)}
+                          />
                         ))}
-                      </ul>
-                    </li>
+                      </ToolList>
+                    </ToolSection>
                   );
                 })}
-              </ol>
+              </ToolSectionStack>
             )}
             {state.errorMessage && groups.length > 0 ? (
               <p className="search-page-error" role="alert">
@@ -272,6 +294,7 @@ export function SearchPanel({
             ) : null}
             {state.cursor ? (
               <div className="search-load-more">
+                <ToolDivider />
                 <Button
                   disabled={state.loadingMore}
                   onClick={() => void controller.loadMore()}
@@ -283,7 +306,7 @@ export function SearchPanel({
             ) : null}
           </>
         )}
-      </PanelBody>
-    </Panel>
+      </ToolPanelBody>
+    </ToolPanel>
   );
 }

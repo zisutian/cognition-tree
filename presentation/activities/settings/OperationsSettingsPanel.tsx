@@ -6,12 +6,18 @@ import type {
   OperationAuditEntry,
   OperationAuditStatus,
 } from "../../../application/operations/operationAdministration";
-import { Button, EmptyState, Panel, PanelBody, PanelHeader, Section } from "../../ui/shared/primitives";
+import { Button, EmptyState } from "../../ui/shared/primitives";
 import {
   ManagementList,
   ManagementRow,
 } from "../../ui/shared/ManagementList";
 import { StatusBadge } from "../../ui/shared/StatusPresentation";
+import {
+  ToolPanel,
+  ToolPanelBody,
+  ToolSection,
+  ToolSectionStack,
+} from "../../ui/shared/ToolSurface";
 
 function sourceLabel(source: OperationAuditEntry["source"]) {
   return source === "agent" ? "智能体" : "可信客户端";
@@ -107,17 +113,18 @@ export function OperationsSettingsPanel({
   }, [load]);
 
   return (
-    <Panel aria-label="审计" className="settings-panel">
-      <PanelHeader
-        actions={(
-          <Button disabled={loading} onClick={() => void load()} type="button">
-            刷新
-          </Button>
-        )}
-        title="审计"
-      />
-      <PanelBody scroll>
-        <div className="settings-content-column settings-api-content">
+    <ToolPanel
+      actions={(
+        <Button disabled={loading} onClick={() => void load()} type="button">
+          刷新
+        </Button>
+      )}
+      aria-label="审计"
+      className="settings-panel"
+      title="审计"
+    >
+      <ToolPanelBody layout="form">
+        <ToolSectionStack>
           <p className="settings-muted">
             这里只记录可信客户端写入和智能体审批写入；浏览器自动保存不会形成审计记录。
           </p>
@@ -125,7 +132,7 @@ export function OperationsSettingsPanel({
           {status?.status === "unavailable"
             ? <p className="settings-api-error" role="alert">操作审计不可用：{status.message}</p>
             : null}
-          <Section className="settings-api-section" title="操作记录">
+          <ToolSection title="操作记录">
             {loading && entries.length === 0
               ? <EmptyState compact description="正在读取操作账本。" title="正在加载" />
               : entries.length === 0
@@ -157,9 +164,9 @@ export function OperationsSettingsPanel({
                       ))}
                     </ManagementList>
                   )}
-          </Section>
-        </div>
-      </PanelBody>
-    </Panel>
+          </ToolSection>
+        </ToolSectionStack>
+      </ToolPanelBody>
+    </ToolPanel>
   );
 }

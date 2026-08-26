@@ -2,6 +2,11 @@ import { useState, type FormEvent } from "react";
 import type { CreateRepositoryRequest } from
   "../../application/repository/repositoryCatalog";
 import { Button, cx } from "./shared/primitives";
+import {
+  FieldRow,
+  FormActions,
+  FormLayout,
+} from "./shared/FormLayout";
 
 export type RepositoryCreateFormDraft = { name: string };
 
@@ -63,28 +68,32 @@ export function RepositoryCreateForm({
       className={cx("repository-create-form", className)}
       onSubmit={handleSubmit}
     >
-      <label>
-        <span>名称</span>
-        <input
-          autoComplete="off"
-          className="ui-input"
-          disabled={busy}
-          maxLength={80}
-          onChange={(event) => setDraft({ name: event.target.value })}
-          required
-          value={draft.name}
-        />
-      </label>
-      {errorMessage ? (
-        <p className="repository-create-error" role="alert">
-          {errorMessage}
-        </p>
-      ) : null}
-      <div className="ui-actions">
-        <Button disabled={busy} type="submit" variant="primary">
-          {submitting ? "创建中" : "创建仓库"}
-        </Button>
-      </div>
+      <FormLayout>
+        <FieldRow fieldId="repository-create-name" label="名称">
+          {(accessibility) => (
+            <input
+              {...accessibility}
+              autoComplete="off"
+              className="ui-input"
+              disabled={busy}
+              maxLength={80}
+              onChange={(event) => setDraft({ name: event.target.value })}
+              required
+              value={draft.name}
+            />
+          )}
+        </FieldRow>
+        {errorMessage ? (
+          <p className="repository-create-error" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
+        <FormActions>
+          <Button disabled={busy} type="submit" variant="primary">
+            {submitting ? "创建中" : "创建仓库"}
+          </Button>
+        </FormActions>
+      </FormLayout>
     </form>
   );
 }

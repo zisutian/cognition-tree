@@ -13,10 +13,6 @@ import type {
 import {
   Button,
   EmptyState,
-  Panel,
-  PanelBody,
-  PanelHeader,
-  Section,
 } from "../../ui/shared/primitives";
 import {
   FieldRow,
@@ -27,6 +23,12 @@ import {
   ManagementList,
   ManagementRow,
 } from "../../ui/shared/ManagementList";
+import {
+  ToolPanel,
+  ToolPanelBody,
+  ToolSection,
+  ToolSectionStack,
+} from "../../ui/shared/ToolSurface";
 
 function formatApiAccessTimestamp(value: string | null) {
   return value ? new Date(value).toLocaleString() : "从未使用";
@@ -281,17 +283,18 @@ export function ApiAccessSettingsPanel({
   };
 
   return (
-    <Panel aria-label="API 访问" className="settings-panel">
-      <PanelHeader
-        actions={(
-          <Button disabled={loading} onClick={() => void load()} type="button">
-            刷新
-          </Button>
-        )}
-        title="API 访问"
-      />
-      <PanelBody scroll>
-        <div className="settings-content-column settings-api-content">
+    <ToolPanel
+      actions={(
+        <Button disabled={loading} onClick={() => void load()} type="button">
+          刷新
+        </Button>
+      )}
+      aria-label="API 访问"
+      className="settings-panel"
+      title="API 访问"
+    >
+      <ToolPanelBody layout="form">
+        <ToolSectionStack>
           <p className="settings-muted">
             自动化令牌仅用于 <code>/api/v3/content/*</code> 只读接口，
             不能访问 sync、agent 或 admin。
@@ -314,7 +317,7 @@ export function ApiAccessSettingsPanel({
               </section>
             )
             : null}
-          <Section className="settings-api-section" title="Automation">
+          <ToolSection title="Automation">
             <FormLayout>
               <FieldRow fieldId="settings-api-token-name" label="名称">
                 {(accessibility) => (
@@ -361,8 +364,8 @@ export function ApiAccessSettingsPanel({
             </FormLayout>
             <h3 className="settings-subsection-heading">现有令牌</h3>
             {loading && tokens.length === 0 ? <EmptyState compact description="正在读取自动化令牌。" title="正在加载" /> : <TokenList onRevoke={(id) => void revokeToken(id)} repositories={apiAccess.repositories} tokens={tokens} />}
-          </Section>
-          <Section className="settings-api-section" title="可信客户端">
+          </ToolSection>
+          <ToolSection title="可信客户端">
             <FormLayout>
               <FieldRow description="该令牌等价于全部 Workspace、日记和代办内容的读取、创建、修改与删除权限。" fieldId="settings-trusted-client-name" label="名称">
                 {(accessibility) => (
@@ -377,9 +380,9 @@ export function ApiAccessSettingsPanel({
               onRevoke={(id) => void revokeTrustedClientToken(id)}
               tokens={trustedClientTokens}
             />
-          </Section>
-        </div>
-      </PanelBody>
-    </Panel>
+          </ToolSection>
+        </ToolSectionStack>
+      </ToolPanelBody>
+    </ToolPanel>
   );
 }

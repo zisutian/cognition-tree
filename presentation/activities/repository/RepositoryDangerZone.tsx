@@ -4,7 +4,8 @@ import type {
 } from "../../../application/repository/ordinaryRepositoryViewModel";
 import type { RepositoryViewModel } from
   "../../../application/repository/repositoryViewModel";
-import { Button, Section, cx } from "../../ui/shared/primitives";
+import { Button, cx } from "../../ui/shared/primitives";
+import { ToolSection } from "../../ui/shared/ToolSurface";
 import { RepositoryDeleteConfirmation } from "./RepositoryDeleteConfirmation";
 
 export function RepositoryDangerZone({
@@ -27,8 +28,8 @@ export function RepositoryDangerZone({
   const active = repository.id === view.activeRepositoryId;
 
   return (
-    <Section
-      className="repository-section repository-danger-zone"
+    <ToolSection
+      className="repository-danger-zone"
       title="危险区"
     >
       <div
@@ -67,6 +68,6 @@ export function RepositoryDangerZone({
           </Button>
         )}
       </div>
-    </Section>
+    </ToolSection>
   );
 }

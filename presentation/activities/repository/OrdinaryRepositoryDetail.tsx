@@ -5,7 +5,8 @@ import {
 } from "../../../application/repository/ordinaryRepositoryViewModel";
 import type { RepositoryViewModel } from
   "../../../application/repository/repositoryViewModel";
-import { Button, Section } from "../../ui/shared/primitives";
+import { Button } from "../../ui/shared/primitives";
+import { ToolSection } from "../../ui/shared/ToolSurface";
 import { RepositoryDangerZone } from "./RepositoryDangerZone";
 import {
   RepositoryLocations,
@@ -41,10 +42,7 @@ export function OrdinaryRepositoryDetail({
 
   return (
     <>
-      <Section
-        className="repository-section repository-status-section"
-        title="状态"
-      >
+      <ToolSection title="状态">
         <RepositoryMetadata rows={[
           {
             label: "状态",
@@ -62,7 +60,7 @@ export function OrdinaryRepositoryDetail({
             {view.activeSessionErrorMessage}
           </p>
         ) : null}
-      </Section>
+      </ToolSection>
       <RepositoryLocations
         busy={busy}
         rows={repository.locationRows}
@@ -79,7 +77,7 @@ export function OrdinaryRepositoryDetail({
         : null}
       {recoveryAction || !active
         ? (
-          <Section className="repository-section" title="操作">
+          <ToolSection title="操作">
             <div className="repository-operation-strip">
               {recoveryAction
                 ? (
@@ -108,7 +106,7 @@ export function OrdinaryRepositoryDetail({
                 )
                 : null}
             </div>
-          </Section>
+          </ToolSection>
         )
         : null}
       <RepositoryDangerZone

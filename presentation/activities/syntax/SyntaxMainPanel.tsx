@@ -8,10 +8,13 @@ import { syntaxFieldIds } from "../../../application/workspace/projection/viewSy
 import {
   Button,
   EmptyState,
-  Panel,
-  PanelBody,
-  PanelHeader,
 } from "../../ui/shared/primitives";
+import {
+  ToolPanel,
+  ToolPanelBody,
+  ToolSection,
+  ToolSectionStack,
+} from "../../ui/shared/ToolSurface";
 import {
   BlockRuleRows,
   TitleAndRootRows,
@@ -19,7 +22,6 @@ import {
 import { InlineRuleRows } from "./SyntaxInlineRuleRows";
 import {
   SyntaxRuleHeader,
-  SyntaxSettingsGroup,
 } from "./SyntaxRuleLayout";
 
 export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
@@ -60,26 +62,28 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
 
   if (!isAvailableSyntaxViewModel(syntax)) {
     return (
-      <Panel className="syntax-panel" aria-label="语法配置">
+      <ToolPanel
+        aria-label="语法配置"
+        className="syntax-panel"
+        title="语法配置"
+      >
         <EmptyState
           description="请等待对应仓库就绪，或在左侧选择其他语法配置。"
           title="语法配置暂不可用"
         />
-      </Panel>
+      </ToolPanel>
     );
   }
 
   return (
-    <Panel
+    <ToolPanel
       className="syntax-panel"
       aria-label="语法配置"
       data-syntax-field-id={syntaxFieldIds.viewRoot}
       tabIndex={-1}
+      title={syntax.draft.name || "未命名语法"}
     >
-      <PanelHeader
-        title={syntax.draft.name || "未命名语法"}
-      />
-      <PanelBody scroll>
+      <ToolPanelBody layout="table">
         {syntax.hasDraftErrors ? (
           <div className="syntax-invalid-draft" role="alert">
             <span>当前更改无效；修复或撤销前不能离开此配置。</span>
@@ -93,8 +97,11 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
             </Button>
           </div>
         ) : null}
-        <div className="syntax-settings-stack" aria-label="语法设置">
-          <SyntaxSettingsGroup title="基础">
+        <ToolSectionStack
+          aria-label="语法设置"
+          className="syntax-rule-sections"
+        >
+          <ToolSection title="基础">
             <label className="syntax-setting-line">
               <span className="syntax-setting-label">缩进宽度</span>
               <input
@@ -112,24 +119,26 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
                 }
               />
             </label>
-          </SyntaxSettingsGroup>
-          <SyntaxSettingsGroup
-            fieldId={syntaxFieldIds.blockRuleGroup}
+          </ToolSection>
+          <ToolSection
+            data-syntax-field-id={syntaxFieldIds.blockRuleGroup}
+            tabIndex={-1}
             title="块规则"
           >
             <SyntaxRuleHeader kind="block" />
             <TitleAndRootRows syntax={syntax} />
             <BlockRuleRows syntax={syntax} />
-          </SyntaxSettingsGroup>
-          <SyntaxSettingsGroup
-            fieldId={syntaxFieldIds.inlineRuleGroup}
+          </ToolSection>
+          <ToolSection
+            data-syntax-field-id={syntaxFieldIds.inlineRuleGroup}
+            tabIndex={-1}
             title="行内规则"
           >
             <SyntaxRuleHeader kind="inline" />
             <InlineRuleRows syntax={syntax} />
-          </SyntaxSettingsGroup>
-        </div>
-      </PanelBody>
-    </Panel>
+          </ToolSection>
+        </ToolSectionStack>
+      </ToolPanelBody>
+    </ToolPanel>
   );
 }

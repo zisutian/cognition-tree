@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import type {
   RepositoryConflictResolutionView,
 } from "../../../application/repository/repositoryViewTypes";
-import { Button, Section } from "../../ui/shared/primitives";
+import { Button } from "../../ui/shared/primitives";
+import { ToolSection } from "../../ui/shared/ToolSurface";
 
 export function RepositoryConflictResolution({
   busy,
@@ -29,7 +30,7 @@ export function RepositoryConflictResolution({
   }, [resolution]);
 
   return (
-    <Section className="repository-section" title="同步冲突">
+    <ToolSection title="同步冲突">
       <p className="repository-warning" role="alert">
         本地与远端修改均已保留。选择一方前不会覆盖当前本地编辑。
       </p>
@@ -69,6 +70,6 @@ export function RepositoryConflictResolution({
           采用远端并另存本地正文
         </Button>
       </div>
-    </Section>
+    </ToolSection>
   );
 }

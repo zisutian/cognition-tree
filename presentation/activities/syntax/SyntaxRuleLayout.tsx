@@ -1,29 +1,3 @@
-import type { ReactNode } from "react";
-
-export function SyntaxSettingsGroup({
-  children,
-  fieldId,
-  title,
-}: {
-  children: ReactNode;
-  fieldId?: string;
-  title: string;
-}) {
-  return (
-    <div
-      className="syntax-settings-group"
-      aria-label={title}
-      data-syntax-field-id={fieldId}
-      tabIndex={fieldId ? -1 : undefined}
-    >
-      <div className="syntax-group-label">
-        <span>{title}</span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
 export function SyntaxRuleHeader({
   kind,
 }: {

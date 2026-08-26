@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import type {
   AgentApplication,
   AgentChatReasoningEffort,
@@ -26,10 +26,6 @@ import {
 import {
   Button,
   EmptyState,
-  Panel,
-  PanelBody,
-  PanelHeader,
-  Section,
 } from "../../ui/shared/primitives";
 import {
   StatusBadge,
@@ -37,6 +33,12 @@ import {
 } from "../../ui/shared/StatusPresentation";
 import { SubsectionTabs } from "../../ui/shared/SubsectionTabs";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
+import {
+  ToolPanel,
+  ToolPanelBody,
+  ToolSection,
+  ToolSectionStack,
+} from "../../ui/shared/ToolSurface";
 
 export type AgentSettingsPage = "overview" | "profiles" | "providers";
 
@@ -236,106 +238,105 @@ export function AgentSettingsPanel({
   });
 
   return (
-    <Panel aria-label="智能体设置" className="settings-panel">
-      <PanelHeader
-        actions={(
-          <Button
-            disabled={busy || state.operationStatus === "working"}
-            onClick={refresh}
-            type="button"
-          >
-            刷新状态
-          </Button>
-        )}
-        title="智能体"
-      />
-      <PanelBody scroll>
-        <div className="settings-content-column settings-agent-content">
-          {configurationState.errorMessage || state.errorMessage ? (
-            <p className="settings-api-error" role="alert">
-              {configurationState.errorMessage ?? state.errorMessage}
-            </p>
-          ) : null}
-          {state.status?.configurationProblem ? (
-            <p className="settings-api-error" role="alert">
-              {state.status.configurationProblem}
-            </p>
-          ) : null}
-          <SubsectionTabs
-            ariaLabel="智能体设置页面"
-            onChange={changePage}
-            options={agentSettingsTabs}
-            value={page}
-          >
-            {page === "overview" ? (
-              <AgentOverview
-                agent={agent}
-                busy={busy}
-                ollamaEndpoint={ollamaEndpoint}
-                onEndpointChange={setOllamaEndpoint}
-                onPageChange={changePage}
-                profiles={profiles}
-                providers={providers}
-                statusProfiles={statusProfiles}
-              />
-            ) : page === "providers" ? (
-              <ProviderManagement
-                agent={agent}
-                busy={busy}
-                draft={providerDraft}
-                editingProviderId={editingProviderId}
-                formVisible={providerFormVisible}
-                onBeginCreate={() => {
-                  resetProviderForm();
-                  setCreatingProvider(true);
-                }}
-                onCancel={resetProviderForm}
-                onDraftChange={setProviderDraft}
-                onEdit={(provider) => {
-                  setCreatingProvider(false);
-                  setEditingProviderId(provider.id);
-                  setProviderDraft({
-                    apiKey: "",
-                    authenticationType: provider.authenticationType,
-                    baseUrl: provider.baseUrl ?? "",
-                    kind: provider.kind,
-                    label: provider.label,
-                    privateNetworkAccessConfirmed:
-                      provider.privateNetworkAccess === "confirmed",
-                  });
-                }}
-                onSubmit={submitProvider}
-                providers={providers}
-              />
-            ) : (
-              <ProfileManagement
-                agent={agent}
-                busy={busy}
-                draft={profileDraft}
-                editingProfileId={editingProfileId}
-                formVisible={profileFormVisible}
-                modelOptions={modelOptions}
-                onBeginCreate={() => {
-                  resetProfileForm();
-                  setCreatingProfile(true);
-                }}
-                onCancel={resetProfileForm}
-                onDraftChange={setProfileDraft}
-                onEdit={(profile) => {
-                  setCreatingProfile(false);
-                  setEditingProfileId(profile.id);
-                  setProfileDraft(profileDraftFrom(profile));
-                }}
-                onSubmit={submitProfile}
-                profiles={profiles}
-                providers={providers}
-                selectedProvider={selectedProvider}
-              />
-            )}
-          </SubsectionTabs>
-        </div>
-      </PanelBody>
-    </Panel>
+    <ToolPanel
+      actions={(
+        <Button
+          disabled={busy || state.operationStatus === "working"}
+          onClick={refresh}
+          type="button"
+        >
+          刷新状态
+        </Button>
+      )}
+      aria-label="智能体设置"
+      className="settings-panel"
+      title="智能体"
+    >
+      <ToolPanelBody layout="form">
+        {configurationState.errorMessage || state.errorMessage ? (
+          <p className="settings-api-error" role="alert">
+            {configurationState.errorMessage ?? state.errorMessage}
+          </p>
+        ) : null}
+        {state.status?.configurationProblem ? (
+          <p className="settings-api-error" role="alert">
+            {state.status.configurationProblem}
+          </p>
+        ) : null}
+        <SubsectionTabs
+          ariaLabel="智能体设置页面"
+          onChange={changePage}
+          options={agentSettingsTabs}
+          value={page}
+        >
+          {page === "overview" ? (
+            <AgentOverview
+              agent={agent}
+              busy={busy}
+              ollamaEndpoint={ollamaEndpoint}
+              onEndpointChange={setOllamaEndpoint}
+              onPageChange={changePage}
+              profiles={profiles}
+              providers={providers}
+              statusProfiles={statusProfiles}
+            />
+          ) : page === "providers" ? (
+            <ProviderManagement
+              agent={agent}
+              busy={busy}
+              draft={providerDraft}
+              editingProviderId={editingProviderId}
+              formVisible={providerFormVisible}
+              onBeginCreate={() => {
+                resetProviderForm();
+                setCreatingProvider(true);
+              }}
+              onCancel={resetProviderForm}
+              onDraftChange={setProviderDraft}
+              onEdit={(provider) => {
+                setCreatingProvider(false);
+                setEditingProviderId(provider.id);
+                setProviderDraft({
+                  apiKey: "",
+                  authenticationType: provider.authenticationType,
+                  baseUrl: provider.baseUrl ?? "",
+                  kind: provider.kind,
+                  label: provider.label,
+                  privateNetworkAccessConfirmed:
+                    provider.privateNetworkAccess === "confirmed",
+                });
+              }}
+              onSubmit={submitProvider}
+              providers={providers}
+            />
+          ) : (
+            <ProfileManagement
+              agent={agent}
+              busy={busy}
+              draft={profileDraft}
+              editingProfileId={editingProfileId}
+              formVisible={profileFormVisible}
+              modelOptions={modelOptions}
+              onBeginCreate={() => {
+                resetProfileForm();
+                setCreatingProfile(true);
+              }}
+              onCancel={resetProfileForm}
+              onDraftChange={setProfileDraft}
+              onEdit={(profile) => {
+                setCreatingProfile(false);
+                setEditingProfileId(profile.id);
+                setProfileDraft(profileDraftFrom(profile));
+              }}
+              onSubmit={submitProfile}
+              profiles={profiles}
+              providers={providers}
+              selectedProvider={selectedProvider}
+            />
+          )}
+        </SubsectionTabs>
+      </ToolPanelBody>
+    </ToolPanel>
   );
 }
 
@@ -364,24 +365,26 @@ function AgentOverview({
   ) ?? null;
 
   return (
-    <div className="settings-agent-page">
-      <StatusSummary
-        ariaLabel="Agent 状态概览"
-        items={[
-          {
-            label: "Agent",
-            value: (
-              <StatusBadge tone={agent.state.status?.enabled ? "success" : "warning"}>
-                {agent.state.status?.enabled ? "可用" : "不可用"}
-              </StatusBadge>
-            ),
-          },
-          { label: "默认 Profile", value: preferred?.label ?? "未选择" },
-          { label: "Provider", value: providers.length },
-          { label: "Profile", value: profiles.length },
-        ]}
-      />
-      <Section title="默认 Profile">
+    <ToolSectionStack>
+      <ToolSection aria-label="Agent 状态概览">
+        <StatusSummary
+          ariaLabel="Agent 状态概览"
+          items={[
+            {
+              label: "Agent",
+              value: (
+                <StatusBadge tone={agent.state.status?.enabled ? "success" : "warning"}>
+                  {agent.state.status?.enabled ? "可用" : "不可用"}
+                </StatusBadge>
+              ),
+            },
+            { label: "默认 Profile", value: preferred?.label ?? "未选择" },
+            { label: "Provider", value: providers.length },
+            { label: "Profile", value: profiles.length },
+          ]}
+        />
+      </ToolSection>
+      <ToolSection title="默认 Profile">
         <FormLayout>
           <FieldRow
             description="只影响以后创建的会话；既有会话固定其创建时配置。"
@@ -414,8 +417,8 @@ function AgentOverview({
             )}
           </FieldRow>
         </FormLayout>
-      </Section>
-      <Section title="发现本地 Ollama">
+      </ToolSection>
+      <ToolSection title="发现本地 Ollama">
         <FormLayout>
           <FieldRow
             description="发现只读取模型列表，不会自动创建 Provider 或 Profile。"
@@ -456,16 +459,18 @@ function AgentOverview({
             ]}
           />
         ) : null}
-      </Section>
-      <div className="settings-agent-overview-links">
-        <Button onClick={() => onPageChange("providers")} type="button">
-          管理 Provider
-        </Button>
-        <Button onClick={() => onPageChange("profiles")} type="button">
-          管理 Profile
-        </Button>
-      </div>
-    </div>
+      </ToolSection>
+      <ToolSection aria-label="智能体管理入口">
+        <div className="settings-agent-overview-links">
+          <Button onClick={() => onPageChange("providers")} type="button">
+            管理 Provider
+          </Button>
+          <Button onClick={() => onPageChange("profiles")} type="button">
+            管理 Profile
+          </Button>
+        </div>
+      </ToolSection>
+    </ToolSectionStack>
   );
 }
 
@@ -498,10 +503,9 @@ function ProviderManagement({
 
   if (formVisible) {
     return (
-      <div className="settings-agent-page">
-        <SettingsPageHeading
-          title={editingProviderId ? "编辑 Provider" : "新建 Provider"}
-        />
+      <ToolSection
+        title={editingProviderId ? "编辑 Provider" : "新建 Provider"}
+      >
         <ProviderForm
           busy={busy}
           draft={draft}
@@ -510,20 +514,19 @@ function ProviderManagement({
           onChange={onDraftChange}
           onSubmit={onSubmit}
         />
-      </div>
+      </ToolSection>
     );
   }
 
   return (
-    <div className="settings-agent-page">
-      <SettingsPageHeading
-        action={(
-          <Button onClick={onBeginCreate} type="button" variant="primary">
-            新建 Provider
-          </Button>
-        )}
-        title="Provider"
-      />
+    <ToolSection
+      actions={(
+        <Button onClick={onBeginCreate} type="button" variant="primary">
+          新建 Provider
+        </Button>
+      )}
+      title="Provider"
+    >
       {providers.length === 0 ? (
         <EmptyState compact description="Provider 保存模型服务地址和认证方式。" title="尚未创建 Provider" />
       ) : (
@@ -565,7 +568,7 @@ function ProviderManagement({
           })}
         </ManagementList>
       )}
-    </div>
+    </ToolSection>
   );
 }
 
@@ -605,16 +608,31 @@ function ProfileManagement({
 
   if (formVisible) {
     return (
-      <div className="settings-agent-page">
-        <SettingsPageHeading title={editingProfileId ? "编辑 Profile" : "新建 Profile"} />
-        <ProfileForm busy={busy} draft={draft} editing={editingProfileId !== null} modelOptions={modelOptions} onCancel={onCancel} onChange={onDraftChange} onSubmit={onSubmit} providers={providers} selectedProvider={selectedProvider} />
-      </div>
+      <ToolSection title={editingProfileId ? "编辑 Profile" : "新建 Profile"}>
+        <ProfileForm
+          busy={busy}
+          draft={draft}
+          editing={editingProfileId !== null}
+          modelOptions={modelOptions}
+          onCancel={onCancel}
+          onChange={onDraftChange}
+          onSubmit={onSubmit}
+          providers={providers}
+          selectedProvider={selectedProvider}
+        />
+      </ToolSection>
     );
   }
 
   return (
-    <div className="settings-agent-page">
-      <SettingsPageHeading action={<Button onClick={onBeginCreate} type="button" variant="primary">新建 Profile</Button>} title="Profile" />
+    <ToolSection
+      actions={(
+        <Button onClick={onBeginCreate} type="button" variant="primary">
+          新建 Profile
+        </Button>
+      )}
+      title="Profile"
+    >
       {profiles.length === 0 ? (
         <EmptyState compact description="Profile 固定 Provider、模型和推理限制。" title="尚未创建 Profile" />
       ) : (
@@ -647,12 +665,8 @@ function ProfileManagement({
           })}
         </ManagementList>
       )}
-    </div>
+    </ToolSection>
   );
-}
-
-function SettingsPageHeading({ action, title }: { action?: ReactNode; title: string }) {
-  return <div className="settings-page-heading"><h3>{title}</h3>{action ? <div className="ui-actions">{action}</div> : null}</div>;
 }
 
 function ProviderForm({ busy, draft, editing, onCancel, onChange, onSubmit }: { busy: boolean; draft: ProviderDraft; editing: boolean; onCancel(): void; onChange(draft: ProviderDraft): void; onSubmit(event: FormEvent): void }) {

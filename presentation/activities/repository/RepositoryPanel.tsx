@@ -12,11 +12,13 @@ import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
   Button,
   EmptyState,
-  Panel,
-  PanelBody,
-  PanelHeader,
-  Section,
 } from "../../ui/shared/primitives";
+import {
+  ToolPanel,
+  ToolPanelBody,
+  ToolSection,
+  ToolSectionStack,
+} from "../../ui/shared/ToolSurface";
 import { BuiltInRepositoryDetail } from "./BuiltInRepositoryDetail";
 import { OrdinaryRepositoryDetail } from "./OrdinaryRepositoryDetail";
 import {
@@ -93,12 +95,15 @@ export function RepositoryPanel({
   };
 
   return (
-    <Panel className="repository-panel" aria-label="仓库">
-      <PanelHeader title={title} />
-      <PanelBody scroll>
-        <div className="repository-content-column">
+    <ToolPanel
+      aria-label="仓库"
+      className="repository-panel"
+      title={title}
+    >
+      <ToolPanelBody layout="form">
+        <ToolSectionStack>
           {target.kind === "create" ? (
-            <Section
+            <ToolSection
               className="repository-create-region"
               id="repository-create-region"
               title="新建普通仓库"
@@ -126,7 +131,7 @@ export function RepositoryPanel({
                   </Button>
                 </div>
               ) : null}
-            </Section>
+            </ToolSection>
           ) : null}
 
           {target.kind === "ordinary-repository" && target.repository ? (
@@ -186,8 +191,8 @@ export function RepositoryPanel({
               onRunAction={runAction}
             />
           ) : null}
-        </div>
-      </PanelBody>
-    </Panel>
+        </ToolSectionStack>
+      </ToolPanelBody>
+    </ToolPanel>
   );
 }

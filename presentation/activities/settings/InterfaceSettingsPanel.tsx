@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  Panel,
-  PanelBody,
-  PanelHeader,
-} from "../../ui/shared/primitives";
 import { FieldRow, FormLayout } from "../../ui/shared/FormLayout";
+import {
+  ToolPanel,
+  ToolPanelBody,
+  ToolSection,
+} from "../../ui/shared/ToolSurface";
 
 export type SettingsWorkbenchPreferences = {
   contextWidth: number;
@@ -18,10 +18,9 @@ export function InterfaceSettingsPanel({
   workbench: SettingsWorkbenchPreferences;
 }) {
   return (
-    <Panel aria-label="设置" className="settings-panel">
-      <PanelHeader title="界面" />
-      <PanelBody scroll>
-        <div className="settings-content-column">
+    <ToolPanel aria-label="设置" className="settings-panel" title="界面">
+      <ToolPanelBody layout="form">
+        <ToolSection aria-label="界面选项">
           <FormLayout>
             <FieldRow
               description="范围 220–420 px。"
@@ -48,8 +47,8 @@ export function InterfaceSettingsPanel({
               )}
             </FieldRow>
           </FormLayout>
-        </div>
-      </PanelBody>
-    </Panel>
+        </ToolSection>
+      </ToolPanelBody>
+    </ToolPanel>
   );
 }

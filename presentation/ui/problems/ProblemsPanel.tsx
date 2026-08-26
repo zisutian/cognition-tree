@@ -13,6 +13,11 @@ import type {
 } from "../../../application/workbench/problems/workbenchProblems";
 import { SymbolSlot, cx } from "../shared/primitives";
 import {
+  ToolList,
+  ToolListRow,
+  ToolToolbar,
+} from "../shared/ToolSurface";
+import {
   shouldVirtualizeUiRows,
   uiVirtualOverscan,
   uiVirtualRowHeightPx,
@@ -81,58 +86,57 @@ function ProblemRow({
   const operational = isOperationalProblem(problem) ? problem : null;
 
   return (
-    <li className="problems-list-item" style={style}>
-      <div className="problems-row-frame">
-        <button
-          className="problems-row"
-          onClick={() => onOpen(problem)}
-          title={`${problem.message} · ${problem.locationLabel}`}
-          type="button"
-        >
-          <SymbolSlot
-            aria-label={isError ? "错误" : "警告"}
-            className="problems-row-marker"
-            tone={isError ? "danger" : "warning"}
-          >
-            {isError ? (
-              <CircleX aria-hidden="true" size={13} strokeWidth={2} />
-            ) : (
-              <TriangleAlert aria-hidden="true" size={13} strokeWidth={2} />
-            )}
-          </SymbolSlot>
-          <span className="problems-row-message">{problem.message}</span>
-          <span className="problems-row-meta">
-            {getProblemSourceLabel(problem)} · {problem.locationLabel}
-            {operational && operational.occurrenceCount > 1
-              ? ` · ${operational.occurrenceCount} 次 · 最近 ${operational.lastOccurredAt.slice(11, 19)}`
-              : ""}
-          </span>
-        </button>
-        {operational ? (
-          <div className="problems-row-actions">
-            {operational.requestId ? (
-              <button
-                aria-label={`复制请求编号：${operational.requestId}`}
-                className="problems-row-detail"
-                onClick={() => onCopyRequestId(operational.requestId!)}
-                title={operational.requestId}
-                type="button"
-              >
-                复制编号
-              </button>
-            ) : null}
+    <ToolListRow
+      actions={operational ? (
+        <>
+          {operational.requestId ? (
             <button
-              aria-label={`关闭操作错误：${problem.message}`}
-              className="problems-row-dismiss"
-              onClick={() => onDismiss(problem)}
+              aria-label={`复制请求编号：${operational.requestId}`}
+              onClick={() => onCopyRequestId(operational.requestId!)}
+              title={operational.requestId}
               type="button"
             >
-              关闭
+              复制编号
             </button>
-          </div>
-        ) : null}
-      </div>
-    </li>
+          ) : null}
+          <button
+            aria-label={`关闭操作错误：${problem.message}`}
+            onClick={() => onDismiss(problem)}
+            type="button"
+          >
+            关闭
+          </button>
+        </>
+      ) : null}
+      buttonProps={{
+        "aria-label": `打开问题：${problem.message}`,
+        title: `${problem.message} · ${problem.locationLabel}`,
+      }}
+      flow="single-line"
+      leading={(
+        <SymbolSlot
+          aria-label={isError ? "错误" : "警告"}
+          tone={isError ? "danger" : "warning"}
+        >
+          {isError ? (
+            <CircleX aria-hidden="true" size={13} strokeWidth={2} />
+          ) : (
+            <TriangleAlert aria-hidden="true" size={13} strokeWidth={2} />
+          )}
+        </SymbolSlot>
+      )}
+      main={problem.message}
+      meta={(
+        <>
+          {getProblemSourceLabel(problem)} · {problem.locationLabel}
+          {operational && operational.occurrenceCount > 1
+            ? ` · ${operational.occurrenceCount} 次 · 最近 ${operational.lastOccurredAt.slice(11, 19)}`
+            : ""}
+        </>
+      )}
+      onSelect={() => onOpen(problem)}
+      style={style}
+    />
   );
 }
 
@@ -159,8 +163,8 @@ function ProblemsList({
 
   if (!virtual) {
     return (
-      <div className="problems-list-scroll ui-scroll-surface">
-        <ul aria-label="问题列表" className="problems-list">
+      <div className="problems-collection-scroll ui-scroll-surface">
+        <ToolList aria-label="问题列表">
           {problems.map((problem) => (
             <ProblemRow
               key={problem.id}
@@ -170,20 +174,20 @@ function ProblemsList({
               problem={problem}
             />
           ))}
-        </ul>
+        </ToolList>
       </div>
     );
   }
 
   return (
     <div
-      className="problems-list-scroll ui-scroll-surface"
+      className="problems-collection-scroll ui-scroll-surface"
       data-virtual-row-count={problems.length}
       ref={scrollRef}
     >
-      <ul
+      <ToolList
         aria-label="问题列表"
-        className="problems-list problems-list-virtual"
+        className="problems-virtual-collection"
         style={{ height: `${virtualizer.getTotalSize()}px` }}
       >
         {virtualizer.getVirtualItems().map((virtualRow) => {
@@ -203,7 +207,7 @@ function ProblemsList({
             />
           ) : null;
         })}
-      </ul>
+      </ToolList>
     </div>
   );
 }
@@ -274,7 +278,7 @@ export function ProblemsPanel({
       </button>
       {expanded ? (
         <div className="problems-panel-body">
-          <div aria-label="问题筛选" className="problems-filters">
+          <ToolToolbar aria-label="问题筛选">
             <label>
               来源
               <select
@@ -312,7 +316,7 @@ export function ProblemsPanel({
                 <option value="terminal">不可自动重试</option>
               </select>
             </label>
-          </div>
+          </ToolToolbar>
           {filteredProblems.length > 0 ? (
             <ProblemsList
               onCopyRequestId={onCopyRequestId}

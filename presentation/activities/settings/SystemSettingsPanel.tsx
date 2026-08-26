@@ -5,7 +5,7 @@ import type {
   SystemApplication,
   SystemConfigurationInput,
 } from "../../../application/system";
-import { Button, Panel, PanelBody, PanelHeader, Section } from "../../ui/shared/primitives";
+import { Button } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
   FieldRow,
@@ -16,6 +16,12 @@ import {
   StatusBadge,
   StatusSummary,
 } from "../../ui/shared/StatusPresentation";
+import {
+  ToolPanel,
+  ToolPanelBody,
+  ToolSection,
+  ToolSectionStack,
+} from "../../ui/shared/ToolSurface";
 
 function toInput(
   configuration: SystemApplication["configurationState"]["configuration"],
@@ -63,10 +69,13 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
 
   if (!snapshot || !draft) {
     return (
-      <Panel aria-label="服务设置" className="settings-panel">
-        <PanelHeader title="服务" />
-        <PanelBody><p role="alert">{configurationState.errorMessage ?? "正在读取服务设置……"}</p></PanelBody>
-      </Panel>
+      <ToolPanel
+        aria-label="服务设置"
+        className="settings-panel"
+        title="服务"
+      >
+        <ToolPanelBody layout="form"><p role="alert">{configurationState.errorMessage ?? "正在读取服务设置……"}</p></ToolPanelBody>
+      </ToolPanel>
     );
   }
   const submit = (event: FormEvent) => {
@@ -83,12 +92,15 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
   const nextAddress = configurationAddress(snapshot.configuration);
 
   return (
-    <Panel aria-label="服务设置" className="settings-panel">
-      <PanelHeader title="服务" />
-      <PanelBody scroll>
-        <div className="settings-content-column settings-service-content">
+    <ToolPanel
+      aria-label="服务设置"
+      className="settings-panel"
+      title="服务"
+    >
+      <ToolPanelBody layout="form">
+        <ToolSectionStack>
           {configurationState.errorMessage ? <p className="settings-api-error" role="alert">{configurationState.errorMessage}</p> : null}
-          <Section title="当前状态">
+          <ToolSection title="当前状态">
             <StatusSummary
               ariaLabel="服务配置状态"
               items={[
@@ -116,9 +128,9 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
                 设置已保存，服务将受控重启后生效。
               </p>
             ) : null}
-          </Section>
+          </ToolSection>
 
-          <Section title="网络与路径">
+          <ToolSection title="网络与路径">
             <form onSubmit={submit}>
               <FormLayout>
                 <FieldRow fieldId="settings-system-listen-mode" label="访问范围">
@@ -168,9 +180,9 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
                 </FormActions>
               </FormLayout>
             </form>
-          </Section>
+          </ToolSection>
 
-          <Section title="所有者凭据">
+          <ToolSection title="所有者凭据">
             <StatusSummary
               ariaLabel="所有者凭据状态"
               items={[{
@@ -192,9 +204,9 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
                 globalThis.location.reload();
               })} type="button">退出登录</Button>
             </div>
-          </Section>
+          </ToolSection>
 
-          <Section title="迁移数据根">
+          <ToolSection title="迁移数据根">
             <FormLayout>
               <FieldRow
                 description="迁移会同步已加载内容，复制并校验权威数据，再重启服务；旧数据根保留为人工备份。"
@@ -213,9 +225,9 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
               </FormActions>
             </FormLayout>
             {configurationState.migration ? <p role="status">迁移状态：{configurationState.migration.status}{configurationState.migration.errorMessage ? ` · ${configurationState.migration.errorMessage}` : ""}</p> : null}
-          </Section>
-        </div>
-      </PanelBody>
-    </Panel>
+          </ToolSection>
+        </ToolSectionStack>
+      </ToolPanelBody>
+    </ToolPanel>
   );
 }
