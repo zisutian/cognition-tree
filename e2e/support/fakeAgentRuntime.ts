@@ -64,7 +64,6 @@ export async function createE2EAgentConfigurationStore(stateDirectory: string) {
     )).configuration;
   }
   const missingProvider = await store.createProvider(configuration.revision, {
-    apiKey: null,
     authenticationType: "api-key",
     baseUrl: "https://e2e-missing.invalid/v1",
     kind: "openai-chat",

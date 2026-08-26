@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentConformanceCheckStatus } from "../../../application/agent/agentConfiguration.ts";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import type {
+  AgentCodexDeviceLoginStatus,
+  AgentConformanceCheckStatus,
+} from "../../../application/agent/agentConfiguration.ts";
 import type { AgentRuntimeTool } from "../../../application/agent/agentRuntimePort.ts";
 import { agentToolDefinitionsForDomain } from "../../../contracts/agent/tools.ts";
 import type { ApiRuntime } from "../api/http/runtime.ts";
@@ -14,11 +21,18 @@ import { OllamaRuntime } from "./ollamaRuntime.ts";
 import { OpenAiChatRuntime } from "./openAiChatRuntime.ts";
 import { createAgentRuntimeProfile } from "./runtimeProfiles.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
+import {
+  CodexAppServerClient,
+  resolveCodexEntrypoint,
+  withTimeout,
+} from "./codexAppServerClient.ts";
 
 const responseByteLimit = 1024 * 1024;
 const probeTimeoutMilliseconds = 5_000;
 const conformanceResultLimit = 100;
 const conformanceOutputTokenLimit = 512;
+const defaultCodexDeviceLoginTtlMilliseconds = 15 * 60 * 1_000;
+const codexDeviceLoginResultLimit = 100;
 
 function validatedEndpoint(value: string) {
   let endpoint: URL;
@@ -119,6 +133,23 @@ function positiveSafeInteger(value: unknown) {
     : null;
 }
 
+function verifiedDeviceLoginUrl(value: unknown) {
+  if (typeof value !== "string") {
+    throw new Error("Codex returned an invalid device login URL");
+  }
+  let url: URL;
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("Codex returned an invalid device login URL");
+  }
+  if (url.protocol !== "https:" || url.username || url.password) {
+    throw new Error("Codex returned an invalid device login URL");
+  }
+  return url.toString();
+}
+
 function parseLoadedContexts(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return new Map<string, number | null>();
@@ -201,10 +232,22 @@ type AgentConformanceCheckRecord = Readonly<{
   status: AgentConformanceCheckStatus;
 }>;
 
-export class AgentConformanceCheckConflictError extends Error {
+type CodexDeviceLoginRecord = {
+  baseRevision: string;
+  child: ChildProcessWithoutNullStreams;
+  client: CodexAppServerClient;
+  codexLoginId: string;
+  credentialVersion: number;
+  finishing: boolean;
+  processDirectory: string;
+  status: AgentCodexDeviceLoginStatus;
+  timeout: NodeJS.Timeout;
+};
+
+export class AgentProviderOperationConflictError extends Error {
   constructor(message = "A conformance check is already running for this profile") {
     super(message);
-    this.name = "AgentConformanceCheckConflictError";
+    this.name = "AgentProviderOperationConflictError";
   }
 }
 
@@ -212,23 +255,35 @@ export class AgentProviderOperations {
   readonly #configurationStore: AgentConfigurationStore;
   readonly #conformanceChecks = new Map<string, AgentConformanceCheckRecord>();
   readonly #conformanceExecutions = new Map<string, Promise<void>>();
+  readonly #codexDeviceLoginChildren = new Set<ChildProcessWithoutNullStreams>();
+  readonly #codexDeviceLoginReservations = new Set<string>();
+  readonly #codexDeviceLogins = new Map<string, CodexDeviceLoginRecord>();
+  readonly #codexDeviceLoginTtlMilliseconds: number;
   readonly #fetch: typeof fetch;
+  readonly #projectRoot: string;
   readonly #runtime: ApiRuntime;
   readonly #targetPolicy: AgentProviderTargetPolicy;
+  #disposed = false;
 
   constructor({
     configurationStore,
+    codexDeviceLoginTtlMilliseconds = defaultCodexDeviceLoginTtlMilliseconds,
     fetch: fetchFn = globalThis.fetch.bind(globalThis),
+    projectRoot = process.cwd(),
     runtime,
     targetPolicy = new AgentProviderTargetPolicy(),
   }: {
     configurationStore: AgentConfigurationStore;
+    codexDeviceLoginTtlMilliseconds?: number;
     fetch?: typeof fetch;
+    projectRoot?: string;
     runtime: ApiRuntime;
     targetPolicy?: AgentProviderTargetPolicy;
   }) {
     this.#configurationStore = configurationStore;
+    this.#codexDeviceLoginTtlMilliseconds = codexDeviceLoginTtlMilliseconds;
     this.#fetch = fetchFn;
+    this.#projectRoot = path.resolve(projectRoot);
     this.#runtime = runtime;
     this.#targetPolicy = targetPolicy;
   }
@@ -338,6 +393,213 @@ export class AgentProviderOperations {
     };
   }
 
+  async startCodexDeviceLogin(baseRevision: string, providerId: string) {
+    if (this.#disposed) {
+      throw new AgentProviderOperationConflictError(
+        "Agent provider operations are closing",
+      );
+    }
+    const hasPendingLogin = [...this.#codexDeviceLogins.values()].some(
+      ({ status }) =>
+        status.providerId === providerId && status.status === "pending",
+    );
+
+    if (this.#codexDeviceLoginReservations.has(providerId) || hasPendingLogin) {
+      throw new AgentProviderOperationConflictError(
+        "A Codex device login is already pending for this provider",
+      );
+    }
+    this.#codexDeviceLoginReservations.add(providerId);
+    let child: ChildProcessWithoutNullStreams | null = null;
+    let processDirectory: string | null = null;
+    let staging: Readonly<{
+      credentialVersion: number;
+      home: string;
+      loginId: string;
+    }> | null = null;
+
+    try {
+      this.#pruneCodexDeviceLogins();
+      if (this.#codexDeviceLogins.size >= codexDeviceLoginResultLimit) {
+        throw new AgentProviderOperationConflictError(
+          "Codex device login capacity has been reached",
+        );
+      }
+      const id = this.#runtime.createId();
+      const prepared = await this.#configurationStore.prepareCodexDeviceLogin(
+        baseRevision,
+        providerId,
+        id,
+      );
+      staging = { ...prepared, loginId: id };
+      processDirectory = await mkdtemp(
+        path.join(os.tmpdir(), "ctn-codex-login-"),
+      );
+      const entrypoint = await resolveCodexEntrypoint(this.#projectRoot);
+
+      child = spawn(process.execPath, [entrypoint, "app-server"], {
+        cwd: processDirectory,
+        env: {
+          CODEX_HOME: prepared.home,
+          HOME: prepared.home,
+          LANG: "C.UTF-8",
+          PATH: path.dirname(process.execPath),
+        },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      this.#codexDeviceLoginChildren.add(child);
+      child.once("exit", () => this.#codexDeviceLoginChildren.delete(child!));
+      const client = new CodexAppServerClient(child);
+
+      await withTimeout(client.request("initialize", {
+        capabilities: { experimentalApi: true },
+        clientInfo: {
+          name: "cognition_tree",
+          title: "Cognition Tree",
+          version: "0.1.0",
+        },
+      }), probeTimeoutMilliseconds, "Codex device login initialize timed out");
+      if (this.#disposed) {
+        throw new AgentProviderOperationConflictError(
+          "Agent provider operations are closing",
+        );
+      }
+      client.notify("initialized", {});
+      let activeRecord: CodexDeviceLoginRecord | null = null;
+      const completedNotifications: Array<Record<string, unknown>> = [];
+
+      client.subscribe((message) => {
+        if (message.method !== "account/login/completed") return;
+        const params = message.params && typeof message.params === "object" &&
+            !Array.isArray(message.params)
+          ? message.params as Record<string, unknown>
+          : null;
+
+        if (!params) return;
+        if (!activeRecord) {
+          completedNotifications.push(params);
+          return;
+        }
+        if (params.loginId !== null &&
+            params.loginId !== activeRecord.codexLoginId) return;
+        void this.#finishCodexDeviceLogin(
+          activeRecord.status.id,
+          params.success === true,
+          typeof params.error === "string" ? params.error : null,
+        );
+      });
+      const login = await withTimeout(
+        client.request("account/login/start", { type: "chatgptDeviceCode" }),
+        probeTimeoutMilliseconds,
+        "Codex device login start timed out",
+      );
+      const loginRecord = login && typeof login === "object" && !Array.isArray(login)
+        ? login as Record<string, unknown>
+        : null;
+
+      if (loginRecord?.type !== "chatgptDeviceCode" ||
+          typeof loginRecord.loginId !== "string" ||
+          loginRecord.loginId.length === 0 ||
+          typeof loginRecord.userCode !== "string" ||
+          loginRecord.userCode.length === 0) {
+        throw new Error("Codex returned an invalid device login response");
+      }
+      const verificationUrl = verifiedDeviceLoginUrl(
+        loginRecord.verificationUrl,
+      );
+      const startedAt = readApiRuntimeNow(this.#runtime).timestamp;
+      const status: AgentCodexDeviceLoginStatus = {
+        completedAt: null,
+        errorMessage: null,
+        expiresAt: new Date(
+          Date.parse(startedAt) + this.#codexDeviceLoginTtlMilliseconds,
+        ).toISOString(),
+        id,
+        providerId,
+        startedAt,
+        status: "pending",
+        userCode: loginRecord.userCode,
+        verificationUrl,
+      };
+      const timeout = setTimeout(() => {
+        void this.#cancelCodexDeviceLogin(id, "expired");
+      }, this.#codexDeviceLoginTtlMilliseconds);
+
+      timeout.unref();
+      const record: CodexDeviceLoginRecord = {
+        baseRevision,
+        child,
+        client,
+        codexLoginId: loginRecord.loginId,
+        credentialVersion: prepared.credentialVersion,
+        finishing: false,
+        processDirectory,
+        status,
+        timeout,
+      };
+
+      this.#codexDeviceLogins.set(id, record);
+      activeRecord = record;
+      for (const params of completedNotifications) {
+        if (params.loginId !== null && params.loginId !== record.codexLoginId) {
+          continue;
+        }
+        void this.#finishCodexDeviceLogin(
+          id,
+          params.success === true,
+          typeof params.error === "string" ? params.error : null,
+        );
+      }
+      const handleUnexpectedExit = () => {
+        const current = this.#codexDeviceLogins.get(id);
+
+        if (current?.status.status === "pending" && !current.finishing) {
+          void this.#finishCodexDeviceLogin(
+            id,
+            false,
+            "Codex device login process ended",
+          );
+        }
+      };
+
+      if (child.exitCode !== null) handleUnexpectedExit();
+      else child.once("exit", handleUnexpectedExit);
+      return status;
+    } catch (error) {
+      if (child) await this.#stopCodexLoginProcess(child);
+      if (staging) {
+        await this.#configurationStore.removeCodexDeviceLoginStaging(
+          providerId,
+          staging.credentialVersion,
+          staging.loginId,
+        ).catch(() => undefined);
+      }
+      if (processDirectory) {
+        await this.#cleanupCodexLoginProcessDirectory(processDirectory);
+      }
+      throw error;
+    } finally {
+      this.#codexDeviceLoginReservations.delete(providerId);
+    }
+  }
+
+  getCodexDeviceLogin(loginId: string) {
+    return this.#codexDeviceLogins.get(loginId)?.status ?? null;
+  }
+
+  cancelCodexDeviceLogin(loginId: string) {
+    return this.#cancelCodexDeviceLogin(loginId, "cancelled");
+  }
+
+  hasPendingCodexLogin(providerId?: string) {
+    return [...this.#codexDeviceLoginReservations].some((candidate) =>
+      providerId === undefined || candidate === providerId
+    ) || [...this.#codexDeviceLogins.values()].some(({ status }) =>
+      status.status === "pending" &&
+      (providerId === undefined || status.providerId === providerId)
+    );
+  }
+
   async startConformance(baseRevision: string, profileId: string) {
     const configuration = await this.#configurationStore.readSnapshot();
 
@@ -347,12 +609,12 @@ export class AgentProviderOperations {
     if ([...this.#conformanceChecks.values()].some(({ status }) =>
       status.profileId === profileId && status.status === "running"
     )) {
-      throw new AgentConformanceCheckConflictError();
+      throw new AgentProviderOperationConflictError();
     }
     await this.#resolveConformanceProfile(profileId);
     this.#pruneConformanceChecks();
     if (this.#conformanceChecks.size >= conformanceResultLimit) {
-      throw new AgentConformanceCheckConflictError(
+      throw new AgentProviderOperationConflictError(
         "Agent conformance check capacity has been reached",
       );
     }
@@ -383,11 +645,17 @@ export class AgentProviderOperations {
   }
 
   async dispose() {
+    this.#disposed = true;
     for (const record of this.#conformanceChecks.values()) {
       if (record.status.status !== "running" ||
           record.status.phase === "recording-result") continue;
       record.controller.abort(new Error("Agent provider operations are closing"));
     }
+    await Promise.all([...this.#codexDeviceLogins.entries()]
+      .filter(([, { status }]) => status.status === "pending")
+      .map(([id]) => this.#cancelCodexDeviceLogin(id, "cancelled")));
+    await Promise.all([...this.#codexDeviceLoginChildren]
+      .map((child) => this.#stopCodexLoginProcess(child)));
     await Promise.allSettled(this.#conformanceExecutions.values());
   }
 
@@ -611,6 +879,120 @@ export class AgentProviderOperations {
           status: cancelled ? "cancelled" : "failed",
         },
       });
+    }
+  }
+
+  async #finishCodexDeviceLogin(
+    loginId: string,
+    succeeded: boolean,
+    _providerError: string | null,
+  ) {
+    const record = this.#codexDeviceLogins.get(loginId);
+
+    if (!record || record.status.status !== "pending" || record.finishing) return;
+    record.finishing = true;
+    clearTimeout(record.timeout);
+    await this.#stopCodexLoginProcess(record.child);
+    try {
+      if (!succeeded) throw new Error("Codex device login failed");
+      await this.#configurationStore.completeCodexDeviceLogin(
+        record.baseRevision,
+        record.status.providerId,
+        record.credentialVersion,
+        record.status.id,
+      );
+      record.status = {
+        ...record.status,
+        completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+        status: "succeeded",
+      };
+    } catch {
+      await this.#configurationStore.removeCodexDeviceLoginStaging(
+        record.status.providerId,
+        record.credentialVersion,
+        record.status.id,
+      ).catch(() => undefined);
+      record.status = {
+        ...record.status,
+        completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+        errorMessage: "Codex device login failed",
+        status: "failed",
+      };
+    } finally {
+      await this.#cleanupCodexLoginProcessDirectory(record.processDirectory);
+    }
+  }
+
+  async #cancelCodexDeviceLogin(
+    loginId: string,
+    terminalStatus: "cancelled" | "expired",
+  ) {
+    const record = this.#codexDeviceLogins.get(loginId);
+
+    if (!record) return null;
+    if (record.status.status !== "pending") return record.status;
+    if (record.finishing) return record.status;
+    record.finishing = true;
+    clearTimeout(record.timeout);
+    await withTimeout(
+      record.client.request("account/login/cancel", {
+        loginId: record.codexLoginId,
+      }),
+      probeTimeoutMilliseconds,
+      "Codex device login cancellation timed out",
+    ).catch(() => undefined);
+    record.status = {
+      ...record.status,
+      completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+      status: terminalStatus,
+    };
+    await this.#stopCodexLoginProcess(record.child);
+    await this.#configurationStore.removeCodexDeviceLoginStaging(
+      record.status.providerId,
+      record.credentialVersion,
+      record.status.id,
+    ).catch(() => undefined);
+    await this.#cleanupCodexLoginProcessDirectory(record.processDirectory);
+    return record.status;
+  }
+
+  async #stopCodexLoginProcess(child: ChildProcessWithoutNullStreams) {
+    if (child.exitCode !== null) {
+      this.#codexDeviceLoginChildren.delete(child);
+      return;
+    }
+    child.kill("SIGTERM");
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        child.kill("SIGKILL");
+        resolve();
+      }, 2_000);
+
+      timeout.unref();
+      child.once("exit", () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+    });
+    this.#codexDeviceLoginChildren.delete(child);
+  }
+
+  async #cleanupCodexLoginProcessDirectory(directory: string) {
+    const resolved = path.resolve(directory);
+    const prefix = `${path.resolve(os.tmpdir())}${path.sep}ctn-codex-login-`;
+
+    if (!resolved.startsWith(prefix)) {
+      throw new Error("Refusing to clean an unexpected Codex login directory");
+    }
+    await rm(resolved, { force: true, recursive: true });
+  }
+
+  #pruneCodexDeviceLogins() {
+    if (this.#codexDeviceLogins.size < codexDeviceLoginResultLimit) return;
+    for (const [id, { status }] of this.#codexDeviceLogins) {
+      if (status.status === "pending") continue;
+      this.#codexDeviceLogins.delete(id);
+      if (this.#codexDeviceLogins.size < codexDeviceLoginResultLimit) return;
     }
   }
 

@@ -2,6 +2,10 @@
 
 export type AgentProviderKind = "codex" | "ollama" | "openai-chat";
 export type AgentToolCallMode = "native" | "single-json";
+export type AgentProviderAuthenticationType =
+  | "api-key"
+  | "chatgpt-device-code"
+  | "none";
 export type AgentChatReasoningEffort =
   | "high"
   | "low"
@@ -11,6 +15,7 @@ export type AgentChatReasoningEffort =
 
 export type AgentProviderView = Readonly<{
   authenticationStatus: "configured" | "missing" | "not-required";
+  authenticationType: AgentProviderAuthenticationType;
   baseUrl: string | null;
   digest: `sha256:${string}`;
   id: string;
@@ -69,8 +74,8 @@ export type AgentConfigurationSnapshot = Readonly<{
 }>;
 
 export type AgentProviderInput = Readonly<{
-  apiKey?: string | null;
-  authenticationType: "api-key" | "none";
+  apiKey?: string;
+  authenticationType: AgentProviderAuthenticationType;
   baseUrl: string | null;
   kind: AgentProviderKind;
   label: string;
@@ -118,4 +123,16 @@ export type AgentConformanceCheckStatus = Readonly<{
   profileId: string;
   startedAt: string;
   status: "cancelled" | "failed" | "running" | "succeeded";
+}>;
+
+export type AgentCodexDeviceLoginStatus = Readonly<{
+  completedAt: string | null;
+  errorMessage: string | null;
+  expiresAt: string;
+  id: string;
+  providerId: string;
+  startedAt: string;
+  status: "cancelled" | "expired" | "failed" | "pending" | "succeeded";
+  userCode: string;
+  verificationUrl: string;
 }>;

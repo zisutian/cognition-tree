@@ -49,7 +49,7 @@ import {
   AgentConfigurationValidationError,
 } from "../../agent/configurationStore.ts";
 import { AgentProviderTargetValidationError } from "../../agent/providerTargetPolicy.ts";
-import { AgentConformanceCheckConflictError } from "../../agent/providerOperations.ts";
+import { AgentProviderOperationConflictError } from "../../agent/providerOperations.ts";
 import {
   AgentProposalStateError,
   AgentScopeUnavailableError,
@@ -141,7 +141,7 @@ export function mapApiError(error: unknown): ApiRequestError {
       { details: { currentRevision: error.currentRevision } },
     );
   }
-  if (error instanceof AgentConformanceCheckConflictError) {
+  if (error instanceof AgentProviderOperationConflictError) {
     return new ApiRequestError("resource_conflict", error.message);
   }
   if (error instanceof SystemConfigurationConflictError) {

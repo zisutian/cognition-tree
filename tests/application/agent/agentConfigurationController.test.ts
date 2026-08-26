@@ -31,7 +31,19 @@ function check(
 
 function port(): AgentConfigurationPort {
   return {
+    cancelCodexDeviceLogin: vi.fn(async () => ({
+      completedAt: "2026-08-25T00:01:00.000Z",
+      errorMessage: null,
+      expiresAt: "2026-08-25T00:15:00.000Z",
+      id: "login-1",
+      providerId: "provider-1",
+      startedAt: "2026-08-25T00:00:00.000Z",
+      status: "cancelled" as const,
+      userCode: "ABCD-EFGH",
+      verificationUrl: "https://auth.openai.com/device",
+    })),
     cancelConformance: vi.fn(async () => check("cancelled")),
+    clearProviderAuthentication: vi.fn(async () => snapshot("3")),
     createProfile: vi.fn(async () => snapshot("3")),
     createProvider: vi.fn(async () => snapshot("2")),
     deleteProfile: vi.fn(async () => snapshot("3")),
@@ -41,6 +53,17 @@ function port(): AgentConfigurationPort {
       models: ["qwen3:8b"],
     })),
     getConformance: vi.fn(async () => check("succeeded")),
+    getCodexDeviceLogin: vi.fn(async () => ({
+      completedAt: "2026-08-25T00:01:00.000Z",
+      errorMessage: null,
+      expiresAt: "2026-08-25T00:15:00.000Z",
+      id: "login-1",
+      providerId: "provider-1",
+      startedAt: "2026-08-25T00:00:00.000Z",
+      status: "succeeded" as const,
+      userCode: "ABCD-EFGH",
+      verificationUrl: "https://auth.openai.com/device",
+    })),
     load: vi.fn(async () => snapshot("1")),
     probeProvider: vi.fn(async () => ({
       modelContexts: [{
@@ -56,6 +79,17 @@ function port(): AgentConfigurationPort {
       reachable: true,
     })),
     startConformance: vi.fn(async () => check("running")),
+    startCodexDeviceLogin: vi.fn(async () => ({
+      completedAt: null,
+      errorMessage: null,
+      expiresAt: "2026-08-25T00:15:00.000Z",
+      id: "login-1",
+      providerId: "provider-1",
+      startedAt: "2026-08-25T00:00:00.000Z",
+      status: "pending" as const,
+      userCode: "ABCD-EFGH",
+      verificationUrl: "https://auth.openai.com/device",
+    })),
     updateProfile: vi.fn(async () => snapshot("3")),
     updateProvider: vi.fn(async () => snapshot("3")),
   };
@@ -148,6 +182,40 @@ describe("Agent configuration controller", () => {
       configuration: { revision: revision("3") },
       conformanceChecks: { "profile-1": { status: "succeeded" } },
       operationStatus: "idle",
+    });
+    expect(changed).toHaveBeenCalledOnce();
+  });
+
+  it("returns a pending device login immediately and refreshes after completion", async () => {
+    const adapter = port();
+    const changed = vi.fn();
+
+    vi.mocked(adapter.load)
+      .mockResolvedValueOnce(snapshot("1"))
+      .mockResolvedValueOnce(snapshot("3"));
+    const controller = createAgentConfigurationController({
+      onConfigurationChanged: changed,
+      pollConformance: async () => undefined,
+      pollConformanceIntervalMilliseconds: 1,
+      port: adapter,
+    });
+
+    await controller.load();
+    await controller.startCodexDeviceLogin("provider-1");
+
+    expect(adapter.startCodexDeviceLogin).toHaveBeenCalledWith(
+      revision("1"),
+      "provider-1",
+    );
+    expect(controller.getSnapshot()).toMatchObject({
+      codexDeviceLogins: { "provider-1": { status: "pending" } },
+      operationStatus: "idle",
+    });
+    await vi.waitFor(() => {
+      expect(controller.getSnapshot()).toMatchObject({
+        codexDeviceLogins: { "provider-1": { status: "succeeded" } },
+        configuration: { revision: revision("3") },
+      });
     });
     expect(changed).toHaveBeenCalledOnce();
   });

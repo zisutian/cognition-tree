@@ -41,6 +41,10 @@ type StoredAuthentication =
       type: "api-key";
       [legacyApiKey]?: string | null;
     }
+  | {
+      credential: AgentCredentialReference | null;
+      type: "chatgpt-device-code";
+    }
   | { type: "none" };
 
 type StoredProvider = {
@@ -74,6 +78,7 @@ type AgentConfigurationState = {
 
 export type ResolvedAgentConfiguration = Readonly<{
   apiKey: string | null;
+  codexHome: string | null;
   privateNetworkOrigin: string | null;
   profile: AgentProfileView;
   provider: AgentProviderView;
@@ -81,6 +86,7 @@ export type ResolvedAgentConfiguration = Readonly<{
 
 export type ResolvedAgentProvider = Readonly<{
   apiKey: string | null;
+  codexHome: string | null;
   privateNetworkOrigin: string | null;
   provider: AgentProviderView;
 }>;
@@ -150,10 +156,10 @@ function parseAuthentication(value: unknown, pathLabel: string): StoredAuthentic
     assertStateFields(record, ["type"], pathLabel);
     return { type: "none" };
   }
-  if (record.type === "api-key") {
+  if (record.type === "api-key" || record.type === "chatgpt-device-code") {
     assertStateFields(record, ["credential", "type"], pathLabel);
     if (record.credential === null) {
-      return { credential: null, type: "api-key" };
+      return { credential: null, type: record.type };
     }
     const credential = requireStateRecord(
       record.credential,
@@ -181,7 +187,7 @@ function parseAuthentication(value: unknown, pathLabel: string): StoredAuthentic
           `${pathLabel}.credential.version`,
         ),
       }),
-      type: "api-key",
+      type: record.type,
     };
   }
   throw new Error(`${pathLabel}.type is invalid.`);
@@ -244,8 +250,11 @@ function parseProvider(
     ? parseLegacyAuthentication(record.authentication, `${pathLabel}.authentication`)
     : parseAuthentication(record.authentication, `${pathLabel}.authentication`);
 
-  if (kind === "codex" && authentication.type !== "api-key") {
-    throw new Error(`${pathLabel} Codex authentication must be api-key.`);
+  if (kind === "codex" && authentication.type === "none") {
+    throw new Error(`${pathLabel} Codex authentication cannot be none.`);
+  }
+  if (kind !== "codex" && authentication.type === "chatgpt-device-code") {
+    throw new Error(`${pathLabel} device-code authentication requires Codex.`);
   }
   const baseUrl = kind === "codex"
     ? record.baseUrl === null
@@ -536,6 +545,7 @@ function providerView(provider: StoredProvider): AgentProviderView {
       : provider.authentication.credential
         ? "configured"
         : "missing",
+    authenticationType: provider.authentication.type,
     baseUrl: provider.baseUrl,
     digest: providerDigest(provider),
     id: provider.id,
@@ -554,7 +564,7 @@ function profileView(
 ): AgentProfileView {
   const currentProfileDigest = profileDigest(profile);
   const currentProviderDigest = providerDigest(provider);
-  const authenticationMissing = provider.authentication.type === "api-key" &&
+  const authenticationMissing = provider.authentication.type !== "none" &&
     !provider.authentication.credential;
   const requiresConformance = provider.kind !== "codex";
   const conformanceCurrent = profile.conformance !== null &&
@@ -625,11 +635,19 @@ function normalizeProviderInput(
         })()
     : parseBaseUrl(input.baseUrl, "Provider baseUrl");
 
-  if (input.kind === "codex" && input.authenticationType !== "api-key") {
-    throw new AgentConfigurationValidationError("Codex authentication must be api-key");
+  if (input.kind === "codex" && input.authenticationType === "none") {
+    throw new AgentConfigurationValidationError("Codex authentication cannot be none");
   }
-  if (input.authenticationType === "none" && input.apiKey !== undefined) {
-    throw new AgentConfigurationValidationError("auth:none cannot include an API key");
+  if (input.kind !== "codex" &&
+      input.authenticationType === "chatgpt-device-code") {
+    throw new AgentConfigurationValidationError(
+      "Device-code authentication requires a Codex provider",
+    );
+  }
+  if (input.authenticationType !== "api-key" && input.apiKey !== undefined) {
+    throw new AgentConfigurationValidationError(
+      "Only api-key authentication can include an API key",
+    );
   }
   if (input.authenticationType === "api-key" && input.apiKey === "") {
     throw new AgentConfigurationValidationError("API key cannot be empty");
@@ -737,9 +755,7 @@ export class AgentConfigurationStore {
         id === storedProfile.providerId
       )!;
       return {
-        credential: storedProvider.authentication.type === "api-key"
-          ? storedProvider.authentication.credential
-          : null,
+        authentication: storedProvider.authentication,
         privateNetworkOrigin: storedProvider.privateNetworkOrigin,
         profile: profileView(storedProfile, storedProvider),
         provider: providerView(storedProvider),
@@ -747,9 +763,16 @@ export class AgentConfigurationStore {
     });
 
     if (!resolved) return null;
+    const credential = resolved.authentication.type === "none"
+      ? null
+      : resolved.authentication.credential;
     return {
-      apiKey: resolved.credential
-        ? await this.#credentialStore.readApiKey(resolved.credential)
+      apiKey: credential && resolved.authentication.type === "api-key"
+        ? await this.#credentialStore.readApiKey(credential)
+        : null,
+      codexHome: credential &&
+          resolved.authentication.type === "chatgpt-device-code"
+        ? await this.#credentialStore.resolveCodexManagedHome(credential)
         : null,
       privateNetworkOrigin: resolved.privateNetworkOrigin,
       profile: resolved.profile,
@@ -763,18 +786,23 @@ export class AgentConfigurationStore {
 
       if (!storedProvider) return null;
       return {
-        credential: storedProvider.authentication.type === "api-key"
-          ? storedProvider.authentication.credential
-          : null,
+        authentication: storedProvider.authentication,
         privateNetworkOrigin: storedProvider.privateNetworkOrigin,
         provider: providerView(storedProvider),
       };
     });
 
     if (!resolved) return null;
+    const credential = resolved.authentication.type === "none"
+      ? null
+      : resolved.authentication.credential;
     return {
-      apiKey: resolved.credential
-        ? await this.#credentialStore.readApiKey(resolved.credential)
+      apiKey: credential && resolved.authentication.type === "api-key"
+        ? await this.#credentialStore.readApiKey(credential)
+        : null,
+      codexHome: credential &&
+          resolved.authentication.type === "chatgpt-device-code"
+        ? await this.#credentialStore.resolveCodexManagedHome(credential)
         : null,
       privateNetworkOrigin: resolved.privateNetworkOrigin,
       provider: resolved.provider,
@@ -831,10 +859,10 @@ export class AgentConfigurationStore {
         if (profile.providerId === providerId) profile.conformance = null;
       }
       state.providers[index] = provider;
-      const previousCredential = previous.authentication.type === "api-key"
+      const previousCredential = previous.authentication.type !== "none"
         ? previous.authentication.credential
         : null;
-      const nextCredential = provider.authentication.type === "api-key"
+      const nextCredential = provider.authentication.type !== "none"
         ? provider.authentication.credential
         : null;
       return {
@@ -876,10 +904,133 @@ export class AgentConfigurationStore {
         changed: true,
         result: {
           configuration: configurationSnapshot(state),
-          credential: provider!.authentication.type === "api-key"
+          credential: provider!.authentication.type !== "none"
             ? provider!.authentication.credential
             : null,
         },
+      };
+    });
+
+    if (outcome.credential) await this.#credentialStore.remove(outcome.credential);
+    return outcome.configuration;
+  }
+
+  async prepareCodexDeviceLogin(
+    baseRevision: string,
+    providerId: string,
+    loginId: string,
+  ) {
+    const credentialVersion = await this.#read((state) => {
+      assertBaseRevision(state, baseRevision);
+      const provider = state.providers.find(({ id }) => id === providerId);
+
+      if (!provider || provider.kind !== "codex" ||
+          provider.authentication.type !== "chatgpt-device-code") {
+        throw new AgentConfigurationValidationError(
+          "Codex device login requires a device-code provider",
+        );
+      }
+      return (provider.authentication.credential?.version ?? 0) + 1;
+    });
+    const { home } = await this.#credentialStore.prepareCodexManagedHome(
+      providerId,
+      credentialVersion,
+      loginId,
+    );
+
+    return { credentialVersion, home };
+  }
+
+  removeCodexDeviceLoginStaging(
+    providerId: string,
+    credentialVersion: number,
+    loginId: string,
+  ) {
+    return this.#credentialStore.removeCodexStagingHome(
+      providerId,
+      credentialVersion,
+      loginId,
+    );
+  }
+
+  async completeCodexDeviceLogin(
+    baseRevision: string,
+    providerId: string,
+    credentialVersion: number,
+    loginId: string,
+  ) {
+    const credential = await this.#credentialStore.activateCodexManagedHome(
+      providerId,
+      credentialVersion,
+      loginId,
+    );
+
+    try {
+      const outcome = await this.#mutate((state) => {
+        assertBaseRevision(state, baseRevision);
+        const provider = state.providers.find(({ id }) => id === providerId);
+
+        if (!provider || provider.kind !== "codex" ||
+            provider.authentication.type !== "chatgpt-device-code") {
+          throw new AgentConfigurationValidationError(
+            "Codex device login provider changed",
+          );
+        }
+        const previousCredential = provider.authentication.credential;
+
+        provider.authentication = {
+          credential,
+          type: "chatgpt-device-code",
+        };
+        provider.version += 1;
+        for (const profile of state.profiles) {
+          if (profile.providerId === providerId) profile.conformance = null;
+        }
+        return {
+          changed: true,
+          result: {
+            configuration: configurationSnapshot(state),
+            previousCredential,
+          },
+        };
+      });
+
+      if (outcome.previousCredential) {
+        await this.#credentialStore.remove(outcome.previousCredential);
+      }
+      return outcome.configuration;
+    } catch (error) {
+      await this.#credentialStore.remove(credential).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  async clearProviderAuthentication(
+    baseRevision: string,
+    providerId: string,
+  ) {
+    const outcome = await this.#mutate((state) => {
+      assertBaseRevision(state, baseRevision);
+      const provider = state.providers.find(({ id }) => id === providerId);
+
+      if (!provider || provider.authentication.type === "none") {
+        throw new AgentConfigurationValidationError(
+          "Agent provider authentication cannot be cleared",
+        );
+      }
+      const credential = provider.authentication.credential;
+
+      provider.authentication = {
+        credential: null,
+        type: provider.authentication.type,
+      };
+      provider.version += 1;
+      for (const profile of state.profiles) {
+        if (profile.providerId === providerId) profile.conformance = null;
+      }
+      return {
+        changed: true,
+        result: { configuration: configurationSnapshot(state), credential },
       };
     });
 
@@ -1011,13 +1162,15 @@ export class AgentConfigurationStore {
     previous: StoredAuthentication | null = null,
   ): Promise<StoredAuthentication> {
     if (input.authenticationType === "none") return { type: "none" };
+    if (input.authenticationType === "chatgpt-device-code") {
+      return previous?.type === "chatgpt-device-code"
+        ? previous
+        : { credential: null, type: "chatgpt-device-code" };
+    }
     if (input.apiKey === undefined) {
       return previous?.type === "api-key"
         ? previous
         : { credential: null, type: "api-key" };
-    }
-    if (input.apiKey === null) {
-      return { credential: null, type: "api-key" };
     }
     const previousVersion = previous?.type === "api-key"
       ? previous.credential?.version ?? 0

@@ -24,7 +24,10 @@ import { FileDataRootMigrationCoordinator } from "../../../../infrastructure/ser
 
 const roots: string[] = [];
 
-async function fixture(hasResidentSessions = false) {
+async function fixture(
+  hasResidentSessions = false,
+  hasPendingCodexLogin = false,
+) {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), "ctn-migration-project-"));
   const targetParent = await mkdtemp(path.join(os.tmpdir(), "ctn-migration-target-"));
   const bootstrap = new BootstrapConfigurationStore(projectRoot);
@@ -49,6 +52,7 @@ async function fixture(hasResidentSessions = false) {
     await writeFile(file, relative, { mode: 0o600 });
   }
   const coordinator = new FileDataRootMigrationCoordinator({
+    agentProviderOperations: { hasPendingCodexLogin: () => hasPendingCodexLogin },
     agentService: { hasResidentSessions: () => hasResidentSessions },
     bootstrap,
     controlRoot: path.join(projectRoot, ".cognition-tree", "bootstrap-v1"),
@@ -142,6 +146,12 @@ describe("data-root migration coordinator", () => {
     await expect(resident.coordinator.start(
       resident.initial.revision,
       resident.target,
+    )).rejects.toBeInstanceOf(SystemMigrationConflictError);
+    const pendingLogin = await fixture(false, true);
+
+    await expect(pendingLogin.coordinator.start(
+      pendingLogin.initial.revision,
+      pendingLogin.target,
     )).rejects.toBeInstanceOf(SystemMigrationConflictError);
     const available = await fixture();
 

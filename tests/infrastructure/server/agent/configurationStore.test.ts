@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
+  access,
   mkdtemp,
   readFile,
   rm,
@@ -245,25 +246,120 @@ describe("Agent configuration store", () => {
       apiKey: "second-secret",
     });
 
-    const cleared = await store.updateProvider(
+    const cleared = await store.clearProviderAuthentication(
       replaced.configuration.revision,
       created.provider.id,
-      {
-        apiKey: null,
-        authenticationType: "api-key",
-        baseUrl: "https://models.example.invalid/v1",
-        kind: "openai-chat",
-        label: "Provider",
-        privateNetworkAccessConfirmed: false,
-      },
     );
 
-    expect(cleared.provider.authenticationStatus).toBe("missing");
+    expect(cleared.providers[0]!.authenticationStatus).toBe("missing");
     await expect(readFile(path.join(providerDirectory, "api-key-v2.json")))
       .rejects.toMatchObject({ code: "ENOENT" });
     await expect(store.resolveProvider(created.provider.id)).resolves.toMatchObject({
       apiKey: null,
     });
+  });
+
+  it("promotes and clears an application-managed Codex device login exactly", async () => {
+    const { directory, store } = await createStore();
+    const initial = await store.readSnapshot();
+    const created = await store.createProvider(initial.revision, {
+      authenticationType: "chatgpt-device-code",
+      baseUrl: null,
+      kind: "codex",
+      label: "ChatGPT Codex",
+      privateNetworkAccessConfirmed: false,
+    });
+    const loginId = "00000000-0000-4000-8000-000000000001";
+    const prepared = await store.prepareCodexDeviceLogin(
+      created.configuration.revision,
+      created.provider.id,
+      loginId,
+    );
+
+    await writeFile(path.join(prepared.home, "auth.json"), "{}\n", {
+      mode: 0o600,
+    });
+    const authenticated = await store.completeCodexDeviceLogin(
+      created.configuration.revision,
+      created.provider.id,
+      prepared.credentialVersion,
+      loginId,
+    );
+    const providerDirectory = path.join(
+      directory,
+      "agent-auth-v1",
+      "providers",
+      created.provider.id,
+    );
+
+    expect(authenticated.providers[0]).toMatchObject({
+      authenticationStatus: "configured",
+      authenticationType: "chatgpt-device-code",
+      version: 2,
+    });
+    await expect(store.resolveProvider(created.provider.id)).resolves.toMatchObject({
+      apiKey: null,
+      codexHome: prepared.home,
+    });
+    expect((await stat(prepared.home)).mode & 0o777).toBe(0o700);
+    expect((await stat(path.join(prepared.home, "auth.json"))).mode & 0o777)
+      .toBe(0o600);
+
+    const cleared = await store.clearProviderAuthentication(
+      authenticated.revision,
+      created.provider.id,
+    );
+
+    expect(cleared.providers[0]).toMatchObject({
+      authenticationStatus: "missing",
+      authenticationType: "chatgpt-device-code",
+      version: 3,
+    });
+    await expect(access(providerDirectory)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("removes staged Codex authentication when exact CAS becomes stale", async () => {
+    const { directory, store } = await createStore();
+    const initial = await store.readSnapshot();
+    const created = await store.createProvider(initial.revision, {
+      authenticationType: "chatgpt-device-code",
+      baseUrl: null,
+      kind: "codex",
+      label: "ChatGPT Codex",
+      privateNetworkAccessConfirmed: false,
+    });
+    const loginId = "00000000-0000-4000-8000-000000000002";
+    const prepared = await store.prepareCodexDeviceLogin(
+      created.configuration.revision,
+      created.provider.id,
+      loginId,
+    );
+
+    await writeFile(path.join(prepared.home, "auth.json"), "{}\n", {
+      mode: 0o600,
+    });
+    await store.createProvider(created.configuration.revision, {
+      authenticationType: "none",
+      baseUrl: "http://127.0.0.1:11434",
+      kind: "ollama",
+      label: "Other provider",
+      privateNetworkAccessConfirmed: false,
+    });
+    await expect(store.completeCodexDeviceLogin(
+      created.configuration.revision,
+      created.provider.id,
+      prepared.credentialVersion,
+      loginId,
+    )).rejects.toBeInstanceOf(AgentConfigurationConflictError);
+    await expect(access(prepared.home)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(store.resolveProvider(created.provider.id)).resolves.toMatchObject({
+      codexHome: null,
+      provider: { authenticationStatus: "missing" },
+    });
+    expect(await readFile(
+      path.join(directory, "agent-config-v1", "configuration.json"),
+      "utf8",
+    )).not.toContain(loginId);
   });
 
   it("fails closed when a credential file no longer matches its reference", async () => {

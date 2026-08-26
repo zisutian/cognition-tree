@@ -213,6 +213,7 @@ async function verifyAuthoritativePartitions(source: string, destination: string
 }
 
 export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordinator {
+  readonly #agentProviderOperations: { hasPendingCodexLogin(): boolean };
   readonly #agentService: { hasResidentSessions(): boolean };
   readonly #bootstrap: BootstrapConfigurationStore;
   readonly #controlRoot: string;
@@ -223,6 +224,7 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
   #activeId: string | null = null;
 
   constructor({
+    agentProviderOperations = { hasPendingCodexLogin: () => false },
     agentService,
     bootstrap,
     controlRoot,
@@ -230,6 +232,7 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
     requestRestart,
     restartDelayMilliseconds = 500,
   }: {
+    agentProviderOperations?: { hasPendingCodexLogin(): boolean };
     agentService: { hasResidentSessions(): boolean };
     bootstrap: BootstrapConfigurationStore;
     controlRoot: string;
@@ -237,6 +240,7 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
     requestRestart(): Promise<void>;
     restartDelayMilliseconds?: number;
   }) {
+    this.#agentProviderOperations = agentProviderOperations;
     this.#agentService = agentService;
     this.#bootstrap = bootstrap;
     this.#controlRoot = path.resolve(controlRoot);
@@ -256,9 +260,10 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
     if (this.#activeId) {
       throw new SystemMigrationConflictError("A data-root migration is already active");
     }
-    if (this.#agentService.hasResidentSessions()) {
+    if (this.#agentService.hasResidentSessions() ||
+        this.#agentProviderOperations.hasPendingCodexLogin()) {
       throw new SystemMigrationConflictError(
-        "Resident Agent sessions must be closed before migrating data",
+        "Agent sessions and Codex logins must finish before migrating data",
       );
     }
     const snapshot = await this.#bootstrap.readSnapshot();

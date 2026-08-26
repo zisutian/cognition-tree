@@ -75,10 +75,26 @@ describe("CTN API v3 registry", () => {
       ).toMatchObject({ "202": expect.any(Object) });
       expect(paths["/api/v3/admin/agent-profiles/{profileId}/conformance-check"])
         .toBeUndefined();
+      expect(
+        paths[
+          "/api/v3/admin/agent-providers/{providerId}/codex-device-logins"
+        ]!.post.responses,
+      ).toMatchObject({ "202": expect.any(Object) });
+      expect(
+        paths["/api/v3/admin/agent-codex-device-logins/{codexLoginId}"]!
+          .delete["x-ctn-access"],
+      ).toEqual({ kind: "owner" });
 
       await expect(dispatch<{ code: string }>(handler, {
         method: "GET",
         url: "/api/v3/admin/agent-conformance-checks/missing",
+      })).resolves.toMatchObject({
+        body: { code: "not_found" },
+        statusCode: 404,
+      });
+      await expect(dispatch<{ code: string }>(handler, {
+        method: "GET",
+        url: "/api/v3/admin/agent-codex-device-logins/missing",
       })).resolves.toMatchObject({
         body: { code: "not_found" },
         statusCode: 404,

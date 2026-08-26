@@ -20,6 +20,11 @@ const providerKind = Type.Union([
   Type.Literal("ollama"),
   Type.Literal("openai-chat"),
 ]);
+const providerAuthenticationType = Type.Union([
+  Type.Literal("api-key"),
+  Type.Literal("chatgpt-device-code"),
+  Type.Literal("none"),
+]);
 const toolCallMode = Type.Union([
   Type.Literal("native"),
   Type.Literal("single-json"),
@@ -34,6 +39,7 @@ const chatReasoningEffort = Type.Union([
 
 export const AgentProviderViewSchema = strictObject({
   authenticationStatus,
+  authenticationType: providerAuthenticationType,
   baseUrl: nullable(Type.String({ minLength: 1 })),
   digest: ApiResourceVersionSchema,
   id: ApiIdentifierSchema,
@@ -103,11 +109,8 @@ export const AgentConfigurationSnapshotSchema = strictObject({
 export const AgentProviderMutationRequestSchema = strictObject({
   baseRevision: ApiResourceVersionSchema,
   provider: strictObject({
-    apiKey: Type.Optional(nullable(Type.String({ minLength: 1 }))),
-    authenticationType: Type.Union([
-      Type.Literal("api-key"),
-      Type.Literal("none"),
-    ]),
+    apiKey: Type.Optional(Type.String({ minLength: 1 })),
+    authenticationType: providerAuthenticationType,
     baseUrl: nullable(Type.String({ minLength: 1 })),
     kind: providerKind,
     label: ApiIdentifierSchema,
@@ -201,3 +204,28 @@ export const AgentConformanceCheckStatusSchema = strictObject({
 export type AgentConformanceCheckStatusDto = Static<
   typeof AgentConformanceCheckStatusSchema
 >;
+
+export const AgentCodexDeviceLoginRequestSchema = strictObject({
+  baseRevision: ApiResourceVersionSchema,
+});
+export type AgentCodexDeviceLoginRequestDto = Static<
+  typeof AgentCodexDeviceLoginRequestSchema
+>;
+
+export const AgentCodexDeviceLoginStatusSchema = strictObject({
+  completedAt: nullable(ApiCanonicalTimestampSchema),
+  errorMessage: nullable(Type.String()),
+  expiresAt: ApiCanonicalTimestampSchema,
+  id: ApiIdentifierSchema,
+  providerId: ApiIdentifierSchema,
+  startedAt: ApiCanonicalTimestampSchema,
+  status: Type.Union([
+    Type.Literal("pending"),
+    Type.Literal("succeeded"),
+    Type.Literal("failed"),
+    Type.Literal("cancelled"),
+    Type.Literal("expired"),
+  ]),
+  userCode: Type.String({ minLength: 1 }),
+  verificationUrl: Type.String({ minLength: 1 }),
+});

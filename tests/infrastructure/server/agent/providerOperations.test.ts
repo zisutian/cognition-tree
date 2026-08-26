@@ -2,12 +2,13 @@
 
 import { once } from "node:events";
 import { createServer, type ServerResponse } from "node:http";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { AgentConfigurationStore } from "../../../../infrastructure/server/agent/configurationStore.ts";
 import { AgentProviderOperations } from "../../../../infrastructure/server/agent/providerOperations.ts";
+import { pinnedCodexVersion } from "../../../../infrastructure/server/agent/codexAppServerClient.ts";
 import type { ApiRuntime } from "../../../../infrastructure/server/api/http/runtime.ts";
 
 const runtime: ApiRuntime = {
@@ -26,7 +27,240 @@ function writeSse(response: ServerResponse, content: string) {
   response.end("data: [DONE]\n\n");
 }
 
+async function createFakeCodexProject(completeLogin: boolean) {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), "ctn-device-codex-"));
+  const packageDirectory = path.join(
+    projectRoot,
+    "node_modules",
+    "@openai",
+    "codex",
+  );
+  const fakeAppServer = `
+import { writeFileSync } from "node:fs";
+import path from "node:path";
+const send = (value) => process.stdout.write(JSON.stringify(value) + "\\n");
+setInterval(() => undefined, 1000);
+let source = "";
+const handle = (request) => {
+  if (request.method === "initialize") {
+    send({ id: request.id, result: { userAgent: "fake-codex" } });
+    return;
+  }
+  if (request.method === "account/login/start") {
+    writeFileSync(path.join(process.env.CODEX_HOME, "auth.json"), JSON.stringify({
+      inheritedApiKey: process.env.OPENAI_API_KEY ?? null,
+      inheritedPersonalSecret: process.env.CTN_TEST_PERSONAL_SECRET ?? null,
+      tokens: "managed",
+    }), { mode: 0o600 });
+    send({ id: request.id, result: {
+      loginId: "codex-login-1",
+      type: "chatgptDeviceCode",
+      userCode: "ABCD-EFGH",
+      verificationUrl: "https://auth.openai.com/device",
+    } });
+    if (${JSON.stringify(completeLogin)}) {
+      setTimeout(() => send({ method: "account/login/completed", params: {
+        error: null,
+        loginId: "codex-login-1",
+        success: true,
+      } }), 10);
+    }
+    return;
+  }
+  if (request.method === "account/login/cancel") {
+    send({ id: request.id, result: {} });
+  }
+};
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (chunk) => {
+  source += chunk;
+  while (true) {
+    const boundary = source.indexOf("\\n");
+    if (boundary < 0) return;
+    const line = source.slice(0, boundary);
+    source = source.slice(boundary + 1);
+    if (line) handle(JSON.parse(line));
+  }
+});
+`;
+
+  await mkdir(path.join(packageDirectory, "bin"), { recursive: true });
+  await writeFile(path.join(packageDirectory, "package.json"), JSON.stringify({
+    type: "module",
+    version: pinnedCodexVersion,
+  }));
+  await writeFile(
+    path.join(packageDirectory, "bin", "codex.js"),
+    fakeAppServer,
+    { mode: 0o700 },
+  );
+  return projectRoot;
+}
+
 describe("Agent provider operations", () => {
+  it("completes and cancels isolated Codex device-code logins", async () => {
+    const completedProject = await createFakeCodexProject(true);
+    const cancelledProject = await createFakeCodexProject(false);
+    const expiredProject = await createFakeCodexProject(false);
+    const completedDirectory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-device-completed-"),
+    );
+    const cancelledDirectory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-device-cancelled-"),
+    );
+    const expiredDirectory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-device-expired-"),
+    );
+    const completedStore = new AgentConfigurationStore(completedDirectory, {
+      createId: () => "codex-completed",
+    });
+    const cancelledStore = new AgentConfigurationStore(cancelledDirectory, {
+      createId: () => "codex-cancelled",
+    });
+    const expiredStore = new AgentConfigurationStore(expiredDirectory, {
+      createId: () => "codex-expired",
+    });
+    const completedOperations = new AgentProviderOperations({
+      configurationStore: completedStore,
+      projectRoot: completedProject,
+      runtime,
+    });
+    const cancelledOperations = new AgentProviderOperations({
+      configurationStore: cancelledStore,
+      projectRoot: cancelledProject,
+      runtime,
+    });
+    const expiredOperations = new AgentProviderOperations({
+      codexDeviceLoginTtlMilliseconds: 10,
+      configurationStore: expiredStore,
+      projectRoot: expiredProject,
+      runtime,
+    });
+    process.env.OPENAI_API_KEY = "must-not-enter-device-login";
+    process.env.CTN_TEST_PERSONAL_SECRET = "must-not-enter-device-login";
+
+    try {
+      const completedInitial = await completedStore.readSnapshot();
+      const completedProvider = await completedStore.createProvider(
+        completedInitial.revision,
+        {
+          authenticationType: "chatgpt-device-code",
+          baseUrl: null,
+          kind: "codex",
+          label: "ChatGPT Codex",
+          privateNetworkAccessConfirmed: false,
+        },
+      );
+      const started = await completedOperations.startCodexDeviceLogin(
+        completedProvider.configuration.revision,
+        completedProvider.provider.id,
+      );
+
+      expect(started).toMatchObject({
+        status: "pending",
+        userCode: "ABCD-EFGH",
+        verificationUrl: "https://auth.openai.com/device",
+      });
+      await vi.waitFor(() => {
+        expect(completedOperations.getCodexDeviceLogin(started.id)?.status)
+          .toBe("succeeded");
+      });
+      const resolved = await completedStore.resolveProvider(
+        completedProvider.provider.id,
+      );
+
+      expect(resolved).toMatchObject({
+        apiKey: null,
+        provider: {
+          authenticationStatus: "configured",
+          authenticationType: "chatgpt-device-code",
+        },
+      });
+      const auth = JSON.parse(await readFile(
+        path.join(resolved!.codexHome!, "auth.json"),
+        "utf8",
+      ));
+
+      expect(auth).toMatchObject({
+        inheritedApiKey: null,
+        inheritedPersonalSecret: null,
+      });
+
+      const cancelledInitial = await cancelledStore.readSnapshot();
+      const cancelledProvider = await cancelledStore.createProvider(
+        cancelledInitial.revision,
+        {
+          authenticationType: "chatgpt-device-code",
+          baseUrl: null,
+          kind: "codex",
+          label: "Cancelled Codex",
+          privateNetworkAccessConfirmed: false,
+        },
+      );
+      const cancelling = await cancelledOperations.startCodexDeviceLogin(
+        cancelledProvider.configuration.revision,
+        cancelledProvider.provider.id,
+      );
+
+      expect(cancelledOperations.hasPendingCodexLogin(
+        cancelledProvider.provider.id,
+      )).toBe(true);
+      await expect(cancelledOperations.startCodexDeviceLogin(
+        cancelledProvider.configuration.revision,
+        cancelledProvider.provider.id,
+      )).rejects.toThrow("already pending");
+      await expect(cancelledOperations.cancelCodexDeviceLogin(cancelling.id))
+        .resolves.toMatchObject({ status: "cancelled" });
+      await expect(cancelledStore.resolveProvider(cancelledProvider.provider.id))
+        .resolves.toMatchObject({
+          codexHome: null,
+          provider: { authenticationStatus: "missing" },
+        });
+
+      const expiredInitial = await expiredStore.readSnapshot();
+      const expiredProvider = await expiredStore.createProvider(
+        expiredInitial.revision,
+        {
+          authenticationType: "chatgpt-device-code",
+          baseUrl: null,
+          kind: "codex",
+          label: "Expired Codex",
+          privateNetworkAccessConfirmed: false,
+        },
+      );
+      const expiring = await expiredOperations.startCodexDeviceLogin(
+        expiredProvider.configuration.revision,
+        expiredProvider.provider.id,
+      );
+
+      await vi.waitFor(() => {
+        expect(expiredOperations.getCodexDeviceLogin(expiring.id)?.status)
+          .toBe("expired");
+      });
+      await expect(expiredStore.resolveProvider(expiredProvider.provider.id))
+        .resolves.toMatchObject({
+          codexHome: null,
+          provider: { authenticationStatus: "missing" },
+        });
+    } finally {
+      delete process.env.OPENAI_API_KEY;
+      delete process.env.CTN_TEST_PERSONAL_SECRET;
+      await Promise.all([
+        completedOperations.dispose(),
+        cancelledOperations.dispose(),
+        expiredOperations.dispose(),
+      ]);
+      await Promise.all([
+        rm(completedProject, { force: true, recursive: true }),
+        rm(cancelledProject, { force: true, recursive: true }),
+        rm(expiredProject, { force: true, recursive: true }),
+        rm(completedDirectory, { force: true, recursive: true }),
+        rm(cancelledDirectory, { force: true, recursive: true }),
+        rm(expiredDirectory, { force: true, recursive: true }),
+      ]);
+    }
+  });
+
   it("discovers Ollama and verifies the pinned single-json mode explicitly", async () => {
     let completion = 0;
     const completionBodies: Array<Record<string, unknown>> = [];

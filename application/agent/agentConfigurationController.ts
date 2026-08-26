@@ -2,6 +2,7 @@
 
 import type {
   AgentConformanceCheckStatus,
+  AgentCodexDeviceLoginStatus,
   AgentConfigurationSnapshot,
   AgentOllamaDiscovery,
   AgentProfileInput,
@@ -10,8 +11,18 @@ import type {
 } from "./agentConfiguration.ts";
 
 export type AgentConfigurationPort = {
+  cancelCodexDeviceLogin(loginId: string): Promise<AgentCodexDeviceLoginStatus>;
   cancelConformance(checkId: string): Promise<AgentConformanceCheckStatus>;
+  clearProviderAuthentication(
+    baseRevision: string,
+    providerId: string,
+  ): Promise<AgentConfigurationSnapshot>;
   getConformance(checkId: string): Promise<AgentConformanceCheckStatus>;
+  getCodexDeviceLogin(loginId: string): Promise<AgentCodexDeviceLoginStatus>;
+  startCodexDeviceLogin(
+    baseRevision: string,
+    providerId: string,
+  ): Promise<AgentCodexDeviceLoginStatus>;
   startConformance(
     baseRevision: string,
     profileId: string,
@@ -48,6 +59,7 @@ export type AgentConfigurationPort = {
 };
 
 export type AgentConfigurationState = Readonly<{
+  codexDeviceLogins: Readonly<Record<string, AgentCodexDeviceLoginStatus>>;
   conformanceChecks: Readonly<Record<string, AgentConformanceCheckStatus>>;
   configuration: AgentConfigurationSnapshot | null;
   discovery: AgentOllamaDiscovery | null;
@@ -58,8 +70,10 @@ export type AgentConfigurationState = Readonly<{
 }>;
 
 export type AgentConfigurationController = {
+  cancelCodexDeviceLogin(providerId: string): Promise<void>;
   cancelConformance(profileId: string): Promise<void>;
   checkConformance(profileId: string): Promise<void>;
+  clearProviderAuthentication(providerId: string): Promise<void>;
   createProfile(profile: AgentProfileInput): Promise<void>;
   createProvider(provider: AgentProviderInput): Promise<void>;
   deleteProfile(profileId: string): Promise<void>;
@@ -69,6 +83,7 @@ export type AgentConfigurationController = {
   load(): Promise<void>;
   probeProvider(providerId: string): Promise<void>;
   subscribe(listener: () => void): () => void;
+  startCodexDeviceLogin(providerId: string): Promise<void>;
   updateProfile(profileId: string, profile: AgentProfileInput): Promise<void>;
   updateProvider(providerId: string, provider: AgentProviderInput): Promise<void>;
 };
@@ -90,6 +105,7 @@ export function createAgentConfigurationController({
 }): AgentConfigurationController {
   const listeners = new Set<() => void>();
   let state: AgentConfigurationState = {
+    codexDeviceLogins: {},
     conformanceChecks: {},
     configuration: null,
     discovery: null,
@@ -114,6 +130,14 @@ export function createAgentConfigurationController({
       },
     });
   };
+  const publishCodexDeviceLogin = (login: AgentCodexDeviceLoginStatus) => {
+    publish({
+      codexDeviceLogins: {
+        ...state.codexDeviceLogins,
+        [login.providerId]: login,
+      },
+    });
+  };
   const mutate = async (
     operation: (revision: string) => Promise<AgentConfigurationSnapshot>,
   ) => {
@@ -130,6 +154,12 @@ export function createAgentConfigurationController({
   };
 
   return {
+    async cancelCodexDeviceLogin(providerId) {
+      const login = state.codexDeviceLogins[providerId];
+
+      if (!login || login.status !== "pending") return;
+      publishCodexDeviceLogin(await port.cancelCodexDeviceLogin(login.id));
+    },
     async cancelConformance(profileId) {
       const check = state.conformanceChecks[profileId];
 
@@ -166,6 +196,9 @@ export function createAgentConfigurationController({
         throw error;
       }
     },
+    clearProviderAuthentication: (providerId) => mutate((revision) =>
+      port.clearProviderAuthentication(revision, providerId)
+    ),
     createProfile: (profile) => mutate((revision) =>
       port.createProfile(revision, profile)
     ),
@@ -215,6 +248,42 @@ export function createAgentConfigurationController({
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    async startCodexDeviceLogin(providerId) {
+      publish({ errorMessage: null, operationStatus: "working" });
+      try {
+        const login = await port.startCodexDeviceLogin(
+          requireRevision(),
+          providerId,
+        );
+
+        publishCodexDeviceLogin(login);
+        publish({ operationStatus: "idle" });
+        void (async () => {
+          try {
+            let current = login;
+
+            while (current.status === "pending") {
+              await pollConformance(pollConformanceIntervalMilliseconds);
+              current = await port.getCodexDeviceLogin(current.id);
+              publishCodexDeviceLogin(current);
+            }
+            if (current.status === "succeeded") {
+              publish({ configuration: await port.load() });
+              await onConfigurationChanged();
+            } else if (current.status === "failed") {
+              publish({
+                errorMessage: current.errorMessage ?? "Codex device login failed.",
+              });
+            }
+          } catch (error) {
+            publish({ errorMessage: message(error) });
+          }
+        })();
+      } catch (error) {
+        publish({ errorMessage: message(error), operationStatus: "idle" });
+        throw error;
+      }
     },
     updateProfile: (profileId, profile) => mutate((revision) =>
       port.updateProfile(revision, profileId, profile)

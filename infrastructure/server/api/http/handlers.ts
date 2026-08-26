@@ -178,6 +178,8 @@ export async function handleApiRoute(
     operation.operationId.startsWith("deleteAgentProvider")
     || operation.operationId === "discoverOllamaProvider"
     || operation.operationId === "probeAgentProvider"
+    || operation.operationId === "clearAgentProviderAuthentication"
+    || operation.operationId.includes("AgentCodexDeviceLogin")
     || operation.operationId.endsWith("AgentProfileConformanceCheck")
   ) {
     return handleAgentConfigurationAdmin(authorizedContext);

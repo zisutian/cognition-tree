@@ -78,7 +78,7 @@ export class AgentProviderTargetPolicy {
 
   configurationPermission(
     endpoint: URL,
-    authenticationType: "api-key" | "none",
+    authenticationType: "api-key" | "chatgpt-device-code" | "none",
     confirmed: boolean,
   ) {
     if (endpoint.hostname === "metadata.google.internal") {
@@ -97,7 +97,7 @@ export class AgentProviderTargetPolicy {
     }
     const loopback = isLoopbackHostname(endpoint.hostname);
 
-    if (authenticationType === "api-key" && !loopback &&
+    if (authenticationType !== "none" && !loopback &&
         endpoint.protocol !== "https:") {
       throw new AgentProviderTargetValidationError(
         "Remote providers with credentials must use HTTPS",

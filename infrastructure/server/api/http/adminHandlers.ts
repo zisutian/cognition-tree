@@ -11,6 +11,7 @@ import type {
 } from "../../../../contracts/workspace/types.ts";
 import type {
   AgentConfigurationDeleteRequestDto,
+  AgentCodexDeviceLoginRequestDto,
   AgentConformanceCheckRequestDto,
   AgentOllamaDiscoveryRequestDto,
   AgentProfileMutationRequestDto,
@@ -164,6 +165,63 @@ export async function handleAgentConfigurationAdmin(
       statusCode: 200,
     };
   }
+  if (operation.operationId === "startAgentCodexDeviceLogin") {
+    const providerId = route.providerId ?? "";
+
+    if (agentService?.hasResidentProviderSession(providerId)) {
+      throw new ApiRequestError(
+        "resource_conflict",
+        "Agent provider is pinned by a resident session",
+      );
+    }
+    const request = await context.readJsonBody() as
+      AgentCodexDeviceLoginRequestDto;
+
+    return {
+      body: await context.agentProviderOperations.startCodexDeviceLogin(
+        request.baseRevision,
+        providerId,
+      ),
+      statusCode: 202,
+    };
+  }
+  if (operation.operationId === "getAgentCodexDeviceLogin") {
+    return {
+      body: context.agentProviderOperations.getCodexDeviceLogin(
+        route.codexLoginId ?? "",
+      ) ?? apiNotFound("Codex device login does not exist"),
+      statusCode: 200,
+    };
+  }
+  if (operation.operationId === "cancelAgentCodexDeviceLogin") {
+    return {
+      body: await context.agentProviderOperations.cancelCodexDeviceLogin(
+        route.codexLoginId ?? "",
+      ) ?? apiNotFound("Codex device login does not exist"),
+      statusCode: 200,
+    };
+  }
+  if (operation.operationId === "clearAgentProviderAuthentication") {
+    const providerId = route.providerId ?? "";
+
+    if (agentService?.hasResidentProviderSession(providerId) ||
+        context.agentProviderOperations.hasPendingCodexLogin(providerId)) {
+      throw new ApiRequestError(
+        "resource_conflict",
+        "Agent provider authentication is in use",
+      );
+    }
+    const request = await context.readJsonBody() as
+      AgentConfigurationDeleteRequestDto;
+
+    return {
+      body: await store.clearProviderAuthentication(
+        request.baseRevision,
+        providerId,
+      ),
+      statusCode: 200,
+    };
+  }
   if (operation.operationId === "startAgentProfileConformanceCheck") {
     const request = await context.readJsonBody() as
       AgentConformanceCheckRequestDto;
@@ -215,7 +273,8 @@ export async function handleAgentConfigurationAdmin(
   if (operation.operationId === "updateAgentProvider") {
     const providerId = route.providerId ?? "";
 
-    if (agentService?.hasResidentProviderSession(providerId)) {
+    if (agentService?.hasResidentProviderSession(providerId) ||
+        context.agentProviderOperations.hasPendingCodexLogin(providerId)) {
       throw new ApiRequestError(
         "resource_conflict",
         "Agent provider is pinned by a resident session",
@@ -248,7 +307,8 @@ export async function handleAgentConfigurationAdmin(
   if (operation.operationId === "deleteAgentProvider") {
     const providerId = route.providerId ?? "";
 
-    if (agentService?.hasResidentProviderSession(providerId)) {
+    if (agentService?.hasResidentProviderSession(providerId) ||
+        context.agentProviderOperations.hasPendingCodexLogin(providerId)) {
       throw new ApiRequestError(
         "resource_conflict",
         "Agent provider is pinned by a resident session",

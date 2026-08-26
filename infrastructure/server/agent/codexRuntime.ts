@@ -5,13 +5,11 @@ import {
   chmod,
   mkdir,
   mkdtemp,
-  readFile,
   rm,
   writeFile,
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import readline from "node:readline";
 import type {
   AgentPrivateToolProcess,
   AgentRuntimePort,
@@ -21,150 +19,16 @@ import type {
 import type { AgentScope } from "../../../application/agent/agentTypes.ts";
 import type { CodexAgentProfile } from "./runtimeProfiles.ts";
 import { AgentRuntimeProtocolError } from "./openAiChatRuntime.ts";
-
-const pinnedCodexVersion = "0.148.0";
-
-type JsonRpcMessage = {
-  error?: { code?: number; message?: string };
-  id?: number | string | null;
-  method?: string;
-  params?: unknown;
-  result?: unknown;
-};
-
-type NotificationListener = (message: JsonRpcMessage) => void;
+import {
+  CodexAppServerClient,
+  resolveCodexEntrypoint,
+  withTimeout,
+} from "./codexAppServerClient.ts";
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : null;
-}
-
-class CodexJsonRpcClient {
-  readonly #child: ChildProcessWithoutNullStreams;
-  readonly #listeners = new Set<NotificationListener>();
-  #nextId = 1;
-  readonly #pending = new Map<number, {
-    reject(error: Error): void;
-    resolve(value: unknown): void;
-  }>();
-
-  constructor(child: ChildProcessWithoutNullStreams) {
-    this.#child = child;
-    child.stderr.resume();
-    const lines = readline.createInterface({ input: child.stdout });
-
-    lines.on("line", (line) => this.#receive(line));
-    child.once("exit", (code, signal) => {
-      const error = new AgentRuntimeProtocolError(
-        `Codex app-server exited (${code ?? signal ?? "unknown"})`,
-      );
-
-      for (const pending of this.#pending.values()) pending.reject(error);
-      this.#pending.clear();
-    });
-  }
-
-  notify(method: string, params: unknown) {
-    this.#send({ method, params });
-  }
-
-  request(method: string, params: unknown) {
-    const id = this.#nextId++;
-
-    return new Promise<unknown>((resolve, reject) => {
-      this.#pending.set(id, { reject, resolve });
-      this.#send({ id, method, params });
-    });
-  }
-
-  subscribe(listener: NotificationListener) {
-    this.#listeners.add(listener);
-    return () => this.#listeners.delete(listener);
-  }
-
-  #send(message: JsonRpcMessage) {
-    this.#child.stdin.write(`${JSON.stringify(message)}\n`);
-  }
-
-  #receive(line: string) {
-    let message: JsonRpcMessage;
-
-    try {
-      message = JSON.parse(line) as JsonRpcMessage;
-    } catch {
-      for (const pending of this.#pending.values()) {
-        pending.reject(new AgentRuntimeProtocolError("Codex emitted invalid JSON-RPC"));
-      }
-      this.#pending.clear();
-      return;
-    }
-    if (message.id !== undefined && message.method) {
-      this.#resolveServerRequest(message);
-      return;
-    }
-    if (typeof message.id === "number") {
-      const pending = this.#pending.get(message.id);
-
-      if (!pending) return;
-      this.#pending.delete(message.id);
-      if (message.error) {
-        pending.reject(new AgentRuntimeProtocolError(
-          `Codex JSON-RPC error: ${message.error.message ?? message.error.code ?? "unknown"}`,
-        ));
-      } else {
-        pending.resolve(message.result);
-      }
-      return;
-    }
-    if (message.method) {
-      for (const listener of this.#listeners) listener(message);
-    }
-  }
-
-  #resolveServerRequest(message: JsonRpcMessage) {
-    if (
-      message.method === "item/commandExecution/requestApproval" ||
-      message.method === "item/fileChange/requestApproval"
-    ) {
-      this.#send({ id: message.id, result: { decision: "decline" } });
-      return;
-    }
-    if (message.method === "item/permissions/requestApproval") {
-      this.#send({ id: message.id, result: { permissions: [] } });
-      return;
-    }
-    if (message.method === "mcpServer/elicitation/request") {
-      this.#send({
-        id: message.id,
-        result: { action: "decline", content: null },
-      });
-      return;
-    }
-    this.#send({
-      error: { code: -32601, message: "Server request is disabled" },
-      id: message.id,
-    });
-  }
-}
-
-async function resolveCodexEntrypoint(projectRoot: string) {
-  const packageDirectory = path.join(
-    projectRoot,
-    "node_modules",
-    "@openai",
-    "codex",
-  );
-  const packageJson = JSON.parse(
-    await readFile(path.join(packageDirectory, "package.json"), "utf8"),
-  ) as { version?: unknown };
-
-  if (packageJson.version !== pinnedCodexVersion) {
-    throw new AgentRuntimeProtocolError(
-      `Codex package version must be exactly ${pinnedCodexVersion}`,
-    );
-  }
-  return path.join(packageDirectory, "bin", "codex.js");
 }
 
 async function createSessionDirectory() {
@@ -205,8 +69,10 @@ async function cleanupSessionDirectory(directory: string) {
   await rm(resolved, { force: true, recursive: true });
 }
 
-function mcpConfig(process: AgentPrivateToolProcess) {
+function mcpConfig(process: AgentPrivateToolProcess, cwd: string) {
   return {
+    approval_policy: "never",
+    default_permissions: "ctn-session",
     "mcp_servers.cognition_tree.args": [...process.arguments],
     "mcp_servers.cognition_tree.command": process.command,
     "mcp_servers.cognition_tree.enabled": true,
@@ -214,6 +80,11 @@ function mcpConfig(process: AgentPrivateToolProcess) {
     "mcp_servers.cognition_tree.required": true,
     "mcp_servers.cognition_tree.startup_timeout_sec": 10,
     "mcp_servers.cognition_tree.tool_timeout_sec": 60,
+    "permissions.ctn-session.filesystem": {
+      ":minimal": "read",
+      [cwd]: "read",
+    },
+    "permissions.ctn-session.network.enabled": false,
     "shell_environment_policy.exclude": [
       "OPENAI_API_KEY",
       "CTN_AGENT_IPC_ENDPOINT",
@@ -224,31 +95,9 @@ function mcpConfig(process: AgentPrivateToolProcess) {
   };
 }
 
-function withTimeout<Value>(
-  promise: Promise<Value>,
-  milliseconds: number,
-  message: string,
-) {
-  return new Promise<Value>((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new AgentRuntimeProtocolError(message)), milliseconds);
-
-    timeout.unref();
-    promise.then(
-      (value) => {
-        clearTimeout(timeout);
-        resolve(value);
-      },
-      (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      },
-    );
-  });
-}
-
 class CodexRuntimeSession implements AgentRuntimeSession {
   readonly #child: ChildProcessWithoutNullStreams;
-  readonly #client: CodexJsonRpcClient;
+  readonly #client: CodexAppServerClient;
   readonly #cwd: string;
   readonly #directory: string;
   readonly #profile: CodexAgentProfile;
@@ -257,7 +106,7 @@ class CodexRuntimeSession implements AgentRuntimeSession {
 
   constructor(input: {
     child: ChildProcessWithoutNullStreams;
-    client: CodexJsonRpcClient;
+    client: CodexAppServerClient;
     cwd: string;
     directory: string;
     profile: CodexAgentProfile;
@@ -417,21 +266,25 @@ class CodexRuntimeSession implements AgentRuntimeSession {
 }
 
 export class CodexRuntime implements AgentRuntimePort {
-  readonly #apiKey: string;
+  readonly #authentication:
+    | Readonly<{ apiKey: string; type: "api-key" }>
+    | Readonly<{ codexHome: string; type: "chatgpt-device-code" }>;
   readonly #profile: CodexAgentProfile;
   readonly #projectRoot: string;
   readonly kind = "codex" as const;
 
   constructor({
-    apiKey,
+    authentication,
     profile,
     projectRoot,
   }: {
-    apiKey: string;
+    authentication:
+      | Readonly<{ apiKey: string; type: "api-key" }>
+      | Readonly<{ codexHome: string; type: "chatgpt-device-code" }>;
     profile: CodexAgentProfile;
     projectRoot: string;
   }) {
-    this.#apiKey = apiKey;
+    this.#authentication = authentication;
     this.#profile = profile;
     this.#projectRoot = projectRoot;
   }
@@ -451,15 +304,16 @@ export class CodexRuntime implements AgentRuntimePort {
     const child = spawn(process.execPath, [entrypoint, "app-server"], {
       cwd: temporary.cwd,
       env: {
-        CODEX_HOME: temporary.runtimeHome,
+        CODEX_HOME: this.#authentication.type === "chatgpt-device-code"
+          ? this.#authentication.codexHome
+          : temporary.runtimeHome,
         HOME: temporary.runtimeHome,
         LANG: "C.UTF-8",
-        OPENAI_API_KEY: this.#apiKey,
         PATH: path.dirname(process.execPath),
       },
       stdio: ["pipe", "pipe", "pipe"],
     });
-    const client = new CodexJsonRpcClient(child);
+    const client = new CodexAppServerClient(child);
 
     try {
       await withTimeout(client.request("initialize", {
@@ -471,10 +325,32 @@ export class CodexRuntime implements AgentRuntimePort {
         },
       }), this.#profile.timeoutMilliseconds, "Codex initialize timed out");
       client.notify("initialized", {});
+      if (this.#authentication.type === "api-key") {
+        const login = record(await withTimeout(client.request(
+          "account/login/start",
+          { apiKey: this.#authentication.apiKey, type: "apiKey" },
+        ), this.#profile.timeoutMilliseconds, "Codex API key login timed out"));
+
+        if (login?.type !== "apiKey") {
+          throw new AgentRuntimeProtocolError("Codex rejected API key login");
+        }
+      } else {
+        const accountResult = record(await withTimeout(client.request(
+          "account/read",
+          { refreshToken: false },
+        ), this.#profile.timeoutMilliseconds, "Codex account check timed out"));
+        const account = record(accountResult?.account);
+
+        if (account?.type !== "chatgpt") {
+          throw new AgentRuntimeProtocolError(
+            "Codex managed ChatGPT authentication is unavailable",
+          );
+        }
+      }
       const result = record(await withTimeout(client.request("thread/start", {
         approvalPolicy: "never",
         baseInstructions: input.instructions,
-        config: mcpConfig(input.privateToolProcess),
+        config: mcpConfig(input.privateToolProcess, temporary.cwd),
         cwd: temporary.cwd,
         dynamicTools: [],
         environments: [],
@@ -534,5 +410,3 @@ export class CodexRuntime implements AgentRuntimePort {
     }
   }
 }
-
-export { pinnedCodexVersion };

@@ -192,10 +192,30 @@ export class AgentService {
       };
 
       if (profile.kind === "ollama") return new OllamaRuntime(profile, beforeRequest);
+      if (profile.kind === "codex") {
+        const authentication = configuration.provider.authenticationType ===
+            "chatgpt-device-code"
+          ? configuration.codexHome
+            ? {
+                codexHome: configuration.codexHome,
+                type: "chatgpt-device-code" as const,
+              }
+            : null
+          : apiKey
+            ? { apiKey, type: "api-key" as const }
+            : null;
+
+        if (!authentication) {
+          throw new Error("Agent provider credential is unavailable");
+        }
+        return new CodexRuntime({
+          authentication,
+          profile,
+          projectRoot: this.#projectRoot,
+        });
+      }
       if (!apiKey) throw new Error("Agent provider credential is unavailable");
-      return profile.kind === "codex"
-        ? new CodexRuntime({ apiKey, profile, projectRoot: this.#projectRoot })
-        : new OpenAiChatRuntime(profile, apiKey, beforeRequest);
+      return new OpenAiChatRuntime(profile, apiKey, beforeRequest);
     });
     this.#servicePolicy = servicePolicy;
     this.#tools = new AgentSessionTools({

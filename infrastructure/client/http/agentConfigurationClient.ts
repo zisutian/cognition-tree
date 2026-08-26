@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
+  AgentCodexDeviceLoginStatus,
   AgentConformanceCheckStatus,
   AgentConfigurationPort,
   AgentConfigurationSnapshot,
 } from "../../../application/agent";
 import {
   AgentConfigurationSnapshotSchema,
+  AgentCodexDeviceLoginStatusSchema,
   AgentConformanceCheckStatusSchema,
   AgentOllamaDiscoveryResultSchema,
   AgentProviderProbeResultSchema,
@@ -40,6 +42,13 @@ function conformanceCheck(value: unknown) {
   ) as AgentConformanceCheckStatus;
 }
 
+function codexDeviceLogin(value: unknown) {
+  return parseAgentSchema(
+    AgentCodexDeviceLoginStatusSchema,
+    value,
+  ) as AgentCodexDeviceLoginStatus;
+}
+
 export function createHttpAgentConfigurationClient({
   baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
@@ -49,10 +58,22 @@ export function createHttpAgentConfigurationClient({
     requestApiJson(fetchFn, baseUrl, endpoint, init, token);
 
   return {
+    async cancelCodexDeviceLogin(loginId) {
+      return codexDeviceLogin(await request(
+        `/api/v3/admin/agent-codex-device-logins/${encodeURIComponent(loginId)}`,
+        { method: "DELETE" },
+      ));
+    },
     async cancelConformance(checkId) {
       return conformanceCheck(await request(
         `/api/v3/admin/agent-conformance-checks/${encodeURIComponent(checkId)}`,
         { method: "DELETE" },
+      ));
+    },
+    async clearProviderAuthentication(baseRevision, providerId) {
+      return configuration(await request(
+        `/api/v3/admin/agent-providers/${encodeURIComponent(providerId)}/authentication`,
+        jsonRequest({ baseRevision }, "DELETE"),
       ));
     },
     async getConformance(checkId) {
@@ -60,9 +81,20 @@ export function createHttpAgentConfigurationClient({
         `/api/v3/admin/agent-conformance-checks/${encodeURIComponent(checkId)}`,
       ));
     },
+    async getCodexDeviceLogin(loginId) {
+      return codexDeviceLogin(await request(
+        `/api/v3/admin/agent-codex-device-logins/${encodeURIComponent(loginId)}`,
+      ));
+    },
     async startConformance(baseRevision, profileId) {
       return conformanceCheck(await request(
         `/api/v3/admin/agent-profiles/${encodeURIComponent(profileId)}/conformance-checks`,
+        jsonRequest({ baseRevision }, "POST"),
+      ));
+    },
+    async startCodexDeviceLogin(baseRevision, providerId) {
+      return codexDeviceLogin(await request(
+        `/api/v3/admin/agent-providers/${encodeURIComponent(providerId)}/codex-device-logins`,
         jsonRequest({ baseRevision }, "POST"),
       ));
     },

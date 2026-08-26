@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { lstat, readFile } from "node:fs/promises";
+import { access, lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { AgentConfigurationSnapshot } from "../../../../application/agent/agentConfiguration.ts";
@@ -190,6 +190,95 @@ describe("Agent configuration admin API", () => {
       expect(response).toMatchObject({
         body: { code: "forbidden" },
         statusCode: 403,
+      });
+      for (const request of [
+        {
+          method: "GET",
+          url: "/api/v3/admin/agent-codex-device-logins/missing",
+        },
+        {
+          body: { baseRevision: `sha256:${"0".repeat(64)}` },
+          method: "POST",
+          url: "/api/v3/admin/agent-providers/missing/codex-device-logins",
+        },
+      ]) {
+        await expect(dispatch<{ code: string }>(handler, {
+          ...request,
+          token: created.body!.secret,
+        })).resolves.toMatchObject({
+          body: { code: "forbidden" },
+          statusCode: 403,
+        });
+      }
+    });
+  });
+
+  it("clears configured authentication through the dedicated owner operation", async () => {
+    await withHandler(async (handler, rootDirectory) => {
+      const initial = await dispatch<AgentConfigurationSnapshot>(handler, {
+        method: "GET",
+        url: "/api/v3/admin/agent-configuration",
+      });
+      const created = await dispatch<AgentConfigurationSnapshot>(handler, {
+        body: {
+          baseRevision: initial.body!.revision,
+          provider: {
+            apiKey: "clear-me",
+            authenticationType: "api-key",
+            baseUrl: null,
+            kind: "codex",
+            label: "Codex API key",
+            privateNetworkAccessConfirmed: false,
+          },
+        },
+        method: "POST",
+        url: "/api/v3/admin/agent-providers",
+      });
+      const provider = created.body!.providers[0]!;
+      const credentialDirectory = path.join(
+        rootDirectory,
+        "server-state",
+        "agent-auth-v1",
+        "providers",
+        provider.id,
+      );
+      const nullSecret = await dispatch<{ code: string }>(handler, {
+        body: {
+          baseRevision: created.body!.revision,
+          provider: {
+            apiKey: null,
+            authenticationType: "api-key",
+            baseUrl: null,
+            kind: "codex",
+            label: "Codex API key",
+            privateNetworkAccessConfirmed: false,
+          },
+        },
+        method: "PATCH",
+        url: `/api/v3/admin/agent-providers/${provider.id}`,
+      });
+
+      expect(nullSecret).toMatchObject({
+        body: { code: "invalid_request" },
+        statusCode: 400,
+      });
+      const cleared = await dispatch<AgentConfigurationSnapshot>(handler, {
+        body: { baseRevision: created.body!.revision },
+        method: "DELETE",
+        url: `/api/v3/admin/agent-providers/${provider.id}/authentication`,
+      });
+
+      expect(cleared).toMatchObject({
+        body: {
+          providers: [{
+            authenticationStatus: "missing",
+            authenticationType: "api-key",
+          }],
+        },
+        statusCode: 200,
+      });
+      await expect(access(credentialDirectory)).rejects.toMatchObject({
+        code: "ENOENT",
       });
     });
   });

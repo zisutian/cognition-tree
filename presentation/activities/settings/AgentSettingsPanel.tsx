@@ -8,6 +8,7 @@ import type {
   AgentOllamaResidentContext,
   AgentProfileInput,
   AgentProviderInput,
+  AgentProviderAuthenticationType,
   AgentProviderKind,
   AgentToolCallMode,
 } from "../../../application/agent";
@@ -20,6 +21,12 @@ const authenticationLabels = {
   "not-required": "无需认证",
   unknown: "认证状态未知",
 } as const;
+
+const authenticationTypeLabels: Record<AgentProviderAuthenticationType, string> = {
+  "api-key": "API Key",
+  "chatgpt-device-code": "ChatGPT 设备码",
+  none: "无需认证",
+};
 
 function conformanceLabel(
   check: AgentConfigurationState["conformanceChecks"][string] | undefined,
@@ -41,7 +48,7 @@ function conformanceLabel(
 
 type ProviderDraft = {
   apiKey: string;
-  authenticationType: "api-key" | "none";
+  authenticationType: AgentProviderAuthenticationType;
   baseUrl: string;
   kind: AgentProviderKind;
   label: string;
@@ -94,9 +101,7 @@ function providerInput(draft: ProviderDraft): AgentProviderInput {
     ...(draft.authenticationType === "api-key" && draft.apiKey
       ? { apiKey: draft.apiKey }
       : {}),
-    authenticationType: draft.kind === "codex"
-      ? "api-key"
-      : draft.authenticationType,
+    authenticationType: draft.authenticationType,
     baseUrl: draft.kind === "codex" ? null : draft.baseUrl,
     kind: draft.kind,
     label: draft.label,
@@ -254,6 +259,7 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                     <div>
                       <strong>{provider.label}</strong>
                       <p>{provider.kind} · {provider.baseUrl ?? "Codex app-server"} · {authenticationLabels[provider.authenticationStatus]}</p>
+                      <p>认证方式：{authenticationTypeLabels[provider.authenticationType]}</p>
                       <p>私网许可：{provider.privateNetworkAccess === "confirmed" ? "已确认当前地址" : "不需要"}</p>
                       {configurationState.probes[provider.id] ? <>
                         <p>探测模型：{configurationState.probes[provider.id]!.models.join("、") || "无"}</p>
@@ -271,22 +277,20 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                         setEditingProviderId(provider.id);
                         setProviderDraft({
                           apiKey: "",
-                          authenticationType: provider.authenticationStatus === "not-required" ? "none" : "api-key",
+                          authenticationType: provider.authenticationType,
                           baseUrl: provider.baseUrl ?? "",
                           kind: provider.kind,
                           label: provider.label,
                           privateNetworkAccessConfirmed: provider.privateNetworkAccess === "confirmed",
                         });
                       }} type="button">编辑</Button>
-                      {provider.authenticationStatus !== "not-required" ? (
-                        <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.updateProvider(provider.id, {
-                          apiKey: null,
-                          authenticationType: "api-key",
-                          baseUrl: provider.baseUrl,
-                          kind: provider.kind,
-                          label: provider.label,
-                          privateNetworkAccessConfirmed: provider.privateNetworkAccess === "confirmed",
-                        }))} type="button">清除凭据</Button>
+                      {provider.kind === "codex" && provider.authenticationType === "chatgpt-device-code" ? configurationState.codexDeviceLogins[provider.id]?.status === "pending" ? <>
+                        <a href={configurationState.codexDeviceLogins[provider.id]!.verificationUrl} rel="noreferrer" target="_blank">打开 ChatGPT 登录</a>
+                        <span>设备码：{configurationState.codexDeviceLogins[provider.id]!.userCode}</span>
+                        <Button onClick={() => void feedback.runAction(() => configurationController.cancelCodexDeviceLogin(provider.id))} type="button">取消登录</Button>
+                      </> : <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.startCodexDeviceLogin(provider.id))} type="button">使用 ChatGPT 登录</Button> : null}
+                      {provider.authenticationStatus === "configured" ? (
+                        <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.clearProviderAuthentication(provider.id))} type="button">退出认证</Button>
                       ) : null}
                       <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.deleteProvider(provider.id))} type="button">删除</Button>
                     </div>
@@ -307,8 +311,8 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                 });
               }} value={providerDraft.kind}><option value="ollama">Ollama</option><option value="openai-chat">OpenAI-compatible</option><option value="codex">Codex</option></select></label>
               {providerDraft.kind !== "codex" ? <label><span>地址</span><input aria-label="Provider 地址" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, baseUrl: event.currentTarget.value, privateNetworkAccessConfirmed: false })} required value={providerDraft.baseUrl} /></label> : null}
-              {providerDraft.kind !== "codex" ? <label><span>认证</span><select aria-label="Provider 认证" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, authenticationType: event.currentTarget.value as "api-key" | "none" })} value={providerDraft.authenticationType}><option value="none">无需认证</option><option value="api-key">API Key</option></select></label> : null}
-              {(providerDraft.kind === "codex" || providerDraft.authenticationType === "api-key") ? <label><span>API Key</span><input aria-label="Provider API Key" autoComplete="new-password" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, apiKey: event.currentTarget.value })} placeholder={editingProviderId ? "留空则保留现有凭据" : "一次性写入"} required={!editingProviderId} type="password" value={providerDraft.apiKey} /></label> : null}
+              <label><span>认证</span><select aria-label="Provider 认证" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, authenticationType: event.currentTarget.value as AgentProviderAuthenticationType })} value={providerDraft.authenticationType}>{providerDraft.kind === "codex" ? <><option value="api-key">API Key</option><option value="chatgpt-device-code">ChatGPT 设备码</option></> : <><option value="none">无需认证</option><option value="api-key">API Key</option></>}</select></label>
+              {providerDraft.authenticationType === "api-key" ? <label><span>API Key</span><input aria-label="Provider API Key" autoComplete="new-password" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, apiKey: event.currentTarget.value })} placeholder={editingProviderId ? "留空则保留现有凭据" : "一次性写入"} required={!editingProviderId} type="password" value={providerDraft.apiKey} /></label> : null}
               {providerDraft.kind !== "codex" ? <label><input aria-label="确认 Provider 私网访问" checked={providerDraft.privateNetworkAccessConfirmed} onChange={(event) => setProviderDraft({ ...providerDraft, privateNetworkAccessConfirmed: event.currentTarget.checked })} type="checkbox" /><span>明确允许当前地址访问非 loopback 私网；修改地址后必须重新确认</span></label> : null}
               <div className="settings-managed-form-actions"><Button disabled={busy} type="submit" variant="primary">{editingProviderId ? "保存 Provider" : "创建 Provider"}</Button>{editingProviderId ? <Button onClick={() => { setEditingProviderId(null); setProviderDraft(emptyProvider()); }} type="button">取消</Button> : null}</div>
             </form>

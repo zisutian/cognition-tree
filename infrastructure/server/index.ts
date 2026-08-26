@@ -139,6 +139,7 @@ const agentService = new AgentService({
 });
 const agentProviderOperations = new AgentProviderOperations({
   configurationStore: agentConfigurationStore,
+  projectRoot,
   runtime: systemApiRuntime,
   targetPolicy: agentTargetPolicy,
 });
@@ -146,6 +147,7 @@ let clientRuntime: ClientRuntime | null = null;
 const maintenanceGate = new ApiMaintenanceGate();
 let shutdown: () => Promise<void> = async () => undefined;
 const migrations = new FileDataRootMigrationCoordinator({
+  agentProviderOperations,
   agentService,
   bootstrap: bootstrapStore,
   controlRoot: path.join(projectRoot, ".cognition-tree", "bootstrap-v1"),

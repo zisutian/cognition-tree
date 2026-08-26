@@ -10,10 +10,8 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  CodexRuntime,
-  pinnedCodexVersion,
-} from "../../../../infrastructure/server/agent/codexRuntime.ts";
+import { CodexRuntime } from "../../../../infrastructure/server/agent/codexRuntime.ts";
+import { pinnedCodexVersion } from "../../../../infrastructure/server/agent/codexAppServerClient.ts";
 import type {
   CodexAgentProfile,
 } from "../../../../infrastructure/server/agent/runtimeProfiles.ts";
@@ -30,6 +28,28 @@ const handleLine = (line) => {
 
   if (request.method === "initialize") {
     send({ id: request.id, result: { userAgent: "fake-codex" } });
+    return;
+  }
+  if (request.method === "account/login/start") {
+    const safe =
+      request.params.type === "apiKey" &&
+      request.params.apiKey === "server-api-key" &&
+      !("OPENAI_API_KEY" in process.env);
+    send(safe
+      ? { id: request.id, result: { type: "apiKey" } }
+      : { error: { code: -32000, message: "unsafe API key login" }, id: request.id });
+    return;
+  }
+  if (request.method === "account/read") {
+    send({
+      id: request.id,
+      result: {
+        account: process.env.CODEX_HOME.includes("managed-codex-home")
+          ? { email: "owner@example.test", planType: "plus", type: "chatgpt" }
+          : null,
+        requiresOpenaiAuth: true,
+      },
+    });
     return;
   }
   if (request.method === "thread/start") {
@@ -147,7 +167,7 @@ describe("Codex app-server Agent runtime", () => {
     const projectRoot = await createFakeProject();
     process.env.CTN_TEST_PERSONAL_SECRET = "must-not-leak";
     const runtime = new CodexRuntime({
-      apiKey: "server-api-key",
+      authentication: { apiKey: "server-api-key", type: "api-key" },
       profile: profile(),
       projectRoot,
     });
@@ -209,7 +229,7 @@ describe("Codex app-server Agent runtime", () => {
         version: "0.149.0",
       }));
       const runtime = new CodexRuntime({
-        apiKey: "server-api-key",
+        authentication: { apiKey: "server-api-key", type: "api-key" },
         profile: profile(),
         projectRoot,
       });
@@ -226,6 +246,45 @@ describe("Codex app-server Agent runtime", () => {
         sessionId: "00000000-0000-4000-8000-000000000001",
       })).rejects.toThrow(`must be exactly ${pinnedCodexVersion}`);
     } finally {
+      await rm(projectRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("uses application-managed ChatGPT authentication without deleting it", async () => {
+    const projectRoot = await createFakeProject();
+    const codexHome = await mkdtemp(path.join(os.tmpdir(), "managed-codex-home-"));
+    const authFile = path.join(codexHome, "auth.json");
+
+    await writeFile(authFile, JSON.stringify({ tokens: "managed" }), {
+      mode: 0o600,
+    });
+    const runtime = new CodexRuntime({
+      authentication: { codexHome, type: "chatgpt-device-code" },
+      profile: profile(),
+      projectRoot,
+    });
+
+    try {
+      const session = await runtime.openSession({
+        instructions: "shared instructions",
+        privateToolProcess: {
+          arguments: ["session-mcp.js"],
+          command: process.execPath,
+          environment: {
+            CTN_AGENT_IPC_ENDPOINT: "/private/agent.sock",
+            CTN_AGENT_SESSION_CAPABILITY: "capability",
+            CTN_AGENT_SESSION_ID: "00000000-0000-4000-8000-000000000002",
+          },
+        },
+        profileId: "codex-test",
+        scope: { domain: "journal", entryIds: null },
+        sessionId: "00000000-0000-4000-8000-000000000002",
+      });
+
+      await session.dispose();
+      await expect(access(authFile)).resolves.toBeUndefined();
+    } finally {
+      await rm(codexHome, { force: true, recursive: true });
       await rm(projectRoot, { force: true, recursive: true });
     }
   });

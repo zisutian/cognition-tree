@@ -5,14 +5,17 @@ import type { AgentApplication } from "../../../application/agent";
 export function createAgentApplicationFixture(): AgentApplication {
   return {
     configurationController: {
+      cancelCodexDeviceLogin: async () => undefined,
       cancelConformance: async () => undefined,
       checkConformance: async () => undefined,
+      clearProviderAuthentication: async () => undefined,
       createProfile: async () => undefined,
       createProvider: async () => undefined,
       deleteProfile: async () => undefined,
       deleteProvider: async () => undefined,
       discoverOllama: async () => undefined,
       getSnapshot: () => ({
+        codexDeviceLogins: {},
         conformanceChecks: {},
         configuration: null,
         discovery: null,
@@ -23,11 +26,13 @@ export function createAgentApplicationFixture(): AgentApplication {
       }),
       load: async () => undefined,
       probeProvider: async () => undefined,
+      startCodexDeviceLogin: async () => undefined,
       subscribe: () => () => undefined,
       updateProfile: async () => undefined,
       updateProvider: async () => undefined,
     },
     configurationState: {
+      codexDeviceLogins: {},
       conformanceChecks: {},
       configuration: null,
       discovery: null,
