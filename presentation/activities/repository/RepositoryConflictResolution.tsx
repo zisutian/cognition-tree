@@ -3,7 +3,11 @@ import type {
   RepositoryConflictResolutionView,
 } from "../../../application/repository/repositoryViewTypes";
 import { Button } from "../../ui/shared/primitives";
-import { ToolSection } from "../../ui/shared/ToolSurface";
+import {
+  ToolPropertyList,
+  ToolPropertyRow,
+  ToolSection,
+} from "../../ui/shared/ToolSurface";
 
 export function RepositoryConflictResolution({
   busy,
@@ -34,16 +38,16 @@ export function RepositoryConflictResolution({
       <p className="repository-warning" role="alert">
         本地与远端修改均已保留。选择一方前不会覆盖当前本地编辑。
       </p>
-      <dl className="repository-conflict-units">
-        <dt>冲突单元</dt>
-        <dd>
-          {unitIds === null
+      <ToolPropertyList aria-label="同步冲突详情">
+        <ToolPropertyRow
+          label="冲突单元"
+          value={unitIds === null
             ? "正在读取…"
             : unitIds.length > 0
               ? unitIds.join("、")
               : "整仓内容"}
-        </dd>
-      </dl>
+        />
+      </ToolPropertyList>
       <div className="repository-operation-strip">
         <Button
           disabled={busy}

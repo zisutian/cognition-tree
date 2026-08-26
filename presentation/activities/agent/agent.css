@@ -169,12 +169,6 @@
   font-size: var(--ui-body-font-size);
 }
 
-.agent-proposal-meta {
-  display: grid;
-  gap: var(--ui-gap-tight);
-  margin: 0;
-}
-
 .agent-proposal-body {
   grid-template-rows: minmax(0, 1fr) auto auto;
   gap: 0;
@@ -187,22 +181,6 @@
   overflow: auto;
 }
 
-.agent-proposal-meta > div {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: var(--ui-gap-tight);
-}
-
-.agent-proposal-meta dt,
-.agent-proposal-meta dd {
-  margin: 0;
-}
-
-.agent-proposal-meta dt {
-  color: var(--color-fg-muted);
-}
-
-.agent-proposal-meta code,
 .agent-line-diff code,
 .agent-proposal-technical code {
   overflow-wrap: anywhere;

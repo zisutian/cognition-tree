@@ -157,22 +157,6 @@
   margin-top: var(--ui-gap-tight);
 }
 
-.repository-conflict-units {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: var(--ui-gap-tight);
-  margin: var(--ui-gap-tight) 0;
-}
-
-.repository-conflict-units dt {
-  color: var(--color-fg-muted);
-}
-
-.repository-conflict-units dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
 @media (max-width: 720px) {
   .repository-danger-zone-content {
     grid-template-columns: minmax(0, 1fr);

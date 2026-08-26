@@ -12,13 +12,12 @@ import {
   FormActions,
   FormLayout,
 } from "../../ui/shared/FormLayout";
-import {
-  StatusBadge,
-  StatusSummary,
-} from "../../ui/shared/StatusPresentation";
+import { StatusBadge } from "../../ui/shared/StatusPresentation";
 import {
   ToolPanel,
   ToolPanelBody,
+  ToolPropertyList,
+  ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
@@ -101,28 +100,28 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
         <ToolSectionStack>
           {configurationState.errorMessage ? <p className="settings-api-error" role="alert">{configurationState.errorMessage}</p> : null}
           <ToolSection title="当前状态">
-            <StatusSummary
-              ariaLabel="服务配置状态"
-              items={[
-                {
-                  label: "状态",
-                  value: (
-                    <StatusBadge tone={snapshot.restartRequired ? "warning" : "success"}>
-                      {snapshot.restartRequired ? "等待重启" : "已生效"}
-                    </StatusBadge>
-                  ),
-                },
-                {
-                  label: "当前监听",
-                  value: `${snapshot.effectiveConfiguration.listenMode === "loopback" ? "仅本机" : "局域网"} · ${snapshot.effectiveConfiguration.port}`,
-                },
-                {
-                  label: "当前数据根",
-                  value: <code>{snapshot.effectiveConfiguration.dataRoot}</code>,
-                },
-                { label: "下一访问地址", value: <code>{nextAddress}</code> },
-              ]}
-            />
+            <ToolPropertyList aria-label="服务配置状态">
+              <ToolPropertyRow
+                label="状态"
+                value={(
+                  <StatusBadge tone={snapshot.restartRequired ? "warning" : "success"}>
+                    {snapshot.restartRequired ? "等待重启" : "已生效"}
+                  </StatusBadge>
+                )}
+              />
+              <ToolPropertyRow
+                label="当前监听"
+                value={`${snapshot.effectiveConfiguration.listenMode === "loopback" ? "仅本机" : "局域网"} · ${snapshot.effectiveConfiguration.port}`}
+              />
+              <ToolPropertyRow
+                label="当前数据根"
+                value={<code>{snapshot.effectiveConfiguration.dataRoot}</code>}
+              />
+              <ToolPropertyRow
+                label="下一访问地址"
+                value={<code>{nextAddress}</code>}
+              />
+            </ToolPropertyList>
             {snapshot.restartRequired ? (
               <p className="settings-muted" role="status">
                 设置已保存，服务将受控重启后生效。
@@ -183,17 +182,16 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
           </ToolSection>
 
           <ToolSection title="所有者凭据">
-            <StatusSummary
-              ariaLabel="所有者凭据状态"
-              items={[{
-                label: "凭据",
-                value: (
+            <ToolPropertyList aria-label="所有者凭据状态">
+              <ToolPropertyRow
+                label="凭据"
+                value={(
                   <StatusBadge tone={snapshot.ownerCredentialConfigured ? "success" : "warning"}>
                     {snapshot.ownerCredentialConfigured ? "已创建" : "未创建"}
                   </StatusBadge>
-                ),
-              }]}
-            />
+                )}
+              />
+            </ToolPropertyList>
             <p className="settings-muted">{snapshot.ownerCredentialConfigured ? "远程浏览器可以用密钥登录。" : "局域网模式不能启用。"}</p>
             {configurationState.revealedOwnerSecret ? <div role="status"><p>请立即保存；关闭后无法再次查看：<code>{configurationState.revealedOwnerSecret}</code></p><Button onClick={() => configurationController.dismissRevealedOwnerSecret()} type="button">我已保存，关闭显示</Button></div> : null}
             <div className="ui-actions">

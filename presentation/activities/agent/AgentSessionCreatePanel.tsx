@@ -15,13 +15,12 @@ import {
   FormActions,
   FormLayout,
 } from "../../ui/shared/FormLayout";
-import {
-  StatusBadge,
-  StatusSummary,
-} from "../../ui/shared/StatusPresentation";
+import { StatusBadge } from "../../ui/shared/StatusPresentation";
 import {
   ToolPanel,
   ToolPanelBody,
+  ToolPropertyList,
+  ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
@@ -165,30 +164,30 @@ export function AgentSessionCreatePanel({
       <ToolPanelBody layout="form">
         <ToolSectionStack>
           <ToolSection title="使用的 Profile">
-            <StatusSummary
-              ariaLabel="新会话 Profile"
-              items={[
-                {
-                  label: "Profile",
-                  value: preferredProfile?.label ?? "未选择",
-                },
-                { label: "模型", value: preferredProfile?.model ?? "—" },
-                {
-                  label: "状态",
-                  value: (
-                    <StatusBadge
-                      tone={preferredProfile?.availability === "available"
-                        ? "success"
-                        : "warning"}
-                    >
-                      {preferredProfile?.availability === "available"
-                        ? "可用"
-                        : "需要在设置中完成配置"}
-                    </StatusBadge>
-                  ),
-                },
-              ]}
-            />
+            <ToolPropertyList aria-label="新会话 Profile">
+              <ToolPropertyRow
+                label="Profile"
+                value={preferredProfile?.label ?? "未选择"}
+              />
+              <ToolPropertyRow
+                label="模型"
+                value={preferredProfile?.model ?? "—"}
+              />
+              <ToolPropertyRow
+                label="状态"
+                value={(
+                  <StatusBadge
+                    tone={preferredProfile?.availability === "available"
+                      ? "success"
+                      : "warning"}
+                  >
+                    {preferredProfile?.availability === "available"
+                      ? "可用"
+                      : "需要在设置中完成配置"}
+                  </StatusBadge>
+                )}
+              />
+            </ToolPropertyList>
           </ToolSection>
           <ToolSection title="硬范围">
             <form

@@ -16,13 +16,12 @@ import {
   AgentProposalReview,
   proposalStoreLabel,
 } from "./AgentProposalReview";
-import {
-  StatusBadge,
-  StatusSummary,
-} from "../../ui/shared/StatusPresentation";
+import { StatusBadge } from "../../ui/shared/StatusPresentation";
 import {
   ToolDivider,
   ToolPanel,
+  ToolPropertyList,
+  ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
@@ -165,24 +164,24 @@ export function AgentProposalPanel({
                     </select>
                   </label>
                 ) : null}
-                <StatusSummary
-                  ariaLabel="Proposal 摘要"
-                  items={[
-                    { label: "目标", value: proposalStoreLabel(proposal) },
-                    {
-                      label: "状态",
-                      value: (
-                        <StatusBadge tone={proposalStatusTone(proposal.status)}>
-                          {proposalStatusLabels[proposal.status]}
-                        </StatusBadge>
-                      ),
-                    },
-                    {
-                      label: "变更",
-                      value: `${proposal.review.resources.length} 项`,
-                    },
-                  ]}
-                />
+                <ToolPropertyList aria-label="Proposal 摘要">
+                  <ToolPropertyRow
+                    label="目标"
+                    value={proposalStoreLabel(proposal)}
+                  />
+                  <ToolPropertyRow
+                    label="状态"
+                    value={(
+                      <StatusBadge tone={proposalStatusTone(proposal.status)}>
+                        {proposalStatusLabels[proposal.status]}
+                      </StatusBadge>
+                    )}
+                  />
+                  <ToolPropertyRow
+                    label="变更"
+                    value={`${proposal.review.resources.length} 项`}
+                  />
+                </ToolPropertyList>
               </ToolSection>
               <AgentProposalReview proposal={proposal} />
             </ToolSectionStack>

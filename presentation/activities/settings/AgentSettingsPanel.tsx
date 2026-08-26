@@ -27,15 +27,14 @@ import {
   Button,
   EmptyState,
 } from "../../ui/shared/primitives";
-import {
-  StatusBadge,
-  StatusSummary,
-} from "../../ui/shared/StatusPresentation";
+import { StatusBadge } from "../../ui/shared/StatusPresentation";
 import { SubsectionTabs } from "../../ui/shared/SubsectionTabs";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
   ToolPanel,
   ToolPanelBody,
+  ToolPropertyList,
+  ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
@@ -367,22 +366,22 @@ function AgentOverview({
   return (
     <ToolSectionStack>
       <ToolSection aria-label="Agent 状态概览">
-        <StatusSummary
-          ariaLabel="Agent 状态概览"
-          items={[
-            {
-              label: "Agent",
-              value: (
-                <StatusBadge tone={agent.state.status?.enabled ? "success" : "warning"}>
-                  {agent.state.status?.enabled ? "可用" : "不可用"}
-                </StatusBadge>
-              ),
-            },
-            { label: "默认 Profile", value: preferred?.label ?? "未选择" },
-            { label: "Provider", value: providers.length },
-            { label: "Profile", value: profiles.length },
-          ]}
-        />
+        <ToolPropertyList aria-label="Agent 状态概览">
+          <ToolPropertyRow
+            label="Agent"
+            value={(
+              <StatusBadge tone={agent.state.status?.enabled ? "success" : "warning"}>
+                {agent.state.status?.enabled ? "可用" : "不可用"}
+              </StatusBadge>
+            )}
+          />
+          <ToolPropertyRow
+            label="默认 Profile"
+            value={preferred?.label ?? "未选择"}
+          />
+          <ToolPropertyRow label="Provider" value={providers.length} />
+          <ToolPropertyRow label="Profile" value={profiles.length} />
+        </ToolPropertyList>
       </ToolSection>
       <ToolSection title="默认 Profile">
         <FormLayout>
@@ -448,16 +447,16 @@ function AgentOverview({
           </FormActions>
         </FormLayout>
         {agent.configurationState.discovery ? (
-          <StatusSummary
-            ariaLabel="Ollama 发现结果"
-            items={[
-              { label: "地址", value: agent.configurationState.discovery.endpoint },
-              {
-                label: "模型",
-                value: agent.configurationState.discovery.models.join("、") || "没有模型",
-              },
-            ]}
-          />
+          <ToolPropertyList aria-label="Ollama 发现结果">
+            <ToolPropertyRow
+              label="地址"
+              value={agent.configurationState.discovery.endpoint}
+            />
+            <ToolPropertyRow
+              label="模型"
+              value={agent.configurationState.discovery.models.join("、") || "没有模型"}
+            />
+          </ToolPropertyList>
         ) : null}
       </ToolSection>
       <ToolSection aria-label="智能体管理入口">
@@ -703,10 +702,31 @@ function ProfileForm({ busy, draft, editing, modelOptions, onCancel, onChange, o
 
 function ProviderProbeDetails({ probe, provider }: { probe: AgentConfigurationState["probes"][string]; provider: AgentProviderView }) {
   return (
-    <div className="settings-agent-structured-status">
-      <StatusSummary ariaLabel={`${provider.label} 探测状态`} items={[{ label: "连接", value: probe.reachable ? "可达" : "不可达" }, { label: "探测时间", value: new Date(probe.probedAt).toLocaleString() }, { label: "模型", value: probe.models.join("、") || "无" }]} />
-      {probe.modelContexts.length > 0 ? <dl className="settings-agent-context-list">{probe.modelContexts.map((context) => <div key={context.model}><dt>{context.model}</dt><dd>模型架构上限：{context.declaredMaximumContextTokens === null ? "未知" : `${context.declaredMaximumContextTokens} tokens`} · 当前驻留上下文：{residentContextLabel(context.residentContext)}</dd></div>)}</dl> : null}
-    </div>
+    <ToolPropertyList aria-label={`${provider.label} 探测状态`}>
+      <ToolPropertyRow
+        label="连接"
+        value={probe.reachable ? "可达" : "不可达"}
+      />
+      <ToolPropertyRow
+        label="探测时间"
+        value={new Date(probe.probedAt).toLocaleString()}
+      />
+      <ToolPropertyRow
+        label="模型"
+        value={probe.models.join("、") || "无"}
+      />
+      {probe.modelContexts.map((context) => (
+        <ToolPropertyRow
+          key={context.model}
+          label={context.model}
+          value={`架构上限 ${
+            context.declaredMaximumContextTokens === null
+              ? "未知"
+              : `${context.declaredMaximumContextTokens} tokens`
+          } · 当前驻留上下文 ${residentContextLabel(context.residentContext)}`}
+        />
+      ))}
+    </ToolPropertyList>
   );
 }
 
@@ -715,7 +735,33 @@ function ProfileConformanceDetails({ check, profile }: { check: AgentConfigurati
   const status = check?.status ?? (profile.conformance ? "succeeded" : "not-run");
   const statusLabel = status === "running" ? "检查中" : status === "succeeded" ? "已通过" : status === "failed" ? "失败" : status === "cancelled" ? "已取消" : "未检查";
 
-  return <StatusSummary ariaLabel={`${profile.label} 符合性状态`} items={[{ label: "符合性", value: <StatusBadge tone={status === "succeeded" ? "success" : status === "failed" ? "danger" : "neutral"}>{statusLabel}</StatusBadge> }, ...(check?.status === "running" ? [{ label: "阶段", value: phaseLabels[check.phase] }] : []), ...(check?.errorMessage ? [{ label: "失败原因", value: check.errorMessage }] : profile.unavailableReason ? [{ label: "不可用原因", value: profile.unavailableReason }] : [])]} />;
+  return (
+    <ToolPropertyList aria-label={`${profile.label} 符合性状态`}>
+      <ToolPropertyRow
+        label="符合性"
+        value={(
+          <StatusBadge
+            tone={status === "succeeded"
+              ? "success"
+              : status === "failed" ? "danger" : "neutral"}
+          >
+            {statusLabel}
+          </StatusBadge>
+        )}
+      />
+      {check?.status === "running" ? (
+        <ToolPropertyRow label="阶段" value={phaseLabels[check.phase]} />
+      ) : null}
+      {check?.errorMessage ? (
+        <ToolPropertyRow label="失败原因" value={check.errorMessage} />
+      ) : profile.unavailableReason ? (
+        <ToolPropertyRow
+          label="不可用原因"
+          value={profile.unavailableReason}
+        />
+      ) : null}
+    </ToolPropertyList>
+  );
 }
 
 function residentContextLabel(context: AgentOllamaResidentContext) {

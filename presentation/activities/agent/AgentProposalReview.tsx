@@ -5,6 +5,8 @@ import type { AgentProposalView } from "../../../application/agent";
 import { Button } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
+  ToolPropertyList,
+  ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
@@ -158,21 +160,29 @@ function AgentProposalTechnicalDetails({
         <summary>技术详情</summary>
         <ToolSectionStack className="agent-proposal-technical-body">
           <ToolSection aria-label="Proposal 技术元数据">
-            <dl className="agent-proposal-meta">
-              <TechnicalValue label="Proposal ID" value={proposal.id} />
-              <div><dt>版本</dt><dd>{proposal.version}</dd></div>
-              <TechnicalValue
-                label="Base revision"
-                value={proposal.baseRevision}
+            <ToolPropertyList aria-label="Proposal 技术元数据">
+              <ToolPropertyRow
+                label="Proposal ID"
+                value={<TechnicalInlineValue value={proposal.id} />}
               />
-              <TechnicalValue label="Digest" value={proposal.digest} />
+              <ToolPropertyRow label="版本" value={proposal.version} />
+              <ToolPropertyRow
+                label="Base revision"
+                value={<TechnicalInlineValue value={proposal.baseRevision} />}
+              />
+              <ToolPropertyRow
+                label="Digest"
+                value={<TechnicalInlineValue value={proposal.digest} />}
+              />
               {proposal.store.domain === "workspace" ? (
-                <TechnicalValue
+                <ToolPropertyRow
                   label="Repository ID"
-                  value={proposal.store.repositoryId}
+                  value={(
+                    <TechnicalInlineValue value={proposal.store.repositoryId} />
+                  )}
                 />
               ) : null}
-            </dl>
+            </ToolPropertyList>
           </ToolSection>
           <ToolSection title="资源变更">
             {proposal.changes.resources.length === 0 ? (
@@ -227,15 +237,6 @@ function AgentProposalTechnicalDetails({
         </ToolSectionStack>
       </details>
     </ToolSection>
-  );
-}
-
-function TechnicalValue({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt>{label}</dt>
-      <dd><TechnicalInlineValue value={value} /></dd>
-    </div>
   );
 }
 

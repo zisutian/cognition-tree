@@ -3,8 +3,8 @@ import type { RepositoryLocationRow } from
   "../../../application/repository/repositoryViewTypes";
 import { Button } from "../../ui/shared/primitives";
 import {
-  ToolList,
-  ToolListRow,
+  ToolPropertyList,
+  ToolPropertyRow,
   ToolSection,
 } from "../../ui/shared/ToolSurface";
 
@@ -14,13 +14,12 @@ export function RepositoryMetadata({
   rows: Array<{ label: string; value: string }>;
 }) {
   return (
-    <ToolList aria-label="仓库状态">
+    <ToolPropertyList aria-label="仓库状态">
       {rows.map((row) => (
-        <ToolListRow
-          flow="wrap"
+        <ToolPropertyRow
           key={row.label}
-          leading={row.label}
-          main={(
+          label={row.label}
+          value={(
             <span
               className={row.label.endsWith("ID")
                 ? "repository-identity-value"
@@ -31,7 +30,7 @@ export function RepositoryMetadata({
           )}
         />
       ))}
-    </ToolList>
+    </ToolPropertyList>
   );
 }
 
@@ -47,9 +46,9 @@ export function RepositoryLocations({
   if (rows.length === 0) return null;
   return (
     <ToolSection title="位置">
-      <ToolList aria-label="仓库位置">
+      <ToolPropertyList aria-label="仓库位置">
         {rows.map((row) => (
-          <ToolListRow
+          <ToolPropertyRow
             actions={(
               <Button
                 aria-label={`复制${row.label}`}
@@ -62,17 +61,16 @@ export function RepositoryLocations({
                 <Copy aria-hidden="true" size={13} />
               </Button>
             )}
-            flow="wrap"
             key={row.label}
-            leading={row.label}
-            main={(
+            label={row.label}
+            value={(
               <span className="repository-location-path" title={row.value}>
                 {row.value}
               </span>
             )}
           />
         ))}
-      </ToolList>
+      </ToolPropertyList>
     </ToolSection>
   );
 }

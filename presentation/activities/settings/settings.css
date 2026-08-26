@@ -20,11 +20,6 @@
   width: 112px;
 }
 
-.settings-agent-structured-status {
-  display: grid;
-  gap: var(--ui-gap);
-}
-
 .settings-subsection-heading {
   margin: 0;
   color: var(--color-fg-muted);
@@ -51,34 +46,6 @@
   color: var(--color-fg);
 }
 
-.settings-agent-context-list {
-  display: grid;
-  gap: var(--ui-gap-tight);
-  margin: 0;
-}
-
-.settings-agent-context-list > div {
-  display: grid;
-  grid-template-columns: minmax(120px, 0.35fr) minmax(0, 1fr);
-  align-items: center;
-  gap: var(--ui-gap-tight);
-  min-height: var(--ui-row-height);
-  padding: calc(var(--ui-gap-tight) / 2) var(--ui-gap-tight);
-}
-
-.settings-agent-context-list dt,
-.settings-agent-context-list dd {
-  margin: 0;
-}
-
-.settings-agent-context-list dt {
-  color: var(--color-fg-muted);
-}
-
-.settings-agent-context-list dd {
-  color: var(--color-fg-muted);
-}
-
 .settings-danger-action {
   margin-left: var(--ui-gap-tight);
   color: var(--color-error);
@@ -101,27 +68,6 @@
 
 .settings-api-repository-select {
   min-height: calc(var(--ui-control-height) * 2);
-}
-
-.settings-operation-technical {
-  display: grid;
-  grid-template-columns: 128px minmax(0, 1fr);
-  gap: var(--ui-gap-tight) var(--ui-gap);
-  margin: var(--ui-gap) 0 0;
-}
-
-.settings-operation-technical dt,
-.settings-operation-technical dd {
-  min-width: 0;
-  margin: 0;
-}
-
-.settings-operation-technical dt {
-  color: var(--color-fg-muted);
-}
-
-.settings-operation-technical code {
-  overflow-wrap: anywhere;
 }
 
 .settings-api-error,
