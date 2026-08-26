@@ -150,12 +150,13 @@ selected、focus、drag 和 diagnostic 使用背景、文字或细边界表达�
 
     Button、ToggleButton、SegmentedControl、Panel 和 Section 提供基础控件；SubsectionTabs 独占页内 tablist、方向键、Home/End 与 tabpanel 关联，但视觉与笔记页 SegmentedControl 使用同一中性分段选择规则。
     FormLayout、FieldRow 和 FormActions 独占标签、帮助、错误关联与标准操作行；ManagementList/ManagementRow 独占主区管理列表，CompactContextList 继续只服务左侧上下文区，二者不得混用业务语义。
-    StatusSummary/StatusBadge 统一呈现事实与状态；EmptyState 的 compact 模式用于详情栏和顶部对齐空白页。Activity 只组合业务布局、局部 presentation 状态和回调，不复制私有表单行或管理卡片。
+    StatusBadge 统一呈现状态；EmptyState 的 compact 模式用于详情栏和顶部对齐空白页。Activity 只组合业务布局、局部 presentation 状态和回调，不复制私有表单行或管理卡片。
 
 工具页面：
 
     设置、仓库正文、搜索结果、智能体、语法和 Problems 采用统一工具界面层，共享页面壳、滚动容器、分区分隔线、筛选栏和基础结果行。CodeMirror 只用于真实文本编辑，不模拟这些结构化界面。ToolPanel 统一表达 16px 页面标题和 13px/22px 局部密度；ToolPanelBody 按 form、table、results 三种内容类型分别限制为 880px、可用宽度和 920px。
     ToolSectionStack/ToolSection 统一表达弱化小标题、说明、操作区和相邻细线；ToolToolbar 负责紧凑筛选栏；ToolDivider 服务摘要栏、输入区和操作栏等固定边界。普通列表行之间不画线。
+    ToolPropertyList/ToolPropertyRow 统一呈现工具页面中的静态“属性名—属性值”：使用语义化定义列表，属性名左对齐且不附加冒号；属性名列为 clamp(88px, 18%, 128px)，属性值列占据剩余空间，可选操作列按内容宽度排列。属性行最小高度 22px、左右内边距 4px、列间距 8px；长值、代码和路径在值列内自然换行。属性行不提供 hover，也不绘制行间分割线，页面不得覆盖共享列宽。
     ToolListRow 必须显式选择 single-line 或 wrap：前者固定 22px 并截断，供窗口化 Problems 使用；后者最小 22px 并自然换行，供搜索结果和静态信息使用。静态行不得渲染伪按钮。Activity 样式只保留匹配列、严重度、diff、危险状态和窗口化定位等领域表达。
     智能体对话使用平铺转录，不使用用户气泡、右对齐或角色背景；角色标题弱化，消息和 Proposal 正文遵守同一 13px/4px 节奏，diff 只保留等宽字体和增删颜色差异。
     CollapsibleContextGroup 是独立受控能力，expanded/onExpandedChange 由调用方提供；会话状态只保存在内存中，切换 Activity 后保留、刷新后恢复默认。
