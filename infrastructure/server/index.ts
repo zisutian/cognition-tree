@@ -122,6 +122,7 @@ const operationLedger = new OperationLedger(
   serverStateDirectory,
   effectiveConfiguration.maxAuditEntries,
 );
+await operationLedger.initialize();
 const eventHub = new ApiEventHub();
 const revisionTracker = new ApiRevisionTracker();
 const search = new ApiSearchService({ builtInCatalog, catalog });

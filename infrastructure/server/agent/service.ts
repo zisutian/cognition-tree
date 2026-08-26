@@ -235,6 +235,9 @@ export class AgentService {
 
   async status(): Promise<AgentStatusDto> {
     try {
+      const auditStatus = this.#ledger
+        ? await this.#ledger.status()
+        : { status: "unavailable" as const };
       const configuration = await this.#configurationStore.readSnapshot();
       const providers = new Map(configuration.providers.map((provider) => [
         provider.id,
@@ -259,7 +262,8 @@ export class AgentService {
 
       return {
         configurationProblem,
-        enabled: this.#ledger !== null && configurationProblem === null &&
+        enabled: auditStatus.status === "available" &&
+          configurationProblem === null &&
           profiles.some(({ availability }) => availability === "available"),
         profiles,
       };
@@ -313,6 +317,12 @@ export class AgentService {
         "profile_unavailable",
         this.#servicePolicy.configurationProblem ??
           "Agent operation ledger is unavailable",
+      );
+    }
+    if ((await this.#ledger.status()).status !== "available") {
+      throw new AgentServiceError(
+        "profile_unavailable",
+        "Agent operation audit is unavailable",
       );
     }
     const configuration = await this.#configurationStore.resolveProfile(

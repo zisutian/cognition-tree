@@ -6,7 +6,6 @@ import {
 } from "react";
 import type {
   ApiAccessApplication,
-  AgentOperationAuditEntry,
   AutomationApiScope,
   AutomationApiToken,
 } from "../../../application/apiAccess/apiAccessAdministration";
@@ -17,10 +16,10 @@ import {
   PanelHeader,
   Section,
 } from "../../ui/shared/primitives";
-import {
-  AgentOperationAudit,
-  formatApiAccessTimestamp,
-} from "./AgentOperationAudit";
+
+function formatApiAccessTimestamp(value: string | null) {
+  return value ? new Date(value).toLocaleString() : "从未使用";
+}
 
 type AutomationDomain = "journal" | "todo" | "workspace";
 type PermissionLevel = "none" | "read";
@@ -130,7 +129,6 @@ export function ApiAccessSettingsPanel({
 }: {
   apiAccess: ApiAccessApplication;
 }) {
-  const [audit, setAudit] = useState<AgentOperationAuditEntry[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
@@ -142,10 +140,10 @@ export function ApiAccessSettingsPanel({
   const load = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
-    const [tokenResult, auditResult] = await Promise.allSettled([
-      administration.listTokens(),
-      administration.listAgentOperations(),
-    ]);
+    const tokenResult = await administration.listTokens().then(
+      (value) => ({ status: "fulfilled" as const, value }),
+      (reason: unknown) => ({ reason, status: "rejected" as const }),
+    );
     const failures: string[] = [];
 
     if (tokenResult.status === "fulfilled") {
@@ -155,15 +153,6 @@ export function ApiAccessSettingsPanel({
         tokenResult.reason instanceof Error
           ? `无法加载自动化令牌：${tokenResult.reason.message}`
           : "无法加载自动化令牌。",
-      );
-    }
-    if (auditResult.status === "fulfilled") {
-      setAudit(auditResult.value.entries);
-    } else {
-      failures.push(
-        auditResult.reason instanceof Error
-          ? `无法加载 Agent 写入审计：${auditResult.reason.message}`
-          : "无法加载 Agent 写入审计。",
       );
     }
     setErrorMessage(failures.length > 0 ? failures.join(" ") : null);
@@ -395,9 +384,6 @@ export function ApiAccessSettingsPanel({
                     tokens={tokens}
                   />
                 )}
-          </Section>
-          <Section className="settings-api-section" title="Agent 写入审计">
-            <AgentOperationAudit entries={audit} />
           </Section>
           <Section className="settings-api-section" title="操作">
             <div className="settings-api-operation">

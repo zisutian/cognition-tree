@@ -130,6 +130,11 @@ function createSlots(
           >[0]["apiAccess"]["administration"],
           repositories: [],
         },
+        operations: {
+          administration: {} as Parameters<
+            typeof createSettingsActivitySlots
+          >[0]["operations"]["administration"],
+        },
         system: {} as Parameters<
           typeof createSettingsActivitySlots
         >[0]["system"],

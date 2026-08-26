@@ -5,6 +5,7 @@ import type { TodoApplication } from "../../../application/todo";
 import type { ApiAccessApplication } from "../../../application/apiAccess/apiAccessAdministration";
 import type { AgentApplication } from "../../../application/agent";
 import type { SystemApplication } from "../../../application/system";
+import type { OperationApplication } from "../../../application/operations/operationAdministration";
 import type {
   WorkbenchController,
   WorkbenchControllerSnapshot,
@@ -23,6 +24,7 @@ export function ReadyWorkspaceWorkbench({
   controller,
   feedbackController,
   journal,
+  operations,
   onActiveActivityChange,
   repository,
   search,
@@ -37,6 +39,7 @@ export function ReadyWorkspaceWorkbench({
   controller: WorkbenchController;
   feedbackController: ProblemCenterController<ActivityId>;
   journal: JournalApplication;
+  operations: OperationApplication;
   onActiveActivityChange: (activityId: ActivityId) => void;
   repository: RepositoryApplication;
   search: WorkbenchApplication["search"];
@@ -81,6 +84,7 @@ export function ReadyWorkspaceWorkbench({
         agent,
         apiAccess,
         journal,
+        operations,
         repository,
         search,
         system,

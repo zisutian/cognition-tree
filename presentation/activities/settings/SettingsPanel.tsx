@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Bot, KeyRound, PanelLeft, ServerCog } from "lucide-react";
+import { Bot, ClipboardList, KeyRound, PanelLeft, ServerCog } from "lucide-react";
 import type { AgentApplication } from "../../../application/agent";
 import type {
   ApiAccessApplication,
@@ -10,12 +10,14 @@ import { ApiAccessSettingsPanel } from "./ApiAccessSettingsPanel";
 import { AgentSettingsPanel } from "./AgentSettingsPanel";
 import type { SystemApplication } from "../../../application/system";
 import { SystemSettingsPanel } from "./SystemSettingsPanel";
+import type { OperationApplication } from "../../../application/operations/operationAdministration";
+import { OperationsSettingsPanel } from "./OperationsSettingsPanel";
 import {
   InterfaceSettingsPanel,
   type SettingsWorkbenchPreferences,
 } from "./InterfaceSettingsPanel";
 
-export type SettingsSection = "agent" | "api-access" | "interface" | "system";
+export type SettingsSection = "agent" | "api-access" | "audit" | "interface" | "system";
 export type { SettingsWorkbenchPreferences } from "./InterfaceSettingsPanel";
 
 const settingsSections = [
@@ -23,6 +25,7 @@ const settingsSections = [
   { icon: ServerCog, id: "system", label: "服务" },
   { icon: Bot, id: "agent", label: "智能体" },
   { icon: KeyRound, id: "api-access", label: "API 访问" },
+  { icon: ClipboardList, id: "audit", label: "审计" },
 ] as const;
 
 export function SettingsContext({
@@ -69,12 +72,14 @@ export function SettingsContext({
 export function SettingsPanel({
   agent,
   apiAccess,
+  operations,
   section = "interface",
   system,
   workbench,
 }: {
   agent: AgentApplication;
   apiAccess: ApiAccessApplication;
+  operations: OperationApplication;
   section?: SettingsSection;
   system: SystemApplication;
   workbench: SettingsWorkbenchPreferences;
@@ -83,6 +88,9 @@ export function SettingsPanel({
   if (section === "system") return <SystemSettingsPanel system={system} />;
   if (section === "api-access") {
     return <ApiAccessSettingsPanel apiAccess={apiAccess} />;
+  }
+  if (section === "audit") {
+    return <OperationsSettingsPanel operations={operations} />;
   }
   return <InterfaceSettingsPanel workbench={workbench} />;
 }

@@ -42,6 +42,7 @@ describe("system configuration API", () => {
       });
       const handler = createApiRequestHandler({
         catalog,
+        operationLedger: ledger,
         security: createApiSecurityPolicy({
           ownerSessions: bootstrap,
           port: 3_001,
@@ -50,6 +51,27 @@ describe("system configuration API", () => {
         stateDirectory: path.join(initial.configuration.dataRoot, "server"),
         systemAdministration: administration,
       });
+      const auditStatus = await dispatch<{ status: string }>(handler, {
+        method: "GET",
+        url: "/api/v3/admin/operations/status",
+      });
+      const operations = await dispatch<{ entries: unknown[] }>(handler, {
+        method: "GET",
+        url: "/api/v3/admin/operations",
+      });
+
+      expect(auditStatus).toMatchObject({
+        body: { status: "available" },
+        statusCode: 200,
+      });
+      expect(operations).toMatchObject({
+        body: { entries: [] },
+        statusCode: 200,
+      });
+      await expect(dispatch(handler, {
+        method: "GET",
+        url: "/api/v3/admin/agent-operations",
+      })).resolves.toMatchObject({ statusCode: 404 });
       const loaded = await dispatch<ApiSystemConfigurationSnapshotDto>(handler, {
         method: "GET",
         url: "/api/v3/admin/system-configuration",

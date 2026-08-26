@@ -31,7 +31,7 @@ const authoritativePartitions = [
   "server/access-v1",
   "server/agent-auth-v1",
   "server/agent-config-v1",
-  "server/agent-v2",
+  "server/operations-v1",
 ] as const;
 
 type FileFingerprint = Readonly<{

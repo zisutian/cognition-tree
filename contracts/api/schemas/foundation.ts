@@ -82,6 +82,10 @@ export type ApiPrincipalDto = Static<typeof ApiPrincipalSchema>;
 
 export const ApiCapabilitiesSchema = strictObject({
   apiVersion: Type.Literal(3),
+  operationAuditStatus: nullable(Type.Union([
+    Type.Literal("available"),
+    Type.Literal("unavailable"),
+  ])),
   principal: nullable(ApiPrincipalSchema),
 });
 export type ApiCapabilitiesDto = Static<typeof ApiCapabilitiesSchema>;

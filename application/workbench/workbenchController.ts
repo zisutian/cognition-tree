@@ -9,6 +9,7 @@ import type {
 import type {
   ApiAccessAdministration,
 } from "../apiAccess/apiAccessAdministration";
+import type { OperationAdministration } from "../operations/operationAdministration";
 import {
   createJournalSessionController,
   type JournalSessionController,
@@ -142,6 +143,7 @@ export type WorkbenchSearchFacade = SearchControllerActions;
 
 export type WorkbenchController = {
   apiAccessAdministration: ApiAccessAdministration;
+  operationAdministration: OperationAdministration;
   journal: WorkbenchBuiltInFacade<JournalSessionController>;
   journalReferenceResolver: JournalWorkspaceReferenceResolver;
   search: WorkbenchSearchFacade;
@@ -175,6 +177,7 @@ export type WorkbenchController = {
 type WorkbenchControllerOptions = {
   activeRepositorySelection: ActiveRepositorySelection;
   apiAccessAdministration: ApiAccessAdministration;
+  operationAdministration: OperationAdministration;
   builtInCatalog: BuiltInCatalog;
   changeEvents?: DomainChangeEventSource;
   createInitialWorkspaceContent(label: string): WorkspaceRepositoryContent;
@@ -206,6 +209,7 @@ export function createWorkbenchController({
   createInitialWorkspaceContent,
   createSearchVersion,
   journalRepositories,
+  operationAdministration,
   scheduler,
   timezoneOffsetMinutes,
   todoRepositories,
@@ -505,6 +509,7 @@ export function createWorkbenchController({
 
   return {
     apiAccessAdministration,
+    operationAdministration,
     journal: journalFacade,
     journalReferenceResolver,
     search: searchFacade,

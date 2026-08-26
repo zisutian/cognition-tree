@@ -27,6 +27,7 @@ function createApplicationWithoutWorkspace(): WorkbenchApplication {
       repositories: [],
     },
     journal: { status: "loading" },
+    operations: {} as WorkbenchApplication["operations"],
     repository: {} as WorkbenchApplication["repository"],
     search: {} as WorkbenchApplication["search"],
     system: {} as WorkbenchApplication["system"],

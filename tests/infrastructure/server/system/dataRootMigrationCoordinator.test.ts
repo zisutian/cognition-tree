@@ -42,6 +42,7 @@ async function fixture(
     "server/access-v1/automation-tokens.json",
     "server/agent-auth-v1/providers/provider-1/api-key-v1.json",
     "server/agent-config-v1/configuration.json",
+    "server/operations-v1/operations.json",
     "server/agent-v2/operations.json",
     "server/api-v1/legacy.json",
     "server/agent-v1/legacy.json",
@@ -132,6 +133,12 @@ describe("data-root migration coordinator", () => {
       ),
       "utf8",
     )).toBe("server/agent-auth-v1/providers/provider-1/api-key-v1.json");
+    expect(await readFile(
+      path.join(target, "server/operations-v1/operations.json"),
+      "utf8",
+    )).toBe("server/operations-v1/operations.json");
+    await expect(access(path.join(target, "server/agent-v2/operations.json")))
+      .rejects.toMatchObject({ code: "ENOENT" });
     await expect(access(path.join(target, "server/api-v1/legacy.json")))
       .rejects.toMatchObject({ code: "ENOENT" });
     await expect(access(path.join(target, "server/agent-v1/legacy.json")))

@@ -272,6 +272,9 @@ function createHarness({
     apiAccessAdministration: {} as Parameters<
       typeof createWorkbenchController
     >[0]["apiAccessAdministration"],
+    operationAdministration: {} as Parameters<
+      typeof createWorkbenchController
+    >[0]["operationAdministration"],
     builtInCatalog,
     changeEvents: withChangeEvents
       ? {

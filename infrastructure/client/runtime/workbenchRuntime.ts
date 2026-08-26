@@ -13,6 +13,7 @@ import type { OfficialClientApi } from "../http/apiTransport";
 import { createBuiltInRuntime } from "./builtInRuntime";
 import { createHttpApiEventSource } from "../http/apiEvents";
 import { createHttpApiAdministration } from "../http/apiAdmin";
+import { createHttpOperationAdministration } from "../http/apiOperations";
 import { createWorkspaceRepositoryRuntime } from "./workspaceRepositoryRuntime";
 import { serializeJsonIteratively } from "../../../contracts/common/json";
 import {
@@ -32,6 +33,9 @@ export function createWorkbenchRuntime(
     }),
     builtInCatalog: builtIns.catalog,
     journalRepositories: builtIns.journalRepositories,
+    operationAdministration: createHttpOperationAdministration({
+      baseUrl: api.baseUrl,
+    }),
     changeEvents: createHttpApiEventSource({
       baseUrl: api.baseUrl,
     }),

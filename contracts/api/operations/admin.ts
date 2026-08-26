@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Type } from "@sinclair/typebox";
-import { AgentOperationAuditPageSchema } from "../../agent/schemas.ts";
+import {
+  ApiOperationAuditPageSchema,
+  ApiOperationAuditStatusSchema,
+} from "../schemas/operations.ts";
 import {
   AgentConfigurationDeleteRequestSchema,
   AgentConfigurationSnapshotSchema,
@@ -73,5 +76,6 @@ export const adminApiOperations = [
   { access: ownerAccess(), method: "GET", operationId: "listApiTokens", path: "/api/v3/admin/automation-tokens", responses: { 200: ApiTokenListSchema } },
   { access: ownerAccess(), body: apiBody(ApiCreateTokenRequestSchema, parseApiCreateTokenRequest), method: "POST", operationId: "createApiToken", path: "/api/v3/admin/automation-tokens", responses: { 201: ApiCreatedTokenSchema } },
   { access: ownerAccess(), method: "DELETE", operationId: "revokeToken", path: "/api/v3/admin/automation-tokens/{tokenId}", responses: { 200: ApiRevokedSchema } },
-  { access: ownerAccess(), method: "GET", operationId: "listAgentOperations", path: "/api/v3/admin/agent-operations", query: auditQuerySchema, responses: { 200: AgentOperationAuditPageSchema } },
+  { access: ownerAccess(), method: "GET", operationId: "getOperationAuditStatus", path: "/api/v3/admin/operations/status", responses: { 200: ApiOperationAuditStatusSchema } },
+  { access: ownerAccess(), method: "GET", operationId: "listOperations", path: "/api/v3/admin/operations", query: auditQuerySchema, responses: { 200: ApiOperationAuditPageSchema } },
 ] as const satisfies readonly ApiOperationDefinition[];

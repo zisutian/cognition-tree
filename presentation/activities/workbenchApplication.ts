@@ -15,6 +15,7 @@ import type {
 } from "../../application/navigation/contentDestination";
 import type { AgentApplication } from "../../application/agent";
 import type { SystemApplication } from "../../application/system";
+import type { OperationApplication } from "../../application/operations/operationAdministration";
 
 export type WorkbenchWorkspaceState =
   | { status: "absent" }
@@ -31,6 +32,7 @@ export type WorkbenchApplication = {
   agent: AgentApplication;
   apiAccess: ApiAccessApplication;
   journal: JournalApplication;
+  operations: OperationApplication;
   repository: RepositoryApplication;
   search: {
     controller: WorkbenchSearchFacade;

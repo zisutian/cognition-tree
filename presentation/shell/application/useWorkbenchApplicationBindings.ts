@@ -237,6 +237,9 @@ export function useWorkbenchApplicationBindings({
         : [],
     },
     journal,
+    operations: {
+      administration: controller.operationAdministration,
+    },
     repository: createRepositoryProjection(
       controller,
       snapshot,

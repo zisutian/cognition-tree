@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomUUID } from "node:crypto";
+import { lstat, unlink } from "node:fs/promises";
 import path from "node:path";
 import {
   AgentOperationAuditEntrySchema,
   type AgentOperationAuditEntryDto,
-  type AgentOperationAuditPageDto,
 } from "../../../contracts/agent/schemas.ts";
 import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
+import {
+  ApiOperationAuditEntrySchema,
+  type ApiOperationAuditEntryDto,
+  type ApiOperationAuditPageDto,
+} from "../../../contracts/api/schemas/operations.ts";
+import { parseApiSchema } from "../../../contracts/api/parse.ts";
 import {
   assertStateFields,
   requireStateRecord,
@@ -60,7 +66,7 @@ type AgentReceiptState = {
 
 type OperationState = {
   agentReceipts: AgentReceiptState[];
-  auditEntries: AgentOperationAuditEntryDto[];
+  auditEntries: ApiOperationAuditEntryDto[];
   formatVersion: typeof formatVersion;
 };
 
@@ -218,7 +224,7 @@ function parseOperationState(value: unknown): OperationState {
   return {
     agentReceipts: record.agentReceipts.map(parseReceipt),
     auditEntries: record.auditEntries.map((entry) =>
-      parseAgentSchema(AgentOperationAuditEntrySchema, entry)
+      parseApiSchema(ApiOperationAuditEntrySchema, entry)
     ),
     formatVersion,
   };
@@ -289,6 +295,7 @@ export class OperationLedger {
   readonly #partition: SecureJsonPartition<OperationState>;
   readonly #receiptRetentionMilliseconds: number;
   readonly #runtimeId: string;
+  readonly #stateDirectory: string;
   #unavailableMessage: string | null = null;
 
   constructor(
@@ -308,17 +315,34 @@ export class OperationLedger {
     this.#receiptRetentionMilliseconds = options.receiptRetentionMilliseconds ??
       defaultReceiptRetentionMilliseconds;
     this.#runtimeId = options.runtimeId ?? randomUUID();
+    this.#stateDirectory = path.resolve(stateDirectory);
     this.#partition = new SecureJsonPartition({
       createInitial: () => ({
         agentReceipts: [],
         auditEntries: [],
         formatVersion,
       }),
-      directory: path.join(path.resolve(stateDirectory), "operations-v1"),
+      directory: path.join(this.#stateDirectory, "operations-v1"),
       fileName: "operations.json",
       name: "operation ledger",
       parse: parseOperationState,
     });
+  }
+
+  async initialize(): Promise<OperationAuditStatus> {
+    if (this.#unavailableMessage) return this.status();
+    try {
+      await this.#partition.read(() => undefined);
+      await this.#removeLegacyAuditFile("agent-v2", "operations.json");
+      await this.#removeLegacyAuditFile("api-v1", "audit.json");
+      return { status: "available" };
+    } catch (error) {
+      this.#markUnavailable(error);
+      return {
+        message: this.#unavailableMessage ?? "Operation audit is unavailable",
+        status: "unavailable",
+      };
+    }
   }
 
   async status(): Promise<OperationAuditStatus> {
@@ -360,7 +384,7 @@ export class OperationLedger {
     return promise;
   }
 
-  list({ cursor, limit }: { cursor: number; limit: number }): Promise<AgentOperationAuditPageDto> {
+  list({ cursor, limit }: { cursor: number; limit: number }): Promise<ApiOperationAuditPageDto> {
     return this.#read((state) => {
       const descending = [...state.auditEntries].reverse();
       const entries = descending.slice(cursor, cursor + limit);
@@ -442,6 +466,8 @@ export class OperationLedger {
         if (existing.status === "pending") {
           existing.status = "indeterminate";
           existing.updatedAt = this.#now();
+          state.auditEntries.push(this.#projectIndeterminateAgentAudit(existing));
+          this.#trimAudit(state);
           return {
             changed: true,
             result: { kind: "indeterminate" as const },
@@ -486,7 +512,7 @@ export class OperationLedger {
       receipt.entry = entry;
       receipt.status = entry.result;
       receipt.updatedAt = this.#now();
-      state.auditEntries.push(entry);
+      state.auditEntries.push(this.#projectAgentAudit(receipt, entry));
       this.#trimAudit(state);
       return { changed: true, result: undefined };
     });
@@ -503,6 +529,8 @@ export class OperationLedger {
       }
       receipt.status = "indeterminate";
       receipt.updatedAt = this.#now();
+      state.auditEntries.push(this.#projectIndeterminateAgentAudit(receipt));
+      this.#trimAudit(state);
       return { changed: true, result: undefined };
     });
   }
@@ -522,6 +550,71 @@ export class OperationLedger {
     );
 
     if (removeCount > 0) state.auditEntries.splice(0, removeCount);
+  }
+
+  #projectAgentAudit(
+    receipt: AgentReceiptState,
+    entry: AgentOperationAuditEntryDto,
+  ): ApiOperationAuditEntryDto {
+    return parseApiSchema(ApiOperationAuditEntrySchema, {
+      afterRevision: entry.afterRevision,
+      agent: {
+        digest: entry.digest,
+        profileDigest: entry.profileDigest,
+        profileId: entry.profileId,
+        profileVersion: entry.profileVersion,
+        proposalId: entry.proposalId,
+        proposalVersion: entry.proposalVersion,
+        providerDigest: entry.providerDigest,
+        providerId: entry.providerId,
+        providerVersion: entry.providerVersion,
+        runtimeKind: entry.runtimeKind,
+        sessionId: entry.sessionId,
+      },
+      beforeRevision: entry.beforeRevision,
+      changeMetadata: entry.changeMetadata,
+      id: operationKey(receipt),
+      occurredAt: receipt.attempt.occurredAt,
+      principalId: receipt.attempt.approvingOwnerId,
+      requestId: receipt.attempt.requestId,
+      result: entry.result,
+      route: receipt.attempt.route,
+      source: "agent",
+      store: entry.store,
+      updatedAt: receipt.updatedAt,
+    });
+  }
+
+  #projectIndeterminateAgentAudit(
+    receipt: AgentReceiptState,
+  ): ApiOperationAuditEntryDto {
+    return parseApiSchema(ApiOperationAuditEntrySchema, {
+      afterRevision: null,
+      agent: {
+        digest: receipt.digest,
+        profileDigest: receipt.attempt.profileDigest,
+        profileId: receipt.attempt.profileId,
+        profileVersion: receipt.attempt.profileVersion,
+        proposalId: receipt.proposalId,
+        proposalVersion: receipt.proposalVersion,
+        providerDigest: receipt.attempt.providerDigest,
+        providerId: receipt.attempt.providerId,
+        providerVersion: receipt.attempt.providerVersion,
+        runtimeKind: receipt.attempt.runtimeKind,
+        sessionId: receipt.attempt.sessionId,
+      },
+      beforeRevision: receipt.attempt.beforeRevision,
+      changeMetadata: { blockIds: [], resourceIds: [] },
+      id: operationKey(receipt),
+      occurredAt: receipt.attempt.occurredAt,
+      principalId: receipt.attempt.approvingOwnerId,
+      requestId: receipt.attempt.requestId,
+      result: "indeterminate",
+      route: receipt.attempt.route,
+      source: "agent",
+      store: receipt.attempt.store,
+      updatedAt: receipt.updatedAt,
+    });
   }
 
   async #read<Result>(project: (state: OperationState) => Result) {
@@ -569,5 +662,37 @@ export class OperationLedger {
     this.#unavailableMessage = error instanceof Error
       ? error.message
       : "Operation audit is unavailable";
+  }
+
+  async #removeLegacyAuditFile(directoryName: string, fileName: string) {
+    const directory = path.join(this.#stateDirectory, directoryName);
+    const target = path.join(directory, fileName);
+    let directoryStats;
+
+    try {
+      directoryStats = await lstat(directory);
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+        return;
+      }
+      throw error;
+    }
+    if (directoryStats.isSymbolicLink() || !directoryStats.isDirectory()) {
+      throw new Error(`Legacy audit directory ${directoryName} is not a regular directory`);
+    }
+    let targetStats;
+
+    try {
+      targetStats = await lstat(target);
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+        return;
+      }
+      throw error;
+    }
+    if (targetStats.isSymbolicLink() || !targetStats.isFile()) {
+      throw new Error(`Legacy audit file ${directoryName}/${fileName} is not a regular file`);
+    }
+    await unlink(target);
   }
 }

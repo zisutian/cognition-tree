@@ -16,11 +16,16 @@ const apiAccess = {
     createToken: async () => {
       throw new Error("not called during server rendering");
     },
-    listAgentOperations: async () => ({ cursor: null, entries: [] }),
     listTokens: async () => [],
     revokeToken: async () => undefined,
   },
   repositories: [{ id: "primary", label: "主仓库" }],
+};
+const operations = {
+  administration: {
+    getStatus: async () => ({ status: "available" as const }),
+    list: async () => ({ cursor: null, entries: [] }),
+  },
 };
 const baseAgent = createAgentApplicationFixture();
 const systemConfiguration = {
@@ -206,6 +211,7 @@ describe("settings activity", () => {
       <SettingsPanel
         agent={agent}
         apiAccess={apiAccess}
+        operations={operations}
         system={system}
         workbench={{
           contextWidth: appContextDefaultWidth,
@@ -218,6 +224,7 @@ describe("settings activity", () => {
       <SettingsPanel
         agent={agent}
         apiAccess={apiAccess}
+        operations={operations}
         section="api-access"
         system={system}
         workbench={{
@@ -230,6 +237,7 @@ describe("settings activity", () => {
       <SettingsPanel
         agent={agent}
         apiAccess={apiAccess}
+        operations={operations}
         section="agent"
         system={system}
         workbench={{
@@ -242,6 +250,7 @@ describe("settings activity", () => {
       <SettingsPanel
         agent={agent}
         apiAccess={apiAccess}
+        operations={operations}
         section="system"
         system={system}
         workbench={{
@@ -250,10 +259,23 @@ describe("settings activity", () => {
         }}
       />,
     );
+    const auditMarkup = renderToStaticMarkup(
+      <SettingsPanel
+        agent={agent}
+        apiAccess={apiAccess}
+        operations={operations}
+        section="audit"
+        system={system}
+        workbench={{
+          contextWidth: appContextDefaultWidth,
+          onContextWidthChange: () => undefined,
+        }}
+      />,
+    );
 
-    expect(contextMarkup.match(/<li/g)).toHaveLength(4);
+    expect(contextMarkup.match(/<li/g)).toHaveLength(5);
     expectMarkupSemantics(contextMarkup, {
-      has: ['aria-current="page"', "界面", "服务", "智能体", "API 访问", "<button"],
+      has: ['aria-current="page"', "界面", "服务", "智能体", "API 访问", "审计", "<button"],
     });
     expectMarkupSemantics(panelMarkup, {
       has: [
@@ -272,7 +294,6 @@ describe("settings activity", () => {
         "代办权限",
         "仓库范围",
         "现有令牌",
-        "Agent 写入审计",
         "/api/v3/content/*",
         "sync、agent 或 admin",
       ],
@@ -284,6 +305,14 @@ describe("settings activity", () => {
       ],
     });
     expect(apiMarkup.match(/<select/g)).toHaveLength(4);
+    expectMarkupSemantics(apiMarkup, { lacks: ["Agent 写入审计", "操作审计"] });
+    expectMarkupSemantics(auditMarkup, {
+      has: [
+        'aria-label="审计"',
+        "浏览器自动保存不会形成审计记录",
+        "操作记录",
+      ],
+    });
     expectMarkupSemantics(agentMarkup, {
       has: [
         'aria-label="智能体设置"',

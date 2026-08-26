@@ -66,7 +66,8 @@ const expectedCapabilities = [
   ["GET", "listApiTokens"],
   ["POST", "createApiToken"],
   ["DELETE", "revokeToken"],
-  ["GET", "listAgentOperations"],
+  ["GET", "getOperationAuditStatus"],
+  ["GET", "listOperations"],
 ] as const;
 
 describe("HTTP API capability matrix", () => {

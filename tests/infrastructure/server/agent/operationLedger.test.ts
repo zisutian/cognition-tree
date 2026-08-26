@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -69,6 +77,53 @@ function identity(value: AgentOperationAuditEntryDto) {
 }
 
 describe("operation ledger", () => {
+  it("removes only the two exact legacy audit files during initialization", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-operation-cleanup-"));
+
+    try {
+      for (const relative of [
+        "agent-v2/operations.json",
+        "api-v1/audit.json",
+        "api-v1/tokens.json",
+      ]) {
+        const file = path.join(directory, relative);
+
+        await mkdir(path.dirname(file), { mode: 0o700, recursive: true });
+        await writeFile(file, relative, { mode: 0o600 });
+      }
+      const ledger = new OperationLedger(directory, 10);
+
+      await expect(ledger.initialize()).resolves.toEqual({ status: "available" });
+      await expect(access(path.join(directory, "agent-v2/operations.json")))
+        .rejects.toMatchObject({ code: "ENOENT" });
+      await expect(access(path.join(directory, "api-v1/audit.json")))
+        .rejects.toMatchObject({ code: "ENOENT" });
+      expect(await readFile(path.join(directory, "api-v1/tokens.json"), "utf8"))
+        .toBe("api-v1/tokens.json");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("fails closed instead of following a legacy audit symlink", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-operation-symlink-"));
+
+    try {
+      const protectedFile = path.join(directory, "protected.json");
+      const legacyDirectory = path.join(directory, "agent-v2");
+
+      await writeFile(protectedFile, "keep", { mode: 0o600 });
+      await mkdir(legacyDirectory, { mode: 0o700 });
+      await symlink(protectedFile, path.join(legacyDirectory, "operations.json"));
+      const status = await new OperationLedger(directory, 10).initialize();
+
+      expect(status).toMatchObject({ status: "unavailable" });
+      expect(await readFile(protectedFile, "utf8")).toBe("keep");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   it("keeps Agent idempotency receipts outside the trimmed audit view", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-operation-ledger-"));
 
@@ -100,10 +155,14 @@ describe("operation ledger", () => {
 
         await ledger.runAgentIdempotent(identity(next), attempt(next), async () => next);
       }
-      expect((await ledger.list({ cursor: 0, limit: 10 })).entries.map(({ proposalId }) => proposalId))
+      expect((await ledger.list({ cursor: 0, limit: 10 })).entries.map((item) =>
+        item.source === "agent" ? item.agent.proposalId : ""
+      ))
         .toEqual([entry(3).proposalId, entry(2).proposalId]);
       await ledger.updateMaximumEntries(1);
-      expect((await ledger.list({ cursor: 0, limit: 10 })).entries.map(({ proposalId }) => proposalId))
+      expect((await ledger.list({ cursor: 0, limit: 10 })).entries.map((item) =>
+        item.source === "agent" ? item.agent.proposalId : ""
+      ))
         .toEqual([entry(3).proposalId]);
       const replay = await ledger.runAgentIdempotent(identity(firstEntry), attempt(firstEntry), execute);
 

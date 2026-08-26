@@ -47,8 +47,18 @@ export async function handleApiRoute(
     return { body: { ok: true }, statusCode: 200 };
   }
   if (operation.operationId === "getCapabilities") {
+    const exposesAuditStatus = context.principal?.kind === "local-owner" ||
+      context.principal?.kind === "owner";
+    const auditStatus = exposesAuditStatus && context.operationLedger
+      ? (await context.operationLedger.status()).status
+      : exposesAuditStatus ? "unavailable" : null;
+
     return {
-      body: { apiVersion: 3, principal: context.principal },
+      body: {
+        apiVersion: 3,
+        operationAuditStatus: auditStatus,
+        principal: context.principal,
+      },
       statusCode: 200,
     };
   }
@@ -156,12 +166,30 @@ export async function handleApiRoute(
   )) {
     return handleTokenAdmin(authorizedContext);
   }
-  if (operation.operationId === "listAgentOperations") {
+  if (
+    operation.operationId === "listOperations" ||
+    operation.operationId === "getOperationAuditStatus"
+  ) {
     if (!authorizedContext.operationLedger) {
-      throw new ApiRequestError(
-        "profile_unavailable",
-        "Agent operation audit is unavailable",
-      );
+      if (operation.operationId === "listOperations") {
+        throw new ApiRequestError(
+          "operation_audit_unavailable",
+          "Operation audit is not configured on this server",
+        );
+      }
+      return {
+        body: {
+          message: "Operation audit is not configured on this server",
+          status: "unavailable",
+        },
+        statusCode: 200,
+      };
+    }
+    if (operation.operationId === "getOperationAuditStatus") {
+      return {
+        body: await authorizedContext.operationLedger.status(),
+        statusCode: 200,
+      };
     }
     return {
       body: await authorizedContext.operationLedger.list(parseAuditQuery(authorizedContext.query)),

@@ -331,11 +331,3 @@ export const AgentOperationAuditEntrySchema = strictObject({
 export type AgentOperationAuditEntryDto = Static<
   typeof AgentOperationAuditEntrySchema
 >;
-
-export const AgentOperationAuditPageSchema = strictObject({
-  cursor: nullable(Type.String()),
-  entries: Type.Array(AgentOperationAuditEntrySchema),
-});
-export type AgentOperationAuditPageDto = Static<
-  typeof AgentOperationAuditPageSchema
->;

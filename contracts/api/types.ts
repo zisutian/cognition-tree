@@ -52,6 +52,11 @@ export type {
   ApiSearchResultDto,
 } from "./schemas/search.ts";
 export type {
+  ApiOperationAuditEntryDto,
+  ApiOperationAuditPageDto,
+  ApiOperationAuditStatusDto,
+} from "./schemas/operations.ts";
+export type {
   ApiCreateTokenRequestDto,
   ApiCreatedTokenDto,
   ApiTokenDto,
