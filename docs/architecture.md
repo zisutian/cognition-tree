@@ -470,7 +470,9 @@ presentation/activities/<activity>/。跨 Activity 的组合只存在于 shell�
 
 Repository context、普通仓库详情、故障详情、内置数据详情和危险区是独立 view；确认状态由顶层 RepositoryPanel 持有。Todo 的集合列表、编辑器与结构详情彼此独立。引用图谱 Canvas 只声明 DOM，模拟、位置缓存、缩放和平移生命周期位于专用 hook/controller。
 
-ToolSurface 负责设置、仓库正文、搜索结果、智能体、语法和 Problems 的共享高密度正文组合。Activity 提供领域内容和回调，面板标题、正文宽度、分区、基础列表、工具栏与分割线由共享组件表达；左侧 context 与笔记、日记、代办编辑正文不进入该作用域。
+ToolSurface 负责设置、仓库正文、搜索结果、智能体、语法和 Problems 的共享高密度正文组合。Activity 提供领域内容和回调，面板标题、正文宽度、分区、属性表、基础列表、工具栏与分割线由共享组件表达；左侧 context 与笔记、日记、代办编辑正文不进入该密度作用域。全局输入、选择、切换、滑杆、颜色和按钮仍统一由 presentation/ui/shared 控件层拥有；CodeMirror 保持独立编辑器所有权。
+
+右侧详情栏只有一个结构所有者：`DetailPanel` 组合 detail Panel、统一标题和折叠按钮，`ToolDetailPanel` 只叠加 ToolSurface 密度。全部 Activity 的 `ActivitySlots.detail` 都使用该结构，折叠状态与宽度只由 AppFrame 控制。Settings、Repository 与 Search 始终提供 detail 槽；Agent Proposal、笔记、日记、代办和语法沿用同一折叠协议，不在 Activity 内另建按钮或状态副本。
 
 笔记 Activity 内部拥有 edit、structure、graph 三种原生 tab 模式，并按仓库
 保存所选模式。编辑模式持续挂载，因此模式往返不替换当前笔记或 CodeMirror
@@ -498,8 +500,9 @@ session，失败即阻止 HTTP 操作。Agent event sequence 缺口通过重读 
 关闭的技术详情中，长值显示前后各 8 位并提供复制完整值。Proposal 选择器使用序号、
 状态和人类目标名称，不把 UUID 当作主标签。
 
-Settings 的 `agentPage`、Provider/Profile 创建/编辑草稿以及搜索的折叠条件都是
-Presentation 会话状态，不进入 application、contracts 或服务端配置。页内 tab、表单、
+Settings 的 `agentPage` 和 Provider/Profile 创建/编辑草稿都是 Presentation 会话状态，
+不进入 application、contracts 或服务端配置。搜索草稿只包含搜索词和三个领域范围，
+逐仓库范围只保留在公开搜索请求与 Agent 授权边界，不由搜索页面单独维护。页内 tab、表单、
 状态摘要和主区管理列表由 `presentation/ui/shared` 独占交互结构；左侧
 `CompactContextList` 不作为 Settings 管理列表复用。切换 Settings 顶层分类会卸载并
 清除未提交表单及 write-only secret，但不会改变服务端设备码登录状态。精确视觉与滚动

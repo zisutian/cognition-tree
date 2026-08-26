@@ -57,15 +57,15 @@
 仓库：
 
     左侧顺序为“内置数据”日记、代办，以及唯一的“本地”分组。本地组底部只有一个 `+` 新建入口，即使没有仓库也保留；行内只保留图标、名称和极简状态。当前普通仓库使用固定前导状态图标，不在行尾追加“当前”文字。Server 不可用时显示失败和重试，不投影本地空仓库。
-    选中普通仓库后才显示“开”和内联重命名；右侧标题承担名称，状态区不重复名称，并以 22px 紧凑列表展示状态和 ID。位置、复制、故障重试、冲突恢复和危险操作维持各自所需空间；健康活动仓库的文件重扫只出现在笔记工具栏。
-    选中内置数据后，右侧显示保存状态、位置、故障、重试和受保护说明，不提供删除、重命名或普通仓库切换。
-    永久删除和故障清理都在右侧原位展开确认；永久删除必须输入完整仓库名称，不使用确认弹窗。
+    选中普通仓库后才显示“开”和内联重命名；主区标题承担名称并只承载恢复、冲突处理、确认和危险操作。右侧状态区不重复名称，以共享属性表展示状态、ID、位置、路径、故障和冲突事实，复制按钮进入属性操作列；健康活动仓库的文件重扫只出现在笔记工具栏。
+    选中内置数据后，右侧显示保存状态、位置和故障事实，主区提供可执行的重试或恢复动作；不提供删除、重命名或普通仓库切换。
+    永久删除和故障清理都在主区危险分区原位展开确认；永久删除必须输入完整仓库名称，不使用确认弹窗。
 
 其他：
 
-    搜索左侧首行是查询框与图标提交按钮；只在 Enter 或该按钮时提交。领域使用紧凑行，Workspace 仓库范围提供“全选 / 清除”和独立滚动区，更新时间位于默认折叠的“更多条件”且折叠不清除值。主区标题栏显示上次提交的搜索词、资源数和命中数；修改草稿后显示“条件已修改”，继续保留旧结果与滚动位置。结果按资源分组，来源、仓库和更新时间作为次级元数据，整篇/块匹配使用固定 marker 列；点击命中仍直接打开内容。
-    设置左侧提供“界面”“服务”“智能体”“API 访问”和“审计”。所有分区使用同一标题栏操作、状态摘要、表单行、管理列表和最大内容宽度。智能体主区固定为“概览 / Provider / Profile”三个原生 tab：概览拥有默认 Profile、总体状态、显式 Ollama 发现和刷新；Provider/Profile 默认只显示管理列表，只有点击新建或编辑才用同一 tab 显示专用表单，保存或取消后返回列表。tab 选择只在当前工作台会话保留，不写 localStorage；切换顶层设置分类会销毁未提交表单及 API Key，但不会取消服务端 pending 设备码登录。
-    服务分区管理网络、路径、操作审计容量、owner credential 与数据迁移，顶部定义列表区分当前配置、待重启状态、下一访问地址和数据根；owner secret 只展示一次。智能体的 chat Profile 字段固定命名为“会话历史预算（字符）”，紧邻帮助文字说明它只控制 Cognition Tree 内存对话压缩，不修改 Ollama num_ctx，也不代表 token 上限。Ollama 推理强度固定提供模型默认、关闭、低、中、高，不暗示自动选模；其他 OpenAI-compatible Profile 不显示无效的推理强度。Provider 探测与 Profile 符合性使用结构化状态摘要显示阶段、理论/驻留上下文和失败原因。Codex Provider 只显示 API Key 或 ChatGPT 设备码二选一；设备码 pending 时显示 HTTPS 登录链接、用户码和取消，成功后只显示认证已配置，退出认证使用独立操作。secret 只写入不回读。API 访问分别管理 automation 与 trusted-client token；审计刷新位于标题栏，记录使用共享管理列表，技术 hash 默认折叠。
+    搜索左侧首行是查询框与图标提交按钮；只在 Enter 或该按钮时提交。范围只显示“本地仓库 / 日记 / 代办”三个多选分段，“本地仓库”代表全部普通仓库；不显示逐仓库列表、更多条件或时间限制。主区标题栏显示上次提交的搜索词；修改草稿后显示“条件已修改”，继续保留旧结果与滚动位置。结果按资源分组，来源、仓库和更新时间作为次级元数据，整篇/块匹配使用固定 marker 列；右侧状态栏显示已提交条件、资源数、命中数与来源故障，点击命中仍直接打开内容。
+    设置左侧提供“界面”“服务”“智能体”“API 访问”和“审计”。主区只承载输入、创建、保存、探测和对象管理，右侧状态栏承载服务、凭据、Provider/Profile、令牌和审计事实；无选中对象时也保留空状态。智能体主区固定为“概览 / Provider / Profile”三个原生 tab：概览拥有默认 Profile、显式 Ollama 发现和刷新；Provider/Profile 默认只显示管理列表，只有点击新建或编辑才用同一 tab 显示专用表单，保存或取消后返回列表。tab 选择只在当前工作台会话保留，不写 localStorage；切换顶层设置分类会销毁未提交表单及 API Key，但不会取消服务端 pending 设备码登录。
+    服务分区管理网络、路径、操作审计容量、owner credential 与数据迁移，右侧状态栏区分当前配置、待重启状态、下一访问地址和数据根；owner secret 只展示一次。智能体的 chat Profile 字段固定命名为“会话历史预算（字符）”，不使用解释性注释复述它与 Ollama num_ctx 或 token 的区别。Ollama 推理强度固定提供模型默认、关闭、低、中、高，不暗示自动选模；其他 OpenAI-compatible Profile 不显示无效的推理强度。Provider 探测与 Profile 符合性使用结构化状态摘要显示阶段、理论/驻留上下文和失败原因。Codex Provider 只显示 API Key 或 ChatGPT 设备码二选一；设备码 pending 时显示 HTTPS 登录链接、用户码和取消，成功后只显示认证已配置，退出认证使用独立操作。secret 只写入不回读。API 访问分别管理 automation 与 trusted-client token；审计刷新位于标题栏，记录使用共享管理列表，技术 hash 位于右侧状态栏。
     远程未登录时使用独立的 owner 登录门，不挂载工作台或提前加载内容；本机访问自动进入。数据迁移展示同步、复制、校验、失败和重启状态，不暗示失败目标已成为权威。
     顶层 Activity 仅保留智能体、笔记、日记、代办、语法、搜索、仓库和设置，不渲染 Data 占位入口；底部顺序固定为智能体、搜索、仓库、设置。
 
@@ -93,18 +93,17 @@ source、code、target 与安全详情聚合，显示重复次数和最近发生
     活动栏宽度：48px。
     详情折叠宽度：36px。
     主工作区最小宽度：420px。
-    面板标题高度：32px 到 34px。
-    面板内边距：8px 到 10px。
-    常用间距：4px 到 6px。
-    树行、输入框和图标按钮：20px 到 24px。
-    常规圆角：3px 到 4px。
+    面板标题高度：34px。
+    面板内边距：10px；高密度正文节奏：4px。
+    树行、输入框、选择、切换和按钮：22px。
+    常规圆角：4px。
     Problems 展开高度：120px 到 360px，默认 200px。
 
     页面标题：16px / 600。
     正文、列表、树：13px / 400。
-    控件和辅助文字：12px / 400 或 600。
+    小标题、控件、辅助文字和代码：13px / 400 或 600。
     编辑器正文：14px；标题使用 strong-weight token。
-    代码和符号：12px 等宽字体。
+    代码和符号：13px 等宽字体。
     数字：tabular-nums。
 
 字号、字重和颜色必须通过角色 token 进入样式；Activity CSS 只描述布局和业务状态。
@@ -122,12 +121,14 @@ source、code、target 与安全详情聚合，显示重复次数和最近发生
     selected #37373d
     border #2d2d30 / strong #3c3c3c
     foreground #cccccc / strong #ffffff / muted #969696
-    accent #0e639c
+    interaction accent #9b8bbd
+    primary button #66517f
+    editor content accent #007acc
     error #f48771
     warning #cca700
     success #6a9955
 
-selected、focus、drag 和 diagnostic 使用背景、文字或细边界表达。普通控件不使用亮色外框，普通任务不使用连续整行色块，阴影只用于菜单、tooltip 和浮层。
+selected、focus、drag 和 diagnostic 使用背景、文字或细边界表达。Activity 左侧选中条、控件 focus、选择控件和开关共享紫灰色 interaction accent；CodeMirror 内容颜色继续使用独立的 editor content accent，不受交互强调色影响。普通控件不使用亮色外框，普通任务不使用连续整行色块，阴影只用于菜单、tooltip 和浮层。
 
 
 ## 6. 共享结构
@@ -148,18 +149,18 @@ selected、focus、drag 和 diagnostic 使用背景、文字或细边界表达�
 
 控件：
 
-    Button、ToggleButton、SegmentedControl、Panel 和 Section 提供基础控件；SubsectionTabs 独占页内 tablist、方向键、Home/End 与 tabpanel 关联，但视觉与笔记页 SegmentedControl 使用同一中性分段选择规则。
-    FormLayout、FieldRow 和 FormActions 独占标签、帮助、错误关联与标准操作行；ManagementList/ManagementRow 独占主区管理列表，CompactContextList 继续只服务左侧上下文区，二者不得混用业务语义。
+    InputControl、SelectControl、TextareaControl、ChoiceGroup、RangeControl、ColorControl、Button 和 ToggleButton 是全软件表单与操作控件的唯一所有者；Activity 不得直接渲染原生按钮或普通输入。ChoiceGroup 以判别联合分别提供单选 radiogroup 和多选 aria-pressed 语义；SubsectionTabs 独占页内 tablist、方向键、Home/End 与 tabpanel 关联，并与 ChoiceGroup、ToggleButton 共享中性分段选择规则。CodeMirror 及其内容颜色不进入该控件层。
+    普通输入使用 content 尺度，从 72px 随值扩展并在 320px 封顶；结构输入使用 container 尺度占满容器。FormLayout、FieldRow 和 FormActions 独占 128px 标签列、8px 列间距、校验错误关联与从值列起点开始的标准操作行；字段不提供通用解释性 description。ManagementList/ManagementRow 独占主区管理列表，CompactContextList 继续只服务左侧上下文区，二者不得混用业务语义。
     StatusBadge 统一呈现状态；EmptyState 的 compact 模式用于详情栏和顶部对齐空白页。Activity 只组合业务布局、局部 presentation 状态和回调，不复制私有表单行或管理卡片。
 
 工具页面：
 
-    设置、仓库正文、搜索结果、智能体、语法和 Problems 采用统一工具界面层，共享页面壳、滚动容器、分区分隔线、筛选栏和基础结果行。CodeMirror 只用于真实文本编辑，不模拟这些结构化界面。ToolPanel 统一表达 16px 页面标题和 13px/22px 局部密度；ToolPanelBody 按 form、table、results 三种内容类型分别限制为 880px、可用宽度和 920px。
-    ToolSectionStack/ToolSection 统一表达弱化小标题、说明、操作区和相邻细线；ToolToolbar 负责紧凑筛选栏；ToolDivider 服务摘要栏、输入区和操作栏等固定边界。普通列表行之间不画线。
-    ToolPropertyList/ToolPropertyRow 统一呈现工具页面中的静态“属性名—属性值”：使用语义化定义列表，属性名左对齐且不附加冒号；属性名列为 clamp(88px, 18%, 128px)，属性值列占据剩余空间，可选操作列按内容宽度排列。属性行最小高度 22px、左右内边距 4px、列间距 8px；长值、代码和路径在值列内自然换行。属性行不提供 hover，也不绘制行间分割线，页面不得覆盖共享列宽。
+    设置、仓库正文、搜索结果、智能体、语法和 Problems 采用统一工具界面层，共享页面壳、滚动容器、分区分隔线、筛选栏和基础结果行。CodeMirror 只用于真实文本编辑，不模拟这些结构化界面。ToolPanel 统一表达 16px 页面标题和 13px/22px 局部密度；ToolPanelBody 按 form、table、results、detail 四种内容类型分别限制为 880px、可用宽度、920px和详情栏可用宽度。
+    ToolSectionStack/ToolSection 统一表达弱化小标题、操作区和相邻细线，不提供通用解释性说明 API；ToolToolbar 负责紧凑筛选栏；ToolDivider 服务摘要栏、输入区和操作栏等固定边界。普通列表行之间不画线。
+    ToolPropertyList/ToolPropertyRow 统一呈现工具页面中的静态“属性名—属性值”：使用语义化定义列表，属性名左对齐且不附加冒号；属性名列固定为 88px，属性值列占据剩余空间，可选操作列按内容宽度排列。属性行最小高度 22px、左右内边距 4px、列间距 8px；长值、代码和路径在值列内自然换行。属性行不提供 hover，也不绘制行间分割线，页面不得覆盖共享列宽。
     ToolListRow 必须显式选择 single-line 或 wrap：前者固定 22px 并截断，供窗口化 Problems 使用；后者最小 22px 并自然换行，供搜索结果和静态信息使用。静态行不得渲染伪按钮。Activity 样式只保留匹配列、严重度、diff、危险状态和窗口化定位等领域表达。
     智能体对话使用平铺转录，不使用用户气泡、右对齐或角色背景；角色标题弱化，消息和 Proposal 正文遵守同一 13px/4px 节奏，diff 只保留等宽字体和增删颜色差异。
-    CollapsibleContextGroup 是独立受控能力，expanded/onExpandedChange 由调用方提供；会话状态只保存在内存中，切换 Activity 后保留、刷新后恢复默认。
+    DetailPanel 是全部右侧详情栏壳与折叠按钮的唯一所有者，ToolDetailPanel 只在其上增加工具正文密度。笔记、日记、代办、语法、智能体、搜索、仓库和设置都通过 ActivitySlots.detail 组合该结构，并由 AppFrame 的同一 onCollapseDetail 控制折叠；Activity 不得实现私有折叠按钮或第二套详情壳。
 
 
 ## 7. 桌面验收边界
