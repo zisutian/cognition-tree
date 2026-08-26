@@ -109,6 +109,79 @@ describe("local-first versioned repository", () => {
     });
   });
 
+  it("keeps a draft created while a remote commit is in flight pending on the committed revision", async () => {
+    const cache = createMemoryVersionedRepositoryCache<
+      Content,
+      Revision,
+      LocalRevision
+    >();
+    let localIndex = 0;
+    let finishCommit!: (result: { revision: Revision }) => void;
+    let markCommitStarted!: () => void;
+    const commitStarted = new Promise<void>((resolve) => {
+      markCommitStarted = resolve;
+    });
+    const repository = createLocalFirstVersionedRepository({
+      backend: {
+        commitRemoteSnapshot: vi.fn(async () => {
+          markCommitStarted();
+          return await new Promise<{ revision: Revision }>((resolve) => {
+            finishCommit = resolve;
+          });
+        }),
+        loadRemoteSnapshot: async () => ({
+          content: { records: [] },
+          revision: "revision:1" as const,
+        }),
+      },
+      cache,
+      createLocalRevision: () => `local:${localIndex += 1}`,
+      label: "generic",
+      loadPolicy: { mode: "cache-first" },
+      location: { kind: "memory" },
+      repositoryIdentity: "generic:in-flight-draft",
+      preparation: { prepare: parseContent },
+    });
+    const initial = await repository.loadSnapshot();
+    const submitted = { records: [{ done: false, text: "submitted" }] };
+
+    await repository.stageSnapshot({
+      content: submitted,
+      expectedLocalRevision: initial.localRevision,
+      projection: parseContent(submitted),
+    });
+    const submitting = repository.synchronizePendingSnapshot();
+
+    await commitStarted;
+    const duringRequest = await repository.loadSnapshot();
+    const continued = {
+      records: [
+        { done: false, text: "submitted" },
+        { done: false, text: "continued while syncing" },
+      ],
+    };
+
+    await repository.stageSnapshot({
+      content: continued,
+      expectedLocalRevision: duringRequest.localRevision,
+      projection: parseContent(continued),
+    });
+    finishCommit({ revision: "revision:2" });
+
+    await expect(submitting).resolves.toMatchObject({
+      pendingChanges: true,
+      remoteRevision: "revision:2",
+      status: "synced",
+    });
+    await expect(repository.loadSnapshot()).resolves.toMatchObject({
+      content: continued,
+      pendingChanges: true,
+      remoteRevision: "revision:2",
+    });
+    await expect(cache.loadSyncContext("generic:in-flight-draft")).resolves
+      .toMatchObject({ baseContent: submitted, conflict: null });
+  });
+
   it("preserves cached local content across offline reload and projects CAS conflict", async () => {
     const cache = createMemoryVersionedRepositoryCache<
       Content,
