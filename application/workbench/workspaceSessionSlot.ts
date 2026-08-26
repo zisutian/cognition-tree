@@ -22,6 +22,7 @@ export type WorkspaceSessionSlot = {
   getSnapshot(): WorkbenchWorkspaceSession;
   reconcile(descriptor: WorkspaceRepositoryDescriptor | null): void;
   start(): void;
+  synchronizeReady(): Promise<void>;
 };
 
 export function createWorkspaceSessionSlot({
@@ -106,6 +107,11 @@ export function createWorkspaceSessionSlot({
       if (disposed || started) return;
       started = true;
       controller?.start();
+    },
+    async synchronizeReady() {
+      if (state?.status === "ready") {
+        await controller!.synchronizePendingChanges();
+      }
     },
   };
 }

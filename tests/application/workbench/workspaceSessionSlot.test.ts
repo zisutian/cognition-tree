@@ -81,6 +81,13 @@ describe("workspace session slot", () => {
     expect(slot.getSnapshot().status).toBe("loading");
     slot.start();
     await vi.waitFor(() => expect(slot.getSnapshot().status).toBe("ready"));
+    const synchronizePendingChanges = vi.spyOn(
+      first!,
+      "synchronizePendingChanges",
+    );
+
+    await slot.synchronizeReady();
+    expect(synchronizePendingChanges).toHaveBeenCalledOnce();
 
     slot.reconcile({ ...descriptorA, label: "Renamed" });
     expect(slot.getController()).toBe(first);

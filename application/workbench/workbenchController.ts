@@ -589,7 +589,7 @@ export function createWorkbenchController({
     retryBuiltIn: builtInCatalogController.retry,
     retryWorkspaceNoteDestination: navigationController.retry,
     async selectRepository(repositoryId) {
-      await workspaceSlot.flushReady();
+      await workspaceSlot.synchronizeReady();
       await repositoryCatalogController.selectRepository(repositoryId);
     },
     start() {
