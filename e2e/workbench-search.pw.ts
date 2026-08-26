@@ -99,10 +99,29 @@ test.describe("search activity flows", () => {
     await expect(groups.filter({ hasText: "代办" })).toBeVisible();
 
     const workspaceGroup = groups.filter({ hasText: "检索目标仓库" });
-    const resultBody = page.locator(".search-panel-body");
-    const targetHit = workspaceGroup.locator(".search-result-hit").filter({
-      hasText: "Workspace 19",
+    const resultBody = page.locator(".ui-tool-panel-body-results");
+    const targetHit = workspaceGroup
+      .locator(".ui-tool-list-row-target")
+      .filter({ hasText: "Workspace 19" });
+
+    const targetHitMetrics = await targetHit.evaluate((element) => {
+      const main = element.querySelector(".ui-tool-list-row-main");
+      const style = getComputedStyle(element);
+
+      if (!main) throw new Error("Search result row content is missing");
+
+      return {
+        fontSize: style.fontSize,
+        height: Number.parseFloat(style.height),
+        minHeight: style.minHeight,
+        whiteSpace: getComputedStyle(main).whiteSpace,
+      };
     });
+
+    expect(targetHitMetrics.fontSize).toBe("13px");
+    expect(targetHitMetrics.height).toBeGreaterThanOrEqual(22);
+    expect(targetHitMetrics.minHeight).toBe("22px");
+    expect(targetHitMetrics.whiteSpace).toBe("pre-wrap");
 
     await resultBody.evaluate((element) => {
       element.scrollTop = element.scrollHeight;

@@ -99,6 +99,7 @@ describe("UI design contract", () => {
       .toEqual([]);
     expect(globalStyleEntry).not.toContain("./activities/");
     expect(globalStyleEntry).toContain("./frame/problems.css");
+    expect(globalStyleEntry).toContain("./shared/toolSurface.css");
   });
 
   it("enforces the declared source-level UI policies", () => {
@@ -134,6 +135,39 @@ describe("UI design contract", () => {
       ]),
     );
     expect(missingToneSelectors).toEqual([]);
+  });
+
+  it("keeps tool typography, widths, sections, and rows in one shared owner", () => {
+    const toolSurface = readStyle("ui/styles/shared/toolSurface.css");
+    const management = readStyle("ui/styles/shared/management.css");
+
+    expectFragments(toolSurface, {
+      required: [
+        ".ui-tool-panel",
+        "--ui-gap: var(--ui-gap-tight)",
+        "--ui-control-height: var(--ui-row-height)",
+        "--ui-control-font-size: var(--ui-body-font-size)",
+        "--ui-micro-font-size: var(--ui-body-font-size)",
+        "--ui-code-font-size: var(--ui-body-font-size)",
+        ".ui-tool-panel-body-form > .ui-tool-panel-content",
+        "width: min(100%, 880px)",
+        ".ui-tool-panel-body-results > .ui-tool-panel-content",
+        "width: min(100%, 920px)",
+        ".ui-tool-section + .ui-tool-section",
+        "border-top: var(--ui-border-width) solid var(--color-border)",
+        ".ui-tool-divider",
+        ".ui-tool-list-row-single-line",
+        ".ui-tool-list-row-wrap",
+        "height: var(--ui-row-height)",
+      ],
+    });
+    expectFragments(management, {
+      required: [
+        ".ui-subsection-tab.is-active",
+        "background: var(--color-selected)",
+        "min-height: var(--ui-control-height)",
+      ],
+    });
   });
 
   it("keeps editor color semantics and state precedence explicit", () => {

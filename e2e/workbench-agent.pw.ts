@@ -87,7 +87,7 @@ test.describe("Agent activity flows", () => {
     await conversation.getByRole("button", { name: "发送", exact: true })
       .click();
     const assistantMessage = conversation.locator(
-      ".agent-message.is-assistant p",
+      '[data-message-role="assistant"] p',
     );
 
     await expect(assistantMessage).toHaveText(e2eAgentFirstDelta);

@@ -159,6 +159,40 @@ test.describe("settings activity flows", () => {
       .toHaveAttribute("aria-selected", "true");
     await expect(panel.getByRole("combobox", { name: "Profile Provider" }))
       .toHaveCount(0);
+    expect(await panel.evaluate((element) => {
+      const title = element.querySelector(".ui-panel-header h2");
+      const sectionTitle = element.querySelector(".ui-tool-section-heading h3");
+      const control = element.querySelector(".ui-input");
+      const button = element.querySelector(".ui-button");
+      const tab = element.querySelector(".ui-subsection-tab");
+
+      if (!title || !sectionTitle || !control || !button || !tab) {
+        throw new Error("Agent settings tool surface is incomplete");
+      }
+
+      return {
+        button: {
+          fontSize: getComputedStyle(button).fontSize,
+          height: getComputedStyle(button).height,
+        },
+        control: {
+          fontSize: getComputedStyle(control).fontSize,
+          height: getComputedStyle(control).height,
+        },
+        sectionTitleFontSize: getComputedStyle(sectionTitle).fontSize,
+        tab: {
+          fontSize: getComputedStyle(tab).fontSize,
+          height: getComputedStyle(tab).height,
+        },
+        titleFontSize: getComputedStyle(title).fontSize,
+      };
+    })).toEqual({
+      button: { fontSize: "13px", height: "22px" },
+      control: { fontSize: "13px", height: "22px" },
+      sectionTitleFontSize: "13px",
+      tab: { fontSize: "13px", height: "22px" },
+      titleFontSize: "16px",
+    });
     await panel.getByRole("tab", { name: "Provider" }).click();
     await expect(panel).toContainText("E2E provider");
     await expect(panel).toContainText("认证已配置");

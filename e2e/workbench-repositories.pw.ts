@@ -74,15 +74,12 @@ test.describe("repository and capacity flows", () => {
     );
     await expect(page.getByRole("heading", { name: "第二仓库" }))
       .toBeVisible();
-    const statusRows = page.locator(".repository-summary-list > div");
+    const statusList = page.getByRole("list", { name: "仓库状态" });
+    const statusRows = statusList.getByRole("listitem");
 
     await expect(statusRows).toHaveCount(2);
-    await expect(page.locator(".repository-summary-list dt", {
-      hasText: "名称",
-    })).toHaveCount(0);
-    await expect(page.locator(".repository-summary-list dt", {
-      hasText: "类型",
-    })).toHaveCount(0);
+    await expect(statusList.getByText("名称", { exact: true })).toHaveCount(0);
+    await expect(statusList.getByText("类型", { exact: true })).toHaveCount(0);
     await getActivityButton(page, "笔记").click();
     await expect(page.getByLabel("笔记编辑")).toBeVisible();
     await expect(page.locator(".app-context").getByTitle("未命名笔记"))
@@ -423,7 +420,7 @@ test.describe("repository and capacity flows", () => {
     await page.keyboard.type(" conflict-local-first");
     await getActivityButton(page, "仓库").click();
     await expect(
-      page.locator(".repository-summary-list").getByText(
+      page.getByRole("list", { name: "仓库状态" }).getByText(
         "仓库内容已更改",
         { exact: true },
       ),
@@ -435,15 +432,13 @@ test.describe("repository and capacity flows", () => {
     await page.keyboard.type(" conflict-local-latest");
     await getActivityButton(page, "仓库").click();
     await expect(
-      page.locator(".repository-summary-list").getByText(
+      page.getByRole("list", { name: "仓库状态" }).getByText(
         "仓库内容已更改",
         { exact: true },
       ),
     ).toBeVisible();
 
-    const conflictSection = page.locator(".repository-section").filter({
-      has: page.getByText("同步冲突", { exact: true }),
-    });
+    const conflictSection = page.getByRole("region", { name: "同步冲突" });
 
     await expect(conflictSection).toBeVisible();
     await expect(
@@ -561,9 +556,9 @@ test.describe("repository and capacity flows", () => {
       if (await problemsHeader.getAttribute("aria-expanded") === "false") {
         await problemsHeader.click();
       }
-      const repositoryProblem = problems.locator(".problems-row").filter({
-        hasText: "仓库格式不受支持，需要手工删除该目录。",
-      });
+      const repositoryProblem = problems
+        .locator(".ui-tool-list-row-target")
+        .filter({ hasText: "仓库格式不受支持，需要手工删除该目录。" });
       const issueRow = page.locator(
         `[data-repository-issue-id="${unsupportedRepositoryId}"]`,
       );

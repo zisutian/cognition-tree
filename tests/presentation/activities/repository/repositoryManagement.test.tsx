@@ -153,6 +153,8 @@ describe("repository setup and management semantics", () => {
     expectMarkupSemantics(markup, {
       has: [
         'aria-current="page"', "本地笔记", "第二仓库",
+        "ui-tool-panel", 'data-tool-layout="form"',
+        'aria-label="仓库状态"', "ui-tool-list-row-wrap",
         "仓库 ID", secondaryRepository.id,
         'aria-label="重命名仓库 第二仓库"',
         'aria-label="打开仓库 第二仓库"',

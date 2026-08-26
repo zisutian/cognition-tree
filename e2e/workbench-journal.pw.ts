@@ -214,9 +214,9 @@ test.describe("Journal activity flows", () => {
     await page.keyboard.insertText("\t: [[Missing Journal]]");
 
     const problems = page.locator(".problems-panel");
-    const unresolvedProblem = problems.locator(".problems-row").filter({
-      hasText: "无法解析日记引用“Missing Journal”",
-    });
+    const unresolvedProblem = problems
+      .locator(".ui-tool-list-row-target")
+      .filter({ hasText: "无法解析日记引用“Missing Journal”" });
 
     await waitUntilNextClockSecond(page, diagnosticEntry.createdAt);
     await context.getByRole("button", { name: "新建日记" }).click();

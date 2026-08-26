@@ -430,6 +430,8 @@ describe("activity slots", () => {
     expect(contextMarkup).toContain('aria-label="Agent 会话"');
     expect(contextMarkup).not.toContain('aria-label="领域"');
     expect(mainMarkup).toContain('aria-label="新建 Agent 会话"');
+    expect(mainMarkup).toContain("ui-tool-panel");
+    expect(mainMarkup).toContain('data-tool-layout="form"');
     expect(mainMarkup).not.toContain('aria-label="新建会话"');
     expect(mainMarkup).toContain(">领域<");
     expect(mainMarkup).toContain(">硬范围<");
@@ -469,7 +471,17 @@ describe("activity slots", () => {
       createdAt: "2026-08-25T00:00:00.000Z",
       id: "00000000-0000-4000-8000-000000000100",
       lastActiveAt: "2026-08-25T00:00:00.000Z",
-      messages: [],
+      messages: [{
+        content: "请更新正文",
+        createdAt: "2026-08-25T00:00:01.000Z",
+        id: "00000000-0000-4000-8000-000000000104",
+        role: "user" as const,
+      }, {
+        content: "已生成 Proposal",
+        createdAt: "2026-08-25T00:00:02.000Z",
+        id: "00000000-0000-4000-8000-000000000105",
+        role: "assistant" as const,
+      }],
       problem: null,
       profileDigest: `sha256:${"3".repeat(64)}` as const,
       profileId: "profile-a",
@@ -548,6 +560,13 @@ describe("activity slots", () => {
       onCollapseDetail: controls.onCollapseDetail,
       onSelectSession: () => undefined,
     }).detail);
+    const conversationMarkup = renderSlot(createAgentActivitySlots({
+      agent,
+      creatingSession: false,
+      onBeginCreateSession: () => undefined,
+      onCollapseDetail: controls.onCollapseDetail,
+      onSelectSession: () => undefined,
+    }).main);
 
     expect(markup).toContain("测试仓库");
     expect(markup).toContain('aria-label="Proposal 摘要"');
@@ -560,6 +579,10 @@ describe("activity slots", () => {
     expect(markup).not.toContain(baseRevision);
     expect(markup).not.toContain(digest);
     expect(markup).not.toContain(resourceId);
+    expect(conversationMarkup).toContain('data-message-role="user"');
+    expect(conversationMarkup).toContain('data-message-role="assistant"');
+    expect(conversationMarkup).toContain("ui-tool-divider");
+    expect(markup).toContain("ui-tool-section-stack");
 
     const destructiveSession = {
       ...session,

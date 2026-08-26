@@ -20,9 +20,11 @@ describe("Todo panels", () => {
       has: [
         'aria-current="page"', 'aria-label="新建事项集合"',
         'aria-label="重命名事项集合 今天"',
-        'aria-label="删除事项集合 今天"', ">删<", 'draggable="true"', "事项集合",
+        'aria-label="删除事项集合 今天"', ">删<", 'draggable="true"',
+        'aria-label="事项集合"',
       ],
       lacks: [
+        'id="todo-collections-heading"', ">事项集合</span>",
         'aria-label="调整事项集合顺序 今天"', ">1/2<",
         'aria-label="重命名事项集合 稍后"',
         'aria-label="删除事项集合 稍后"', 'role="alertdialog"',

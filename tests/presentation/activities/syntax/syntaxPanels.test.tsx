@@ -48,7 +48,8 @@ describe("syntax panels", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        'aria-label="新建笔记库语法"', "系统语法", "笔记库语法",
+        'aria-label="新建笔记库语法"', 'aria-label="系统语法"',
+        'aria-label="笔记库语法"',
         'aria-current="page"', 'aria-label="已启用语法"',
         "主要语法", "备用语法", "错误",
         /aria-label="新建笔记库语法"[^>]*disabled=""/,
@@ -56,7 +57,10 @@ describe("syntax panels", () => {
         /data-syntax-owner="(?:journal|todo)"[^>]*disabled=""/,
         /aria-label="删除语法 主要语法"[^>]*disabled=""/,
       ],
-      lacks: ['aria-label="删除语法 备用语法"'],
+      lacks: [
+        'aria-label="删除语法 备用语法"', ">系统语法</span>",
+        ">笔记库语法</span>",
+      ],
     });
   });
 
@@ -67,7 +71,8 @@ describe("syntax panels", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        'type="number"', 'max="16"', "缩进宽度",
+        "ui-tool-panel", 'data-tool-layout="table"', 'type="number"',
+        'max="16"', "缩进宽度",
         "块规则", "行内规则", "新增块规则",
         'aria-label="全局概念引用颜色: 灰色"',
       ],

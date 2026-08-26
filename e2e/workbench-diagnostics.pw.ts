@@ -42,16 +42,26 @@ test.describe("workbench diagnostics", () => {
     const problemsHeader = problems.locator(".problems-panel-header");
 
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
+    expect(await problemsHeader.evaluate((element) => {
+      const style = getComputedStyle(element);
+
+      return { fontSize: style.fontSize, height: style.height };
+    })).toEqual({ fontSize: "13px", height: "22px" });
     await expect(problems.locator(".problems-panel-status")).toHaveCount(0);
     await expect(problems.locator(".problems-panel-error-count")).toContainText("0");
     await expect(problems.locator(".problems-panel-warning-count")).toContainText("2");
     await problemsHeader.click();
 
-    const rows = problems.locator(".problems-row");
+    const rows = problems.locator(".ui-tool-list-row-target");
     const documentProblem = rows.filter({ hasText: "未知行首符号 !" });
     const referenceProblem = rows.filter({ hasText: "无法解析全局引用“Missing”" });
 
     await expect(rows).toHaveCount(2);
+    expect(await rows.first().evaluate((element) => {
+      const style = getComputedStyle(element);
+
+      return { fontSize: style.fontSize, height: style.height };
+    })).toEqual({ fontSize: "13px", height: "22px" });
     await documentProblem.click();
     await expect(
       page.getByLabel("笔记编辑").getByRole("heading", {
@@ -222,7 +232,7 @@ test.describe("workbench diagnostics", () => {
     await syntaxName.press("Enter");
 
     const persistenceProblem = page
-      .locator(".problems-row-frame")
+      .locator(".ui-tool-list-row-frame")
       .filter({ hasText: "syntax persistence failed" });
     const problemsHeader = page.locator(".problems-panel-header");
 

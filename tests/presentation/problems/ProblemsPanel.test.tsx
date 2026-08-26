@@ -112,6 +112,7 @@ describe("ProblemsPanel", () => {
     );
 
     expect(markup).toContain('aria-label="问题列表"');
+    expect(markup).toContain("ui-tool-list-row-single-line");
     expect(markup).toContain("笔记 · 示例 · L2:C2");
     expect(markup).not.toContain("问题来源");
   });
@@ -161,6 +162,7 @@ describe("ProblemsPanel", () => {
     expect(markup).toContain("按来源筛选问题");
     expect(markup).toContain("按严重度筛选问题");
     expect(markup).toContain("按可重试性筛选问题");
+    expect(markup).toContain("ui-tool-toolbar");
   });
 
   it("labels Journal diagnostics without treating them as workspace references", () => {

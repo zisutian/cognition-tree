@@ -711,6 +711,7 @@ export const uiConstraintCatalog = {
     "ui/styles/frame/frame.css",
     "ui/styles/frame/problems.css",
     "ui/styles/shared/primitives.css",
+    "ui/styles/shared/toolSurface.css",
     "ui/styles/shared/forms.css",
     "ui/styles/shared/management.css",
     "ui/styles/shared/tree.css",

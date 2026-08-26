@@ -152,8 +152,8 @@ test.describe("syntax activity flows", () => {
     await expect(page.getByRole("heading", {
       exact: true,
       name: "系统语法",
-    })).toBeVisible();
-    await expect(page.getByText("笔记库语法", { exact: true })).toBeVisible();
+    })).toHaveCount(0);
+    await expect(page.getByText("笔记库语法", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "删除块规则" }))
       .toHaveCount(5);
     await expect(page.getByRole("button", { name: "删除行内规则" }))

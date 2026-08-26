@@ -312,7 +312,8 @@ describe("settings activity", () => {
     });
     expectMarkupSemantics(panelMarkup, {
       has: [
-        'aria-label="设置"', "界面", 'id="settings-context-width"',
+        'aria-label="设置"', 'data-tool-layout="form"', "界面",
+        'id="settings-context-width"',
         `value="${appContextDefaultWidth}"`, "左侧栏宽度",
       ],
       lacks: ["当前仓库", "添加仓库", "危险区"],
@@ -399,5 +400,17 @@ describe("settings activity", () => {
       ],
       lacks: ["CTN_", "owner token"],
     });
+    for (const markup of [
+      panelMarkup,
+      apiMarkup,
+      agentMarkup,
+      agentProviderMarkup,
+      agentProfileMarkup,
+      serviceMarkup,
+      auditMarkup,
+    ]) {
+      expect(markup).toContain("ui-tool-panel");
+      expect(markup).toContain('data-tool-layout="form"');
+    }
   });
 });
