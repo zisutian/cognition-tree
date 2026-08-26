@@ -70,6 +70,7 @@ export function createAgentRuntimeProfile(
       maxResidentSessions: profile.maxResidentSessions,
       maxToolSteps: profile.parameters.maxToolSteps,
       model: profile.model,
+      reasoningEffort: profile.parameters.reasoningEffort,
       timeoutMilliseconds: profile.timeoutMilliseconds,
       toolCallMode: profile.parameters.toolCallMode,
     };
@@ -90,6 +91,7 @@ export function createAgentRuntimeProfile(
     maxResidentSessions: profile.maxResidentSessions,
     maxToolSteps: profile.parameters.maxToolSteps,
     model: profile.model,
+    reasoningEffort: profile.parameters.reasoningEffort,
     timeoutMilliseconds: profile.timeoutMilliseconds,
     toolCallMode: "native",
   };

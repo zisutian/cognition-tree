@@ -8,12 +8,14 @@ import type {
   AgentProfileInput,
   AgentProfileParameters,
   AgentProfileView,
+  AgentChatReasoningEffort,
   AgentProviderKind,
   AgentProviderInput,
   AgentProviderView,
   AgentToolCallMode,
 } from "../../../application/agent/agentConfiguration.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
+import { agentConformanceContractVersion } from "../../../contracts/agent/conformance.ts";
 import { agentToolContractVersion } from "../../../contracts/agent/tools.ts";
 import {
   assertStateFields,
@@ -23,7 +25,7 @@ import {
 import { createStateDigest } from "../state/stateDigest.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 
-const formatVersion = 3;
+const formatVersion = 4;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const requiresFormatRewrite = Symbol("requiresAgentConfigurationFormatRewrite");
 
@@ -205,6 +207,7 @@ function parseParameters(
   value: unknown,
   pathLabel: string,
   legacyChatBudget: boolean,
+  legacyChatReasoning: boolean,
 ): AgentProfileParameters {
   const record = requireStateRecord(value, pathLabel);
 
@@ -244,12 +247,21 @@ function parseParameters(
         "kind",
         "maxOutputTokens",
         "maxToolSteps",
+        ...(legacyChatReasoning ? [] : ["reasoningEffort"]),
         "toolCallMode",
       ],
       pathLabel,
     );
     if (record.toolCallMode !== "native" && record.toolCallMode !== "single-json") {
       throw new Error(`${pathLabel}.toolCallMode is invalid.`);
+    }
+    const reasoningEffort = legacyChatReasoning
+      ? "model-default"
+      : record.reasoningEffort;
+    if (!(["model-default", "none", "low", "medium", "high"] as const).includes(
+      reasoningEffort as AgentChatReasoningEffort,
+    )) {
+      throw new Error(`${pathLabel}.reasoningEffort is invalid.`);
     }
     const storedBudget = positiveInteger(
       legacyChatBudget
@@ -276,6 +288,7 @@ function parseParameters(
         `${pathLabel}.maxOutputTokens`,
       ),
       maxToolSteps: positiveInteger(record.maxToolSteps, `${pathLabel}.maxToolSteps`),
+      reasoningEffort: reasoningEffort as AgentChatReasoningEffort,
       toolCallMode: record.toolCallMode,
     };
   }
@@ -310,6 +323,7 @@ function parseProfile(
   value: unknown,
   index: number,
   legacyChatBudget: boolean,
+  legacyChatReasoning: boolean,
 ): StoredProfile {
   const pathLabel = `profiles[${index}]`;
   const record = requireStateRecord(value, pathLabel);
@@ -322,13 +336,16 @@ function parseProfile(
     record.parameters,
     `${pathLabel}.parameters`,
     legacyChatBudget,
+    legacyChatReasoning,
   );
   const conformance = parseConformance(
     record.conformance,
     `${pathLabel}.conformance`,
   );
   const version = positiveInteger(record.version, `${pathLabel}.version`);
-  const migratedVersion = legacyChatBudget && parameters.kind === "chat"
+  const migratedChat = parameters.kind === "chat" &&
+    (legacyChatBudget || legacyChatReasoning);
+  const migratedVersion = migratedChat
     ? version + 1
     : version;
 
@@ -336,7 +353,7 @@ function parseProfile(
     throw new Error(`${pathLabel}.version is outside the safe integer range.`);
   }
   return {
-    conformance: legacyChatBudget && parameters.kind === "chat"
+    conformance: migratedChat
       ? null
       : conformance,
     id: nonEmptyString(record.id, `${pathLabel}.id`),
@@ -389,15 +406,16 @@ function parseConfigurationState(value: unknown): AgentConfigurationState {
   const legacyWithoutPrivatePermission = record.formatVersion === 1;
   const legacyChatBudget = record.formatVersion === 1 ||
     record.formatVersion === 2;
+  const legacyChatReasoning = legacyChatBudget || record.formatVersion === 3;
 
-  if ((!legacyChatBudget && record.formatVersion !== formatVersion) ||
+  if ((!legacyChatReasoning && record.formatVersion !== formatVersion) ||
       !Array.isArray(record.profiles) || !Array.isArray(record.providers)) {
     throw new Error("Agent configuration state has an invalid format.");
   }
   const state: AgentConfigurationState = {
     formatVersion,
     profiles: record.profiles.map((profile, index) =>
-      parseProfile(profile, index, legacyChatBudget)
+      parseProfile(profile, index, legacyChatBudget, legacyChatReasoning)
     ),
     providers: record.providers.map((provider, index) =>
       parseProvider(provider, index, legacyWithoutPrivatePermission)
@@ -432,7 +450,11 @@ function providerDigest(provider: StoredProvider) {
 function profileDigest(profile: StoredProfile) {
   const { conformance: _conformance, ...configuration } = profile;
 
-  return digest({ agentToolContractVersion, configuration });
+  return digest({
+    agentConformanceContractVersion,
+    agentToolContractVersion,
+    configuration,
+  });
 }
 
 function providerView(provider: StoredProvider): AgentProviderView {
@@ -575,6 +597,7 @@ function normalizeProfileInput(
   const parameters = parseParameters(
     input.parameters,
     "Profile parameters",
+    false,
     false,
   );
 

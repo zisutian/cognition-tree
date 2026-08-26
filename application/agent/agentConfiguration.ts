@@ -2,6 +2,12 @@
 
 export type AgentProviderKind = "codex" | "ollama" | "openai-chat";
 export type AgentToolCallMode = "native" | "single-json";
+export type AgentChatReasoningEffort =
+  | "high"
+  | "low"
+  | "medium"
+  | "model-default"
+  | "none";
 
 export type AgentProviderView = Readonly<{
   authenticationStatus: "configured" | "missing" | "not-required";
@@ -26,6 +32,7 @@ export type AgentChatProfileParameters = Readonly<{
   kind: "chat";
   maxOutputTokens: number;
   maxToolSteps: number;
+  reasoningEffort: AgentChatReasoningEffort;
   toolCallMode: AgentToolCallMode;
 }>;
 

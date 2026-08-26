@@ -322,6 +322,10 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
             messages,
             model: this.#profile.model,
             parallel_tool_calls: false,
+            ...(this.#profile.kind === "ollama" &&
+              this.#profile.reasoningEffort !== "model-default"
+              ? { reasoning_effort: this.#profile.reasoningEffort }
+              : {}),
             stream: true,
             tools: request.tools.map((tool) => ({
               function: {

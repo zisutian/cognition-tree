@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import type {
   AgentApplication,
+  AgentChatReasoningEffort,
   AgentConfigurationState,
   AgentProfileInput,
   AgentProviderInput,
@@ -47,6 +48,7 @@ type ProviderDraft = {
 };
 
 type ProfileDraft = {
+  chatReasoningEffort: AgentChatReasoningEffort;
   historyBudgetCharacters: number;
   label: string;
   maxInputCharacters: number;
@@ -71,6 +73,7 @@ const emptyProvider = (): ProviderDraft => ({
 });
 
 const emptyProfile = (): ProfileDraft => ({
+  chatReasoningEffort: "model-default",
   historyBudgetCharacters: 131_072,
   label: "",
   maxInputCharacters: 100_000,
@@ -120,6 +123,7 @@ function profileInput(
           kind: "chat",
           maxOutputTokens: draft.maxOutputTokens,
           maxToolSteps: draft.maxToolSteps,
+          reasoningEffort: draft.chatReasoningEffort,
           toolCallMode: draft.toolCallMode,
         },
     providerId: draft.providerId,
@@ -326,6 +330,7 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                       <Button disabled={busy} onClick={() => {
                         setEditingProfileId(profile.id);
                         setProfileDraft({
+                          chatReasoningEffort: profile.parameters.kind === "chat" ? profile.parameters.reasoningEffort : "model-default",
                           historyBudgetCharacters: profile.parameters.kind === "chat" ? profile.parameters.historyBudgetCharacters : 131_072,
                           label: profile.label,
                           maxInputCharacters: profile.parameters.kind === "codex" ? profile.parameters.maxInputCharacters : 100_000,
@@ -378,6 +383,7 @@ function CodexProfileFields({ draft, setDraft }: { draft: ProfileDraft; setDraft
 function ChatProfileFields({ draft, providerKind, setDraft }: { draft: ProfileDraft; providerKind: AgentProviderKind; setDraft(value: ProfileDraft): void }) {
   return <>
     <label><span>工具模式</span><select aria-label="Profile 工具模式" className="ui-input" onChange={(event) => setDraft({ ...draft, toolCallMode: event.currentTarget.value as AgentToolCallMode })} value={draft.toolCallMode}><option value="native">native</option>{providerKind === "ollama" ? <option value="single-json">single-json</option> : null}</select></label>
+    {providerKind === "ollama" ? <label><span>推理强度</span><select aria-label="Profile Chat 推理强度" className="ui-input" onChange={(event) => setDraft({ ...draft, chatReasoningEffort: event.currentTarget.value as AgentChatReasoningEffort })} value={draft.chatReasoningEffort}><option value="model-default">模型默认</option><option value="none">关闭</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select></label> : null}
     <label><span>会话历史预算（字符）</span><input aria-label="Profile 会话历史预算（字符）" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, historyBudgetCharacters: event.currentTarget.valueAsNumber })} type="number" value={draft.historyBudgetCharacters} /></label>
     <p className="settings-muted">仅控制 Cognition Tree 何时压缩内存对话；不会修改 Ollama num_ctx，也不代表模型的真实 token 上限。</p>
     <label><span>输出 tokens</span><input aria-label="Profile 输出 Tokens" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxOutputTokens: event.currentTarget.valueAsNumber })} type="number" value={draft.maxOutputTokens} /></label>

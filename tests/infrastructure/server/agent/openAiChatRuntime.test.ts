@@ -48,6 +48,7 @@ function profile(baseUrl: string): OpenAiChatAgentProfile {
     maxResidentSessions: 1,
     maxToolSteps: 2,
     model: "test-model",
+    reasoningEffort: "model-default",
     timeoutMilliseconds: 5_000,
     toolCallMode: "native",
   };
@@ -391,6 +392,7 @@ describe("OpenAI-compatible Agent runtime", () => {
         parallel_tool_calls: false,
         stream: true,
       });
+      expect(requests[0]).not.toHaveProperty("reasoning_effort");
       expect(requests[0]?.messages).toEqual([
         {
           content: expect.stringContaining("shared instructions"),

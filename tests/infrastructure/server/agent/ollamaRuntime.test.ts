@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { once } from "node:events";
-import { createServer, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from "node:http";
 import { describe, expect, it, vi } from "vitest";
 import { Type } from "@sinclair/typebox";
 import { OllamaRuntime } from "../../../../infrastructure/server/agent/ollamaRuntime.ts";
@@ -14,6 +18,13 @@ function writeSse(response: ServerResponse, content: string) {
     choices: [{ delta: {}, finish_reason: "stop" }],
   })}\n\n`);
   response.end("data: [DONE]\n\n");
+}
+
+async function readJson(request: IncomingMessage) {
+  let source = "";
+
+  for await (const chunk of request) source += chunk.toString();
+  return JSON.parse(source) as Record<string, unknown>;
 }
 
 function profile(
@@ -30,6 +41,7 @@ function profile(
     maxResidentSessions: 1,
     maxToolSteps: 2,
     model: "test-model",
+    reasoningEffort: "model-default",
     timeoutMilliseconds: 5_000,
     toolCallMode,
   };
@@ -76,6 +88,45 @@ const tool = {
 } as const;
 
 describe("Ollama Agent runtime", () => {
+  it("sends an explicitly selected reasoning effort", async () => {
+    let requestBody: Record<string, unknown> | null = null;
+    const server = createServer(async (request, response) => {
+      requestBody = await readJson(request);
+      writeSse(response, "验证完成。");
+    });
+
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+
+    if (!address || typeof address === "string") throw new Error("Missing port");
+    const session = await new OllamaRuntime({
+      ...profile(`http://127.0.0.1:${address.port}/v1`),
+      reasoningEffort: "low",
+    }).openSession({
+      instructions: "shared instructions",
+      profileId: "ollama-test",
+      scope: { domain: "journal", entryIds: null },
+      sessionId: "00000000-0000-4000-8000-000000000001",
+    });
+
+    try {
+      await session.runTurn({
+        executeTool: vi.fn(),
+        messages: [{ content: "验证", role: "user" }],
+        onEvent: vi.fn(),
+        scope: { domain: "journal", entryIds: null },
+        signal: new AbortController().signal,
+        tools: [],
+      });
+      expect(requestBody).toMatchObject({ reasoning_effort: "low" });
+    } finally {
+      await session.dispose();
+      server.close();
+      await once(server, "close");
+    }
+  });
+
   it("executes a strict single-json tool envelope without displaying it", async () => {
     const envelope = JSON.stringify({ arguments: { ack: true }, name: tool.name });
 

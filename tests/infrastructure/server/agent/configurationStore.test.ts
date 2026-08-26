@@ -66,7 +66,7 @@ describe("Agent configuration store", () => {
     const fileStats = await stat(file);
 
     expect(source).toContain("provider-secret");
-    expect(JSON.parse(source)).toMatchObject({ formatVersion: 3 });
+    expect(JSON.parse(source)).toMatchObject({ formatVersion: 4 });
     expect(fileStats.mode & 0o777).toBe(0o600);
   });
 
@@ -144,6 +144,7 @@ describe("Agent configuration store", () => {
           kind: "chat",
           maxOutputTokens: 4_096,
           maxToolSteps: 16,
+          reasoningEffort: "model-default",
           toolCallMode: "single-json",
         },
         providerId: providerResult.provider.id,
@@ -206,6 +207,7 @@ describe("Agent configuration store", () => {
         kind: "chat" as const,
         maxOutputTokens: 4_096,
         maxToolSteps: 2,
+        reasoningEffort: "model-default" as const,
         toolCallMode: "single-json" as const,
       },
       providerId: provider.provider.id,
@@ -286,7 +288,7 @@ describe("Agent configuration store", () => {
       privateNetworkAccess: "not-required",
     });
     expect(JSON.parse(await readFile(file, "utf8"))).toMatchObject({
-      formatVersion: 3,
+      formatVersion: 4,
       providers: [{ privateNetworkOrigin: null }],
     });
   });
@@ -313,6 +315,7 @@ describe("Agent configuration store", () => {
           kind: "chat",
           maxOutputTokens: 1_024,
           maxToolSteps: 8,
+          reasoningEffort: "model-default",
           toolCallMode: "single-json",
         },
         providerId: provider.provider.id,
@@ -345,6 +348,7 @@ describe("Agent configuration store", () => {
       profile.parameters.contextWindowTokens =
         Number(profile.parameters.historyBudgetCharacters) / 4;
       delete profile.parameters.historyBudgetCharacters;
+      delete profile.parameters.reasoningEffort;
     }
     await writeFile(file, `${JSON.stringify(legacy)}\n`, { mode: 0o600 });
 
@@ -375,8 +379,69 @@ describe("Agent configuration store", () => {
         version: 2,
       },
     ]);
-    expect(persisted).toMatchObject({ formatVersion: 3 });
+    expect(persisted).toMatchObject({ formatVersion: 4 });
     expect(JSON.stringify(persisted)).not.toContain("contextWindowTokens");
+  });
+
+  it("atomically adds model-default reasoning and invalidates format 3 chat conformance", async () => {
+    const { directory, store } = await createStore();
+    const initial = await store.readSnapshot();
+    const provider = await store.createProvider(initial.revision, {
+      authenticationType: "none",
+      baseUrl: "http://127.0.0.1:11434",
+      kind: "ollama",
+      label: "Existing Ollama",
+      privateNetworkAccessConfirmed: false,
+    });
+    const created = await store.createProfile(provider.configuration.revision, {
+      label: "Existing profile",
+      maxResidentSessions: 1,
+      model: "qwen3.5:9b",
+      parameters: {
+        historyBudgetCharacters: 65_536,
+        kind: "chat",
+        maxOutputTokens: 2_048,
+        maxToolSteps: 8,
+        reasoningEffort: "low",
+        toolCallMode: "single-json",
+      },
+      providerId: provider.provider.id,
+      timeoutMilliseconds: 60_000,
+    });
+    await store.setConformance(created.configuration.revision, created.profile.id, {
+      checkedAt: "2026-08-25T00:00:00.000Z",
+      toolCallMode: "single-json",
+    });
+    const file = path.join(directory, "agent-config-v1", "configuration.json");
+    const legacy = JSON.parse(await readFile(file, "utf8")) as {
+      formatVersion: number;
+      profiles: Array<{
+        conformance: unknown;
+        parameters: Record<string, unknown>;
+        version: number;
+      }>;
+    };
+
+    legacy.formatVersion = 3;
+    delete legacy.profiles[0]!.parameters.reasoningEffort;
+    await writeFile(file, `${JSON.stringify(legacy)}\n`, { mode: 0o600 });
+
+    const migrated = await new AgentConfigurationStore(directory).readSnapshot();
+    const persisted = JSON.parse(await readFile(file, "utf8"));
+
+    expect(migrated.profiles[0]).toMatchObject({
+      availability: "unavailable",
+      conformance: null,
+      parameters: { reasoningEffort: "model-default" },
+      version: legacy.profiles[0]!.version + 1,
+    });
+    expect(persisted).toMatchObject({
+      formatVersion: 4,
+      profiles: [{
+        conformance: null,
+        parameters: { reasoningEffort: "model-default" },
+      }],
+    });
   });
 
   it("fails closed without rewriting an unsafe legacy character-budget migration", async () => {
@@ -398,6 +463,7 @@ describe("Agent configuration store", () => {
         kind: "chat",
         maxOutputTokens: 1_024,
         maxToolSteps: 8,
+        reasoningEffort: "model-default",
         toolCallMode: "single-json",
       },
       providerId: provider.provider.id,
@@ -417,6 +483,7 @@ describe("Agent configuration store", () => {
     legacy.profiles[0]!.parameters.contextWindowTokens =
       Number.MAX_SAFE_INTEGER;
     delete legacy.profiles[0]!.parameters.historyBudgetCharacters;
+    delete legacy.profiles[0]!.parameters.reasoningEffort;
     const source = `${JSON.stringify(legacy)}\n`;
 
     await writeFile(file, source, { mode: 0o600 });

@@ -128,6 +128,7 @@ async function createFixture(behavior: TurnBehavior) {
         kind: "chat",
         maxOutputTokens: 1_024,
         maxToolSteps: 8,
+        reasoningEffort: "model-default",
         toolCallMode: "native",
       },
       providerId: provider.provider.id,

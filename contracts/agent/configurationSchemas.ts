@@ -24,6 +24,13 @@ const toolCallMode = Type.Union([
   Type.Literal("native"),
   Type.Literal("single-json"),
 ]);
+const chatReasoningEffort = Type.Union([
+  Type.Literal("model-default"),
+  Type.Literal("none"),
+  Type.Literal("low"),
+  Type.Literal("medium"),
+  Type.Literal("high"),
+]);
 
 export const AgentProviderViewSchema = strictObject({
   authenticationStatus,
@@ -55,6 +62,7 @@ const AgentChatProfileParametersSchema = strictObject({
   kind: Type.Literal("chat"),
   maxOutputTokens: positiveInteger,
   maxToolSteps: positiveInteger,
+  reasoningEffort: chatReasoningEffort,
   toolCallMode,
 });
 

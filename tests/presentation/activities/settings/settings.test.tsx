@@ -115,6 +115,7 @@ const agent = {
           kind: "chat" as const,
           maxOutputTokens: 2_048,
           maxToolSteps: 8,
+          reasoningEffort: "model-default" as const,
           toolCallMode: "single-json" as const,
         },
         providerId: "ollama-provider",
