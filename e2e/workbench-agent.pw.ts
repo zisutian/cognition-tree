@@ -41,7 +41,7 @@ test.describe("Agent activity flows", () => {
     await context.getByRole("button", { name: "新建会话" }).click();
     let createPanel = page.getByRole("region", { name: "新建 Agent 会话" });
 
-    await expect(createPanel).toContainText("请先在设置中选择");
+    await expect(createPanel).toContainText("需要在设置中完成配置");
     await expect(createPanel.getByRole("button", { name: "创建会话" }))
       .toBeDisabled();
     await getActivityButton(page, "设置").click();
@@ -56,7 +56,7 @@ test.describe("Agent activity flows", () => {
     createPanel = page.getByRole("region", { name: "新建 Agent 会话" });
 
     await expect(context.getByLabel("领域")).toHaveCount(0);
-    await expect(createPanel).toContainText("默认 Profile：E2E Agent");
+    await expect(createPanel).toContainText("E2E Agent");
     await createPanel.getByLabel("领域").selectOption("journal");
     await createPanel.getByRole("button", { name: "创建会话" }).click();
     const sessionList = context.getByRole("list", { name: "Agent 会话" });
@@ -75,9 +75,7 @@ test.describe("Agent activity flows", () => {
     await expect(sessionList).toContainText("E2E Agent");
     await expect(sessionList).not.toContainText("E2E Agent Alternate");
     await context.getByRole("button", { name: "新建会话" }).click();
-    await expect(createPanel).toContainText(
-      "默认 Profile：E2E Agent Alternate",
-    );
+    await expect(createPanel).toContainText("E2E Agent Alternate");
     await sessionList.getByRole("button", { name: /E2E Agent.*Journal/ })
       .click();
 
