@@ -173,6 +173,30 @@ describe("repository setup and management semantics", () => {
       .toHaveLength(1);
   });
 
+  it("removes rescan from a healthy active repository detail", () => {
+    const view = {
+      ...createRepositoryView(),
+      activeRepositoryId: localRepository.id,
+      activeRepositoryLabel: localRepository.label,
+      repositories: [localRepository],
+    };
+    const markup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryPanel
+          selection={{
+            id: localRepository.id,
+            kind: "ordinary-repository",
+          }}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+
+    expectMarkupSemantics(markup, {
+      lacks: ["重新扫描文件", "重新检查仓库", ">操作<"],
+    });
+  });
+
   it("keeps creation and manual Local recovery as selectable right-side details", () => {
     const baseView = createRepositoryView();
     const view = {

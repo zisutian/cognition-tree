@@ -60,6 +60,7 @@ function ActiveNotesActivity({
       edit: createNotesActivitySlots({
         focusMode: controls.focusMode,
         onCollapseDetail: controls.onCollapseDetail,
+        onReload: application.reload,
         onToggleFocusMode: controls.onToggleFocusMode,
         repositoryName,
         view,

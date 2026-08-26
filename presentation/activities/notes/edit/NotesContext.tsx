@@ -1,4 +1,4 @@
-import { FolderPlus, Plus } from "lucide-react";
+import { FolderPlus, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { NotesViewModel } from "../../../../application/workspace/notes/edit/notesViewModel";
 import { Button } from "../../../ui/shared/primitives";
@@ -62,7 +62,13 @@ export function findNotesTreeAncestorFolderIds(
   return [];
 }
 
-export function NotesContext({ view }: { view: NotesViewModel }) {
+export function NotesContext({
+  onReload,
+  view,
+}: {
+  onReload: () => Promise<void>;
+  view: NotesViewModel;
+}) {
   const feedback = useFeedback();
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
@@ -70,6 +76,7 @@ export function NotesContext({ view }: { view: NotesViewModel }) {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [folderTitle, setFolderTitle] = useState("新文件夹");
   const [moveNode, setMoveNode] = useState<TreeNode | null>(null);
+  const [reloading, setReloading] = useState(false);
   const lastActiveNodeIdsRef = useRef<{
     folder: string | null;
     note: string | null;
@@ -139,21 +146,44 @@ export function NotesContext({ view }: { view: NotesViewModel }) {
       return next;
     });
   };
+  const reload = () => {
+    if (reloading) return;
+    setReloading(true);
+    void feedback.runAction(onReload).finally(() => setReloading(false));
+  };
 
   return (
     <div className="activity-context-content">
       <div className="context-toolbar">
-        <Button aria-label="新建笔记" onClick={directory.createNote} title="新建笔记" type="button" variant="icon">
-          <Plus aria-hidden="true" size={14} />
+        <Button
+          aria-label="重新扫描文件"
+          disabled={reloading}
+          onClick={reload}
+          title="重新扫描文件"
+          type="button"
+          variant="icon"
+        >
+          <RefreshCw aria-hidden="true" size={14} />
         </Button>
         <Button
           aria-label="新建文件夹"
+          disabled={reloading}
           onClick={() => setCreatingFolder(true)}
           title="新建文件夹"
           type="button"
           variant="icon"
         >
           <FolderPlus aria-hidden="true" size={14} />
+        </Button>
+        <Button
+          aria-label="新建笔记"
+          disabled={reloading}
+          onClick={directory.createNote}
+          title="新建笔记"
+          type="button"
+          variant="icon"
+        >
+          <Plus aria-hidden="true" size={14} />
         </Button>
       </div>
       {creatingFolder ? (

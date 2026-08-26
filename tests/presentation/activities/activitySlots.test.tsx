@@ -77,6 +77,7 @@ function createSlots(
         edit: createNotesActivitySlots({
           focusMode: controls.focusMode,
           onCollapseDetail: controls.onCollapseDetail,
+          onReload: async () => undefined,
           onToggleFocusMode: controls.onToggleFocusMode,
           repositoryName: view.repository.activeRepositoryLabel,
           view: view.notes,

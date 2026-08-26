@@ -93,6 +93,7 @@ export function useWorkspaceApplication(
   return {
     diagnostics,
     navigation,
+    reload: session.reload,
     runtime,
     selection,
     shell,

@@ -95,19 +95,21 @@ export function createNotesWorkspaceActivitySlots({
 export function createNotesActivitySlots({
   focusMode,
   onCollapseDetail,
+  onReload,
   onToggleFocusMode,
   repositoryName,
   view,
 }: {
   focusMode: boolean;
   onCollapseDetail: () => void;
+  onReload: () => Promise<void>;
   onToggleFocusMode: () => void;
   repositoryName: string;
   view: NotesViewModel;
 }): ActivitySlots {
   return {
     context: {
-      content: <NotesContext view={view} />,
+      content: <NotesContext onReload={onReload} view={view} />,
       title: repositoryName,
     },
     detail: view.activeNote ? (

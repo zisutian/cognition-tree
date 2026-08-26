@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import {
   findNotesTreeAncestorFolderIds,
+  NotesContext,
   submitNotesFolderCreation,
 } from "../../../../../presentation/activities/notes/edit/NotesContext";
 import { NoteDetailPanel } from "../../../../../presentation/activities/notes/edit/NoteDetailPanel";
@@ -10,11 +11,33 @@ import {
   submitNotesEditorChange,
 } from "../../../../../presentation/activities/notes/edit/NoteEditorPanel";
 import { NoteTimeDetails } from "../../../../../presentation/activities/notes/edit/NoteTimeDetails";
-import { runFeedbackAction } from "../../../../../presentation/ui/shared/FeedbackProvider";
+import {
+  FeedbackProvider,
+  runFeedbackAction,
+} from "../../../../../presentation/ui/shared/FeedbackProvider";
 import { createNotesView } from "../../../fixtures/notesViewFixture";
 import { defaultCtnSyntax } from "../../../../../core/ctn/syntax/defaultSyntax";
+import { expectMarkupSemantics } from "../../../markupSemantics";
 
 describe("notes panels", () => {
+  it("orders rescan, folder creation, and note creation in the notes toolbar", () => {
+    const markup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <NotesContext
+          onReload={async () => undefined}
+          view={createNotesView()}
+        />
+      </FeedbackProvider>,
+    );
+    expectMarkupSemantics(markup, {
+      ordered: [
+        'aria-label="重新扫描文件"',
+        'aria-label="新建文件夹"',
+        'aria-label="新建笔记"',
+      ],
+    });
+  });
+
   it("finds every collapsed ancestor needed to reveal a selected name issue", () => {
     const note = {
       canDrag: true,

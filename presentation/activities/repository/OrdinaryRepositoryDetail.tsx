@@ -35,6 +35,9 @@ export function OrdinaryRepositoryDetail({
   onStartDelete: () => void;
 }) {
   const active = repository.id === view.activeRepositoryId;
+  const recoveryAction = active && !view.hasSaveConflict
+    ? view.activeSessionRecoveryAction
+    : null;
 
   return (
     <>
@@ -74,39 +77,40 @@ export function OrdinaryRepositoryDetail({
             />
           )
         : null}
-      <Section className="repository-section" title="操作">
-        <div className="repository-operation-strip">
-          {active && view.activeSessionRecoveryAction && !view.hasSaveConflict
-            ? (
-              <Button
-                disabled={busy}
-                onClick={() =>
-                  onRunAction(view.activeSessionRecoveryAction!.run)}
-                type="button"
-                variant="secondary"
-              >
-                <RefreshCw aria-hidden="true" size={13} />
-                {view.activeSessionRecoveryAction.label}
-              </Button>
-            )
-            : null}
-          {!active || (!view.activeSessionRecoveryAction && !view.hasSaveConflict)
-            ? (
-              <Button
-                disabled={busy}
-                onClick={() => onRunAction(
-                  active ? view.reload : view.refreshRepositories,
-                )}
-                type="button"
-                variant="secondary"
-              >
-                <RefreshCw aria-hidden="true" size={13} />
-                {active ? "重新扫描文件" : "重新检查仓库"}
-              </Button>
-            )
-            : null}
-        </div>
-      </Section>
+      {recoveryAction || !active
+        ? (
+          <Section className="repository-section" title="操作">
+            <div className="repository-operation-strip">
+              {recoveryAction
+                ? (
+                  <Button
+                    disabled={busy}
+                    onClick={() => onRunAction(recoveryAction.run)}
+                    type="button"
+                    variant="secondary"
+                  >
+                    <RefreshCw aria-hidden="true" size={13} />
+                    {recoveryAction.label}
+                  </Button>
+                )
+                : null}
+              {!active
+                ? (
+                  <Button
+                    disabled={busy}
+                    onClick={() => onRunAction(view.refreshRepositories)}
+                    type="button"
+                    variant="secondary"
+                  >
+                    <RefreshCw aria-hidden="true" size={13} />
+                    重新检查仓库
+                  </Button>
+                )
+                : null}
+            </div>
+          </Section>
+        )
+        : null}
       <RepositoryDangerZone
         busy={busy}
         confirming={confirmingDelete}
