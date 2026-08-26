@@ -74,12 +74,62 @@ test.describe("repository and capacity flows", () => {
     );
     await expect(page.getByRole("heading", { name: "第二仓库" }))
       .toBeVisible();
-    const statusList = page.getByRole("list", { name: "仓库状态" });
-    const statusRows = statusList.getByRole("listitem");
+    const statusList = page.locator('dl[aria-label="仓库状态"]');
+    const statusRows = statusList.locator(".ui-tool-property-row");
 
     await expect(statusRows).toHaveCount(2);
     await expect(statusList.getByText("名称", { exact: true })).toHaveCount(0);
     await expect(statusList.getByText("类型", { exact: true })).toHaveCount(0);
+    const statusMetrics = await statusList.evaluate((element) => {
+      const rows = [...element.querySelectorAll(".ui-tool-property-row")];
+      const values = rows.map((row) => row.querySelector("dd"));
+
+      if (values.some((value) => !value)) {
+        throw new Error("Repository property value is missing");
+      }
+
+      return {
+        labelFontSizes: rows.map((row) =>
+          getComputedStyle(row.querySelector("dt")!).fontSize),
+        labelTextAlignments: rows.map((row) =>
+          getComputedStyle(row.querySelector("dt")!).textAlign),
+        minimumHeights: rows.map((row) => getComputedStyle(row).minHeight),
+        valueStarts: values.map((value) =>
+          Math.round(value!.getBoundingClientRect().x)),
+      };
+    });
+
+    expect(new Set(statusMetrics.labelFontSizes)).toEqual(new Set(["13px"]));
+    expect(new Set(statusMetrics.labelTextAlignments)).toEqual(new Set(["left"]));
+    expect(new Set(statusMetrics.minimumHeights)).toEqual(new Set(["22px"]));
+    expect(new Set(statusMetrics.valueStarts).size).toBe(1);
+    const locations = page.locator('dl[aria-label="仓库位置"]');
+    const locationRow = locations.locator(".ui-tool-property-row").first();
+    const locationAction = locationRow.locator(".ui-tool-property-actions button");
+
+    await expect(locations).toBeVisible();
+    await expect(locationAction).toBeVisible();
+    const locationMetrics = await locationRow.evaluate((element) => {
+      const action = element.querySelector(".ui-tool-property-actions button");
+      const value = element.querySelector("dd");
+
+      if (!action || !value) {
+        throw new Error("Repository location property is incomplete");
+      }
+      const actionBox = action.getBoundingClientRect();
+      const rowBox = element.getBoundingClientRect();
+
+      return {
+        actionInsideRow: actionBox.top >= rowBox.top &&
+          actionBox.bottom <= rowBox.bottom,
+        overflowWrap: getComputedStyle(value).overflowWrap,
+        rowHeight: rowBox.height,
+      };
+    });
+
+    expect(locationMetrics.actionInsideRow).toBe(true);
+    expect(locationMetrics.overflowWrap).toBe("anywhere");
+    expect(locationMetrics.rowHeight).toBeGreaterThanOrEqual(22);
     await getActivityButton(page, "笔记").click();
     await expect(page.getByLabel("笔记编辑")).toBeVisible();
     await expect(page.locator(".app-context").getByTitle("未命名笔记"))
@@ -420,7 +470,7 @@ test.describe("repository and capacity flows", () => {
     await page.keyboard.type(" conflict-local-first");
     await getActivityButton(page, "仓库").click();
     await expect(
-      page.getByRole("list", { name: "仓库状态" }).getByText(
+      page.locator('dl[aria-label="仓库状态"]').getByText(
         "仓库内容已更改",
         { exact: true },
       ),
@@ -432,7 +482,7 @@ test.describe("repository and capacity flows", () => {
     await page.keyboard.type(" conflict-local-latest");
     await getActivityButton(page, "仓库").click();
     await expect(
-      page.getByRole("list", { name: "仓库状态" }).getByText(
+      page.locator('dl[aria-label="仓库状态"]').getByText(
         "仓库内容已更改",
         { exact: true },
       ),

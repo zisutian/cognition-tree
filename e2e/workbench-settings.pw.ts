@@ -159,14 +159,24 @@ test.describe("settings activity flows", () => {
       .toHaveAttribute("aria-selected", "true");
     await expect(panel.getByRole("combobox", { name: "Profile Provider" }))
       .toHaveCount(0);
-    expect(await panel.evaluate((element) => {
+    const toolMetrics = await panel.evaluate((element) => {
       const title = element.querySelector(".ui-panel-header h2");
       const sectionTitle = element.querySelector(".ui-tool-section-heading h3");
       const control = element.querySelector(".ui-input");
       const button = element.querySelector(".ui-button");
       const tab = element.querySelector(".ui-subsection-tab");
+      const propertyList = element.querySelector(".ui-tool-property-list");
+      const propertyRows = propertyList
+        ? [...propertyList.querySelectorAll(".ui-tool-property-row")]
+        : [];
+      const propertyValues = propertyRows.map((row) => row.querySelector("dd"));
+      const statusBadge = propertyList?.querySelector(".ui-status-badge");
 
-      if (!title || !sectionTitle || !control || !button || !tab) {
+      if (
+        !title || !sectionTitle || !control || !button || !tab ||
+        !propertyList || !statusBadge ||
+        propertyValues.some((value) => !value)
+      ) {
         throw new Error("Agent settings tool surface is incomplete");
       }
 
@@ -179,20 +189,33 @@ test.describe("settings activity flows", () => {
           fontSize: getComputedStyle(control).fontSize,
           height: getComputedStyle(control).height,
         },
+        propertyLabelTexts: propertyRows.map((row) =>
+          row.querySelector("dt")?.textContent ?? ""),
+        propertyRowMinimumHeights: propertyRows.map((row) =>
+          getComputedStyle(row).minHeight),
+        propertyValueStarts: propertyValues.map((value) =>
+          Math.round(value!.getBoundingClientRect().x)),
         sectionTitleFontSize: getComputedStyle(sectionTitle).fontSize,
+        statusBadgeHeight: getComputedStyle(statusBadge).height,
         tab: {
           fontSize: getComputedStyle(tab).fontSize,
           height: getComputedStyle(tab).height,
         },
         titleFontSize: getComputedStyle(title).fontSize,
       };
-    })).toEqual({
+    });
+
+    expect(toolMetrics).toMatchObject({
       button: { fontSize: "13px", height: "22px" },
       control: { fontSize: "13px", height: "22px" },
+      propertyLabelTexts: ["Agent", "默认 Profile", "Provider", "Profile"],
+      propertyRowMinimumHeights: ["22px", "22px", "22px", "22px"],
       sectionTitleFontSize: "13px",
+      statusBadgeHeight: "22px",
       tab: { fontSize: "13px", height: "22px" },
       titleFontSize: "16px",
     });
+    expect(new Set(toolMetrics.propertyValueStarts).size).toBe(1);
     await panel.getByRole("tab", { name: "Provider" }).click();
     await expect(panel).toContainText("E2E provider");
     await expect(panel).toContainText("认证已配置");

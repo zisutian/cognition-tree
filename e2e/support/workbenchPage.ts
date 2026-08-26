@@ -65,8 +65,8 @@ export async function openRepositoryFromContext(
   // Catalog selection precedes the keyed workspace-session mount. Wait for
   // that mount so a following context action is not sent to a transient tree.
   await expect(
-    page.getByRole("list", { name: "仓库状态" })
-      .locator(".ui-tool-list-row-main")
+    page.locator('dl[aria-label="仓库状态"]')
+      .locator(".ui-tool-property-row dd")
       .first(),
   ).toHaveText(
     /^(?!(?:正在载入|挂载失败|未挂载)$).+$/,

@@ -570,6 +570,8 @@ describe("activity slots", () => {
 
     expect(markup).toContain("测试仓库");
     expect(markup).toContain('aria-label="Proposal 摘要"');
+    expect(markup).toContain("ui-tool-property-list");
+    expect(markup).toContain("ui-tool-property-row");
     expect(markup).toContain("1 项");
     expect(markup).toContain("新建 1 项");
     expect(markup).toContain("新笔记");

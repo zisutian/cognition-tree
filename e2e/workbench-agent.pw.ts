@@ -100,6 +100,16 @@ test.describe("Agent activity flows", () => {
     await expect(proposal).toContainText("日记");
     await expect(proposal).toContainText("新建 1 项");
     await expect(proposal).toContainText(e2eAgentJournalBody);
+    const proposalProperties = proposal.locator(
+      'dl[aria-label="Proposal 摘要"]',
+    );
+
+    await expect(proposalProperties).toBeVisible();
+    const proposalValueStarts = await proposalProperties.locator("dd")
+      .evaluateAll((values) => values.map((value) =>
+        Math.round(value.getBoundingClientRect().x)));
+
+    expect(new Set(proposalValueStarts).size).toBe(1);
     await expect(proposal.locator("details")).not.toHaveAttribute("open", "");
     await expect(proposal.locator("summary")).toHaveText("技术详情");
     const proposalBox = await proposal.boundingBox();

@@ -11,6 +11,8 @@ import {
   ToolListRow,
   ToolPanel,
   ToolPanelBody,
+  ToolPropertyList,
+  ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
   ToolToolbar,
@@ -94,6 +96,31 @@ describe("tool surfaces", () => {
     expect(markup).toContain("translateY(44px)");
     expect(markup).toContain("关闭");
     expect(markup).toContain("<div class=\"ui-tool-list-row-target\"");
+  });
+
+  it("renders aligned static properties with definition-list semantics", () => {
+    const markup = renderToStaticMarkup(
+      <ToolPropertyList aria-label="仓库属性">
+        <ToolPropertyRow label="状态" value="已挂载" />
+        <ToolPropertyRow
+          actions={<button aria-label="复制路径" type="button">复制</button>}
+          label="数据路径"
+          value={<code>/srv/cognition-tree/repositories/example</code>}
+        />
+      </ToolPropertyList>,
+    );
+
+    expect(markup).toContain(
+      '<dl class="ui-tool-property-list" aria-label="仓库属性">',
+    );
+    expect(markup).toContain(
+      '<div class="ui-tool-property-row"><dt>状态</dt><dd><div class="ui-tool-property-value">已挂载</div></dd>',
+    );
+    expect(markup).toContain("ui-tool-property-actions");
+    expect(markup).toContain("/srv/cognition-tree/repositories/example");
+    expect(markup.match(/<dt>/g)).toHaveLength(2);
+    expect(markup.match(/<dd>/g)).toHaveLength(2);
+    expect(markup.match(/<button/g)).toHaveLength(1);
   });
 });
 

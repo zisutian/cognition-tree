@@ -13,7 +13,6 @@ import {
 } from "../../../presentation/ui/shared/ManagementList";
 import {
   StatusBadge,
-  StatusSummary,
 } from "../../../presentation/ui/shared/StatusPresentation";
 import {
   getSubsectionTabTargetIndex,
@@ -81,16 +80,9 @@ describe("shared management components", () => {
     expect(markup).toContain("名称不能为空");
   });
 
-  it("renders flat status summaries and management rows", () => {
+  it("renders status badges and management rows", () => {
     const markup = renderToStaticMarkup(
       <>
-        <StatusSummary
-          ariaLabel="Agent 状态"
-          items={[
-            { label: "Provider", value: "1" },
-            { label: "Profile", value: "2" },
-          ]}
-        />
         <ManagementList aria-label="Providers">
           <ManagementRow
             actions={<Button>编辑</Button>}
@@ -103,7 +95,6 @@ describe("shared management components", () => {
       </>,
     );
 
-    expect(markup).toContain('aria-label="Agent 状态"');
     expect(markup).toContain('aria-label="Providers"');
     expect(markup).toContain("ui-status-badge-success");
     expect(markup).toContain("ui-empty-state is-compact");
