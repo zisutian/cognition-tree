@@ -88,6 +88,7 @@ automation 继续使用 Bearer token，但只能拥有 `workspace:read`、`journ
         .built-ins/todo/
       server/
         access-v1/automation-tokens.json
+        agent-auth-v1/providers/<provider-id>/
         agent-config-v1/configuration.json
         agent-v2/operations.json
 
@@ -95,13 +96,15 @@ automation 继续使用 Bearer token，但只能拥有 `workspace:read`、`journ
 仓库存储。
 
 “设置 → 服务”发起数据根迁移时，客户端先同步已加载的 Workspace、Journal、Todo。
-若存在 resident Agent session、未决 proposal、其他迁移或配置 CAS 冲突，服务拒绝
-启动迁移。目标必须是不存在的绝对路径，不能与源或控制区重叠，也不能经过符号链接。
+若存在 resident Agent session、正在进行的 Codex 设备码登录、未决 proposal、其他
+迁移或配置 CAS 冲突，服务拒绝启动迁移。目标必须是不存在的绝对路径，不能与源或
+控制区重叠，也不能经过符号链接。
 
 迁移只复制以下权威分区：
 
     repositories/
     server/access-v1/
+    server/agent-auth-v1/
     server/agent-config-v1/
     server/agent-v2/
 
@@ -124,20 +127,21 @@ loopback Provider 自动允许。非 loopback 私网 origin 必须在创建或�
 许可和旧符合性结果失效。metadata、link-local、unspecified、multicast，以及 DNS
 同时解析到不同安全类别的目标始终拒绝。带凭据的远程 Provider 必须使用 HTTPS。
 
-服务首次读取 agent-config 内部 format 1/2 时，会原子升级为 format 3。Provider、
-Profile ID、凭据和浏览器已保存的默认 Profile ID 保留；format 1 的 Provider 从
-“没有私网许可”开始，私网地址必须在设置中重新确认。旧 chat Profile 的 context
-估算值乘以四后保存为“会话历史预算（字符）”，例如 16384 迁移为 65536、32768
-迁移为 131072；chat Profile version 加一并清除旧符合性。迁移后必须重新执行一次
-符合性检查，Profile 才可用于新会话。非安全整数、损坏状态或原子写入失败会让 Agent
-配置 fail closed，原文件不被部分改写。该过程不读取环境变量或旧 profile 文件；
-当前 API 也不接受旧字段。
+服务当前使用 agent-config 内部 format 5。首次读取旧格式时会原子迁移：format 1/2
+的 context 估算值乘以四后保存为“会话历史预算（字符）”，例如 16384 迁移为 65536、
+32768 迁移为 131072；format 1–3 的 chat Profile 补入 `model-default` 推理强度；
+format 1–4 的内联 API Key 先写入 `agent-auth-v1`，再切换配置引用。受影响的 chat
+Profile version 增加并清除旧符合性。Provider/Profile ID 与浏览器默认 Profile ID
+保留；format 1 的 Provider 不继承私网许可。非安全整数、损坏状态或任一步原子写入
+失败都会 fail closed，不留下部分启用状态。该过程不读取环境变量或旧 profile 文件；
+当前 API 也不接受旧字段、null secret 或兼容清除语义。
 
 “会话历史预算（字符）”只控制 Cognition Tree 何时压缩驻留内存中的对话历史，
 不会向 Ollama 发送 `num_ctx`，也不表示模型的真实 token 上限。需要观察模型事实时，
 点击对应 Provider 的“探测”：Ollama 会为该 Provider 已配置 Profile 所引用的模型显示
-模型声明上限、当前已加载 context 和探测时间；未加载或未报告时显示“未知”。探测
-结果不持久化、不自动填写或裁剪 Profile。
+“模型架构上限”“当前驻留上下文”和探测时间；模型未加载时明确显示无法测量实际值，
+已加载但接口缺字段时显示未报告。探测不发送推理请求、不加载模型、不延长驻留，结果
+也不持久化、不自动填写或裁剪 Profile。
 
 符合性检查会显示“等待工具调用”“等待自然语言总结”和“记录结果”阶段，并可在记录
 结果前取消。大型本地模型可能需要数分钟；浏览器通过状态轮询观察检查，不受普通 API
@@ -154,6 +158,26 @@ Ollama 发现只在用户点击后执行，默认地址是 `http://127.0.0.1:114
 模型层 `/api/tags`、显式探测所需的 `/api/ps` 与 `/api/show`，以及推理所需的
 `/v1/chat/completions`；不调用另一个代码 Agent 的任务、MCP、Git 或 shell API，
 也不接管 Ollama 生命周期。
+
+Ollama chat Profile 的推理强度可选“模型默认、关闭、低、中、高”。“模型默认”不发送覆盖
+参数，其余值映射到 Ollama 请求的 `reasoning_effort`；运行时不会
+按模型名称自动修改或 fallback。模型的原始 reasoning 只为当前工具循环保留在内存，
+不会显示、持久化或进入审计。输出因长度耗尽、过滤、缺少终止帧或空回复结束时，会
+产生 Agent Problem，不会被当作成功，也不会隐藏重试。
+
+### Codex 认证
+
+先创建 `kind: codex` 的 Provider，并只选择一种认证方式：
+
+- API Key：在设置中一次性写入。新会话通过 app-server 登录协议注入临时认证，不把
+  key 放入 shell、MCP 或子进程环境。
+- ChatGPT 设备码：创建 Provider 后点击“使用 ChatGPT 登录”，打开设置显示的 HTTPS
+  地址并输入设备码。登录可取消，15 分钟后自动过期；成功后只显示“认证已配置”。
+
+“退出认证”是唯一清除入口。存在 resident session 或正在登录时，切换 Provider、退出
+认证、删除 Provider 和数据根迁移都会被拒绝。ChatGPT 登录态保存在应用管理的
+`agent-auth-v1`，不读取个人 `~/.codex`。每个 Cognition Tree 会话仍创建独立 app-server
+进程和 `ephemeral` thread，不导入或继续 Codex Desktop/CLI 历史。
 
 ## 6. API v3
 

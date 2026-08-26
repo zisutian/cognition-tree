@@ -221,11 +221,13 @@ AgentSessionSnapshot。两类 SSE 都不是正文真值来源。
 
     <项目根>/.cognition-tree/bootstrap-v1/configuration.json
     <dataRoot>/server/access-v1/automation-tokens.json
+    <dataRoot>/server/agent-auth-v1/providers/<providerId>/
     <dataRoot>/server/agent-config-v1/configuration.json
     <dataRoot>/server/agent-v2/operations.json
 
 access 分区只保存 automation token 的 SHA-256 哈希、只读授权与 Workspace allowlist；
-agent-config 分区独占 provider、profile、凭据、version、digest 与符合性结果；agent-v2
+agent-auth 分区独占 API Key 与 Codex 托管登录态，agent-config 分区只保存 provider、
+profile、认证模式、凭据引用/version/digest 与符合性结果；agent-v2
 用 proposal UUID + version + digest 做幂等键，并保存 approving owner、
 session/profile/provider/runtime、store、before/after revision、变更资源/块 ID、结果与时间。
 operation ledger 不保存提示词、模型回复、正文、完整 diff 或 tool output，超过
@@ -239,9 +241,10 @@ decoder；文件原样保留供人工备份，新服务不会主动删除。状�
 
 数据根迁移由 application/workbench 的 loaded-content flush、application/system 的
 迁移用例和 infrastructure/system 的文件协调器共同完成。maintenance gate 阻止新
-mutation 并等待已有请求结束；协调器只复制 repositories、access-v1、agent-config-v1
-和 agent-v2，拒绝符号链接与路径重叠，逐文件校验数量、大小和 SHA-256，最后才 CAS
-更新 bootstrap 指针。失败不切换指针；成功通过专用退出状态由根 supervisor 重启。
+mutation 并等待已有请求结束；协调器只复制 repositories、access-v1、agent-auth-v1、
+agent-config-v1 和 agent-v2，拒绝符号链接与路径重叠，逐文件校验数量、大小和
+SHA-256，最后才 CAS 更新 bootstrap 指针。失败不切换指针；成功通过专用退出状态由
+根 supervisor 重启。
 旧数据根不删除。
 
 Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前
@@ -325,7 +328,8 @@ Agent 配置由 application/agent 端口协调、设置界面操作并写入独�
 24 小时 absolute TTL，审计容量来自 bootstrap 服务设置。每个 profile 显式声明
 maxResidentSessions、model、timeout 与 tool/request limit；chat profile 的
 `historyBudgetCharacters` 只是服务端内存会话历史的字符预算，不是模型 token 上限，
-也不会设置 Ollama `num_ctx`。凭据只写入不回读。
+也不会设置 Ollama `num_ctx`。凭据只写入不回读；Provider 只激活 `none`、API Key 或
+ChatGPT 设备码中的一种认证，清除认证只能走专用 owner operation。
 aggregate、provider 和 profile 均有 version/digest，管理 mutation 使用 exact CAS。
 会话固定创建时的有效配置；普通 profile 修改不影响旧会话，resident session 会阻止
 provider、凭据和 profile 删除。单个 profile 无效或缺少 secret 时只禁用该 profile，
@@ -337,8 +341,12 @@ Provider 创建或修改时显式确认，并进入该 Provider version/digest�
 conformance 每次请求前重新解析目标；metadata、link-local、unspecified、multicast
 与混合 DNS 结果不可被确认绕过。endpoint 变化清除许可和符合性。
 
-Codex adapter 精确锁定 `@openai/codex@0.148.0`，每条会话启动独立常驻
-app-server。它使用空临时 cwd、隔离 HOME/CODEX_HOME、`ephemeral: true`、只读
+Codex adapter 精确锁定 `@openai/codex@0.148.0`。API Key 通过 app-server
+`account/login/start` 注入单次会话的临时 CODEX_HOME，不进入子进程环境；ChatGPT
+设备码登录使用应用管理的隔离 CODEX_HOME，成功后以配置 base revision 执行 exact
+CAS，失败、取消、过期或冲突会撤销 staging。登录进行中和 resident session 都会阻止
+Provider、认证与数据根迁移的危险变更。无论认证方式，每条会话都启动独立常驻
+app-server，使用空临时 cwd、隔离 HOME/CODEX_HOME、`ephemeral: true`、只读
 filesystem、network disabled、approval never，并验证 instructionSources 为空；不
 读取个人 `.codex`、AGENTS、skills、hooks、plugins、sessions 或 MCP。进程环境是
 allowlist，API key 不进入 shell/MCP environment。缺少 sandbox、binary/version
@@ -364,7 +372,11 @@ completion 返回多项调用、未知工具、参数不满足 schema，或文�
 历史，并要求逐项纠正；纠正仍受 maxToolSteps 限制。工具信封、错误与工具结果都不
 生成聊天 delta，最终失败会移除空 assistant 消息。runtime 直接统计序列化会话历史
 字符数决定压缩，不做字符数除以四的伪 token 换算；output/tool-step limit 与 timeout
-继续独立生效。项目不建立公开 MCP，也不监听外部 MCP endpoint。
+继续独立生效。OpenAI-compatible 流只把非空 `content` 作为最终对话，Ollama 的
+`reasoning` 仅在当前工具循环的内存历史中连续传递，不形成 SSE、聊天气泡、日志或
+审计。`stop` 必须带自然语言正文，`tool_calls` 必须带唯一合法调用；`length`、过滤、
+缺少终止帧和空 completion 均产生 Agent Problem，零执行且不隐藏重试或 fallback。
+项目不建立公开 MCP，也不监听外部 MCP endpoint。
 
 CTN 写作语法由内容 store 独占，不固化在 prompt、runtime 或模型知识中。
 `describe_syntax` 从当前 staged projection（没有 staging 时从当前 store snapshot）
@@ -374,17 +386,21 @@ fingerprint 仍匹配时才可进入领域 preparation；否则返回私有
 `syntax_read_required` 并零 staging。普通 read 响应剥离重复 writing guide，确保
 此工具是唯一语法知识入口。
 
-agent-config-v1 的当前内部 formatVersion 是 3。首次打开 format 1/2 时，chat profile
-的旧 token 估算值乘以四写为字符预算，profile version 加一并清除旧 conformance；
-Provider、Profile ID、凭据与浏览器默认 Profile ID 保留。迁移先完整解析并验证安全
-整数，再由安全状态分区原子写回；失败时 fail closed，不能留下部分迁移。当前 API
-只接受 `historyBudgetCharacters`，不存在双字段 wire reader。Profile digest 包含显式
-tool-contract version，因此工具 catalog 变化也会使旧 conformance 失效。
+agent-config-v1 的当前内部 formatVersion 是 5。首次打开旧格式时依次应用一条原子
+权威切换：format 1/2 的 chat token 估算值乘以四写为字符预算；format 1–3 补入
+`reasoningEffort: model-default`；format 1–4 的内联 API Key 先写入 agent-auth-v1，再
+切换配置引用。受影响的 chat profile version 增加并清除旧 conformance；Provider、
+Profile ID 与浏览器默认 Profile ID 保留。迁移先完整解析并验证安全整数，再由安全
+状态分区原子写回；失败时 fail closed，不能留下部分迁移。当前 API 只接受
+`historyBudgetCharacters` 和非 null write-only API Key，不存在旧字段或第二条凭据清除
+reader。Profile digest 同时包含 tool-contract 与 completion/conformance contract
+version，因此工具 catalog 或终止分类变化都会使旧 conformance 失效。
 
 Ollama Provider 的显式 probe 在既有 SSRF、超时、重定向和响应体限制下读取
 `/api/tags`、`/api/ps`，并只为该 Provider 已配置 Profile 引用的模型调用
-`/api/show`。返回的模型声明最大 context、当前加载 context 与探测时间只驻留客户端
-配置状态，不持久化、不自动填入 Profile，也不裁剪字符预算；缺字段或未加载显示未知。
+`/api/show`。返回的“模型架构上限”、当前“驻留实例上下文”与探测时间只驻留客户端
+配置状态，不持久化、不自动填入 Profile，也不裁剪字符预算；未加载时明确表示无法
+测量实际值，已加载但接口缺字段时才显示未报告。探测不发送推理请求，也不触发加载。
 
 
 ## 9. Presentation 与 Problems

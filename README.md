@@ -74,10 +74,10 @@ owner credential，并填写由外部反向代理终止 TLS 的 HTTPS origin。�
 
 固定控制区是项目根 `.cognition-tree/bootstrap-v1/configuration.json`；它只保存当前
 数据根指针、服务配置、owner credential 摘要和 session 签名材料，不随数据根迁移。
-数据根迁移只
-复制 `repositories/`、`server/access-v1/`、`server/agent-config-v1/` 与
-`server/agent-v2/`，逐文件比较数量、大小和 SHA-256 后才切换指针；旧数据根原样
-保留，不自动删除。bootstrap 损坏时只在 `127.0.0.1:3001` 启动恢复页面，不加载
+数据根迁移只复制 `repositories/`、`server/access-v1/`、`server/agent-auth-v1/`、
+`server/agent-config-v1/` 与 `server/agent-v2/`，逐文件比较数量、大小和 SHA-256
+后才切换指针；旧数据根原样保留，不自动删除。bootstrap 损坏时只在
+`127.0.0.1:3001` 启动恢复页面，不加载
 内容、Agent 或凭据。
 
 本地仓库的可见目录是权威工作树：
@@ -105,16 +105,17 @@ contract、session 和 API：
 该目录完整挂载为持久卷；从局域网浏览页面或调用 API 只是在远程访问服务，不会把
 仓库存储变成远程文件系统。
 
-Agent provider、profile、模型参数与凭据由“设置 → 智能体”管理，内部状态保存于
-`<当前数据根>/server/agent-config-v1/configuration.json`；该文件不是用户仓库
-文件，也不应手工编辑。secret 依赖 0600 文件权限，不承诺静态加密；能够读取服务
-账号文件的主体仍能取得密钥。首次读取旧内部格式时，服务会原子升级该状态：format 1
-不会继承私网许可，format 1/2 都迁移为 format 3；既有 Provider/Profile、凭据和默认
-选择保留，但旧 chat Profile 的估算值改为等效字符预算、version 加一且符合性失效，
-需要重新执行检查。这个预算只控制认知树的内存对话压缩，不设置 Ollama `num_ctx`。
+Agent provider、profile 与模型参数由“设置 → 智能体”管理，配置引用保存于
+`<当前数据根>/server/agent-config-v1/configuration.json`，API Key 和 Codex 托管登录态
+保存于相邻的 `agent-auth-v1/`；两者都不是用户仓库文件，也不应手工编辑。secret 依赖
+0700/0600 文件权限，不承诺静态加密；能够读取服务账号文件的主体仍能取得密钥。当前
+配置内部格式为 5：旧 chat 压缩估算会迁移为等效字符预算并清除旧符合性，旧内联 API
+Key 会先安全写入凭据分区，再原子切换配置引用。这个预算只控制认知树的内存对话压缩，
+不设置 Ollama `num_ctx`。
 Ollama 直接连接模型层，不调用其他代码 Agent 的任务 API、MCP、Git、shell 或 ChangeSet。
-Codex 依赖精确锁定为 `@openai/codex@0.148.0`，每个会话使用独立、
-ephemeral、只读且无网络的 app-server 进程和会话专属私有 MCP。Agent 对话只在
+Codex 依赖精确锁定为 `@openai/codex@0.148.0`，Provider 可选择一次性写入 API Key
+或 ChatGPT 设备码登录；每个会话仍使用独立、ephemeral、只读且无网络的 app-server
+进程和会话专属私有 MCP，不导入个人 Codex 历史。Agent 对话只在
 服务内存中驻留，重启、TTL 到期或回收会丢失。
 
 本机 Ollama 的镜像、GPU、模型卷与生命周期由 Ollama 自身管理。认知树根部的

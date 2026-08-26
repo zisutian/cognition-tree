@@ -181,9 +181,22 @@ Provider、Profile、模型参数与凭据由“设置 → 智能体”管理。
 Ollama 直接连接模型层而不嵌套本地代码 Agent。会话固定创建时的 provider/profile
 version、digest 与有效参数；相关 resident session 会阻止危险配置删除或凭据变更。
 chat Profile 的“会话历史预算（字符）”只决定 Cognition Tree 何时压缩内存对话，
-不代表真实 token 上限，也不能修改 Ollama `num_ctx`。Provider 探测可以显示模型声明
-上限、当前加载 context 与探测时间，但这些事实只读、非持久化，未知或失败不能改变
-Profile、自动选值或触发 fallback。
+不代表真实 token 上限，也不能修改 Ollama `num_ctx`。Provider 探测可以分别显示模型
+架构上限、当前驻留实例上下文与探测时间；未加载时不能声称测得实际值。这些事实只读、
+非持久化，未知或失败不能改变 Profile、自动选值、触发模型加载或 fallback。
+
+Provider 认证是严格 union：`none`、API Key 或 Codex 专属 ChatGPT 设备码；同一
+Provider 只激活一种。API Key 与 Codex 托管登录态属于独立凭据分区，配置只保存引用，
+公开响应永不回传 secret。认证清除只有专用 owner 操作；resident session 或 pending
+设备码登录会阻止切换、清除、删除和数据迁移。设备码成功必须按启动时配置 revision
+执行 exact CAS，失败、取消、过期和冲突不得留下已启用凭据。
+
+chat runtime 必须区分 `reasoning`、最终 `content`、工具调用和唯一终止原因。原始
+reasoning 只能在当前工具循环的内存历史中维持连续性，不得进入 SSE、聊天气泡、日志、
+持久状态或审计。`stop` 没有自然语言正文、`tool_calls` 没有唯一合法调用、`length`、
+过滤、空 completion 或缺失终止帧都属于明确失败，必须零执行、零隐藏重试且不 fallback。
+Ollama Profile 的推理强度由用户显式选择；`model-default` 不发送覆盖参数。其他
+OpenAI-compatible Profile 只允许 `model-default`，不得保存运行时无法应用的伪设置。
 
 
 ## 9. 服务设置与数据迁移
@@ -200,9 +213,10 @@ registry 声明的 `/api/v3` HTTP/SSE operation 使用后端能力；不得导�
 public origin，TLS 由外部代理终止。远程浏览器通过 owner secret 建立 HttpOnly
 session；本机 owner 同时检查 socket 与 Host。显式错误 Bearer 永远 401。
 
-数据根迁移前同步所有已加载内容，并在 resident Agent session、配置冲突或另一迁移
-存在时拒绝。迁移只复制当前权威分区，拒绝路径重叠和符号链接，逐文件校验后最后
-切换 bootstrap 指针。失败继续使用源，成功重启服务，旧根作为人工备份保留。
+数据根迁移前同步所有已加载内容，并在 resident Agent session、pending Codex 登录、
+配置冲突或另一迁移存在时拒绝。迁移只复制当前权威分区，拒绝路径重叠和符号链接，
+逐文件校验后最后切换 bootstrap 指针。失败继续使用源，成功重启服务，旧根作为人工
+备份保留。
 
 
 ## 10. 当前边界
