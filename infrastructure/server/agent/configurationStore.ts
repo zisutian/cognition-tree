@@ -692,6 +692,14 @@ function normalizeProfileInput(
       "single-json is only valid for Ollama profiles",
     );
   }
+  if (
+    provider.kind !== "ollama" && parameters.kind === "chat" &&
+    parameters.reasoningEffort !== "model-default"
+  ) {
+    throw new AgentConfigurationValidationError(
+      "Explicit chat reasoning effort is only valid for Ollama profiles",
+    );
+  }
   if (parameters.kind === "chat" && parameters.maxToolSteps < 3) {
     throw new AgentConfigurationValidationError(
       "Chat profiles require at least 3 tool steps",

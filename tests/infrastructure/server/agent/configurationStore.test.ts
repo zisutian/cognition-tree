@@ -586,6 +586,37 @@ describe("Agent configuration store", () => {
     });
   });
 
+  it("rejects reasoning effort that an OpenAI-compatible provider cannot apply", async () => {
+    const { store } = await createStore();
+    const initial = await store.readSnapshot();
+    const provider = await store.createProvider(initial.revision, {
+      apiKey: "provider-secret",
+      authenticationType: "api-key",
+      baseUrl: "https://models.example.invalid/v1",
+      kind: "openai-chat",
+      label: "OpenAI compatible",
+      privateNetworkAccessConfirmed: false,
+    });
+
+    await expect(store.createProfile(provider.configuration.revision, {
+      label: "Invalid effort",
+      maxResidentSessions: 1,
+      model: "chat-model",
+      parameters: {
+        historyBudgetCharacters: 65_536,
+        kind: "chat",
+        maxOutputTokens: 1_024,
+        maxToolSteps: 8,
+        reasoningEffort: "low",
+        toolCallMode: "native",
+      },
+      providerId: provider.provider.id,
+      timeoutMilliseconds: 60_000,
+    })).rejects.toThrow(
+      "Explicit chat reasoning effort is only valid for Ollama profiles",
+    );
+  });
+
   it("fails closed when the persisted state is invalid", async () => {
     const { directory, store } = await createStore();
 
