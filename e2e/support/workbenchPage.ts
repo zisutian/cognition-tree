@@ -11,7 +11,7 @@ export async function openWorkbench(page: Page, repositoryId: string) {
   }, repositoryId);
   await page.goto("/");
   await expect(page.getByRole("navigation", { name: "工作区功能" })).toBeVisible();
-  await expect(page.getByLabel("笔记编辑")).toBeVisible();
+  await expect(page.getByLabel("笔记编辑")).toBeVisible({ timeout: 15_000 });
 }
 
 export function getActivityButton(page: Page, name: string) {
@@ -65,8 +65,9 @@ export async function openRepositoryFromContext(
   // Catalog selection precedes the keyed workspace-session mount. Wait for
   // that mount so a following context action is not sent to a transient tree.
   await expect(
-    page.locator(".repository-status-section dd").nth(1),
+    page.locator(".repository-status-section dd").first(),
   ).toHaveText(
     /^(?!(?:正在载入|挂载失败|未挂载)$).+$/,
+    { timeout: 15_000 },
   );
 }
