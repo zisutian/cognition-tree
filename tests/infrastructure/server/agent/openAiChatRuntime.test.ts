@@ -55,6 +55,60 @@ const journalCreateTool = {
 } as const;
 
 describe("OpenAI-compatible Agent runtime", () => {
+  it("characterizes reasoning-only length completions as empty success", async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "Content-Type": "text/event-stream" });
+      for (const reasoning of ["Thinking", " about", " tools"]) {
+        response.write(`data: ${JSON.stringify({
+          choices: [{
+            delta: { content: "", reasoning },
+            finish_reason: null,
+          }],
+        })}\n\n`);
+      }
+      response.write(`data: ${JSON.stringify({
+        choices: [{ delta: {}, finish_reason: "length" }],
+      })}\n\n`);
+      response.end("data: [DONE]\n\n");
+    });
+
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+
+    if (!address || typeof address === "string") throw new Error("Missing port");
+    const session = await new OpenAiChatRuntime(
+      profile(`http://127.0.0.1:${address.port}/v1`),
+      "server-secret",
+    ).openSession({
+      instructions: "shared instructions",
+      profileId: "openai-test",
+      scope: { domain: "journal", entryIds: null },
+      sessionId: "00000000-0000-4000-8000-000000000001",
+    });
+    const deltas: string[] = [];
+    const executeTool = vi.fn();
+
+    try {
+      await expect(session.runTurn({
+        executeTool,
+        messages: [{ content: "创建一条日记", role: "user" }],
+        onEvent(event) {
+          if (event.type === "text-delta") deltas.push(event.textDelta);
+        },
+        scope: { domain: "journal", entryIds: null },
+        signal: new AbortController().signal,
+        tools: [journalCreateTool],
+      })).resolves.toEqual({ finalText: "", toolCalls: 0 });
+      expect(deltas).toEqual(["", "", ""]);
+      expect(executeTool).not.toHaveBeenCalled();
+    } finally {
+      await session.dispose();
+      server.close();
+      await once(server, "close");
+    }
+  });
+
   it("requests compaction from the direct serialized character budget", async () => {
     const runtimeProfile = {
       ...profile("http://127.0.0.1:1/v1"),
