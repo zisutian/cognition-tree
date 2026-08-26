@@ -31,6 +31,7 @@ export function RepositoryDangerZone({
     <ToolSection
       className="repository-danger-zone"
       title="危险区"
+      tone="danger"
     >
       <div
         className={cx(
@@ -38,30 +39,19 @@ export function RepositoryDangerZone({
           confirming && "is-confirming",
         )}
       >
-        <div>
-          <strong>删除仓库</strong>
-          <p>删除托管数据后无法恢复。</p>
-          {!confirming && active && view.deletionWarning ? (
-            <p className="repository-warning" role="alert">
-              {view.deletionWarning}
-            </p>
-          ) : null}
-        </div>
         {confirming ? (
           <RepositoryDeleteConfirmation
             key={repository.id}
             repository={repository}
-            warning={active ? view.deletionWarning : ""}
             onCancel={onCancel}
             onDelete={onDelete}
           />
         ) : (
           <Button
-            className="ui-button-danger"
             disabled={busy || (active && view.deletionBlocked)}
             onClick={onStart}
             type="button"
-            variant="secondary"
+            variant="danger"
           >
             <Trash2 aria-hidden="true" size={13} />
             删除仓库

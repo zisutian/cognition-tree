@@ -20,6 +20,7 @@ import {
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
   Button,
+  DetailPanel,
   EmptyState,
   Panel,
   PanelBody,
@@ -109,25 +110,27 @@ export function JournalContext({ view }: JournalViewProps) {
           >
             {view.calendar.years.map((year) => (
               <li className="journal-calendar-branch" key={year.key}>
-                <button
+                <Button
                   aria-expanded={year.expanded}
                   className="ui-tree-row ui-compact-context-row journal-calendar-toggle"
                   type="button"
+                  variant="bare"
                   onClick={() => view.calendar.toggle(`year:${year.key}`)}
                 >
                   {year.expanded
                     ? <ChevronDown aria-hidden="true" />
                     : <ChevronRight aria-hidden="true" />}
                   <span className="ui-tree-text">{year.label}</span>
-                </button>
+                </Button>
                 {year.expanded ? (
                   <CompactContextList aria-label={`${year.label}日记`}>
                     {year.months.map((month) => (
                       <li className="journal-calendar-branch" key={month.key}>
-                        <button
+                        <Button
                           aria-expanded={month.expanded}
                           className="ui-tree-row ui-compact-context-row journal-calendar-toggle"
                           type="button"
+                          variant="bare"
                           onClick={() =>
                             view.calendar.toggle(`month:${month.key}`)}
                         >
@@ -135,7 +138,7 @@ export function JournalContext({ view }: JournalViewProps) {
                             ? <ChevronDown aria-hidden="true" />
                             : <ChevronRight aria-hidden="true" />}
                           <span className="ui-tree-text">{month.label}</span>
-                        </button>
+                        </Button>
                         {month.expanded ? (
                           <CompactContextList
                             aria-label={`${month.key}日记条目`}
@@ -275,21 +278,12 @@ export function JournalDetailPanel({
     : undefined;
 
   return (
-    <Panel aria-label="日记详情" className="journal-detail-panel" tone="detail">
-      <PanelHeader
-        actions={
-          <Button
-            aria-label="收回右侧详情"
-            onClick={onCollapseDetail}
-            title="收回右侧详情"
-            type="button"
-            variant="icon"
-          >
-            <ChevronRight aria-hidden="true" size={13} />
-          </Button>
-        }
-        title="结构"
-      />
+    <DetailPanel
+      aria-label="日记详情"
+      className="journal-detail-panel"
+      onCollapse={onCollapseDetail}
+      title="结构"
+    >
       <PanelBody className="detail-panel-stack" scroll>
         <dl aria-label="日记统计" className="detail-summary-strip">
           <div><dd>{view.editor.stats.lineCount}</dd><dt>行</dt></div>
@@ -345,6 +339,6 @@ export function JournalDetailPanel({
           <p className="ui-muted">没有可解析结构。</p>
         )}
       </PanelBody>
-    </Panel>
+    </DetailPanel>
   );
 }

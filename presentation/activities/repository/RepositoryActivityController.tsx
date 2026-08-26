@@ -70,9 +70,10 @@ export function RepositoryActivityController({
   }, [application.repository.navigation.focusRequest]);
 
   return active
-    ? renderActivity(() =>
+    ? renderActivity(({ onCollapseDetail }) =>
         createRepositoryActivitySlots({
           focusRequest: application.repository.navigation.focusRequest,
+          onCollapseDetail,
           onConsumeFocusRequest:
             application.repository.navigation.consumeFocusRequest,
           onSelectionChange: setSelection,

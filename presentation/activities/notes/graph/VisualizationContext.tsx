@@ -5,9 +5,9 @@ import type {
 } from "../../../../application/workspace/notes/graph/visualizationViewModel";
 import {
   Button,
-  SegmentedControl,
   ToggleButton,
 } from "../../../ui/shared/primitives";
+import { ChoiceGroup, InputControl } from "../../../ui/shared/controls";
 import { VisualizationGraphSettings } from "./VisualizationGraphSettings";
 import type {
   ReferenceGraphSession,
@@ -29,19 +29,19 @@ export function VisualizationContext({
     >
       <label className="graph-context-field">
         <span className="graph-context-label">搜索</span>
-        <input
+        <InputControl
           aria-label="搜索笔记标题"
-          className="ui-input"
           placeholder="笔记标题"
+          sizing="container"
           value={query}
           onChange={(event) => view.setQuery(event.target.value)}
         />
       </label>
       <div className="graph-context-field">
         <span className="graph-context-label">范围</span>
-        <SegmentedControl
+        <ChoiceGroup
           ariaLabel="图谱范围"
-          fill
+          mode="single"
           options={[
             { label: "全库", value: "global" },
             { label: "局部", value: "local" },
@@ -53,9 +53,9 @@ export function VisualizationContext({
       {mode === "local" ? (
         <div className="graph-context-field">
           <span className="graph-context-label">深度</span>
-          <SegmentedControl
+          <ChoiceGroup
             ariaLabel="局部图谱深度"
-            fill
+            mode="single"
             options={[
               { label: "1 层", value: "1" },
               { label: "2 层", value: "2" },

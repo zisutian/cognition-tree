@@ -14,29 +14,41 @@ export function ManagementRow({
   actions,
   children,
   className,
-  description,
+  onSelect,
+  selected = false,
   status,
   title,
 }: {
   actions?: ReactNode;
   children?: ReactNode;
   className?: string;
-  description?: ReactNode;
+  onSelect?: () => void;
+  selected?: boolean;
   status?: ReactNode;
   title: ReactNode;
 }) {
+  const heading = (
+    <>
+      <span className="ui-management-row-title-text">{title}</span>
+      {status ? <span>{status}</span> : null}
+    </>
+  );
+
   return (
-    <li className={cx("ui-management-row", className)}>
+    <li className={cx("ui-management-row", selected && "is-selected", className)}>
       <div className="ui-management-row-heading">
-        <div className="ui-management-row-title">
-          <strong>{title}</strong>
-          {status ? <span>{status}</span> : null}
-        </div>
+        {onSelect ? (
+          <button
+            aria-current={selected ? "true" : undefined}
+            className="ui-management-row-title is-interactive"
+            onClick={onSelect}
+            type="button"
+          >
+            {heading}
+          </button>
+        ) : <div className="ui-management-row-title">{heading}</div>}
         {actions ? <div className="ui-actions">{actions}</div> : null}
       </div>
-      {description ? (
-        <div className="ui-management-row-description">{description}</div>
-      ) : null}
       {children ? (
         <div className="ui-management-row-details">{children}</div>
       ) : null}

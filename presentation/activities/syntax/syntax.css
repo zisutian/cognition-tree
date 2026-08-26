@@ -72,7 +72,7 @@
 .syntax-setting-label,
 .syntax-rule-header {
   color: var(--color-fg-subtle);
-  font-weight: var(--ui-control-weight);
+  font-weight: var(--ui-body-weight);
 }
 
 .syntax-rule-row {
@@ -205,8 +205,7 @@
 .syntax-kind-button:focus-visible,
 .syntax-kind-option:focus-visible,
 .syntax-tone-custom-button:focus-visible,
-.syntax-tone-tile:focus-visible,
-.syntax-tone-picker input[type="color"]:focus-visible {
+.syntax-tone-tile:focus-visible {
   outline: none;
   background: var(--color-hover);
 }
@@ -307,18 +306,6 @@
   padding: 0 var(--ui-gap-tight);
 }
 
-.syntax-tone-picker input[type="color"] {
-  width: calc(var(--ui-control-height) + var(--ui-gap-tight));
-  min-width: calc(var(--ui-control-height) + var(--ui-gap-tight));
-  height: calc(var(--ui-control-height) + var(--ui-gap-tight));
-  padding: 0;
-  overflow: hidden;
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
-  background: var(--color-input);
-  cursor: pointer;
-}
-
 .syntax-tone-swatch {
   display: flex;
   align-items: center;
@@ -415,7 +402,7 @@
 .syntax-render-marker {
   color: var(--color-link);
   font-size: var(--ui-code-font-size);
-  font-weight: var(--ui-micro-strong-weight);
+  font-weight: var(--ui-emphasis-weight);
   line-height: var(--ui-code-line-height);
   white-space: nowrap;
 }

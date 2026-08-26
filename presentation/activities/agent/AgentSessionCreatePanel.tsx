@@ -9,6 +9,7 @@ import type {
 import {
   Button,
 } from "../../ui/shared/primitives";
+import { ChoiceGroup, SelectControl } from "../../ui/shared/controls";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
   FieldRow,
@@ -43,25 +44,23 @@ function ExactScopeOptions({
   selectedIds: readonly string[];
 }) {
   return (
-    <fieldset className="agent-scope-options">
-      <legend>{label}</legend>
+    <div className="agent-scope-options">
       {options.length === 0 ? (
         <p>当前没有可选择的资源。</p>
-      ) : options.map((option) => (
-        <label key={option.id}>
-          <input
-            checked={selectedIds.includes(option.id)}
-            onChange={(event) => onChange(
-              event.currentTarget.checked
-                ? [...selectedIds, option.id]
-                : selectedIds.filter((id) => id !== option.id),
-            )}
-            type="checkbox"
-          />
-          <span>{option.label}</span>
-        </label>
-      ))}
-    </fieldset>
+      ) : (
+        <ChoiceGroup
+          ariaLabel={label}
+          layout="wrap"
+          mode="multiple"
+          onChange={onChange}
+          options={options.map(({ id, label: optionLabel }) => ({
+            label: optionLabel,
+            value: id,
+          }))}
+          values={selectedIds}
+        />
+      )}
+    </div>
   );
 }
 
@@ -200,18 +199,18 @@ export function AgentSessionCreatePanel({
               <FormLayout>
                 <FieldRow fieldId="agent-session-domain" label="领域">
                   {(accessibility) => (
-                    <select
+                    <ChoiceGroup
                       {...accessibility}
-                      aria-label="领域"
-                      className="ui-input"
-                      onChange={(event) =>
-                        setDomain(event.currentTarget.value as ScopeDomain)}
+                      ariaLabel="领域"
+                      mode="single"
+                      onChange={(value: ScopeDomain) => setDomain(value)}
+                      options={[
+                        { label: "Workspace", value: "workspace" },
+                        { label: "Journal", value: "journal" },
+                        { label: "Todo", value: "todo" },
+                      ]}
                       value={domain}
-                    >
-                      <option value="workspace">Workspace</option>
-                      <option value="journal">Journal</option>
-                      <option value="todo">Todo</option>
-                    </select>
+                    />
                   )}
                 </FieldRow>
                 {domain === "workspace" ? (
@@ -221,10 +220,9 @@ export function AgentSessionCreatePanel({
                       label="仓库"
                     >
                       {(accessibility) => (
-                        <select
+                        <SelectControl
                           {...accessibility}
                           aria-label="仓库"
-                          className="ui-input"
                           onChange={(event) =>
                             setRepositoryId(event.currentTarget.value)}
                           value={repositoryId}
@@ -235,40 +233,23 @@ export function AgentSessionCreatePanel({
                               {option.label}
                             </option>
                           ))}
-                        </select>
+                        </SelectControl>
                       )}
                     </FieldRow>
-                    <FieldRow
-                      description={!activeWorkspaceSelected
-                        ? "只有当前已加载仓库可选择文件夹或精确笔记。"
-                        : undefined}
-                      fieldId="agent-session-workspace-scope"
-                      label="硬范围"
-                    >
+                    <FieldRow fieldId="agent-session-workspace-scope" label="硬范围">
                       {(accessibility) => (
-                        <select
+                        <ChoiceGroup
                           {...accessibility}
-                          aria-label="硬范围"
-                          className="ui-input"
-                          onChange={(event) => setWorkspaceTargetKind(
-                            event.currentTarget.value as WorkspaceTargetKind,
-                          )}
+                          ariaLabel="硬范围"
+                          mode="single"
+                          onChange={(value: WorkspaceTargetKind) => setWorkspaceTargetKind(value)}
+                          options={[
+                            { label: "整个仓库", value: "repository" },
+                            { disabled: !activeWorkspaceSelected, label: "文件夹及后代", value: "folder" },
+                            { disabled: !activeWorkspaceSelected, label: "精确笔记", value: "note" },
+                          ]}
                           value={workspaceTargetKind}
-                        >
-                          <option value="repository">整个仓库</option>
-                          <option
-                            disabled={!activeWorkspaceSelected}
-                            value="folder"
-                          >
-                            文件夹及后代
-                          </option>
-                          <option
-                            disabled={!activeWorkspaceSelected}
-                            value="note"
-                          >
-                            精确笔记
-                          </option>
-                        </select>
+                        />
                       )}
                     </FieldRow>
                     {workspaceTargetKind === "folder" ? (
@@ -277,10 +258,9 @@ export function AgentSessionCreatePanel({
                         label="文件夹"
                       >
                         {(accessibility) => (
-                          <select
+                          <SelectControl
                             {...accessibility}
                             aria-label="文件夹"
-                            className="ui-input"
                             onChange={(event) =>
                               setFolderId(event.currentTarget.value)}
                             value={folderId}
@@ -293,17 +273,16 @@ export function AgentSessionCreatePanel({
                                 </option>
                               ),
                             )}
-                          </select>
+                          </SelectControl>
                         )}
                       </FieldRow>
                     ) : null}
                     {workspaceTargetKind === "note" ? (
                       <FieldRow fieldId="agent-session-note" label="笔记">
                         {(accessibility) => (
-                          <select
+                          <SelectControl
                             {...accessibility}
                             aria-label="笔记"
-                            className="ui-input"
                             onChange={(event) =>
                               setNoteId(event.currentTarget.value)}
                             value={noteId}
@@ -316,7 +295,7 @@ export function AgentSessionCreatePanel({
                                 </option>
                               ),
                             )}
-                          </select>
+                          </SelectControl>
                         )}
                       </FieldRow>
                     ) : null}
@@ -329,18 +308,17 @@ export function AgentSessionCreatePanel({
                       label="硬范围"
                     >
                       {(accessibility) => (
-                        <select
+                        <ChoiceGroup
                           {...accessibility}
-                          aria-label="硬范围"
-                          className="ui-input"
-                          onChange={(event) => setJournalAll(
-                            event.currentTarget.value === "all",
-                          )}
+                          ariaLabel="硬范围"
+                          mode="single"
+                          onChange={(value) => setJournalAll(value === "all")}
+                          options={[
+                            { label: "全部日记", value: "all" },
+                            { label: "精确日记", value: "selected" },
+                          ]}
                           value={journalAll ? "all" : "selected"}
-                        >
-                          <option value="all">全部日记</option>
-                          <option value="selected">精确日记</option>
-                        </select>
+                        />
                       )}
                     </FieldRow>
                     {!journalAll ? (
@@ -360,18 +338,17 @@ export function AgentSessionCreatePanel({
                       label="硬范围"
                     >
                       {(accessibility) => (
-                        <select
+                        <ChoiceGroup
                           {...accessibility}
-                          aria-label="硬范围"
-                          className="ui-input"
-                          onChange={(event) => setTodoAll(
-                            event.currentTarget.value === "all",
-                          )}
+                          ariaLabel="硬范围"
+                          mode="single"
+                          onChange={(value) => setTodoAll(value === "all")}
+                          options={[
+                            { label: "全部集合", value: "all" },
+                            { label: "精确集合", value: "selected" },
+                          ]}
                           value={todoAll ? "all" : "selected"}
-                        >
-                          <option value="all">全部集合</option>
-                          <option value="selected">精确集合</option>
-                        </select>
+                        />
                       )}
                     </FieldRow>
                     {!todoAll ? (

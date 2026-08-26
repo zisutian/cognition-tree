@@ -16,14 +16,14 @@
   padding: 0 var(--ui-gap-tight);
   color: var(--color-fg-muted);
   font-size: var(--ui-micro-font-size);
-  font-weight: var(--ui-micro-strong-weight);
+  font-weight: var(--ui-emphasis-weight);
   line-height: var(--ui-micro-line-height);
 }
 
 .ui-compact-context-group-title > span:last-child:not(:first-child) {
   color: var(--color-fg-subtle);
   font-variant-numeric: var(--ui-numeric-font-variant);
-  font-weight: var(--ui-micro-weight);
+  font-weight: var(--ui-body-weight);
 }
 
 .ui-compact-context-row {

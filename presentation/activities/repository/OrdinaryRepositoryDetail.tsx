@@ -1,18 +1,11 @@
 import { RefreshCw } from "lucide-react";
-import {
-  projectRepositoryLabelIssueMessage,
-  type RepositoryOption,
-} from "../../../application/repository/ordinaryRepositoryViewModel";
+import type { RepositoryOption } from "../../../application/repository/ordinaryRepositoryViewModel";
 import type { RepositoryViewModel } from
   "../../../application/repository/repositoryViewModel";
 import { Button } from "../../ui/shared/primitives";
 import { ToolSection } from "../../ui/shared/ToolSurface";
 import { RepositoryDangerZone } from "./RepositoryDangerZone";
-import {
-  RepositoryLocations,
-  RepositoryMetadata,
-} from "./RepositoryDetailShared";
-import { RepositoryConflictResolution } from "./RepositoryConflictResolution";
+import { RepositoryConflictActions } from "./RepositoryConflictResolution";
 
 export function OrdinaryRepositoryDetail({
   busy,
@@ -20,7 +13,6 @@ export function OrdinaryRepositoryDetail({
   repository,
   view,
   onCancelDelete,
-  onCopy,
   onDelete,
   onRunAction,
   onStartDelete,
@@ -30,7 +22,6 @@ export function OrdinaryRepositoryDetail({
   repository: RepositoryOption;
   view: RepositoryViewModel;
   onCancelDelete: () => void;
-  onCopy: (label: string, value: string) => void;
   onDelete: () => Promise<boolean>;
   onRunAction: (action: () => Promise<void>) => void;
   onStartDelete: () => void;
@@ -42,33 +33,9 @@ export function OrdinaryRepositoryDetail({
 
   return (
     <>
-      <ToolSection title="状态">
-        <RepositoryMetadata rows={[
-          {
-            label: "状态",
-            value: active ? view.persistenceStatusLabel : "未打开",
-          },
-          { label: "仓库 ID", value: repository.id },
-        ]} />
-        {repository.labelIssue ? (
-          <p className="repository-warning" role="alert">
-            {projectRepositoryLabelIssueMessage(repository.labelIssue)}
-          </p>
-        ) : null}
-        {active && view.activeSessionErrorMessage ? (
-          <p className="repository-warning" role="alert">
-            {view.activeSessionErrorMessage}
-          </p>
-        ) : null}
-      </ToolSection>
-      <RepositoryLocations
-        busy={busy}
-        rows={repository.locationRows}
-        onCopy={onCopy}
-      />
       {active && view.activeConflictResolution
         ? (
-            <RepositoryConflictResolution
+            <RepositoryConflictActions
               busy={busy}
               resolution={view.activeConflictResolution}
               onRunAction={onRunAction}

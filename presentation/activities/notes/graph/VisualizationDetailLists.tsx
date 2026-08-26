@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import type { UiReferenceGraphView } from "../../../../application/workspace/projection/viewGraph";
-import { SymbolSlot } from "../../../ui/shared/primitives";
+import { Button, SymbolSlot } from "../../../ui/shared/primitives";
 
 type VisualizationGraph = UiReferenceGraphView;
 
@@ -75,10 +75,11 @@ export function MostReferencedList({
     <ul aria-label="引用排名" className="detail-line-list">
       {graph.mostReferencedNodes.map((node) => (
         <li key={node.id}>
-          <button
+          <Button
             className="detail-line-row detail-line-button"
             type="button"
             onClick={() => onSelectNote(node.id)}
+            variant="bare"
           >
             <SymbolSlot
               aria-hidden="true"
@@ -89,7 +90,7 @@ export function MostReferencedList({
             </SymbolSlot>
             <span className="detail-line-main">{node.title}</span>
             <span className="detail-line-meta">{node.totalReferences}</span>
-          </button>
+          </Button>
         </li>
       ))}
     </ul>

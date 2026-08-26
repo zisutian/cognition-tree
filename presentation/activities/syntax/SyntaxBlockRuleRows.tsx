@@ -10,6 +10,7 @@ import {
   syntaxFieldIds,
 } from "../../../application/workspace/projection/viewSyntaxFields";
 import { Button } from "../../ui/shared/primitives";
+import { InputControl } from "../../ui/shared/controls";
 import { SyntaxKindPicker } from "./SyntaxKindPicker";
 import { SyntaxRuleSpacer } from "./SyntaxRuleLayout";
 import { TonePicker } from "./TonePicker";
@@ -135,9 +136,9 @@ export function BlockRuleRows({
                 </span>
               )
               : (
-                <input
+                <InputControl
                   aria-label="名称"
-                  className="ui-input"
+                  sizing="container"
                   data-syntax-field-id={createSyntaxRuleFieldId(
                     "block",
                     rule.id,
@@ -159,9 +160,9 @@ export function BlockRuleRows({
                 </span>
               )
               : (
-                <input
+                <InputControl
                   aria-label="标记"
-                  className="ui-input"
+                  sizing="container"
                   data-syntax-field-id={createSyntaxRuleFieldId(
                     "block",
                     rule.id,

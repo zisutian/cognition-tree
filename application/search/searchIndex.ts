@@ -155,7 +155,6 @@ export class SearchIndex<Context = void> implements SearchQuery<Context> {
       query: normalizedQuery,
       repositoryIds: request.repositoryIds ?? null,
       revisions,
-      updatedAfter: request.updatedAfter ?? null,
     });
     const cursor = request.cursor ? decodeSearchCursor(request.cursor) : null;
 

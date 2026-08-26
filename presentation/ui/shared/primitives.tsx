@@ -1,10 +1,10 @@
 import type {
   ButtonHTMLAttributes,
-  CSSProperties,
   HTMLAttributes,
   ReactNode,
 } from "react";
 import { forwardRef } from "react";
+import { ChevronRight } from "lucide-react";
 
 export function cx(...classNames: Array<string | false | null | undefined>) {
   return classNames.filter(Boolean).join(" ");
@@ -41,6 +41,44 @@ export function PanelHeader({
       <h2>{title}</h2>
       {actions ? <div className="ui-actions">{actions}</div> : null}
     </header>
+  );
+}
+
+export function DetailPanel({
+  actions,
+  children,
+  className,
+  collapseLabel = "收回右侧详情",
+  onCollapse,
+  title,
+  ...props
+}: HTMLAttributes<HTMLElement> & {
+  actions?: ReactNode;
+  collapseLabel?: string;
+  onCollapse: () => void;
+  title: ReactNode;
+}) {
+  return (
+    <Panel className={className} tone="detail" {...props}>
+      <PanelHeader
+        actions={(
+          <>
+            {actions}
+            <Button
+              aria-label={collapseLabel}
+              onClick={onCollapse}
+              title={collapseLabel}
+              type="button"
+              variant="icon"
+            >
+              <ChevronRight aria-hidden="true" size={14} />
+            </Button>
+          </>
+        )}
+        title={title}
+      />
+      {children}
+    </Panel>
   );
 }
 
@@ -88,7 +126,7 @@ export function Section({
 }
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "ghost" | "icon" | "primary" | "secondary";
+  variant?: "bare" | "danger" | "ghost" | "icon" | "primary" | "secondary";
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -120,62 +158,6 @@ export function ToggleButton({
   );
 }
 
-type SegmentedControlOption<Value extends string> = {
-  disabled?: boolean;
-  label: ReactNode;
-  value: Value;
-};
-
-export function SegmentedControl<Value extends string>({
-  ariaLabel,
-  className,
-  fill = false,
-  options,
-  value,
-  onChange,
-}: {
-  ariaLabel: string;
-  className?: string;
-  fill?: boolean;
-  options: Array<SegmentedControlOption<Value>>;
-  value: Value;
-  onChange: (value: Value) => void;
-}) {
-  return (
-    <div
-      aria-label={ariaLabel}
-      className={cx(
-        "ui-segmented-control",
-        fill && "ui-segmented-control-fill",
-        className,
-      )}
-      role="group"
-      style={
-        fill
-          ? ({ "--ui-segment-count": options.length } as CSSProperties)
-          : undefined
-      }
-    >
-      {options.map((option) => {
-        const isActive = option.value === value;
-
-        return (
-          <button
-            aria-pressed={isActive}
-            className={cx("ui-segmented-control-option", isActive && "is-active")}
-            disabled={option.disabled}
-            key={option.value}
-            onClick={() => onChange(option.value)}
-            type="button"
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 export function SymbolSlot({
   children,
   className,
@@ -202,13 +184,13 @@ export function EmptyState({
 }: {
   action?: ReactNode;
   compact?: boolean;
-  description: ReactNode;
+  description?: ReactNode;
   title: ReactNode;
 }) {
   return (
     <div className={cx("ui-empty-state", compact && "is-compact")}>
       <h2>{title}</h2>
-      <p>{description}</p>
+      {description ? <p>{description}</p> : null}
       {action ? <div className="ui-empty-actions">{action}</div> : null}
     </div>
   );

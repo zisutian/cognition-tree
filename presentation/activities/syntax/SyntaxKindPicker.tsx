@@ -2,6 +2,7 @@ import { Check, ChevronDown } from "lucide-react";
 import type { SyntaxViewModel } from "../../../application/syntax/syntaxViewModel";
 import type { CtnBlockKind } from "../../../core/ctn/syntax/types";
 import { Popover } from "../../ui/shared/Popover";
+import { Button } from "../../ui/shared/primitives";
 
 export function SyntaxKindPicker({
   ariaLabel,
@@ -30,7 +31,7 @@ export function SyntaxKindPicker({
       panelClassName="syntax-dropdown-menu syntax-kind-menu"
       panelRole="listbox"
       renderTrigger={({ isOpen, panelId, toggle, triggerRef }) => (
-        <button
+        <Button
           aria-controls={panelId}
           aria-expanded={isOpen}
           aria-haspopup="listbox"
@@ -40,10 +41,11 @@ export function SyntaxKindPicker({
           onClick={toggle}
           ref={triggerRef}
           type="button"
+          variant="bare"
         >
           <span>{selectedOption.label}</span>
           <ChevronDown aria-hidden="true" size={13} strokeWidth={2} />
-        </button>
+        </Button>
       )}
     >
       {({ close }) => (
@@ -52,7 +54,7 @@ export function SyntaxKindPicker({
             const isSelected = option.value === value;
 
             return (
-              <button
+              <Button
                 aria-selected={isSelected}
                 className={
                   isSelected
@@ -66,12 +68,13 @@ export function SyntaxKindPicker({
                 }}
                 role="option"
                 type="button"
+                variant="bare"
               >
                 <span>{option.label}</span>
                 {isSelected ? (
                   <Check aria-hidden="true" size={12} strokeWidth={2.4} />
                 ) : null}
-              </button>
+              </Button>
             );
           })}
         </div>

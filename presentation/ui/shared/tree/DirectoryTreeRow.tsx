@@ -10,6 +10,7 @@ import type {
   ReactNode,
 } from "react";
 import { cx } from "../primitives";
+import { InputControl } from "../controls";
 import { CompactContextActionButtons } from "../CompactContextList";
 import {
   canDropTreeNode,
@@ -288,14 +289,15 @@ export function DirectoryTreeRow({
         {isEditing ? (
           <div className="ui-tree-row ui-directory-tree-row ui-tree-row-editing">
             {leadingContent}
-            <input
+            <InputControl
               autoFocus
               aria-describedby={editingNode.errorMessage
                 ? `tree-rename-error-${nodeKey}`
                 : undefined}
               aria-invalid={editingNode.errorMessage ? true : undefined}
               aria-label={`重命名${node.kind === "folder" ? "文件夹" : "笔记"}`}
-              className="ui-input ui-input-tree"
+              className="ui-input-tree"
+              sizing="container"
               value={editingNode.title}
               onChange={(event) => setEditingNode({
                 key: nodeKey,

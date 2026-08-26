@@ -7,16 +7,19 @@ import "./repository.css";
 import type { ActivitySlots } from "../../ui/activityTypes";
 import { RepositoryContext } from "./RepositoryContext";
 import { RepositoryPanel } from "./RepositoryPanel";
+import { RepositoryStatusPanel } from "./RepositoryStatusPanel";
 
 export function createRepositoryActivitySlots({
   focusRequest,
   onConsumeFocusRequest,
+  onCollapseDetail,
   onSelectionChange,
   selection,
   view,
 }: {
   focusRequest: RepositoryFocusRequest | null;
   onConsumeFocusRequest: (requestId: number) => void;
+  onCollapseDetail: () => void;
   onSelectionChange?: (selection: RepositorySelection) => void;
   selection?: RepositorySelection;
   view: RepositoryViewModel;
@@ -34,7 +37,13 @@ export function createRepositoryActivitySlots({
       ),
       title: "仓库",
     },
-    detail: null,
+    detail: (
+      <RepositoryStatusPanel
+        onCollapseDetail={onCollapseDetail}
+        selection={selection}
+        view={view}
+      />
+    ),
     main: (
       <RepositoryPanel
         selection={selection}

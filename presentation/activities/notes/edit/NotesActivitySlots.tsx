@@ -1,7 +1,7 @@
 import type { NotesViewModel } from "../../../../application/workspace/notes/edit/notesViewModel";
 import "./notes.css";
 import type { ActivitySlots } from "../../../ui/activityTypes";
-import { SegmentedControl } from "../../../ui/shared/primitives";
+import { ChoiceGroup } from "../../../ui/shared/controls";
 import { NoteDetailPanel } from "./NoteDetailPanel";
 import { NoteEditorPanel } from "./NoteEditorPanel";
 import { NotesContext } from "./NotesContext";
@@ -39,10 +39,10 @@ export function createNotesWorkspaceActivitySlots({
     context: {
       content: (
         <div className="notes-workspace-context">
-          <SegmentedControl
+          <ChoiceGroup
             ariaLabel="笔记视图"
             className="notes-mode-switch"
-            fill
+            mode="single"
             options={notesModes.map(({ id, label }) => ({
               label,
               value: id,

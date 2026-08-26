@@ -8,6 +8,7 @@ import {
   EmptyState,
   PanelBody,
 } from "../../ui/shared/primitives";
+import { TextareaControl } from "../../ui/shared/controls";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import { StatusBadge } from "../../ui/shared/StatusPresentation";
 import {
@@ -46,7 +47,6 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
       >
         <EmptyState
           compact
-          description="使用左侧的 + 在主界面选择不可扩大的硬范围；默认 profile 在设置中选择。"
           title="创建或选择一个 Agent 会话"
         />
       </ToolPanel>
@@ -102,7 +102,7 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
           ref={scrollRef}
         >
           {session.messages.length === 0 ? (
-            <p className="agent-muted">发送消息后，Agent 只能在当前硬范围内读取和暂存修改。</p>
+            <p className="agent-muted">没有消息。</p>
           ) : (
             <ol className="agent-message-list">
               {session.messages.map((message) => (
@@ -130,7 +130,7 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
             void send();
           }}
         >
-          <textarea
+          <TextareaControl
             aria-label="给 Agent 的消息"
             disabled={!canSend}
             maxLength={100_000}
@@ -140,7 +140,6 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
             value={draft}
           />
           <div>
-            <span>发送前会先同步当前范围对应的已加载 draft。</span>
             <Button
               disabled={!canSend || draft.trim().length === 0}
               type="submit"

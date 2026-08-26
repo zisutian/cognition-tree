@@ -9,6 +9,7 @@ import {
   createSyntaxRuleFieldId,
 } from "../../../application/workspace/projection/viewSyntaxFields";
 import { Button } from "../../ui/shared/primitives";
+import { InputControl } from "../../ui/shared/controls";
 import { SyntaxRuleSpacer } from "./SyntaxRuleLayout";
 import { TonePicker } from "./TonePicker";
 
@@ -32,9 +33,9 @@ function InlineRuleRow({
       data-syntax-field-id={createSyntaxRuleFieldId("inline", rule.id)}
       tabIndex={-1}
     >
-      <input
+      <InputControl
         aria-label="名称"
-        className="ui-input"
+        sizing="container"
         data-syntax-field-id={createSyntaxRuleFieldId(
           "inline",
           rule.id,
@@ -57,9 +58,9 @@ function InlineRuleRow({
             )
             : (
               <>
-                <input
+                <InputControl
                   aria-label="开始"
-                  className="ui-input"
+                  sizing="container"
                   data-syntax-field-id={createSyntaxRuleFieldId(
                     "inline",
                     rule.id,
@@ -73,9 +74,9 @@ function InlineRuleRow({
                     })
                   }
                 />
-                <input
+                <InputControl
                   aria-label="结束"
-                  className="ui-input"
+                  sizing="container"
                   data-syntax-field-id={createSyntaxRuleFieldId(
                     "inline",
                     rule.id,
@@ -95,9 +96,9 @@ function InlineRuleRow({
       ) : triggerProtected
         ? <span className="syntax-readonly">{rule.marker}</span>
         : (
-          <input
+          <InputControl
             aria-label="符号"
-            className="ui-input"
+            sizing="container"
             data-syntax-field-id={createSyntaxRuleFieldId(
               "inline",
               rule.id,

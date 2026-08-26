@@ -5,10 +5,20 @@ import type { AgentApplication } from "../../../application/agent";
 import type {
   ApiAccessApplication,
 } from "../../../application/apiAccess/apiAccessAdministration";
-import { cx } from "../../ui/shared/primitives";
+import {
+  CompactContextList,
+  CompactContextRow,
+} from "../../ui/shared/CompactContextList";
 import { ApiAccessSettingsPanel } from "./ApiAccessSettingsPanel";
 import { AgentSettingsPanel } from "./AgentSettingsPanel";
 import type { AgentSettingsPage } from "./AgentSettingsPanel";
+import type {
+  AgentSettingsSelection,
+  ApiAccessSelection,
+  ApiAccessStatusSnapshot,
+  OperationsStatusSnapshot,
+  SettingsSection,
+} from "./settingsTypes";
 import type { SystemApplication } from "../../../application/system";
 import { SystemSettingsPanel } from "./SystemSettingsPanel";
 import type { OperationApplication } from "../../../application/operations/operationAdministration";
@@ -18,7 +28,7 @@ import {
   type SettingsWorkbenchPreferences,
 } from "./InterfaceSettingsPanel";
 
-export type SettingsSection = "agent" | "api-access" | "audit" | "interface" | "system";
+export type { SettingsSection } from "./settingsTypes";
 export type { SettingsWorkbenchPreferences } from "./InterfaceSettingsPanel";
 
 const settingsSections = [
@@ -38,34 +48,22 @@ export function SettingsContext({
 }) {
   return (
     <div className="activity-context-content settings-context">
-      <ul className="ui-tree settings-list">
+      <CompactContextList aria-label="设置页面">
         {settingsSections.map(({ icon: Icon, id, label }) => {
           const selected = section === id;
 
           return (
-            <li
-              className={cx(
-                "ui-tree-row-frame settings-row-frame",
-                selected && "is-selected",
-              )}
+            <CompactContextRow
+              icon={<Icon aria-hidden="true" size={13} />}
               key={id}
-            >
-              <button
-                aria-current={selected ? "page" : undefined}
-                className={cx(
-                  "ui-tree-row settings-row",
-                  selected && "is-selected",
-                )}
-                onClick={() => onSectionChange(id)}
-                type="button"
-              >
-                <Icon aria-hidden="true" size={13} />
-                <span className="ui-tree-text">{label}</span>
-              </button>
-            </li>
+              label={label}
+              onSelect={() => onSectionChange(id)}
+              selected={selected}
+              title={label}
+            />
           );
         })}
-      </ul>
+      </CompactContextList>
     </div>
   );
 }
@@ -73,18 +71,34 @@ export function SettingsContext({
 export function SettingsPanel({
   agent,
   agentPage = "overview",
+  agentSelection = { kind: "overview" },
   apiAccess,
+  apiAccessSelection = { kind: "overview" },
   onAgentPageChange = () => undefined,
+  onAgentSelectionChange = () => undefined,
+  onApiAccessSelectionChange = () => undefined,
+  onApiAccessSnapshotChange = () => undefined,
+  onOperationsSelectedEntryIdChange = () => undefined,
+  onOperationsSnapshotChange = () => undefined,
   operations,
+  operationsSelectedEntryId = null,
   section = "interface",
   system,
   workbench,
 }: {
   agent: AgentApplication;
   agentPage?: AgentSettingsPage;
+  agentSelection?: AgentSettingsSelection;
   apiAccess: ApiAccessApplication;
+  apiAccessSelection?: ApiAccessSelection;
   onAgentPageChange?: (page: AgentSettingsPage) => void;
+  onAgentSelectionChange?: (selection: AgentSettingsSelection) => void;
+  onApiAccessSelectionChange?: (selection: ApiAccessSelection) => void;
+  onApiAccessSnapshotChange?: (snapshot: ApiAccessStatusSnapshot) => void;
+  onOperationsSelectedEntryIdChange?: (entryId: string | null) => void;
+  onOperationsSnapshotChange?: (snapshot: OperationsStatusSnapshot) => void;
   operations: OperationApplication;
+  operationsSelectedEntryId?: string | null;
   section?: SettingsSection;
   system: SystemApplication;
   workbench: SettingsWorkbenchPreferences;
@@ -93,17 +107,33 @@ export function SettingsPanel({
     return (
       <AgentSettingsPanel
         agent={agent}
+        selection={agentSelection}
         onPageChange={onAgentPageChange}
+        onSelectionChange={onAgentSelectionChange}
         page={agentPage}
       />
     );
   }
   if (section === "system") return <SystemSettingsPanel system={system} />;
   if (section === "api-access") {
-    return <ApiAccessSettingsPanel apiAccess={apiAccess} />;
+    return (
+      <ApiAccessSettingsPanel
+        apiAccess={apiAccess}
+        onSelectionChange={onApiAccessSelectionChange}
+        onStatusChange={onApiAccessSnapshotChange}
+        selection={apiAccessSelection}
+      />
+    );
   }
   if (section === "audit") {
-    return <OperationsSettingsPanel operations={operations} />;
+    return (
+      <OperationsSettingsPanel
+        onSelectedEntryIdChange={onOperationsSelectedEntryIdChange}
+        onStatusChange={onOperationsSnapshotChange}
+        operations={operations}
+        selectedEntryId={operationsSelectedEntryId}
+      />
+    );
   }
   return <InterfaceSettingsPanel workbench={workbench} />;
 }

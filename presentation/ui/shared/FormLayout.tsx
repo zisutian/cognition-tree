@@ -19,22 +19,18 @@ export function FormLayout({
 export function FieldRow({
   children,
   className,
-  description,
   errorMessage,
   fieldId,
   label,
 }: {
   children(accessibility: FieldControlAccessibility): ReactNode;
   className?: string;
-  description?: ReactNode;
   errorMessage?: ReactNode;
   fieldId: string;
   label: ReactNode;
 }) {
-  const hasDescription = description !== undefined ||
-    errorMessage !== undefined;
   const hasError = errorMessage !== undefined;
-  const descriptionId = hasDescription
+  const descriptionId = hasError
     ? `${fieldId}-description`
     : undefined;
 
@@ -47,7 +43,7 @@ export function FieldRow({
           ...(hasError ? { "aria-invalid": true } : {}),
           id: fieldId,
         })}
-        {hasDescription ? (
+        {hasError ? (
           <p
             className={cx(
               "ui-field-description",
@@ -55,7 +51,7 @@ export function FieldRow({
             )}
             id={descriptionId}
           >
-            {hasError ? errorMessage : description}
+            {errorMessage}
           </p>
         ) : null}
       </div>

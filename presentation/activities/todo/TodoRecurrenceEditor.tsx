@@ -12,8 +12,8 @@ import type {
 } from "../../../core/todo/recurrence/todoRecurrenceRule";
 import {
   Button,
-  SegmentedControl,
 } from "../../ui/shared/primitives";
+import { ChoiceGroup, InputControl } from "../../ui/shared/controls";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 
 type RecurrenceMode = "daily" | "monthly" | "none" | "weekly";
@@ -122,9 +122,9 @@ export function TodoRecurrenceEditor({
             : `历史完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount} · 周期已停止`}
         </p>
       ) : null}
-      <SegmentedControl
+      <ChoiceGroup
         ariaLabel="周期类型"
-        fill
+        mode="single"
         options={[
           { label: "日", value: "daily" },
           { label: "周", value: "weekly" },
@@ -142,9 +142,8 @@ export function TodoRecurrenceEditor({
       {mode !== "none" ? (
         <label className="todo-recurrence-field">
           <span>每隔</span>
-          <input
+          <InputControl
             aria-label="重复间隔"
-            className="ui-input"
             inputMode="numeric"
             min={1}
             onChange={(event) => setInterval(event.currentTarget.value)}
@@ -179,9 +178,8 @@ export function TodoRecurrenceEditor({
       {mode === "monthly" ? (
         <label className="todo-recurrence-field">
           <span>第</span>
-          <input
+          <InputControl
             aria-label="每月日期"
-            className="ui-input"
             inputMode="numeric"
             max={31}
             min={1}

@@ -19,7 +19,7 @@
   color: var(--color-fg-muted);
   background: transparent;
   font-size: var(--ui-body-font-size);
-  font-weight: var(--ui-control-weight);
+  font-weight: var(--ui-emphasis-weight);
   line-height: var(--ui-body-line-height);
   text-align: left;
   cursor: pointer;
@@ -43,7 +43,7 @@
   align-items: center;
   gap: calc(var(--ui-gap-tight) / 2);
   font-variant-numeric: var(--ui-numeric-font-variant);
-  font-weight: var(--ui-numeric-weight);
+  font-weight: var(--ui-body-weight);
 }
 
 .problems-panel-error-count {
@@ -59,7 +59,7 @@
   margin-left: auto;
   overflow: hidden;
   color: var(--color-fg-muted);
-  font-weight: var(--ui-micro-weight);
+  font-weight: var(--ui-body-weight);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

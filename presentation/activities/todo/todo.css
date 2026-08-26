@@ -118,7 +118,7 @@
   font-size: var(--ui-control-font-size);
 }
 
-.todo-recurrence-field .ui-input {
+.todo-recurrence-field .ui-control {
   width: 100%;
 }
 

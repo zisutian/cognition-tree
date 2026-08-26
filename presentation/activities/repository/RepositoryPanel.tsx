@@ -27,7 +27,6 @@ import {
 } from "./RepositoryIssueDetail";
 import {
   builtInLabel,
-  copyRepositoryLocation,
   selectedRepositoryTarget,
 } from "./repositoryViewHelpers";
 
@@ -64,12 +63,6 @@ export function RepositoryPanel({
     }
   }, [currentSelection, deleteRepository, pendingIssueAction]);
 
-  const copyLocation = (label: string, value: string) => {
-    void feedback.runAction(async () => {
-      await copyRepositoryLocation(value);
-      feedback.notify(`${label}已复制。`);
-    });
-  };
   const title = target.kind === "create"
     ? "新建仓库"
     : target.kind === "ordinary-repository"
@@ -141,7 +134,6 @@ export function RepositoryPanel({
               repository={target.repository}
               view={view}
               onCancelDelete={() => setDeleteRepository(null)}
-              onCopy={copyLocation}
               onDelete={async () =>
                 await feedback.runAction(async () => {
                   await view.deleteRepository({ id: target.repository!.id });
@@ -168,7 +160,6 @@ export function RepositoryPanel({
               onBeginAction={setPendingIssueAction}
               onCancelAction={() => setPendingIssueAction(null)}
               onConfirmAction={() => void confirmIssueAction()}
-              onCopy={copyLocation}
               onRunAction={runAction}
             />
           ) : null}
@@ -187,7 +178,6 @@ export function RepositoryPanel({
               issue={target.issue}
               repository={target.repository}
               view={view}
-              onCopy={copyLocation}
               onRunAction={runAction}
             />
           ) : null}

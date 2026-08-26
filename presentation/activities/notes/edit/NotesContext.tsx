@@ -2,6 +2,7 @@ import { FolderPlus, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { NotesViewModel } from "../../../../application/workspace/notes/edit/notesViewModel";
 import { Button } from "../../../ui/shared/primitives";
+import { InputControl } from "../../../ui/shared/controls";
 import {
   NoteTree,
   TreeMoveQuickPick,
@@ -194,10 +195,10 @@ export function NotesContext({
             createFolder();
           }}
         >
-          <input
+          <InputControl
             autoFocus
             aria-label="文件夹名称"
-            className="ui-input"
+            sizing="container"
             value={folderTitle}
             onChange={(event) => setFolderTitle(event.target.value)}
             onKeyDown={(event) => {

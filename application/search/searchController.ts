@@ -11,8 +11,6 @@ import {
 export type SearchDraft = {
   domains: SearchDomain[];
   query: string;
-  repositoryIds: string[] | null;
-  updatedAfter: string | null;
 };
 
 export type SearchControllerState = {
@@ -45,9 +43,6 @@ function copyDraft(draft: SearchDraft): SearchDraft {
   return {
     ...draft,
     domains: [...draft.domains],
-    repositoryIds: draft.repositoryIds
-      ? [...draft.repositoryIds]
-      : null,
   };
 }
 
@@ -57,10 +52,6 @@ function createRequest(draft: SearchDraft, cursor?: string): SearchRequest {
     domains: [...draft.domains],
     limit: 20,
     query: draft.query.trim(),
-    ...(draft.repositoryIds
-      ? { repositoryIds: [...draft.repositoryIds] }
-      : {}),
-    ...(draft.updatedAfter ? { updatedAfter: draft.updatedAfter } : {}),
   };
 }
 
@@ -73,21 +64,9 @@ export function searchDraftsEqual(
       left &&
       right &&
       left.query === right.query &&
-      left.updatedAfter === right.updatedAfter &&
       left.domains.length === right.domains.length &&
       left.domains.every((domain, index) =>
         domain === right.domains[index]
-      ) &&
-      (
-        left.repositoryIds === right.repositoryIds ||
-        (
-          left.repositoryIds &&
-          right.repositoryIds &&
-          left.repositoryIds.length === right.repositoryIds.length &&
-          left.repositoryIds.every((id, index) =>
-            id === right.repositoryIds![index]
-          )
-        )
       ),
     );
 }
@@ -106,8 +85,6 @@ export function createSearchController({
     draft: {
       domains: [...searchDomains],
       query: "",
-      repositoryIds: null,
-      updatedAfter: null,
     },
     errorMessage: null,
     faults: [],

@@ -1,5 +1,8 @@
 .ui-tool-panel {
-  --ui-panel-padding: var(--ui-gap-tight);
+  min-width: 0;
+}
+
+.ui-tool-panel-body {
   --ui-gap: var(--ui-gap-tight);
   --ui-control-height: var(--ui-row-height);
   --ui-control-font-size: var(--ui-body-font-size);
@@ -8,9 +11,7 @@
   --ui-micro-line-height: var(--ui-body-line-height);
   --ui-code-font-size: var(--ui-body-font-size);
   --ui-code-line-height: var(--ui-body-line-height);
-}
 
-.ui-tool-panel-body {
   display: block;
 }
 
@@ -37,6 +38,10 @@
   width: 100%;
 }
 
+.ui-tool-panel-body-detail > .ui-tool-panel-content {
+  width: 100%;
+}
+
 .ui-tool-section-stack {
   display: grid;
   min-width: 0;
@@ -51,6 +56,11 @@
 
 .ui-tool-section + .ui-tool-section {
   border-top: var(--ui-border-width) solid var(--color-border);
+}
+
+.ui-tool-section-danger {
+  border-left: calc(var(--ui-border-width) * 2) solid var(--color-error);
+  background: var(--color-error-soft);
 }
 
 .ui-tool-section:focus {
@@ -83,13 +93,7 @@
 .ui-tool-section-heading h3 {
   color: var(--color-fg-muted);
   font-size: var(--ui-body-font-size);
-  font-weight: var(--ui-micro-strong-weight);
-  line-height: var(--ui-body-line-height);
-}
-
-.ui-tool-section-heading p {
-  color: var(--color-fg-muted);
-  font-size: var(--ui-body-font-size);
+  font-weight: var(--ui-emphasis-weight);
   line-height: var(--ui-body-line-height);
 }
 
@@ -106,11 +110,11 @@
 }
 
 .ui-tool-panel-body-form .ui-field-row {
-  grid-template-columns: minmax(112px, 180px) minmax(180px, 520px);
+  grid-template-columns: 128px minmax(0, 1fr);
 }
 
 .ui-tool-panel-body-form .ui-form-actions {
-  margin-left: calc(180px + var(--ui-gap-tight));
+  margin-left: calc(128px + calc(var(--ui-gap-tight) * 2));
 }
 
 .ui-tool-toolbar {
@@ -134,19 +138,8 @@
   line-height: var(--ui-body-line-height);
 }
 
-.ui-tool-toolbar select {
-  height: var(--ui-row-height);
-  min-height: var(--ui-row-height);
-  padding: 0 var(--ui-gap-tight);
-  border: var(--ui-border-width) solid var(--color-border);
-  border-radius: var(--ui-radius);
-  color: var(--color-fg);
-  background: var(--color-input);
-  font: inherit;
-}
-
 .ui-tool-toolbar .ui-button,
-.ui-tool-toolbar .ui-input {
+.ui-tool-toolbar .ui-control {
   --ui-control-height: var(--ui-row-height);
   --ui-control-font-size: var(--ui-body-font-size);
 
@@ -175,7 +168,7 @@ details > .ui-tool-property-list {
 
 .ui-tool-property-row {
   display: grid;
-  grid-template-columns: clamp(88px, 18%, 128px) minmax(0, 1fr);
+  grid-template-columns: 88px minmax(0, 1fr);
   align-items: start;
   column-gap: calc(var(--ui-gap-tight) * 2);
   min-width: 0;
@@ -342,45 +335,4 @@ details > .ui-tool-property-list {
   color: var(--color-fg-strong);
   background: var(--color-hover);
   outline: none;
-}
-
-.ui-collapsible-context-group {
-  display: grid;
-  gap: var(--ui-gap-tight);
-}
-
-.ui-collapsible-context-group h3 {
-  margin: 0;
-}
-
-.ui-collapsible-context-group h3 > button {
-  display: grid;
-  grid-template-columns: var(--ui-symbol-size) minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--ui-gap-tight);
-  width: 100%;
-  min-height: var(--ui-row-height);
-  padding: 0 var(--ui-gap-tight);
-  border: 0;
-  color: var(--color-fg-muted);
-  background: transparent;
-  font-family: inherit;
-  font-size: var(--ui-micro-font-size);
-  font-weight: var(--ui-micro-strong-weight);
-  line-height: var(--ui-micro-line-height);
-  text-align: left;
-  cursor: pointer;
-}
-
-.ui-collapsible-context-group h3 > button:hover,
-.ui-collapsible-context-group h3 > button:focus-visible {
-  color: var(--color-fg);
-  background: var(--color-hover);
-  outline: none;
-}
-
-.ui-collapsible-context-group h3 > button > span:last-child:not(:first-of-type) {
-  color: var(--color-fg-subtle);
-  font-variant-numeric: var(--ui-numeric-font-variant);
-  font-weight: var(--ui-micro-weight);
 }

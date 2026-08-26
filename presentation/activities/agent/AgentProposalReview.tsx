@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { AlertTriangle, Copy } from "lucide-react";
+import { Copy } from "lucide-react";
 import type { AgentProposalView } from "../../../application/agent";
 import { Button } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
@@ -46,7 +46,7 @@ export function AgentProposalReview({
 
   return (
     <>
-      <ToolSection title="变更摘要">
+      <ToolSection title="变更摘要" tone={proposal.destructive ? "danger" : "default"}>
         <p>
           {summary.created > 0 ? `新建 ${summary.created} 项` : null}
           {summary.created > 0 && summary.updated > 0 ? "，" : null}
@@ -59,15 +59,6 @@ export function AgentProposalReview({
             ? "没有可展示的资源变更"
             : null}
         </p>
-        {proposal.destructive ? (
-          <div className="agent-proposal-destructive-warning" role="alert">
-            <AlertTriangle aria-hidden="true" size={16} />
-            <div>
-              <strong>这份 Proposal 包含删除</strong>
-              <span>批准后仍需再次独立确认，才会执行写入。</span>
-            </div>
-          </div>
-        ) : null}
       </ToolSection>
       <ToolSection title="逐项审查">
         {proposal.review.resources.length === 0 ? (

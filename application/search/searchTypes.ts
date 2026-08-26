@@ -11,7 +11,6 @@ export type SearchRequest = {
   limit?: number;
   query: string;
   repositoryIds?: string[];
-  updatedAfter?: string;
 };
 
 type SearchResultBase = {

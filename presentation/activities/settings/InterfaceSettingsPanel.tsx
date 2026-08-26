@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { FieldRow, FormLayout } from "../../ui/shared/FormLayout";
+import { InputControl } from "../../ui/shared/controls";
 import {
   ToolPanel,
   ToolPanelBody,
@@ -22,15 +23,10 @@ export function InterfaceSettingsPanel({
       <ToolPanelBody layout="form">
         <ToolSection aria-label="界面选项">
           <FormLayout>
-            <FieldRow
-              description="范围 220–420 px。"
-              fieldId="settings-context-width"
-              label="左侧栏宽度"
-            >
+            <FieldRow fieldId="settings-context-width" label="左侧栏宽度">
               {(accessibility) => (
-                <input
+                <InputControl
                   {...accessibility}
-                  className="ui-input settings-width-input"
                   max={420}
                   min={220}
                   onChange={(event) => {

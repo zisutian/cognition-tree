@@ -26,7 +26,7 @@ import {
   CompactContextStatusIcon,
 } from "../../ui/shared/CompactContextList";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
-import { cx } from "../../ui/shared/primitives";
+import { Button, cx } from "../../ui/shared/primitives";
 import {
   builtInIds,
   builtInLabel,
@@ -327,7 +327,7 @@ export function RepositoryContext({
                 currentSelection.kind === "create" && "is-selected",
               )}
             >
-              <button
+              <Button
                 aria-current={currentSelection.kind === "create"
                   ? "page"
                   : undefined}
@@ -340,9 +340,10 @@ export function RepositoryContext({
                 onClick={() => onSelectionChange({ kind: "create" })}
                 title="新建仓库"
                 type="button"
+                variant="bare"
               >
                 <Plus aria-hidden="true" size={13} />
-              </button>
+              </Button>
             </li>
       </CompactContextGroup>
 

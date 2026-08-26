@@ -9,14 +9,10 @@ import {
   ToolSection,
 } from "../../ui/shared/ToolSurface";
 
-export function RepositoryConflictResolution({
-  busy,
+export function RepositoryConflictStatus({
   resolution,
-  onRunAction,
 }: {
-  busy: boolean;
   resolution: RepositoryConflictResolutionView;
-  onRunAction(action: () => Promise<void>): void;
 }) {
   const [unitIds, setUnitIds] = useState<string[] | null>(null);
 
@@ -34,20 +30,31 @@ export function RepositoryConflictResolution({
   }, [resolution]);
 
   return (
+    <ToolPropertyList aria-label="同步冲突详情">
+      <ToolPropertyRow label="同步冲突" value="存在" />
+      <ToolPropertyRow
+        label="冲突单元"
+        value={unitIds === null
+          ? "正在读取…"
+          : unitIds.length > 0
+            ? unitIds.join("、")
+            : "整仓内容"}
+      />
+    </ToolPropertyList>
+  );
+}
+
+export function RepositoryConflictActions({
+  busy,
+  resolution,
+  onRunAction,
+}: {
+  busy: boolean;
+  resolution: RepositoryConflictResolutionView;
+  onRunAction(action: () => Promise<void>): void;
+}) {
+  return (
     <ToolSection title="同步冲突">
-      <p className="repository-warning" role="alert">
-        本地与远端修改均已保留。选择一方前不会覆盖当前本地编辑。
-      </p>
-      <ToolPropertyList aria-label="同步冲突详情">
-        <ToolPropertyRow
-          label="冲突单元"
-          value={unitIds === null
-            ? "正在读取…"
-            : unitIds.length > 0
-              ? unitIds.join("、")
-              : "整仓内容"}
-        />
-      </ToolPropertyList>
       <div className="repository-operation-strip">
         <Button
           disabled={busy}
@@ -55,13 +62,12 @@ export function RepositoryConflictResolution({
           type="button"
           variant="primary"
         >
-          以当前远端版本保留本地
+          保留本地
         </Button>
         <Button
           disabled={busy}
           onClick={() => onRunAction(resolution.useRemote)}
           type="button"
-          variant="secondary"
         >
           采用远端
         </Button>
@@ -69,9 +75,8 @@ export function RepositoryConflictResolution({
           disabled={busy}
           onClick={() => onRunAction(resolution.recoverLocalCopy)}
           type="button"
-          variant="secondary"
         >
-          采用远端并另存本地正文
+          远端并另存本地
         </Button>
       </div>
     </ToolSection>

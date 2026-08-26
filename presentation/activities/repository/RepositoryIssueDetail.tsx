@@ -10,10 +10,6 @@ import type { RepositoryViewModel } from
   "../../../application/repository/repositoryViewModel";
 import { Button } from "../../ui/shared/primitives";
 import { ToolSection } from "../../ui/shared/ToolSurface";
-import {
-  RepositoryLocations,
-  RepositoryMetadata,
-} from "./RepositoryDetailShared";
 
 export type PendingRepositoryIssueAction = {
   action: RepositoryIssueActionView;
@@ -28,7 +24,6 @@ export function RepositoryIssueDetail({
   onBeginAction,
   onCancelAction,
   onConfirmAction,
-  onCopy,
   onRunAction,
 }: {
   busy: boolean;
@@ -38,7 +33,6 @@ export function RepositoryIssueDetail({
   onBeginAction: (pending: PendingRepositoryIssueAction) => void;
   onCancelAction: () => void;
   onConfirmAction: () => void;
-  onCopy: (label: string, value: string) => void;
   onRunAction: (action: () => Promise<void>) => void;
 }) {
   const actions = projectRepositoryIssueActions(issue);
@@ -46,20 +40,6 @@ export function RepositoryIssueDetail({
 
   return (
     <>
-      <ToolSection title="状态">
-        <RepositoryMetadata rows={[
-          { label: "状态", value: "故障" },
-          { label: "仓库 ID", value: issue.id },
-        ]} />
-        <p className="repository-warning" role="alert">
-          {issue.message}
-        </p>
-      </ToolSection>
-      <RepositoryLocations
-        busy={busy}
-        rows={issue.locationRows}
-        onCopy={onCopy}
-      />
       <ToolSection title="处理">
         {manualDeletion ? (
           <p className="repository-manual-removal">
@@ -80,7 +60,6 @@ export function RepositoryIssueDetail({
           ) : null}
           {actions.map((action) => (
             <Button
-              className={action.confirmation ? "ui-button-danger" : undefined}
               disabled={busy}
               key={action.label}
               onClick={() => {
@@ -91,7 +70,7 @@ export function RepositoryIssueDetail({
                 onRunAction(() => view.deleteRepository({ id: issue.id }));
               }}
               type="button"
-              variant="secondary"
+              variant={action.confirmation ? "danger" : "secondary"}
             >
               {action.label}
             </Button>
@@ -106,11 +85,10 @@ export function RepositoryIssueDetail({
             <p>{pendingAction.action.confirmation}</p>
             <div className="repository-inline-confirmation-actions">
               <Button
-                className="ui-button-danger"
                 disabled={busy}
                 onClick={onConfirmAction}
                 type="button"
-                variant="secondary"
+                variant="danger"
               >
                 确认
               </Button>

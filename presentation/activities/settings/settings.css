@@ -1,23 +1,6 @@
-.settings-list {
-  gap: var(--ui-border-width);
-}
-
-.settings-row {
-  grid-template-columns: var(--ui-symbol-size) minmax(0, 1fr);
-  width: 100%;
-  border: 0;
-  cursor: pointer;
-  color: inherit;
-  text-align: left;
-}
-
 .settings-panel {
   min-width: 0;
   min-height: 0;
-}
-
-.settings-width-input {
-  width: 112px;
 }
 
 .settings-subsection-heading {
@@ -27,51 +10,14 @@
   line-height: var(--ui-body-line-height);
 }
 
-.settings-agent-overview-links,
-.settings-device-login,
-.settings-checkbox-control {
+.settings-agent-overview-links {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--ui-gap);
 }
 
-.settings-checkbox-control {
-  min-height: var(--ui-control-height);
-  color: var(--color-fg);
-  font-size: var(--ui-control-font-size);
-}
-
-.settings-device-login {
-  color: var(--color-fg);
-}
-
-.settings-danger-action {
-  margin-left: var(--ui-gap-tight);
-  color: var(--color-error);
-}
-
-.settings-api-secret {
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--ui-gap);
-  padding: var(--ui-gap);
-  border-top: var(--ui-border-width) solid var(--color-warning);
-  border-bottom: var(--ui-border-width) solid var(--color-warning);
-}
-
-.settings-api-secret code {
-  overflow-wrap: anywhere;
-  user-select: all;
-}
-
-.settings-api-repository-select {
-  min-height: calc(var(--ui-control-height) * 2);
-}
-
-.settings-api-error,
-.settings-muted {
+.settings-api-error {
   margin: 0;
   font-size: var(--ui-control-font-size);
   line-height: var(--ui-control-line-height);
@@ -79,8 +25,4 @@
 
 .settings-api-error {
   color: var(--color-error);
-}
-
-.settings-muted {
-  color: var(--color-fg-muted);
 }

@@ -1,14 +1,12 @@
-import { ChevronRight } from "lucide-react";
 import type {
   AvailableSyntaxViewModel,
 } from "../../../application/syntax/syntaxViewModel";
 import type { UiSyntaxTone } from "../../../application/workspace/projection/viewSyntax";
 import {
-  Button,
   PanelBody,
   cx,
 } from "../../ui/shared/primitives";
-import { ToolPanel } from "../../ui/shared/ToolSurface";
+import { ToolDetailPanel } from "../../ui/shared/ToolSurface";
 import {
   createToneStyle,
   getTextColorClassName,
@@ -65,21 +63,10 @@ export function SyntaxDetailPanel({
   view: AvailableSyntaxViewModel;
 }) {
   return (
-    <ToolPanel
-      actions={
-        <Button
-          aria-label="收回右侧详情"
-          onClick={onCollapseDetail}
-          title="收回右侧详情"
-          type="button"
-          variant="icon"
-        >
-          <ChevronRight aria-hidden="true" size={14} />
-        </Button>
-      }
+    <ToolDetailPanel
       aria-label="语法预览"
+      onCollapse={onCollapseDetail}
       title="语法预览"
-      tone="detail"
     >
       <PanelBody className="detail-panel-stack" scroll>
         <div aria-label="语法预览内容" className="syntax-render-list">
@@ -120,6 +107,6 @@ export function SyntaxDetailPanel({
           ))}
         </div>
       </PanelBody>
-    </ToolPanel>
+    </ToolDetailPanel>
   );
 }

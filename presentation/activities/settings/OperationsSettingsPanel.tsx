@@ -15,11 +15,10 @@ import { StatusBadge } from "../../ui/shared/StatusPresentation";
 import {
   ToolPanel,
   ToolPanelBody,
-  ToolPropertyList,
-  ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
+import type { OperationsStatusSnapshot } from "./settingsTypes";
 
 function sourceLabel(source: OperationAuditEntry["source"]) {
   return source === "agent" ? "智能体" : "可信客户端";
@@ -45,68 +44,16 @@ function targetLabel(entry: OperationAuditEntry) {
     : entry.store.domain === "journal" ? "日记" : "代办";
 }
 
-function changeSummary(entry: OperationAuditEntry) {
-  const resources = entry.resourceIds.length;
-  const blocks = entry.blockIds.length;
-
-  if (resources === 0 && blocks === 0) return "未记录内容变化";
-  return `资源 ${resources} 项 · 块 ${blocks} 项`;
-}
-
-function TechnicalDetails({ entry }: { entry: OperationAuditEntry }) {
-  return (
-    <details>
-      <summary>技术详情</summary>
-      <ToolPropertyList aria-label="操作技术详情">
-        <ToolPropertyRow
-          label="请求 ID"
-          value={<code>{entry.requestId}</code>}
-        />
-        <ToolPropertyRow label="操作 ID" value={<code>{entry.id}</code>} />
-        <ToolPropertyRow
-          label="提交前 revision"
-          value={<code>{entry.beforeRevision}</code>}
-        />
-        <ToolPropertyRow
-          label="提交后 revision"
-          value={<code>{entry.afterRevision ?? "—"}</code>}
-        />
-        {entry.source === "agent"
-          ? (
-              <>
-                <ToolPropertyRow
-                  label="Proposal"
-                  value={(
-                    <code>
-                      {entry.technical.proposalId} v{entry.technical.proposalVersion}
-                    </code>
-                  )}
-                />
-                <ToolPropertyRow
-                  label="Runtime"
-                  value={`${entry.technical.runtimeKind} · ${entry.technical.profileId} v${entry.technical.profileVersion}`}
-                />
-                <ToolPropertyRow
-                  label="Digest"
-                  value={<code>{entry.technical.digest}</code>}
-                />
-              </>
-            )
-          : (
-              <ToolPropertyRow
-                label="Intent digest"
-                value={<code>{entry.technical.intentDigest}</code>}
-              />
-            )}
-      </ToolPropertyList>
-    </details>
-  );
-}
-
 export function OperationsSettingsPanel({
+  onSelectedEntryIdChange,
+  onStatusChange,
   operations,
+  selectedEntryId,
 }: {
+  onSelectedEntryIdChange(entryId: string | null): void;
+  onStatusChange(snapshot: OperationsStatusSnapshot): void;
   operations: OperationApplication;
+  selectedEntryId: string | null;
 }) {
   const [entries, setEntries] = useState<OperationAuditEntry[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -135,6 +82,17 @@ export function OperationsSettingsPanel({
     void load();
   }, [load]);
 
+  useEffect(() => {
+    onStatusChange({ entries, errorMessage, loading, status });
+  }, [entries, errorMessage, loading, onStatusChange, status]);
+
+  useEffect(() => {
+    if (selectedEntryId && entries.some(({ id }) => id === selectedEntryId)) {
+      return;
+    }
+    onSelectedEntryIdChange(entries[0]?.id ?? null);
+  }, [entries, onSelectedEntryIdChange, selectedEntryId]);
+
   return (
     <ToolPanel
       actions={(
@@ -148,9 +106,6 @@ export function OperationsSettingsPanel({
     >
       <ToolPanelBody layout="form">
         <ToolSectionStack>
-          <p className="settings-muted">
-            这里只记录可信客户端写入和智能体审批写入；浏览器自动保存不会形成审计记录。
-          </p>
           {errorMessage ? <p className="settings-api-error" role="alert">{errorMessage}</p> : null}
           {status?.status === "unavailable"
             ? <p className="settings-api-error" role="alert">操作审计不可用：{status.message}</p>
@@ -159,13 +114,14 @@ export function OperationsSettingsPanel({
             {loading && entries.length === 0
               ? <EmptyState compact description="正在读取操作账本。" title="正在加载" />
               : entries.length === 0
-                ? <EmptyState compact description="可信客户端与智能体写入会出现在这里。" title="尚无受审计写入记录" />
+                ? <EmptyState compact title="尚无受审计写入记录" />
                 : (
                     <ManagementList aria-label="操作审计">
                       {entries.map((entry) => (
                         <ManagementRow
-                          description={`${sourceLabel(entry.source)} · ${targetLabel(entry)} · ${changeSummary(entry)}`}
                           key={entry.id}
+                          onSelect={() => onSelectedEntryIdChange(entry.id)}
+                          selected={selectedEntryId === entry.id}
                           status={(
                             <StatusBadge tone={
                               entry.result === "committed" ||
@@ -180,10 +136,8 @@ export function OperationsSettingsPanel({
                               {resultLabel(entry.result)}
                             </StatusBadge>
                           )}
-                          title={new Date(entry.updatedAt).toLocaleString()}
-                        >
-                          <TechnicalDetails entry={entry} />
-                        </ManagementRow>
+                          title={`${new Date(entry.updatedAt).toLocaleString()} · ${sourceLabel(entry.source)} · ${targetLabel(entry)}`}
+                        />
                       ))}
                     </ManagementList>
                   )}

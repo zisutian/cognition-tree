@@ -9,6 +9,7 @@ import {
   Button,
   EmptyState,
 } from "../../ui/shared/primitives";
+import { InputControl } from "../../ui/shared/controls";
 import {
   ToolPanel,
   ToolPanelBody,
@@ -104,9 +105,9 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
           <ToolSection title="基础">
             <label className="syntax-setting-line">
               <span className="syntax-setting-label">缩进宽度</span>
-              <input
+              <InputControl
                 aria-label="缩进宽度"
-                className="ui-input syntax-number-control"
+                className="syntax-number-control"
                 data-syntax-field-id={syntaxFieldIds.tabDisplayWidth}
                 inputMode="numeric"
                 max={syntax.constraints.tabDisplayWidth.max}

@@ -7,24 +7,27 @@ import type {
   ReactNode,
 } from "react";
 import { forwardRef, useId } from "react";
-import { Panel, PanelBody, PanelHeader, cx } from "./primitives";
+import {
+  DetailPanel,
+  Panel,
+  PanelBody,
+  PanelHeader,
+  cx,
+} from "./primitives";
 
 export function ToolPanel({
   actions,
   children,
   className,
   title,
-  tone = "main",
   ...props
 }: HTMLAttributes<HTMLElement> & {
   actions?: ReactNode;
   title: ReactNode;
-  tone?: "detail" | "main";
 }) {
   return (
     <Panel
       className={cx("ui-tool-panel", className)}
-      tone={tone}
       {...props}
     >
       <PanelHeader actions={actions} title={title} />
@@ -33,7 +36,19 @@ export function ToolPanel({
   );
 }
 
-export type ToolPanelLayout = "form" | "results" | "table";
+export function ToolDetailPanel({
+  className,
+  ...props
+}: Parameters<typeof DetailPanel>[0]) {
+  return (
+    <DetailPanel
+      className={cx("ui-tool-panel", className)}
+      {...props}
+    />
+  );
+}
+
+export type ToolPanelLayout = "detail" | "form" | "results" | "table";
 
 export const ToolPanelBody = forwardRef<
   HTMLDivElement,
@@ -67,13 +82,13 @@ export function ToolSection({
   actions,
   children,
   className,
-  description,
+  tone = "default",
   title,
   ...props
 }: HTMLAttributes<HTMLElement> & {
-  actions?: ReactNode;
-  description?: ReactNode;
-  title?: ReactNode;
+    actions?: ReactNode;
+    tone?: "danger" | "default";
+    title?: ReactNode;
 }) {
   const generatedHeadingId = useId();
   const labelledBy = title && !props["aria-label"] && !props["aria-labelledby"]
@@ -82,15 +97,18 @@ export function ToolSection({
 
   return (
     <section
-      className={cx("ui-tool-section", className)}
+      className={cx(
+        "ui-tool-section",
+        tone === "danger" && "ui-tool-section-danger",
+        className,
+      )}
       {...props}
       aria-labelledby={labelledBy}
     >
-      {title || description || actions ? (
+      {title || actions ? (
         <header className="ui-tool-section-header">
           <div className="ui-tool-section-heading">
             {title ? <h3 id={generatedHeadingId}>{title}</h3> : null}
-            {description ? <p>{description}</p> : null}
           </div>
           {actions ? (
             <div className="ui-tool-section-actions">{actions}</div>

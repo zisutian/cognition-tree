@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import type { CreateRepositoryRequest } from
   "../../application/repository/repositoryCatalog";
 import { Button, cx } from "./shared/primitives";
+import { InputControl } from "./shared/controls";
 import {
   FieldRow,
   FormActions,
@@ -71,10 +72,9 @@ export function RepositoryCreateForm({
       <FormLayout>
         <FieldRow fieldId="repository-create-name" label="名称">
           {(accessibility) => (
-            <input
+            <InputControl
               {...accessibility}
               autoComplete="off"
-              className="ui-input"
               disabled={busy}
               maxLength={80}
               onChange={(event) => setDraft({ name: event.target.value })}

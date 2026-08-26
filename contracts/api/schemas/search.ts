@@ -18,7 +18,6 @@ export const ApiSearchRequestSchema = strictObject({
   repositoryIds: Type.Optional(Type.Array(ApiIdentifierSchema, {
     uniqueItems: true,
   })),
-  updatedAfter: Type.Optional(ApiCanonicalTimestampSchema),
 });
 export type ApiSearchRequestDto = Static<
   typeof ApiSearchRequestSchema

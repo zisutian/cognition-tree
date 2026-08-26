@@ -5,6 +5,8 @@ import type {
   UiSyntaxToneOption,
 } from "../../../application/workspace/projection/viewSyntax";
 import { Popover } from "../../ui/shared/Popover";
+import { ColorControl } from "../../ui/shared/controls";
+import { Button } from "../../ui/shared/primitives";
 import { isCustomTone } from "../../ui/shared/tonePresentation";
 
 const defaultCustomTone = "#397c72";
@@ -74,7 +76,7 @@ export function TonePicker({
       panelClassName="syntax-dropdown-menu syntax-tone-menu"
       panelRole="dialog"
       renderTrigger={({ isOpen, panelId, toggle, triggerRef }) => (
-        <button
+        <Button
           aria-controls={panelId}
           aria-expanded={isOpen}
           aria-haspopup="dialog"
@@ -84,6 +86,7 @@ export function TonePicker({
           onClick={toggle}
           ref={triggerRef}
           type="button"
+          variant="bare"
         >
           <span
             aria-hidden="true"
@@ -96,7 +99,7 @@ export function TonePicker({
             <span>{getToneLabel(value, options, customToneLabel)}</span>
           ) : null}
           <ChevronDown aria-hidden="true" size={13} strokeWidth={2} />
-        </button>
+        </Button>
       )}
     >
       {({ close }) => (
@@ -109,7 +112,7 @@ export function TonePicker({
               };
 
               return (
-                <button
+                <Button
                   aria-label={option.label}
                   className={
                     value === option.value
@@ -120,6 +123,7 @@ export function TonePicker({
                   onClick={selectOption}
                   title={option.label}
                   type="button"
+                  variant="bare"
                 >
                   <span
                     aria-hidden="true"
@@ -130,13 +134,13 @@ export function TonePicker({
                   {value === option.value ? (
                     <Check aria-hidden="true" size={12} strokeWidth={2.4} />
                   ) : null}
-                </button>
+                </Button>
               );
             })}
           </div>
 
           <div className="syntax-tone-custom-row">
-            <button
+            <Button
               className={
                 isCustomValue
                   ? "syntax-tone-custom-button is-selected"
@@ -147,6 +151,7 @@ export function TonePicker({
                 close();
               }}
               type="button"
+              variant="bare"
             >
               <span
                 aria-hidden="true"
@@ -156,10 +161,9 @@ export function TonePicker({
                 <span />
               </span>
               {customToneLabel}
-            </button>
-            <input
+            </Button>
+            <ColorControl
               aria-label="自定义颜色"
-              type="color"
               value={customTone}
               onChange={(event) => {
                 if (isCustomTone(event.target.value)) {

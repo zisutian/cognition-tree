@@ -8,6 +8,7 @@ import {
 } from "react";
 import { Overlay } from "./Overlay";
 import { cx } from "./primitives";
+import { InputControl } from "./controls";
 
 export type QuickPickOption = {
   description?: string;
@@ -127,16 +128,16 @@ export function QuickPick({
       onDismiss={onClose}
       onKeyDown={handleKeyDown}
     >
-      <input
+      <InputControl
         aria-activedescendant={activeDescendant}
         aria-autocomplete="list"
         aria-controls={listboxId}
         aria-expanded="true"
         aria-label={ariaLabel}
-        className="ui-input"
         placeholder={placeholder}
         ref={inputRef}
         role="combobox"
+        sizing="container"
         value={query}
         onChange={(event) => {
           setActiveIndex(null);

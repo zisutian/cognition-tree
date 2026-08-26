@@ -4,10 +4,7 @@ import {
   type SearchControllerActions,
   type SearchControllerState,
 } from "../../../application/search/searchController";
-import type {
-  SearchDomain,
-  SearchResult,
-} from "../../../application/search/searchTypes";
+import type { SearchDomain, SearchResult } from "../../../application/search/searchTypes";
 import {
   Button,
   EmptyState,
@@ -21,14 +18,11 @@ import {
   ToolSection,
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
-import type { SearchRepositoryOption } from "./searchViewTypes";
+import {
+  searchDomainLabels,
+  type SearchRepositoryOption,
+} from "./searchViewTypes";
 import { StatusBadge } from "../../ui/shared/StatusPresentation";
-
-const domainLabels: Record<SearchDomain, string> = {
-  journal: "日记",
-  todo: "代办",
-  workspace: "Workspace",
-};
 
 export type SearchResultGroup = {
   domain: SearchDomain;
@@ -154,13 +148,11 @@ export function SearchPanel({
         {state.status === "idle" ? (
           <EmptyState
             compact
-            description="在左侧输入搜索词并选择范围，然后按 Enter 或搜索按钮。"
-            title="搜索笔记与任务"
+            title="尚未搜索"
           />
         ) : state.status === "loading" ? (
           <EmptyState
             compact
-            description="正在读取所选领域和仓库。"
             title="正在搜索"
           />
         ) : state.errorMessage && groups.length === 0 ? (
@@ -209,7 +201,7 @@ export function SearchPanel({
                         fault.code
                       }`}
                     >
-                      {domainLabels[fault.domain]}
+                      {searchDomainLabels[fault.domain]}
                       {fault.repositoryId
                         ? ` · ${
                             repositoryLabelById.get(fault.repositoryId) ??
@@ -225,7 +217,6 @@ export function SearchPanel({
             {groups.length === 0 ? (
               <EmptyState
                 compact
-                description="当前搜索词和筛选条件没有匹配内容。"
                 title="没有结果"
               />
             ) : (
@@ -243,18 +234,16 @@ export function SearchPanel({
                   return (
                     <ToolSection
                       className="search-result-group"
-                      description={(
-                        <>
-                          {domainLabels[group.domain]}
-                          {repositoryLabel ? ` · ${repositoryLabel}` : ""}
-                          {" · "}
-                          {formatTimestamp(group.updatedAt)}
-                        </>
-                      )}
                       key={group.key}
                       role="listitem"
                       title={group.title}
                     >
+                      <p className="search-result-meta">
+                        {searchDomainLabels[group.domain]}
+                        {repositoryLabel ? ` · ${repositoryLabel}` : ""}
+                        {" · "}
+                        {formatTimestamp(group.updatedAt)}
+                      </p>
                       <ToolList
                         aria-label={`${group.title}的匹配项`}
                         className="search-result-group-list"

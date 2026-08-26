@@ -94,7 +94,7 @@
 .agent-state-label {
   margin-left: var(--ui-gap);
   color: var(--color-fg-muted);
-  font-weight: normal;
+  font-weight: var(--ui-body-weight);
 }
 
 .agent-conversation-body {
@@ -134,7 +134,7 @@
 .agent-message > span {
   color: var(--color-fg-muted);
   font-size: var(--ui-body-font-size);
-  font-weight: var(--ui-micro-strong-weight);
+  font-weight: var(--ui-emphasis-weight);
 }
 
 .agent-message p {
@@ -146,17 +146,6 @@
 .agent-composer {
   display: grid;
   gap: var(--ui-gap-tight);
-  padding: var(--ui-gap-tight);
-}
-
-.agent-composer textarea {
-  width: 100%;
-  resize: vertical;
-  border: var(--ui-border-width) solid var(--color-border);
-  border-radius: var(--ui-radius);
-  background: var(--color-input);
-  color: var(--color-fg);
-  font: inherit;
   padding: var(--ui-gap-tight);
 }
 
@@ -297,26 +286,6 @@
 
 .agent-line-diff-row.is-removed > span:nth-child(3) {
   color: var(--color-error);
-}
-
-.agent-proposal-destructive-warning {
-  display: flex;
-  gap: var(--ui-gap-tight);
-  align-items: flex-start;
-  padding: var(--ui-gap-tight);
-  border: var(--ui-border-width) solid var(--color-warning);
-  border-radius: var(--ui-radius);
-  color: var(--color-warning);
-}
-
-.agent-proposal-destructive-warning > div {
-  display: grid;
-  gap: calc(var(--ui-gap-tight) / 2);
-}
-
-.agent-proposal-destructive-warning span {
-  color: var(--color-fg-muted);
-  font-size: var(--ui-body-font-size);
 }
 
 .agent-proposal-technical > details > summary {

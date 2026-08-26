@@ -4,8 +4,6 @@ import { useMemo, useState, type FormEvent } from "react";
 import type {
   AgentApplication,
   AgentChatReasoningEffort,
-  AgentConfigurationState,
-  AgentOllamaResidentContext,
   AgentProfileInput,
   AgentProfileView,
   AgentProviderAuthenticationType,
@@ -26,18 +24,19 @@ import {
 import {
   Button,
   EmptyState,
+  ToggleButton,
 } from "../../ui/shared/primitives";
+import { ChoiceGroup, InputControl, SelectControl } from "../../ui/shared/controls";
 import { StatusBadge } from "../../ui/shared/StatusPresentation";
 import { SubsectionTabs } from "../../ui/shared/SubsectionTabs";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
   ToolPanel,
   ToolPanelBody,
-  ToolPropertyList,
-  ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
+import type { AgentSettingsSelection } from "./settingsTypes";
 
 export type AgentSettingsPage = "overview" | "profiles" | "providers";
 
@@ -53,15 +52,6 @@ const authenticationLabels = {
   "not-required": "无需认证",
   unknown: "认证状态未知",
 } as const;
-
-const authenticationTypeLabels: Record<
-  AgentProviderAuthenticationType,
-  string
-> = {
-  "api-key": "API Key",
-  "chatgpt-device-code": "ChatGPT 设备码",
-  none: "无需认证",
-};
 
 type ProviderDraft = {
   apiKey: string;
@@ -157,11 +147,15 @@ function profileInput(
 export function AgentSettingsPanel({
   agent,
   onPageChange,
+  onSelectionChange,
   page,
+  selection,
 }: {
   agent: AgentApplication;
   onPageChange(page: AgentSettingsPage): void;
+  onSelectionChange(selection: AgentSettingsSelection): void;
   page: AgentSettingsPage;
+  selection: AgentSettingsSelection;
 }) {
   const feedback = useFeedback();
   const { configurationController, configurationState, controller, state } =
@@ -202,6 +196,11 @@ export function AgentSettingsPanel({
   const changePage = (nextPage: AgentSettingsPage) => {
     resetProviderForm();
     resetProfileForm();
+    onSelectionChange(nextPage === "providers" && providers[0]
+      ? { id: providers[0].id, kind: "provider" }
+      : nextPage === "profiles" && profiles[0]
+        ? { id: profiles[0].id, kind: "profile" }
+        : { kind: "overview" });
     onPageChange(nextPage);
   };
   const submitProvider = (event: FormEvent) => {
@@ -211,8 +210,14 @@ export function AgentSettingsPanel({
     void feedback.runAction(async () => {
       if (editingProviderId) {
         await configurationController.updateProvider(editingProviderId, input);
+        onSelectionChange({ id: editingProviderId, kind: "provider" });
       } else {
+        const previousIds = new Set(providers.map(({ id }) => id));
         await configurationController.createProvider(input);
+        const created = configurationController.getSnapshot().configuration
+          ?.providers.find(({ id }) => !previousIds.has(id));
+
+        if (created) onSelectionChange({ id: created.id, kind: "provider" });
       }
       resetProviderForm();
     });
@@ -225,8 +230,14 @@ export function AgentSettingsPanel({
     void feedback.runAction(async () => {
       if (editingProfileId) {
         await configurationController.updateProfile(editingProfileId, input);
+        onSelectionChange({ id: editingProfileId, kind: "profile" });
       } else {
+        const previousIds = new Set(profiles.map(({ id }) => id));
         await configurationController.createProfile(input);
+        const created = configurationController.getSnapshot().configuration
+          ?.profiles.find(({ id }) => !previousIds.has(id));
+
+        if (created) onSelectionChange({ id: created.id, kind: "profile" });
       }
       resetProfileForm();
     });
@@ -275,8 +286,6 @@ export function AgentSettingsPanel({
               ollamaEndpoint={ollamaEndpoint}
               onEndpointChange={setOllamaEndpoint}
               onPageChange={changePage}
-              profiles={profiles}
-              providers={providers}
               statusProfiles={statusProfiles}
             />
           ) : page === "providers" ? (
@@ -305,8 +314,10 @@ export function AgentSettingsPanel({
                     provider.privateNetworkAccess === "confirmed",
                 });
               }}
+              onSelectionChange={onSelectionChange}
               onSubmit={submitProvider}
               providers={providers}
+              selection={selection}
             />
           ) : (
             <ProfileManagement
@@ -327,10 +338,12 @@ export function AgentSettingsPanel({
                 setEditingProfileId(profile.id);
                 setProfileDraft(profileDraftFrom(profile));
               }}
+              onSelectionChange={onSelectionChange}
               onSubmit={submitProfile}
               profiles={profiles}
               providers={providers}
               selectedProvider={selectedProvider}
+              selection={selection}
             />
           )}
         </SubsectionTabs>
@@ -345,8 +358,6 @@ function AgentOverview({
   ollamaEndpoint,
   onEndpointChange,
   onPageChange,
-  profiles,
-  providers,
   statusProfiles,
 }: {
   agent: AgentApplication;
@@ -354,47 +365,18 @@ function AgentOverview({
   ollamaEndpoint: string;
   onEndpointChange(value: string): void;
   onPageChange(page: AgentSettingsPage): void;
-  profiles: readonly AgentProfileView[];
-  providers: readonly AgentProviderView[];
   statusProfiles: NonNullable<AgentApplication["state"]["status"]>["profiles"];
 }) {
   const feedback = useFeedback();
-  const preferred = statusProfiles.find(({ id }) =>
-    id === agent.state.preferredProfileId
-  ) ?? null;
-
   return (
     <ToolSectionStack>
-      <ToolSection aria-label="Agent 状态概览">
-        <ToolPropertyList aria-label="Agent 状态概览">
-          <ToolPropertyRow
-            label="Agent"
-            value={(
-              <StatusBadge tone={agent.state.status?.enabled ? "success" : "warning"}>
-                {agent.state.status?.enabled ? "可用" : "不可用"}
-              </StatusBadge>
-            )}
-          />
-          <ToolPropertyRow
-            label="默认 Profile"
-            value={preferred?.label ?? "未选择"}
-          />
-          <ToolPropertyRow label="Provider" value={providers.length} />
-          <ToolPropertyRow label="Profile" value={profiles.length} />
-        </ToolPropertyList>
-      </ToolSection>
       <ToolSection title="默认 Profile">
         <FormLayout>
-          <FieldRow
-            description="只影响以后创建的会话；既有会话固定其创建时配置。"
-            fieldId="settings-agent-default-profile"
-            label="默认 Profile"
-          >
+          <FieldRow fieldId="settings-agent-default-profile" label="默认 Profile">
             {(accessibility) => (
-              <select
+              <SelectControl
                 {...accessibility}
                 aria-label="默认 Profile"
-                className="ui-input"
                 disabled={agent.state.loadStatus === "loading"}
                 onChange={(event) => agent.controller.setPreferredProfile(
                   event.currentTarget.value || null,
@@ -412,23 +394,18 @@ function AgentOverview({
                     {profile.availability === "unavailable" ? "（不可用）" : ""}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             )}
           </FieldRow>
         </FormLayout>
       </ToolSection>
       <ToolSection title="发现本地 Ollama">
         <FormLayout>
-          <FieldRow
-            description="发现只读取模型列表，不会自动创建 Provider 或 Profile。"
-            fieldId="settings-agent-ollama-endpoint"
-            label="Ollama 地址"
-          >
+          <FieldRow fieldId="settings-agent-ollama-endpoint" label="Ollama 地址">
             {(accessibility) => (
-              <input
+              <InputControl
                 {...accessibility}
                 aria-label="Ollama 地址"
-                className="ui-input"
                 onChange={(event) => onEndpointChange(event.currentTarget.value)}
                 value={ollamaEndpoint}
               />
@@ -446,18 +423,6 @@ function AgentOverview({
             </Button>
           </FormActions>
         </FormLayout>
-        {agent.configurationState.discovery ? (
-          <ToolPropertyList aria-label="Ollama 发现结果">
-            <ToolPropertyRow
-              label="地址"
-              value={agent.configurationState.discovery.endpoint}
-            />
-            <ToolPropertyRow
-              label="模型"
-              value={agent.configurationState.discovery.models.join("、") || "没有模型"}
-            />
-          </ToolPropertyList>
-        ) : null}
       </ToolSection>
       <ToolSection aria-label="智能体管理入口">
         <div className="settings-agent-overview-links">
@@ -483,8 +448,10 @@ function ProviderManagement({
   onCancel,
   onDraftChange,
   onEdit,
+  onSelectionChange,
   onSubmit,
   providers,
+  selection,
 }: {
   agent: AgentApplication;
   busy: boolean;
@@ -495,8 +462,10 @@ function ProviderManagement({
   onCancel(): void;
   onDraftChange(draft: ProviderDraft): void;
   onEdit(provider: AgentProviderView): void;
+  onSelectionChange(selection: AgentSettingsSelection): void;
   onSubmit(event: FormEvent): void;
   providers: readonly AgentProviderView[];
+  selection: AgentSettingsSelection;
 }) {
   const feedback = useFeedback();
 
@@ -527,11 +496,10 @@ function ProviderManagement({
       title="Provider"
     >
       {providers.length === 0 ? (
-        <EmptyState compact description="Provider 保存模型服务地址和认证方式。" title="尚未创建 Provider" />
+        <EmptyState compact title="尚未创建 Provider" />
       ) : (
         <ManagementList aria-label="Provider 列表">
-          {providers.map((provider) => {
-            const probe = agent.configurationState.probes[provider.id];
+          {providers.map((provider, index) => {
             const login = agent.configurationState.codexDeviceLogins[provider.id];
 
             return (
@@ -542,27 +510,30 @@ function ProviderManagement({
                     {provider.kind === "codex" && provider.authenticationType === "chatgpt-device-code" && login?.status !== "pending" ? (
                       <Button disabled={busy} onClick={() => void feedback.runAction(() => agent.configurationController.startCodexDeviceLogin(provider.id))} type="button">使用 ChatGPT 登录</Button>
                     ) : null}
+                    {login?.status === "pending" ? (
+                      <Button disabled={busy} onClick={() => void feedback.runAction(() => agent.configurationController.cancelCodexDeviceLogin(provider.id))} type="button">取消登录</Button>
+                    ) : null}
                     {provider.authenticationStatus === "configured" ? (
                       <Button disabled={busy} onClick={() => void feedback.runAction(() => agent.configurationController.clearProviderAuthentication(provider.id))} type="button">退出认证</Button>
                     ) : null}
                     <Button disabled={busy} onClick={() => onEdit(provider)} type="button">编辑</Button>
-                    <Button className="settings-danger-action" disabled={busy} onClick={() => void feedback.runAction(() => agent.configurationController.deleteProvider(provider.id))} type="button">删除</Button>
+                    <Button disabled={busy} onClick={() => void feedback.runAction(async () => {
+                      await agent.configurationController.deleteProvider(provider.id);
+                      const remaining = agent.configurationController.getSnapshot().configuration?.providers ?? [];
+                      const next = remaining[Math.min(index, Math.max(0, remaining.length - 1))];
+
+                      onSelectionChange(next
+                        ? { id: next.id, kind: "provider" }
+                        : { kind: "overview" });
+                    })} type="button" variant="danger">删除</Button>
                   </>
                 )}
-                description={`${provider.kind} · ${provider.baseUrl ?? "Codex app-server"} · ${authenticationTypeLabels[provider.authenticationType]} · 私网许可${provider.privateNetworkAccess === "confirmed" ? "已确认" : "不需要"}`}
                 key={provider.id}
+                onSelect={() => onSelectionChange({ id: provider.id, kind: "provider" })}
+                selected={selection.kind === "provider" && selection.id === provider.id}
                 status={<StatusBadge tone={provider.authenticationStatus === "missing" ? "warning" : "success"}>{authenticationLabels[provider.authenticationStatus]}</StatusBadge>}
                 title={`${provider.label} · v${provider.version}`}
-              >
-                {login?.status === "pending" ? (
-                  <div className="settings-device-login" role="status">
-                    <a href={login.verificationUrl} rel="noreferrer" target="_blank">打开 ChatGPT 登录</a>
-                    <span>设备码：{login.userCode}</span>
-                    <Button onClick={() => void feedback.runAction(() => agent.configurationController.cancelCodexDeviceLogin(provider.id))} type="button">取消登录</Button>
-                  </div>
-                ) : null}
-                {probe ? <ProviderProbeDetails probe={probe} provider={provider} /> : null}
-              </ManagementRow>
+              />
             );
           })}
         </ManagementList>
@@ -582,10 +553,12 @@ function ProfileManagement({
   onCancel,
   onDraftChange,
   onEdit,
+  onSelectionChange,
   onSubmit,
   profiles,
   providers,
   selectedProvider,
+  selection,
 }: {
   agent: AgentApplication;
   busy: boolean;
@@ -597,14 +570,14 @@ function ProfileManagement({
   onCancel(): void;
   onDraftChange(draft: ProfileDraft): void;
   onEdit(profile: AgentProfileView): void;
+  onSelectionChange(selection: AgentSettingsSelection): void;
   onSubmit(event: FormEvent): void;
   profiles: readonly AgentProfileView[];
   providers: readonly AgentProviderView[];
   selectedProvider: AgentProviderView | null;
+  selection: AgentSettingsSelection;
 }) {
   const feedback = useFeedback();
-  const providerLabels = new Map(providers.map(({ id, label }) => [id, label]));
-
   if (formVisible) {
     return (
       <ToolSection title={editingProfileId ? "编辑 Profile" : "新建 Profile"}>
@@ -633,10 +606,10 @@ function ProfileManagement({
       title="Profile"
     >
       {profiles.length === 0 ? (
-        <EmptyState compact description="Profile 固定 Provider、模型和推理限制。" title="尚未创建 Profile" />
+        <EmptyState compact title="尚未创建 Profile" />
       ) : (
         <ManagementList aria-label="Profile 列表">
-          {profiles.map((profile) => {
+          {profiles.map((profile, index) => {
             const check = agent.configurationState.conformanceChecks[profile.id];
             const running = check?.status === "running";
 
@@ -650,16 +623,23 @@ function ProfileManagement({
                       <Button disabled={busy} onClick={() => void feedback.runAction(() => agent.configurationController.checkConformance(profile.id))} type="button">符合性检查</Button>
                     ) : null}
                     <Button disabled={busy} onClick={() => onEdit(profile)} type="button">编辑</Button>
-                    <Button className="settings-danger-action" disabled={busy} onClick={() => void feedback.runAction(() => agent.configurationController.deleteProfile(profile.id))} type="button">删除</Button>
+                    <Button disabled={busy} onClick={() => void feedback.runAction(async () => {
+                      await agent.configurationController.deleteProfile(profile.id);
+                      const remaining = agent.configurationController.getSnapshot().configuration?.profiles ?? [];
+                      const next = remaining[Math.min(index, Math.max(0, remaining.length - 1))];
+
+                      onSelectionChange(next
+                        ? { id: next.id, kind: "profile" }
+                        : { kind: "overview" });
+                    })} type="button" variant="danger">删除</Button>
                   </>
                 )}
-                description={`${profile.model} · ${providerLabels.get(profile.providerId) ?? profile.providerId} · v${profile.version}`}
                 key={profile.id}
+                onSelect={() => onSelectionChange({ id: profile.id, kind: "profile" })}
+                selected={selection.kind === "profile" && selection.id === profile.id}
                 status={<StatusBadge tone={profile.availability === "available" ? "success" : "warning"}>{profile.availability === "available" ? "可用" : "不可用"}</StatusBadge>}
                 title={profile.label}
-              >
-                <ProfileConformanceDetails check={check} profile={profile} />
-              </ManagementRow>
+              />
             );
           })}
         </ManagementList>
@@ -672,12 +652,39 @@ function ProviderForm({ busy, draft, editing, onCancel, onChange, onSubmit }: { 
   return (
     <form onSubmit={onSubmit}>
       <FormLayout>
-        <FieldRow fieldId="settings-provider-name" label="名称">{(a) => <input {...a} aria-label="Provider 名称" className="ui-input" onChange={(e) => onChange({ ...draft, label: e.currentTarget.value })} required value={draft.label} />}</FieldRow>
-        <FieldRow fieldId="settings-provider-kind" label="类型">{(a) => <select {...a} aria-label="Provider 类型" className="ui-input" onChange={(e) => { const kind = e.currentTarget.value as AgentProviderKind; onChange({ ...draft, authenticationType: kind === "ollama" ? "none" : "api-key", baseUrl: kind === "ollama" ? "http://127.0.0.1:11434" : kind === "codex" ? "" : draft.baseUrl, kind, privateNetworkAccessConfirmed: false }); }} value={draft.kind}><option value="ollama">Ollama</option><option value="openai-chat">OpenAI-compatible</option><option value="codex">Codex</option></select>}</FieldRow>
-        {draft.kind !== "codex" ? <FieldRow fieldId="settings-provider-address" label="地址">{(a) => <input {...a} aria-label="Provider 地址" className="ui-input" onChange={(e) => onChange({ ...draft, baseUrl: e.currentTarget.value, privateNetworkAccessConfirmed: false })} required value={draft.baseUrl} />}</FieldRow> : null}
-        <FieldRow fieldId="settings-provider-authentication" label="认证">{(a) => <select {...a} aria-label="Provider 认证" className="ui-input" onChange={(e) => onChange({ ...draft, authenticationType: e.currentTarget.value as AgentProviderAuthenticationType })} value={draft.authenticationType}>{draft.kind === "codex" ? <><option value="api-key">API Key</option><option value="chatgpt-device-code">ChatGPT 设备码</option></> : <><option value="none">无需认证</option><option value="api-key">API Key</option></>}</select>}</FieldRow>
-        {draft.authenticationType === "api-key" ? <FieldRow description={editing ? "留空则保留现有凭据。" : "凭据只写入一次，保存后不回显。"} fieldId="settings-provider-api-key" label="API Key">{(a) => <input {...a} aria-label="Provider API Key" autoComplete="new-password" className="ui-input" onChange={(e) => onChange({ ...draft, apiKey: e.currentTarget.value })} required={!editing} type="password" value={draft.apiKey} />}</FieldRow> : null}
-        {draft.kind !== "codex" ? <FieldRow description="修改地址后必须重新确认。loopback 地址不需要许可。" fieldId="settings-provider-private-network" label="私网许可">{(a) => <label className="settings-checkbox-control"><input {...a} aria-label="确认 Provider 私网访问" checked={draft.privateNetworkAccessConfirmed} onChange={(e) => onChange({ ...draft, privateNetworkAccessConfirmed: e.currentTarget.checked })} type="checkbox" /><span>明确允许当前地址访问非 loopback 私网</span></label>}</FieldRow> : null}
+        <FieldRow fieldId="settings-provider-name" label="名称">
+          {(a) => <InputControl {...a} aria-label="Provider 名称" onChange={(e) => onChange({ ...draft, label: e.currentTarget.value })} required value={draft.label} />}
+        </FieldRow>
+        <FieldRow fieldId="settings-provider-kind" label="类型">
+          {(a) => <ChoiceGroup {...a} ariaLabel="Provider 类型" mode="single" onChange={(kind) => onChange({ ...draft, authenticationType: kind === "ollama" ? "none" : "api-key", baseUrl: kind === "ollama" ? "http://127.0.0.1:11434" : kind === "codex" ? "" : draft.baseUrl, kind, privateNetworkAccessConfirmed: false })} options={[{ label: "Ollama", value: "ollama" }, { label: "OpenAI-compatible", value: "openai-chat" }, { label: "Codex", value: "codex" }]} value={draft.kind} />}
+        </FieldRow>
+        {draft.kind !== "codex" ? (
+          <FieldRow fieldId="settings-provider-address" label="地址">
+            {(a) => <InputControl {...a} aria-label="Provider 地址" onChange={(e) => onChange({ ...draft, baseUrl: e.currentTarget.value, privateNetworkAccessConfirmed: false })} required value={draft.baseUrl} />}
+          </FieldRow>
+        ) : null}
+        <FieldRow fieldId="settings-provider-authentication" label="认证">
+          {(a) => <ChoiceGroup {...a} ariaLabel="Provider 认证" mode="single" onChange={(authenticationType) => onChange({ ...draft, authenticationType })} options={draft.kind === "codex" ? [{ label: "API Key", value: "api-key" }, { label: "ChatGPT 设备码", value: "chatgpt-device-code" }] : [{ label: "无需认证", value: "none" }, { label: "API Key", value: "api-key" }]} value={draft.authenticationType} />}
+        </FieldRow>
+        {draft.authenticationType === "api-key" ? (
+          <FieldRow fieldId="settings-provider-api-key" label="API Key">
+            {(a) => <InputControl {...a} aria-label="Provider API Key" autoComplete="new-password" onChange={(e) => onChange({ ...draft, apiKey: e.currentTarget.value })} required={!editing} type="password" value={draft.apiKey} />}
+          </FieldRow>
+        ) : null}
+        {draft.kind !== "codex" ? (
+          <FieldRow fieldId="settings-provider-private-network" label="私网许可">
+            {(a) => (
+              <ToggleButton
+                {...a}
+                aria-label="确认 Provider 私网访问"
+                onClick={() => onChange({ ...draft, privateNetworkAccessConfirmed: !draft.privateNetworkAccessConfirmed })}
+                pressed={draft.privateNetworkAccessConfirmed}
+              >
+                {draft.privateNetworkAccessConfirmed ? "已允许" : "未允许"}
+              </ToggleButton>
+            )}
+          </FieldRow>
+        ) : null}
         <FormActions><Button disabled={busy} type="submit" variant="primary">{editing ? "保存 Provider" : "创建 Provider"}</Button><Button onClick={onCancel} type="button">取消</Button></FormActions>
       </FormLayout>
     </form>
@@ -688,86 +695,16 @@ function ProfileForm({ busy, draft, editing, modelOptions, onCancel, onChange, o
   return (
     <form onSubmit={onSubmit}>
       <FormLayout>
-        <FieldRow fieldId="settings-profile-provider" label="Provider">{(a) => <select {...a} aria-label="Profile Provider" className="ui-input" onChange={(e) => onChange({ ...draft, providerId: e.currentTarget.value })} required value={draft.providerId}><option value="">请选择</option>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select>}</FieldRow>
-        <FieldRow fieldId="settings-profile-name" label="名称">{(a) => <input {...a} aria-label="Profile 名称" className="ui-input" onChange={(e) => onChange({ ...draft, label: e.currentTarget.value })} required value={draft.label} />}</FieldRow>
-        <FieldRow fieldId="settings-profile-model" label="模型">{(a) => <><input {...a} aria-label="Profile 模型" className="ui-input" list="agent-model-options" onChange={(e) => onChange({ ...draft, model: e.currentTarget.value })} required value={draft.model} /><datalist id="agent-model-options">{modelOptions.map((model) => <option key={model} value={model} />)}</datalist></>}</FieldRow>
-        <FieldRow fieldId="settings-profile-session-limit" label="会话上限">{(a) => <input {...a} aria-label="Profile 会话上限" className="ui-input" min="1" onChange={(e) => onChange({ ...draft, maxResidentSessions: e.currentTarget.valueAsNumber })} required type="number" value={draft.maxResidentSessions} />}</FieldRow>
-        <FieldRow fieldId="settings-profile-timeout" label="超时毫秒">{(a) => <input {...a} aria-label="Profile 超时" className="ui-input" min="1" onChange={(e) => onChange({ ...draft, timeoutMilliseconds: e.currentTarget.valueAsNumber })} required type="number" value={draft.timeoutMilliseconds} />}</FieldRow>
+        <FieldRow fieldId="settings-profile-provider" label="Provider">{(a) => <SelectControl {...a} aria-label="Profile Provider" onChange={(e) => onChange({ ...draft, providerId: e.currentTarget.value })} required value={draft.providerId}><option value="">请选择</option>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</SelectControl>}</FieldRow>
+        <FieldRow fieldId="settings-profile-name" label="名称">{(a) => <InputControl {...a} aria-label="Profile 名称" onChange={(e) => onChange({ ...draft, label: e.currentTarget.value })} required value={draft.label} />}</FieldRow>
+        <FieldRow fieldId="settings-profile-model" label="模型">{(a) => <><InputControl {...a} aria-label="Profile 模型" list="agent-model-options" onChange={(e) => onChange({ ...draft, model: e.currentTarget.value })} required value={draft.model} /><datalist id="agent-model-options">{modelOptions.map((model) => <option key={model} value={model} />)}</datalist></>}</FieldRow>
+        <FieldRow fieldId="settings-profile-session-limit" label="会话上限">{(a) => <InputControl {...a} aria-label="Profile 会话上限" min="1" onChange={(e) => onChange({ ...draft, maxResidentSessions: e.currentTarget.valueAsNumber })} required type="number" value={draft.maxResidentSessions} />}</FieldRow>
+        <FieldRow fieldId="settings-profile-timeout" label="超时毫秒">{(a) => <InputControl {...a} aria-label="Profile 超时" min="1" onChange={(e) => onChange({ ...draft, timeoutMilliseconds: e.currentTarget.valueAsNumber })} required type="number" value={draft.timeoutMilliseconds} />}</FieldRow>
         {selectedProvider?.kind === "codex" ? <CodexProfileFields draft={draft} setDraft={onChange} /> : selectedProvider ? <ChatProfileFields draft={draft} providerKind={selectedProvider.kind} setDraft={onChange} /> : null}
         <FormActions><Button disabled={busy || !selectedProvider} type="submit" variant="primary">{editing ? "保存 Profile" : "创建 Profile"}</Button><Button onClick={onCancel} type="button">取消</Button></FormActions>
       </FormLayout>
     </form>
   );
-}
-
-function ProviderProbeDetails({ probe, provider }: { probe: AgentConfigurationState["probes"][string]; provider: AgentProviderView }) {
-  return (
-    <ToolPropertyList aria-label={`${provider.label} 探测状态`}>
-      <ToolPropertyRow
-        label="连接"
-        value={probe.reachable ? "可达" : "不可达"}
-      />
-      <ToolPropertyRow
-        label="探测时间"
-        value={new Date(probe.probedAt).toLocaleString()}
-      />
-      <ToolPropertyRow
-        label="模型"
-        value={probe.models.join("、") || "无"}
-      />
-      {probe.modelContexts.map((context) => (
-        <ToolPropertyRow
-          key={context.model}
-          label={context.model}
-          value={`架构上限 ${
-            context.declaredMaximumContextTokens === null
-              ? "未知"
-              : `${context.declaredMaximumContextTokens} tokens`
-          } · 当前驻留上下文 ${residentContextLabel(context.residentContext)}`}
-        />
-      ))}
-    </ToolPropertyList>
-  );
-}
-
-function ProfileConformanceDetails({ check, profile }: { check: AgentConfigurationState["conformanceChecks"][string] | undefined; profile: AgentProfileView }) {
-  const phaseLabels = { "calling-tool": "调用验证工具", "recording-result": "记录验证结果", summarizing: "生成自然语言总结" } as const;
-  const status = check?.status ?? (profile.conformance ? "succeeded" : "not-run");
-  const statusLabel = status === "running" ? "检查中" : status === "succeeded" ? "已通过" : status === "failed" ? "失败" : status === "cancelled" ? "已取消" : "未检查";
-
-  return (
-    <ToolPropertyList aria-label={`${profile.label} 符合性状态`}>
-      <ToolPropertyRow
-        label="符合性"
-        value={(
-          <StatusBadge
-            tone={status === "succeeded"
-              ? "success"
-              : status === "failed" ? "danger" : "neutral"}
-          >
-            {statusLabel}
-          </StatusBadge>
-        )}
-      />
-      {check?.status === "running" ? (
-        <ToolPropertyRow label="阶段" value={phaseLabels[check.phase]} />
-      ) : null}
-      {check?.errorMessage ? (
-        <ToolPropertyRow label="失败原因" value={check.errorMessage} />
-      ) : profile.unavailableReason ? (
-        <ToolPropertyRow
-          label="不可用原因"
-          value={profile.unavailableReason}
-        />
-      ) : null}
-    </ToolPropertyList>
-  );
-}
-
-function residentContextLabel(context: AgentOllamaResidentContext) {
-  if (context.status === "not-loaded") return "未加载，无法测量实际值";
-  if (context.status === "loaded-unreported") return "已加载，但 Ollama 未报告实际值";
-  return `${context.allocatedContextTokens} tokens`;
 }
 
 function profileDraftFrom(profile: AgentProfileView): ProfileDraft {
@@ -790,18 +727,18 @@ function profileDraftFrom(profile: AgentProfileView): ProfileDraft {
 
 function CodexProfileFields({ draft, setDraft }: { draft: ProfileDraft; setDraft(value: ProfileDraft): void }) {
   return <>
-    <FieldRow fieldId="settings-profile-reasoning" label="推理强度">{(a) => <select {...a} aria-label="Profile 推理强度" className="ui-input" onChange={(e) => setDraft({ ...draft, reasoningEffort: e.currentTarget.value as ProfileDraft["reasoningEffort"] })} value={draft.reasoningEffort}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="xhigh">xhigh</option></select>}</FieldRow>
-    <FieldRow fieldId="settings-profile-input-characters" label="输入字符">{(a) => <input {...a} aria-label="Profile 输入字符" className="ui-input" min="1" onChange={(e) => setDraft({ ...draft, maxInputCharacters: e.currentTarget.valueAsNumber })} type="number" value={draft.maxInputCharacters} />}</FieldRow>
-    <FieldRow fieldId="settings-profile-output-characters" label="输出字符">{(a) => <input {...a} aria-label="Profile 输出字符" className="ui-input" min="1" onChange={(e) => setDraft({ ...draft, maxOutputCharacters: e.currentTarget.valueAsNumber })} type="number" value={draft.maxOutputCharacters} />}</FieldRow>
+    <FieldRow fieldId="settings-profile-reasoning" label="推理强度">{(a) => <ChoiceGroup {...a} ariaLabel="Profile 推理强度" mode="single" onChange={(reasoningEffort) => setDraft({ ...draft, reasoningEffort })} options={[{ label: "low", value: "low" }, { label: "medium", value: "medium" }, { label: "high", value: "high" }, { label: "xhigh", value: "xhigh" }]} value={draft.reasoningEffort} />}</FieldRow>
+    <FieldRow fieldId="settings-profile-input-characters" label="输入字符">{(a) => <InputControl {...a} aria-label="Profile 输入字符" min="1" onChange={(e) => setDraft({ ...draft, maxInputCharacters: e.currentTarget.valueAsNumber })} type="number" value={draft.maxInputCharacters} />}</FieldRow>
+    <FieldRow fieldId="settings-profile-output-characters" label="输出字符">{(a) => <InputControl {...a} aria-label="Profile 输出字符" min="1" onChange={(e) => setDraft({ ...draft, maxOutputCharacters: e.currentTarget.valueAsNumber })} type="number" value={draft.maxOutputCharacters} />}</FieldRow>
   </>;
 }
 
 function ChatProfileFields({ draft, providerKind, setDraft }: { draft: ProfileDraft; providerKind: AgentProviderKind; setDraft(value: ProfileDraft): void }) {
   return <>
-    <FieldRow fieldId="settings-profile-tool-mode" label="工具模式">{(a) => <select {...a} aria-label="Profile 工具模式" className="ui-input" onChange={(e) => setDraft({ ...draft, toolCallMode: e.currentTarget.value as AgentToolCallMode })} value={draft.toolCallMode}><option value="native">native</option>{providerKind === "ollama" ? <option value="single-json">single-json</option> : null}</select>}</FieldRow>
-    {providerKind === "ollama" ? <FieldRow fieldId="settings-profile-chat-reasoning" label="推理强度">{(a) => <select {...a} aria-label="Profile Chat 推理强度" className="ui-input" onChange={(e) => setDraft({ ...draft, chatReasoningEffort: e.currentTarget.value as AgentChatReasoningEffort })} value={draft.chatReasoningEffort}><option value="model-default">模型默认</option><option value="none">关闭</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>}</FieldRow> : null}
-    <FieldRow description="仅控制 Cognition Tree 何时压缩内存对话；不会修改 Ollama num_ctx，也不代表模型的真实 token 上限。" fieldId="settings-profile-history-budget" label="会话历史预算（字符）">{(a) => <input {...a} aria-label="Profile 会话历史预算（字符）" className="ui-input" min="1" onChange={(e) => setDraft({ ...draft, historyBudgetCharacters: e.currentTarget.valueAsNumber })} type="number" value={draft.historyBudgetCharacters} />}</FieldRow>
-    <FieldRow fieldId="settings-profile-output-tokens" label="输出 tokens">{(a) => <input {...a} aria-label="Profile 输出 Tokens" className="ui-input" min="1" onChange={(e) => setDraft({ ...draft, maxOutputTokens: e.currentTarget.valueAsNumber })} type="number" value={draft.maxOutputTokens} />}</FieldRow>
-    <FieldRow fieldId="settings-profile-tool-steps" label="工具步数">{(a) => <input {...a} aria-label="Profile 工具步数" className="ui-input" min="3" onChange={(e) => setDraft({ ...draft, maxToolSteps: e.currentTarget.valueAsNumber })} type="number" value={draft.maxToolSteps} />}</FieldRow>
+    <FieldRow fieldId="settings-profile-tool-mode" label="工具模式">{(a) => <ChoiceGroup {...a} ariaLabel="Profile 工具模式" mode="single" onChange={(toolCallMode) => setDraft({ ...draft, toolCallMode })} options={providerKind === "ollama" ? [{ label: "native", value: "native" }, { label: "single-json", value: "single-json" }] : [{ label: "native", value: "native" }]} value={draft.toolCallMode} />}</FieldRow>
+    {providerKind === "ollama" ? <FieldRow fieldId="settings-profile-chat-reasoning" label="推理强度">{(a) => <ChoiceGroup {...a} ariaLabel="Profile Chat 推理强度" mode="single" onChange={(chatReasoningEffort) => setDraft({ ...draft, chatReasoningEffort })} options={[{ label: "模型默认", value: "model-default" }, { label: "关闭", value: "none" }, { label: "low", value: "low" }, { label: "medium", value: "medium" }, { label: "high", value: "high" }]} value={draft.chatReasoningEffort} />}</FieldRow> : null}
+    <FieldRow fieldId="settings-profile-history-budget" label="会话历史预算（字符）">{(a) => <InputControl {...a} aria-label="Profile 会话历史预算（字符）" min="1" onChange={(e) => setDraft({ ...draft, historyBudgetCharacters: e.currentTarget.valueAsNumber })} type="number" value={draft.historyBudgetCharacters} />}</FieldRow>
+    <FieldRow fieldId="settings-profile-output-tokens" label="输出 tokens">{(a) => <InputControl {...a} aria-label="Profile 输出 Tokens" min="1" onChange={(e) => setDraft({ ...draft, maxOutputTokens: e.currentTarget.valueAsNumber })} type="number" value={draft.maxOutputTokens} />}</FieldRow>
+    <FieldRow fieldId="settings-profile-tool-steps" label="工具步数">{(a) => <InputControl {...a} aria-label="Profile 工具步数" min="3" onChange={(e) => setDraft({ ...draft, maxToolSteps: e.currentTarget.valueAsNumber })} type="number" value={draft.maxToolSteps} />}</FieldRow>
   </>;
 }

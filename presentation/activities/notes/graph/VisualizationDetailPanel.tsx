@@ -1,10 +1,7 @@
-import { ChevronRight } from "lucide-react";
 import type { VisualizationViewModel } from "../../../../application/workspace/notes/graph/visualizationViewModel";
 import {
-  Button,
-  Panel,
+  DetailPanel,
   PanelBody,
-  PanelHeader,
 } from "../../../ui/shared/primitives";
 import {
   AdjacentReferenceList,
@@ -25,21 +22,11 @@ export function VisualizationDetailPanel({
     : null;
 
   return (
-    <Panel aria-label="图谱详情" tone="detail">
-      <PanelHeader
-        title="图谱详情"
-        actions={
-          <Button
-            aria-label="收回右侧详情"
-            onClick={onCollapseDetail}
-            title="收回右侧详情"
-            type="button"
-            variant="icon"
-          >
-            <ChevronRight aria-hidden="true" size={14} />
-          </Button>
-        }
-      />
+    <DetailPanel
+      aria-label="图谱详情"
+      onCollapse={onCollapseDetail}
+      title="图谱详情"
+    >
       <PanelBody className="detail-panel-stack" scroll>
         <dl
           aria-label="图谱统计"
@@ -88,6 +75,6 @@ export function VisualizationDetailPanel({
           onSelectNote={visualization.onSelectNote}
         />
       </PanelBody>
-    </Panel>
+    </DetailPanel>
   );
 }

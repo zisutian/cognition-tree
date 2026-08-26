@@ -195,7 +195,7 @@
   justify-self: start;
   color: var(--color-link);
   font-size: var(--ui-code-font-size);
-  font-weight: var(--ui-micro-strong-weight);
+  font-weight: var(--ui-emphasis-weight);
   line-height: var(--ui-code-line-height);
   white-space: nowrap;
 }

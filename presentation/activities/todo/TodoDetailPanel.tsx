@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { ChevronRight, Repeat2 } from "lucide-react";
+import { Repeat2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type {
   TodoBlockView,
@@ -10,9 +10,8 @@ import type {
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
   Button,
-  Panel,
+  DetailPanel,
   PanelBody,
-  PanelHeader,
   cx,
 } from "../../ui/shared/primitives";
 import { getStructureTreeRowStyle } from "../../ui/shared/tree";
@@ -82,14 +81,15 @@ function TodoStructureNodes({
                   type="checkbox"
                 />
               </span>
-              <button
+              <Button
                 className="todo-structure-label"
                 onClick={() => view.outline.onSelectLine(node.lineNumber)}
                 title={`${node.label}: ${node.text} · L${node.lineNumber}`}
                 type="button"
+                variant="bare"
               >
                 <span className="block-text">{node.text}</span>
-              </button>
+              </Button>
               <span className="ui-tree-meta todo-structure-meta">
                 {node.recurrence?.progress ? (
                   <span
@@ -177,21 +177,12 @@ export function TodoDetailPanel({
   if (!view.activeCollection) return null;
 
   return (
-    <Panel aria-label="代办结构" className="todo-detail-panel" tone="detail">
-      <PanelHeader
-        actions={(
-          <Button
-            aria-label="收回右侧详情"
-            onClick={onCollapseDetail}
-            title="收回右侧详情"
-            type="button"
-            variant="icon"
-          >
-            <ChevronRight aria-hidden="true" size={13} />
-          </Button>
-        )}
-        title="结构"
-      />
+    <DetailPanel
+      aria-label="代办结构"
+      className="todo-detail-panel"
+      onCollapse={onCollapseDetail}
+      title="结构"
+    >
       <PanelBody scroll>
         {view.outline.nodes.length > 0 ? (
           <TodoStructureNodes
@@ -209,6 +200,6 @@ export function TodoDetailPanel({
           </p>
         )}
       </PanelBody>
-    </Panel>
+    </DetailPanel>
   );
 }

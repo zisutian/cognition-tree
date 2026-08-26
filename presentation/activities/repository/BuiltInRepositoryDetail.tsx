@@ -14,12 +14,8 @@ import {
   EmptyState,
 } from "../../ui/shared/primitives";
 import { ToolSection } from "../../ui/shared/ToolSurface";
-import {
-  RepositoryLocations,
-  RepositoryMetadata,
-} from "./RepositoryDetailShared";
 import { builtInLabel } from "./repositoryViewHelpers";
-import { RepositoryConflictResolution } from "./RepositoryConflictResolution";
+import { RepositoryConflictActions } from "./RepositoryConflictResolution";
 
 export function BuiltInRepositoryDetail({
   busy,
@@ -27,7 +23,6 @@ export function BuiltInRepositoryDetail({
   issue,
   repository,
   view,
-  onCopy,
   onRunAction,
 }: {
   busy: boolean;
@@ -35,25 +30,11 @@ export function BuiltInRepositoryDetail({
   issue: BuiltInIssueView | null;
   repository: BuiltInOption | null;
   view: RepositoryViewModel;
-  onCopy: (label: string, value: string) => void;
   onRunAction: (action: () => Promise<void>) => void;
 }) {
   if (issue) {
     return (
       <>
-        <ToolSection title="状态">
-          <RepositoryMetadata rows={[
-            { label: "状态", value: "故障" },
-            { label: "数据 ID", value: issue.id },
-            { label: "保护", value: "受保护内置数据" },
-          ]} />
-          <p className="repository-warning" role="alert">{issue.message}</p>
-        </ToolSection>
-        <RepositoryLocations
-          busy={busy}
-          rows={issue.locationRows}
-          onCopy={onCopy}
-        />
         <ToolSection title="操作">
           <div className="repository-operation-strip">
             <Button
@@ -92,26 +73,9 @@ export function BuiltInRepositoryDetail({
   }
   return (
     <>
-      <ToolSection title="状态">
-        <RepositoryMetadata rows={[
-          { label: "状态", value: repository.statusLabel },
-          { label: "数据 ID", value: repository.id },
-          { label: "保护", value: "受保护内置数据" },
-        ]} />
-        {repository.errorMessage ? (
-          <p className="repository-warning" role="alert">
-            {repository.errorMessage}
-          </p>
-        ) : null}
-      </ToolSection>
-      <RepositoryLocations
-        busy={busy}
-        rows={repository.locationRows}
-        onCopy={onCopy}
-      />
       {repository.conflictResolution
         ? (
-            <RepositoryConflictResolution
+            <RepositoryConflictActions
               busy={busy}
               resolution={repository.conflictResolution}
               onRunAction={onRunAction}

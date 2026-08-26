@@ -12,6 +12,7 @@ import type {
   UiWorkbenchProblems,
 } from "../../../application/workbench/problems/workbenchProblems";
 import { SymbolSlot, cx } from "../shared/primitives";
+import { ChoiceGroup } from "../shared/controls";
 import {
   ToolList,
   ToolListRow,
@@ -231,9 +232,9 @@ export function ProblemsPanel({
   onToggle: () => void;
   statusMessage?: string;
 }) {
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [severityFilter, setSeverityFilter] = useState("all");
-  const [retryFilter, setRetryFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | UiWorkbenchProblem["source"]>("all");
+  const [severityFilter, setSeverityFilter] = useState<"all" | "error" | "warning">("all");
+  const [retryFilter, setRetryFilter] = useState<"all" | "retryable" | "terminal">("all");
   const filteredProblems = useMemo(() => view.problems.filter((problem) => {
     if (sourceFilter !== "all" && problem.source !== sourceFilter) return false;
     if (severityFilter !== "all" && problem.severity !== severityFilter) {
@@ -281,40 +282,47 @@ export function ProblemsPanel({
           <ToolToolbar aria-label="问题筛选">
             <label>
               来源
-              <select
-                aria-label="按来源筛选问题"
-                onChange={(event) => setSourceFilter(event.target.value)}
+              <ChoiceGroup
+                ariaLabel="按来源筛选问题"
+                mode="single"
+                onChange={(value: "all" | UiWorkbenchProblem["source"]) => setSourceFilter(value)}
+                options={[
+                  { label: "全部", value: "all" },
+                  ...Object.entries(sourceLabels).map(([source, label]) => ({
+                    label,
+                    value: source as UiWorkbenchProblem["source"],
+                  })),
+                ]}
                 value={sourceFilter}
-              >
-                <option value="all">全部</option>
-                {Object.entries(sourceLabels).map(([source, label]) => (
-                  <option key={source} value={source}>{label}</option>
-                ))}
-              </select>
+              />
             </label>
             <label>
               严重度
-              <select
-                aria-label="按严重度筛选问题"
-                onChange={(event) => setSeverityFilter(event.target.value)}
+              <ChoiceGroup
+                ariaLabel="按严重度筛选问题"
+                mode="single"
+                onChange={(value: "all" | "error" | "warning") => setSeverityFilter(value)}
+                options={[
+                  { label: "全部", value: "all" },
+                  { label: "错误", value: "error" },
+                  { label: "警告", value: "warning" },
+                ]}
                 value={severityFilter}
-              >
-                <option value="all">全部</option>
-                <option value="error">错误</option>
-                <option value="warning">警告</option>
-              </select>
+              />
             </label>
             <label>
               重试性
-              <select
-                aria-label="按可重试性筛选问题"
-                onChange={(event) => setRetryFilter(event.target.value)}
+              <ChoiceGroup
+                ariaLabel="按可重试性筛选问题"
+                mode="single"
+                onChange={(value: "all" | "retryable" | "terminal") => setRetryFilter(value)}
+                options={[
+                  { label: "全部", value: "all" },
+                  { label: "可重试", value: "retryable" },
+                  { label: "不可自动重试", value: "terminal" },
+                ]}
                 value={retryFilter}
-              >
-                <option value="all">全部</option>
-                <option value="retryable">可重试</option>
-                <option value="terminal">不可自动重试</option>
-              </select>
+              />
             </label>
           </ToolToolbar>
           {filteredProblems.length > 0 ? (

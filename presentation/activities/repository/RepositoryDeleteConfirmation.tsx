@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { RepositoryOption } from
   "../../../application/repository/ordinaryRepositoryViewModel";
 import { Button } from "../../ui/shared/primitives";
+import { InputControl } from "../../ui/shared/controls";
 
 export function canDeleteManagedRepositoryData(
   repository: RepositoryOption,
@@ -12,12 +13,10 @@ export function canDeleteManagedRepositoryData(
 
 export function RepositoryDeleteConfirmation({
   repository,
-  warning,
   onCancel,
   onDelete,
 }: {
   repository: RepositoryOption;
-  warning: string;
   onCancel: () => void;
   onDelete: () => Promise<boolean>;
 }) {
@@ -40,13 +39,11 @@ export function RepositoryDeleteConfirmation({
       className="repository-inline-confirmation repository-delete-confirmation"
       role="group"
     >
-      {warning ? <p className="repository-warning">{warning}</p> : null}
       <div className="repository-delete-choice">
         <label className="repository-delete-confirmation-field">
           <span>永久删除前请输入仓库名称</span>
-          <input
+          <InputControl
             autoComplete="off"
-            className="ui-input"
             disabled={busy}
             onChange={(event) => setConfirmation(event.target.value)}
             value={confirmation}
@@ -54,14 +51,13 @@ export function RepositoryDeleteConfirmation({
         </label>
         <div className="repository-inline-confirmation-actions">
           <Button
-            className="ui-button-danger"
             disabled={busy || !canDeleteManagedRepositoryData(
               repository,
               confirmation,
             )}
             onClick={() => void runDeletion()}
             type="button"
-            variant="secondary"
+            variant="danger"
           >
             永久删除
           </Button>

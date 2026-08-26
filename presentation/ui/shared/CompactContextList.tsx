@@ -10,6 +10,7 @@ import type {
   ReactNode,
 } from "react";
 import { SymbolSlot, cx } from "./primitives";
+import { InputControl } from "./controls";
 
 export function CompactContextStatusIcon({
   children,
@@ -305,11 +306,11 @@ export function CompactContextRow({
           }}
         >
           {icon}
-          <input
+          <InputControl
             {...inlineRename.inputProps}
             aria-label={inlineRename.ariaLabel}
             autoFocus
-            className="ui-input ui-input-tree"
+            className="ui-input-tree"
             disabled={inlineRename.disabled}
             onChange={(event) => inlineRename.onChange(event.target.value)}
             onKeyDown={(event) => {
@@ -318,6 +319,7 @@ export function CompactContextRow({
                 inlineRename.onCancel();
               }
             }}
+            sizing="container"
             value={inlineRename.value}
           />
           <span className="ui-tree-actions">

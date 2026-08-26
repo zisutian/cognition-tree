@@ -1,10 +1,11 @@
 import { Check, Settings2 } from "lucide-react";
-import { useId, type CSSProperties } from "react";
+import { useId } from "react";
 import { Popover } from "../../../ui/shared/Popover";
 import {
   Button,
   ToggleButton,
 } from "../../../ui/shared/primitives";
+import { RangeControl } from "../../../ui/shared/controls";
 import type { ReferenceGraphSettings } from "./referenceGraphSettings";
 
 function GraphRangeSetting({
@@ -26,25 +27,19 @@ function GraphRangeSetting({
 }) {
   const inputId = useId();
   const precision = step < 0.1 ? 2 : step < 1 ? 1 : 0;
-  const progress = ((value - minimum) / (maximum - minimum)) * 100;
-
   return (
     <label
       className="graph-settings-row graph-settings-range"
       htmlFor={inputId}
     >
       <span className="graph-settings-label">{label}</span>
-      <input
+      <RangeControl
         aria-label={label}
         id={inputId}
         max={maximum}
         min={minimum}
         step={step}
-        type="range"
         value={value}
-        style={{
-          "--graph-range-progress": `${progress}%`,
-        } as CSSProperties}
         onChange={(event) => onChange(Number(event.target.value))}
       />
       <output>{value.toFixed(precision)}{suffix}</output>

@@ -6,6 +6,7 @@ import type {
   OwnerAuthenticationState,
 } from "../../application/system";
 import { Button } from "../ui/shared/primitives";
+import { InputControl } from "../ui/shared/controls";
 import "./ownerLogin.css";
 
 export function OwnerLogin({
@@ -32,10 +33,9 @@ export function OwnerLogin({
         {state.errorMessage ? <p role="alert">{state.errorMessage}</p> : null}
         <label>
           <span>所有者密钥</span>
-          <input
+          <InputControl
             aria-label="所有者密钥"
             autoComplete="current-password"
-            className="ui-input"
             onChange={(event) => setSecret(event.currentTarget.value)}
             required
             type="password"

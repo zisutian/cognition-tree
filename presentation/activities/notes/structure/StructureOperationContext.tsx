@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/notes/structure/structureOperationViewModel";
-import { SegmentedControl } from "../../../ui/shared/primitives";
+import { ChoiceGroup } from "../../../ui/shared/controls";
 import { CompactContextStatusIcon } from
   "../../../ui/shared/CompactContextList";
 import {
@@ -164,9 +164,9 @@ export function StructureOperationContext({
 
   return (
     <div className="activity-context-content">
-      <SegmentedControl
+      <ChoiceGroup
         ariaLabel="结构操作模式"
-        fill
+        mode="single"
         options={[
           { label: "笔记间迁移", value: "betweenNotes" },
           { label: "笔记内迁移", value: "withinNote" },

@@ -1,10 +1,7 @@
-import { ChevronRight } from "lucide-react";
 import type { NotesViewModel } from "../../../../application/workspace/notes/edit/notesViewModel";
 import {
-  Button,
-  Panel,
+  DetailPanel,
   PanelBody,
-  PanelHeader,
 } from "../../../ui/shared/primitives";
 import { StructureTree } from "../../../ui/shared/tree";
 import { NoteTimeDetails } from "./NoteTimeDetails";
@@ -26,19 +23,12 @@ export function NoteDetailPanel({
     : undefined;
 
   return (
-    <Panel
+    <DetailPanel
       className="note-detail-panel"
       aria-label="笔记详情"
-      tone="detail"
+      onCollapse={onCollapseDetail}
+      title="结构"
     >
-      <PanelHeader
-        title="结构"
-        actions={
-          <Button aria-label="收回右侧详情" onClick={onCollapseDetail} title="收回右侧详情" type="button" variant="icon">
-            <ChevronRight aria-hidden="true" size={13} />
-          </Button>
-        }
-      />
       <PanelBody className="detail-panel-stack" scroll>
         <dl
           aria-label="笔记统计"
@@ -72,6 +62,6 @@ export function NoteDetailPanel({
           <p className="ui-muted">没有可解析结构。</p>
         )}
       </PanelBody>
-    </Panel>
+    </DetailPanel>
   );
 }

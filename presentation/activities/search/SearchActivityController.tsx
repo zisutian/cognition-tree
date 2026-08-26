@@ -42,10 +42,10 @@ export function SearchActivityController({
     }
   };
 
-  return renderActivity(() =>
+  return renderActivity(({ onCollapseDetail }) =>
     createSearchActivitySlots({
-      catalogStatus: application.repository.catalogState.status,
       controller: application.search.controller,
+      onCollapseDetail,
       onOpenResult: openResult,
       repositories,
       state: application.search.state,

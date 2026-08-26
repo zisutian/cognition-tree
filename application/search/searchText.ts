@@ -110,10 +110,6 @@ export function createSearchSnippet(source: string, normalizedQuery: string) {
   }`;
 }
 
-function includeUpdatedAt(updatedAt: string, request: SearchRequest) {
-  return !request.updatedAfter || updatedAt >= request.updatedAfter;
-}
-
 function createResult(
   document: SearchDocument,
   value: Omit<
@@ -145,7 +141,6 @@ export function projectSearchDocumentResults(
   const blockResults: SearchResult[] = [];
 
   for (const block of document.blocks) {
-    if (!includeUpdatedAt(block.updatedAt, request)) continue;
     const text = block.body === null
       ? block.text
       : `${block.text}\n${block.body}`;
@@ -160,10 +155,7 @@ export function projectSearchDocumentResults(
   if (blockResults.length > 0) return blockResults;
   const titleOrDocument = `${document.title}\n${document.editableText}`;
 
-  return (
-      includeUpdatedAt(document.updatedAt, request) &&
-      normalizeSearchText(titleOrDocument).includes(normalizedQuery)
-    )
+  return normalizeSearchText(titleOrDocument).includes(normalizedQuery)
     ? [createResult(document, {
         blockId: null,
         snippet: createSearchSnippet(titleOrDocument, normalizedQuery),

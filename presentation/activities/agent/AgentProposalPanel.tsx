@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type {
   AgentApplication,
@@ -11,6 +10,7 @@ import {
   EmptyState,
   PanelBody,
 } from "../../ui/shared/primitives";
+import { SelectControl } from "../../ui/shared/controls";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {
   AgentProposalReview,
@@ -19,7 +19,7 @@ import {
 import { StatusBadge } from "../../ui/shared/StatusPresentation";
 import {
   ToolDivider,
-  ToolPanel,
+  ToolDetailPanel,
   ToolPropertyList,
   ToolPropertyRow,
   ToolSection,
@@ -48,7 +48,6 @@ export function AgentProposalPanel({
     ({ id }) => id === agent.state.activeSessionId,
   ) ?? null;
   const [selectedProposalId, setSelectedProposalId] = useState("");
-  const [destructiveConfirmed, setDestructiveConfirmed] = useState(false);
   const proposal = useMemo(() => {
     if (!session) return null;
     return session.proposals.find(({ id }) => id === selectedProposalId) ??
@@ -62,7 +61,6 @@ export function AgentProposalPanel({
     if (proposal && proposal.id !== selectedProposalId) {
       setSelectedProposalId(proposal.id);
     }
-    setDestructiveConfirmed(false);
   }, [proposal?.id, proposal?.status, selectedProposalId]);
 
   const footer = proposal?.status === "pending" ? (
@@ -90,28 +88,13 @@ export function AgentProposalPanel({
     </div>
   ) : proposal?.status === "awaiting-destructive-confirmation" ? (
     <div className="agent-destructive-confirmation">
-      <strong>独立删除确认</strong>
-      <p>批准尚未写入。确认后将按原 proposal 执行一次 exact CAS。</p>
-      <label>
-        <input
-          checked={destructiveConfirmed}
-          onChange={(event) => setDestructiveConfirmed(
-            event.currentTarget.checked,
-          )}
-          type="checkbox"
-        />
-        我确认执行 proposal 中的全部删除
-      </label>
       <Button
-        disabled={
-          !destructiveConfirmed ||
-          agent.state.operationStatus === "working"
-        }
+        disabled={agent.state.operationStatus === "working"}
         onClick={() => void feedback.runAction(
           () => agent.controller.confirmDestruction(proposal.id),
         )}
         type="button"
-        variant="primary"
+        variant="danger"
       >
         确认删除并提交
       </Button>
@@ -119,28 +102,17 @@ export function AgentProposalPanel({
   ) : null;
 
   return (
-    <ToolPanel
-      actions={
-        <Button
-          aria-label="折叠 Proposal"
-          onClick={onCollapseDetail}
-          title="折叠 Proposal"
-          type="button"
-          variant="icon"
-        >
-          <ChevronRight aria-hidden="true" size={14} />
-        </Button>
-      }
+    <ToolDetailPanel
       aria-label="Agent Proposal"
       className="agent-proposal-panel"
+      collapseLabel="折叠 Proposal"
+      onCollapse={onCollapseDetail}
       title="Proposal"
-      tone="detail"
     >
       <PanelBody className="agent-proposal-body">
         {!proposal ? (
           <EmptyState
             compact
-            description="Agent 提交 proposal 后，可在这里审查聚合后的最终 diff。"
             title="暂无待审 proposal"
           />
         ) : (
@@ -150,8 +122,7 @@ export function AgentProposalPanel({
                 {session && session.proposals.length > 1 ? (
                   <label className="agent-proposal-picker">
                     <span>Proposal</span>
-                    <select
-                      className="ui-input"
+                    <SelectControl
                       onChange={(event) =>
                         setSelectedProposalId(event.currentTarget.value)}
                       value={proposal.id}
@@ -161,7 +132,7 @@ export function AgentProposalPanel({
                           {`第 ${index + 1} 份 · ${proposalStatusLabels[item.status]} · ${proposalStoreLabel(item)}`}
                         </option>
                       ))}
-                    </select>
+                    </SelectControl>
                   </label>
                 ) : null}
                 <ToolPropertyList aria-label="Proposal 摘要">
@@ -189,7 +160,7 @@ export function AgentProposalPanel({
           </>
         )}
       </PanelBody>
-    </ToolPanel>
+    </ToolDetailPanel>
   );
 }
 
