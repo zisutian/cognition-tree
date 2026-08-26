@@ -73,7 +73,33 @@
 
 .problems-panel-body {
   display: flex;
+  flex-direction: column;
   overflow: hidden;
+}
+
+.problems-filters {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ui-gap);
+  padding: calc(var(--ui-gap-tight) / 2) var(--ui-gap);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.problems-filters label {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ui-gap-tight) / 2);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+}
+
+.problems-filters select {
+  color: var(--color-fg);
+  background: var(--color-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--ui-radius);
+  font: inherit;
 }
 
 .problems-list-scroll {
@@ -140,6 +166,27 @@
   background: transparent;
   font-size: var(--ui-micro-font-size);
   cursor: pointer;
+}
+
+.problems-row-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
+.problems-row-detail {
+  padding: 0 var(--ui-gap-tight);
+  color: var(--color-fg-muted);
+  background: transparent;
+  font-size: var(--ui-micro-font-size);
+  cursor: pointer;
+}
+
+.problems-row-detail:hover,
+.problems-row-detail:focus-visible {
+  color: var(--color-fg-strong);
+  background: var(--color-hover);
+  outline: none;
 }
 
 .problems-row-dismiss:hover,

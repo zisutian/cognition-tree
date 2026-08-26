@@ -122,55 +122,66 @@ function select(
 }
 
 describe("workbench problem scope projection", () => {
-  it("selects Journal, Todo, and Syntax owner diagnostics independently", () => {
-    expect(select("journal", {
+  it("combines Journal, Todo, and Syntax diagnostics into the global view", () => {
+    const journal = select("journal", {
       journalDiagnostics: {
         diagnostics: [journalDiagnostic],
         errorCount: 1,
         status: "ready",
         warningCount: 0,
       },
-    }).problems).toEqual([
-      journalDiagnostic,
-      expect.objectContaining({ id: "built-in:journal" }),
-    ]);
-    expect(select("todo", {
+    }).problems;
+    const todo = select("todo", {
       todoDiagnostics: {
         diagnostics: [todoDiagnostic],
         errorCount: 1,
         status: "ready",
         warningCount: 0,
       },
-    }).problems).toEqual([todoDiagnostic]);
-    expect(select("syntax", {
+    }).problems;
+    const syntax = select("syntax", {
       syntaxDiagnostics: {
         diagnostics: [systemSyntaxDiagnostic],
         status: "ready",
       },
       syntaxOwner: "journal",
-    }).problems).toEqual([
+    }).problems;
+
+    expect(journal).toHaveLength(5);
+    expect(journal).toEqual(expect.arrayContaining([
+      journalDiagnostic,
+      workspaceDiagnostic,
       expect.objectContaining({ id: "built-in:journal" }),
+    ]));
+    expect(todo).toHaveLength(5);
+    expect(todo).toEqual(expect.arrayContaining([
+      todoDiagnostic,
+      workspaceDiagnostic,
+      expect.objectContaining({ id: "repository:broken" }),
+    ]));
+    expect(syntax).toHaveLength(5);
+    expect(syntax).toEqual(expect.arrayContaining([
       systemSyntaxDiagnostic,
-    ]);
+      workspaceDiagnostic,
+      expect.objectContaining({ id: "repository-runtime:catalog" }),
+    ]));
   });
 
-  it("limits catalog details to Repository and workspace runtime issues to workspace scopes", () => {
-    expect(select("repository").problems).toEqual([
+  it("returns the same global state and repository diagnostics in every Activity", () => {
+    const expected = [
       expect.objectContaining({ id: "repository:broken" }),
       expect.objectContaining({ id: "built-in:journal" }),
       expect.objectContaining({ id: "repository-runtime:catalog" }),
       workspaceDiagnostic,
-    ]);
-    expect(select("notes").problems).toEqual([
-      expect.objectContaining({ id: "repository-runtime:catalog" }),
-      workspaceDiagnostic,
-    ]);
-    expect(select("journal").problems).toEqual([
-      expect.objectContaining({ id: "built-in:journal" }),
-    ]);
+    ];
+
+    expect(select("repository").problems).toEqual(expected);
+    expect(select("notes").problems).toEqual(expected);
+    expect(select("journal").problems).toEqual(expected);
+    expect(select("settings").problems).toEqual(expected);
   });
 
-  it("keeps operational problems in their active source scope", () => {
+  it("shows operational problems globally without changing their recovery target", () => {
     const operationalProblem: UiWorkbenchOperationalProblem = {
       code: "unexpected_client_error",
       details: {},
@@ -193,10 +204,18 @@ describe("workbench problem scope projection", () => {
       },
     };
 
-    expect(select("todo", {
+    const todo = select("todo", {
       builtInIssues: [],
       operationalProblems: [operationalProblem],
-    }).problems).toEqual([operationalProblem]);
+    }).problems;
+    const settings = select("settings", {
+      builtInIssues: [],
+      operationalProblems: [operationalProblem],
+    }).problems;
+
+    expect(todo).toContain(operationalProblem);
+    expect(settings).toContain(operationalProblem);
+    expect(operationalProblem.target.sourceScope).toBe("todo");
   });
 
   it("derives repository and operational problems in one application projection", () => {

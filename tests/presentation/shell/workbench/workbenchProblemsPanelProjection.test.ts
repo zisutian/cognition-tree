@@ -23,8 +23,8 @@ describe("workbench Problems panel projection", () => {
     })).toBe("笔记 · 同步冲突");
   });
 
-  it("omits the global Problems panel only from Settings", () => {
-    expect(hasWorkbenchProblemsPanel("settings")).toBe(false);
+  it("shows the global Problems panel in every Activity including Settings", () => {
+    expect(hasWorkbenchProblemsPanel("settings")).toBe(true);
     expect(hasWorkbenchProblemsPanel("todo")).toBe(true);
     expect(hasWorkbenchProblemsPanel("journal")).toBe(true);
     expect(hasWorkbenchProblemsPanel("repository")).toBe(true);

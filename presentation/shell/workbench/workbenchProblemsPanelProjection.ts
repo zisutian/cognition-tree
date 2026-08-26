@@ -75,5 +75,5 @@ export function selectWorkbenchPersistenceStatus(
 }
 
 export function hasWorkbenchProblemsPanel(activeActivityId: ActivityId) {
-  return activeActivityId !== "settings";
+  return Boolean(activeActivityId);
 }

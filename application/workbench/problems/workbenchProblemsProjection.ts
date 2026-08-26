@@ -43,7 +43,6 @@ export type WorkbenchProblemScope =
 export type SyntaxProblemOwner = "journal" | "todo" | "workspace";
 
 export function selectWorkbenchProblems({
-  activeScope,
   builtInIssues,
   diagnostics,
   journalDiagnostics,
@@ -52,7 +51,6 @@ export function selectWorkbenchProblems({
   repositoryIssues,
   repositoryRuntimeIssues = [],
   syntaxDiagnostics,
-  syntaxOwner = "workspace",
   todoDiagnostics,
   agentProblems = [],
 }: {
@@ -69,47 +67,31 @@ export function selectWorkbenchProblems({
   todoDiagnostics?: TodoDiagnostics;
   agentProblems?: ReturnType<typeof projectUiAgentProblems>;
 }): UiWorkbenchProblems {
-  const emptyDiagnostics = {
-    diagnostics: [],
-    errorCount: 0,
-    status: "ready" as const,
-    warningCount: 0,
+  const diagnosticGroups = [
+    diagnostics,
+    journalDiagnostics,
+    todoDiagnostics,
+    syntaxDiagnostics,
+  ].filter((group): group is WorkbenchDiagnostics => Boolean(group));
+  const diagnosticById = new Map(
+    diagnosticGroups.flatMap(({ diagnostics: items }) => items)
+      .map((diagnostic) => [diagnostic.id, diagnostic] as const),
+  );
+  const globalDiagnostics: WorkbenchDiagnostics = {
+    diagnostics: [...diagnosticById.values()],
+    status: diagnosticGroups.some(({ status }) => status === "collecting")
+      ? "collecting"
+      : "ready",
   };
-  const scopedDiagnostics = activeScope === "agent"
-    ? emptyDiagnostics
-    : activeScope === "journal"
-    ? journalDiagnostics ?? emptyDiagnostics
-    : activeScope === "todo"
-      ? todoDiagnostics ?? emptyDiagnostics
-      : activeScope === "syntax"
-        ? syntaxDiagnostics ?? emptyDiagnostics
-        : diagnostics;
-  const scopedBuiltInIssues = activeScope === "repository"
-    ? builtInIssues
-    : activeScope === "journal" ||
-        (activeScope === "syntax" && syntaxOwner === "journal")
-      ? builtInIssues.filter((issue) => issue.kind === "catalog" ||
-        issue.id === "journal")
-      : activeScope === "todo" ||
-          (activeScope === "syntax" && syntaxOwner === "todo")
-        ? builtInIssues.filter((issue) => issue.kind === "catalog" ||
-          issue.id === "todo")
-        : [];
-  const scopedRepositoryRuntimeIssues = activeScope === "repository" ||
-      (!(activeScope === "agent" || activeScope === "journal" ||
-        activeScope === "todo") &&
-        (activeScope !== "syntax" || syntaxOwner === "workspace"))
-    ? repositoryRuntimeIssues
-    : [];
 
   return createUiWorkbenchProblems(
-    scopedDiagnostics,
-    activeScope === "repository" ? repositoryIssues : [],
-    activeScope === "repository" ? repositories : [],
-    scopedBuiltInIssues,
-    scopedRepositoryRuntimeIssues,
+    globalDiagnostics,
+    repositoryIssues,
+    repositories,
+    builtInIssues,
+    repositoryRuntimeIssues,
     operationalProblems,
-    activeScope === "agent" ? agentProblems : [],
+    agentProblems,
   );
 }
 

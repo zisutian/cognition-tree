@@ -53,12 +53,12 @@ const operationalProblem: UiWorkbenchOperationalProblem = {
   details: {},
   firstOccurredAt: "2026-08-26T00:00:00.000Z",
   id: "operation:feedback-error-1",
-  lastOccurredAt: "2026-08-26T00:00:00.000Z",
+  lastOccurredAt: "2026-08-26T12:34:56.000Z",
   locationLabel: "代办",
   message: "删除集合失败。",
-  occurrenceCount: 1,
+  occurrenceCount: 3,
   path: null,
-  requestId: null,
+  requestId: "request-42",
   retryable: false,
   severity: "error",
   source: "ui-action",
@@ -155,7 +155,12 @@ describe("ProblemsPanel", () => {
     expect(markup).toContain('aria-live="polite"');
     expect(markup).toContain("代办 · 正在保存");
     expect(markup).toContain("操作 · 代办");
+    expect(markup).toContain("3 次 · 最近 12:34:56");
+    expect(markup).toContain("复制请求编号：request-42");
     expect(markup).toContain("关闭操作错误：删除集合失败。");
+    expect(markup).toContain("按来源筛选问题");
+    expect(markup).toContain("按严重度筛选问题");
+    expect(markup).toContain("按可重试性筛选问题");
   });
 
   it("labels Journal diagnostics without treating them as workspace references", () => {
