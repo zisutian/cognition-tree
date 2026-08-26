@@ -60,13 +60,17 @@ describe("CTN API v3 registry", () => {
       ).toBe(operations.length);
       for (const { operation } of operations.filter(({ route }) =>
         route.startsWith("/api/v3/admin/") ||
-        route.startsWith("/api/v3/sync/") ||
         route.startsWith("/api/v3/agent/")
       )) {
         expect(operation["x-ctn-access"]).toEqual({ kind: "owner" });
       }
+      for (const { operation } of operations.filter(({ route }) =>
+        route.startsWith("/api/v3/sync/")
+      )) {
+        expect(operation["x-ctn-access"]).toEqual({ kind: "content-sync" });
+      }
       expect(paths["/api/v3/content/search"]!.post["x-ctn-access"])
-        .toEqual({ domain: "any", kind: "owner-or-automation-read" });
+        .toEqual({ domain: "any", kind: "content-read" });
       expect(paths["/api/v3/admin/automation-tokens"]!.post.responses)
         .toMatchObject({ "201": expect.any(Object) });
       expect(

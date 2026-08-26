@@ -7,7 +7,7 @@ import type {
   AgentProposalDecisionRequestDto,
 } from "../../../../contracts/agent/schemas.ts";
 import { ApiRequestError, apiNotFound } from "./errors.ts";
-import type { ApiHandlerContext } from "./handlerContext.ts";
+import { isOwnerPrincipal, type ApiHandlerContext } from "./handlerContext.ts";
 
 function requireAgent(context: ApiHandlerContext) {
   if (!context.agentService) {
@@ -82,7 +82,7 @@ export async function handleAgentOperation(context: ApiHandlerContext) {
   }
   const proposalId = requireRouteId(route.proposalId);
 
-  if (context.principal.kind === "automation") {
+  if (!isOwnerPrincipal(context.principal)) {
     throw new ApiRequestError("forbidden", "Agent operations require an owner");
   }
   if (operation.operationId === "decideAgentProposal") {

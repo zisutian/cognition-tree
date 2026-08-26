@@ -56,25 +56,62 @@ export function assertOperationAccess(
   principal: ApiPrincipalDto | null,
   operation: ApiOperationDefinition,
 ) {
-  if (operation.access.kind === "public") return;
-  if (!principal) {
-    throw new ApiRequestError("unauthorized", "Owner authentication is required");
-  }
-  if (principal.kind !== "automation") return;
-  if (operation.access.kind === "owner") {
-    throw new ApiRequestError(
-      "forbidden",
-      "This operation is restricted to an owner",
-    );
-  }
-  const required = operation.access.domain === "any"
-    ? null
-    : `${operation.access.domain}:read` as const;
+  const { access } = operation;
 
-  if (
-    required ? !principal.scopes.includes(required) : principal.scopes.length === 0
-  ) {
-    throw new ApiRequestError("forbidden", "A matching read scope is required");
+  if (access.kind === "public") return;
+  if (!principal) {
+    throw new ApiRequestError("unauthorized", "Authentication is required");
+  }
+  switch (principal.kind) {
+    case "local-owner":
+    case "owner":
+      return;
+    case "automation": {
+      if (access.kind === "owner" || access.kind === "content-sync") {
+        throw new ApiRequestError(
+          "forbidden",
+          "This operation is not available to automation tokens",
+        );
+      }
+      if (access.kind !== "content-read") return rejectUnknownAccess(access);
+      const required = access.domain === "any"
+        ? null
+        : `${access.domain}:read` as const;
+
+      if (
+        required
+          ? !principal.scopes.includes(required)
+          : principal.scopes.length === 0
+      ) {
+        throw new ApiRequestError("forbidden", "A matching read scope is required");
+      }
+      return;
+    }
+    default:
+      return rejectUnknownPrincipal(principal);
+  }
+}
+
+function rejectUnknownAccess(value: never): never {
+  void value;
+  throw new ApiRequestError("forbidden", "Unknown access policy is denied");
+}
+
+function rejectUnknownPrincipal(value: never): never {
+  void value;
+  throw new ApiRequestError("forbidden", "Unknown principal is denied");
+}
+
+export function isOwnerPrincipal(principal: ApiPrincipalDto | null) {
+  if (!principal) return false;
+  switch (principal.kind) {
+    case "local-owner":
+    case "owner":
+      return true;
+    case "automation":
+      return false;
+    default:
+      return rejectUnknownPrincipal(principal);
   }
 }
 
@@ -82,15 +119,23 @@ export function assertRepositoryAllowed(
   principal: ApiPrincipalDto,
   repositoryId: string,
 ) {
-  if (
-    principal.kind === "automation" &&
-    principal.repositoryIds !== null &&
-    !principal.repositoryIds.includes(repositoryId)
-  ) {
-    throw new ApiRequestError(
-      "forbidden",
-      "Token is not allowed to access this repository",
-    );
+  switch (principal.kind) {
+    case "local-owner":
+    case "owner":
+      return;
+    case "automation":
+      if (
+        principal.repositoryIds !== null &&
+        !principal.repositoryIds.includes(repositoryId)
+      ) {
+        throw new ApiRequestError(
+          "forbidden",
+          "Token is not allowed to access this repository",
+        );
+      }
+      return;
+    default:
+      return rejectUnknownPrincipal(principal);
   }
 }
 

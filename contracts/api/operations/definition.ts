@@ -7,7 +7,8 @@ export type ApiReadableDomain = "journal" | "todo" | "workspace";
 export type ApiAccessPolicy =
   | { kind: "public" }
   | { kind: "owner" }
-  | { domain: ApiReadableDomain | "any"; kind: "owner-or-automation-read" };
+  | { domain: ApiReadableDomain | "any"; kind: "content-read" }
+  | { kind: "content-sync" };
 
 export type ApiBodyDefinition<Schema extends TSchema = TSchema> = {
   decode(input: unknown): Static<Schema>;
@@ -37,4 +38,5 @@ export const publicAccess = (): ApiAccessPolicy => ({ kind: "public" });
 export const ownerAccess = (): ApiAccessPolicy => ({ kind: "owner" });
 export const readableAccess = (
   domain: ApiReadableDomain | "any",
-): ApiAccessPolicy => ({ domain, kind: "owner-or-automation-read" });
+): ApiAccessPolicy => ({ domain, kind: "content-read" });
+export const syncAccess = (): ApiAccessPolicy => ({ kind: "content-sync" });

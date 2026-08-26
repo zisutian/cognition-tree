@@ -50,11 +50,16 @@ export async function handleWorkspaceQuery(context: ApiHandlerContext) {
     return {
       body: {
         workspaces: repositories.repositories
-          .filter(({ id }) =>
-            (principal.kind !== "automation" ||
-              principal.repositoryIds === null ||
-              principal.repositoryIds.includes(id))
-          )
+          .filter(({ id }) => {
+            switch (principal.kind) {
+              case "local-owner":
+              case "owner":
+                return true;
+              case "automation":
+                return principal.repositoryIds === null ||
+                  principal.repositoryIds.includes(id);
+            }
+          })
           .map(({ id, label }) => ({ id, label })),
       },
       statusCode: 200,

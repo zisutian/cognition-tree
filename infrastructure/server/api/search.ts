@@ -57,7 +57,14 @@ function hasScope(
   principal: SearchPrincipal,
   scope: AutomationApiScope,
 ) {
-  return principal.kind !== "automation" || principal.scopes.includes(scope);
+  switch (principal.kind) {
+    case "agent-session":
+    case "local-owner":
+    case "owner":
+      return true;
+    case "automation":
+      return principal.scopes.includes(scope);
+  }
 }
 
 function requestedDomains(
@@ -72,6 +79,19 @@ function requestedDomains(
 
     return hasScope(principal, scope);
   });
+}
+
+function allowedWorkspaceRepositoryIds(principal: SearchPrincipal) {
+  switch (principal.kind) {
+    case "agent-session":
+    case "local-owner":
+    case "owner":
+      return null;
+    case "automation":
+      return principal.repositoryIds
+        ? new Set(principal.repositoryIds)
+        : null;
+  }
 }
 
 function sourceFault(
@@ -202,10 +222,7 @@ export class ApiSearchService {
               const requestedIds = request.repositoryIds
                 ? new Set(request.repositoryIds)
                 : null;
-              const allowedIds = principal.kind === "automation" &&
-                  principal.repositoryIds
-                ? new Set(principal.repositoryIds)
-                : null;
+              const allowedIds = allowedWorkspaceRepositoryIds(principal);
               const allows = (repositoryId: string) =>
                 (!requestedIds || requestedIds.has(repositoryId)) &&
                 (!allowedIds || allowedIds.has(repositoryId));

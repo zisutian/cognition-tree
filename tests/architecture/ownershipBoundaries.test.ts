@@ -33,8 +33,11 @@ describe("source ownership boundaries", () => {
       "workspace:read",
     ]);
     for (const { method, operation, path } of operations) {
-      if (
-        path.startsWith("/api/v3/sync/") ||
+      if (path.startsWith("/api/v3/sync/")) {
+        expect(operation.access, `${method} ${path}`).toEqual({
+          kind: "content-sync",
+        });
+      } else if (
         path.startsWith("/api/v3/admin/") ||
         path.startsWith("/api/v3/agent/")
       ) {

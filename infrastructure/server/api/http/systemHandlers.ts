@@ -11,6 +11,7 @@ import type {
   ApiHandlerContext,
   ApiRouteHandlerContext,
 } from "./handlerContext.ts";
+import { isOwnerPrincipal } from "./handlerContext.ts";
 import {
   clearOwnerSessionCookie,
   createOwnerSessionCookie,
@@ -29,7 +30,7 @@ function requireSystemAdministration(context: ApiHandlerContext) {
 export async function handleOwnerSession(context: ApiRouteHandlerContext) {
   if (context.operation.operationId === "getOwnerSession") {
     return {
-      body: { authenticated: context.principal?.kind !== "automation" && context.principal !== null },
+      body: { authenticated: isOwnerPrincipal(context.principal) },
       statusCode: 200,
     };
   }

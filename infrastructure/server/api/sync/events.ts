@@ -23,18 +23,28 @@ function canRead(
   principal: ApiPrincipalDto,
   domain: "journal" | "todo" | "workspace",
 ) {
-  return principal.kind !== "automation" ||
-    principal.scopes.includes(`${domain}:read`);
+  switch (principal.kind) {
+    case "local-owner":
+    case "owner":
+      return true;
+    case "automation":
+      return principal.scopes.includes(`${domain}:read`);
+  }
 }
 
 function repositoryAllowed(
   principal: ApiPrincipalDto,
   repositoryId: string | undefined,
 ) {
-  return repositoryId === undefined ||
-    principal.kind !== "automation" ||
-    principal.repositoryIds === null ||
-    principal.repositoryIds.includes(repositoryId);
+  if (repositoryId === undefined) return true;
+  switch (principal.kind) {
+    case "local-owner":
+    case "owner":
+      return true;
+    case "automation":
+      return principal.repositoryIds === null ||
+        principal.repositoryIds.includes(repositoryId);
+  }
 }
 
 export function filterApiCheckpoint(
