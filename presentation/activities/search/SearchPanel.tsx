@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef } from "react";
-import type {
-  SearchControllerActions,
-  SearchControllerState,
+import {
+  searchDraftsEqual,
+  type SearchControllerActions,
+  type SearchControllerState,
 } from "../../../application/search/searchController";
 import type {
   SearchDomain,
@@ -15,6 +16,7 @@ import {
   PanelHeader,
 } from "../../ui/shared/primitives";
 import type { SearchRepositoryOption } from "./searchViewTypes";
+import { StatusBadge } from "../../ui/shared/StatusPresentation";
 
 const domainLabels: Record<SearchDomain, string> = {
   journal: "日记",
@@ -98,6 +100,8 @@ export function SearchPanel({
   const allSourcesFailed = state.faults.length > 0 &&
     groups.length === 0 &&
     !state.errorMessage;
+  const draftChanged = state.submitted !== null &&
+    !searchDraftsEqual(state.draft, state.submitted);
 
   useLayoutEffect(() => {
     if (bodyRef.current) {
@@ -107,7 +111,21 @@ export function SearchPanel({
 
   return (
     <Panel aria-label="搜索结果" className="search-panel">
-      <PanelHeader title="搜索结果" />
+      <PanelHeader
+        actions={state.submitted ? (
+          <>
+            <span className="search-header-counts">
+              {groups.length} 个资源 · {state.results.length} 个命中
+            </span>
+            {draftChanged ? (
+              <StatusBadge tone="warning">条件已修改</StatusBadge>
+            ) : null}
+          </>
+        ) : null}
+        title={state.submitted
+          ? `搜索 · ${state.submitted.query}`
+          : "搜索结果"}
+      />
       <PanelBody
         className="search-panel-body"
         onScroll={(event) =>
@@ -129,16 +147,19 @@ export function SearchPanel({
 
         {state.status === "idle" ? (
           <EmptyState
+            compact
             description="在左侧输入搜索词并选择范围，然后按 Enter 或搜索按钮。"
             title="搜索笔记与任务"
           />
         ) : state.status === "loading" ? (
           <EmptyState
+            compact
             description="正在读取所选领域和仓库。"
             title="正在搜索"
           />
         ) : state.errorMessage && groups.length === 0 ? (
           <EmptyState
+            compact
             action={(
               <Button
                 onClick={() => void controller.search()}
@@ -153,6 +174,7 @@ export function SearchPanel({
           />
         ) : allSourcesFailed ? (
           <EmptyState
+            compact
             action={(
               <Button
                 onClick={() => void controller.search()}
@@ -196,6 +218,7 @@ export function SearchPanel({
             ) : null}
             {groups.length === 0 ? (
               <EmptyState
+                compact
                 description="当前搜索词和筛选条件没有匹配内容。"
                 title="没有结果"
               />

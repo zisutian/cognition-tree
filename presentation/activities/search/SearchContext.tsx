@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 import {
   searchDraftsEqual,
   type SearchControllerActions,
@@ -71,6 +72,12 @@ export function SearchContext({
       repositoryIds: allSelected ? null : [...selected].sort(),
     });
   };
+  const selectAllRepositories = () => {
+    controller.updateDraft({ repositoryIds: null });
+  };
+  const clearRepositories = () => {
+    controller.updateDraft({ repositoryIds: [] });
+  };
   const canSearch = state.status !== "loading" &&
     state.draft.query.trim().length > 0 &&
     state.draft.domains.length > 0;
@@ -85,18 +92,28 @@ export function SearchContext({
       }}
       role="search"
     >
-      <label className="search-field">
-        <span>搜索词</span>
+      <div className="search-query-row">
+        <label htmlFor="workbench-search-query">搜索词</label>
         <input
           autoComplete="off"
           className="ui-input"
+          id="workbench-search-query"
           onChange={(event) =>
             controller.updateDraft({ query: event.currentTarget.value })}
           placeholder="输入标题或正文"
           type="search"
           value={state.draft.query}
         />
-      </label>
+        <Button
+          aria-label="搜索"
+          disabled={!canSearch}
+          title={state.status === "loading" ? "正在搜索" : "搜索"}
+          type="submit"
+          variant="icon"
+        >
+          <Search aria-hidden="true" size={14} />
+        </Button>
+      </div>
 
       <fieldset className="search-filter-group">
         <legend>领域</legend>
@@ -115,7 +132,27 @@ export function SearchContext({
 
       {workspaceEnabled ? (
         <fieldset className="search-filter-group">
-          <legend>Workspace 仓库</legend>
+          <legend className="search-filter-heading">
+            <span>Workspace 仓库</span>
+            <span className="search-filter-actions">
+              <Button
+                disabled={catalogStatus !== "ready" || repositories.length === 0}
+                onClick={selectAllRepositories}
+                type="button"
+                variant="ghost"
+              >
+                全选
+              </Button>
+              <Button
+                disabled={catalogStatus !== "ready" || repositories.length === 0}
+                onClick={clearRepositories}
+                type="button"
+                variant="ghost"
+              >
+                清除
+              </Button>
+            </span>
+          </legend>
           {catalogStatus === "loading" ? (
             <p className="search-context-status">正在读取仓库目录…</p>
           ) : catalogStatus === "failed" ? (
@@ -125,38 +162,46 @@ export function SearchContext({
           ) : repositories.length === 0 ? (
             <p className="search-context-status">没有普通仓库。</p>
           ) : (
-            repositories.map((repository) => (
-              <label key={repository.id}>
-                <input
-                  checked={selectedRepositoryIds.has(repository.id)}
-                  onChange={(event) =>
-                    updateRepository(
-                      repository.id,
-                      event.currentTarget.checked,
-                    )}
-                  type="checkbox"
-                />
-                <span>{repository.label}</span>
-              </label>
-            ))
+            <div className="search-repository-list ui-scroll-surface">
+              {repositories.map((repository) => (
+                <label key={repository.id}>
+                  <input
+                    checked={selectedRepositoryIds.has(repository.id)}
+                    onChange={(event) =>
+                      updateRepository(
+                        repository.id,
+                        event.currentTarget.checked,
+                      )}
+                    type="checkbox"
+                  />
+                  <span>{repository.label}</span>
+                </label>
+              ))}
+            </div>
           )}
         </fieldset>
       ) : null}
 
-      <label className="search-field">
-        <span>更新时间不早于</span>
-        <input
-          className="ui-input"
-          onChange={(event) =>
-            controller.updateDraft({
-              updatedAfter: parseSearchDateTimeLocal(
-                event.currentTarget.value,
-              ),
-            })}
-          type="datetime-local"
-          value={formatSearchDateTimeLocal(state.draft.updatedAfter)}
-        />
-      </label>
+      <details className="search-more-filters">
+        <summary>
+          更多条件
+          {state.draft.updatedAfter ? <span>已设置</span> : null}
+        </summary>
+        <label className="search-field">
+          <span>更新时间不早于</span>
+          <input
+            className="ui-input"
+            onChange={(event) =>
+              controller.updateDraft({
+                updatedAfter: parseSearchDateTimeLocal(
+                  event.currentTarget.value,
+                ),
+              })}
+            type="datetime-local"
+            value={formatSearchDateTimeLocal(state.draft.updatedAfter)}
+          />
+        </label>
+      </details>
 
       {state.draft.domains.length === 0 ? (
         <p className="search-context-status" role="alert">
@@ -168,15 +213,6 @@ export function SearchContext({
         </p>
       ) : null}
 
-      <div className="search-context-action">
-        <Button
-          disabled={!canSearch}
-          type="submit"
-          variant="primary"
-        >
-          {state.status === "loading" ? "正在搜索…" : "搜索"}
-        </Button>
-      </div>
     </form>
   );
 }

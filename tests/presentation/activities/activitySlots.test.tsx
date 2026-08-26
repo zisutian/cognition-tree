@@ -341,9 +341,14 @@ describe("activity slots", () => {
     const searchMain = renderSlot(searchSlots.main);
 
     expect(searchContext).toContain('role="search"');
+    expect(searchContext).toContain('aria-label="搜索"');
     expect(searchContext).toContain('type="datetime-local"');
+    expect(searchContext).toContain("更多条件");
+    expect(searchContext).toContain("全选");
+    expect(searchContext).toContain("清除");
     expect(searchContext).toContain("仓库 A");
     expect(searchMain).toContain("部分来源不可用");
+    expect(searchMain).toContain(`搜索 · ${submitted.query}`);
     expect(searchMain).toContain("块内共同词");
     expect(searchMain).toContain(
       'aria-label="打开Alpha中的匹配块"',
@@ -369,6 +374,13 @@ describe("activity slots", () => {
           ...override,
         },
       }).main);
+    expect(renderSearchState({
+      draft: {
+        ...submitted,
+        domains: [...submitted.domains],
+        query: "另一个搜索词",
+      },
+    })).toContain("条件已修改");
     const statusScenarios: Array<
       [Parameters<typeof renderSearchState>[0], string]
     > = [
