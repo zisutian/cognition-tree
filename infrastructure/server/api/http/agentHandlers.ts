@@ -94,6 +94,7 @@ export async function handleAgentOperation(context: ApiHandlerContext) {
         decision: request.decision,
         ownerId: context.principal.id,
         proposalId,
+        requestId: context.requestId,
         sessionId,
       }),
       statusCode: 200,
@@ -112,6 +113,7 @@ export async function handleAgentOperation(context: ApiHandlerContext) {
     body: await agent.confirmDestruction({
       ownerId: context.principal.id,
       proposalId,
+      requestId: context.requestId,
       sessionId,
     }),
     statusCode: 200,

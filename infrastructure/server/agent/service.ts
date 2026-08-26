@@ -55,7 +55,10 @@ import type {
   AgentConfigurationStore,
   ResolvedAgentConfiguration,
 } from "./configurationStore.ts";
-import type { AgentOperationLedger } from "./operationLedger.ts";
+import type {
+  AgentOperationAttempt,
+  OperationLedger,
+} from "../operations/operationLedger.ts";
 import {
   createAgentRuntimeProfile,
   type AgentRuntimeProfile,
@@ -133,7 +136,7 @@ export class AgentService {
   readonly #configurationStore: AgentConfigurationStore;
   readonly #eventHub: ApiEventHub;
   readonly #ipc: AgentPrivateIpcServer;
-  readonly #ledger: AgentOperationLedger | null;
+  readonly #ledger: OperationLedger | null;
   readonly #profileQueues = new Map<string, Promise<void>>();
   readonly #projectRoot: string;
   readonly #revisionTracker: ApiRevisionTracker;
@@ -164,7 +167,7 @@ export class AgentService {
     configurationStore: AgentConfigurationStore;
     eventHub: ApiEventHub;
     ipc?: AgentPrivateIpcServer;
-    ledger: AgentOperationLedger | null;
+    ledger: OperationLedger | null;
     projectRoot?: string;
     revisionTracker: ApiRevisionTracker;
     runtime: ApiRuntime;
@@ -477,11 +480,13 @@ export class AgentService {
     decision,
     ownerId,
     proposalId,
+    requestId,
     sessionId,
   }: {
     decision: "approve" | "reject";
     ownerId: string;
     proposalId: string;
+    requestId: string;
     sessionId: string;
   }) {
     const record = this.#requireSession(sessionId);
@@ -516,16 +521,24 @@ export class AgentService {
     if (proposal.status === "awaiting-destructive-confirmation") {
       return toAgentProposalDto(proposal);
     }
-    return this.#commit(record, proposal, ownerId);
+    return this.#commit(
+      record,
+      proposal,
+      ownerId,
+      requestId,
+      "proposal-decision",
+    );
   }
 
   async confirmDestruction({
     ownerId,
     proposalId,
+    requestId,
     sessionId,
   }: {
     ownerId: string;
     proposalId: string;
+    requestId: string;
     sessionId: string;
   }) {
     const record = this.#requireSession(sessionId);
@@ -540,7 +553,13 @@ export class AgentService {
     proposal = confirmAgentProposalDestruction(proposal);
     record.controller.putProposal(proposal);
     this.#emitProposal(record, proposal);
-    return this.#commit(record, proposal, ownerId);
+    return this.#commit(
+      record,
+      proposal,
+      ownerId,
+      requestId,
+      "destructive-confirmation",
+    );
   }
 
   async dispose() {
@@ -800,7 +819,13 @@ export class AgentService {
     return execution.result;
   }
 
-  async #commit(record: SessionRecord, proposal: AgentProposal, ownerId: string) {
+  async #commit(
+    record: SessionRecord,
+    proposal: AgentProposal,
+    ownerId: string,
+    requestId: string,
+    route: AgentOperationAttempt["route"],
+  ) {
     const ledger = this.#ledger;
 
     if (!ledger) {
@@ -811,35 +836,39 @@ export class AgentService {
       proposalId: proposal.id,
       proposalVersion: proposal.version,
     };
-    const result = await ledger.runIdempotent(identity, async () => {
-      let afterRevision: `sha256:${string}` | null = null;
-      let result: AgentOperationAuditEntryDto["result"] = "failed";
+    const result = await ledger.runAgentIdempotent(
+      identity,
+      this.#auditAttempt(record, proposal, ownerId, requestId, route),
+      async () => {
+        let afterRevision: `sha256:${string}` | null = null;
+        let result: AgentOperationAuditEntryDto["result"] = "failed";
 
-      try {
-        const store = await this.#proposalStore(proposal);
-        const committed = await commitAgentProposalExactly({
-          proposal,
-          store,
-        });
+        try {
+          const store = await this.#proposalStore(proposal);
+          const committed = await commitAgentProposalExactly({
+            proposal,
+            store,
+          });
 
-        afterRevision = committed.receipt.revision;
-        result = "committed";
-        proposal = committed.proposal;
-        this.#publishCommittedProposal(proposal, afterRevision);
-      } catch (error) {
-        if (
-          error instanceof WorkspaceRevisionConflictError ||
-          error instanceof VersionedContentRevisionConflictError
-        ) {
-          afterRevision = error.currentRevision;
-          result = "stale";
-          proposal = markAgentProposalStale(proposal);
-        } else {
-          proposal = markAgentProposalFailed(proposal);
+          afterRevision = committed.receipt.revision;
+          result = "committed";
+          proposal = committed.proposal;
+          this.#publishCommittedProposal(proposal, afterRevision);
+        } catch (error) {
+          if (
+            error instanceof WorkspaceRevisionConflictError ||
+            error instanceof VersionedContentRevisionConflictError
+          ) {
+            afterRevision = error.currentRevision;
+            result = "stale";
+            proposal = markAgentProposalStale(proposal);
+          } else {
+            proposal = markAgentProposalFailed(proposal);
+          }
         }
-      }
-      return this.#auditEntry(record, proposal, ownerId, afterRevision, result);
-    });
+        return this.#auditEntry(record, proposal, ownerId, afterRevision, result);
+      },
+    );
 
     if (result.entry.result === "committed") {
       if (proposal.status !== "committed") {
@@ -902,6 +931,31 @@ export class AgentService {
       providerDigest: record.configuration.provider.digest,
       providerId: record.configuration.provider.id,
       providerVersion: record.configuration.provider.version,
+      store: proposal.store,
+    };
+  }
+
+  #auditAttempt(
+    record: SessionRecord,
+    proposal: AgentProposal,
+    ownerId: string,
+    requestId: string,
+    route: AgentOperationAttempt["route"],
+  ): AgentOperationAttempt {
+    return {
+      approvingOwnerId: ownerId,
+      beforeRevision: proposal.base.revision,
+      occurredAt: readApiRuntimeNow(this.#runtime).timestamp,
+      profileDigest: record.configuration.profile.digest,
+      profileId: record.profile.id,
+      profileVersion: record.configuration.profile.version,
+      providerDigest: record.configuration.provider.digest,
+      providerId: record.configuration.provider.id,
+      providerVersion: record.configuration.provider.version,
+      requestId,
+      route,
+      runtimeKind: record.runtime.kind,
+      sessionId: record.controller.snapshot().id,
       store: proposal.store,
     };
   }

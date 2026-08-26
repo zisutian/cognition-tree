@@ -27,7 +27,7 @@ import {
 } from "./runtime.ts";
 import type { ApiSearchService } from "../search.ts";
 import type { AutomationTokenStore } from "../../access/automationTokenStore.ts";
-import type { AgentOperationLedger } from "../../agent/operationLedger.ts";
+import type { OperationLedger } from "../../operations/operationLedger.ts";
 import type { AgentService } from "../../agent/service.ts";
 import type { AgentConfigurationStore } from "../../agent/configurationStore.ts";
 import type { AgentProviderOperations } from "../../agent/providerOperations.ts";
@@ -116,7 +116,7 @@ export type ApiHandlerContext = {
   catalog: WorkspaceRepositoryCatalog;
   eventHub: ApiEventHub;
   operation: ApiOperationDefinition;
-  operationLedger: AgentOperationLedger | null;
+  operationLedger: OperationLedger | null;
   ownerSessions: ApiOwnerSessionAuthority;
   principal: ApiPrincipalDto;
   query: unknown;

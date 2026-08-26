@@ -43,7 +43,12 @@ import {
 import {
   VersionedContentRevisionConflictError,
 } from "../../repository/versioned/contentStore.ts";
-import { AgentOperationIdempotencyError } from "../../agent/operationLedger.ts";
+import {
+  AgentOperationIdempotencyError,
+  AgentOperationIndeterminateError,
+  OperationAuditFinalizeError,
+  OperationAuditUnavailableError,
+} from "../../operations/operationLedger.ts";
 import { AgentServiceError } from "../../agent/errors.ts";
 import {
   AgentConfigurationConflictError,
@@ -228,7 +233,37 @@ export function mapApiError(error: unknown): ApiRequestError {
     );
   }
   if (error instanceof AgentOperationIdempotencyError) {
-    return new ApiRequestError("idempotency_conflict", error.message);
+    return new ApiRequestError("idempotency_conflict", error.message, {
+      details: {
+        proposalId: error.proposalId,
+        proposalVersion: error.proposalVersion,
+      },
+    });
+  }
+  if (error instanceof AgentOperationIndeterminateError) {
+    return new ApiRequestError("idempotency_conflict", error.message, {
+      details: {
+        proposalId: error.proposalId,
+        proposalVersion: error.proposalVersion,
+      },
+    });
+  }
+  if (error instanceof OperationAuditFinalizeError) {
+    return new ApiRequestError(
+      "operation_audit_finalize_failed",
+      error.message,
+      {
+        details: {
+          afterRevision: error.afterRevision,
+          commitState: "committed",
+        },
+      },
+    );
+  }
+  if (error instanceof OperationAuditUnavailableError) {
+    return new ApiRequestError("operation_audit_unavailable", error.message, {
+      details: error.operationId ? { operationId: error.operationId } : {},
+    });
   }
   if (error instanceof TodoOccurrenceConflictError) {
     return new ApiRequestError(

@@ -8,7 +8,7 @@ import type {
   ApiOwnerCredentialRotationDto,
   ApiSystemConfigurationSnapshotDto,
 } from "../../../../contracts/api/schemas/system.ts";
-import { AgentOperationLedger } from "../../../../infrastructure/server/agent/operationLedger.ts";
+import { OperationLedger } from "../../../../infrastructure/server/operations/operationLedger.ts";
 import { createApiRequestHandler } from "../../../../infrastructure/server/api/http/server.ts";
 import { createApiSecurityPolicy } from "../../../../infrastructure/server/api/http/security.ts";
 import { LocalRepositoryCatalog } from "../../../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
@@ -27,7 +27,7 @@ describe("system configuration API", () => {
 
     await catalog.initialize();
     try {
-      const ledger = new AgentOperationLedger(
+      const ledger = new OperationLedger(
         path.join(initial.configuration.dataRoot, "server"),
         initial.configuration.maxAuditEntries,
       );

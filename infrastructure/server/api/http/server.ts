@@ -54,7 +54,7 @@ import {
 } from "../sync/revisionTracker.ts";
 import { AutomationTokenStore } from "../../access/automationTokenStore.ts";
 import type { AgentService } from "../../agent/service.ts";
-import type { AgentOperationLedger } from "../../agent/operationLedger.ts";
+import type { OperationLedger } from "../../operations/operationLedger.ts";
 import { AgentConfigurationStore } from "../../agent/configurationStore.ts";
 import { AgentProviderOperations } from "../../agent/providerOperations.ts";
 import type { SystemAdministrationPort } from "../../../../application/system/systemConfiguration.ts";
@@ -75,7 +75,7 @@ export type ApiServerOptions = {
   eventHub?: ApiEventHub;
   logger?: Pick<Console, "error">;
   maintenanceGate?: ApiMaintenanceGate;
-  operationLedger?: AgentOperationLedger | null;
+  operationLedger?: OperationLedger | null;
   requestRestart?: () => void;
   runtime?: ApiRuntime;
   revisionTracker?: ApiRevisionTracker;

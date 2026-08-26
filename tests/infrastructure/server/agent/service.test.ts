@@ -16,7 +16,7 @@ import { BuiltInCatalog } from "../../../../infrastructure/server/repository/bui
 import type {
   WorkspaceRepositoryCatalog,
 } from "../../../../infrastructure/server/repository/catalog.ts";
-import { AgentOperationLedger } from "../../../../infrastructure/server/agent/operationLedger.ts";
+import { OperationLedger } from "../../../../infrastructure/server/operations/operationLedger.ts";
 import { AgentConfigurationStore } from "../../../../infrastructure/server/agent/configurationStore.ts";
 import {
   AgentService,
@@ -97,7 +97,7 @@ async function createFixture(behavior: TurnBehavior) {
       };
     },
   };
-  const ledger = new AgentOperationLedger(path.join(root, "state"), 100);
+  const ledger = new OperationLedger(path.join(root, "state"), 100);
   const ids = ["provider", "fake-openai"];
   const configurationStore = new AgentConfigurationStore(
     path.join(root, "state"),
@@ -580,6 +580,7 @@ describe("Agent service proposal lifecycle", () => {
         decision: "approve",
         ownerId: "local-owner",
         proposalId: proposal.id,
+        requestId: uuid(301),
         sessionId: session.id,
       });
 
@@ -594,6 +595,7 @@ describe("Agent service proposal lifecycle", () => {
         decision: "approve",
         ownerId: "local-owner",
         proposalId: proposal.id,
+        requestId: uuid(302),
         sessionId: session.id,
       });
       await vi.waitFor(() => expect(fixture.runTurn).toHaveBeenCalledTimes(2));
@@ -621,6 +623,7 @@ describe("Agent service proposal lifecycle", () => {
         decision: "reject",
         ownerId: "local-owner",
         proposalId: proposal.id,
+        requestId: uuid(303),
         sessionId: session.id,
       });
 
@@ -662,6 +665,7 @@ describe("Agent service proposal lifecycle", () => {
         decision: "approve",
         ownerId: "local-owner",
         proposalId: proposal.id,
+        requestId: uuid(304),
         sessionId: session.id,
       })).rejects.toMatchObject({
         code: "proposal_stale",
@@ -724,6 +728,7 @@ describe("Agent service proposal lifecycle", () => {
         decision: "approve",
         ownerId: "local-owner",
         proposalId: proposal.id,
+        requestId: uuid(305),
         sessionId: session.id,
       });
 
@@ -732,6 +737,7 @@ describe("Agent service proposal lifecycle", () => {
       const committed = await fixture.service.confirmDestruction({
         ownerId: "local-owner",
         proposalId: proposal.id,
+        requestId: uuid(306),
         sessionId: session.id,
       });
 

@@ -19,7 +19,7 @@ import {
   type CreateLocalRepositoryWithId,
 } from "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
 import { BuiltInCatalog } from "../../infrastructure/server/repository/built-ins/catalog.ts";
-import { AgentOperationLedger } from "../../infrastructure/server/agent/operationLedger.ts";
+import { OperationLedger } from "../../infrastructure/server/operations/operationLedger.ts";
 import { AgentService } from "../../infrastructure/server/agent/service.ts";
 import { agentServicePolicy } from "../../infrastructure/server/agent/servicePolicy.ts";
 import { ApiEventHub } from "../../infrastructure/server/api/sync/events.ts";
@@ -82,7 +82,7 @@ export async function startE2EWorkspaceServer({
     await builtInCatalog.initialize();
     const eventHub = new ApiEventHub();
     const revisionTracker = new ApiRevisionTracker();
-    const operationLedger = new AgentOperationLedger(
+    const operationLedger = new OperationLedger(
       serverStateDirectory,
       bootstrapSnapshot.configuration.maxAuditEntries,
     );

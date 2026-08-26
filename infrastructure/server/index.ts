@@ -5,7 +5,7 @@ import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import path from "node:path";
 import { AutomationTokenStore } from "./access/automationTokenStore.ts";
 import { AgentConfigurationStore } from "./agent/configurationStore.ts";
-import { AgentOperationLedger } from "./agent/operationLedger.ts";
+import { OperationLedger } from "./operations/operationLedger.ts";
 import { AgentProviderOperations } from "./agent/providerOperations.ts";
 import { AgentProviderTargetPolicy } from "./agent/providerTargetPolicy.ts";
 import { AgentService } from "./agent/service.ts";
@@ -118,7 +118,7 @@ const agentConfigurationStore = new AgentConfigurationStore(
   serverStateDirectory,
   { targetPolicy: agentTargetPolicy },
 );
-const operationLedger = new AgentOperationLedger(
+const operationLedger = new OperationLedger(
   serverStateDirectory,
   effectiveConfiguration.maxAuditEntries,
 );
