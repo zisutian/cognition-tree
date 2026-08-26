@@ -147,11 +147,11 @@ test.describe("directory and structure operation flows", () => {
     const structureOperationContext = page.locator(".app-context");
 
     await expect(
-      structureOperationContext.getByRole("button", {
+      structureOperationContext.getByRole("radio", {
         name: "笔记间迁移",
         exact: true,
       }),
-    ).toHaveAttribute("aria-pressed", "true");
+    ).toHaveAttribute("aria-checked", "true");
     const structureColumns = page.locator(".structure-operation-column");
     const sourceStructure = structureColumns.first();
     const targetStructure = structureColumns.nth(1);
@@ -178,11 +178,11 @@ test.describe("directory and structure operation flows", () => {
       .click();
     await expect(targetStructure.getByTitle(movedStructureTitle ?? "")).toBeVisible();
 
-    await page.getByRole("button", { name: "笔记内迁移", exact: true }).click();
+    await page.getByRole("radio", { name: "笔记内迁移", exact: true }).click();
     await structureOperationContext.getByTitle("Beta").click();
     await expect(
-      page.getByRole("button", { name: "笔记内迁移", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
+      page.getByRole("radio", { name: "笔记内迁移", exact: true }),
+    ).toHaveAttribute("aria-checked", "true");
 
     await selectNotesMode(page, "编辑");
     await expect(contextResize).toHaveAttribute(
@@ -192,8 +192,8 @@ test.describe("directory and structure operation flows", () => {
 
     await selectNotesMode(page, "结构");
     await expect(
-      page.getByRole("button", { name: "笔记内迁移", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
+      page.getByRole("radio", { name: "笔记内迁移", exact: true }),
+    ).toHaveAttribute("aria-checked", "true");
     await expect(
       page.getByRole("region", { name: "结构操作" }).getByText(
         "笔记结构 · Beta",
@@ -243,7 +243,7 @@ test.describe("directory and structure operation flows", () => {
       return editableLines.includes("\t\t- Source Child");
     }).toBe(true);
 
-    await page.getByRole("button", { name: "笔记内迁移", exact: true }).click();
+    await page.getByRole("radio", { name: "笔记内迁移", exact: true }).click();
     await page.locator(".app-context").getByTitle("Target").click();
 
     const structureColumn = page.locator(".structure-operation-column");

@@ -14,6 +14,7 @@ import {
   RepositoryContext,
 } from "../../../../presentation/activities/repository/RepositoryContext";
 import { RepositoryPanel } from "../../../../presentation/activities/repository/RepositoryPanel";
+import { RepositoryStatusPanel } from "../../../../presentation/activities/repository/RepositoryStatusPanel";
 import { copyRepositoryLocation } from "../../../../presentation/activities/repository/repositoryViewHelpers";
 import { FeedbackProvider } from "../../../../presentation/ui/shared/FeedbackProvider";
 import {
@@ -87,7 +88,6 @@ describe("repository inline deletion confirmation", () => {
     const markup = renderToStaticMarkup(
       <RepositoryDeleteConfirmation
         repository={localRepository}
-        warning=""
         onCancel={() => undefined}
         onDelete={async () => true}
       />,
@@ -147,15 +147,21 @@ describe("repository setup and management semantics", () => {
           }}
           view={view}
         />
+        <RepositoryStatusPanel
+          onCollapseDetail={() => undefined}
+          selection={{
+            id: secondaryRepository.id,
+            kind: "ordinary-repository",
+          }}
+          view={view}
+        />
       </FeedbackProvider>,
     );
 
     expectMarkupSemantics(markup, {
       has: [
         'aria-current="page"', "本地笔记", "第二仓库",
-        "ui-tool-panel", 'data-tool-layout="form"',
-        'aria-label="仓库状态"', "ui-tool-property-list",
-        "ui-tool-property-row",
+        'data-tool-layout="form"', 'aria-label="仓库状态"',
         "仓库 ID", secondaryRepository.id,
         'aria-label="重命名仓库 第二仓库"',
         'aria-label="打开仓库 第二仓库"',
@@ -231,6 +237,11 @@ describe("repository setup and management semantics", () => {
     const issueMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          selection={{ id: "default", kind: "ordinary-issue" }}
+          view={view}
+        />
+        <RepositoryStatusPanel
+          onCollapseDetail={() => undefined}
           selection={{ id: "default", kind: "ordinary-issue" }}
           view={view}
         />
@@ -338,6 +349,11 @@ describe("repository setup and management semantics", () => {
           selection={{ id: "broken-second", kind: "ordinary-issue" }}
           view={view}
         />
+        <RepositoryStatusPanel
+          onCollapseDetail={() => undefined}
+          selection={{ id: "journal", kind: "built-in" }}
+          view={view}
+        />
       </FeedbackProvider>,
     );
 
@@ -425,11 +441,21 @@ describe("repository setup and management semantics", () => {
           }}
           view={view}
         />
+        <RepositoryStatusPanel
+          onCollapseDetail={() => undefined}
+          selection={{ id: "journal", kind: "built-in" }}
+          view={view}
+        />
       </FeedbackProvider>,
     );
     const todoMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          selection={{ id: "todo", kind: "built-in" }}
+          view={view}
+        />
+        <RepositoryStatusPanel
+          onCollapseDetail={() => undefined}
           selection={{ id: "todo", kind: "built-in" }}
           view={view}
         />
@@ -448,9 +474,8 @@ describe("repository setup and management semantics", () => {
     });
     expectMarkupSemantics(journalMarkup, {
       has: [
-        "受保护内置数据", "/state/built-ins/journal/content.json",
-        "以当前远端版本保留本地", "采用远端",
-        "采用远端并另存本地正文",
+        "保护", "内置数据", "/state/built-ins/journal/content.json",
+        "保留本地", "采用远端", "远端并另存本地",
       ],
       lacks: ["删除仓库", "重命名仓库", "放弃本地修改并重新加载"],
     });
@@ -487,6 +512,14 @@ describe("repository setup and management semantics", () => {
           }}
           view={view}
         />
+        <RepositoryStatusPanel
+          onCollapseDetail={() => undefined}
+          selection={{
+            id: localRepository.id,
+            kind: "ordinary-repository",
+          }}
+          view={view}
+        />
       </FeedbackProvider>,
     );
 
@@ -517,6 +550,14 @@ describe("repository setup and management semantics", () => {
     const markup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          selection={{
+            id: localRepository.id,
+            kind: "ordinary-repository",
+          }}
+          view={view}
+        />
+        <RepositoryStatusPanel
+          onCollapseDetail={() => undefined}
           selection={{
             id: localRepository.id,
             kind: "ordinary-repository",
@@ -564,11 +605,27 @@ describe("repository setup and management semantics", () => {
           }}
           view={view}
         />
+        <RepositoryStatusPanel
+          onCollapseDetail={() => undefined}
+          selection={{
+            id: localRepository.id,
+            kind: "ordinary-repository",
+          }}
+          view={view}
+        />
       </FeedbackProvider>,
     );
     const inactiveMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          selection={{
+            id: secondaryRepository.id,
+            kind: "ordinary-repository",
+          }}
+          view={view}
+        />
+        <RepositoryStatusPanel
+          onCollapseDetail={() => undefined}
           selection={{
             id: secondaryRepository.id,
             kind: "ordinary-repository",

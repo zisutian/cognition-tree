@@ -100,6 +100,7 @@ describe("UI design contract", () => {
     expect(globalStyleEntry).not.toContain("./activities/");
     expect(globalStyleEntry).toContain("./frame/problems.css");
     expect(globalStyleEntry).toContain("./shared/toolSurface.css");
+    expect(globalStyleEntry).toContain("./shared/controls.css");
   });
 
   it("enforces the declared source-level UI policies", () => {
@@ -139,7 +140,7 @@ describe("UI design contract", () => {
 
   it("keeps tool typography, widths, sections, and rows in one shared owner", () => {
     const toolSurface = readStyle("ui/styles/shared/toolSurface.css");
-    const management = readStyle("ui/styles/shared/management.css");
+    const controls = readStyle("ui/styles/shared/controls.css");
 
     expectFragments(toolSurface, {
       required: [
@@ -158,7 +159,7 @@ describe("UI design contract", () => {
         ".ui-tool-divider",
         ".ui-tool-property-list",
         ".ui-tool-property-row",
-        "clamp(88px, 18%, 128px) minmax(0, 1fr)",
+        "grid-template-columns: 88px minmax(0, 1fr)",
         "column-gap: calc(var(--ui-gap-tight) * 2)",
         ".ui-tool-property-row dt",
         "text-align: left",
@@ -170,13 +171,32 @@ describe("UI design contract", () => {
         "height: var(--ui-row-height)",
       ],
     });
-    expectFragments(management, {
+    expectFragments(controls, {
       required: [
+        ".ui-control",
+        "height: var(--ui-control-height)",
+        "min-width: 72px",
+        "max-width: min(320px, 100%)",
+        ".ui-choice-option",
+        ".ui-toggle-button",
         ".ui-subsection-tab.is-active",
         "background: var(--color-selected)",
-        "min-height: var(--ui-control-height)",
+        "border-color: var(--color-accent)",
+        ".ui-range-control",
+        ".ui-color-control",
       ],
     });
+  });
+
+  it("uses one non-blue interaction accent while preserving editor content color", () => {
+    const theme = readStyle("ui/styles/foundation/theme.css");
+    const frame = readStyle("ui/styles/frame/frame.css");
+    const properties = readCustomProperties(theme);
+
+    expect(properties.get("--color-accent")).not.toBe("#007acc");
+    expect(properties.get("--color-content-accent")).toBe("#007acc");
+    expect(frame).toContain("background: var(--color-accent)");
+    expect(theme).toContain("--color-accent: var(--color-content-accent)");
   });
 
   it("keeps editor color semantics and state precedence explicit", () => {

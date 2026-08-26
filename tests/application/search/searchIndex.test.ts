@@ -100,28 +100,6 @@ describe("cross-domain search query", () => {
         snippet: "前缀 aﬃnity 👩🏽‍💻 后缀",
       }),
     ]);
-    const filteredBlockDocument: SearchDocument = {
-      ...document({
-        blockId: "old-block",
-        domain: "todo",
-        resourceId: "todo-filter-order",
-        resourceUpdatedAt: "2026-07-29T11:00:00.000Z",
-        text: "needle in old block",
-        updatedAt: "2026-07-29T07:00:00.000Z",
-      }),
-      editableText: "needle in current resource",
-      title: "current resource",
-    };
-    expect(projectSearchDocumentResults(filteredBlockDocument, {
-      query: "needle",
-      updatedAfter: "2026-07-29T08:00:00.000Z",
-    })).toEqual([
-      expect.objectContaining({
-        blockId: null,
-        resourceId: "todo-filter-order",
-      }),
-    ]);
-
     let workspaceRevision = "workspace-1";
     let documentProjectionCount = 0;
     const sources: SearchSource[] = [
@@ -215,7 +193,6 @@ describe("cross-domain search query", () => {
       limit: 1,
       query: "ctn needle",
       repositoryIds: ["repository-a"],
-      updatedAfter: "2026-07-29T08:00:00.000Z",
     }, undefined);
 
     expect(first.cursor).toEqual(expect.any(String));
@@ -236,7 +213,6 @@ describe("cross-domain search query", () => {
       limit: 1,
       query: "ctn needle",
       repositoryIds: ["repository-a"],
-      updatedAfter: "2026-07-29T08:00:00.000Z",
     }, undefined);
 
     expect(second.results.length).toBeGreaterThan(0);
@@ -247,7 +223,6 @@ describe("cross-domain search query", () => {
       limit: 1,
       query: "ctn needle",
       repositoryIds: ["repository-a"],
-      updatedAfter: "2026-07-29T08:00:00.000Z",
     }, undefined);
 
     expect(third.results).toEqual([
@@ -264,7 +239,6 @@ describe("cross-domain search query", () => {
       limit: 1,
       query: "ctn needle",
       repositoryIds: ["repository-a"],
-      updatedAfter: "2026-07-29T08:00:00.000Z",
     }, undefined)).rejects.toMatchObject({
       code: "cursor_conflict",
     } satisfies Partial<SearchRequestError>);

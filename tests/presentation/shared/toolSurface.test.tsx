@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ButtonHTMLAttributes, ReactElement } from "react";
-import { Children } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
-import { CollapsibleContextGroup } from "../../../presentation/ui/shared/CollapsibleContextGroup";
+import { describe, expect, it } from "vitest";
 import {
   ToolDivider,
+  ToolDetailPanel,
   ToolList,
   ToolListRow,
   ToolPanel,
@@ -17,11 +15,6 @@ import {
   ToolSectionStack,
   ToolToolbar,
 } from "../../../presentation/ui/shared/ToolSurface";
-import {
-  readContextGroupSessionExpanded,
-  useContextGroupSessionState,
-  writeContextGroupSessionExpanded,
-} from "../../../presentation/ui/shared/contextGroupSession";
 
 describe("tool surfaces", () => {
   it("owns the three content-width layouts and section relationships", () => {
@@ -30,7 +23,7 @@ describe("tool surfaces", () => {
         <ToolPanel aria-label="工具页" title="工具标题">
           <ToolPanelBody layout="form">
             <ToolSectionStack>
-              <ToolSection description="说明" title="表单分区">
+              <ToolSection title="表单分区">
                 表单
               </ToolSection>
               <ToolSection
@@ -42,6 +35,13 @@ describe("tool surfaces", () => {
             </ToolSectionStack>
           </ToolPanelBody>
         </ToolPanel>
+        <ToolDetailPanel
+          aria-label="工具详情"
+          onCollapse={() => undefined}
+          title="状态"
+        >
+          <ToolPanelBody layout="detail">详情</ToolPanelBody>
+        </ToolDetailPanel>
         <ToolPanelBody layout="table">规则</ToolPanelBody>
         <ToolPanelBody layout="results">结果</ToolPanelBody>
       </>,
@@ -52,10 +52,11 @@ describe("tool surfaces", () => {
     expect(markup).toContain('data-tool-layout="results"');
     expect(markup).toContain('class="ui-panel ui-panel-main ui-tool-panel"');
     expect(markup).toContain("<h2>工具标题</h2>");
+    expect(markup).toContain('class="ui-panel ui-panel-detail ui-tool-panel"');
+    expect(markup).toContain('aria-label="收回右侧详情"');
     expect(markup).toContain('aria-labelledby=');
     expect(markup.match(/class="ui-tool-section"/g)).toHaveLength(2);
     expect(markup).toContain("表单分区");
-    expect(markup).toContain("说明");
     expect(markup).toContain("操作");
   });
 
@@ -121,80 +122,5 @@ describe("tool surfaces", () => {
     expect(markup.match(/<dt>/g)).toHaveLength(2);
     expect(markup.match(/<dd>/g)).toHaveLength(2);
     expect(markup.match(/<button/g)).toHaveLength(1);
-  });
-});
-
-describe("collapsible context groups", () => {
-  it("keeps expansion controlled with native keyboard button semantics", () => {
-    const onExpandedChange = vi.fn();
-    const element = CollapsibleContextGroup({
-      children: <li>条目</li>,
-      count: 1,
-      expanded: false,
-      headingId: "shared-context-group",
-      label: "分组",
-      listAriaLabel: "分组条目",
-      onExpandedChange,
-    });
-    const heading = Children.toArray(element.props.children)[0] as ReactElement<{
-      children: ReactElement<ButtonHTMLAttributes<HTMLButtonElement>>;
-    }>;
-    const button = heading.props.children;
-
-    button.props.onClick?.({} as never);
-
-    expect(onExpandedChange).toHaveBeenCalledWith(true);
-    expect(button.props.type).toBe("button");
-    expect(button.props["aria-expanded"]).toBe(false);
-
-    const collapsedMarkup = renderToStaticMarkup(element);
-    const expandedMarkup = renderToStaticMarkup(
-      <CollapsibleContextGroup
-        expanded
-        headingId="shared-context-expanded"
-        label="分组"
-        listAriaLabel="分组条目"
-        onExpandedChange={() => undefined}
-      >
-        <li>条目</li>
-      </CollapsibleContextGroup>,
-    );
-
-    expect(collapsedMarkup).toContain(
-      'aria-controls="shared-context-group-content"',
-    );
-    expect(collapsedMarkup).toContain('aria-expanded="false"');
-    expect(collapsedMarkup).toContain('hidden=""');
-    expect(expandedMarkup).toContain('aria-expanded="true"');
-    expect(expandedMarkup).not.toContain('hidden=""');
-    expect(expandedMarkup).toContain('aria-label="分组条目"');
-  });
-
-  it("retains expansion by key only for the current module session", () => {
-    const key = "tool-surface-test-session";
-
-    expect(readContextGroupSessionExpanded(key, true)).toBe(true);
-    writeContextGroupSessionExpanded(key, false);
-    expect(readContextGroupSessionExpanded(key, true)).toBe(false);
-    expect(readContextGroupSessionExpanded(`${key}-other`, true)).toBe(true);
-
-    function SessionGroup() {
-      const [expanded, setExpanded] = useContextGroupSessionState(key, true);
-
-      return (
-        <CollapsibleContextGroup
-          expanded={expanded}
-          headingId="session-backed-group"
-          label="会话分组"
-          onExpandedChange={setExpanded}
-        >
-          <li>条目</li>
-        </CollapsibleContextGroup>
-      );
-    }
-
-    expect(renderToStaticMarkup(<SessionGroup />)).toContain(
-      'aria-expanded="false"',
-    );
   });
 });

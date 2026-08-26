@@ -248,7 +248,7 @@ test.describe("Todo activity flows", () => {
 
     await detail.getByRole("button", { name: "配置周期 第一项" }).click();
     await expect(recurrenceForm).toBeVisible();
-    await recurrenceForm.getByRole("button", { name: "停止" }).click();
+    await recurrenceForm.getByRole("radio", { name: "停止" }).click();
     await recurrenceForm.getByRole("button", { name: "确定" }).click();
     await expect(recurrenceForm).toHaveCount(0);
     await expect(panel.getByRole("img", { name: /周期任务/ })).toHaveCount(0);

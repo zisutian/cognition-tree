@@ -24,16 +24,16 @@ export async function selectNotesMode(
   page: Page,
   name: "图谱" | "编辑" | "结构",
 ) {
-  let control = page.getByRole("group", { name: "笔记视图" });
+  let control = page.getByRole("radiogroup", { name: "笔记视图" });
 
   if (!await control.isVisible()) {
     await getActivityButton(page, "笔记").click();
-    control = page.getByRole("group", { name: "笔记视图" });
+    control = page.getByRole("radiogroup", { name: "笔记视图" });
   }
-  const button = control.getByRole("button", { name, exact: true });
+  const button = control.getByRole("radio", { name, exact: true });
 
   await button.click();
-  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await expect(button).toHaveAttribute("aria-checked", "true");
 }
 
 export function getRepositoryButton(

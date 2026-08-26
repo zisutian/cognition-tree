@@ -67,7 +67,7 @@ test.describe("graph activity flows", () => {
     });
 
     await expect(context).toHaveAccessibleName("浏览器回归仓库");
-    await expect(context.getByRole("group", { name: "笔记视图" }))
+    await expect(context.getByRole("radiogroup", { name: "笔记视图" }))
       .toBeVisible();
     await expect(context.locator('[aria-label="图谱控制"]')).toBeVisible();
     await expect(
@@ -176,8 +176,8 @@ test.describe("graph activity flows", () => {
     const canvas = page.getByRole("application", {
       name: "笔记引用力导向图",
     });
-    const globalMode = page.getByRole("button", { name: "全库", exact: true });
-    const localMode = page.getByRole("button", { name: "局部", exact: true });
+    const globalMode = page.getByRole("radio", { name: "全库", exact: true });
+    const localMode = page.getByRole("radio", { name: "局部", exact: true });
     const hideIsolated = page.getByRole("button", { name: "隐藏孤立点" });
     const initialSpan = await waitForStableGraphSpan(canvas);
     const initialBox = await canvas.boundingBox();
@@ -186,12 +186,12 @@ test.describe("graph activity flows", () => {
 
     for (let index = 0; index < 4; index += 1) {
       await localMode.click();
-      await expect(localMode).toHaveAttribute("aria-pressed", "true");
+      await expect(localMode).toHaveAttribute("aria-checked", "true");
       await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
         .toBe(2);
       await page.waitForTimeout(120);
       await globalMode.click();
-      await expect(globalMode).toHaveAttribute("aria-pressed", "true");
+      await expect(globalMode).toHaveAttribute("aria-checked", "true");
       await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
         .toBe(3);
       await page.waitForTimeout(180);

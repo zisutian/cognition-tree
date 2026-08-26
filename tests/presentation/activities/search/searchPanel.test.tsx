@@ -20,8 +20,6 @@ const state: SearchControllerState = {
   draft: {
     domains: ["workspace"],
     query: "概念",
-    repositoryIds: ["repository-1"],
-    updatedAfter: null,
   },
   errorMessage: null,
   faults: [],
@@ -41,8 +39,6 @@ const state: SearchControllerState = {
   submitted: {
     domains: ["workspace"],
     query: "概念",
-    repositoryIds: ["repository-1"],
-    updatedAfter: null,
   },
 };
 

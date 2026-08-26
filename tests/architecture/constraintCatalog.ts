@@ -575,6 +575,30 @@ export function createUiTextPolicies({
 
   return [
     forbid(
+      "Activity direct native buttons",
+      presentationModules,
+      /<button\b/,
+      /^presentation\/activities\//,
+    ),
+    {
+      allowedPath: (filePath) => [
+        "presentation/activities/todo/TodoDetailPanel.tsx",
+        "presentation/activities/todo/TodoRecurrenceEditor.tsx",
+        "presentation/ui/shared/controls.tsx",
+      ].includes(filePath),
+      corpus: presentationModules,
+      matches: 3,
+      name: "native form control ownership",
+      pattern: /<(?:input|select|textarea)\b/,
+    },
+    {
+      allowedPath: /^presentation\/ui\/shared\/primitives\.tsx$/,
+      corpus: presentationModules,
+      matches: 1,
+      name: "right detail panel shell ownership",
+      pattern: /tone="detail"/,
+    },
+    forbid(
       "Activity ownership of shared ui-* selectors",
       styleModules,
       /^\s*\.ui-[\w-]/m,
@@ -711,6 +735,7 @@ export const uiConstraintCatalog = {
     "ui/styles/frame/frame.css",
     "ui/styles/frame/problems.css",
     "ui/styles/shared/primitives.css",
+    "ui/styles/shared/controls.css",
     "ui/styles/shared/toolSurface.css",
     "ui/styles/shared/forms.css",
     "ui/styles/shared/management.css",
@@ -723,6 +748,8 @@ export const uiConstraintCatalog = {
     "--color-editor",
     "--color-panel",
     "--color-selected",
+    "--color-accent",
+    "--color-content-accent",
     "--ui-root-font-size",
     "--ui-title-font-size",
     "--ui-body-font-size",
@@ -736,6 +763,7 @@ export const uiConstraintCatalog = {
     "--ui-panel-header-height",
     "--ui-panel-padding",
     "--ui-control-height",
+    "--ui-emphasis-weight",
     "--ui-icon-size",
     "--ui-row-height",
     "--ctn-editor-font-size",

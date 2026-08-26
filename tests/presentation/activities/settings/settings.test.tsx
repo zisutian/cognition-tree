@@ -4,6 +4,7 @@ import {
   SettingsContext,
   SettingsPanel,
 } from "../../../../presentation/activities/settings/SettingsPanel";
+import { SettingsStatusPanel } from "../../../../presentation/activities/settings/SettingsStatusPanel";
 import {
   appContextDefaultWidth,
 } from "../../../../presentation/ui/workbench/frameResize";
@@ -211,6 +212,27 @@ const agent = {
 
 describe("settings activity", () => {
   it("separates interface preferences from scoped server API access", () => {
+    const statusProps = {
+      agent,
+      apiAccessSelection: { kind: "overview" } as const,
+      apiAccessSnapshot: {
+        dismissSecret: () => undefined,
+        errorMessage: null,
+        loading: false,
+        secret: null,
+        tokens: [],
+        trustedClientTokens: [],
+      },
+      onCollapseDetail: () => undefined,
+      operationsSelectedEntryId: null,
+      operationsSnapshot: {
+        entries: [],
+        errorMessage: null,
+        loading: false,
+        status: { status: "available" as const },
+      },
+      system,
+    };
     const contextMarkup = renderToStaticMarkup(<SettingsContext />);
     const panelMarkup = renderToStaticMarkup(
       <SettingsPanel
@@ -292,6 +314,27 @@ describe("settings activity", () => {
         }}
       />,
     );
+    const agentProviderStatusMarkup = renderToStaticMarkup(
+      <SettingsStatusPanel
+        {...statusProps}
+        agentSelection={{ id: "ollama-provider", kind: "provider" }}
+        section="agent"
+      />,
+    );
+    const agentProfileStatusMarkup = renderToStaticMarkup(
+      <SettingsStatusPanel
+        {...statusProps}
+        agentSelection={{ id: "ollama-local", kind: "profile" }}
+        section="agent"
+      />,
+    );
+    const serviceStatusMarkup = renderToStaticMarkup(
+      <SettingsStatusPanel
+        {...statusProps}
+        agentSelection={{ kind: "overview" }}
+        section="system"
+      />,
+    );
     const auditMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
@@ -328,24 +371,24 @@ describe("settings activity", () => {
         "代办权限",
         "仓库范围",
         "现有令牌",
-        "/api/v3/content/*",
-        "sync、agent 或 admin",
       ],
       lacks: [
+        "/api/v3/content/*",
+        "sync、agent 或 admin",
         "令牌仅显示这一次",
         "为自动化工具创建独立令牌",
         'type="checkbox"',
         'type="radio"',
       ],
     });
-    expect(apiMarkup.match(/<select/g)).toHaveLength(4);
+    expect(apiMarkup.match(/<select/g) ?? []).toHaveLength(0);
     expectMarkupSemantics(apiMarkup, { lacks: ["Agent 写入审计", "操作审计"] });
     expectMarkupSemantics(auditMarkup, {
       has: [
         'aria-label="审计"',
-        "浏览器自动保存不会形成审计记录",
         "操作记录",
       ],
+      lacks: ["浏览器自动保存不会形成审计记录"],
     });
     expectMarkupSemantics(agentMarkup, {
       has: [
@@ -362,27 +405,23 @@ describe("settings activity", () => {
       ],
       lacks: ["Provider 名称", "Profile Provider", "provider-secret"],
     });
-    expectMarkupSemantics(agentProviderMarkup, {
+    expectMarkupSemantics(agentProviderMarkup + agentProviderStatusMarkup, {
       has: [
         'aria-label="Provider 列表"',
-        "codex",
+        "ollama",
         "认证已配置",
-        "ChatGPT 设备码",
         "使用 ChatGPT 登录",
-        "架构上限 262144 tokens",
-        "当前驻留上下文 24576 tokens",
-        "未加载，无法测量实际值",
-        "已加载，但 Ollama 未报告实际值",
-        "ui-tool-property-list",
-        "ui-tool-property-row",
+        "上限 262144 · 驻留 24576 tokens",
+        "上限 262144 · 驻留 未加载",
+        "上限 未知 · 驻留 未报告",
         "新建 Provider",
       ],
       lacks: ["Provider 名称", "Provider API Key"],
     });
-    expectMarkupSemantics(agentProfileMarkup, {
+    expectMarkupSemantics(agentProfileMarkup + agentProfileStatusMarkup, {
       has: [
         'aria-label="Profile 列表"',
-        "gpt-5.6-codex",
+        "Codex Safe",
         "qwen3.8:27b",
         "符合性检查",
         "Tool-call conformance has not been verified",
@@ -390,14 +429,13 @@ describe("settings activity", () => {
       ],
       lacks: ["Profile Provider", "Profile API Key"],
     });
-    expectMarkupSemantics(serviceMarkup, {
+    expectMarkupSemantics(serviceMarkup + serviceStatusMarkup, {
       has: [
         'aria-label="服务设置"',
         "当前数据根",
         "/srv/cognition-tree",
         "已生效",
-        'aria-label="服务配置状态"',
-        "ui-tool-property-list",
+        'aria-label="服务状态"',
         "所有者凭据",
         "迁移数据根",
         "操作审计保留条数",

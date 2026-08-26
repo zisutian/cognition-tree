@@ -119,6 +119,7 @@ function createSlots(
     case "repository":
       return createRepositoryActivitySlots({
         focusRequest: null,
+        onCollapseDetail: controls.onCollapseDetail,
         onConsumeFocusRequest: () => undefined,
         view: view.repository,
       });
@@ -136,6 +137,7 @@ function createSlots(
             typeof createSettingsActivitySlots
           >[0]["operations"]["administration"],
         },
+        onCollapseDetail: controls.onCollapseDetail,
         system: {} as Parameters<
           typeof createSettingsActivitySlots
         >[0]["system"],
@@ -146,8 +148,8 @@ function createSlots(
       });
     case "search":
       return createSearchActivitySlots({
-        catalogStatus: "ready",
         controller: searchController,
+        onCollapseDetail: controls.onCollapseDetail,
         onOpenResult: () => undefined,
         repositories: [],
         state: searchController.getState(),
@@ -163,9 +165,9 @@ describe("activity slots", () => {
       ["journal", "日记", true],
       ["todo", "代办", true],
       ["syntax", "语法", true],
-      ["search", "搜索", false],
-      ["repository", "仓库", false],
-      ["settings", "设置", false],
+      ["search", "搜索", true],
+      ["repository", "仓库", true],
+      ["settings", "设置", true],
     ] as const satisfies ReadonlyArray<
       readonly [ActivityId, string | null, boolean]
     >;
@@ -179,6 +181,15 @@ describe("activity slots", () => {
         slots.detail !== null,
       ] as const;
     })).toEqual(expected);
+
+    for (const [activityId] of expected) {
+      const detailMarkup = renderSlot(createSlots(activityId).detail);
+
+      expect(detailMarkup).toContain(
+        'class="ui-panel ui-panel-detail',
+      );
+      expect(detailMarkup).toContain("ui-button-icon");
+    }
   });
 
   it("keeps catalog and lazy-controller order aligned", () => {
@@ -256,7 +267,7 @@ describe("activity slots", () => {
       .toContain("引用图谱不可用");
     expect(rawGraphSlots.context?.title).toBe("Primary");
     expect(renderSlot(rawGraphSlots.context?.content)).toContain(
-      'role="group"',
+      'role="radiogroup"',
     );
     expect(renderSlot(rawGraphSlots.context?.content)).not.toContain(
       'aria-label="图谱控制"',
@@ -276,7 +287,7 @@ describe("activity slots", () => {
       "Primary",
     ]);
     expect(notesContextMarkup).toContain('aria-label="笔记视图"');
-    expect(notesContextMarkup).toContain('aria-pressed="true"');
+    expect(notesContextMarkup).toContain('aria-checked="true"');
     expect(renderSlot(noteModeSlots[0]?.main)).not.toContain(
       'aria-label="笔记视图"',
     );
@@ -290,8 +301,6 @@ describe("activity slots", () => {
     const submitted = {
       domains: ["workspace", "journal", "todo"] as const,
       query: "共同词",
-      repositoryIds: null,
-      updatedAfter: null,
     };
     const resultBase = {
       domain: "workspace" as const,
@@ -303,8 +312,8 @@ describe("activity slots", () => {
         `sha256:${"a".repeat(64)}` as `sha256:${string}`,
     };
     const searchSlots = createSearchActivitySlots({
-      catalogStatus: "ready",
       controller: searchController,
+      onCollapseDetail: () => undefined,
       onOpenResult: () => undefined,
       repositories: [{ id: "repository-a", label: "仓库 A" }],
       state: {
@@ -342,11 +351,12 @@ describe("activity slots", () => {
 
     expect(searchContext).toContain('role="search"');
     expect(searchContext).toContain('aria-label="搜索"');
-    expect(searchContext).toContain('type="datetime-local"');
-    expect(searchContext).toContain("更多条件");
-    expect(searchContext).toContain("全选");
-    expect(searchContext).toContain("清除");
-    expect(searchContext).toContain("仓库 A");
+    expect(searchContext).toContain("本地仓库");
+    expect(searchContext).toContain("日记");
+    expect(searchContext).toContain("代办");
+    expect(searchContext).not.toContain('type="datetime-local"');
+    expect(searchContext).not.toContain("更多条件");
+    expect(searchContext).not.toContain("仓库 A");
     expect(searchMain).toContain("部分来源不可用");
     expect(searchMain).toContain(`搜索 · ${submitted.query}`);
     expect(searchMain).toContain("块内共同词");
@@ -354,14 +364,14 @@ describe("activity slots", () => {
       'aria-label="打开Alpha中的匹配块"',
     );
     expect(searchMain).not.toContain("整篇共同词");
-    expect(searchSlots.detail).toBeNull();
+    expect(renderSlot(searchSlots.detail)).toContain('aria-label="搜索状态"');
 
     const renderSearchState = (
       override: Partial<ReturnType<typeof searchController.getState>>,
     ) =>
       renderSlot(createSearchActivitySlots({
-        catalogStatus: "ready",
         controller: searchController,
+        onCollapseDetail: () => undefined,
         onOpenResult: () => undefined,
         repositories: [{ id: "repository-a", label: "仓库 A" }],
         state: {
@@ -445,9 +455,8 @@ describe("activity slots", () => {
       onSelectSession: () => undefined,
     }).main);
 
-    expect(emptyConversationMarkup).toContain(
-      "使用左侧的 + 在主界面选择不可扩大的硬范围；默认 profile 在设置中选择。",
-    );
+    expect(emptyConversationMarkup).toContain("创建或选择一个 Agent 会话");
+    expect(emptyConversationMarkup).not.toContain("默认 profile");
     expect(emptyConversationMarkup).not.toContain(
       "在左侧选择 allowlist profile 和不可扩大的硬范围。",
     );
@@ -616,8 +625,8 @@ describe("activity slots", () => {
 
     expect(destructiveMarkup).toContain("第 1 份");
     expect(destructiveMarkup).toContain("第 2 份");
-    expect(destructiveMarkup).toContain("独立删除确认");
-    expect(destructiveMarkup).toContain('type="checkbox"');
+    expect(destructiveMarkup).toContain("ui-tool-section-danger");
+    expect(destructiveMarkup).not.toContain('type="checkbox"');
     expect(destructiveMarkup).toContain("确认删除并提交");
   });
 });

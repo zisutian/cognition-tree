@@ -19,6 +19,7 @@ import {
   SubsectionTabs,
 } from "../../../presentation/ui/shared/SubsectionTabs";
 import { Button, EmptyState } from "../../../presentation/ui/shared/primitives";
+import { InputControl } from "../../../presentation/ui/shared/controls";
 
 describe("shared management components", () => {
   it("renders tabs with one controlled panel and keyboard targets", () => {
@@ -49,16 +50,12 @@ describe("shared management components", () => {
     expect(getSubsectionTabTargetIndex(1, "Enter", 3)).toBeNull();
   });
 
-  it("associates field labels, help and errors with controls", () => {
+  it("associates field labels and errors with shared controls", () => {
     const markup = renderToStaticMarkup(
       <FormLayout>
-        <FieldRow
-          description="只影响新会话"
-          fieldId="profile-name"
-          label="名称"
-        >
+        <FieldRow fieldId="profile-name" label="名称">
           {(accessibility) => (
-            <input {...accessibility} className="ui-input" />
+            <InputControl {...accessibility} />
           )}
         </FieldRow>
         <FieldRow
@@ -67,7 +64,7 @@ describe("shared management components", () => {
           label="Provider"
         >
           {(accessibility) => (
-            <input {...accessibility} className="ui-input" />
+            <InputControl {...accessibility} />
           )}
         </FieldRow>
         <FormActions><Button>保存</Button></FormActions>
@@ -75,7 +72,7 @@ describe("shared management components", () => {
     );
 
     expect(markup).toContain('for="profile-name"');
-    expect(markup).toContain('aria-describedby="profile-name-description"');
+    expect(markup).not.toContain("profile-name-description");
     expect(markup).toContain('aria-invalid="true"');
     expect(markup).toContain("名称不能为空");
   });
@@ -86,7 +83,8 @@ describe("shared management components", () => {
         <ManagementList aria-label="Providers">
           <ManagementRow
             actions={<Button>编辑</Button>}
-            description="ollama · 本机"
+            onSelect={() => undefined}
+            selected
             status={<StatusBadge tone="success">可用</StatusBadge>}
             title="本地 Ollama"
           />
@@ -97,6 +95,8 @@ describe("shared management components", () => {
 
     expect(markup).toContain('aria-label="Providers"');
     expect(markup).toContain("ui-status-badge-success");
+    expect(markup).toContain("ui-management-row is-selected");
+    expect(markup).toContain('aria-current="true"');
     expect(markup).toContain("ui-empty-state is-compact");
   });
 });

@@ -58,7 +58,8 @@ test.describe("Agent activity flows", () => {
 
     await expect(context.getByLabel("领域")).toHaveCount(0);
     await expect(createPanel).toContainText("E2E Agent");
-    await createPanel.getByLabel("领域").selectOption("journal");
+    await createPanel.getByRole("radiogroup", { name: "领域" })
+      .getByRole("radio", { name: "Journal" }).click();
     await createPanel.getByRole("button", { name: "创建会话" }).click();
     const sessionList = context.getByRole("list", { name: "Agent 会话" });
 

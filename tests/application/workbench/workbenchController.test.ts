@@ -380,7 +380,6 @@ describe("Workbench controller", () => {
     search.updateDraft({
       domains: ["workspace"],
       query: "尚未同步的本地检索内容",
-      repositoryIds: ["repository-a"],
     });
     await search.search();
     expect(controller.getSnapshot().search.results).toEqual(
@@ -400,7 +399,6 @@ describe("Workbench controller", () => {
     search.updateDraft({
       domains: ["workspace"],
       query: "B",
-      repositoryIds: null,
     });
     await search.search();
 
@@ -419,14 +417,14 @@ describe("Workbench controller", () => {
       result.resourceId === "note-1"
     )).toBe(true);
     expect(events.filter((event) => event === "open:repository-b")).toHaveLength(
-      1,
+      2,
     );
 
     repositoryBContentReadable = false;
     await search.search();
     expect(controller.getSnapshot().search.faults).toEqual([]);
     expect(events.filter((event) => event === "open:repository-b")).toHaveLength(
-      2,
+      3,
     );
 
     repositoryBContentReadable = true;

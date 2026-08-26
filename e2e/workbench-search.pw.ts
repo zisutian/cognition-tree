@@ -41,27 +41,15 @@ test.describe("search activity flows", () => {
 
     const search = page.getByRole("search", { name: "搜索条件" });
     const query = search.getByRole("searchbox", { name: "搜索词" });
-    const repositoryCheckboxes = search.locator(
-      ".search-repository-list input[type=checkbox]",
-    );
+    const scopes = search.getByRole("group", { name: "搜索范围" });
 
-    await expect(repositoryCheckboxes).not.toHaveCount(0);
-    await search.getByRole("button", { name: "清除" }).click();
-    expect(await repositoryCheckboxes.evaluateAll((inputs) =>
-      inputs.every((input) => !(input as HTMLInputElement).checked)
-    )).toBe(true);
-    await search.getByRole("button", { name: "全选" }).click();
-    expect(await repositoryCheckboxes.evaluateAll((inputs) =>
-      inputs.every((input) => (input as HTMLInputElement).checked)
-    )).toBe(true);
-    await search.getByText("更多条件", { exact: false }).click();
-    const updatedAfter = search.getByLabel("更新时间不早于");
-
-    await updatedAfter.fill("2020-01-01T00:00");
-    await search.getByText("更多条件", { exact: false }).click();
-    await expect(search).toContainText("已设置");
-    await search.getByText("更多条件", { exact: false }).click();
-    await expect(updatedAfter).toHaveValue("2020-01-01T00:00");
+    for (const name of ["本地仓库", "日记", "代办"]) {
+      await expect(scopes.getByRole("button", { name, exact: true }))
+        .toHaveAttribute("aria-pressed", "true");
+    }
+    await expect(search.getByText("更多条件", { exact: false })).toHaveCount(0);
+    await expect(search.getByLabel("更新时间不早于")).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "搜索状态" })).toBeVisible();
 
     await query.fill(searchQuery);
     await expect(page.getByRole("list", { name: "搜索结果列表" }))
@@ -79,8 +67,8 @@ test.describe("search activity flows", () => {
       .toHaveCount(0);
     await expect(page.getByRole("status")).toContainText("23 个命中");
 
-    await search.getByRole("checkbox", { name: "日记" }).uncheck();
-    await search.getByRole("checkbox", { name: "代办" }).uncheck();
+    await scopes.getByRole("button", { name: "日记", exact: true }).click();
+    await scopes.getByRole("button", { name: "代办", exact: true }).click();
     await expect(search).toContainText("条件已修改");
     await expect(page.getByRole("region", { name: "搜索结果" }))
       .toContainText("条件已修改");
@@ -88,8 +76,8 @@ test.describe("search activity flows", () => {
     await search.getByRole("button", { name: "搜索", exact: true }).click();
     await expect(groups.filter({ hasText: "日记" })).toHaveCount(0);
     await expect(groups.filter({ hasText: "代办" })).toHaveCount(0);
-    await search.getByRole("checkbox", { name: "日记" }).check();
-    await search.getByRole("checkbox", { name: "代办" }).check();
+    await scopes.getByRole("button", { name: "日记", exact: true }).click();
+    await scopes.getByRole("button", { name: "代办", exact: true }).click();
     await expect(search).toContainText("条件已修改");
     await search.getByRole("button", { name: "搜索", exact: true }).click();
     await page.getByRole("button", { name: "加载更多" }).click();
@@ -143,10 +131,10 @@ test.describe("search activity flows", () => {
     await getActivityButton(page, "搜索").click();
     await expect(query).toHaveValue(searchQuery);
     await expect(groups.filter({ hasText: "检索目标仓库" })).toBeVisible();
-    await expect(search.getByRole("checkbox", { name: "日记" }))
-      .toBeChecked();
-    await expect(search.getByRole("checkbox", { name: "代办" }))
-      .toBeChecked();
+    await expect(scopes.getByRole("button", { name: "日记", exact: true }))
+      .toHaveAttribute("aria-pressed", "true");
+    await expect(scopes.getByRole("button", { name: "代办", exact: true }))
+      .toHaveAttribute("aria-pressed", "true");
     await expect.poll(() =>
       resultBody.evaluate((element) => element.scrollTop)
     ).toBeCloseTo(resultScrollTop, 0);

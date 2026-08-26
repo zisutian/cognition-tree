@@ -72,7 +72,8 @@ test.describe("repository and capacity flows", () => {
       "aria-current",
       "page",
     );
-    await expect(page.getByRole("heading", { name: "第二仓库" }))
+    await expect(page.locator(".app-main-content")
+      .getByRole("heading", { name: "第二仓库" }))
       .toBeVisible();
     const statusList = page.locator('dl[aria-label="仓库状态"]');
     const statusRows = statusList.locator(".ui-tool-property-row");
@@ -492,7 +493,8 @@ test.describe("repository and capacity flows", () => {
 
     await expect(conflictSection).toBeVisible();
     await expect(
-      conflictSection.getByText("workspace:note:note-alpha", { exact: true }),
+      page.getByLabel("同步冲突详情")
+        .getByText("workspace:note:note-alpha", { exact: true }),
     )
       .toBeVisible();
 
@@ -510,7 +512,7 @@ test.describe("repository and capacity flows", () => {
     expect(remoteSource).toContain("remote-conflict");
 
     await conflictSection.getByRole("button", {
-      name: "采用远端并另存本地正文",
+      name: "远端并另存本地",
     }).click();
     await expect(conflictSection).toBeHidden();
     await getActivityButton(page, "笔记").click();
@@ -612,7 +614,11 @@ test.describe("repository and capacity flows", () => {
       const issueRow = page.locator(
         `[data-repository-issue-id="${unsupportedRepositoryId}"]`,
       );
-      const repositoryPanel = page.getByRole("region", { name: "仓库" });
+      const repositoryPanel = page.locator(".app-main-content")
+        .getByRole("region", { name: "仓库", exact: true });
+      const repositoryStatus = page.getByRole("region", {
+        name: "仓库状态",
+      });
 
       await expect(repositoryProblem).toBeVisible();
       await getActivityButton(page, "仓库").click();
@@ -622,17 +628,17 @@ test.describe("repository and capacity flows", () => {
       await expect(repositoryPanel).toContainText(
         "请在文件系统中手工删除上述目录。",
       );
-      await expect(repositoryPanel).toContainText(
+      await expect(repositoryStatus).toContainText(
         `/host/e2e-repositories/${unsupportedRepositoryId}`,
       );
-      await expect(repositoryPanel).not.toContainText(
+      await expect(repositoryStatus).not.toContainText(
         `.artifacts/test/e2e-runtime/repositories/${unsupportedRepositoryId}`,
       );
       await expect(
         repositoryPanel.getByRole("button", { name: "清理", exact: true }),
       ).toHaveCount(0);
       await expect(
-        repositoryPanel.getByRole("button", {
+        repositoryStatus.getByRole("button", {
           name: "复制主机路径",
           exact: true,
         }),
@@ -694,7 +700,11 @@ test.describe("repository and capacity flows", () => {
         name: "永久删除前请输入仓库名称",
       }).fill(remainingRepository?.label ?? "");
       await confirmation.getByRole("button", { name: "永久删除" }).click();
-      const repositoryPanel = page.getByRole("region", { name: "仓库" });
+      const repositoryPanel = page.locator(".app-main-content")
+        .getByRole("region", { name: "仓库", exact: true });
+      const repositoryStatus = page.getByRole("region", {
+        name: "仓库状态",
+      });
       const issueRow = page.locator(
         `[data-repository-issue-id="${unsupportedRepositoryId}"]`,
       );
@@ -704,7 +714,7 @@ test.describe("repository and capacity flows", () => {
         repositoryPanel.getByText("新建普通仓库", { exact: true }),
       ).toBeVisible();
       await issueRow.click();
-      await expect(repositoryPanel).toContainText(
+      await expect(repositoryStatus).toContainText(
         "仓库格式不受支持，需要手工删除该目录。",
       );
       await expect(
