@@ -3,7 +3,7 @@ import type {
   WorkbenchController,
   WorkbenchControllerSnapshot,
 } from "../../../application/workbench/workbenchController";
-import type { WorkbenchFeedbackController } from "../../../application/workbench/workbenchFeedbackController";
+import type { ProblemCenterController } from "../../../application/problems/problemCenter";
 import {
   createClientJournalApplicationServices,
   createClientTodoApplicationServices,
@@ -58,7 +58,7 @@ export function useWorkbenchApplicationBindings({
   agentController: AgentClientController;
   agentState: AgentClientState;
   controller: WorkbenchController;
-  feedbackController: WorkbenchFeedbackController<ActivityId>;
+  feedbackController: ProblemCenterController<ActivityId>;
   snapshot: WorkbenchControllerSnapshot;
   systemAuthenticationController: OwnerAuthenticationController;
   systemAuthenticationState: OwnerAuthenticationState;

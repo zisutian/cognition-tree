@@ -16,6 +16,8 @@ export type OfficialClientApi = Readonly<{ baseUrl: string }>;
 export class HttpApiResponseError extends Error {
   apiCode: ApiErrorCodeDto | null;
   details: Record<string, unknown> | null;
+  path: string | null;
+  requestId: string | null;
   retryable: boolean;
   statusCode: number;
 
@@ -24,11 +26,15 @@ export class HttpApiResponseError extends Error {
     {
       apiCode = null,
       details = null,
+      path = null,
+      requestId = null,
       retryable = false,
       statusCode,
     }: {
       apiCode?: ApiErrorCodeDto | null;
       details?: Record<string, unknown> | null;
+      path?: string | null;
+      requestId?: string | null;
       retryable?: boolean;
       statusCode: number;
     },
@@ -37,6 +43,8 @@ export class HttpApiResponseError extends Error {
     this.name = "HttpApiResponseError";
     this.apiCode = apiCode;
     this.details = details;
+    this.path = path;
+    this.requestId = requestId;
     this.retryable = retryable;
     this.statusCode = statusCode;
   }
@@ -100,6 +108,12 @@ async function assertSuccessfulResponse(response: Response) {
   throw new HttpApiResponseError(apiError.message, {
     apiCode: apiError.code,
     details: apiError.details,
+    path: "issues" in apiError.details &&
+        Array.isArray(apiError.details.issues) &&
+        typeof apiError.details.issues[0]?.path === "string"
+      ? apiError.details.issues[0].path
+      : null,
+    requestId: apiError.requestId,
     retryable: apiError.retryable,
     statusCode: response.status,
   });

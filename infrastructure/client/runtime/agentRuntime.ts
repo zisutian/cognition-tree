@@ -10,16 +10,19 @@ import { createHttpAgentConfigurationClient } from "../http/agentConfigurationCl
 import { clientApplicationScheduler } from "../platform/applicationServices";
 import { createClientAgentProfilePreference } from "../platform/agentProfilePreference";
 import type { OfficialClientApi } from "../http/apiTransport";
+import type { ProblemReporter } from "../../../application/problems/problemCenter";
 
 export function createClientAgentRuntime(
   api: OfficialClientApi,
   flushScope: (scope: AgentScope) => Promise<void>,
+  problemReporter: ProblemReporter<"agent">,
 ) {
   const session = createAgentClientController({
     flushScope,
     port: createHttpAgentClient({
       baseUrl: api.baseUrl,
     }),
+    problemReporter,
     profilePreference: createClientAgentProfilePreference(),
     scheduler: clientApplicationScheduler,
   });

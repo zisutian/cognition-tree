@@ -49,15 +49,23 @@ const journalProblem: JournalDiagnostic = {
 };
 
 const operationalProblem: UiWorkbenchOperationalProblem = {
-  code: "operation_failed",
+  code: "unexpected_client_error",
+  details: {},
+  firstOccurredAt: "2026-08-26T00:00:00.000Z",
   id: "operation:feedback-error-1",
+  lastOccurredAt: "2026-08-26T00:00:00.000Z",
   locationLabel: "代办",
   message: "删除集合失败。",
+  occurrenceCount: 1,
+  path: null,
+  requestId: null,
+  retryable: false,
   severity: "error",
-  source: "operation",
+  source: "ui-action",
   target: {
-    feedbackId: "feedback-error-1",
     kind: "operational-error",
+    problemId: "feedback-error-1",
+    sessionId: null,
     sourceScope: "todo",
   },
 };

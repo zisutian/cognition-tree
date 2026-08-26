@@ -9,7 +9,7 @@ import type {
   WorkbenchController,
   WorkbenchControllerSnapshot,
 } from "../../../application/workbench/workbenchController";
-import type { WorkbenchFeedbackController } from "../../../application/workbench/workbenchFeedbackController";
+import type { ProblemCenterController } from "../../../application/problems/problemCenter";
 import type { ActiveWorkspaceSession } from "../../../application/workspace/session/workspaceSessionApplication";
 import type { WorkbenchApplication } from "../../activities/workbenchApplication";
 import { useWorkspaceApplication } from "../../workspace/runtime/useWorkspaceApplication";
@@ -35,7 +35,7 @@ export function ReadyWorkspaceWorkbench({
   agent: AgentApplication;
   apiAccess: ApiAccessApplication;
   controller: WorkbenchController;
-  feedbackController: WorkbenchFeedbackController<ActivityId>;
+  feedbackController: ProblemCenterController<ActivityId>;
   journal: JournalApplication;
   onActiveActivityChange: (activityId: ActivityId) => void;
   repository: RepositoryApplication;

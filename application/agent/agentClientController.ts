@@ -15,13 +15,7 @@ import type {
 import type {
   AgentProfilePreferencePort,
 } from "./agentProfilePreference.ts";
-
-export type AgentClientProblem = Readonly<{
-  code: string;
-  id: string;
-  message: string;
-  sessionId: string | null;
-}>;
+import type { ProblemReporter } from "../problems/problemCenter.ts";
 
 export type AgentClientState = Readonly<{
   activeSessionId: string | null;
@@ -29,7 +23,6 @@ export type AgentClientState = Readonly<{
   loadStatus: "idle" | "loading" | "ready" | "failed";
   operationStatus: "idle" | "working";
   preferredProfileId: string | null;
-  problems: readonly AgentClientProblem[];
   sessions: readonly AgentSessionSnapshot[];
   status: AgentStatus | null;
 }>;
@@ -86,25 +79,16 @@ function replaceProposal(
   return next;
 }
 
-function projectConfigurationProblems(status: AgentStatus): AgentClientProblem[] {
-  return status.configurationProblem
-    ? [{
-        code: "configuration_unavailable",
-        id: "agent-configuration-problem",
-        message: status.configurationProblem,
-        sessionId: null,
-      }]
-    : [];
-}
-
 export function createAgentClientController({
   flushScope,
   port,
+  problemReporter,
   profilePreference,
   scheduler,
 }: {
   flushScope(scope: AgentScope): Promise<void>;
   port: AgentClientPort;
+  problemReporter: ProblemReporter<"agent">;
   profilePreference: AgentProfilePreferencePort;
   scheduler: Pick<ApplicationScheduler, "schedule">;
 }): AgentClientController {
@@ -115,7 +99,6 @@ export function createAgentClientController({
   let cancelReconnect: (() => void) | null = null;
   let disposed = false;
   let operationCount = 0;
-  let problemSequence = 0;
   let started = false;
   let state: AgentClientState = {
     activeSessionId: null,
@@ -123,7 +106,6 @@ export function createAgentClientController({
     loadStatus: "idle",
     operationStatus: "idle",
     preferredProfileId: profilePreference.load(),
-    problems: [],
     sessions: [],
     status: null,
   };
@@ -144,30 +126,19 @@ export function createAgentClientController({
     profilePreference.clear();
     return null;
   };
-  const replaceConfigurationProblems = (status: AgentStatus) => [
-    ...state.problems.filter(({ id }) => id !== "agent-configuration-problem"),
-    ...projectConfigurationProblems(status),
-  ];
   const recordProblem = (
     code: string,
     message: string,
     sessionId: string | null,
   ) => {
-    const duplicate = state.problems.find((problem) =>
-      problem.code === code &&
-      problem.message === message &&
-      problem.sessionId === sessionId
-    );
-
-    if (duplicate) return;
-    problemSequence += 1;
-    update({
-      problems: [...state.problems, {
-        code,
-        id: `agent-problem-${problemSequence}`,
-        message,
-        sessionId,
-      }],
+    problemReporter.report({
+      code,
+      message,
+      retryable: code === "event_stream_failed" ||
+        code === "session_refresh_failed",
+      severity: "error",
+      source: "agent",
+      target: { scope: "agent", sessionId },
     });
   };
   const stopEvents = () => {
@@ -204,7 +175,6 @@ export function createAgentClientController({
         errorMessage: null,
         loadStatus: "ready",
         preferredProfileId: reconcilePreferredProfile(status),
-        problems: replaceConfigurationProblems(status),
         sessions,
         status,
       });
@@ -418,7 +388,6 @@ export function createAgentClientController({
           errorMessage: null,
           loadStatus: "ready",
           preferredProfileId: reconcilePreferredProfile(status),
-          problems: replaceConfigurationProblems(status),
           status,
         });
       } catch (error) {

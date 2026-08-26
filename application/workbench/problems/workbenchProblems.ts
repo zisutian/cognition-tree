@@ -19,7 +19,7 @@ import type {
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
 } from "../../repository/workspaceRepositoryCatalog";
-import type { WorkbenchFeedbackError } from "../workbenchFeedbackController";
+import type { OperationalProblem } from "../../problems/problemCenter";
 
 export type WorkbenchAgentProblemInput = Readonly<{
   code: string;
@@ -42,15 +42,23 @@ export type UiWorkbenchAgentProblem = {
 };
 
 export type UiWorkbenchOperationalProblem = {
-  code: "operation_failed";
+  code: string;
+  details: OperationalProblem<string>["details"];
+  firstOccurredAt: string;
   id: string;
+  lastOccurredAt: string;
   locationLabel: string;
   message: string;
-  severity: "error";
-  source: "operation";
+  occurrenceCount: number;
+  path: string | null;
+  requestId: string | null;
+  retryable: boolean;
+  severity: OperationalProblem<string>["severity"];
+  source: OperationalProblem<string>["source"];
   target: {
-    feedbackId: string;
+    problemId: string;
     kind: "operational-error";
+    sessionId: string | null;
     sourceScope: string;
   };
 };
@@ -235,20 +243,28 @@ export function projectUiWorkspaceRepositoryRuntimeProblems(
 }
 
 export function projectUiOperationalProblems<Scope extends string>(
-  errors: readonly WorkbenchFeedbackError<Scope>[],
+  errors: readonly OperationalProblem<Scope>[],
   getScopeLabel: (scope: Scope) => string = (scope) => scope,
 ): UiWorkbenchOperationalProblem[] {
   return errors.map((error) => ({
-    code: "operation_failed",
+    code: error.code,
+    details: error.details,
+    firstOccurredAt: error.firstOccurredAt,
     id: `operation:${error.id}`,
-    locationLabel: getScopeLabel(error.scope),
+    lastOccurredAt: error.lastOccurredAt,
+    locationLabel: getScopeLabel(error.target.scope),
     message: error.message,
-    severity: "error",
-    source: "operation",
+    occurrenceCount: error.occurrenceCount,
+    path: error.path,
+    requestId: error.requestId,
+    retryable: error.retryable,
+    severity: error.severity,
+    source: error.source,
     target: {
-      feedbackId: error.id,
+      problemId: error.id,
       kind: "operational-error",
-      sourceScope: error.scope,
+      sessionId: error.target.sessionId,
+      sourceScope: error.target.scope,
     },
   }));
 }

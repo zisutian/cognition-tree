@@ -57,14 +57,21 @@ export function WorkbenchProblemsController({
     : null;
   const problems = projectWorkbenchProblems({
     activeScope: activeActivityId,
-    agentProblems: application.agent.state.problems,
+    agentProblems: application.agent.state.status?.configurationProblem
+      ? [{
+          code: "configuration_unavailable",
+          id: "agent-configuration-problem",
+          message: application.agent.state.status.configurationProblem,
+          sessionId: null,
+        }]
+      : [],
     diagnostics: workspace?.diagnostics ?? {
       diagnostics: [],
       errorCount: 0,
       status: "ready",
       warningCount: 0,
     },
-    feedbackErrors: feedback.snapshot.errors,
+    feedbackErrors: feedback.snapshot.problems,
     getScopeLabel: (scope) =>
       isActivityId(scope) ? getActivityLabel(scope) : scope,
     journalDiagnostics: journal?.diagnostics,
@@ -91,9 +98,15 @@ export function WorkbenchProblemsController({
     });
 
   const problemsEnabled = hasWorkbenchProblemsPanel(activeActivityId);
-  const transientStatus = feedback.snapshot.transient?.scope === activeActivityId
-    ? feedback.snapshot.transient.message
-    : "";
+  const transient = feedback.snapshot.transient?.scope === activeActivityId
+    ? feedback.snapshot.transient
+    : null;
+  const transientStatus = transient?.tone === "info"
+    ? transient.message
+    : transient?.tone === "error"
+      ? feedback.snapshot.problems.find(({ id }) => id === transient.problemId)
+        ?.message ?? ""
+      : "";
   const statusMessage = transientStatus ||
     selectWorkbenchPersistenceStatus(activeActivityId, application) ||
     (problems.status === "collecting" ? "正在检查…" : "");
@@ -109,7 +122,7 @@ export function WorkbenchProblemsController({
         expanded={workbench.layout.problemsExpanded}
         onDismiss={(problem) => {
           if (problem.target.kind === "operational-error") {
-            feedback.controller.dismiss(problem.target.feedbackId);
+            feedback.controller.dismiss(problem.target.problemId);
           }
         }}
         onOpen={openProblem}

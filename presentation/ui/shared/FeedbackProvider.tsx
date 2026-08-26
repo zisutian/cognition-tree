@@ -10,9 +10,9 @@ import {
   type ReactNode,
 } from "react";
 import {
-  createWorkbenchFeedbackController,
-  type WorkbenchFeedbackController,
-} from "../../../application/workbench/workbenchFeedbackController";
+  createProblemCenter,
+  type ProblemCenterController,
+} from "../../../application/problems/problemCenter";
 import type { ActivityId } from "../activityTypes";
 import { clientApplicationScheduler } from "../../../infrastructure/client/platform/applicationServices";
 
@@ -28,7 +28,7 @@ type RunFeedbackAction = {
 };
 
 export type WorkbenchActivityFeedbackController =
-  WorkbenchFeedbackController<ActivityId>;
+  ProblemCenterController<ActivityId>;
 
 const unboundFeedbackActions: FeedbackActions = {
   notify(message) {
@@ -122,7 +122,7 @@ export function FeedbackProvider({
   controller?: WorkbenchActivityFeedbackController;
 }) {
   const [fallbackController] = useState(
-    () => createWorkbenchFeedbackController<ActivityId>({
+    () => createProblemCenter<ActivityId>({
       scheduler: clientApplicationScheduler,
     }),
   );

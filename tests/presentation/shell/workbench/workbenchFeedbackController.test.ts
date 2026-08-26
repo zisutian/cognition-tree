@@ -2,15 +2,15 @@
 
 import { describe, expect, it, vi } from "vitest";
 import {
-  createWorkbenchFeedbackController,
-  maximumWorkbenchErrorsPerScope,
-  workbenchFeedbackDurationMs,
-} from "../../../../application/workbench/workbenchFeedbackController";
+  createProblemCenter,
+  maximumOperationalProblems,
+  problemCenterTransientDurationMs,
+} from "../../../../application/problems/problemCenter";
 
 describe("workbench feedback controller", () => {
   it("publishes the latest transient message and restores after five seconds", () => {
     const scheduled: Array<{ callback: () => void; delayMs: number }> = [];
-    const controller = createWorkbenchFeedbackController<"notes" | "todo">({
+    const controller = createProblemCenter<"notes" | "todo">({
       scheduler: {
         schedule(callback, delayMs) {
           scheduled.push({ callback, delayMs });
@@ -30,37 +30,51 @@ describe("workbench feedback controller", () => {
       message: "集合已创建。",
       scope: "todo",
     });
-    expect(scheduled.at(-1)?.delayMs).toBe(workbenchFeedbackDurationMs);
+    expect(scheduled.at(-1)?.delayMs).toBe(problemCenterTransientDurationMs);
 
     scheduled.at(-1)?.callback();
     expect(controller.getSnapshot().transient).toBeNull();
   });
 
-  it("deduplicates errors, keeps the latest occurrence, and caps each scope", () => {
-    const controller = createWorkbenchFeedbackController<"notes" | "todo">({
+  it("aggregates repeated failures and caps the global operational history", () => {
+    let instant = 0;
+    const controller = createProblemCenter<"notes" | "todo">({
+      now: () => new Date(`2026-08-26T00:00:${String(instant++).padStart(2, "0")}.000Z`),
       scheduler: { schedule: () => () => undefined },
     });
     const firstId = controller.reportError("notes", "保存失败");
     const repeatedId = controller.reportError("notes", "保存失败");
 
     expect(repeatedId).toBe(firstId);
-    expect(controller.getSnapshot().errors).toHaveLength(1);
+    expect(controller.getSnapshot().problems).toEqual([
+      expect.objectContaining({
+        firstOccurredAt: "2026-08-26T00:00:00.000Z",
+        lastOccurredAt: "2026-08-26T00:00:01.000Z",
+        occurrenceCount: 2,
+        requestId: null,
+        target: { scope: "notes", sessionId: null },
+      }),
+    ]);
 
-    for (let index = 0; index <= maximumWorkbenchErrorsPerScope; index += 1) {
-      controller.reportError("notes", `错误 ${index}`);
+    for (let index = 0; index <= maximumOperationalProblems; index += 1) {
+      controller.report({
+        code: "indexed_failure",
+        details: { index },
+        message: `错误 ${index}`,
+        source: "ui-action",
+        target: { scope: "notes" },
+      });
     }
     controller.reportError("todo", "代办错误");
 
-    expect(
-      controller.getSnapshot().errors.filter(({ scope }) => scope === "notes"),
-    ).toHaveLength(maximumWorkbenchErrorsPerScope);
-    expect(
-      controller.getSnapshot().errors.filter(({ scope }) => scope === "todo"),
-    ).toHaveLength(1);
+    expect(controller.getSnapshot().problems).toHaveLength(
+      maximumOperationalProblems,
+    );
+    expect(controller.getSnapshot().problems.at(-1)?.target.scope).toBe("todo");
   });
 
   it("supports subscription, individual dismissal, and scope cleanup", () => {
-    const controller = createWorkbenchFeedbackController<"notes" | "todo">({
+    const controller = createProblemCenter<"notes" | "todo">({
       scheduler: { schedule: () => () => undefined },
     });
     const listener = vi.fn();
@@ -69,11 +83,11 @@ describe("workbench feedback controller", () => {
 
     controller.reportError("todo", "代办失败");
     controller.dismiss(notesId);
-    expect(controller.getSnapshot().errors.map(({ scope }) => scope)).toEqual([
+    expect(controller.getSnapshot().problems.map(({ target }) => target.scope)).toEqual([
       "todo",
     ]);
     controller.dismissScope("todo");
-    expect(controller.getSnapshot().errors).toEqual([]);
+    expect(controller.getSnapshot().problems).toEqual([]);
     expect(controller.getSnapshot().transient).toBeNull();
     expect(listener).toHaveBeenCalledTimes(4);
 

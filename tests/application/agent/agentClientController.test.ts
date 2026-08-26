@@ -103,9 +103,16 @@ function createHarness({
     load: vi.fn(() => preferredProfileId),
     save: vi.fn(),
   };
+  const reports: Array<Parameters<
+    NonNullable<Parameters<typeof createAgentClientController>[0]["problemReporter"]>["report"]
+  >[0]> = [];
   const controller = createAgentClientController({
     flushScope: flush,
     port,
+    problemReporter: { report: (problem) => {
+      reports.push(problem);
+      return `problem-${reports.length}`;
+    } },
     profilePreference,
     scheduler: {
       schedule: (callback) => {
@@ -131,6 +138,7 @@ function createHarness({
     flush,
     port,
     profilePreference,
+    reports,
     setSession(session: AgentSessionSnapshot) {
       currentSession = session;
     },
@@ -225,7 +233,7 @@ describe("Agent client controller", () => {
     });
 
     await start(harness);
-    expect(harness.controller.getSnapshot().problems).toEqual([]);
+    expect(harness.reports).toEqual([]);
     harness.controller.dispose();
   });
 
@@ -235,13 +243,9 @@ describe("Agent client controller", () => {
     });
 
     await start(harness);
-    expect(harness.controller.getSnapshot().problems).toEqual([
-      expect.objectContaining({
-        code: "configuration_unavailable",
-        message: "Agent configuration is invalid",
-        sessionId: null,
-      }),
-    ]);
+    expect(harness.controller.getSnapshot().status?.configurationProblem)
+      .toBe("Agent configuration is invalid");
+    expect(harness.reports).toEqual([]);
     harness.controller.dispose();
   });
 
@@ -256,7 +260,7 @@ describe("Agent client controller", () => {
       expect(harness.port.listSessions).toHaveBeenCalledTimes(2);
       expect(harness.controller.getSnapshot().sessions).toEqual([]);
     });
-    expect(harness.controller.getSnapshot().problems).toEqual([]);
+    expect(harness.reports).toEqual([]);
     harness.controller.dispose();
   });
 
@@ -292,8 +296,12 @@ describe("Agent client controller", () => {
     await expect(harness.controller.sendMessage("must not be sent"))
       .rejects.toThrow("offline");
     expect(harness.port.sendMessage).not.toHaveBeenCalled();
-    expect(harness.controller.getSnapshot().problems).toEqual([
-      expect.objectContaining({ message: "Repository is offline" }),
+    expect(harness.reports).toEqual([
+      expect.objectContaining({
+        code: "client_operation_failed",
+        message: "Repository is offline",
+        source: "agent",
+      }),
     ]);
     harness.controller.dispose();
   });

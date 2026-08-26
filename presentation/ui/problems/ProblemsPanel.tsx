@@ -19,12 +19,15 @@ import {
 
 const sourceLabels: Record<UiWorkbenchProblem["source"], string> = {
   agent: "Agent",
+  api: "API",
   document: "笔记",
   name: "名称",
-  operation: "操作",
   reference: "引用",
   repository: "仓库",
+  settings: "设置",
+  sync: "同步",
   syntax: "语法",
+  "ui-action": "操作",
   "workspace-reference": "跨仓引用",
 };
 

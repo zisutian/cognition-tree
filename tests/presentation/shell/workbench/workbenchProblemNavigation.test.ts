@@ -196,13 +196,15 @@ describe("workbench problem navigation adapter", () => {
     const context = createContext();
 
     openWorkbenchProblem(problem({
-      feedbackId: "failure-1",
       kind: "operational-error",
+      problemId: "failure-1",
+      sessionId: null,
       sourceScope: "todo",
     }), context);
     openWorkbenchProblem(problem({
-      feedbackId: "failure-2",
       kind: "operational-error",
+      problemId: "failure-2",
+      sessionId: null,
       sourceScope: "unknown",
     }), context);
 

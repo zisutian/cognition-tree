@@ -17,8 +17,7 @@ import type {
   WorkspaceRepositoryDescriptor,
 } from "../../repository/workspaceRepositoryCatalog";
 import type { TodoDiagnostics } from "../../todo/todoDiagnostics";
-import type { WorkbenchFeedbackError } from
-  "../workbenchFeedbackController";
+import type { OperationalProblem } from "../../problems/problemCenter";
 import type { UiWorkbenchDiagnostics } from
   "../../workspace/projection/viewDiagnostics";
 import {
@@ -128,7 +127,7 @@ export function projectWorkbenchProblems({
 }: {
   activeScope: WorkbenchProblemScope;
   diagnostics: UiWorkbenchDiagnostics;
-  feedbackErrors?: readonly WorkbenchFeedbackError<string>[];
+  feedbackErrors?: readonly OperationalProblem<string>[];
   getScopeLabel?: (scope: string) => string;
   journalDiagnostics?: JournalDiagnostics;
   repository: RepositoryApplication;
@@ -161,7 +160,7 @@ export function projectWorkbenchProblems({
     diagnostics,
     journalDiagnostics,
     operationalProblems: projectUiOperationalProblems(
-      feedbackErrors.filter(({ scope }) => scope === activeScope),
+      feedbackErrors,
       getScopeLabel,
     ),
     repositories: ordinaryCatalog?.repositories ?? [],

@@ -7,8 +7,8 @@ import {
   runActivityFeedbackAction,
   runFeedbackAction,
 } from "../../../presentation/ui/shared/FeedbackProvider";
-import { createWorkbenchFeedbackController } from
-  "../../../application/workbench/workbenchFeedbackController";
+import { createProblemCenter } from
+  "../../../application/problems/problemCenter";
 import { resolveOverlayCoordinates } from "../../../presentation/ui/shared/Overlay";
 import { QuickPick } from "../../../presentation/ui/shared/QuickPick";
 
@@ -83,7 +83,7 @@ describe("shared overlays", () => {
   });
 
   it("keeps an asynchronous error in the Activity that started it", async () => {
-    const controller = createWorkbenchFeedbackController<"notes" | "todo">({
+    const controller = createProblemCenter<"notes" | "todo">({
       scheduler: { schedule: () => () => undefined },
     });
     let rejectAction: (error: Error) => void = () => undefined;
@@ -99,8 +99,11 @@ describe("shared overlays", () => {
     rejectAction(new Error("延迟保存失败"));
     await action;
 
-    expect(controller.getSnapshot().errors).toEqual([
-      expect.objectContaining({ message: "延迟保存失败", scope: "notes" }),
+    expect(controller.getSnapshot().problems).toEqual([
+      expect.objectContaining({
+        message: "延迟保存失败",
+        target: expect.objectContaining({ scope: "notes" }),
+      }),
     ]);
   });
 

@@ -5,7 +5,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { createWorkbenchFeedbackController } from "../../application/workbench/workbenchFeedbackController";
+import { createProblemCenter } from "../../application/problems/problemCenter";
 import { projectWorkspaceSessionApplication } from "../../application/workspace/session/workspaceSessionApplication";
 import { clientApplicationScheduler } from "../../infrastructure/client/platform/applicationServices";
 import { createWorkbenchRuntime } from "../../infrastructure/client/runtime/workbenchRuntime";
@@ -25,6 +25,12 @@ export function AppRoot() {
     api,
     controller.flushLoadedContent,
   ), [api, controller]);
+  const feedbackController = useMemo(
+    () => createProblemCenter<ActivityId>({
+      scheduler: clientApplicationScheduler,
+    }),
+    [],
+  );
   const agentRuntime = useMemo(() => createClientAgentRuntime(
     api,
     async (scope) => {
@@ -46,15 +52,10 @@ export function AppRoot() {
       if (current.builtIns.todo.state.status !== "ready") return;
       await controller.todo.synchronizePendingChanges();
     },
-  ), [api, controller]);
+    feedbackController,
+  ), [api, controller, feedbackController]);
   const agentController = agentRuntime.session;
   const agentConfigurationController = agentRuntime.configuration;
-  const feedbackController = useMemo(
-    () => createWorkbenchFeedbackController<ActivityId>({
-      scheduler: clientApplicationScheduler,
-    }),
-    [],
-  );
   const snapshot = useSyncExternalStore(
     controller.subscribe,
     controller.getSnapshot,
