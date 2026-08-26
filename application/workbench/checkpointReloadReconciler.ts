@@ -4,14 +4,22 @@ import type {
   DomainChangeEventSource,
   DomainRevisionCheckpoint,
 } from "../sync/domainChangeEvents";
+import type {
+  VersionedRepositoryPersistenceState,
+} from "../persistence/versionedRepositorySaveQueue";
+
+type PersistenceStatus = VersionedRepositoryPersistenceState<string>["status"];
 
 export type CheckpointReloadState = {
   catalog: {
     activeRepositoryId: string | null;
     knownRepositoryIds: readonly string[] | null;
   };
+  journalPersistenceStatus: PersistenceStatus | null;
   journalRemoteRevision: string | null;
+  todoPersistenceStatus: PersistenceStatus | null;
   todoRemoteRevision: string | null;
+  workspacePersistenceStatus: PersistenceStatus | null;
   workspaceRemoteRevision: string | null;
 };
 
@@ -92,6 +100,7 @@ export function createCheckpointReloadReconciler({
       latestCheckpoint.workspaces[activeRepositoryId] &&
       state.workspaceRemoteRevision !==
         latestCheckpoint.workspaces[activeRepositoryId] &&
+      state.workspacePersistenceStatus === "saved" &&
       !workspaceReloading &&
       (workspaceAttemptedSequences.get(activeRepositoryId) ?? -1) < sequence
     ) {
@@ -109,6 +118,7 @@ export function createCheckpointReloadReconciler({
       state.journalRemoteRevision !== null &&
       latestCheckpoint.journal &&
       state.journalRemoteRevision !== latestCheckpoint.journal &&
+      state.journalPersistenceStatus === "saved" &&
       !journalReloading &&
       journalAttemptedSequence < sequence
     ) {
@@ -126,6 +136,7 @@ export function createCheckpointReloadReconciler({
       state.todoRemoteRevision !== null &&
       latestCheckpoint.todo &&
       state.todoRemoteRevision !== latestCheckpoint.todo &&
+      state.todoPersistenceStatus === "saved" &&
       !todoReloading &&
       todoAttemptedSequence < sequence
     ) {

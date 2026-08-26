@@ -48,8 +48,11 @@ describe("checkpoint reload reconciler", () => {
         activeRepositoryId: "repository-a",
         knownRepositoryIds: ["repository-a", "repository-b"],
       },
+      journalPersistenceStatus: "saved",
       journalRemoteRevision: "sha256:journal-old",
+      todoPersistenceStatus: "saved",
       todoRemoteRevision: "sha256:todo-old",
+      workspacePersistenceStatus: "saved",
       workspaceRemoteRevision: "sha256:workspace-old",
     };
     const reloadCatalog = vi.fn(async () => undefined);
@@ -120,8 +123,11 @@ describe("checkpoint reload reconciler", () => {
         activeRepositoryId: "repository-a",
         knownRepositoryIds: null,
       },
+      journalPersistenceStatus: null,
       journalRemoteRevision: null,
+      todoPersistenceStatus: null,
       todoRemoteRevision: null,
+      workspacePersistenceStatus: null,
       workspaceRemoteRevision: null,
     };
     const reloadCatalog = vi.fn(async () => undefined);
@@ -154,7 +160,9 @@ describe("checkpoint reload reconciler", () => {
     expect(reloadWorkspace).not.toHaveBeenCalled();
 
     state.catalog.knownRepositoryIds = ["repository-a"];
+    state.workspacePersistenceStatus = "saved";
     state.workspaceRemoteRevision = "sha256:workspace-old";
+    state.journalPersistenceStatus = "saved";
     state.journalRemoteRevision = "sha256:journal-old";
     reconciler.notifyStateChanged();
     await vi.waitFor(() => {
@@ -163,5 +171,55 @@ describe("checkpoint reload reconciler", () => {
       expect(reloadJournal).toHaveBeenCalledOnce();
     });
     expect(reloadTodo).not.toHaveBeenCalled();
+  });
+
+  it("does not reload a projection for its own in-flight synchronization", async () => {
+    let listener: (event: DomainChangeNotification) => void = () => undefined;
+    const state: CheckpointReloadState = {
+      catalog: {
+        activeRepositoryId: "repository-a",
+        knownRepositoryIds: ["repository-a", "repository-b"],
+      },
+      journalPersistenceStatus: null,
+      journalRemoteRevision: null,
+      todoPersistenceStatus: null,
+      todoRemoteRevision: null,
+      workspacePersistenceStatus: "syncing",
+      workspaceRemoteRevision: "sha256:workspace-old",
+    };
+    const reloadWorkspace = vi.fn(async () => undefined);
+    const reconciler = createCheckpointReloadReconciler({
+      actions: {
+        reloadCatalog: async () => undefined,
+        reloadJournal: async () => undefined,
+        reloadTodo: async () => undefined,
+        reloadWorkspace,
+      },
+      getState: () => state,
+      source: {
+        dispose() {},
+        start() {},
+        subscribe(next) {
+          listener = next;
+          return () => undefined;
+        },
+      },
+    });
+
+    reconciler.start();
+    listener(notification());
+    await Promise.resolve();
+    expect(reloadWorkspace).not.toHaveBeenCalled();
+
+    state.workspaceRemoteRevision = "sha256:workspace-new";
+    state.workspacePersistenceStatus = "saved";
+    reconciler.notifyStateChanged();
+    await Promise.resolve();
+    expect(reloadWorkspace).not.toHaveBeenCalled();
+
+    listener(notification({ sequence: 2 }));
+    state.workspaceRemoteRevision = "sha256:workspace-still-old";
+    reconciler.notifyStateChanged();
+    await vi.waitFor(() => expect(reloadWorkspace).toHaveBeenCalledOnce());
   });
 });

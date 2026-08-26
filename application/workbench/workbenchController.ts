@@ -467,11 +467,20 @@ export function createWorkbenchController({
             ? catalog.state.repositories.map(({ id }) => id)
             : null,
         },
+        journalPersistenceStatus: journal.state.status === "ready"
+          ? journal.state.persistence.status
+          : null,
         journalRemoteRevision: journal.state.status === "ready"
           ? journal.state.snapshot.remoteRevision
           : null,
+        todoPersistenceStatus: todo.state.status === "ready"
+          ? todo.state.persistence.status
+          : null,
         todoRemoteRevision: todo.state.status === "ready"
           ? todo.state.snapshot.remoteRevision
+          : null,
+        workspacePersistenceStatus: workspace.status === "ready"
+          ? workspace.persistence.status
           : null,
         workspaceRemoteRevision: workspace.status === "ready"
           ? workspace.remoteRevision
