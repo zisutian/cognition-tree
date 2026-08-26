@@ -496,6 +496,13 @@ session，失败即阻止 HTTP 操作。Agent event sequence 缺口通过重读 
 关闭的技术详情中，长值显示前后各 8 位并提供复制完整值。Proposal 选择器使用序号、
 状态和人类目标名称，不把 UUID 当作主标签。
 
+Settings 的 `agentPage`、Provider/Profile 创建/编辑草稿以及搜索的折叠条件都是
+Presentation 会话状态，不进入 application、contracts 或服务端配置。页内 tab、表单、
+状态摘要和主区管理列表由 `presentation/ui/shared` 独占交互结构；左侧
+`CompactContextList` 不作为 Settings 管理列表复用。切换 Settings 顶层分类会卸载并
+清除未提交表单及 write-only secret，但不会改变服务端设备码登录状态。精确视觉与滚动
+规则仍由界面规范独占。
+
 `application/problems` 的 ProblemCenter 是运行期 operational incident 的唯一 owner。
 API、Agent、同步、Settings 与 UI action 只通过 `ProblemReporter` 上报 source、code、
 severity、target、message、retryable、requestId、path 与安全 details。它按

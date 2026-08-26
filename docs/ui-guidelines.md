@@ -13,9 +13,9 @@
 智能体：
 
     左侧只显示与仓库/笔记列表同密度的内存会话和唯一新建 `+`；profile、认证、刷新和硬范围表单不放在侧栏。
-    点击 `+` 后在主区选择不可扩大的硬范围；只展示设置中显式选择的默认 profile，不在此切换。Workspace folder/note 细粒度范围只在对应仓库已加载时可选。
-    主区按事件 sequence 增量增长对话，显示 idle、queued、running、等待审批和 unavailable 状态；“取消并停止”会终止 runtime，之后必须新建会话；不显示 raw chain-of-thought。
-    右侧默认显示冻结的仓库/领域名称、资源路径、中文动作摘要、块计数和带前后行号的正文 diff，不显示资源 ID 作为标题。删除警告保持醒目，只提供整批批准/拒绝；destructive proposal 批准后显示独立 checkbox 与确认提交，不把确认混入第一步审批。base revision、digest、资源/块 ID、change set 和字符级 diff 放入默认关闭的“技术详情”；长标识显示前后各 8 位并可复制完整值。多份 Proposal 用“序号 · 状态 · 人类目标名称”选择。
+    点击 `+` 后在主区以“使用的 Profile / 硬范围”两个紧凑分区创建会话；只展示设置中显式选择的默认 profile，不在此切换。Workspace folder/note 细粒度范围只在对应仓库已加载时可选。
+    对话标题栏固定显示 Profile、模型和运行状态，取消操作也只位于标题栏。主区按事件 sequence 增量增长对话，正文限制阅读宽度；composer 固定在主区底部，帮助文字与发送动作共用一行。不显示 raw chain-of-thought。
+    右侧顶部固定显示人类目标、状态和资源变更数；中部独立滚动并显示资源路径、中文动作摘要、块计数和带前后行号的正文 diff，不显示资源 ID 作为标题。删除警告保持醒目；整批批准/拒绝或 destructive confirmation 固定在右栏底部，不随长 diff 滚出视野。base revision、digest、资源/块 ID、change set 和字符级 diff 放入默认关闭的“技术详情”；长标识显示前后各 8 位并可复制完整值。多份 Proposal 用“序号 · 状态 · 人类目标名称”选择。
 
 笔记：
 
@@ -63,8 +63,9 @@
 
 其他：
 
-    搜索左侧显示查询与领域、仓库、更新时间条件，右侧按资源分组显示结果；只在 Enter 或“搜索”按钮时提交条件。修改草稿条件后保留旧结果和滚动位置，加载更多继续使用上次已提交条件。
-    设置左侧提供“界面”“服务”“智能体”“API 访问”和“审计”。服务分区管理网络、路径、操作审计容量、owner credential 与数据迁移，明确区分当前生效配置和待重启配置，并显示下一访问地址；owner secret 只展示一次。智能体分区管理 Provider、Profile、默认项、凭据、显式 Ollama 发现、逐 Provider 私网确认、探测和符合性检查；chat Profile 字段固定命名为“会话历史预算（字符）”，紧邻帮助文字说明它只控制 Cognition Tree 内存对话压缩，不修改 Ollama num_ctx，也不代表 token 上限。Ollama 推理强度固定提供模型默认、关闭、低、中、高，不暗示自动选模；其他 OpenAI-compatible Profile 不显示无效的推理强度。Ollama Provider 探测逐模型显示“模型架构上限”“当前驻留上下文”和探测时间；未加载显示“未加载，无法测量实际值”，已加载但缺字段显示“已加载，但 Ollama 未报告实际值”，不得把结果回填到 Profile。Codex Provider 只显示 API Key 或 ChatGPT 设备码二选一；设备码 pending 时显示 HTTPS 登录链接、用户码和取消，成功后只显示认证已配置，退出认证使用独立操作。检查期间逐阶段显示等待工具、等待总结和记录结果，并在记录前提供取消；secret 只写入不回读。API 访问管理 automation 与 trusted-client token，明确标注后者可同步全部内容；审计分区展示 Agent 与 trusted-client 的统一 operation audit，技术 hash 默认折叠。
+    搜索左侧首行是查询框与图标提交按钮；只在 Enter 或该按钮时提交。领域使用紧凑行，Workspace 仓库范围提供“全选 / 清除”和独立滚动区，更新时间位于默认折叠的“更多条件”且折叠不清除值。主区标题栏显示上次提交的搜索词、资源数和命中数；修改草稿后显示“条件已修改”，继续保留旧结果与滚动位置。结果按资源分组，来源、仓库和更新时间作为次级元数据，整篇/块匹配使用固定 marker 列；点击命中仍直接打开内容。
+    设置左侧提供“界面”“服务”“智能体”“API 访问”和“审计”。所有分区使用同一标题栏操作、状态摘要、表单行、管理列表和最大内容宽度。智能体主区固定为“概览 / Provider / Profile”三个原生 tab：概览拥有默认 Profile、总体状态、显式 Ollama 发现和刷新；Provider/Profile 默认只显示管理列表，只有点击新建或编辑才用同一 tab 显示专用表单，保存或取消后返回列表。tab 选择只在当前工作台会话保留，不写 localStorage；切换顶层设置分类会销毁未提交表单及 API Key，但不会取消服务端 pending 设备码登录。
+    服务分区管理网络、路径、操作审计容量、owner credential 与数据迁移，顶部定义列表区分当前配置、待重启状态、下一访问地址和数据根；owner secret 只展示一次。智能体的 chat Profile 字段固定命名为“会话历史预算（字符）”，紧邻帮助文字说明它只控制 Cognition Tree 内存对话压缩，不修改 Ollama num_ctx，也不代表 token 上限。Ollama 推理强度固定提供模型默认、关闭、低、中、高，不暗示自动选模；其他 OpenAI-compatible Profile 不显示无效的推理强度。Provider 探测与 Profile 符合性使用结构化状态摘要显示阶段、理论/驻留上下文和失败原因。Codex Provider 只显示 API Key 或 ChatGPT 设备码二选一；设备码 pending 时显示 HTTPS 登录链接、用户码和取消，成功后只显示认证已配置，退出认证使用独立操作。secret 只写入不回读。API 访问分别管理 automation 与 trusted-client token；审计刷新位于标题栏，记录使用共享管理列表，技术 hash 默认折叠。
     远程未登录时使用独立的 owner 登录门，不挂载工作台或提前加载内容；本机访问自动进入。数据迁移展示同步、复制、校验、失败和重启状态，不暗示失败目标已成为权威。
     顶层 Activity 仅保留智能体、笔记、日记、代办、语法、搜索、仓库和设置，不渲染 Data 占位入口；底部顺序固定为智能体、搜索、仓库、设置。
 
@@ -146,4 +147,11 @@ selected、focus、drag 和 diagnostic 使用背景、文字或细边界表达�
 
 控件：
 
-    Button、ToggleButton、SegmentedControl、Panel、Section、表单行、列表行和空状态由 shared primitives 提供。页面只组合业务布局、局部状态和回调。
+    Button、ToggleButton、SegmentedControl、Panel 和 Section 提供基础控件；SubsectionTabs 独占页内 tablist、方向键、Home/End 与 tabpanel 关联。
+    FormLayout、FieldRow 和 FormActions 独占标签、帮助、错误关联与标准操作行；ManagementList/ManagementRow 独占主区管理列表，CompactContextList 继续只服务左侧上下文区，二者不得混用业务语义。
+    StatusSummary/StatusBadge 统一呈现事实与状态；EmptyState 的 compact 模式用于详情栏和顶部对齐空白页。Activity 只组合业务布局、局部 presentation 状态和回调，不复制私有表单行或管理卡片。
+
+
+## 7. 桌面验收边界
+
+本轮工作台只以桌面布局为契约。1280×720 与 1440×900 必须没有页面级横向溢出；左侧上下文区和右侧详情区继续使用 280px、320px 默认宽度并允许既有拖动调整。页面内部的目录、结果、对话、diff 与管理列表各自拥有滚动区，不能把长内容推给整个页面滚动。本规范不定义手机端或窄屏重排。

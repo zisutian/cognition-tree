@@ -652,6 +652,12 @@ export function createUiTextPolicies({
       /window\.(?:alert|confirm|prompt)\s*\(/,
       /^presentation\//,
     ),
+    forbid(
+      "legacy private settings form or management list",
+      sourceModules,
+      /settings-(?:agent-card-list|api-form(?:-row)?|api-token-list|form-row|managed-form(?:-actions)?)/,
+      /^presentation\/activities\/settings\//,
+    ),
     ...activityStylePaths.map((stylePath): TextPolicy => {
       const relativeStylePath = stylePath.replace("../../", "");
       const directory = relativeStylePath.slice(
@@ -705,6 +711,8 @@ export const uiConstraintCatalog = {
     "ui/styles/frame/frame.css",
     "ui/styles/frame/problems.css",
     "ui/styles/shared/primitives.css",
+    "ui/styles/shared/forms.css",
+    "ui/styles/shared/management.css",
     "ui/styles/shared/tree.css",
   ],
   requiredThemeTokens: [
