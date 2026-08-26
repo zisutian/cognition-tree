@@ -13,8 +13,6 @@ import {
 } from "../common/contractValue.ts";
 import type {
   TodoCollectionDto,
-  TodoCommitDto,
-  TodoCommitResultDto,
   TodoCompletionDto,
   TodoContentDto,
   TodoLocalDateDto,
@@ -24,6 +22,8 @@ import type {
   TodoRecurrenceStageDto,
   TodoRecurrenceStageIdDto,
   TodoSnapshotDto,
+  TodoSyncRequestDto,
+  TodoSyncResultDto,
 } from "./types.ts";
 
 const contract = "Todo v4";
@@ -51,8 +51,8 @@ const dailyRuleFields = ["interval", "kind"] as const;
 const weeklyRuleFields = ["interval", "kind", "weekdays"] as const;
 const monthlyRuleFields = ["dayOfMonth", "interval", "kind"] as const;
 const snapshotFields = ["content", "revision"] as const;
-const commitFields = ["baseRevision", "content"] as const;
-const resultFields = ["revision"] as const;
+const syncRequestFields = ["base", "content"] as const;
+const syncResultFields = ["outcome", "snapshot"] as const;
 const uuidSuffix =
   "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const collectionIdPattern = new RegExp(`^todo-collection-${uuidSuffix}$`);
@@ -406,19 +406,27 @@ export function parseTodoSnapshot(value: unknown): TodoSnapshotDto {
   };
 }
 
-export function parseTodoCommit(value: unknown): TodoCommitDto {
-  const commit = readWireObject(contract, value, "$");
+export function parseTodoSyncRequest(value: unknown): TodoSyncRequestDto {
+  const request = readWireObject(contract, value, "$");
 
-  assertExactWireFields(contract, commit, commitFields, "$");
+  assertExactWireFields(contract, request, syncRequestFields, "$");
   return {
-    baseRevision: parseContentRevision(commit.baseRevision, "$.baseRevision"),
-    content: parseTodoContent(commit.content),
+    base: parseTodoSnapshot(request.base),
+    content: parseTodoContent(request.content),
   };
 }
 
-export function parseTodoCommitResult(value: unknown): TodoCommitResultDto {
+export function parseTodoSyncResult(value: unknown): TodoSyncResultDto {
   const result = readWireObject(contract, value, "$");
 
-  assertExactWireFields(contract, result, resultFields, "$");
-  return { revision: parseContentRevision(result.revision, "$.revision") };
+  assertExactWireFields(contract, result, syncResultFields, "$");
+  const outcome = readRequiredWireString(contract, result, "outcome", "$");
+
+  if (
+    outcome !== "auto-merged" && outcome !== "committed" &&
+    outcome !== "unchanged"
+  ) {
+    failWireContract(contract, "$.outcome", "expected sync outcome");
+  }
+  return { outcome, snapshot: parseTodoSnapshot(result.snapshot) };
 }

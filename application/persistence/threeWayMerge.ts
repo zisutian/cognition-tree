@@ -3,7 +3,7 @@
 import type {
   PreparedVersionedContent,
   VersionedContentConflictPreference,
-} from "./versionedRepository";
+} from "./versionedRepository.ts";
 
 const missing = Symbol("missing");
 

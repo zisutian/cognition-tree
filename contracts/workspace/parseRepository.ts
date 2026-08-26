@@ -5,22 +5,23 @@ import {
   readContractObject,
   readRequiredContractString,
   UnsupportedRepositoryVersionError,
+  WorkspaceRepositoryContractError,
 } from "./contractValue.ts";
 import { parseRepositoryRevision } from "./revision.ts";
 import { parseRepositorySyntaxCatalog } from "./parseSyntax.ts";
 import { parseRepositoryWorkspace } from "./parseWorkspace.ts";
 import {
   workspaceRepositorySchemaVersion,
-  type WorkspaceRepositoryCommitDto,
-  type WorkspaceRepositoryCommitResultDto,
   type WorkspaceRepositoryContentDto,
   type WorkspaceRepositorySnapshotDto,
+  type WorkspaceRepositorySyncRequestDto,
+  type WorkspaceRepositorySyncResultDto,
 } from "./types.ts";
 
 const contentFields = ["schemaVersion", "syntax", "workspace"] as const;
 const snapshotFields = ["content", "revision"] as const;
-const commitFields = ["baseRevision", "content"] as const;
-const commitResultFields = ["revision"] as const;
+const syncRequestFields = ["base", "content"] as const;
+const syncResultFields = ["outcome", "snapshot"] as const;
 
 function parseContentAtPath(
   value: unknown,
@@ -64,33 +65,38 @@ export function parseWorkspaceRepositorySnapshot(
   };
 }
 
-export function parseWorkspaceRepositoryCommit(
+export function parseWorkspaceRepositorySyncRequest(
   value: unknown,
-): WorkspaceRepositoryCommitDto {
-  const commit = readContractObject(value, "$");
+): WorkspaceRepositorySyncRequestDto {
+  const request = readContractObject(value, "$");
 
-  assertExactContractFields(commit, commitFields, "$");
-  const content = parseContentAtPath(commit.content, "$.content");
+  assertExactContractFields(request, syncRequestFields, "$");
 
   return {
-    baseRevision: parseRepositoryRevision(
-      readRequiredContractString(commit, "baseRevision", "$"),
-      "$.baseRevision",
-    ),
-    content,
+    base: parseWorkspaceRepositorySnapshot(request.base),
+    content: parseContentAtPath(request.content, "$.content"),
   };
 }
 
-export function parseWorkspaceRepositoryCommitResult(
+export function parseWorkspaceRepositorySyncResult(
   value: unknown,
-): WorkspaceRepositoryCommitResultDto {
+): WorkspaceRepositorySyncResultDto {
   const result = readContractObject(value, "$");
 
-  assertExactContractFields(result, commitResultFields, "$");
+  assertExactContractFields(result, syncResultFields, "$");
+  const outcome = readRequiredContractString(result, "outcome", "$");
+
+  if (
+    outcome !== "auto-merged" && outcome !== "committed" &&
+    outcome !== "unchanged"
+  ) {
+    throw new WorkspaceRepositoryContractError(
+      "$.outcome",
+      "expected sync outcome",
+    );
+  }
   return {
-    revision: parseRepositoryRevision(
-      readRequiredContractString(result, "revision", "$"),
-      "$.revision",
-    ),
+    outcome,
+    snapshot: parseWorkspaceRepositorySnapshot(result.snapshot),
   };
 }

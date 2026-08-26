@@ -8,10 +8,10 @@ import {
 } from "../../contracts/workspace/parseCatalog";
 import { createPortableNameKey } from "../../core/naming/portableName";
 import {
-  parseWorkspaceRepositoryCommit,
-  parseWorkspaceRepositoryCommitResult,
   parseWorkspaceRepositoryContent,
   parseWorkspaceRepositorySnapshot,
+  parseWorkspaceRepositorySyncRequest,
+  parseWorkspaceRepositorySyncResult,
 } from "../../contracts/workspace/parseRepository";
 import { parseRepositoryRevision } from "../../contracts/workspace/revision";
 import {
@@ -26,8 +26,8 @@ function repositoryContentReaders(content: unknown) {
       content,
       revision: revisionA,
     }),
-    () => parseWorkspaceRepositoryCommit({
-      baseRevision: revisionA,
+    () => parseWorkspaceRepositorySyncRequest({
+      base: { content, revision: revisionA },
       content,
     }),
   ];
@@ -40,15 +40,24 @@ describe("workspace repository v4 contract", () => {
     expect(parseWorkspaceRepositoryContent(content)).toEqual(content);
     expect(parseWorkspaceRepositorySnapshot({ content, revision: revisionA }))
       .toEqual({ content, revision: revisionA });
-    expect(parseWorkspaceRepositoryCommit({
-      baseRevision: revisionA,
+    expect(parseWorkspaceRepositorySyncRequest({
+      base: { content, revision: revisionA },
       content,
     })).toEqual({
-      baseRevision: revisionA,
+      base: { content, revision: revisionA },
       content,
     });
-    expect(parseWorkspaceRepositoryCommitResult({ revision: revisionA }))
-      .toEqual({ revision: revisionA });
+    expect(parseWorkspaceRepositorySyncResult({
+      outcome: "unchanged",
+      snapshot: { content, revision: revisionA },
+    })).toEqual({
+      outcome: "unchanged",
+      snapshot: { content, revision: revisionA },
+    });
+    expect(() => parseWorkspaceRepositorySyncRequest({
+      baseRevision: revisionA,
+      content,
+    })).toThrow("unsupported field");
     expect(parseCreateRepository({ content, label: "Primary" })).toEqual({
       content,
       label: "Primary",

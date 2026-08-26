@@ -5,9 +5,14 @@ export type VersionedRemoteSnapshot<Content, Revision extends string> = {
   revision: Revision;
 };
 
-export type VersionedRemoteCommit<Content, Revision extends string> = {
-  baseRevision: Revision;
+export type VersionedRemoteSyncRequest<Content, Revision extends string> = {
+  base: VersionedRemoteSnapshot<Content, Revision>;
   content: Content;
+};
+
+export type VersionedRemoteSyncResult<Content, Revision extends string> = {
+  outcome: "auto-merged" | "committed" | "unchanged";
+  snapshot: VersionedRemoteSnapshot<Content, Revision>;
 };
 
 export type PreparedVersionedContent<Content, Projection> = Readonly<{
@@ -62,15 +67,11 @@ export type VersionedContentPreparationPolicy<Content, Projection> = {
   ): void;
 };
 
-export type VersionedCommitResult<Revision extends string> = {
-  revision: Revision;
-};
-
 export type VersionedRepositoryBackend<Content, Revision extends string> = {
-  commitRemoteSnapshot(
-    commit: VersionedRemoteCommit<Content, Revision>,
-  ): Promise<VersionedCommitResult<Revision>>;
   loadRemoteSnapshot(): Promise<VersionedRemoteSnapshot<Content, Revision>>;
+  synchronizeRemoteSnapshot(
+    request: VersionedRemoteSyncRequest<Content, Revision>,
+  ): Promise<VersionedRemoteSyncResult<Content, Revision>>;
 };
 
 export type VersionedRepositorySnapshot<
@@ -207,6 +208,26 @@ export class VersionedRepositoryBackendConflictError<
     super("Repository content changed outside the current session");
     this.name = "VersionedRepositoryBackendConflictError";
     this.currentRevision = currentRevision;
+  }
+}
+
+export class VersionedRepositoryBackendMergeConflictError<
+  Revision extends string = string,
+> extends Error {
+  readonly baseRevision: Revision;
+  readonly currentRevision: Revision;
+  readonly unitIds: readonly string[];
+
+  constructor(input: {
+    baseRevision: Revision;
+    currentRevision: Revision;
+    unitIds: readonly string[];
+  }) {
+    super("Repository changes overlap with the current remote content");
+    this.name = "VersionedRepositoryBackendMergeConflictError";
+    this.baseRevision = input.baseRevision;
+    this.currentRevision = input.currentRevision;
+    this.unitIds = [...new Set(input.unitIds)].sort();
   }
 }
 

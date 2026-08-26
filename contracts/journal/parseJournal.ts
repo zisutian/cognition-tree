@@ -12,12 +12,12 @@ import {
   UnsupportedWireVersionError,
 } from "../common/contractValue.ts";
 import type {
-  JournalCommitDto,
-  JournalCommitResultDto,
   JournalContentDto,
   JournalDayDto,
   JournalEntryDto,
   JournalSnapshotDto,
+  JournalSyncRequestDto,
+  JournalSyncResultDto,
 } from "./types.ts";
 
 const contract = "Journal v3";
@@ -32,8 +32,8 @@ const entryFields = [
   "updatedAt",
 ] as const;
 const snapshotFields = ["content", "revision"] as const;
-const commitFields = ["baseRevision", "content"] as const;
-const resultFields = ["revision"] as const;
+const syncRequestFields = ["base", "content"] as const;
+const syncResultFields = ["outcome", "snapshot"] as const;
 const uuidSuffix =
   "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const entryIdPattern = new RegExp(`^journal-entry-${uuidSuffix}$`);
@@ -162,19 +162,27 @@ export function parseJournalSnapshot(value: unknown): JournalSnapshotDto {
   };
 }
 
-export function parseJournalCommit(value: unknown): JournalCommitDto {
-  const commit = readWireObject(contract, value, "$");
+export function parseJournalSyncRequest(value: unknown): JournalSyncRequestDto {
+  const request = readWireObject(contract, value, "$");
 
-  assertExactWireFields(contract, commit, commitFields, "$");
+  assertExactWireFields(contract, request, syncRequestFields, "$");
   return {
-    baseRevision: parseContentRevision(commit.baseRevision, "$.baseRevision"),
-    content: parseJournalContent(commit.content),
+    base: parseJournalSnapshot(request.base),
+    content: parseJournalContent(request.content),
   };
 }
 
-export function parseJournalCommitResult(value: unknown): JournalCommitResultDto {
+export function parseJournalSyncResult(value: unknown): JournalSyncResultDto {
   const result = readWireObject(contract, value, "$");
 
-  assertExactWireFields(contract, result, resultFields, "$");
-  return { revision: parseContentRevision(result.revision, "$.revision") };
+  assertExactWireFields(contract, result, syncResultFields, "$");
+  const outcome = readRequiredWireString(contract, result, "outcome", "$");
+
+  if (
+    outcome !== "auto-merged" && outcome !== "committed" &&
+    outcome !== "unchanged"
+  ) {
+    failWireContract(contract, "$.outcome", "expected sync outcome");
+  }
+  return { outcome, snapshot: parseJournalSnapshot(result.snapshot) };
 }

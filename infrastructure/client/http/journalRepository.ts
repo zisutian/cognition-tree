@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  parseJournalCommit,
-  parseJournalCommitResult,
   parseJournalSnapshot,
+  parseJournalSyncRequest,
+  parseJournalSyncResult,
 } from "../../../contracts/journal/parseJournal";
 import { parseBuiltInDescriptor } from "../../../contracts/built-ins/parseBuiltIns";
 import { serializeJsonIteratively } from "../../../contracts/common/json";
@@ -43,11 +43,11 @@ export function createHttpJournalRepositoryBackend({
   return createHttpVersionedContentRepositoryBackend({
     baseUrl,
     codec: {
-      parseCommit: parseJournalCommit,
-      parseCommitResult: parseJournalCommitResult,
+      parseSyncRequest: parseJournalSyncRequest,
+      parseSyncResult: parseJournalSyncResult,
       parseRevision: parseContentRevision,
       parseSnapshot: parseJournalSnapshot,
-      serializeCommit: serializeJsonIteratively,
+      serializeSyncRequest: serializeJsonIteratively,
     },
     endpoint: "/api/v3/sync/journal",
     fetch: fetchFn,

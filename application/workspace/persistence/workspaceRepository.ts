@@ -14,8 +14,8 @@ import {
   VersionedRepositoryLocalConflictError,
   VersionedRepositoryRemoteError,
   VersionedRepositoryUnavailableError,
-  type VersionedCommitResult,
-  type VersionedRemoteCommit,
+  type VersionedRemoteSyncRequest,
+  type VersionedRemoteSyncResult,
   type VersionedRemoteSnapshot,
   type VersionedRepository,
   type VersionedRepositoryBackend,
@@ -50,11 +50,14 @@ export type RemoteWorkspaceSnapshot = VersionedRemoteSnapshot<
   WorkspaceRepositoryContent,
   RepositoryRevision
 >;
-export type RemoteWorkspaceCommit = VersionedRemoteCommit<
+export type RemoteWorkspaceSyncRequest = VersionedRemoteSyncRequest<
   WorkspaceRepositoryContent,
   RepositoryRevision
 >;
-export type RemoteCommitResult = VersionedCommitResult<RepositoryRevision>;
+export type RemoteWorkspaceSyncResult = VersionedRemoteSyncResult<
+  WorkspaceRepositoryContent,
+  RepositoryRevision
+>;
 export type WorkspaceRepositoryBackend = VersionedRepositoryBackend<
   WorkspaceRepositoryContent,
   RepositoryRevision

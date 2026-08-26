@@ -3,6 +3,7 @@ import { createLocalFirstVersionedRepository } from "../../../../infrastructure/
 import { createMemoryVersionedRepositoryCache } from "../../../../infrastructure/client/repository/versionedRepositoryCache";
 import {
   VersionedRepositoryBackendConflictError,
+  VersionedRepositoryBackendMergeConflictError,
   VersionedRepositoryUnavailableError,
 } from "../../../../application/persistence/versionedRepository";
 
@@ -26,8 +27,12 @@ describe("local-first versioned repository", () => {
     let localIndex = 0;
     const repository = createLocalFirstVersionedRepository({
       backend: {
-        commitRemoteSnapshot: async () => ({
-          revision: "revision:2" as const,
+        synchronizeRemoteSnapshot: async (request) => ({
+          outcome: "committed" as const,
+          snapshot: {
+            content: request.content,
+            revision: "revision:2" as const,
+          },
         }),
         loadRemoteSnapshot: async () => ({
           content: { records: [] },
@@ -68,11 +73,17 @@ describe("local-first versioned repository", () => {
   });
 
   it("persists an injected content model without WorkspaceData semantics", async () => {
-    const commit = vi.fn(async () => ({ revision: "revision:2" as const }));
+    const commit = vi.fn(async (request: {
+      base: { content: Content; revision: Revision };
+      content: Content;
+    }) => ({
+      outcome: "committed" as const,
+      snapshot: { content: request.content, revision: "revision:2" as const },
+    }));
     let localIndex = 0;
     const repository = createLocalFirstVersionedRepository({
       backend: {
-        commitRemoteSnapshot: commit,
+        synchronizeRemoteSnapshot: commit,
         loadRemoteSnapshot: async () => ({
           content: { records: [] },
           revision: "revision:1" as const,
@@ -104,7 +115,7 @@ describe("local-first versioned repository", () => {
       status: "synced",
     });
     expect(commit).toHaveBeenCalledWith({
-      baseRevision: "revision:1",
+      base: { content: { records: [] }, revision: "revision:1" },
       content,
     });
   });
@@ -116,16 +127,22 @@ describe("local-first versioned repository", () => {
       LocalRevision
     >();
     let localIndex = 0;
-    let finishCommit!: (result: { revision: Revision }) => void;
+    let finishCommit!: (result: {
+      outcome: "committed";
+      snapshot: { content: Content; revision: Revision };
+    }) => void;
     let markCommitStarted!: () => void;
     const commitStarted = new Promise<void>((resolve) => {
       markCommitStarted = resolve;
     });
     const repository = createLocalFirstVersionedRepository({
       backend: {
-        commitRemoteSnapshot: vi.fn(async () => {
+        synchronizeRemoteSnapshot: vi.fn(async () => {
           markCommitStarted();
-          return await new Promise<{ revision: Revision }>((resolve) => {
+          return await new Promise<{
+            outcome: "committed";
+            snapshot: { content: Content; revision: Revision };
+          }>((resolve) => {
             finishCommit = resolve;
           });
         }),
@@ -139,6 +156,7 @@ describe("local-first versioned repository", () => {
       label: "generic",
       loadPolicy: { mode: "cache-first" },
       location: { kind: "memory" },
+      mergeContent: (_base, local) => ({ ...local, status: "merged" }),
       repositoryIdentity: "generic:in-flight-draft",
       preparation: { prepare: parseContent },
     });
@@ -166,7 +184,10 @@ describe("local-first versioned repository", () => {
       expectedLocalRevision: duringRequest.localRevision,
       projection: parseContent(continued),
     });
-    finishCommit({ revision: "revision:2" });
+    finishCommit({
+      outcome: "committed",
+      snapshot: { content: submitted, revision: "revision:2" },
+    });
 
     await expect(submitting).resolves.toMatchObject({
       pendingChanges: true,
@@ -192,7 +213,7 @@ describe("local-first versioned repository", () => {
     let localIndex = 0;
     const repository = createLocalFirstVersionedRepository({
       backend: {
-        async commitRemoteSnapshot() {
+        async synchronizeRemoteSnapshot() {
           throw new VersionedRepositoryBackendConflictError(
             "revision:9" as Revision,
           );
@@ -233,5 +254,112 @@ describe("local-first versioned repository", () => {
       remoteRevision: "revision:9",
       status: "conflict",
     });
+  });
+
+  it("records server conflict units only after rereading the exact reported revision", async () => {
+    let remoteLoad = 0;
+    let localIndex = 0;
+    const base = { records: [] };
+    const remote = { records: [{ done: false, text: "remote" }] };
+    const repository = createLocalFirstVersionedRepository({
+      backend: {
+        loadRemoteSnapshot: async () => {
+          remoteLoad += 1;
+          return remoteLoad === 1
+            ? { content: base, revision: "revision:1" as const }
+            : { content: remote, revision: "revision:2" as const };
+        },
+        synchronizeRemoteSnapshot: async () => {
+          throw new VersionedRepositoryBackendMergeConflictError({
+            baseRevision: "revision:1" as const,
+            currentRevision: "revision:2" as const,
+            unitIds: ["record:shared"],
+          });
+        },
+      },
+      cache: createMemoryVersionedRepositoryCache(),
+      createLocalRevision: () => `local:${localIndex += 1}`,
+      label: "generic",
+      loadPolicy: { mode: "cache-first" },
+      location: { kind: "memory" },
+      mergeContent: () => ({ status: "conflict", unitIds: ["local"] }),
+      preparation: { prepare: parseContent },
+      repositoryIdentity: "generic:server-conflict",
+    });
+    const initial = await repository.loadSnapshot();
+    const local = { records: [{ done: false, text: "local" }] };
+
+    await repository.stageSnapshot({
+      content: local,
+      expectedLocalRevision: initial.localRevision,
+      projection: parseContent(local),
+    });
+    await expect(repository.synchronizePendingSnapshot()).resolves.toMatchObject({
+      remoteRevision: "revision:2",
+      status: "conflict",
+    });
+    await expect(repository.loadConflict()).resolves.toEqual({
+      base,
+      local,
+      remote,
+      remoteRevision: "revision:2",
+      unitIds: ["record:shared"],
+    });
+  });
+
+  it("resubmits the original base when conflict recovery observes a newer revision", async () => {
+    let remoteLoad = 0;
+    let syncCalls = 0;
+    let localIndex = 0;
+    const base = { records: [] };
+    const desired = { records: [{ done: false, text: "local" }] };
+    const repository = createLocalFirstVersionedRepository({
+      backend: {
+        loadRemoteSnapshot: async () => {
+          remoteLoad += 1;
+          return {
+            content: base,
+            revision: (remoteLoad === 1 ? "revision:1" : "revision:3") as Revision,
+          };
+        },
+        synchronizeRemoteSnapshot: async (request) => {
+          syncCalls += 1;
+          if (syncCalls === 1) {
+            throw new VersionedRepositoryBackendMergeConflictError({
+              baseRevision: "revision:1" as const,
+              currentRevision: "revision:2" as const,
+              unitIds: ["record:old"],
+            });
+          }
+          expect(request.base).toEqual({ content: base, revision: "revision:1" });
+          return {
+            outcome: "auto-merged" as const,
+            snapshot: { content: desired, revision: "revision:4" as const },
+          };
+        },
+      },
+      cache: createMemoryVersionedRepositoryCache(),
+      createLocalRevision: () => `local:${localIndex += 1}`,
+      label: "generic",
+      loadPolicy: { mode: "cache-first" },
+      location: { kind: "memory" },
+      mergeContent: (_base, local) => ({ ...local, status: "merged" }),
+      preparation: { prepare: parseContent },
+      repositoryIdentity: "generic:conflict-retry",
+    });
+    const initial = await repository.loadSnapshot();
+
+    await repository.stageSnapshot({
+      content: desired,
+      expectedLocalRevision: initial.localRevision,
+      projection: parseContent(desired),
+    });
+    await expect(repository.synchronizePendingSnapshot()).resolves.toMatchObject({
+      pendingChanges: false,
+      remoteRevision: "revision:4",
+      status: "synced",
+    });
+    expect(syncCalls).toBe(2);
+    await expect(repository.loadConflict()).resolves.toBeNull();
   });
 });

@@ -8,9 +8,9 @@ import {
 import {
   isTodoBlockId,
   isTodoCollectionId,
-  parseTodoCommit,
   parseTodoContent,
   parseTodoSnapshot,
+  parseTodoSyncRequest,
 } from "../../contracts/todo/parseTodo.ts";
 import { serializeTodoRevisionContent } from "../../contracts/todo/revision.ts";
 import type { TodoContentDto } from "../../contracts/todo/types.ts";
@@ -64,10 +64,15 @@ describe("Todo v4 wire contract", () => {
       content,
       revision,
     });
-    expect(parseTodoCommit({ baseRevision: revision, content })).toEqual({
-      baseRevision: revision,
+    expect(parseTodoSyncRequest({
+      base: { content, revision },
+      content,
+    })).toEqual({
+      base: { content, revision },
       content,
     });
+    expect(() => parseTodoSyncRequest({ baseRevision: revision, content }))
+      .toThrow(WireContractError);
   });
 
   it("preserves sidecar order in canonical revisions", () => {

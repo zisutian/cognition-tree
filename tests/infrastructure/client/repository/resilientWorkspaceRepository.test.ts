@@ -6,7 +6,7 @@ import {
   WorkspaceRepositoryLocalConflictError,
   WorkspaceRepositoryRemoteError,
   WorkspaceRepositoryUnavailableError,
-  type RemoteWorkspaceCommit,
+  type RemoteWorkspaceSyncRequest,
   type WorkspaceRepository,
   type WorkspaceRepositoryBackend,
 } from "../../../../application/workspace/persistence/workspaceRepository";
@@ -35,9 +35,9 @@ function createRemoteBackend() {
   let unavailable = false;
   let conflictRevision: typeof revision | null = null;
   let remoteError: WorkspaceRepositoryRemoteError | null = null;
-  const commits: RemoteWorkspaceCommit[] = [];
+  const commits: RemoteWorkspaceSyncRequest[] = [];
   const backend: WorkspaceRepositoryBackend = {
-    async commitRemoteSnapshot(commit) {
+    async synchronizeRemoteSnapshot(commit) {
       if (unavailable) {
         throw new WorkspaceRepositoryUnavailableError();
       }
@@ -47,14 +47,17 @@ function createRemoteBackend() {
       if (conflictRevision) {
         throw new WorkspaceRepositoryBackendConflictError(conflictRevision);
       }
-      if (commit.baseRevision !== revision) {
+      if (commit.base.revision !== revision) {
         throw new WorkspaceRepositoryBackendConflictError(revision);
       }
 
       commits.push(structuredClone(commit));
       content = structuredClone(commit.content);
       revision = revisionB;
-      return { revision };
+      return {
+        outcome: "committed",
+        snapshot: { content: structuredClone(content), revision },
+      };
     },
     async loadRemoteSnapshot() {
       if (unavailable) {
@@ -365,16 +368,22 @@ describe("local-first workspace repository", () => {
     });
     expect(remote.commits).toHaveLength(1);
     expect(remote.commits[0]).toMatchObject({
-      baseRevision: revisionA,
+      base: { revision: revisionA },
       content: { workspace: { name: "Latest" } },
     });
   });
 
   it("keeps a newer stage pending when an in-flight older sync completes", async () => {
-    const commit = createDeferred<{ revision: typeof revisionB }>();
+    const committedContent = createWorkspaceRepositoryContent(
+      "Being synchronized",
+    );
+    const commit = createDeferred<{
+      outcome: "committed";
+      snapshot: { content: typeof committedContent; revision: typeof revisionB };
+    }>();
     const commitStarted = createDeferred<void>();
     const backend: WorkspaceRepositoryBackend = {
-      async commitRemoteSnapshot() {
+      async synchronizeRemoteSnapshot() {
         commitStarted.resolve();
         return commit.promise;
       },
@@ -400,7 +409,7 @@ describe("local-first workspace repository", () => {
     const initial = await repository.loadSnapshot();
     const older = await stageWorkspace(
       repository,
-      createWorkspaceRepositoryContent("Being synchronized"),
+      committedContent,
       initial.localRevision,
     );
     const syncing = repository.synchronizePendingSnapshot();
@@ -411,16 +420,19 @@ describe("local-first workspace repository", () => {
       createWorkspaceRepositoryContent("Newer local stage"),
       older.localRevision,
     );
-    commit.resolve({ revision: revisionB });
+    commit.resolve({
+      outcome: "committed",
+      snapshot: { content: committedContent, revision: revisionB },
+    });
 
     await expect(syncing).resolves.toMatchObject({
-      localRevision: newest.localRevision,
       pendingChanges: true,
       remoteRevision: revisionB,
       status: "synced",
     });
     const latest = await repository.loadSnapshot();
 
+    expect(latest.localRevision).not.toBe(newest.localRevision);
     expect(latest).toMatchObject({
       content: { workspace: { name: "Newer local stage" } },
       pendingChanges: true,

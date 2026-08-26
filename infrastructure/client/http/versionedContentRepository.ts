@@ -2,11 +2,13 @@
 
 import {
   VersionedRepositoryBackendConflictError,
+  VersionedRepositoryBackendMergeConflictError,
   VersionedRepositoryRemoteError,
   VersionedRepositoryUnavailableError,
   type VersionedRepositoryBackend,
-  type VersionedRemoteCommit,
   type VersionedRemoteSnapshot,
+  type VersionedRemoteSyncRequest,
+  type VersionedRemoteSyncResult,
 } from "../../../application/persistence/versionedRepository";
 import {
   HttpApiResponseError,
@@ -16,14 +18,16 @@ import {
 } from "./apiTransport";
 
 export type HttpVersionedContentCodec<Content, Revision extends string> = {
-  parseCommit(
+  parseSyncRequest(
     value: unknown,
-  ): VersionedRemoteCommit<Content, Revision>;
-  parseCommitResult(value: unknown): { revision: Revision };
+  ): VersionedRemoteSyncRequest<Content, Revision>;
+  parseSyncResult(
+    value: unknown,
+  ): VersionedRemoteSyncResult<Content, Revision>;
   parseRevision(value: unknown): Revision;
   parseSnapshot(value: unknown): VersionedRemoteSnapshot<Content, Revision>;
-  serializeCommit(
-    commit: VersionedRemoteCommit<Content, Revision>,
+  serializeSyncRequest(
+    request: VersionedRemoteSyncRequest<Content, Revision>,
   ): string;
 };
 
@@ -38,6 +42,23 @@ async function withVersionedRepositoryErrors<Result, Revision extends string>(
       throw new VersionedRepositoryUnavailableError(error.message);
     }
     if (error instanceof HttpApiResponseError) {
+      if (
+        error.apiCode === "merge_conflict" &&
+        typeof error.details?.baseRevision === "string" &&
+        typeof error.details.currentRevision === "string" &&
+        Array.isArray(error.details.conflictUnits)
+      ) {
+        throw new VersionedRepositoryBackendMergeConflictError({
+          baseRevision: parseRevision(error.details.baseRevision),
+          currentRevision: parseRevision(error.details.currentRevision),
+          unitIds: error.details.conflictUnits.flatMap((unit) =>
+            unit && typeof unit === "object" && "id" in unit &&
+                typeof unit.id === "string"
+              ? [unit.id]
+              : []
+          ),
+        });
+      }
       if (
         error.apiCode === "resource_conflict" &&
         typeof error.details?.currentRevision === "string"
@@ -69,16 +90,16 @@ export function createHttpVersionedContentRepositoryBackend<
   endpoint: string;
 }): VersionedRepositoryBackend<Content, Revision> {
   return {
-    async commitRemoteSnapshot(commit) {
-      const outbound = codec.parseCommit(commit);
+    async synchronizeRemoteSnapshot(request) {
+      const outbound = codec.parseSyncRequest(request);
 
-      return codec.parseCommitResult(await withVersionedRepositoryErrors(
+      return codec.parseSyncResult(await withVersionedRepositoryErrors(
         () => requestApiJson(
           fetchFn,
           baseUrl,
           endpoint,
           {
-            body: codec.serializeCommit(outbound),
+            body: codec.serializeSyncRequest(outbound),
             headers: { "Content-Type": "application/json" },
             method: "PUT",
           },

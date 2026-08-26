@@ -7,9 +7,9 @@ import {
 } from "../../contracts/common/contractValue.ts";
 import {
   isJournalEntryId,
-  parseJournalCommit,
   parseJournalContent,
   parseJournalSnapshot,
+  parseJournalSyncRequest,
 } from "../../contracts/journal/parseJournal.ts";
 import { serializeJournalRevisionContent } from "../../contracts/journal/revision.ts";
 import type { JournalContentDto } from "../../contracts/journal/types.ts";
@@ -46,10 +46,15 @@ describe("Journal v3 wire contract", () => {
       content,
       revision,
     });
-    expect(parseJournalCommit({ baseRevision: revision, content })).toEqual({
-      baseRevision: revision,
+    expect(parseJournalSyncRequest({
+      base: { content, revision },
+      content,
+    })).toEqual({
+      base: { content, revision },
       content,
     });
+    expect(() => parseJournalSyncRequest({ baseRevision: revision, content }))
+      .toThrow(WireContractError);
   });
 
   it("keeps stable ids, day order, entry order, and counters exact", () => {

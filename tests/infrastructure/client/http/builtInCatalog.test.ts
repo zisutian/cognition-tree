@@ -115,10 +115,17 @@ describe("HTTP built-in catalog and data repositories", () => {
         url,
       });
       if (init?.method === "PUT") {
+        const content = url.endsWith("/journal")
+          ? journalContent
+          : todoContent;
         return jsonResponse({
-          revision: url.endsWith("/journal")
-            ? journalRevisionB
-            : todoRevisionB,
+          outcome: "committed",
+          snapshot: {
+            content,
+            revision: url.endsWith("/journal")
+              ? journalRevisionB
+              : todoRevisionB,
+          },
         });
       }
       return url.endsWith("/journal")
@@ -138,18 +145,24 @@ describe("HTTP built-in catalog and data repositories", () => {
       content: journalContent,
       revision: journalRevisionA,
     });
-    await expect(journal.commitRemoteSnapshot({
-      baseRevision: journalRevisionA,
+    await expect(journal.synchronizeRemoteSnapshot({
+      base: { content: journalContent, revision: journalRevisionA },
       content: journalContent,
-    })).resolves.toEqual({ revision: journalRevisionB });
+    })).resolves.toEqual({
+      outcome: "committed",
+      snapshot: { content: journalContent, revision: journalRevisionB },
+    });
     await expect(todo.loadRemoteSnapshot()).resolves.toEqual({
       content: todoContent,
       revision: todoRevisionA,
     });
-    await expect(todo.commitRemoteSnapshot({
-      baseRevision: todoRevisionA,
+    await expect(todo.synchronizeRemoteSnapshot({
+      base: { content: todoContent, revision: todoRevisionA },
       content: todoContent,
-    })).resolves.toEqual({ revision: todoRevisionB });
+    })).resolves.toEqual({
+      outcome: "committed",
+      snapshot: { content: todoContent, revision: todoRevisionB },
+    });
     expect(calls.map(({ method, url }) => ({ method, url }))).toEqual([
       { method: "GET", url: "https://api.test/root/api/v3/sync/journal" },
       { method: "PUT", url: "https://api.test/root/api/v3/sync/journal" },
@@ -157,11 +170,11 @@ describe("HTTP built-in catalog and data repositories", () => {
       { method: "PUT", url: "https://api.test/root/api/v3/sync/todo" },
     ]);
     expect(JSON.parse(String(calls[1]?.body))).toEqual({
-      baseRevision: journalRevisionA,
+      base: { content: journalContent, revision: journalRevisionA },
       content: journalContent,
     });
     expect(JSON.parse(String(calls[3]?.body))).toEqual({
-      baseRevision: todoRevisionA,
+      base: { content: todoContent, revision: todoRevisionA },
       content: todoContent,
     });
   });
@@ -188,8 +201,11 @@ describe("HTTP built-in catalog and data repositories", () => {
       }, 503),
     });
 
-    await expect(conflict.commitRemoteSnapshot({
-      baseRevision: journalRevisionA,
+    await expect(conflict.synchronizeRemoteSnapshot({
+      base: {
+        content: createEmptyJournalContent(),
+        revision: journalRevisionA,
+      },
       content: createEmptyJournalContent(),
     })).rejects.toEqual(
       expect.objectContaining<Partial<VersionedRepositoryBackendConflictError>>({
@@ -258,7 +274,10 @@ describe("HTTP built-in catalog and data repositories", () => {
     });
     const journalFetch = vi.fn<typeof fetch>(async (_input, init) =>
       init?.method === "PUT"
-        ? jsonResponse({ revision: journalRevisionB })
+        ? jsonResponse({
+            outcome: "committed",
+            snapshot: { content: journalContent, revision: journalRevisionB },
+          })
         : jsonResponse({ content: journalContent, revision: journalRevisionA })
     );
     const journal = createHttpJournalRepositoryBackend({
@@ -267,14 +286,17 @@ describe("HTTP built-in catalog and data repositories", () => {
     });
 
     await journal.loadRemoteSnapshot();
-    await expect(journal.commitRemoteSnapshot({
-      baseRevision: journalRevisionA,
+    await expect(journal.synchronizeRemoteSnapshot({
+      base: { content: journalContent, revision: journalRevisionA },
       content: tamperJournalTestEntryCreation(journalContent, {
         createdAt: "2026-07-19T00:00:01.000Z",
         entryIndex: 1,
         timezoneOffsetMinutes: 480,
       }),
-    })).resolves.toEqual({ revision: journalRevisionB });
+    })).resolves.toMatchObject({
+      outcome: "committed",
+      snapshot: { revision: journalRevisionB },
+    });
     expect(journalFetch).toHaveBeenCalledTimes(2);
 
     const todoContent = appendTodoTestItem(
@@ -290,7 +312,10 @@ describe("HTTP built-in catalog and data repositories", () => {
     );
     const todoFetch = vi.fn<typeof fetch>(async (_input, init) =>
       init?.method === "PUT"
-        ? jsonResponse({ revision: todoRevisionB })
+        ? jsonResponse({
+            outcome: "committed",
+            snapshot: { content: invalidTodo, revision: todoRevisionB },
+          })
         : jsonResponse({ content: todoContent, revision: todoRevisionA })
     );
     const todo = createHttpTodoRepositoryBackend({
@@ -309,10 +334,13 @@ describe("HTTP built-in catalog and data repositories", () => {
     };
 
     await todo.loadRemoteSnapshot();
-    await expect(todo.commitRemoteSnapshot({
-      baseRevision: todoRevisionA,
+    await expect(todo.synchronizeRemoteSnapshot({
+      base: { content: todoContent, revision: todoRevisionA },
       content: invalidTodo,
-    })).resolves.toEqual({ revision: todoRevisionB });
+    })).resolves.toMatchObject({
+      outcome: "committed",
+      snapshot: { revision: todoRevisionB },
+    });
     expect(todoFetch).toHaveBeenCalledTimes(2);
   });
 

@@ -22,12 +22,6 @@ export type VersionedRepositoryCache<
   Revision extends string,
   LocalRevision extends string,
 > = {
-  completeSync(input: {
-    committedContent: Content;
-    committedRemoteRevision: Revision;
-    expectedLocalRevision: LocalRevision;
-    identity: string;
-  }): Promise<VersionedRepositoryLocalState<Content, Revision, LocalRevision>>;
   create(input: {
     identity: string;
     localRevision: LocalRevision;
@@ -46,10 +40,11 @@ export type VersionedRepositoryCache<
   recordConflict(input: {
     baseContent: Content;
     currentRemoteRevision: Revision;
+    expectedLocalRevision: LocalRevision;
     identity: string;
     localContent: Content;
     remoteContent: Content;
-    unitIds: string[];
+    unitIds: readonly string[];
   }): Promise<VersionedRepositoryLocalState<Content, Revision, LocalRevision>>;
   recordConflictRevision(input: {
     currentRemoteRevision: Revision;
@@ -111,27 +106,6 @@ export function createMemoryVersionedRepositoryCache<
   };
 
   return {
-    async completeSync({
-      committedContent,
-      committedRemoteRevision,
-      expectedLocalRevision,
-      identity,
-    }) {
-      const current = requireState(identity);
-      const unchanged = current.localRevision === expectedLocalRevision;
-      const next = {
-        ...current,
-        pendingBaseRevision: unchanged ? null : committedRemoteRevision,
-        remoteRevision: committedRemoteRevision,
-      };
-
-      states.set(identity, next);
-      syncContexts.set(identity, {
-        baseContent: structuredClone(committedContent),
-        conflict: null,
-      });
-      return cloneState(next);
-    },
     async create({ identity, localRevision, snapshot }) {
       if (states.has(identity)) {
         throw new Error(`Local repository state already exists: ${identity}`);
@@ -163,12 +137,17 @@ export function createMemoryVersionedRepositoryCache<
     async recordConflict({
       baseContent,
       currentRemoteRevision,
+      expectedLocalRevision,
       identity,
       localContent,
       remoteContent,
       unitIds,
     }) {
       const current = requireState(identity);
+
+      if (current.localRevision !== expectedLocalRevision) {
+        throw createLocalConflictError(current.localRevision);
+      }
       const remoteRevision = currentRemoteRevision;
       const next = {
         ...current,

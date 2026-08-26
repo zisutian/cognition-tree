@@ -6,20 +6,23 @@ import type {
   BuiltInRetryResultDto,
 } from "../../built-ins/types.ts";
 import type {
-  JournalCommitDto,
   JournalSnapshotDto,
+  JournalSyncRequestDto,
+  JournalSyncResultDto,
 } from "../../journal/types.ts";
 import type {
-  TodoCommitDto,
   TodoSnapshotDto,
+  TodoSyncRequestDto,
+  TodoSyncResultDto,
 } from "../../todo/types.ts";
 import type {
   CreateRepositoryDto,
   RenameRepositoryDto,
   RepositoryCatalogDto,
   RepositoryDescriptorDto,
-  WorkspaceRepositoryCommitDto,
   WorkspaceRepositorySnapshotDto,
+  WorkspaceRepositorySyncRequestDto,
+  WorkspaceRepositorySyncResultDto,
 } from "../../workspace/types.ts";
 import {
   ApiCanonicalTimestampSchema,
@@ -112,10 +115,19 @@ const todoContentSchema = strictObject({
   syntaxSource: Type.String(),
 });
 
-export const ApiWorkspaceCommitSchema = schemaAs<
-  WorkspaceRepositoryCommitDto
+const syncOutcomeSchema = Type.Union([
+  Type.Literal("auto-merged"),
+  Type.Literal("committed"),
+  Type.Literal("unchanged"),
+]);
+
+export const ApiWorkspaceSyncRequestSchema = schemaAs<
+  WorkspaceRepositorySyncRequestDto
 >(strictObject({
-  baseRevision: ApiResourceVersionSchema,
+  base: strictObject({
+    content: workspaceContentSchema,
+    revision: ApiResourceVersionSchema,
+  }),
   content: workspaceContentSchema,
 }));
 export const ApiWorkspaceSnapshotSchema = schemaAs<
@@ -124,9 +136,18 @@ export const ApiWorkspaceSnapshotSchema = schemaAs<
   content: workspaceContentSchema,
   revision: ApiResourceVersionSchema,
 }));
-export const ApiJournalCommitSchema = schemaAs<JournalCommitDto>(
+export const ApiWorkspaceSyncResultSchema = schemaAs<
+  WorkspaceRepositorySyncResultDto
+>(strictObject({
+  outcome: syncOutcomeSchema,
+  snapshot: ApiWorkspaceSnapshotSchema,
+}));
+export const ApiJournalSyncRequestSchema = schemaAs<JournalSyncRequestDto>(
   strictObject({
-    baseRevision: ApiResourceVersionSchema,
+    base: strictObject({
+      content: journalContentSchema,
+      revision: ApiResourceVersionSchema,
+    }),
     content: journalContentSchema,
   }),
 );
@@ -136,9 +157,18 @@ export const ApiJournalSnapshotSchema = schemaAs<JournalSnapshotDto>(
     revision: ApiResourceVersionSchema,
   }),
 );
-export const ApiTodoCommitSchema = schemaAs<TodoCommitDto>(
+export const ApiJournalSyncResultSchema = schemaAs<JournalSyncResultDto>(
   strictObject({
-    baseRevision: ApiResourceVersionSchema,
+    outcome: syncOutcomeSchema,
+    snapshot: ApiJournalSnapshotSchema,
+  }),
+);
+export const ApiTodoSyncRequestSchema = schemaAs<TodoSyncRequestDto>(
+  strictObject({
+    base: strictObject({
+      content: todoContentSchema,
+      revision: ApiResourceVersionSchema,
+    }),
     content: todoContentSchema,
   }),
 );
@@ -148,9 +178,12 @@ export const ApiTodoSnapshotSchema = schemaAs<TodoSnapshotDto>(
     revision: ApiResourceVersionSchema,
   }),
 );
-export const ApiCommitResultSchema = strictObject({
-  revision: ApiResourceVersionSchema,
-});
+export const ApiTodoSyncResultSchema = schemaAs<TodoSyncResultDto>(
+  strictObject({
+    outcome: syncOutcomeSchema,
+    snapshot: ApiTodoSnapshotSchema,
+  }),
+);
 
 const repositoryLocationSchema = strictObject({
   hostPath: nullable(Type.String()),

@@ -2,9 +2,9 @@
 
 import type {
   ContentRevisionDto,
-  VersionedContentCommitDto,
-  VersionedContentCommitResultDto,
   VersionedContentSnapshotDto,
+  VersionedContentSyncRequestDto,
+  VersionedContentSyncResultDto,
 } from "../common/versionedContent.ts";
 
 export type TodoCompletionDto = {
@@ -65,5 +65,5 @@ export type TodoContentDto = {
 
 export type TodoRevisionDto = ContentRevisionDto;
 export type TodoSnapshotDto = VersionedContentSnapshotDto<TodoContentDto>;
-export type TodoCommitDto = VersionedContentCommitDto<TodoContentDto>;
-export type TodoCommitResultDto = VersionedContentCommitResultDto;
+export type TodoSyncRequestDto = VersionedContentSyncRequestDto<TodoContentDto>;
+export type TodoSyncResultDto = VersionedContentSyncResultDto<TodoContentDto>;

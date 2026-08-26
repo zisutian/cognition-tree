@@ -7,11 +7,12 @@ export type VersionedContentSnapshotDto<Content> = {
   revision: ContentRevisionDto;
 };
 
-export type VersionedContentCommitDto<Content> = {
-  baseRevision: ContentRevisionDto;
+export type VersionedContentSyncRequestDto<Content> = {
+  base: VersionedContentSnapshotDto<Content>;
   content: Content;
 };
 
-export type VersionedContentCommitResultDto = {
-  revision: ContentRevisionDto;
+export type VersionedContentSyncResultDto<Content> = {
+  outcome: "auto-merged" | "committed" | "unchanged";
+  snapshot: VersionedContentSnapshotDto<Content>;
 };

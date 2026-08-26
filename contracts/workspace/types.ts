@@ -51,13 +51,14 @@ export type WorkspaceRepositorySnapshotDto = {
   revision: RepositoryRevisionDto;
 };
 
-export type WorkspaceRepositoryCommitDto = {
-  baseRevision: RepositoryRevisionDto;
+export type WorkspaceRepositorySyncRequestDto = {
+  base: WorkspaceRepositorySnapshotDto;
   content: WorkspaceRepositoryContentDto;
 };
 
-export type WorkspaceRepositoryCommitResultDto = {
-  revision: RepositoryRevisionDto;
+export type WorkspaceRepositorySyncResultDto = {
+  outcome: "auto-merged" | "committed" | "unchanged";
+  snapshot: WorkspaceRepositorySnapshotDto;
 };
 
 export type RepositoryLocationDto = {

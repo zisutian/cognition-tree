@@ -261,8 +261,8 @@ describe("workspace persistence integration", () => {
     });
     const externalSnapshot = await externalRepository.loadRemoteSnapshot();
 
-    await externalRepository.commitRemoteSnapshot({
-      baseRevision: externalSnapshot.revision,
+    await externalRepository.synchronizeRemoteSnapshot({
+      base: externalSnapshot,
       content: {
         ...externalSnapshot.content,
         workspace: {

@@ -2,6 +2,7 @@
 
 import {
   VersionedRepositoryBackendConflictError,
+  VersionedRepositoryBackendMergeConflictError,
   VersionedRepositoryLocalConflictError,
   VersionedRepositoryRemoteError,
   VersionedRepositoryUnavailableError,
@@ -215,6 +216,7 @@ export function createLocalFirstVersionedRepository<
       const state = await cache.recordConflict({
         baseContent: baseContent ?? current.content,
         currentRemoteRevision: remote.revision,
+        expectedLocalRevision: current.localRevision,
         identity,
         localContent: current.content,
         remoteContent: remote.content,
@@ -244,6 +246,82 @@ export function createLocalFirstVersionedRepository<
       value: remotePrepared,
     };
     return toSnapshot(state, mergedPrepared);
+  };
+
+  const installSynchronizedSnapshot = async (
+    identity: string,
+    submitted: NonNullable<Awaited<ReturnType<typeof cache.load>>>,
+    submittedPrepared: Prepared,
+    remote: Awaited<ReturnType<
+      typeof backend.synchronizeRemoteSnapshot
+    >>["snapshot"],
+  ) => {
+    const remotePrepared = prepareRemoteContent(
+      remote.content,
+      remote.revision,
+      submittedPrepared.projection,
+    );
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const current = await cache.load(identity);
+
+      if (!current) {
+        throw new Error(
+          "Local repository state disappeared during synchronization.",
+        );
+      }
+      const currentPrepared = current.localRevision === submitted.localRevision
+        ? submittedPrepared
+        : prepareState(current, submittedPrepared.projection);
+      const merged = current.localRevision === submitted.localRevision
+        ? { ...remotePrepared, status: "merged" as const }
+        : mergeContent
+          ? mergeContent(submittedPrepared, currentPrepared, remotePrepared)
+          : { status: "conflict" as const, unitIds: ["repository"] };
+
+      try {
+        if (merged.status === "conflict") {
+          const conflicted = await cache.recordConflict({
+            baseContent: submitted.content,
+            currentRemoteRevision: remote.revision,
+            expectedLocalRevision: current.localRevision,
+            identity,
+            localContent: current.content,
+            remoteContent: remote.content,
+            unitIds: merged.unitIds,
+          });
+
+          rememberPrepared(conflicted, currentPrepared);
+          preparedRemoteBase = { revision: remote.revision, value: remotePrepared };
+          return toSnapshot(conflicted, currentPrepared);
+        }
+        preparation.validateTransition?.(remotePrepared, merged);
+        const rebased = await cache.rebaseFromRemote({
+          content: merged.content,
+          expectedLocalRevision: current.localRevision,
+          identity,
+          localRevision: current.localRevision === submitted.localRevision &&
+              contentEqual(merged.content, submitted.content)
+            ? current.localRevision
+            : createLocalRevision(),
+          pendingChanges: !contentEqual(merged.content, remote.content),
+          snapshot: remote,
+        });
+
+        rememberPrepared(rebased, merged);
+        preparedRemoteBase = { revision: remote.revision, value: remotePrepared };
+        return toSnapshot(rebased, merged);
+      } catch (error) {
+        if (
+          error instanceof VersionedRepositoryLocalConflictError &&
+          attempt + 1 < 3
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw createBusyError();
   };
 
   const reconcileRemoteSnapshot = async (
@@ -430,32 +508,92 @@ export function createLocalFirstVersionedRepository<
         preparation.validateTransition(preparedRemoteBase.value, localPrepared);
       }
       try {
-        const committed = await backend.commitRemoteSnapshot({
-          baseRevision: local.pendingBaseRevision,
+        if (!syncContext?.baseContent) {
+          throw new Error("Repository synchronization base is unavailable.");
+        }
+        const synchronized = await backend.synchronizeRemoteSnapshot({
+          base: {
+            content: syncContext.baseContent,
+            revision: local.pendingBaseRevision,
+          },
           content: local.content,
         });
-        const current = await cache.completeSync({
-          committedContent: local.content,
-          committedRemoteRevision: committed.revision,
-          expectedLocalRevision: local.localRevision,
+        const current = await installSynchronizedSnapshot(
           identity,
-        });
-        if (current.localRevision === local.localRevision) {
-          rememberPrepared(current, localPrepared);
-        } else {
-          prepareState(current, localPrepared.projection);
+          local,
+          localPrepared,
+          synchronized.snapshot,
+        );
+        if (current.conflictRevision !== null) {
+          return {
+            localRevision: current.localRevision,
+            remoteRevision: synchronized.snapshot.revision,
+            status: "conflict",
+          };
         }
-        preparedRemoteBase = {
-          revision: committed.revision,
-          value: localPrepared,
-        };
         return {
           localRevision: current.localRevision,
-          pendingChanges: current.pendingBaseRevision !== null,
+          pendingChanges: current.pendingChanges,
           remoteRevision: current.remoteRevision,
           status: "synced",
         };
       } catch (error) {
+        if (error instanceof VersionedRepositoryBackendMergeConflictError) {
+          preparedRemoteBase = null;
+          let remote;
+
+          try {
+            remote = await backend.loadRemoteSnapshot();
+          } catch (loadError) {
+            if (!isRetryableRemoteError(loadError)) throw loadError;
+            return {
+              localRevision: local.localRevision,
+              message: getErrorMessage(loadError),
+              remoteRevision: error.currentRevision as Revision,
+              status: "sync-error",
+            };
+          }
+          if (remote.revision !== error.currentRevision) {
+            if (attempt + 1 < 3) continue;
+            throw createBusyError();
+          }
+          const current = await cache.load(identity);
+
+          if (!current || !syncContext?.baseContent) {
+            throw new Error(
+              "Local repository state disappeared during conflict recovery.",
+            );
+          }
+          if (current.localRevision !== local.localRevision) {
+            if (attempt + 1 < 3) continue;
+            throw createBusyError();
+          }
+          try {
+            const conflicted = await cache.recordConflict({
+              baseContent: syncContext.baseContent,
+              currentRemoteRevision: remote.revision,
+              expectedLocalRevision: current.localRevision,
+              identity,
+              localContent: current.content,
+              remoteContent: remote.content,
+              unitIds: error.unitIds,
+            });
+
+            return {
+              localRevision: conflicted.localRevision,
+              remoteRevision: remote.revision,
+              status: "conflict",
+            };
+          } catch (recordError) {
+            if (
+              recordError instanceof VersionedRepositoryLocalConflictError &&
+              attempt + 1 < 3
+            ) {
+              continue;
+            }
+            throw recordError;
+          }
+        }
         if (error instanceof VersionedRepositoryBackendConflictError) {
           const conflictRevision = error.currentRevision as Revision;
           let remote;

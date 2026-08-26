@@ -4,14 +4,14 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
-  parseWorkspaceRepositoryCommit,
+  parseWorkspaceRepositorySyncRequest,
   parseWorkspaceRepositoryContent,
 } from "../../contracts/workspace/parseRepository.ts";
 import { serializeWorkspaceRepositoryRevisionContent } from "../../contracts/workspace/revision.ts";
 import {
   type LocalDraftRevisionDto,
   type RepositoryRevisionDto,
-  type WorkspaceRepositoryCommitDto,
+  type WorkspaceRepositorySyncRequestDto,
   type WorkspaceRepositoryContentDto,
 } from "../../contracts/workspace/types.ts";
 import {
@@ -543,18 +543,21 @@ const benchmarkHttpFetch: typeof fetch = async (input, init) => {
   if (typeof body !== "string") {
     throw new Error("HTTP benchmark commit body must be JSON text.");
   }
-  const commit: WorkspaceRepositoryCommitDto = parseWorkspaceRepositoryCommit(
+  const commit: WorkspaceRepositorySyncRequestDto = parseWorkspaceRepositorySyncRequest(
     JSON.parse(body),
   );
 
-  assert.equal(commit.baseRevision, httpSnapshot.revision);
+  assert.equal(commit.base.revision, httpSnapshot.revision);
   const committedRevision = createWorkspaceRepositoryRevision(commit.content);
 
   httpSnapshot = {
     content: structuredClone(commit.content),
     revision: committedRevision,
   };
-  return jsonResponse({ revision: committedRevision });
+  return jsonResponse({
+    outcome: "committed",
+    snapshot: httpSnapshot,
+  });
 };
 const httpBackend = createHttpWorkspaceRepositoryBackend({
   baseUrl: "https://capacity.benchmark",
@@ -567,15 +570,15 @@ const httpLoadedSnapshot = await measure(
 );
 const httpCommitResult = await measure(
   "repository.http.commit",
-  () => httpBackend.commitRemoteSnapshot({
-    baseRevision: httpLoadedSnapshot.revision,
+  () => httpBackend.synchronizeRemoteSnapshot({
+    base: httpLoadedSnapshot,
     content: editedContent,
   }),
 );
 
 assert.equal(httpLoadedSnapshot.revision, revision);
 assertRepositoryContentEqual(httpLoadedSnapshot.content, content, "HTTP load");
-assert.equal(httpCommitResult.revision, editedRevision);
+assert.equal(httpCommitResult.snapshot.revision, editedRevision);
 assert.equal(httpSnapshot.revision, editedRevision);
 assertRepositoryContentEqual(httpSnapshot.content, editedContent, "HTTP commit");
 
@@ -656,7 +659,7 @@ try {
         hotParseIndex.analysisStats.updatedBlockIdOwnerIds.length,
       searchDocumentProjections,
       searchSourceLoads,
-      httpCommittedRevision: httpCommitResult.revision,
+      httpCommittedRevision: httpCommitResult.snapshot.revision,
       memoryChangedNoteIds,
       memoryLocalRevision: memorySnapshot.localRevision,
       memoryStageAttempts,

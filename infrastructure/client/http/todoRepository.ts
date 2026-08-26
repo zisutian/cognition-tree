@@ -3,9 +3,9 @@
 import { serializeJsonIteratively } from "../../../contracts/common/json";
 import { parseBuiltInDescriptor } from "../../../contracts/built-ins/parseBuiltIns";
 import {
-  parseTodoCommit,
-  parseTodoCommitResult,
   parseTodoSnapshot,
+  parseTodoSyncRequest,
+  parseTodoSyncResult,
 } from "../../../contracts/todo/parseTodo";
 import type {
   TodoRepository,
@@ -43,11 +43,11 @@ export function createHttpTodoRepositoryBackend({
   return createHttpVersionedContentRepositoryBackend({
     baseUrl,
     codec: {
-      parseCommit: parseTodoCommit,
-      parseCommitResult: parseTodoCommitResult,
+      parseSyncRequest: parseTodoSyncRequest,
+      parseSyncResult: parseTodoSyncResult,
       parseRevision: parseContentRevision,
       parseSnapshot: parseTodoSnapshot,
-      serializeCommit: serializeJsonIteratively,
+      serializeSyncRequest: serializeJsonIteratively,
     },
     endpoint: "/api/v3/sync/todo",
     fetch: fetchFn,

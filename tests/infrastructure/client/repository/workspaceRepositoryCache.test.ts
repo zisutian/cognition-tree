@@ -95,18 +95,20 @@ describe("workspace repository local cache", () => {
       localRevision: draftC,
     });
 
-    const completed = await cache.completeSync({
-      committedContent,
-      committedRemoteRevision: revisionB,
+    await expect(cache.rebaseFromRemote({
+      content: committedContent,
       expectedLocalRevision: draftB,
       identity: "repository",
-    });
+      localRevision: draftB,
+      pendingChanges: false,
+      snapshot: { content: committedContent, revision: revisionB },
+    })).rejects.toMatchObject({ currentRevision: draftC });
 
-    expect(completed).toMatchObject({
+    await expect(cache.load("repository")).resolves.toMatchObject({
       content: { workspace: { name: "Newest" } },
       localRevision: draftC,
-      pendingBaseRevision: revisionB,
-      remoteRevision: revisionB,
+      pendingBaseRevision: revisionA,
+      remoteRevision: revisionA,
     });
   });
 

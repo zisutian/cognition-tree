@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  JournalCommitDto,
   JournalContentDto,
+  JournalSyncRequestDto,
 } from "../../../../contracts/journal/types.ts";
 import type {
-  TodoCommitDto,
   TodoContentDto,
+  TodoSyncRequestDto,
 } from "../../../../contracts/todo/types.ts";
 import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
 import type {
-  WorkspaceRepositoryCommitDto,
+  WorkspaceRepositorySyncRequestDto,
 } from "../../../../contracts/workspace/types.ts";
 import type {
   VersionedContentStore,
@@ -22,6 +22,10 @@ import type {
 } from "../../repository/store.ts";
 import {
   executeSnapshotSync,
+  SnapshotSyncBaseRevisionError,
+  SnapshotSyncMergeConflictError,
+  SnapshotSyncRevisionConflictError,
+  SnapshotSyncRetryExhaustedError,
 } from "../../../../application/sync/snapshotSync.ts";
 import {
   prepareWorkspaceWriteContent,
@@ -51,6 +55,15 @@ import {
   projectWorkspaceContentChanges,
 } from "../../../../application/workspace/commands/workspaceContentProjection.ts";
 import type { WorkspaceResourceVersionPolicy } from "../../../../application/workspace/commands/workspaceAgentCommandPreparation.ts";
+import { mergeWorkspaceContent } from "../../../../application/workspace/persistence/workspaceThreeWayMerge.ts";
+import { mergeJournalContent } from "../../../../application/journal/persistence/journalThreeWayMerge.ts";
+import { mergeTodoContent } from "../../../../application/todo/persistence/todoThreeWayMerge.ts";
+import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
+import { createJournalRevision } from "../../repository/built-ins/journalStore.ts";
+import { createTodoRevision } from "../../repository/built-ins/todoStore.ts";
+import { WorkspaceRevisionConflictError } from "../../repository/store.ts";
+import { VersionedContentRevisionConflictError } from "../../repository/versioned/contentStore.ts";
+import { ApiRequestError } from "../http/errors.ts";
 
 type ApiSyncResult = {
   body: unknown;
@@ -65,6 +78,82 @@ type ApiSyncContext = {
   runtime: ApiRuntime;
 };
 
+function syncStore<Content, Projection, Revision extends string>(store: {
+  commit(input: {
+    baseRevision: Revision;
+    content: Content;
+    projection: Projection;
+  }): Promise<{
+    after: { content: Content; projection: Projection; revision: Revision };
+    before: { content: Content; projection: Projection; revision: Revision };
+    revision: Revision;
+  }>;
+  loadSnapshot(): Promise<{
+    content: Content;
+    projection: Projection;
+    revision: Revision;
+  }>;
+}) {
+  return {
+    commit: async (input: {
+      baseRevision: Revision;
+      content: Content;
+      projection: Projection;
+    }) => {
+      try {
+        return await store.commit(input);
+      } catch (error) {
+        if (
+          error instanceof WorkspaceRevisionConflictError ||
+          error instanceof VersionedContentRevisionConflictError
+        ) {
+          throw new SnapshotSyncRevisionConflictError(
+            error.currentRevision as Revision,
+          );
+        }
+        throw error;
+      }
+    },
+    loadSnapshot: () => store.loadSnapshot(),
+  };
+}
+
+function throwApiSyncFailure(
+  error: unknown,
+  store: { domain: "journal" | "todo" } | {
+    domain: "workspace";
+    repositoryId: string;
+  },
+): never {
+  if (error instanceof SnapshotSyncBaseRevisionError) {
+    throw new ApiRequestError("invalid_request", error.message, {
+      details: {
+        issues: [{
+          path: "$.base.revision",
+          reason: "does not match $.base.content",
+        }],
+      },
+    });
+  }
+  if (error instanceof SnapshotSyncMergeConflictError) {
+    throw new ApiRequestError("merge_conflict", error.message, {
+      details: {
+        baseRevision: error.baseRevision,
+        conflictUnits: error.unitIds.map((id) => ({ id })),
+        currentRevision: error.currentRevision,
+        store,
+      },
+    });
+  }
+  if (error instanceof SnapshotSyncRetryExhaustedError) {
+    throw new ApiRequestError("resource_conflict", error.message, {
+      details: { currentRevision: error.currentRevision },
+      retryable: true,
+    });
+  }
+  throw error;
+}
+
 export async function synchronizeApiWorkspace(
   context: ApiSyncContext & {
     repositoryId: string;
@@ -75,10 +164,11 @@ export async function synchronizeApiWorkspace(
   const request = context.mode === "load"
     ? { mode: "load" as const }
     : {
-        ...await context.readJsonBody() as WorkspaceRepositoryCommitDto,
+        ...await context.readJsonBody() as WorkspaceRepositorySyncRequestDto,
         mode: "commit" as const,
       };
   const result = await executeSnapshotSync({
+    merge: mergeWorkspaceContent,
     prepare: (content, previous) =>
       prepareWorkspaceWriteContent(content, previous),
     projectChanges: ({ after, before, timestamp }) =>
@@ -92,19 +182,26 @@ export async function synchronizeApiWorkspace(
         context.versionPolicy,
       ).changes,
     request,
+    revisionOf: createWorkspaceRepositoryRevision,
     runtime: context.runtime,
-    store: context.store,
-  });
+    store: syncStore(context.store),
+  }).catch((error: unknown) => throwApiSyncFailure(error, {
+    domain: "workspace",
+    repositoryId: context.repositoryId,
+  }));
 
-  context.observeRevision(result.revision);
+  context.observeRevision(result.snapshot.revision);
   if (result.status === "loaded") {
     return {
-      body: { content: result.content, revision: result.revision },
+      body: result.snapshot,
       statusCode: 200,
     };
   }
-  await context.publish(result.changes);
-  return { body: { revision: result.revision }, statusCode: 200 };
+  if (result.changes) await context.publish(result.changes);
+  return {
+    body: { outcome: result.outcome, snapshot: result.snapshot },
+    statusCode: 200,
+  };
 }
 
 export async function synchronizeApiJournal(
@@ -116,10 +213,11 @@ export async function synchronizeApiJournal(
   const request = context.mode === "load"
     ? { mode: "load" as const }
     : {
-        ...await context.readJsonBody() as JournalCommitDto,
+        ...await context.readJsonBody() as JournalSyncRequestDto,
         mode: "commit" as const,
       };
   const result = await executeSnapshotSync({
+    merge: mergeJournalContent,
     prepare: (content, previous) =>
       prepareJournalWriteContent(content, previous),
     projectChanges: ({ after, before, timestamp }) =>
@@ -132,19 +230,25 @@ export async function synchronizeApiJournal(
         context.versionPolicy,
       ).changes,
     request,
+    revisionOf: createJournalRevision,
     runtime: context.runtime,
-    store: context.store,
-  });
+    store: syncStore(context.store),
+  }).catch((error: unknown) => throwApiSyncFailure(error, {
+    domain: "journal",
+  }));
 
-  context.observeRevision(result.revision);
+  context.observeRevision(result.snapshot.revision);
   if (result.status === "loaded") {
     return {
-      body: { content: result.content, revision: result.revision },
+      body: result.snapshot,
       statusCode: 200,
     };
   }
-  await context.publish(result.changes);
-  return { body: { revision: result.revision }, statusCode: 200 };
+  if (result.changes) await context.publish(result.changes);
+  return {
+    body: { outcome: result.outcome, snapshot: result.snapshot },
+    statusCode: 200,
+  };
 }
 
 export async function synchronizeApiTodo(
@@ -156,10 +260,11 @@ export async function synchronizeApiTodo(
   const request = context.mode === "load"
     ? { mode: "load" as const }
     : {
-        ...await context.readJsonBody() as TodoCommitDto,
+        ...await context.readJsonBody() as TodoSyncRequestDto,
         mode: "commit" as const,
       };
   const result = await executeSnapshotSync({
+    merge: mergeTodoContent,
     prepare: (content, previous) =>
       prepareTodoWriteContent(content, previous),
     projectChanges: ({ after, before, timestamp }) =>
@@ -172,17 +277,23 @@ export async function synchronizeApiTodo(
         context.versionPolicy,
       ).changes,
     request,
+    revisionOf: createTodoRevision,
     runtime: context.runtime,
-    store: context.store,
-  });
+    store: syncStore(context.store),
+  }).catch((error: unknown) => throwApiSyncFailure(error, {
+    domain: "todo",
+  }));
 
-  context.observeRevision(result.revision);
+  context.observeRevision(result.snapshot.revision);
   if (result.status === "loaded") {
     return {
-      body: { content: result.content, revision: result.revision },
+      body: result.snapshot,
       statusCode: 200,
     };
   }
-  await context.publish(result.changes);
-  return { body: { revision: result.revision }, statusCode: 200 };
+  if (result.changes) await context.publish(result.changes);
+  return {
+    body: { outcome: result.outcome, snapshot: result.snapshot },
+    statusCode: 200,
+  };
 }

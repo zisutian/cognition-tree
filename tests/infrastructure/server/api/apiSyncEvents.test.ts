@@ -33,6 +33,7 @@ import {
   preparedWorkspaceSnapshot,
   revision,
 } from "./support/apiServerTestHarness.ts";
+import { createWorkspaceRepositoryRevision } from "../../../../infrastructure/server/repository/workspace/revision.ts";
 
 describe("CTN API v3", () => {
   it("keeps SSE checkpoints lightweight and derives sync changes from the CAS payload", async () => {
@@ -114,6 +115,7 @@ describe("CTN API v3", () => {
         ),
       },
     };
+    const syncBaseRevision = createWorkspaceRepositoryRevision(before);
     let snapshotLoads = 0;
     const published: DomainChangeSetDto[] = [];
     const syncResult = await synchronizeApiWorkspace({
@@ -125,7 +127,7 @@ describe("CTN API v3", () => {
       },
       readJsonBody: () =>
         Promise.resolve({
-          baseRevision: trackedRevision,
+          base: { content: before, revision: syncBaseRevision },
           content: after,
         }),
       repositoryId: "workspace-a",
@@ -134,7 +136,7 @@ describe("CTN API v3", () => {
         async commit(transaction) {
           const beforeSnapshot = preparedWorkspaceSnapshot(
             before,
-            trackedRevision,
+            syncBaseRevision,
           );
           const afterSnapshot = {
             content: transaction.content,
@@ -150,14 +152,17 @@ describe("CTN API v3", () => {
         },
         async loadSnapshot() {
           snapshotLoads += 1;
-          return preparedWorkspaceSnapshot(before, trackedRevision);
+          return preparedWorkspaceSnapshot(before, syncBaseRevision);
         },
       },
       versionPolicy: workspaceResourceVersions,
     });
 
     expect(syncResult).toMatchObject({
-      body: { revision: revision("c") },
+      body: {
+        outcome: "committed",
+        snapshot: { revision: revision("c") },
+      },
       statusCode: 200,
     });
     expect(snapshotLoads).toBe(1);

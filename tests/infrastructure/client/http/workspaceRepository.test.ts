@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace/contractValue";
 import { serializeJsonIteratively } from "../../../../contracts/common/json";
-import { parseWorkspaceRepositoryCommit } from "../../../../contracts/workspace/parseRepository";
+import { parseWorkspaceRepositorySyncRequest } from "../../../../contracts/workspace/parseRepository";
 import { createHttpWorkspaceRepositoryBackend } from "../../../../infrastructure/client/http/workspaceRepository";
 import {
   apiRequestTimeoutMs,
@@ -54,7 +54,9 @@ afterEach(() => {
 describe("HTTP workspace repository backend", () => {
   it("round-trips a 10,000-level tree through response and request wire encoding", async () => {
     const content = createDeepWorkspaceRepositoryContent(10_000);
-    let receivedCommit: ReturnType<typeof parseWorkspaceRepositoryCommit> | null = null;
+    let receivedCommit: ReturnType<
+      typeof parseWorkspaceRepositorySyncRequest
+    > | null = null;
     const backend = createHttpWorkspaceRepositoryBackend({
       baseUrl: "http://api.test",
       fetch: async (_input, init) => {
@@ -70,8 +72,13 @@ describe("HTTP workspace repository backend", () => {
         if (typeof init?.body !== "string") {
           throw new Error("Expected the deep commit to use a JSON string body.");
         }
-        receivedCommit = parseWorkspaceRepositoryCommit(JSON.parse(init.body));
-        return jsonResponse({ revision: revisionB });
+        receivedCommit = parseWorkspaceRepositorySyncRequest(JSON.parse(init.body));
+        return new Response(serializeJsonIteratively({
+          outcome: "committed",
+          snapshot: { content, revision: revisionB },
+        }), {
+          headers: { "Content-Type": "application/json" },
+        });
       },
       repositoryId: "deep",
     });
@@ -87,10 +94,14 @@ describe("HTTP workspace repository backend", () => {
       leaf: { kind: "note", noteId: "deep-note" },
       rootFolder: { folderId: "folder-1", title: 'Level 1 · "深层"' },
     });
-    await expect(backend.commitRemoteSnapshot({
-      baseRevision: loaded.revision,
+    const synchronized = await backend.synchronizeRemoteSnapshot({
+      base: loaded,
       content: loaded.content,
-    })).resolves.toEqual({ revision: revisionB });
+    });
+    expect(synchronized.outcome).toBe("committed");
+    expect(synchronized.snapshot.revision).toBe(revisionB);
+    expect(inspectDeepWorkspaceRepositoryContent(synchronized.snapshot.content))
+      .toEqual(inspectDeepWorkspaceRepositoryContent(content));
     expect(receivedCommit).not.toBeNull();
     expect(inspectDeepWorkspaceRepositoryContent(receivedCommit!.content))
       .toEqual({
@@ -135,10 +146,11 @@ describe("HTTP workspace repository backend", () => {
     });
   });
 
-  it("commits baseRevision and content as one request", async () => {
-    const commit = {
-      baseRevision: revisionA,
-      content: createWorkspaceRepositoryContent("Committed"),
+  it("sends the base snapshot and desired content as one request", async () => {
+    const content = createWorkspaceRepositoryContent("Committed");
+    const request = {
+      base: { content, revision: revisionA },
+      content,
     };
     const calls: FetchCall[] = [];
     const fetchMock: typeof fetch = async (input, init) => {
@@ -149,7 +161,10 @@ describe("HTTP workspace repository backend", () => {
         signal: init?.signal,
         url: String(input),
       });
-      return jsonResponse({ revision: revisionB });
+      return jsonResponse({
+        outcome: "committed",
+        snapshot: { content, revision: revisionB },
+      });
     };
     const backend = createHttpWorkspaceRepositoryBackend({
       baseUrl: "http://api.test",
@@ -158,10 +173,11 @@ describe("HTTP workspace repository backend", () => {
       token: "client-token",
     });
 
-    await expect(backend.commitRemoteSnapshot(commit)).resolves.toEqual({
-      revision: revisionB,
+    await expect(backend.synchronizeRemoteSnapshot(request)).resolves.toEqual({
+      outcome: "committed",
+      snapshot: { content, revision: revisionB },
     });
-    expect(calls[0]?.body).toBe(JSON.stringify(commit));
+    expect(calls[0]?.body).toBe(JSON.stringify(request));
     expect(calls[0]?.method).toBe("PUT");
     expect(calls[0]?.headers.get("Content-Type")).toBe("application/json");
     expect(calls[0]?.headers.get("Authorization")).toBe(
@@ -181,8 +197,8 @@ describe("HTTP workspace repository backend", () => {
     Object.assign(exactContent.workspace.notes[0]!, {
       title: "derived field must not cross the wire",
     });
-    await expect(backend.commitRemoteSnapshot({
-      baseRevision: revisionA,
+    await expect(backend.synchronizeRemoteSnapshot({
+      base: { content: exactContent, revision: revisionA },
       content: exactContent,
     })).rejects.toThrow("unsupported field");
 
@@ -190,8 +206,8 @@ describe("HTTP workspace repository backend", () => {
 
     unsafeContent.workspace.notes = [{ id: "../escape", source: "unsafe" }];
     unsafeContent.workspace.tree = [{ kind: "note", noteId: "../escape" }];
-    await expect(backend.commitRemoteSnapshot({
-      baseRevision: revisionA,
+    await expect(backend.synchronizeRemoteSnapshot({
+      base: { content: unsafeContent, revision: revisionA },
       content: unsafeContent,
     })).rejects.toThrow("invalid repository note id");
     expect(fetchMock).not.toHaveBeenCalled();
@@ -211,8 +227,11 @@ describe("HTTP workspace repository backend", () => {
     });
 
     await expect(
-      backend.commitRemoteSnapshot({
-        baseRevision: revisionA,
+      backend.synchronizeRemoteSnapshot({
+        base: {
+          content: createWorkspaceRepositoryContent(),
+          revision: revisionA,
+        },
         content: createWorkspaceRepositoryContent(),
       }),
     ).rejects.toEqual(

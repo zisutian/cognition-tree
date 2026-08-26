@@ -1,7 +1,7 @@
 import {
-  parseWorkspaceRepositoryCommit,
-  parseWorkspaceRepositoryCommitResult,
   parseWorkspaceRepositorySnapshot,
+  parseWorkspaceRepositorySyncRequest,
+  parseWorkspaceRepositorySyncResult,
 } from "../../../contracts/workspace/parseRepository";
 import { parseRepositoryRevision } from "../../../contracts/workspace/revision";
 import { serializeJsonIteratively } from "../../../contracts/common/json";
@@ -25,11 +25,11 @@ export function createHttpWorkspaceRepositoryBackend({
   const backend = createHttpVersionedContentRepositoryBackend({
     baseUrl,
     codec: {
-      parseCommit: parseWorkspaceRepositoryCommit,
-      parseCommitResult: parseWorkspaceRepositoryCommitResult,
+      parseSyncRequest: parseWorkspaceRepositorySyncRequest,
+      parseSyncResult: parseWorkspaceRepositorySyncResult,
       parseRevision: parseRepositoryRevision,
       parseSnapshot: parseWorkspaceRepositorySnapshot,
-      serializeCommit: serializeJsonIteratively,
+      serializeSyncRequest: serializeJsonIteratively,
     },
     endpoint,
     fetch: fetchFn,
@@ -37,9 +37,9 @@ export function createHttpWorkspaceRepositoryBackend({
   });
 
   return {
-    commitRemoteSnapshot: (commit) =>
+    synchronizeRemoteSnapshot: (request) =>
       withWorkspaceApiAdapterErrors(() =>
-        backend.commitRemoteSnapshot(commit)
+        backend.synchronizeRemoteSnapshot(request)
       ),
     loadRemoteSnapshot: () =>
       withWorkspaceApiAdapterErrors(() => backend.loadRemoteSnapshot()),

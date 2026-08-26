@@ -2,9 +2,9 @@
 
 import type {
   ContentRevisionDto,
-  VersionedContentCommitDto,
-  VersionedContentCommitResultDto,
   VersionedContentSnapshotDto,
+  VersionedContentSyncRequestDto,
+  VersionedContentSyncResultDto,
 } from "../common/versionedContent.ts";
 
 export type JournalEntryDto = {
@@ -30,5 +30,5 @@ export type JournalContentDto = {
 
 export type JournalRevisionDto = ContentRevisionDto;
 export type JournalSnapshotDto = VersionedContentSnapshotDto<JournalContentDto>;
-export type JournalCommitDto = VersionedContentCommitDto<JournalContentDto>;
-export type JournalCommitResultDto = VersionedContentCommitResultDto;
+export type JournalSyncRequestDto = VersionedContentSyncRequestDto<JournalContentDto>;
+export type JournalSyncResultDto = VersionedContentSyncResultDto<JournalContentDto>;

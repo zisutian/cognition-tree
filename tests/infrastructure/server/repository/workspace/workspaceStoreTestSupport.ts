@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  WorkspaceRepositoryCommitDto,
+  RepositoryRevisionDto,
+  WorkspaceRepositoryContentDto,
 } from "../../../../../contracts/workspace/types.ts";
 import type {
   WorkspaceRepositoryStore,
@@ -12,7 +13,10 @@ import {
 
 export async function prepareAndCommitWorkspaceContent(
   store: WorkspaceRepositoryStore,
-  commit: WorkspaceRepositoryCommitDto,
+  commit: {
+    baseRevision: RepositoryRevisionDto;
+    content: WorkspaceRepositoryContentDto;
+  },
 ) {
   const current = await store.loadSnapshot();
 
