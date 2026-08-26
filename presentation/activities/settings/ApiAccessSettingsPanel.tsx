@@ -12,11 +12,21 @@ import type {
 } from "../../../application/apiAccess/apiAccessAdministration";
 import {
   Button,
+  EmptyState,
   Panel,
   PanelBody,
   PanelHeader,
   Section,
 } from "../../ui/shared/primitives";
+import {
+  FieldRow,
+  FormActions,
+  FormLayout,
+} from "../../ui/shared/FormLayout";
+import {
+  ManagementList,
+  ManagementRow,
+} from "../../ui/shared/ManagementList";
 
 function formatApiAccessTimestamp(value: string | null) {
   return value ? new Date(value).toLocaleString() : "从未使用";
@@ -96,32 +106,20 @@ function TokenList({
   tokens: AutomationApiToken[];
 }) {
   if (tokens.length === 0) {
-    return <p className="settings-muted">尚未创建自动化令牌。</p>;
+    return <EmptyState compact description="自动化令牌仅提供内容只读访问。" title="尚未创建自动化令牌" />;
   }
   return (
-    <ul className="settings-api-token-list" aria-label="自动化令牌">
+    <ManagementList aria-label="自动化令牌">
       {tokens.map((token) => (
-        <li key={token.id}>
-          <div className="settings-api-token-name">
-            <strong>{token.name}</strong>
-            <code>{token.prefix}…</code>
-          </div>
-          <p>
-            {formatTokenScopes(token.scopes)}
-            {" · "}
-            {formatRepositoryScope(token.repositoryIds, repositories)}
-          </p>
-          <p>
-            {token.lastUsedAt
-              ? `最近使用 ${formatApiAccessTimestamp(token.lastUsedAt)}`
-              : "尚未使用"}
-          </p>
-          <Button onClick={() => onRevoke(token.id)} type="button">
-            撤销
-          </Button>
-        </li>
+        <ManagementRow
+          actions={<Button className="settings-danger-action" onClick={() => onRevoke(token.id)} type="button">撤销</Button>}
+          description={`${formatTokenScopes(token.scopes)} · ${formatRepositoryScope(token.repositoryIds, repositories)} · ${token.lastUsedAt ? `最近使用 ${formatApiAccessTimestamp(token.lastUsedAt)}` : "尚未使用"}`}
+          key={token.id}
+          status={<code>{token.prefix}…</code>}
+          title={token.name}
+        />
       ))}
-    </ul>
+    </ManagementList>
   );
 }
 
@@ -133,21 +131,20 @@ function TrustedClientTokenList({
   tokens: TrustedClientToken[];
 }) {
   if (tokens.length === 0) {
-    return <p className="settings-muted">尚未创建可信客户端令牌。</p>;
+    return <EmptyState compact description="可信客户端拥有全部内容同步权限。" title="尚未创建可信客户端令牌" />;
   }
   return (
-    <ul aria-label="可信客户端令牌" className="settings-api-token-list">
+    <ManagementList aria-label="可信客户端令牌">
       {tokens.map((token) => (
-        <li key={token.id}>
-          <div className="settings-api-token-name">
-            <strong>{token.name}</strong><code>{token.prefix}…</code>
-          </div>
-          <p>Workspace、日记与代办完整同步权限</p>
-          <p>{token.lastUsedAt ? `最近使用 ${formatApiAccessTimestamp(token.lastUsedAt)}` : "尚未使用"}</p>
-          <Button onClick={() => onRevoke(token.id)} type="button">撤销</Button>
-        </li>
+        <ManagementRow
+          actions={<Button className="settings-danger-action" onClick={() => onRevoke(token.id)} type="button">撤销</Button>}
+          description={`Workspace、日记与代办完整同步权限 · ${token.lastUsedAt ? `最近使用 ${formatApiAccessTimestamp(token.lastUsedAt)}` : "尚未使用"}`}
+          key={token.id}
+          status={<code>{token.prefix}…</code>}
+          title={token.name}
+        />
       ))}
-    </ul>
+    </ManagementList>
   );
 }
 
@@ -285,7 +282,14 @@ export function ApiAccessSettingsPanel({
 
   return (
     <Panel aria-label="API 访问" className="settings-panel">
-      <PanelHeader title="API 访问" />
+      <PanelHeader
+        actions={(
+          <Button disabled={loading} onClick={() => void load()} type="button">
+            刷新
+          </Button>
+        )}
+        title="API 访问"
+      />
       <PanelBody scroll>
         <div className="settings-content-column settings-api-content">
           <p className="settings-muted">
@@ -310,188 +314,69 @@ export function ApiAccessSettingsPanel({
               </section>
             )
             : null}
-          <Section className="settings-api-section" title="创建令牌">
-            <div className="settings-api-form">
-              <label className="settings-api-form-row">
-                <span>名称</span>
-                <input
-                  className="ui-input"
-                  maxLength={80}
-                  onChange={(event) => setName(event.currentTarget.value)}
-                  placeholder="例如：笔记整理工具"
-                  value={name}
-                />
-              </label>
-              <div className="settings-api-form-row">
-                <span>领域权限</span>
-                <table
-                  aria-label="领域权限"
-                  className="settings-api-permission-table"
-                >
-                  <tbody>
-                    {automationDomains.map(({
-                      id,
-                      label,
-                      permissionLabel,
-                    }) => (
-                      <tr key={id}>
-                        <th scope="row">
-                          <label htmlFor={`settings-api-${id}-permission`}>
-                            {label}
-                          </label>
-                        </th>
-                        <td>
-                          <select
-                            aria-label={permissionLabel}
-                            className="ui-input"
-                            id={`settings-api-${id}-permission`}
-                            onChange={(event) =>
-                              updatePermission(
-                                id,
-                                event.currentTarget.value as PermissionLevel,
-                              )}
-                            value={permissions[id]}
-                          >
-                            {permissionLevels.map((level) => (
-                              <option key={level.value} value={level.value}>
-                                {level.label}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {permissions.workspace === "none"
-                ? null
-                : (
-                    <>
-                      <label className="settings-api-form-row">
-                        <span>仓库范围</span>
-                        <select
-                          className="ui-input"
-                          onChange={(event) =>
-                            setRepositoryIds(
-                              event.currentTarget.value === "all" ? null : [],
-                            )}
-                          value={repositoryIds === null ? "all" : "selected"}
-                        >
-                          <option value="all">全部 Workspace 仓库</option>
-                          <option
-                            disabled={apiAccess.repositories.length === 0}
-                            value="selected"
-                          >
-                            指定 Workspace 仓库
-                          </option>
-                        </select>
-                      </label>
-                      {repositoryIds === null
-                        ? null
-                        : (
-                            <label className="settings-api-form-row">
-                              <span>允许的仓库</span>
-                              <select
-                                aria-label="允许访问的 Workspace 仓库"
-                                className="ui-input settings-api-repository-select"
-                                multiple
-                                onChange={(event) =>
-                                  setRepositoryIds(
-                                    Array.from(
-                                      event.currentTarget.selectedOptions,
-                                      ({ value }) => value,
-                                    ),
-                                  )}
-                                size={Math.min(
-                                  Math.max(apiAccess.repositories.length, 2),
-                                  6,
-                                )}
-                                value={repositoryIds}
-                              >
-                                {apiAccess.repositories.map((repository) => (
-                                  <option
-                                    key={repository.id}
-                                    value={repository.id}
-                                  >
-                                    {repository.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                          )}
-                    </>
-                  )}
-              <div className="settings-api-form-action">
-                <Button
-                  disabled={
-                    loading ||
-                    name.trim().length === 0 ||
-                    scopes.length === 0 ||
-                    (
-                      permissions.workspace !== "none" &&
-                      repositoryIds !== null &&
-                      repositoryIds.length === 0
-                    )
-                  }
-                  onClick={() => void createToken()}
-                  type="button"
-                  variant="primary"
-                >
-                  创建令牌
-                </Button>
-              </div>
-            </div>
-          </Section>
-          <Section className="settings-api-section" title="现有令牌">
-            {loading && tokens.length === 0
-              ? <p className="settings-muted">正在加载…</p>
-              : (
-                  <TokenList
-                    onRevoke={(id) => void revokeToken(id)}
-                    repositories={apiAccess.repositories}
-                    tokens={tokens}
-                  />
+          <Section className="settings-api-section" title="Automation">
+            <FormLayout>
+              <FieldRow fieldId="settings-api-token-name" label="名称">
+                {(accessibility) => (
+                  <input {...accessibility} className="ui-input" maxLength={80} onChange={(event) => setName(event.currentTarget.value)} placeholder="例如：笔记整理工具" value={name} />
                 )}
+              </FieldRow>
+              {automationDomains.map(({ id, label, permissionLabel }) => (
+                <FieldRow
+                  fieldId={`settings-api-${id}-permission`}
+                  key={id}
+                  label={`${label} 权限`}
+                >
+                  {(accessibility) => (
+                    <select {...accessibility} aria-label={permissionLabel} className="ui-input" onChange={(event) => updatePermission(id, event.currentTarget.value as PermissionLevel)} value={permissions[id]}>
+                      {permissionLevels.map((level) => <option key={level.value} value={level.value}>{level.label}</option>)}
+                    </select>
+                  )}
+                </FieldRow>
+              ))}
+              {permissions.workspace !== "none" ? (
+                <>
+                  <FieldRow fieldId="settings-api-repository-scope" label="仓库范围">
+                    {(accessibility) => (
+                      <select {...accessibility} aria-label="仓库范围" className="ui-input" onChange={(event) => setRepositoryIds(event.currentTarget.value === "all" ? null : [])} value={repositoryIds === null ? "all" : "selected"}>
+                        <option value="all">全部 Workspace 仓库</option>
+                        <option disabled={apiAccess.repositories.length === 0} value="selected">指定 Workspace 仓库</option>
+                      </select>
+                    )}
+                  </FieldRow>
+                  {repositoryIds === null ? null : (
+                    <FieldRow fieldId="settings-api-allowed-repositories" label="允许的仓库">
+                      {(accessibility) => (
+                        <select {...accessibility} aria-label="允许访问的 Workspace 仓库" className="ui-input settings-api-repository-select" multiple onChange={(event) => setRepositoryIds(Array.from(event.currentTarget.selectedOptions, ({ value }) => value))} size={Math.min(Math.max(apiAccess.repositories.length, 2), 6)} value={repositoryIds}>
+                          {apiAccess.repositories.map((repository) => <option key={repository.id} value={repository.id}>{repository.label}</option>)}
+                        </select>
+                      )}
+                    </FieldRow>
+                  )}
+                </>
+              ) : null}
+              <FormActions>
+                <Button disabled={loading || name.trim().length === 0 || scopes.length === 0 || (permissions.workspace !== "none" && repositoryIds !== null && repositoryIds.length === 0)} onClick={() => void createToken()} type="button" variant="primary">创建令牌</Button>
+              </FormActions>
+            </FormLayout>
+            <h3 className="settings-subsection-heading">现有令牌</h3>
+            {loading && tokens.length === 0 ? <EmptyState compact description="正在读取自动化令牌。" title="正在加载" /> : <TokenList onRevoke={(id) => void revokeToken(id)} repositories={apiAccess.repositories} tokens={tokens} />}
           </Section>
           <Section className="settings-api-section" title="可信客户端">
-            <div className="settings-api-form">
-              <label className="settings-api-form-row">
-                <span>名称</span>
-                <input
-                  aria-label="可信客户端名称"
-                  className="ui-input"
-                  maxLength={80}
-                  onChange={(event) => setTrustedClientName(event.currentTarget.value)}
-                  placeholder="例如：每日 Codex"
-                  value={trustedClientName}
-                />
-              </label>
-              <p className="settings-muted">
-                该令牌等价于全部 Workspace、日记和代办内容的读取、创建、修改与删除权限。
-              </p>
-              <Button
-                disabled={loading || trustedClientName.trim().length === 0}
-                onClick={() => void createTrustedClientToken()}
-                type="button"
-                variant="primary"
-              >创建可信客户端令牌</Button>
-            </div>
+            <FormLayout>
+              <FieldRow description="该令牌等价于全部 Workspace、日记和代办内容的读取、创建、修改与删除权限。" fieldId="settings-trusted-client-name" label="名称">
+                {(accessibility) => (
+                  <input {...accessibility} aria-label="可信客户端名称" className="ui-input" maxLength={80} onChange={(event) => setTrustedClientName(event.currentTarget.value)} placeholder="例如：每日 Codex" value={trustedClientName} />
+                )}
+              </FieldRow>
+              <FormActions>
+                <Button disabled={loading || trustedClientName.trim().length === 0} onClick={() => void createTrustedClientToken()} type="button" variant="primary">创建可信客户端令牌</Button>
+              </FormActions>
+            </FormLayout>
             <TrustedClientTokenList
               onRevoke={(id) => void revokeTrustedClientToken(id)}
               tokens={trustedClientTokens}
             />
-          </Section>
-          <Section className="settings-api-section" title="操作">
-            <div className="settings-api-operation">
-              <Button
-                disabled={loading}
-                onClick={() => void load()}
-                type="button"
-              >
-                刷新
-              </Button>
-            </div>
           </Section>
         </div>
       </PanelBody>

@@ -6,7 +6,12 @@ import type {
   OperationAuditEntry,
   OperationAuditStatus,
 } from "../../../application/operations/operationAdministration";
-import { Button, Panel, PanelBody, PanelHeader, Section } from "../../ui/shared/primitives";
+import { Button, EmptyState, Panel, PanelBody, PanelHeader, Section } from "../../ui/shared/primitives";
+import {
+  ManagementList,
+  ManagementRow,
+} from "../../ui/shared/ManagementList";
+import { StatusBadge } from "../../ui/shared/StatusPresentation";
 
 function sourceLabel(source: OperationAuditEntry["source"]) {
   return source === "agent" ? "智能体" : "可信客户端";
@@ -103,7 +108,14 @@ export function OperationsSettingsPanel({
 
   return (
     <Panel aria-label="审计" className="settings-panel">
-      <PanelHeader title="审计" />
+      <PanelHeader
+        actions={(
+          <Button disabled={loading} onClick={() => void load()} type="button">
+            刷新
+          </Button>
+        )}
+        title="审计"
+      />
       <PanelBody scroll>
         <div className="settings-content-column settings-api-content">
           <p className="settings-muted">
@@ -115,31 +127,36 @@ export function OperationsSettingsPanel({
             : null}
           <Section className="settings-api-section" title="操作记录">
             {loading && entries.length === 0
-              ? <p className="settings-muted">正在加载…</p>
+              ? <EmptyState compact description="正在读取操作账本。" title="正在加载" />
               : entries.length === 0
-                ? <p className="settings-muted">尚无受审计写入记录。</p>
+                ? <EmptyState compact description="可信客户端与智能体写入会出现在这里。" title="尚无受审计写入记录" />
                 : (
-                    <div className="settings-api-table-wrap">
-                      <table aria-label="操作审计" className="settings-api-table">
-                        <thead><tr><th>时间</th><th>来源</th><th>目标</th><th>结果</th><th>变化</th><th>详情</th></tr></thead>
-                        <tbody>
-                          {entries.map((entry) => (
-                            <tr key={entry.id}>
-                              <td>{new Date(entry.updatedAt).toLocaleString()}</td>
-                              <td>{sourceLabel(entry.source)}</td>
-                              <td>{targetLabel(entry)}</td>
-                              <td>{resultLabel(entry.result)}</td>
-                              <td>{changeSummary(entry)}</td>
-                              <td><TechnicalDetails entry={entry} /></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    <ManagementList aria-label="操作审计">
+                      {entries.map((entry) => (
+                        <ManagementRow
+                          description={`${sourceLabel(entry.source)} · ${targetLabel(entry)} · ${changeSummary(entry)}`}
+                          key={entry.id}
+                          status={(
+                            <StatusBadge tone={
+                              entry.result === "committed" ||
+                                  entry.result === "auto-merged" ||
+                                  entry.result === "unchanged"
+                                ? "success"
+                                : entry.result === "failed" ||
+                                    entry.result === "conflict"
+                                  ? "danger"
+                                  : "warning"
+                            }>
+                              {resultLabel(entry.result)}
+                            </StatusBadge>
+                          )}
+                          title={new Date(entry.updatedAt).toLocaleString()}
+                        >
+                          <TechnicalDetails entry={entry} />
+                        </ManagementRow>
+                      ))}
+                    </ManagementList>
                   )}
-          </Section>
-          <Section className="settings-api-section" title="操作">
-            <Button disabled={loading} onClick={() => void load()} type="button">刷新</Button>
           </Section>
         </div>
       </PanelBody>

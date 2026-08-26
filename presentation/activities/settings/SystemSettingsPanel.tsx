@@ -7,6 +7,15 @@ import type {
 } from "../../../application/system";
 import { Button, Panel, PanelBody, PanelHeader, Section } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
+import {
+  FieldRow,
+  FormActions,
+  FormLayout,
+} from "../../ui/shared/FormLayout";
+import {
+  StatusBadge,
+  StatusSummary,
+} from "../../ui/shared/StatusPresentation";
 
 function toInput(
   configuration: SystemApplication["configurationState"]["configuration"],
@@ -80,25 +89,100 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
         <div className="settings-content-column settings-service-content">
           {configurationState.errorMessage ? <p className="settings-api-error" role="alert">{configurationState.errorMessage}</p> : null}
           <Section title="当前状态">
-            <p>当前数据根：<code>{snapshot.effectiveConfiguration.dataRoot}</code></p>
-            <p>当前监听：{snapshot.effectiveConfiguration.listenMode === "loopback" ? "仅本机" : "局域网"} · {snapshot.effectiveConfiguration.port}</p>
-            <p>下次访问地址：<code>{nextAddress}</code></p>
-            {snapshot.restartRequired ? <p role="status">设置已保存，服务将受控重启后生效。</p> : <p>当前配置已经生效。</p>}
+            <StatusSummary
+              ariaLabel="服务配置状态"
+              items={[
+                {
+                  label: "状态",
+                  value: (
+                    <StatusBadge tone={snapshot.restartRequired ? "warning" : "success"}>
+                      {snapshot.restartRequired ? "等待重启" : "已生效"}
+                    </StatusBadge>
+                  ),
+                },
+                {
+                  label: "当前监听",
+                  value: `${snapshot.effectiveConfiguration.listenMode === "loopback" ? "仅本机" : "局域网"} · ${snapshot.effectiveConfiguration.port}`,
+                },
+                {
+                  label: "当前数据根",
+                  value: <code>{snapshot.effectiveConfiguration.dataRoot}</code>,
+                },
+                { label: "下一访问地址", value: <code>{nextAddress}</code> },
+              ]}
+            />
+            {snapshot.restartRequired ? (
+              <p className="settings-muted" role="status">
+                设置已保存，服务将受控重启后生效。
+              </p>
+            ) : null}
           </Section>
 
           <Section title="网络与路径">
-            <form className="settings-managed-form" onSubmit={submit}>
-              <label><span>访问范围</span><select aria-label="服务访问范围" className="ui-input" onChange={(event) => setDraft({ ...draft, listenMode: event.currentTarget.value as "lan" | "loopback", publicOrigin: event.currentTarget.value === "loopback" ? null : draft.publicOrigin })} value={draft.listenMode}><option value="loopback">仅本机</option><option value="lan">局域网</option></select></label>
-              <label><span>端口</span><input aria-label="服务端口" className="ui-input" max="65535" min="1" onChange={(event) => setDraft({ ...draft, port: event.currentTarget.valueAsNumber })} required type="number" value={draft.port} /></label>
-              {draft.listenMode === "lan" ? <label><span>HTTPS 公开地址</span><input aria-label="HTTPS 公开地址" className="ui-input" onChange={(event) => setDraft({ ...draft, publicOrigin: event.currentTarget.value || null })} placeholder="https://tree.example.com" required value={draft.publicOrigin ?? ""} /></label> : null}
-              <label><span>宿主机仓库显示路径（可选）</span><input aria-label="宿主机仓库显示路径" className="ui-input" onChange={(event) => setDraft({ ...draft, repositoryHostRoot: event.currentTarget.value || null })} value={draft.repositoryHostRoot ?? ""} /></label>
-              <label><span>操作审计保留条数</span><input aria-label="操作审计保留条数" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxAuditEntries: event.currentTarget.valueAsNumber })} required type="number" value={draft.maxAuditEntries} /></label>
-              <Button disabled={busy} type="submit" variant="primary">保存服务设置</Button>
+            <form onSubmit={submit}>
+              <FormLayout>
+                <FieldRow fieldId="settings-system-listen-mode" label="访问范围">
+                  {(accessibility) => (
+                    <select
+                      {...accessibility}
+                      aria-label="服务访问范围"
+                      className="ui-input"
+                      onChange={(event) => setDraft({
+                        ...draft,
+                        listenMode: event.currentTarget.value as "lan" | "loopback",
+                        publicOrigin: event.currentTarget.value === "loopback"
+                          ? null
+                          : draft.publicOrigin,
+                      })}
+                      value={draft.listenMode}
+                    >
+                      <option value="loopback">仅本机</option>
+                      <option value="lan">局域网</option>
+                    </select>
+                  )}
+                </FieldRow>
+                <FieldRow fieldId="settings-system-port" label="端口">
+                  {(accessibility) => (
+                    <input {...accessibility} aria-label="服务端口" className="ui-input" max="65535" min="1" onChange={(event) => setDraft({ ...draft, port: event.currentTarget.valueAsNumber })} required type="number" value={draft.port} />
+                  )}
+                </FieldRow>
+                {draft.listenMode === "lan" ? (
+                  <FieldRow fieldId="settings-system-public-origin" label="HTTPS 公开地址">
+                    {(accessibility) => (
+                      <input {...accessibility} aria-label="HTTPS 公开地址" className="ui-input" onChange={(event) => setDraft({ ...draft, publicOrigin: event.currentTarget.value || null })} placeholder="https://tree.example.com" required value={draft.publicOrigin ?? ""} />
+                    )}
+                  </FieldRow>
+                ) : null}
+                <FieldRow fieldId="settings-system-host-root" label="宿主机显示路径">
+                  {(accessibility) => (
+                    <input {...accessibility} aria-label="宿主机仓库显示路径" className="ui-input" onChange={(event) => setDraft({ ...draft, repositoryHostRoot: event.currentTarget.value || null })} value={draft.repositoryHostRoot ?? ""} />
+                  )}
+                </FieldRow>
+                <FieldRow fieldId="settings-system-audit-limit" label="审计保留条数">
+                  {(accessibility) => (
+                    <input {...accessibility} aria-label="操作审计保留条数" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxAuditEntries: event.currentTarget.valueAsNumber })} required type="number" value={draft.maxAuditEntries} />
+                  )}
+                </FieldRow>
+                <FormActions>
+                  <Button disabled={busy} type="submit" variant="primary">保存服务设置</Button>
+                </FormActions>
+              </FormLayout>
             </form>
           </Section>
 
           <Section title="所有者凭据">
-            <p>{snapshot.ownerCredentialConfigured ? "已创建。远程浏览器可以用密钥登录。" : "尚未创建；局域网模式不能启用。"}</p>
+            <StatusSummary
+              ariaLabel="所有者凭据状态"
+              items={[{
+                label: "凭据",
+                value: (
+                  <StatusBadge tone={snapshot.ownerCredentialConfigured ? "success" : "warning"}>
+                    {snapshot.ownerCredentialConfigured ? "已创建" : "未创建"}
+                  </StatusBadge>
+                ),
+              }]}
+            />
+            <p className="settings-muted">{snapshot.ownerCredentialConfigured ? "远程浏览器可以用密钥登录。" : "局域网模式不能启用。"}</p>
             {configurationState.revealedOwnerSecret ? <div role="status"><p>请立即保存；关闭后无法再次查看：<code>{configurationState.revealedOwnerSecret}</code></p><Button onClick={() => configurationController.dismissRevealedOwnerSecret()} type="button">我已保存，关闭显示</Button></div> : null}
             <div className="ui-actions">
               <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.rotateOwnerCredential())} type="button">{snapshot.ownerCredentialConfigured ? "轮换密钥" : "创建密钥"}</Button>
@@ -111,14 +195,23 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
           </Section>
 
           <Section title="迁移数据根">
-            <p>迁移会先同步已加载内容，复制并校验权威数据，再重启服务。旧数据根保留为人工备份。</p>
-            <div className="settings-managed-inline-form">
-              <input aria-label="新数据根" className="ui-input" onChange={(event) => setMigrationDestination(event.currentTarget.value)} placeholder="不存在的绝对路径" value={migrationDestination} />
-              <Button disabled={busy || !migrationDestination} onClick={() => void feedback.runAction(async () => {
-                await configurationController.migrateDataRoot(migrationDestination);
-                reconnectAfterRestart(globalThis.location.origin);
-              })} type="button">开始迁移</Button>
-            </div>
+            <FormLayout>
+              <FieldRow
+                description="迁移会同步已加载内容，复制并校验权威数据，再重启服务；旧数据根保留为人工备份。"
+                fieldId="settings-system-data-root"
+                label="新数据根"
+              >
+                {(accessibility) => (
+                  <input {...accessibility} aria-label="新数据根" className="ui-input" onChange={(event) => setMigrationDestination(event.currentTarget.value)} placeholder="不存在的绝对路径" value={migrationDestination} />
+                )}
+              </FieldRow>
+              <FormActions>
+                <Button disabled={busy || !migrationDestination} onClick={() => void feedback.runAction(async () => {
+                  await configurationController.migrateDataRoot(migrationDestination);
+                  reconnectAfterRestart(globalThis.location.origin);
+                })} type="button">开始迁移</Button>
+              </FormActions>
+            </FormLayout>
             {configurationState.migration ? <p role="status">迁移状态：{configurationState.migration.status}{configurationState.migration.errorMessage ? ` · ${configurationState.migration.errorMessage}` : ""}</p> : null}
           </Section>
         </div>

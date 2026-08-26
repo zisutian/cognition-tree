@@ -34,8 +34,9 @@ test.describe("settings activity flows", () => {
     const panel = page.getByRole("region", { name: "服务设置" });
 
     await expect(panel).toContainText("当前数据根");
-    await expect(panel).toContainText("当前监听：仅本机 · 3001");
-    await expect(panel).toContainText("尚未创建；局域网模式不能启用");
+    await expect(panel).toContainText("当前监听");
+    await expect(panel).toContainText("仅本机 · 3001");
+    await expect(panel).toContainText("局域网模式不能启用");
     await panel.getByRole("button", { name: "创建密钥" }).click();
     const oneTimeSecret = panel.getByRole("status").filter({
       hasText: "关闭后无法再次查看",
@@ -49,7 +50,7 @@ test.describe("settings activity flows", () => {
     }).click();
     await expect(oneTimeSecret).toHaveCount(0);
     await panel.getByRole("button", { name: "清除凭据" }).click();
-    await expect(panel).toContainText("尚未创建；局域网模式不能启用");
+    await expect(panel).toContainText("局域网模式不能启用");
   });
 
   test("creates only read-scoped tokens and retains only the prefix", async ({
@@ -145,6 +146,7 @@ test.describe("settings activity flows", () => {
   test("persists an explicit Agent profile without unavailable fallback", async ({
     page,
   }) => {
+    await page.setViewportSize({ height: 900, width: 1440 });
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "设置").click();
     await page.locator(".settings-context")
@@ -153,8 +155,32 @@ test.describe("settings activity flows", () => {
     let selection = panel.getByRole("combobox", { name: "默认 Profile" });
 
     await expect(selection).toHaveValue("");
-    await expect(panel).toContainText("deterministic-e2e");
+    await expect(panel.getByRole("tab", { name: "概览" }))
+      .toHaveAttribute("aria-selected", "true");
+    await expect(panel.getByRole("combobox", { name: "Profile Provider" }))
+      .toHaveCount(0);
+    await panel.getByRole("tab", { name: "Provider" }).click();
+    await expect(panel).toContainText("E2E provider");
     await expect(panel).toContainText("认证已配置");
+    await expect(panel.getByRole("textbox", { name: "Provider 名称" }))
+      .toHaveCount(0);
+    const providerRow = panel.getByRole("list", { name: "Provider 列表" })
+      .getByRole("listitem")
+      .filter({ hasText: "E2E provider" });
+
+    await providerRow.getByRole("button", { name: "编辑" }).click();
+    const apiKey = panel.getByLabel("Provider API Key");
+
+    await apiKey.fill("discard-this-secret");
+    await panel.getByRole("button", { name: "取消" }).click();
+    await providerRow.getByRole("button", { name: "编辑" }).click();
+    await expect(panel.getByLabel("Provider API Key")).toHaveValue("");
+    await panel.getByRole("button", { name: "取消" }).click();
+    await panel.getByRole("tab", { name: "Profile" }).click();
+    await expect(panel).toContainText("deterministic-e2e");
+    await expect(panel.getByRole("combobox", { name: "Profile Provider" }))
+      .toHaveCount(0);
+    await panel.getByRole("button", { name: "新建 Profile" }).click();
     await panel.getByRole("combobox", { name: "Profile Provider" })
       .selectOption("agent-provider-e2e-provider");
     await expect(panel.getByRole("spinbutton", {
@@ -163,6 +189,17 @@ test.describe("settings activity flows", () => {
     await expect(panel).toContainText(
       "不会修改 Ollama num_ctx，也不代表模型的真实 token 上限",
     );
+    await page.locator(".settings-context")
+      .getByRole("button", { name: "服务", exact: true }).click();
+    await page.locator(".settings-context")
+      .getByRole("button", { name: "智能体", exact: true }).click();
+    panel = page.getByRole("region", { name: "智能体设置" });
+    await expect(panel.getByRole("tab", { name: "Profile" }))
+      .toHaveAttribute("aria-selected", "true");
+    await expect(panel.getByRole("combobox", { name: "Profile Provider" }))
+      .toHaveCount(0);
+    await panel.getByRole("tab", { name: "概览" }).click();
+    selection = panel.getByRole("combobox", { name: "默认 Profile" });
     await selection.selectOption(e2eAgentProfileId);
     await expect(selection).toHaveValue(e2eAgentProfileId);
 
@@ -191,7 +228,6 @@ test.describe("settings activity flows", () => {
     selection = panel.getByRole("combobox", { name: "默认 Profile" });
     await expect(selection).toHaveValue(e2eAgentUnavailableProfileId);
     await expect(panel).toContainText("E2E Agent Missing");
-    await expect(panel).toContainText("认证未配置");
 
     await getActivityButton(page, "智能体").click();
     await page.locator(".agent-context")
@@ -200,8 +236,12 @@ test.describe("settings activity flows", () => {
       name: "新建 Agent 会话",
     });
 
-    await expect(createPanel).toContainText("默认 Profile：E2E Agent Missing");
+    await expect(createPanel).toContainText("E2E Agent Missing");
     await expect(createPanel.getByRole("button", { name: "创建会话" }))
       .toBeDisabled();
+
+    expect(await page.evaluate(() =>
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth
+    )).toBe(true);
   });
 });

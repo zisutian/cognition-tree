@@ -251,6 +251,34 @@ describe("settings activity", () => {
         }}
       />,
     );
+    const agentProviderMarkup = renderToStaticMarkup(
+      <SettingsPanel
+        agent={agent}
+        agentPage="providers"
+        apiAccess={apiAccess}
+        operations={operations}
+        section="agent"
+        system={system}
+        workbench={{
+          contextWidth: appContextDefaultWidth,
+          onContextWidthChange: () => undefined,
+        }}
+      />,
+    );
+    const agentProfileMarkup = renderToStaticMarkup(
+      <SettingsPanel
+        agent={agent}
+        agentPage="profiles"
+        apiAccess={apiAccess}
+        operations={operations}
+        section="agent"
+        system={system}
+        workbench={{
+          contextWidth: appContextDefaultWidth,
+          onContextWidthChange: () => undefined,
+        }}
+      />,
+    );
     const serviceMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
@@ -293,7 +321,7 @@ describe("settings activity", () => {
     expectMarkupSemantics(apiMarkup, {
       has: [
         "创建令牌",
-        "领域权限",
+        "Automation",
         "Workspace 权限",
         "日记权限",
         "代办权限",
@@ -321,30 +349,50 @@ describe("settings activity", () => {
     expectMarkupSemantics(agentMarkup, {
       has: [
         'aria-label="智能体设置"',
+        'role="tablist"',
+        'role="tabpanel"',
+        "概览",
+        "Provider",
+        "Profile",
         "默认 Profile",
         "Codex Safe",
-        "gpt-5.6-codex",
+        "发现本地 Ollama",
+        "刷新状态",
+      ],
+      lacks: ["Provider 名称", "Profile Provider", "provider-secret"],
+    });
+    expectMarkupSemantics(agentProviderMarkup, {
+      has: [
+        'aria-label="Provider 列表"',
         "codex",
         "认证已配置",
-        "认证方式：ChatGPT 设备码",
+        "ChatGPT 设备码",
         "使用 ChatGPT 登录",
-        "发现本地 Ollama",
         "模型架构上限：262144 tokens",
         "当前驻留上下文：24576 tokens",
         "未加载，无法测量实际值",
         "已加载，但 Ollama 未报告实际值",
-        "凭据保存后",
-        "创建 Profile",
-        "刷新状态",
+        "新建 Provider",
       ],
-      lacks: ["provider-secret"],
+      lacks: ["Provider 名称", "Provider API Key"],
+    });
+    expectMarkupSemantics(agentProfileMarkup, {
+      has: [
+        'aria-label="Profile 列表"',
+        "gpt-5.6-codex",
+        "qwen3.8:27b",
+        "符合性检查",
+        "Tool-call conformance has not been verified",
+        "新建 Profile",
+      ],
+      lacks: ["Profile Provider", "Profile API Key"],
     });
     expectMarkupSemantics(serviceMarkup, {
       has: [
         'aria-label="服务设置"',
         "当前数据根",
         "/srv/cognition-tree",
-        "当前配置已经生效",
+        "已生效",
         "所有者凭据",
         "迁移数据根",
         "操作审计保留条数",

@@ -5,6 +5,7 @@ import {
   PanelBody,
   PanelHeader,
 } from "../../ui/shared/primitives";
+import { FieldRow, FormLayout } from "../../ui/shared/FormLayout";
 
 export type SettingsWorkbenchPreferences = {
   contextWidth: number;
@@ -21,26 +22,32 @@ export function InterfaceSettingsPanel({
       <PanelHeader title="界面" />
       <PanelBody scroll>
         <div className="settings-content-column">
-          <div className="settings-form-row">
-            <label htmlFor="settings-context-width">左侧栏宽度</label>
-            <input
-              className="ui-input settings-width-input"
-              id="settings-context-width"
-              max={420}
-              min={220}
-              onChange={(event) => {
-                const width = event.currentTarget.valueAsNumber;
+          <FormLayout>
+            <FieldRow
+              description="范围 220–420 px。"
+              fieldId="settings-context-width"
+              label="左侧栏宽度"
+            >
+              {(accessibility) => (
+                <input
+                  {...accessibility}
+                  className="ui-input settings-width-input"
+                  max={420}
+                  min={220}
+                  onChange={(event) => {
+                    const width = event.currentTarget.valueAsNumber;
 
-                if (Number.isFinite(width)) {
-                  workbench.onContextWidthChange(width);
-                }
-              }}
-              step={1}
-              type="number"
-              value={workbench.contextWidth}
-            />
-            <span>px</span>
-          </div>
+                    if (Number.isFinite(width)) {
+                      workbench.onContextWidthChange(width);
+                    }
+                  }}
+                  step={1}
+                  type="number"
+                  value={workbench.contextWidth}
+                />
+              )}
+            </FieldRow>
+          </FormLayout>
         </div>
       </PanelBody>
     </Panel>
