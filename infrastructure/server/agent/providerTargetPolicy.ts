@@ -78,7 +78,7 @@ export class AgentProviderTargetPolicy {
 
   configurationPermission(
     endpoint: URL,
-    authenticationType: "bearer" | "none",
+    authenticationType: "api-key" | "none",
     confirmed: boolean,
   ) {
     if (endpoint.hostname === "metadata.google.internal") {
@@ -97,7 +97,7 @@ export class AgentProviderTargetPolicy {
     }
     const loopback = isLoopbackHostname(endpoint.hostname);
 
-    if (authenticationType === "bearer" && !loopback &&
+    if (authenticationType === "api-key" && !loopback &&
         endpoint.protocol !== "https:") {
       throw new AgentProviderTargetValidationError(
         "Remote providers with credentials must use HTTPS",

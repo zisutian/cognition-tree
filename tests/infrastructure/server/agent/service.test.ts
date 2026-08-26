@@ -108,7 +108,7 @@ async function createFixture(behavior: TurnBehavior) {
     configuration.revision,
     {
       apiKey: "server-secret",
-      authenticationType: "bearer",
+      authenticationType: "api-key",
       baseUrl: "https://runtime.invalid/v1",
       kind: "openai-chat",
       label: "Fake OpenAI provider",

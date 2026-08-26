@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { chmod, lstat, mkdir, readFile } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import {
-  isSecureDirectory,
   isSecureRegularFile,
   replaceFileDurably,
 } from "../persistence/fileSystemPersistence.ts";
+import { ensureSecureStateDirectory } from "./secureStateFileSystem.ts";
 
 export class SecureStatePartitionError extends Error {
   readonly partition: string;
@@ -21,28 +21,6 @@ export class SecureStatePartitionError extends Error {
 
 function isMissing(error: unknown) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-
-async function ensureSecureStateDirectory(directory: string) {
-  let stats;
-
-  try {
-    stats = await lstat(directory);
-  } catch (error) {
-    if (!isMissing(error)) throw error;
-    await mkdir(directory, { mode: 0o700, recursive: true });
-    stats = await lstat(directory);
-  }
-  if (!stats.isDirectory() || stats.isSymbolicLink()) {
-    throw new Error("State directory is not a regular directory.");
-  }
-  if ((stats.mode & 0o777) !== 0o700) {
-    await chmod(directory, 0o700);
-    stats = await lstat(directory);
-  }
-  if (!isSecureDirectory(stats)) {
-    throw new Error("State directory is not secure.");
-  }
 }
 
 export function requireStateRecord(

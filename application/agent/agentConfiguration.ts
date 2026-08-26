@@ -70,7 +70,7 @@ export type AgentConfigurationSnapshot = Readonly<{
 
 export type AgentProviderInput = Readonly<{
   apiKey?: string | null;
-  authenticationType: "bearer" | "none";
+  authenticationType: "api-key" | "none";
   baseUrl: string | null;
   kind: AgentProviderKind;
   label: string;

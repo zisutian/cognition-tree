@@ -29,6 +29,7 @@ import type { DataRootMigrationCoordinator } from "./systemAdministrationService
 const authoritativePartitions = [
   "repositories",
   "server/access-v1",
+  "server/agent-auth-v1",
   "server/agent-config-v1",
   "server/agent-v2",
 ] as const;

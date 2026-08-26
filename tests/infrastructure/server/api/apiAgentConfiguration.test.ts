@@ -19,13 +19,33 @@ describe("Agent configuration admin API", () => {
         body: { profiles: [], providers: [] },
         statusCode: 200,
       });
+      const legacyAuthentication = await dispatch<{ code: string }>(handler, {
+        body: {
+          baseRevision: empty.body!.revision,
+          provider: {
+            apiKey: "legacy-secret",
+            authenticationType: "bearer",
+            baseUrl: "https://models.example.invalid/v1",
+            kind: "openai-chat",
+            label: "Legacy provider",
+            privateNetworkAccessConfirmed: false,
+          },
+        },
+        method: "POST",
+        url: "/api/v3/admin/agent-providers",
+      });
+
+      expect(legacyAuthentication).toMatchObject({
+        body: { code: "invalid_request" },
+        statusCode: 400,
+      });
       const secret = "agent-provider-secret";
       const withProvider = await dispatch<AgentConfigurationSnapshot>(handler, {
         body: {
           baseRevision: empty.body!.revision,
           provider: {
             apiKey: secret,
-            authenticationType: "bearer",
+            authenticationType: "api-key",
             baseUrl: "https://models.example.invalid/v1",
             kind: "openai-chat",
             label: "OpenAI compatible",
@@ -138,7 +158,19 @@ describe("Agent configuration admin API", () => {
 
       expect((await lstat(path.dirname(file))).mode & 0o777).toBe(0o700);
       expect((await lstat(file)).mode & 0o777).toBe(0o600);
-      expect(await readFile(file, "utf8")).toContain(secret);
+      expect(await readFile(file, "utf8")).not.toContain(secret);
+      const credentialFile = path.join(
+        rootDirectory,
+        "server-state",
+        "agent-auth-v1",
+        "providers",
+        withProvider.body!.providers[0]!.id,
+        "api-key-v1.json",
+      );
+
+      expect((await lstat(path.dirname(credentialFile))).mode & 0o777).toBe(0o700);
+      expect((await lstat(credentialFile)).mode & 0o777).toBe(0o600);
+      expect(await readFile(credentialFile, "utf8")).toContain(secret);
     });
   });
 

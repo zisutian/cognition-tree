@@ -105,7 +105,7 @@ export const AgentProviderMutationRequestSchema = strictObject({
   provider: strictObject({
     apiKey: Type.Optional(nullable(Type.String({ minLength: 1 }))),
     authenticationType: Type.Union([
-      Type.Literal("bearer"),
+      Type.Literal("api-key"),
       Type.Literal("none"),
     ]),
     baseUrl: nullable(Type.String({ minLength: 1 })),

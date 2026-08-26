@@ -43,7 +43,7 @@ describe("Agent configuration store", () => {
     const initial = await store.readSnapshot();
     const created = await store.createProvider(initial.revision, {
       apiKey: "provider-secret",
-      authenticationType: "bearer",
+      authenticationType: "api-key",
       baseUrl: null,
       kind: "codex",
       label: "Codex",
@@ -64,10 +64,261 @@ describe("Agent configuration store", () => {
     );
     const source = await readFile(file, "utf8");
     const fileStats = await stat(file);
+    const credentialFile = path.join(
+      directory,
+      "agent-auth-v1",
+      "providers",
+      created.provider.id,
+      "api-key-v1.json",
+    );
 
-    expect(source).toContain("provider-secret");
-    expect(JSON.parse(source)).toMatchObject({ formatVersion: 4 });
+    expect(source).not.toContain("provider-secret");
+    expect(JSON.parse(source)).toMatchObject({ formatVersion: 5 });
+    expect(await readFile(credentialFile, "utf8")).toContain("provider-secret");
+    expect((await stat(path.dirname(credentialFile))).mode & 0o777).toBe(0o700);
+    expect((await stat(credentialFile)).mode & 0o777).toBe(0o600);
     expect(fileStats.mode & 0o777).toBe(0o600);
+  });
+
+  it("moves format 4 API keys into the credential partition before switching authority", async () => {
+    const { directory, store } = await createStore();
+    const initial = await store.readSnapshot();
+    const provider = await store.createProvider(initial.revision, {
+      apiKey: "legacy-provider-secret",
+      authenticationType: "api-key",
+      baseUrl: "https://models.example.invalid/v1",
+      kind: "openai-chat",
+      label: "Legacy provider",
+      privateNetworkAccessConfirmed: false,
+    });
+    const profile = await store.createProfile(provider.configuration.revision, {
+      label: "Legacy profile",
+      maxResidentSessions: 1,
+      model: "legacy-model",
+      parameters: {
+        historyBudgetCharacters: 65_536,
+        kind: "chat",
+        maxOutputTokens: 1_024,
+        maxToolSteps: 8,
+        reasoningEffort: "model-default",
+        toolCallMode: "native",
+      },
+      providerId: provider.provider.id,
+      timeoutMilliseconds: 60_000,
+    });
+    await store.setConformance(profile.configuration.revision, profile.profile.id, {
+      checkedAt: "2026-08-25T00:00:00.000Z",
+      toolCallMode: "native",
+    });
+    const configurationFile = path.join(
+      directory,
+      "agent-config-v1",
+      "configuration.json",
+    );
+    const legacy = JSON.parse(await readFile(configurationFile, "utf8")) as {
+      formatVersion: number;
+      providers: Array<{ authentication: unknown }>;
+    };
+
+    legacy.formatVersion = 4;
+    legacy.providers[0]!.authentication = {
+      apiKey: "legacy-provider-secret",
+      type: "bearer",
+    };
+    await writeFile(configurationFile, `${JSON.stringify(legacy)}\n`, {
+      mode: 0o600,
+    });
+    await rm(path.join(directory, "agent-auth-v1"), {
+      force: true,
+      recursive: true,
+    });
+
+    const migratedStore = new AgentConfigurationStore(directory);
+    const migrated = await migratedStore.readSnapshot();
+    const source = await readFile(configurationFile, "utf8");
+    const credentialFile = path.join(
+      directory,
+      "agent-auth-v1",
+      "providers",
+      provider.provider.id,
+      "api-key-v1.json",
+    );
+
+    expect(migrated).toMatchObject({
+      profiles: [{ conformance: null }],
+      providers: [{ authenticationStatus: "configured" }],
+    });
+    expect(source).not.toContain("legacy-provider-secret");
+    expect(JSON.parse(source)).toMatchObject({
+      formatVersion: 5,
+      providers: [{
+        authentication: {
+          credential: {
+            reference: `providers/${provider.provider.id}/api-key-v1.json`,
+            version: 1,
+          },
+          type: "api-key",
+        },
+      }],
+    });
+    expect(await readFile(credentialFile, "utf8"))
+      .toContain("legacy-provider-secret");
+    await expect(migratedStore.resolveProvider(provider.provider.id))
+      .resolves.toMatchObject({ apiKey: "legacy-provider-secret" });
+  });
+
+  it("does not switch format 4 authority when credential migration cannot be written", async () => {
+    const { directory, store } = await createStore();
+    const initial = await store.readSnapshot();
+    const provider = await store.createProvider(initial.revision, {
+      apiKey: "legacy-provider-secret",
+      authenticationType: "api-key",
+      baseUrl: "https://models.example.invalid/v1",
+      kind: "openai-chat",
+      label: "Legacy provider",
+      privateNetworkAccessConfirmed: false,
+    });
+    const configurationFile = path.join(
+      directory,
+      "agent-config-v1",
+      "configuration.json",
+    );
+    const legacy = JSON.parse(await readFile(configurationFile, "utf8"));
+
+    legacy.formatVersion = 4;
+    legacy.providers[0].authentication = {
+      apiKey: "legacy-provider-secret",
+      type: "bearer",
+    };
+    const source = `${JSON.stringify(legacy)}\n`;
+
+    await writeFile(configurationFile, source, { mode: 0o600 });
+    await rm(path.join(directory, "agent-auth-v1"), {
+      force: true,
+      recursive: true,
+    });
+    await writeFile(path.join(directory, "agent-auth-v1"), "blocked", {
+      mode: 0o600,
+    });
+
+    await expect(new AgentConfigurationStore(directory).readSnapshot())
+      .rejects.toThrow("not a regular directory");
+    expect(await readFile(configurationFile, "utf8")).toBe(source);
+    expect(provider.provider.authenticationStatus).toBe("configured");
+  });
+
+  it("replaces and clears API keys without retaining superseded credential files", async () => {
+    const { directory, store } = await createStore();
+    const initial = await store.readSnapshot();
+    const created = await store.createProvider(initial.revision, {
+      apiKey: "first-secret",
+      authenticationType: "api-key",
+      baseUrl: "https://models.example.invalid/v1",
+      kind: "openai-chat",
+      label: "Provider",
+      privateNetworkAccessConfirmed: false,
+    });
+    const providerDirectory = path.join(
+      directory,
+      "agent-auth-v1",
+      "providers",
+      created.provider.id,
+    );
+    const replaced = await store.updateProvider(
+      created.configuration.revision,
+      created.provider.id,
+      {
+        apiKey: "second-secret",
+        authenticationType: "api-key",
+        baseUrl: "https://models.example.invalid/v1",
+        kind: "openai-chat",
+        label: "Provider",
+        privateNetworkAccessConfirmed: false,
+      },
+    );
+
+    await expect(readFile(path.join(providerDirectory, "api-key-v1.json")))
+      .rejects.toMatchObject({ code: "ENOENT" });
+    expect(await readFile(path.join(providerDirectory, "api-key-v2.json"), "utf8"))
+      .toContain("second-secret");
+    await expect(store.resolveProvider(created.provider.id)).resolves.toMatchObject({
+      apiKey: "second-secret",
+    });
+
+    const cleared = await store.updateProvider(
+      replaced.configuration.revision,
+      created.provider.id,
+      {
+        apiKey: null,
+        authenticationType: "api-key",
+        baseUrl: "https://models.example.invalid/v1",
+        kind: "openai-chat",
+        label: "Provider",
+        privateNetworkAccessConfirmed: false,
+      },
+    );
+
+    expect(cleared.provider.authenticationStatus).toBe("missing");
+    await expect(readFile(path.join(providerDirectory, "api-key-v2.json")))
+      .rejects.toMatchObject({ code: "ENOENT" });
+    await expect(store.resolveProvider(created.provider.id)).resolves.toMatchObject({
+      apiKey: null,
+    });
+  });
+
+  it("fails closed when a credential file no longer matches its reference", async () => {
+    const { directory, store } = await createStore();
+    const initial = await store.readSnapshot();
+    const created = await store.createProvider(initial.revision, {
+      apiKey: "provider-secret",
+      authenticationType: "api-key",
+      baseUrl: "https://models.example.invalid/v1",
+      kind: "openai-chat",
+      label: "Provider",
+      privateNetworkAccessConfirmed: false,
+    });
+    const credentialFile = path.join(
+      directory,
+      "agent-auth-v1",
+      "providers",
+      created.provider.id,
+      "api-key-v1.json",
+    );
+    const damaged = JSON.parse(await readFile(credentialFile, "utf8"));
+
+    damaged.apiKey = "tampered-secret";
+    await writeFile(credentialFile, `${JSON.stringify(damaged)}\n`, { mode: 0o600 });
+
+    await expect(store.resolveProvider(created.provider.id))
+      .rejects.toThrow("reference verification failed");
+  });
+
+  it("rejects credential references that escape the provider partition", async () => {
+    const { directory, store } = await createStore();
+    const initial = await store.readSnapshot();
+    await store.createProvider(initial.revision, {
+      apiKey: "provider-secret",
+      authenticationType: "api-key",
+      baseUrl: "https://models.example.invalid/v1",
+      kind: "openai-chat",
+      label: "Provider",
+      privateNetworkAccessConfirmed: false,
+    });
+    const configurationFile = path.join(
+      directory,
+      "agent-config-v1",
+      "configuration.json",
+    );
+    const damaged = JSON.parse(await readFile(configurationFile, "utf8"));
+
+    damaged.providers[0].authentication.credential.reference =
+      "providers/../../outside.json";
+    await writeFile(configurationFile, `${JSON.stringify(damaged)}\n`, {
+      mode: 0o600,
+    });
+
+    await expect(new AgentConfigurationStore(directory).readSnapshot())
+      .rejects.toThrow("credential reference is invalid");
   });
 
   it("uses exact CAS and versioned provider/profile digests", async () => {
@@ -75,7 +326,7 @@ describe("Agent configuration store", () => {
     const initial = await store.readSnapshot();
     const providerResult = await store.createProvider(initial.revision, {
       apiKey: "provider-secret",
-      authenticationType: "bearer",
+      authenticationType: "api-key",
       baseUrl: null,
       kind: "codex",
       label: "Codex",
@@ -288,7 +539,7 @@ describe("Agent configuration store", () => {
       privateNetworkAccess: "not-required",
     });
     expect(JSON.parse(await readFile(file, "utf8"))).toMatchObject({
-      formatVersion: 4,
+      formatVersion: 5,
       providers: [{ privateNetworkOrigin: null }],
     });
   });
@@ -379,7 +630,7 @@ describe("Agent configuration store", () => {
         version: 2,
       },
     ]);
-    expect(persisted).toMatchObject({ formatVersion: 4 });
+    expect(persisted).toMatchObject({ formatVersion: 5 });
     expect(JSON.stringify(persisted)).not.toContain("contextWindowTokens");
   });
 
@@ -436,7 +687,7 @@ describe("Agent configuration store", () => {
       version: legacy.profiles[0]!.version + 1,
     });
     expect(persisted).toMatchObject({
-      formatVersion: 4,
+      formatVersion: 5,
       profiles: [{
         conformance: null,
         parameters: { reasoningEffort: "model-default" },
@@ -500,7 +751,7 @@ describe("Agent configuration store", () => {
     }, "outside the allowed network targets"],
     [{
       apiKey: "secret",
-      authenticationType: "bearer" as const,
+      authenticationType: "api-key" as const,
       baseUrl: "http://models.example.invalid/v1",
       kind: "openai-chat" as const,
     }, "Remote providers with credentials must use HTTPS"],

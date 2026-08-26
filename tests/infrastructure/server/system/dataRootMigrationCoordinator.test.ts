@@ -37,6 +37,7 @@ async function fixture(hasResidentSessions = false) {
   for (const relative of [
     "repositories/primary/note.ctn",
     "server/access-v1/automation-tokens.json",
+    "server/agent-auth-v1/providers/provider-1/api-key-v1.json",
     "server/agent-config-v1/configuration.json",
     "server/agent-v2/operations.json",
     "server/api-v1/legacy.json",
@@ -120,6 +121,13 @@ describe("data-root migration coordinator", () => {
       path.join(target, "repositories/primary/note.ctn"),
       "utf8",
     )).toBe("repositories/primary/note.ctn");
+    expect(await readFile(
+      path.join(
+        target,
+        "server/agent-auth-v1/providers/provider-1/api-key-v1.json",
+      ),
+      "utf8",
+    )).toBe("server/agent-auth-v1/providers/provider-1/api-key-v1.json");
     await expect(access(path.join(target, "server/api-v1/legacy.json")))
       .rejects.toMatchObject({ code: "ENOENT" });
     await expect(access(path.join(target, "server/agent-v1/legacy.json")))

@@ -24,13 +24,23 @@ import {
 } from "../state/secureJsonPartition.ts";
 import { createStateDigest } from "../state/stateDigest.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
+import {
+  AgentProviderCredentialStore,
+  type AgentCredentialReference,
+  validateAgentCredentialReference,
+} from "./providerCredentialStore.ts";
 
-const formatVersion = 4;
+const formatVersion = 5;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const requiresFormatRewrite = Symbol("requiresAgentConfigurationFormatRewrite");
+const legacyApiKey = Symbol("legacyAgentProviderApiKey");
 
 type StoredAuthentication =
-  | { apiKey: string | null; type: "bearer" }
+  | {
+      credential: AgentCredentialReference | null;
+      type: "api-key";
+      [legacyApiKey]?: string | null;
+    }
   | { type: "none" };
 
 type StoredProvider = {
@@ -140,6 +150,53 @@ function parseAuthentication(value: unknown, pathLabel: string): StoredAuthentic
     assertStateFields(record, ["type"], pathLabel);
     return { type: "none" };
   }
+  if (record.type === "api-key") {
+    assertStateFields(record, ["credential", "type"], pathLabel);
+    if (record.credential === null) {
+      return { credential: null, type: "api-key" };
+    }
+    const credential = requireStateRecord(
+      record.credential,
+      `${pathLabel}.credential`,
+    );
+
+    assertStateFields(
+      credential,
+      ["digest", "reference", "version"],
+      `${pathLabel}.credential`,
+    );
+    if (typeof credential.reference !== "string" ||
+        credential.reference.length === 0) {
+      throw new Error(`${pathLabel}.credential.reference is invalid.`);
+    }
+    return {
+      credential: validateAgentCredentialReference({
+        digest: parseDigest(
+          credential.digest,
+          `${pathLabel}.credential.digest`,
+        ),
+        reference: credential.reference,
+        version: positiveInteger(
+          credential.version,
+          `${pathLabel}.credential.version`,
+        ),
+      }),
+      type: "api-key",
+    };
+  }
+  throw new Error(`${pathLabel}.type is invalid.`);
+}
+
+function parseLegacyAuthentication(
+  value: unknown,
+  pathLabel: string,
+): StoredAuthentication {
+  const record = requireStateRecord(value, pathLabel);
+
+  if (record.type === "none") {
+    assertStateFields(record, ["type"], pathLabel);
+    return { type: "none" };
+  }
   if (record.type === "bearer") {
     assertStateFields(record, ["apiKey", "type"], pathLabel);
     if (record.apiKey !== null && typeof record.apiKey !== "string") {
@@ -148,7 +205,16 @@ function parseAuthentication(value: unknown, pathLabel: string): StoredAuthentic
     if (typeof record.apiKey === "string" && record.apiKey.length === 0) {
       throw new Error(`${pathLabel}.apiKey cannot be empty.`);
     }
-    return { apiKey: record.apiKey as string | null, type: "bearer" };
+    const authentication: StoredAuthentication = {
+      credential: null,
+      type: "api-key",
+    };
+
+    Object.defineProperty(authentication, legacyApiKey, {
+      configurable: true,
+      value: record.apiKey as string | null,
+    });
+    return authentication;
   }
   throw new Error(`${pathLabel}.type is invalid.`);
 }
@@ -157,6 +223,7 @@ function parseProvider(
   value: unknown,
   index: number,
   legacyWithoutPrivatePermission = false,
+  legacyInlineCredential = false,
 ): StoredProvider {
   const pathLabel = `providers[${index}]`;
   const record = requireStateRecord(value, pathLabel);
@@ -173,13 +240,12 @@ function parseProvider(
     throw new Error(`${pathLabel}.kind is invalid.`);
   }
   const kind = record.kind as AgentProviderKind;
-  const authentication = parseAuthentication(
-    record.authentication,
-    `${pathLabel}.authentication`,
-  );
+  const authentication = legacyInlineCredential
+    ? parseLegacyAuthentication(record.authentication, `${pathLabel}.authentication`)
+    : parseAuthentication(record.authentication, `${pathLabel}.authentication`);
 
-  if (kind === "codex" && authentication.type !== "bearer") {
-    throw new Error(`${pathLabel} Codex authentication must be bearer.`);
+  if (kind === "codex" && authentication.type !== "api-key") {
+    throw new Error(`${pathLabel} Codex authentication must be api-key.`);
   }
   const baseUrl = kind === "codex"
     ? record.baseUrl === null
@@ -407,8 +473,9 @@ function parseConfigurationState(value: unknown): AgentConfigurationState {
   const legacyChatBudget = record.formatVersion === 1 ||
     record.formatVersion === 2;
   const legacyChatReasoning = legacyChatBudget || record.formatVersion === 3;
+  const legacyInlineCredential = legacyChatReasoning || record.formatVersion === 4;
 
-  if ((!legacyChatReasoning && record.formatVersion !== formatVersion) ||
+  if ((!legacyInlineCredential && record.formatVersion !== formatVersion) ||
       !Array.isArray(record.profiles) || !Array.isArray(record.providers)) {
     throw new Error("Agent configuration state has an invalid format.");
   }
@@ -418,7 +485,12 @@ function parseConfigurationState(value: unknown): AgentConfigurationState {
       parseProfile(profile, index, legacyChatBudget, legacyChatReasoning)
     ),
     providers: record.providers.map((provider, index) =>
-      parseProvider(provider, index, legacyWithoutPrivatePermission)
+      parseProvider(
+        provider,
+        index,
+        legacyWithoutPrivatePermission,
+        legacyInlineCredential,
+      )
     ),
   };
 
@@ -461,7 +533,7 @@ function providerView(provider: StoredProvider): AgentProviderView {
   return {
     authenticationStatus: provider.authentication.type === "none"
       ? "not-required"
-      : provider.authentication.apiKey
+      : provider.authentication.credential
         ? "configured"
         : "missing",
     baseUrl: provider.baseUrl,
@@ -482,8 +554,8 @@ function profileView(
 ): AgentProfileView {
   const currentProfileDigest = profileDigest(profile);
   const currentProviderDigest = providerDigest(provider);
-  const authenticationMissing = provider.authentication.type === "bearer" &&
-    !provider.authentication.apiKey;
+  const authenticationMissing = provider.authentication.type === "api-key" &&
+    !provider.authentication.credential;
   const requiresConformance = provider.kind !== "codex";
   const conformanceCurrent = profile.conformance !== null &&
     profile.conformance.profileDigest === currentProfileDigest &&
@@ -543,8 +615,7 @@ function assertBaseRevision(
 function normalizeProviderInput(
   input: AgentProviderInput,
   targetPolicy: AgentProviderTargetPolicy,
-  previous?: StoredProvider,
-): Omit<StoredProvider, "id" | "version"> {
+): Omit<StoredProvider, "authentication" | "id" | "version"> {
   const label = nonEmptyString(input.label, "Provider label");
   const baseUrl = input.kind === "codex"
     ? input.baseUrl === null
@@ -554,23 +625,13 @@ function normalizeProviderInput(
         })()
     : parseBaseUrl(input.baseUrl, "Provider baseUrl");
 
-  if (input.kind === "codex" && input.authenticationType !== "bearer") {
-    throw new AgentConfigurationValidationError("Codex authentication must be bearer");
+  if (input.kind === "codex" && input.authenticationType !== "api-key") {
+    throw new AgentConfigurationValidationError("Codex authentication must be api-key");
   }
   if (input.authenticationType === "none" && input.apiKey !== undefined) {
     throw new AgentConfigurationValidationError("auth:none cannot include an API key");
   }
-  const previousKey = previous?.authentication.type === "bearer"
-    ? previous.authentication.apiKey
-    : null;
-  const authentication: StoredAuthentication = input.authenticationType === "none"
-    ? { type: "none" }
-    : {
-        apiKey: input.apiKey === undefined ? previousKey : input.apiKey,
-        type: "bearer",
-      };
-
-  if (authentication.type === "bearer" && authentication.apiKey === "") {
+  if (input.authenticationType === "api-key" && input.apiKey === "") {
     throw new AgentConfigurationValidationError("API key cannot be empty");
   }
   const privateNetworkOrigin = baseUrl === null
@@ -582,7 +643,6 @@ function normalizeProviderInput(
       );
 
   return {
-    authentication,
     baseUrl,
     kind: input.kind,
     label,
@@ -637,6 +697,7 @@ function normalizeProfileInput(
 
 export class AgentConfigurationStore {
   readonly #createId: () => string;
+  readonly #credentialStore: AgentProviderCredentialStore;
   #initialize: Promise<void> | null = null;
   readonly #partition: SecureJsonPartition<AgentConfigurationState>;
   readonly #targetPolicy: AgentProviderTargetPolicy;
@@ -652,6 +713,7 @@ export class AgentConfigurationStore {
     } = {},
   ) {
     this.#createId = createId;
+    this.#credentialStore = new AgentProviderCredentialStore(stateDirectory);
     this.#targetPolicy = targetPolicy;
     this.#partition = new SecureJsonPartition<AgentConfigurationState>({
       createInitial: () => ({ formatVersion, profiles: [], providers: [] }),
@@ -666,8 +728,8 @@ export class AgentConfigurationStore {
     return this.#read(configurationSnapshot);
   }
 
-  resolveProfile(profileId: string): Promise<ResolvedAgentConfiguration | null> {
-    return this.#read((state) => {
+  async resolveProfile(profileId: string): Promise<ResolvedAgentConfiguration | null> {
+    const resolved = await this.#read((state) => {
       const storedProfile = state.profiles.find(({ id }) => id === profileId);
 
       if (!storedProfile) return null;
@@ -675,37 +737,58 @@ export class AgentConfigurationStore {
         id === storedProfile.providerId
       )!;
       return {
-        apiKey: storedProvider.authentication.type === "bearer"
-          ? storedProvider.authentication.apiKey
+        credential: storedProvider.authentication.type === "api-key"
+          ? storedProvider.authentication.credential
           : null,
         privateNetworkOrigin: storedProvider.privateNetworkOrigin,
         profile: profileView(storedProfile, storedProvider),
         provider: providerView(storedProvider),
       };
     });
+
+    if (!resolved) return null;
+    return {
+      apiKey: resolved.credential
+        ? await this.#credentialStore.readApiKey(resolved.credential)
+        : null,
+      privateNetworkOrigin: resolved.privateNetworkOrigin,
+      profile: resolved.profile,
+      provider: resolved.provider,
+    };
   }
 
-  resolveProvider(providerId: string): Promise<ResolvedAgentProvider | null> {
-    return this.#read((state) => {
+  async resolveProvider(providerId: string): Promise<ResolvedAgentProvider | null> {
+    const resolved = await this.#read((state) => {
       const storedProvider = state.providers.find(({ id }) => id === providerId);
 
       if (!storedProvider) return null;
       return {
-        apiKey: storedProvider.authentication.type === "bearer"
-          ? storedProvider.authentication.apiKey
+        credential: storedProvider.authentication.type === "api-key"
+          ? storedProvider.authentication.credential
           : null,
         privateNetworkOrigin: storedProvider.privateNetworkOrigin,
         provider: providerView(storedProvider),
       };
     });
+
+    if (!resolved) return null;
+    return {
+      apiKey: resolved.credential
+        ? await this.#credentialStore.readApiKey(resolved.credential)
+        : null,
+      privateNetworkOrigin: resolved.privateNetworkOrigin,
+      provider: resolved.provider,
+    };
   }
 
   createProvider(baseRevision: string, input: AgentProviderInput) {
-    return this.#mutate((state) => {
+    return this.#mutate(async (state) => {
       assertBaseRevision(state, baseRevision);
+      const id = `agent-provider-${this.#createId()}`;
       const provider: StoredProvider = {
         ...normalizeProviderInput(input, this.#targetPolicy),
-        id: `agent-provider-${this.#createId()}`,
+        authentication: await this.#authenticationForInput(id, input),
+        id,
         version: 1,
       };
 
@@ -720,12 +803,12 @@ export class AgentConfigurationStore {
     });
   }
 
-  updateProvider(
+  async updateProvider(
     baseRevision: string,
     providerId: string,
     input: AgentProviderInput,
   ) {
-    return this.#mutate((state) => {
+    const outcome = await this.#mutate(async (state) => {
       assertBaseRevision(state, baseRevision);
       const index = state.providers.findIndex(({ id }) => id === providerId);
 
@@ -734,7 +817,12 @@ export class AgentConfigurationStore {
       }
       const previous = state.providers[index]!;
       const provider: StoredProvider = {
-        ...normalizeProviderInput(input, this.#targetPolicy, previous),
+        ...normalizeProviderInput(input, this.#targetPolicy),
+        authentication: await this.#authenticationForInput(
+          previous.id,
+          input,
+          previous.authentication,
+        ),
         id: previous.id,
         version: previous.version + 1,
       };
@@ -743,18 +831,35 @@ export class AgentConfigurationStore {
         if (profile.providerId === providerId) profile.conformance = null;
       }
       state.providers[index] = provider;
+      const previousCredential = previous.authentication.type === "api-key"
+        ? previous.authentication.credential
+        : null;
+      const nextCredential = provider.authentication.type === "api-key"
+        ? provider.authentication.credential
+        : null;
       return {
         changed: true,
         result: {
-          configuration: configurationSnapshot(state),
-          provider: providerView(provider),
+          credentialToRemove: previousCredential &&
+              previousCredential.reference !== nextCredential?.reference
+            ? previousCredential
+            : null,
+          value: {
+            configuration: configurationSnapshot(state),
+            provider: providerView(provider),
+          },
         },
       };
     });
+
+    if (outcome.credentialToRemove) {
+      await this.#credentialStore.remove(outcome.credentialToRemove);
+    }
+    return outcome.value;
   }
 
-  deleteProvider(baseRevision: string, providerId: string) {
-    return this.#mutate((state) => {
+  async deleteProvider(baseRevision: string, providerId: string) {
+    const outcome = await this.#mutate((state) => {
       assertBaseRevision(state, baseRevision);
       if (state.profiles.some(({ providerId: candidate }) => candidate === providerId)) {
         throw new AgentConfigurationValidationError(
@@ -766,9 +871,20 @@ export class AgentConfigurationStore {
       if (index < 0) {
         throw new AgentConfigurationValidationError("Agent provider does not exist");
       }
-      state.providers.splice(index, 1);
-      return { changed: true, result: configurationSnapshot(state) };
+      const [provider] = state.providers.splice(index, 1);
+      return {
+        changed: true,
+        result: {
+          configuration: configurationSnapshot(state),
+          credential: provider!.authentication.type === "api-key"
+            ? provider!.authentication.credential
+            : null,
+        },
+      };
     });
+
+    if (outcome.credential) await this.#credentialStore.remove(outcome.credential);
+    return outcome.configuration;
   }
 
   createProfile(baseRevision: string, input: AgentProfileInput) {
@@ -889,6 +1005,32 @@ export class AgentConfigurationStore {
     });
   }
 
+  async #authenticationForInput(
+    providerId: string,
+    input: AgentProviderInput,
+    previous: StoredAuthentication | null = null,
+  ): Promise<StoredAuthentication> {
+    if (input.authenticationType === "none") return { type: "none" };
+    if (input.apiKey === undefined) {
+      return previous?.type === "api-key"
+        ? previous
+        : { credential: null, type: "api-key" };
+    }
+    if (input.apiKey === null) {
+      return { credential: null, type: "api-key" };
+    }
+    const previousVersion = previous?.type === "api-key"
+      ? previous.credential?.version ?? 0
+      : 0;
+    const credential = await this.#credentialStore.writeApiKey(
+      providerId,
+      input.apiKey,
+      previousVersion + 1,
+    );
+
+    return { credential, type: "api-key" };
+  }
+
   #mutate<Result>(
     operation: (
       state: AgentConfigurationState,
@@ -907,8 +1049,22 @@ export class AgentConfigurationStore {
   }
 
   #ensureInitialized() {
-    this.#initialize ??= this.#partition.mutate((state) => {
+    this.#initialize ??= this.#partition.mutate(async (state) => {
       const changed = state[requiresFormatRewrite] === true;
+
+      for (const provider of state.providers) {
+        if (provider.authentication.type !== "api-key" ||
+            !(legacyApiKey in provider.authentication)) continue;
+        const apiKey = provider.authentication[legacyApiKey];
+        const credential = apiKey
+          ? await this.#credentialStore.writeApiKey(provider.id, apiKey, 1)
+          : null;
+
+        provider.authentication = { credential, type: "api-key" };
+        for (const profile of state.profiles) {
+          if (profile.providerId === provider.id) profile.conformance = null;
+        }
+      }
 
       delete state[requiresFormatRewrite];
       return { changed, result: undefined };

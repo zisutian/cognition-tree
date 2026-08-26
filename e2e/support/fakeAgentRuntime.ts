@@ -29,7 +29,7 @@ export async function createE2EAgentConfigurationStore(stateDirectory: string) {
   let configuration = await store.readSnapshot();
   const provider = await store.createProvider(configuration.revision, {
     apiKey: "e2e-only",
-    authenticationType: "bearer",
+    authenticationType: "api-key",
     baseUrl: "https://e2e-runtime.invalid/v1",
     kind: "openai-chat",
     label: "E2E provider",
@@ -65,7 +65,7 @@ export async function createE2EAgentConfigurationStore(stateDirectory: string) {
   }
   const missingProvider = await store.createProvider(configuration.revision, {
     apiKey: null,
-    authenticationType: "bearer",
+    authenticationType: "api-key",
     baseUrl: "https://e2e-missing.invalid/v1",
     kind: "openai-chat",
     label: "E2E missing provider",

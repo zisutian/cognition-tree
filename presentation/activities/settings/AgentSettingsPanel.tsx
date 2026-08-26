@@ -41,7 +41,7 @@ function conformanceLabel(
 
 type ProviderDraft = {
   apiKey: string;
-  authenticationType: "bearer" | "none";
+  authenticationType: "api-key" | "none";
   baseUrl: string;
   kind: AgentProviderKind;
   label: string;
@@ -91,11 +91,11 @@ const emptyProfile = (): ProfileDraft => ({
 
 function providerInput(draft: ProviderDraft): AgentProviderInput {
   return {
-    ...(draft.authenticationType === "bearer" && draft.apiKey
+    ...(draft.authenticationType === "api-key" && draft.apiKey
       ? { apiKey: draft.apiKey }
       : {}),
     authenticationType: draft.kind === "codex"
-      ? "bearer"
+      ? "api-key"
       : draft.authenticationType,
     baseUrl: draft.kind === "codex" ? null : draft.baseUrl,
     kind: draft.kind,
@@ -271,7 +271,7 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                         setEditingProviderId(provider.id);
                         setProviderDraft({
                           apiKey: "",
-                          authenticationType: provider.authenticationStatus === "not-required" ? "none" : "bearer",
+                          authenticationType: provider.authenticationStatus === "not-required" ? "none" : "api-key",
                           baseUrl: provider.baseUrl ?? "",
                           kind: provider.kind,
                           label: provider.label,
@@ -281,7 +281,7 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                       {provider.authenticationStatus !== "not-required" ? (
                         <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.updateProvider(provider.id, {
                           apiKey: null,
-                          authenticationType: "bearer",
+                          authenticationType: "api-key",
                           baseUrl: provider.baseUrl,
                           kind: provider.kind,
                           label: provider.label,
@@ -300,15 +300,15 @@ export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
                 const kind = event.currentTarget.value as AgentProviderKind;
                 setProviderDraft({
                   ...providerDraft,
-                  authenticationType: kind === "ollama" ? "none" : "bearer",
+                  authenticationType: kind === "ollama" ? "none" : "api-key",
                   baseUrl: kind === "ollama" ? "http://127.0.0.1:11434" : kind === "codex" ? "" : providerDraft.baseUrl,
                   kind,
                   privateNetworkAccessConfirmed: false,
                 });
               }} value={providerDraft.kind}><option value="ollama">Ollama</option><option value="openai-chat">OpenAI-compatible</option><option value="codex">Codex</option></select></label>
               {providerDraft.kind !== "codex" ? <label><span>地址</span><input aria-label="Provider 地址" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, baseUrl: event.currentTarget.value, privateNetworkAccessConfirmed: false })} required value={providerDraft.baseUrl} /></label> : null}
-              {providerDraft.kind !== "codex" ? <label><span>认证</span><select aria-label="Provider 认证" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, authenticationType: event.currentTarget.value as "bearer" | "none" })} value={providerDraft.authenticationType}><option value="none">无需认证</option><option value="bearer">Bearer</option></select></label> : null}
-              {(providerDraft.kind === "codex" || providerDraft.authenticationType === "bearer") ? <label><span>API Key</span><input aria-label="Provider API Key" autoComplete="new-password" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, apiKey: event.currentTarget.value })} placeholder={editingProviderId ? "留空则保留现有凭据" : "一次性写入"} required={!editingProviderId} type="password" value={providerDraft.apiKey} /></label> : null}
+              {providerDraft.kind !== "codex" ? <label><span>认证</span><select aria-label="Provider 认证" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, authenticationType: event.currentTarget.value as "api-key" | "none" })} value={providerDraft.authenticationType}><option value="none">无需认证</option><option value="api-key">API Key</option></select></label> : null}
+              {(providerDraft.kind === "codex" || providerDraft.authenticationType === "api-key") ? <label><span>API Key</span><input aria-label="Provider API Key" autoComplete="new-password" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, apiKey: event.currentTarget.value })} placeholder={editingProviderId ? "留空则保留现有凭据" : "一次性写入"} required={!editingProviderId} type="password" value={providerDraft.apiKey} /></label> : null}
               {providerDraft.kind !== "codex" ? <label><input aria-label="确认 Provider 私网访问" checked={providerDraft.privateNetworkAccessConfirmed} onChange={(event) => setProviderDraft({ ...providerDraft, privateNetworkAccessConfirmed: event.currentTarget.checked })} type="checkbox" /><span>明确允许当前地址访问非 loopback 私网；修改地址后必须重新确认</span></label> : null}
               <div className="settings-managed-form-actions"><Button disabled={busy} type="submit" variant="primary">{editingProviderId ? "保存 Provider" : "创建 Provider"}</Button>{editingProviderId ? <Button onClick={() => { setEditingProviderId(null); setProviderDraft(emptyProvider()); }} type="button">取消</Button> : null}</div>
             </form>
