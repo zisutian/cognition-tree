@@ -316,6 +316,12 @@
   max-width: 520px;
 }
 
+.ui-empty-state.is-compact {
+  align-content: start;
+  min-height: 0;
+  padding-top: var(--ui-gap);
+}
+
 .ui-empty-state h2,
 .ui-empty-state p {
   margin: 0;

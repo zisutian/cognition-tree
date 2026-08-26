@@ -196,15 +196,17 @@ export function SymbolSlot({
 
 export function EmptyState({
   action,
+  compact = false,
   description,
   title,
 }: {
   action?: ReactNode;
+  compact?: boolean;
   description: ReactNode;
   title: ReactNode;
 }) {
   return (
-    <div className="ui-empty-state">
+    <div className={cx("ui-empty-state", compact && "is-compact")}>
       <h2>{title}</h2>
       <p>{description}</p>
       {action ? <div className="ui-empty-actions">{action}</div> : null}

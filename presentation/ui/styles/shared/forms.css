@@ -1,0 +1,51 @@
+.ui-form-layout {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  width: min(100%, 720px);
+}
+
+.ui-field-row {
+  display: grid;
+  grid-template-columns: 112px minmax(180px, 400px);
+  align-items: start;
+  gap: var(--ui-gap);
+  min-height: var(--ui-control-height);
+}
+
+.ui-field-label {
+  min-height: var(--ui-control-height);
+  padding-top: calc(
+    (var(--ui-control-height) - var(--ui-control-font-size)) / 2
+  );
+  color: var(--color-fg-muted);
+  font-size: var(--ui-control-font-size);
+}
+
+.ui-field-control {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+}
+
+.ui-field-control > .ui-input {
+  width: 100%;
+}
+
+.ui-field-description {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
+}
+
+.ui-field-description.is-error {
+  color: var(--color-error);
+}
+
+.ui-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-gap);
+  margin-left: calc(112px + var(--ui-gap));
+  padding-top: var(--ui-gap-tight);
+}
