@@ -6,7 +6,6 @@ import {
 } from "../../../application/workbench/problems/workbenchProblems";
 import {
   projectWorkbenchProblems,
-  type SyntaxProblemOwner,
 } from "../../../application/workbench/problems/workbenchProblemsProjection";
 import type { ActivityId } from "../../ui/activityTypes";
 import {
@@ -30,7 +29,6 @@ export function WorkbenchProblemsController({
   onOpenSystemSyntax,
   onActiveActivityChange,
   syntaxDiagnostics,
-  syntaxOwner = "workspace",
   workbench,
 }: {
   activeActivityId: ActivityId;
@@ -42,7 +40,6 @@ export function WorkbenchProblemsController({
   ) => void;
   onActiveActivityChange: (activityId: ActivityId) => void;
   syntaxDiagnostics: WorkbenchDiagnostics | null;
-  syntaxOwner?: SyntaxProblemOwner;
   workbench: WorkbenchController;
 }) {
   const feedback = useWorkbenchFeedback();
@@ -56,7 +53,6 @@ export function WorkbenchProblemsController({
     ? application.todo.view
     : null;
   const problems = projectWorkbenchProblems({
-    activeScope: activeActivityId,
     agentProblems: application.agent.state.status?.configurationProblem
       ? [{
           code: "configuration_unavailable",
@@ -78,7 +74,6 @@ export function WorkbenchProblemsController({
     repository: application.repository,
     syntaxDiagnostics: syntaxDiagnostics ?? undefined,
     todoDiagnostics: todo?.diagnostics,
-    syntaxOwner,
   });
   const openProblem = (problem: UiWorkbenchProblem) =>
     openWorkbenchProblem(problem, {

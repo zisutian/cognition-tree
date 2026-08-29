@@ -46,10 +46,6 @@ const FeedbackContext = createContext<FeedbackActions>(unboundFeedbackActions);
 const FeedbackControllerContext =
   createContext<WorkbenchActivityFeedbackController | null>(null);
 
-export function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function isPromiseLike<Result>(value: unknown): value is PromiseLike<Result> {
   return (
     (typeof value === "object" || typeof value === "function") &&
@@ -88,6 +84,14 @@ export function runFeedbackAction<Result>(
   }
 }
 
+function reportActivityFeedbackError(
+  controller: WorkbenchActivityFeedbackController,
+  sourceActivityId: ActivityId,
+  error: unknown,
+) {
+  controller.reportError(sourceActivityId, error);
+}
+
 export function runActivityFeedbackAction<Result>(
   controller: WorkbenchActivityFeedbackController,
   sourceActivityId: ActivityId,
@@ -105,9 +109,10 @@ export function runActivityFeedbackAction<Result>(
 ) {
   return runFeedbackAction(
     action,
-    (error) => controller.reportError(
+    (error) => reportActivityFeedbackError(
+      controller,
       sourceActivityId,
-      getErrorMessage(error),
+      error,
     ),
   );
 }
@@ -144,9 +149,10 @@ export function FeedbackProvider({
     [resolvedController],
   );
   const notifyError = useCallback(
-    (error: unknown) => resolvedController.reportError(
+    (error: unknown) => reportActivityFeedbackError(
+      resolvedController,
       activeActivityIdRef.current,
-      getErrorMessage(error),
+      error,
     ),
     [resolvedController],
   );

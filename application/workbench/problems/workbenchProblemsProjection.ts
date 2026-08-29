@@ -30,18 +30,6 @@ import {
   type WorkbenchDiagnostics,
 } from "./workbenchProblems";
 
-export type WorkbenchProblemScope =
-  | "agent"
-  | "journal"
-  | "notes"
-  | "repository"
-  | "search"
-  | "settings"
-  | "syntax"
-  | "todo";
-
-export type SyntaxProblemOwner = "journal" | "todo" | "workspace";
-
 export function selectWorkbenchProblems({
   builtInIssues,
   diagnostics,
@@ -54,7 +42,6 @@ export function selectWorkbenchProblems({
   todoDiagnostics,
   agentProblems = [],
 }: {
-  activeScope: WorkbenchProblemScope;
   builtInIssues: BuiltInRuntimeIssue[];
   diagnostics: UiWorkbenchDiagnostics;
   journalDiagnostics?: JournalDiagnostics;
@@ -63,7 +50,6 @@ export function selectWorkbenchProblems({
   repositoryIssues: WorkspaceRepositoryCatalogIssue[];
   repositoryRuntimeIssues?: WorkspaceRepositoryRuntimeIssue[];
   syntaxDiagnostics?: WorkbenchDiagnostics;
-  syntaxOwner?: SyntaxProblemOwner;
   todoDiagnostics?: TodoDiagnostics;
   agentProblems?: ReturnType<typeof projectUiAgentProblems>;
 }): UiWorkbenchProblems {
@@ -96,25 +82,21 @@ export function selectWorkbenchProblems({
 }
 
 export function projectWorkbenchProblems({
-  activeScope,
   diagnostics,
   feedbackErrors = [],
   getScopeLabel,
   journalDiagnostics,
   repository,
   syntaxDiagnostics,
-  syntaxOwner = "workspace",
   todoDiagnostics,
   agentProblems = [],
 }: {
-  activeScope: WorkbenchProblemScope;
   diagnostics: UiWorkbenchDiagnostics;
   feedbackErrors?: readonly OperationalProblem<string>[];
   getScopeLabel?: (scope: string) => string;
   journalDiagnostics?: JournalDiagnostics;
   repository: RepositoryApplication;
   syntaxDiagnostics?: WorkbenchDiagnostics;
-  syntaxOwner?: SyntaxProblemOwner;
   todoDiagnostics?: TodoDiagnostics;
   agentProblems?: readonly WorkbenchAgentProblemInput[];
 }): UiWorkbenchProblems {
@@ -137,7 +119,6 @@ export function projectWorkbenchProblems({
       : [];
 
   return selectWorkbenchProblems({
-    activeScope,
     builtInIssues,
     diagnostics,
     journalDiagnostics,
@@ -150,7 +131,6 @@ export function projectWorkbenchProblems({
     repositoryRuntimeIssues:
       projectWorkspaceRepositoryRuntimeIssues(repository),
     syntaxDiagnostics,
-    syntaxOwner,
     todoDiagnostics,
     agentProblems: projectUiAgentProblems(agentProblems),
   });

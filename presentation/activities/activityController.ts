@@ -15,7 +15,6 @@ export type ActivityControllerProps = {
   onSyntaxLeaveBlockedChange?: (blocked: boolean) => void;
   onSyntaxProblemsChange?: (
     diagnostics: WorkbenchDiagnostics | null,
-    owner: "journal" | "todo" | "workspace",
   ) => void;
   renderActivity: RenderActivity;
   systemSyntaxFocusRequest?: Extract<

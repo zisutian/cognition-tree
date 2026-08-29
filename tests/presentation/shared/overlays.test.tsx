@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { ContextMenu } from "../../../presentation/ui/shared/ContextMenu";
 import {
   FeedbackProvider,
-  getErrorMessage,
   runActivityFeedbackAction,
   runFeedbackAction,
 } from "../../../presentation/ui/shared/FeedbackProvider";
@@ -11,6 +10,8 @@ import { createProblemCenter } from
   "../../../application/problems/problemCenter";
 import { resolveOverlayCoordinates } from "../../../presentation/ui/shared/Overlay";
 import { QuickPick } from "../../../presentation/ui/shared/QuickPick";
+import { HttpApiResponseError } from
+  "../../../infrastructure/client/http/apiTransport";
 
 describe("shared overlays", () => {
   it("renders quick pick options with searchable dialog semantics", () => {
@@ -52,34 +53,67 @@ describe("shared overlays", () => {
     expect(markup).not.toContain("删除");
   });
 
-  it("normalizes feedback errors without rendering an overlay", () => {
+  it("provides feedback without rendering an overlay", () => {
     const markup = renderToStaticMarkup(
       <FeedbackProvider>
         <span>工作台</span>
       </FeedbackProvider>,
     );
 
-    expect(getErrorMessage(new Error("保存失败"))).toBe("保存失败");
-    expect(getErrorMessage("连接失败")).toBe("连接失败");
     expect(markup).toContain("工作台");
   });
 
   it("reports both synchronous throws and asynchronous rejections", async () => {
     const errors: unknown[] = [];
+    const synchronousError = new Error("同步失败");
+    const asynchronousError = new Error("异步失败");
 
     expect(
       runFeedbackAction(() => {
-        throw new Error("同步失败");
+        throw synchronousError;
       }, (error) => errors.push(error)),
     ).toBeUndefined();
     await expect(
       runFeedbackAction(
-        () => Promise.reject(new Error("异步失败")),
+        () => Promise.reject(asynchronousError),
         (error) => errors.push(error),
       ),
     ).resolves.toBeUndefined();
 
-    expect(errors.map(getErrorMessage)).toEqual(["同步失败", "异步失败"]);
+    expect(errors).toEqual([synchronousError, asynchronousError]);
+  });
+
+  it("preserves structured API errors reported by Activity actions", async () => {
+    const controller = createProblemCenter<"notes">({
+      scheduler: { schedule: () => () => undefined },
+    });
+    const error = new HttpApiResponseError("内容已被其他客户端修改。", {
+      apiCode: "resource_conflict",
+      details: { currentRevision: "sha256:remote" },
+      path: "content",
+      requestId: "request-structured-1",
+      retryable: true,
+      statusCode: 409,
+    });
+
+    await runActivityFeedbackAction(
+      controller,
+      "notes",
+      () => Promise.reject(error),
+    );
+
+    expect(controller.getSnapshot().problems).toEqual([
+      expect.objectContaining({
+        code: "resource_conflict",
+        details: { currentRevision: "sha256:remote" },
+        message: "内容已被其他客户端修改。",
+        path: "content",
+        requestId: "request-structured-1",
+        retryable: true,
+        source: "api",
+        target: expect.objectContaining({ scope: "notes" }),
+      }),
+    ]);
   });
 
   it("keeps an asynchronous error in the Activity that started it", async () => {

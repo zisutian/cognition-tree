@@ -54,9 +54,7 @@ export function SyntaxActivityController({
         ? application.todo.view.diagnostics
         : null,
       workspaceDiagnostics: workspace?.runtime.analysis.diagnostics ?? null,
-    }), view.selectedTarget.kind === "workspace-file"
-      ? "workspace"
-      : view.selectedTarget.kind);
+    }));
   }, [
     application.journal.status === "ready"
       ? application.journal.view.diagnostics

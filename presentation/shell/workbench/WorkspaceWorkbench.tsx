@@ -60,9 +60,6 @@ export function WorkspaceWorkbench({
   const [syntaxLeaveBlocked, setSyntaxLeaveBlocked] = useState(false);
   const [syntaxProblems, setSyntaxProblems] =
     useState<WorkbenchDiagnostics | null>(null);
-  const [syntaxProblemOwner, setSyntaxProblemOwner] = useState<
-    "journal" | "todo" | "workspace"
-  >("workspace");
   const [systemSyntaxFocusRequest, setSystemSyntaxFocusRequest] = useState<
     Extract<UiSyntaxFocusTarget, { systemOwner: "journal" | "todo" }> | null
   >(null);
@@ -94,10 +91,8 @@ export function WorkspaceWorkbench({
   };
   const updateSyntaxProblems = useCallback((
     diagnostics: WorkbenchDiagnostics | null,
-    owner: "journal" | "todo" | "workspace",
   ) => {
     setSyntaxProblems(diagnostics);
-    setSyntaxProblemOwner(owner);
   }, []);
 
   useEffect(() => {
@@ -123,7 +118,6 @@ export function WorkspaceWorkbench({
         onOpenSystemSyntax={openSystemSyntax}
         onActiveActivityChange={requestActivityChange}
         syntaxDiagnostics={syntaxProblems}
-        syntaxOwner={syntaxProblemOwner}
         workbench={workbench}
       >
         {(problemsSlot) => {
