@@ -318,6 +318,71 @@ describe("Agent configuration store", () => {
     await expect(access(providerDirectory)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("keeps newly committed Codex authentication when old credential cleanup fails", async () => {
+    const { directory, store } = await createStore();
+    const initial = await store.readSnapshot();
+    const created = await store.createProvider(initial.revision, {
+      authenticationType: "chatgpt-device-code",
+      baseUrl: null,
+      kind: "codex",
+      label: "ChatGPT Codex",
+      privateNetworkAccessConfirmed: false,
+    });
+    const firstLoginId = "00000000-0000-4000-8000-000000000003";
+    const firstPrepared = await store.prepareCodexDeviceLogin(
+      created.configuration.revision,
+      created.provider.id,
+      firstLoginId,
+    );
+
+    await writeFile(path.join(firstPrepared.home, "auth.json"), "{}\n", {
+      mode: 0o600,
+    });
+    const firstAuthenticated = await store.completeCodexDeviceLogin(
+      created.configuration.revision,
+      created.provider.id,
+      firstPrepared.credentialVersion,
+      firstLoginId,
+    );
+    const secondLoginId = "00000000-0000-4000-8000-000000000004";
+    const secondPrepared = await store.prepareCodexDeviceLogin(
+      firstAuthenticated.revision,
+      created.provider.id,
+      secondLoginId,
+    );
+
+    await writeFile(path.join(secondPrepared.home, "auth.json"), "{}\n", {
+      mode: 0o600,
+    });
+    await rm(path.join(
+      directory,
+      "agent-auth-v1",
+      "providers",
+      created.provider.id,
+      `codex-managed-v${firstPrepared.credentialVersion}-${firstLoginId}.json`,
+    ));
+
+    await expect(store.completeCodexDeviceLogin(
+      firstAuthenticated.revision,
+      created.provider.id,
+      secondPrepared.credentialVersion,
+      secondLoginId,
+    )).resolves.toMatchObject({
+      providers: [{
+        authenticationStatus: "configured",
+        version: 3,
+      }],
+    });
+    await expect(store.resolveProvider(created.provider.id)).resolves.toMatchObject({
+      apiKey: null,
+      codexHome: secondPrepared.home,
+      provider: {
+        authenticationStatus: "configured",
+        version: 3,
+      },
+    });
+  });
+
   it("removes staged Codex authentication when exact CAS becomes stale", async () => {
     const { directory, store } = await createStore();
     const initial = await store.readSnapshot();

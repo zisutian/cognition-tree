@@ -973,44 +973,43 @@ export class AgentConfigurationStore {
       loginId,
     );
 
-    try {
-      const outcome = await this.#mutate((state) => {
-        assertBaseRevision(state, baseRevision);
-        const provider = state.providers.find(({ id }) => id === providerId);
+    const outcome = await this.#mutate((state) => {
+      assertBaseRevision(state, baseRevision);
+      const provider = state.providers.find(({ id }) => id === providerId);
 
-        if (!provider || provider.kind !== "codex" ||
-            provider.authentication.type !== "chatgpt-device-code") {
-          throw new AgentConfigurationValidationError(
-            "Codex device login provider changed",
-          );
-        }
-        const previousCredential = provider.authentication.credential;
-
-        provider.authentication = {
-          credential,
-          type: "chatgpt-device-code",
-        };
-        provider.version += 1;
-        for (const profile of state.profiles) {
-          if (profile.providerId === providerId) profile.conformance = null;
-        }
-        return {
-          changed: true,
-          result: {
-            configuration: configurationSnapshot(state),
-            previousCredential,
-          },
-        };
-      });
-
-      if (outcome.previousCredential) {
-        await this.#credentialStore.remove(outcome.previousCredential);
+      if (!provider || provider.kind !== "codex" ||
+          provider.authentication.type !== "chatgpt-device-code") {
+        throw new AgentConfigurationValidationError(
+          "Codex device login provider changed",
+        );
       }
-      return outcome.configuration;
-    } catch (error) {
+      const previousCredential = provider.authentication.credential;
+
+      provider.authentication = {
+        credential,
+        type: "chatgpt-device-code",
+      };
+      provider.version += 1;
+      for (const profile of state.profiles) {
+        if (profile.providerId === providerId) profile.conformance = null;
+      }
+      return {
+        changed: true,
+        result: {
+          configuration: configurationSnapshot(state),
+          previousCredential,
+        },
+      };
+    }).catch(async (error: unknown) => {
       await this.#credentialStore.remove(credential).catch(() => undefined);
       throw error;
+    });
+
+    if (outcome.previousCredential) {
+      await this.#credentialStore.remove(outcome.previousCredential)
+        .catch(() => undefined);
     }
+    return outcome.configuration;
   }
 
   async clearProviderAuthentication(
