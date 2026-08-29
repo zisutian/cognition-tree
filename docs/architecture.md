@@ -1,5 +1,10 @@
 # 架构边界
 
+本文件只定义源码所有权、依赖方向、数据流、持久化与运行时边界。用户可见承诺见
+[产品需求](product-requirements.md)，CTN 内部分析见
+[CTN 分析流水线](ctn-analysis-pipeline.md)，精确排布与视觉见
+[界面规范](ui-guidelines.md)，运行和升级步骤见[使用与部署](getting-started.md)。
+
 
 ## 1. 领域
 
@@ -85,7 +90,7 @@ Journal v3：
     day = { date, lastIssuedSequence, entries }
     entry = { id, createdAt, updatedAt, timezoneOffsetMinutes, sequence, source }
 
-days 按日期升序，entries 按 sequence 升序。删除最后一篇仍保留空 day bucket，保证序号不复用。标题固定为 YYYY-MM-DD-0001；UI 只从 date 派生年、月，并直接显示条目，不显示 day 分组。
+days 按日期升序，entries 按 sequence 升序。删除最后一篇仍保留空 day bucket，保证序号不复用。标题固定为 YYYY-MM-DD-0001。
 
 Todo v4：
 
@@ -103,7 +108,7 @@ Workspace v4、Journal v3 与 Todo v4 是各自唯一可运行格式。只有 ep
 一律原样保留并 fail closed。运行时不存在版本 reader、迁移、字段别名或自动
 重置。
 
-Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation 不显示标题语法配置。两者分别注入 wire codec、preparation/transition policy、revision factory 和 empty-content factory；基础设施不得恢复 purpose content union 或内容类型分派。
+Journal/Todo 的 synthetic title 参与 canonical 解析，但不进入公开可编辑正文。两者分别注入 wire codec、preparation/transition policy、revision factory 和 empty-content factory；基础设施不得恢复 purpose content union 或内容类型分派。
 
 
 ## 5. 数据可信与 preparation 边界
@@ -165,10 +170,16 @@ HTTP 内置数据：
 versioned store、session 和 API，也不获得普通仓库的创建、删除、重命名、
 切换能力。
 
-前端始终通过 HTTP/SSE 访问 Server。Workspace、Journal 与 Todo 各自拥有页面
-生命周期内的内存 cache、draft 和冲突；runtime 重建后从 Server 重新加载，不
-恢复未同步状态。localStorage 只保存当前普通仓库 ID。旧 IndexedDB 不属于
-运行时输入，不读取、不迁移也不清理。
+前端始终通过 HTTP/SSE 访问 Server。浏览器状态的持久级别只有以下三类：
+
+| 生命周期 | 状态 |
+|---|---|
+| Server durable | Workspace、Journal、Todo 内容，以及服务配置、凭据和账本 |
+| browser localStorage | 当前普通仓库 ID、默认 Agent Profile ID |
+| 当前页面会话 | 三领域 cache、draft、冲突，以及工作台宽度、折叠状态、Problems 布局、笔记模式和未提交表单 |
+
+runtime 重建后从 Server 重新加载，不恢复当前页面会话状态。旧 IndexedDB 不属于运行时
+输入，不读取、不迁移也不清理。
 
 唯一 HTTP 契约为 `/api/v3`。contracts/api 的唯一 registry composition root
 组合并校验 foundation、auth、content、sync、agent、admin operation catalog 的
@@ -220,12 +231,13 @@ DomainChangeSet；no-op、校验失败和 conflict 不发布 change event。
 的唯一来源。Todo 正文、位置、completion 与 recurrence 语义变化都更新目标
 block updatedAt，但并发判断不使用时间戳。
 
-sync PUT 只接受 `{ base: { revision, content }, content }`，先验证 base 正文与
-revision 相符，再 direct commit 或执行 `merge(base, local, current)`；响应返回
-`{ outcome, snapshot }`。CAS 竞争最多重新读取并计算三次，耗尽后返回可重试
-`resource_conflict`。Workspace 以语法、树和单篇 note 为单元，Journal 以 entry
-为单元，Todo 以 collection body、collection order、单任务 completion 和 recurrence
-为单元三方合并；不同单元可自动合并，同一单元双改或删改返回 `merge_conflict`。
+sync operation 接受经过验证的 base snapshot 与期望 content，先验证 base 正文与
+revision 相符，再 direct commit 或执行 `merge(base, local, current)`；响应返回服务端
+最终 snapshot 与 outcome，精确 wire schema 由 registry 独占。CAS 竞争最多重新读取并
+计算三次，耗尽后返回可重试 `resource_conflict`。Workspace 以语法、树和单篇 note
+为单元，Journal 以 entry 为单元，Todo 以 collection body、collection order、单任务
+completion 和 recurrence 为单元三方合并；不同单元可自动合并，同一单元双改或删改
+返回 `merge_conflict`。
 语法变化是 barrier，不能跨 grammar 自动合并。
 
 浏览器发起同步时固定已提交内容 `L` 与 local revision `R`。响应 snapshot `S` 到达后，
@@ -355,7 +367,8 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 
 ## 8. Infrastructure 内部边界
 
-    client/platform 只拥有 UUID、时间、调度和当前仓库 localStorage 偏好；
+    client/platform 只拥有 UUID、时间、调度，以及当前仓库和默认 Agent Profile 的
+    localStorage 偏好；
     client/repository 拥有内存 catalog/content cache、revision 与 resilient
     repository；client/http 只实现 /api/v3 transport 与两类 SSE；client/runtime 只负责把
     这些实现注入 application 端口。源码中不存在 IndexedDB 或存储模式分支。
@@ -435,21 +448,15 @@ fingerprint 仍匹配时才可进入领域 preparation；否则返回私有
 `syntax_read_required` 并零 staging。普通 read 响应剥离重复 writing guide，确保
 此工具是唯一语法知识入口。
 
-agent-config-v1 的当前内部 formatVersion 是 5。首次打开旧格式时依次应用一条原子
-权威切换：format 1/2 的 chat token 估算值乘以四写为字符预算；format 1–3 补入
-`reasoningEffort: model-default`；format 1–4 的内联 API Key 先写入 agent-auth-v1，再
-切换配置引用。受影响的 chat profile version 增加并清除旧 conformance；Provider、
-Profile ID 与浏览器默认 Profile ID 保留。迁移先完整解析并验证安全整数，再由安全
-状态分区原子写回；失败时 fail closed，不能留下部分迁移。当前 API 只接受
-`historyBudgetCharacters` 和非 null write-only API Key，不存在旧字段或第二条凭据清除
-reader。Profile digest 同时包含 tool-contract 与 completion/conformance contract
-version，因此工具 catalog 或终止分类变化都会使旧 conformance 失效。
+agent-config-v1 的格式升级由安全状态分区执行一次原子权威切换；先完整解析和验证，
+失败时 fail closed，不留下部分配置。当前 API 只接受当前字段和非 null write-only
+API Key，不提供兼容 reader。Profile digest 同时包含 tool-contract 与
+completion/conformance contract version，因此任一契约变化都会使旧 conformance 失效。
+当前格式和逐版本升级步骤由[使用与部署](getting-started.md)记录。
 
-Ollama Provider 的显式 probe 在既有 SSRF、超时、重定向和响应体限制下读取
-`/api/tags`、`/api/ps`，并只为该 Provider 已配置 Profile 引用的模型调用
-`/api/show`。返回的“模型架构上限”、当前“驻留实例上下文”与探测时间只驻留客户端
-配置状态，不持久化、不自动填入 Profile，也不裁剪字符预算；未加载时明确表示无法
-测量实际值，已加载但接口缺字段时才显示未报告。探测不发送推理请求，也不触发加载。
+Ollama Provider 的显式 probe 复用 SSRF、超时、重定向和响应体限制，只查询发现、
+驻留与模型元数据。结果只驻留客户端配置状态，不修改 Profile、不发送推理请求、
+不触发模型加载；具体操作与显示字段由使用与部署和界面规范分别拥有。
 
 
 ## 9. Presentation 与 Problems
@@ -457,82 +464,44 @@ Ollama Provider 的显式 probe 在既有 SSRF、超时、重定向和响应体�
 本节只说明 Presentation 所有权与跨层边界；精确布局、交互、尺度和颜色由
 [界面规范](ui-guidelines.md) 独占。
 
-AppRoot 只创建 runtime/controller、订阅快照并维护当前 Activity。领域 session
-到 view application 的组合位于 presentation/shell/application；Activity
-descriptor catalog 是 ID、标签、图标、分组、可用条件与懒加载元数据的唯一
-owner。顶层主入口固定为笔记、日记、代办、语法，底部管理入口固定为智能体、搜索、
-仓库、设置。
+AppRoot 只创建 runtime/controller、订阅快照并维护当前 Activity。领域 session 到
+view application 的组合位于 `presentation/shell/application`；Activity descriptor
+catalog 是 ID、标签、图标、分组、可用条件与懒加载元数据的唯一 owner。
 
 每个 Activity 采用纵向切片：controller、context、view、局部 hook 和样式位于
-presentation/activities/<activity>/。跨 Activity 的组合只存在于 shell，共享
-交互原语只存在于 presentation/ui。笔记的 edit、structure、graph 作为 Notes
-内部子切片，不再以顶层 views/controllers/bindings 技术目录分散同一功能。
+`presentation/activities/<activity>/`。跨 Activity 的组合只存在于 shell，共享交互
+原语只存在于 `presentation/ui`；Activity 只组合领域内容、局部 Presentation 状态和
+回调，不复制应用状态或领域命令。
 
-Repository context、普通仓库详情、故障详情、内置数据详情和危险区是独立 view；确认状态由顶层 RepositoryPanel 持有。Todo 的集合列表、编辑器与结构详情彼此独立。引用图谱 Canvas 只声明 DOM，模拟、位置缓存、缩放和平移生命周期位于专用 hook/controller。
+`ToolSurface` 拥有高密度工具页面的面板、分区、属性表、工具栏和基础列表；普通控件、
+详情壳与 CTN 编辑器分别由 `presentation/ui/shared`、`DetailPanel` 和 CodeMirror adapter
+独占。`ActivitySlots` 只声明 context、main 与可选 detail 内容，AppFrame 独占工作台
+尺寸、折叠和专注模式。页面不得实现第二套详情壳或跨 Activity 布局状态。
 
-ToolSurface 负责设置、仓库正文、搜索结果、智能体、语法和 Problems 的共享高密度正文组合。Activity 提供领域内容和回调，面板标题、正文宽度、分区、属性表、基础列表、工具栏与分割线由共享组件表达；左侧 context 与笔记、日记、代办编辑正文不进入该密度作用域。全局输入、选择、切换、滑杆、颜色和按钮仍统一由 presentation/ui/shared 控件层拥有；CodeMirror 保持独立编辑器所有权。
+Activity 内部仍按语义拆分独立 view：Repository 的 catalog、状态、恢复与危险操作，
+Todo 的集合、编辑与周期结构，以及 Notes 的编辑、结构与图谱不因视觉相似而共享业务
+状态。引用图谱 Canvas 只声明 DOM，模拟、位置缓存、缩放和平移属于专用 hook/controller。
 
-右侧详情栏只有一个结构所有者：`DetailPanel` 组合 detail Panel、统一标题和折叠按钮，`ToolDetailPanel` 只叠加 ToolSurface 密度。全部 Activity 的 `ActivitySlots.detail` 都使用该结构，折叠状态与宽度只由 AppFrame 控制。Settings、Repository 与 Search 始终提供 detail 槽；Agent Proposal、笔记、日记、代办和语法沿用同一折叠协议，不在 Activity 内另建按钮或状态副本。
+Agent Presentation 只消费 AgentClientController 的会话快照、连续事件和冻结 proposal
+review，不解析正文或生成审批摘要。发送、批准与 destructive confirmation 前的 scope
+同步由 AppRoot 作为组合根注入；事件序列出现缺口时重读 session snapshot。Provider、
+Profile、凭据与符合性状态只经 Settings application facade 管理。
 
-笔记 Activity 内部拥有 edit、structure、graph 三种原生 tab 模式，并按仓库
-保存所选模式。编辑模式持续挂载，因此模式往返不替换当前笔记或 CodeMirror
-历史；结构操作和引用图谱复用同一 Workspace session、selection 与导航，不再
-拥有顶层 Activity 或重复的 workspace-unavailable 编排。
-
-Journal 左侧为不可编辑的“年 → 月 → 条目”树。年、月和条目倒序；月内条目按 createdAt、sequence、ID 确定性排序。展开状态只属于页面会话。
-
-Todo 使用“集合列表 → CTN 编辑器 → 结构详情”。集合排序复用 presentation 的共享列表拖拽几何和落点样式；详情复用共享结构树的行、缩进、选中、诊断和行号视觉，以 checkbox 执行任务状态变更，不暴露任务拖动。只有选中的任务行显示周期图标；配置表单原地展开，编辑器只显示不可交互的周期标记。
-
-Agent 使用“会话列表 → 新会话硬范围或增量对话 → proposal 审查/审批”三栏布局。
-Provider、profile、URL、model、凭据、发现、探测和符合性检查只在 Settings 的
-application facade 中管理。符合性检查是服务端内存后台操作：启动请求返回 202，
-客户端以短请求读取阶段或取消，不以延长通用 HTTP 超时维持单个请求；Profile timeout
-只约束模型 turn。检查同时提供真实 `stage_workspace_create_note` schema 与一个干扰
-读取工具，要求一次只调用正确 staging 工具；宿主只运行无内容 mutation 的假 handler。
-检查流程实际要求 `describe_syntax → stage_workspace_create_note →` 自然语言总结，
-随后以受限输出验证收束；因此 chat Profile 的生产 `maxToolSteps` 下限为 3。
-不显示 raw
-chain-of-thought。发送、批准与 destructive confirmation 前先同步范围对应的已加载
-session，失败即阻止 HTTP 操作。Agent event sequence 缺口通过重读 session snapshot
-恢复；message delta 直接增长现有 DOM，而不是等待 turn 完成后一次替换。
-右侧默认只显示冻结的 store 名称、资源路径、动作摘要、块计数和行级 diff；删除警告
-必须先于审批动作可见。协议 ID、revision、digest、change set 与字符级 diff 位于默认
-关闭的技术详情中，长值显示前后各 8 位并提供复制完整值。Proposal 选择器使用序号、
-状态和人类目标名称，不把 UUID 当作主标签。
-
-Settings 的 `agentPage` 和 Provider/Profile 创建/编辑草稿都是 Presentation 会话状态，
-不进入 application、contracts 或服务端配置。搜索草稿只包含搜索词和三个领域范围，
-逐仓库范围只保留在公开搜索请求与 Agent 授权边界，不由搜索页面单独维护。页内 tab、表单、
-状态摘要和主区管理列表由 `presentation/ui/shared` 独占交互结构；左侧
-`CompactContextList` 不作为 Settings 管理列表复用。切换 Settings 顶层分类会卸载并
-清除未提交表单及 write-only secret，但不会改变服务端设备码登录状态。精确视觉与滚动
-规则仍由界面规范独占。
+Settings 的页内选择和未提交表单、Search 的查询草稿、Notes 的模式以及工作台布局都属于
+Presentation 页面会话状态，不进入领域 content 或服务端配置。write-only secret 随对应
+表单卸载而清除；服务端 pending 操作具有独立生命周期，不由页面卸载取消。
 
 `application/problems` 的 ProblemCenter 是运行期 operational incident 的唯一 owner。
-API、Agent、同步、Settings 与 UI action 只通过 `ProblemReporter` 上报 source、code、
-severity、target、message、retryable、requestId、path 与安全 details。它按
-source/code/target/path/安全详情指纹聚合，requestId 只保留最近一个；记录
-first/last occurred time 与 occurrence count，最多保存 200 项，刷新后清空。未知异常
-映射为 `unexpected_client_error`，不暴露 stack。
+API、Agent、同步、Settings 与 UI action 只通过 `ProblemReporter` 上报结构化安全信息；
+ProblemCenter 负责指纹聚合、最近 requestId、时间、次数、200 项容量和页面生命周期。
+领域 diagnostics 继续由源状态派生，不复制进 ProblemCenter。
 
-领域语法、名称、引用和仓库状态仍是源状态派生 diagnostics，不进入 ProblemCenter
-持久副本。Presentation shell 在每个 Activity（包括 Settings）全局合并 diagnostics、
-可恢复状态故障与全部 operational incidents；筛选只改变展示，不改变所有权。问题行
-可按来源、严重度和可重试性筛选，操作错误可关闭并复制最近 requestId；状态型
-diagnostics 只能随源状态恢复消失。点击问题只导航到拥有恢复能力的 Activity，不执行
-mutation 或盲目重试。
+Presentation shell 在全部 Activity 合并 diagnostics、可恢复状态故障与 operational
+incidents；筛选只改变展示。问题导航只能进入拥有恢复能力的 Activity，不能执行 mutation
+或盲目重试。五秒 transient feedback 同样由 ProblemCenter 调度，稳定保存不生成文案。
 
-ProblemCenter 同时拥有五秒 transient feedback；Presentation binding 在操作开始时捕获
-ActivityId，异步完成后仍使用原 target。短暂反馈结束后恢复领域非稳定持久化状态，
-稳定状态不产生“已保存”文字；反馈和错误不得使用通知浮层或标题区重复投影。
-
-编辑器只接收 editable source、语义角色和展示数据，不解释仓库元数据。canonical
-页面只消费 application 已准备的 syntax、document 与 parse index；只有未保存 draft
-可以在 presentation/editor 内独立分析。普通仓库没有已准备 syntax 时，编辑器使用
-显式 raw 配置、Syntax Activity 使用 unavailable 状态，不构造默认领域 syntax。
-普通笔记 concept、Journal body 与 Todo 必须带任务标记的规则由 core policy 决定，
-不能由页面位置或 CSS 推断。
-
-core/ctn parser 是 multiline opener、closer 与 lexical 范围的唯一 owner。领域结构事务移动块时必须消费该范围并保留完整源码；Presentation 不重建 multiline 布局，也不实现整块输入 planner。
-
-kind = "multiline" 的块在编辑器中保持普通源码。CodeMirror 不投影卡片，不隐藏或保护围栏和正文前缀，不增加 atomic range、视觉缩进补偿、鼠标 adapter 或专用键盘命令。Presentation 只把命中规则的 tone 和 textColor 作为普通 decoration 覆盖 opener、正文和 closer；规则 label 不插入编辑文本。闭合和未闭合块使用同一可编辑路径，未闭合诊断仍来自 analysis。
+编辑器只接收 editable source、语义角色和展示数据。canonical 页面消费 application 已
+准备的 syntax、document 与 parse index；只有未保存 draft 可在 editor adapter 内分析。
+缺少已准备 syntax 时使用显式 raw/unavailable 状态，不构造默认语法。CTN parser、
+multiline lexical 范围与 decoration 语义由
+[CTN 分析流水线](ctn-analysis-pipeline.md)独占，Presentation 不重建。

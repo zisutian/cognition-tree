@@ -1,150 +1,47 @@
 # 认知树
 
-认知树是 Server-backed 的可配置语法结构化笔记应用。它用 `.ctn` 原文、缩进、语法规则和引用关系组织知识，并提供独立的日记与代办领域。
-
-## 内容领域
-
-- Workspace：零个或多个普通笔记库，支持目录、编辑、结构整理、引用图谱和多份仓库语法。
-- Journal：全局唯一。手动创建一天多条日记，固定标题为 `YYYY-MM-DD-0001`，左侧按“年 → 月 → 条目”倒序显示；支持仓内引用和 `[[仓库名:笔记名]]`。
-- Todo：全局唯一。每个事项集合是一篇 CTN，`[]` 表示任务，缩进表示父子关系；普通完成与周期阶段、发生日期和完成历史保存于独立 sidecar。
-
-Journal 与 Todo 不依赖当前普通仓库。它们的存储位置、故障与重试统一显示在“仓库 → 内置数据”中。
+认知树是一款 Server-backed 的可配置语法结构化笔记应用。它以 `.ctn` 原文、缩进、
+语法规则和引用关系组织知识，并把普通笔记库、全局日记、全局代办与受审查的智能体工作流
+放进同一个桌面工作台。
 
 ## 主要能力
 
-- 本地普通仓库的创建、切换、重命名和安全删除。
-- 所见即所得的本地目录：文件夹对应目录，笔记对应以标题命名的 `.ctn` 文件。
-- CTN 编辑、块结构、跨笔记结构移动、引用导航和图谱。
-- 系统语法（日记、代办）与笔记库多语法配置；普通语法的“打开编辑”和“实际启用”相互独立。
-- 页面生命周期内的乐观编辑、内存待同步队列、CAS 同步与显式冲突处理。
-- Todo 支持按天、周、月的本地日历周期、规则阶段和不丢失的完成统计；规则在结构行内配置。
-- 提供唯一 `/api/v3` 契约：automation 只读，官方浏览器与 trusted-client 共用服务端三方合并 snapshot sync，Agent proposal 则保持 owner 审批后的 exact CAS；不存在公开写 command API。
-- 固定智能体 Activity 支持 Codex app-server、OpenAI-compatible 与直连 Ollama profile。模型只能在会话硬范围内读取和暂存，生成 CTN 正文前必须读取当前 store 的实际语法；owner 通过资源名称、动作摘要和行级 diff 审查 Proposal 后才以 exact CAS 写入，删除还需要独立二次确认。
-- 全局 Problems 合并 diagnostics、运行故障和结构化操作错误，支持来源、严重度与可重试性筛选；短暂反馈与非稳定保存状态统一进入底栏。
+- Workspace：管理零个或多个普通笔记库，支持目录、编辑、结构整理、引用导航与图谱。
+- Journal：独立于普通仓库的全局日记，支持一天多条记录及跨仓引用。
+- Todo：独立于普通仓库的全局代办，以 CTN 层级表达任务、周期与完成历史。
+- CTN：支持仓库级语法、结构化编辑、诊断与跨笔记结构操作。
+- Repository：创建、切换、重命名、重新扫描和安全删除本地仓库。
+- Agent：在限定资源范围内生成 Proposal，由 owner 审阅 diff 后再提交。
+- Problems：统一呈现诊断、运行故障与结构化操作错误。
 
-没有健康普通仓库时仍挂载完整工作台：日记、代办、仓库和设置保持可用，普通内容活动提供创建仓库入口。
+没有健康的普通仓库时，日记、代办、仓库和设置仍可使用；普通内容活动会提供创建仓库入口。
 
-## 本地运行
+## 快速开始
 
-要求 Node.js 22.18.0 或更高版本、pnpm 11.1.3 与 Git。Ollama、Codex 或其他模型
-服务是可选的独立运行时，不是认知树的启动前置条件。
+要求 Node.js 22.18.0 或更高版本、pnpm 11.1.3 与 Git。Ollama、Codex 或其他模型服务
+是可选的独立运行时，不是启动前置条件。
 
     ./start.sh
 
-生产构建完成后使用同一个 supervisor 启动静态资源模式：
+默认地址：`http://127.0.0.1:3001`。
+
+生产构建使用：
 
     pnpm build
     ./start.sh --production
 
-`start.sh` 默认使用开发 middleware；`--production` 使用已构建静态资源。两者都会在
-首次运行时安装锁文件中的依赖、接入项目已有的 Git 提交钩子，并以
-单一服务 supervisor 启动认知树。Node 同时拥有网页、API、开发 HMR 与生产静态资源；
-脚本不会启动、停止、下载或探测 Ollama。设置或数据迁移要求重启时，只有专用退出
-状态会触发自动重启，其他退出状态原样传播。
-
-默认地址：
-
-    http://127.0.0.1:3001
-
-常用验证：
-
-    pnpm check
-    pnpm test
-    pnpm test:architecture
-    pnpm test:e2e
-    pnpm build
-    git diff --check
-
-容量基准使用 `pnpm benchmark:capacity`，覆盖本地文件仓库与浏览器到服务端的同步路径。
-
-## 外部可信客户端
-
-外部 Codex 等受信任程序可以在“设置 → API 访问”创建一次性展示的 trusted-client
-secret，再通过根入口 `./ctn` 使用同一个 merge-aware sync API：
-
-    ./ctn auth add --profile daily --server https://tree.example.com
-    ./ctn sync checkout workspace --repository <repository-id> --output workspace.json
-    ./ctn sync commit workspace --repository <repository-id> --file workspace.json
-
-CLI 只经 `/api/v3` 工作，不读取服务端控制区或直接改仓库文件。凭据只从 TTY 输入并
-保存在用户配置目录的 0600 文件中；完整 profile、checkout、错误对账和退出码说明见
+安装、验证、外部可信客户端、服务公开、数据迁移、容器部署与升级步骤统一见
 [使用与部署](docs/getting-started.md)。
 
-## 运行配置
+## 关键边界
 
-所有用户配置都在“设置”内管理，不读取监听、端口、路径、owner token、审计容量或
-私网目标环境变量。首次启动固定为本机 `127.0.0.1:3001`，数据根为项目
-`.cognition-tree`，操作审计容量为 1000。浏览器与 API 必须同源，客户端只请求
-相对 `/api/v3`，不存在独立启动配置文件。
+- Server 拥有内容与持久配置；浏览器只持有当前页面会话状态和少量明确的本地偏好。
+- Workspace、Journal 与 Todo 各有独立 contract、session 和存储边界，但共享同步基础设施。
+- 官方浏览器和 trusted-client 使用 merge-aware sync；Agent Proposal 经 owner 审批后执行 exact CAS。
+- Ollama、Codex 等模型运行时独立管理，认知树不接管其下载、进程或存储生命周期。
+- UI 只通过 application 用例进入领域；wire 形态由 `contracts/` 统一拥有。
 
-“设置 → 服务”管理本机/局域网模式、端口、HTTPS 公开 origin、数据根、宿主机显示
-路径、审计容量和 owner credential。局域网模式固定绑定 `0.0.0.0`，必须先创建
-owner credential，并填写由外部反向代理终止 TLS 的 HTTPS origin。远程浏览器用
-一次展示的 owner secret 换取 12 小时 HttpOnly Cookie；automation Bearer token
-仍严格只读。trusted-client token 可同步全部 Workspace、Journal 与 Todo，但不能访问
-Agent、设置、认证或仓库管理。Provider 的非 loopback 私网许可在对应 Provider 中逐版本确认。
-
-## 数据位置
-
-固定控制区是项目根 `.cognition-tree/bootstrap-v1/configuration.json`；它只保存当前
-数据根指针、服务配置、owner credential 摘要和 session 签名材料，不随数据根迁移。
-数据根迁移只复制 `repositories/`、`server/access-v1/`、`server/agent-auth-v1/`、
-`server/agent-config-v1/` 与 `server/operations-v1/`，逐文件比较数量、大小和 SHA-256
-后才切换指针；旧数据根原样保留，不自动删除。bootstrap 损坏时只在
-`127.0.0.1:3001` 启动恢复页面，不加载
-内容、Agent 或凭据。
-
-本地仓库的可见目录是权威工作树：
-
-    仓库/
-      .ctn/                  身份、顺序、语法、块元数据和事务
-      根笔记.ctn
-      项目/
-        设计.ctn
-
-可见 `.ctn` 文件只保存编辑器正文；稳定 ID、时间和事务事实位于根部保留目录 `.ctn/`。服务在加载、提交和通过笔记工具栏“重新扫描文件”时读取真实目录，不运行文件 watcher。非 `.ctn` 文件不会进入笔记树，也不会被仓库操作改写或删除。
-
-Server 模式下，普通仓库与内置数据共用一个内容根目录，但保持独立
-contract、session 和 API：
-
-    <当前数据根>/repositories/.built-ins/journal/
-    <当前数据根>/repositories/.built-ins/todo/
-
-`.built-ins/` 是受保护的基础设施目录，不会被普通仓库 catalog 识别。
-`<当前数据根>/server` 保存 automation 与 trusted-client token 哈希、Agent 配置，
-以及不含提示词、正文、完整 diff 或 tool output 的统一操作账本；令牌明文只在创建时
-显示一次。浏览器 autosave 不进入账本，trusted-client 的认证后同步尝试与 Agent 审批
-写入必须先完成持久审计；账本不可用时两者 fail closed，本地官方浏览器仍可同步。
-
-普通仓库只能位于 `<当前数据根>/repositories`。容器部署必须将
-该目录完整挂载为持久卷；从局域网浏览页面或调用 API 只是在远程访问服务，不会把
-仓库存储变成远程文件系统。
-
-Agent provider、profile 与模型参数由“设置 → 智能体”管理，配置引用保存于
-`<当前数据根>/server/agent-config-v1/configuration.json`，API Key 和 Codex 托管登录态
-保存于相邻的 `agent-auth-v1/`；两者都不是用户仓库文件，也不应手工编辑。secret 依赖
-0700/0600 文件权限，不承诺静态加密；能够读取服务账号文件的主体仍能取得密钥。当前
-配置内部格式为 5：旧 chat 压缩估算会迁移为等效字符预算并清除旧符合性，旧内联 API
-Key 会先安全写入凭据分区，再原子切换配置引用。这个预算只控制认知树的内存对话压缩，
-不设置 Ollama `num_ctx`。
-Ollama 直接连接模型层，不调用其他代码 Agent 的任务 API、MCP、Git、shell 或 ChangeSet。
-Codex 依赖精确锁定为 `@openai/codex@0.148.0`，Provider 可选择一次性写入 API Key
-或 ChatGPT 设备码登录；每个会话仍使用独立、ephemeral、只读且无网络的 app-server
-进程和会话专属私有 MCP，不导入个人 Codex 历史。Agent 对话只在
-服务内存中驻留，重启、TTL 到期或回收会丢失。
-
-本机 Ollama 的镜像、GPU、模型卷与生命周期由 Ollama 自身管理。认知树根部的
-`./start.sh` 不会接管它；在
-“设置 → 智能体”中添加 Ollama provider 时，服务根地址填写
-`http://127.0.0.1:11434`。认知树运行时只调用 `/api/tags`、显式探测所需的
-`/api/ps`、`/api/show`，以及 `/v1/chat/completions`；不会停止
-Ollama 或下载模型。工具、迁移与探测的详细边界见
-[架构边界](docs/architecture.md)和[使用与部署](docs/getting-started.md)。
-
-前端不持久化 Workspace、Journal、Todo、草稿、同步队列或冲突。它只在内存中
-保留当前页面会话的乐观状态，并用 `localStorage` 保存当前普通仓库 ID；刷新或
-关闭页面会丢失尚未同步的内存内容。旧版本留下的 IndexedDB 数据不会被读取、
-迁移或清理，需要时由用户在浏览器中手动删除。
+精确的数据流、保存语义、权限边界与运行时所有权见[架构边界](docs/architecture.md)。
 
 ## 源码层次
 
@@ -152,25 +49,18 @@ Ollama 或下载模型。工具、迁移与探测的详细边界见
     application/      用例、端口、versioned session，以及 Workbench/Agent/System 边界
     infrastructure/   client memory/HTTP adapter、versioned persistence 与 Node server
     presentation/     React shell、Activities、CodeMirror 和共享 UI
-    contracts/        API registry、Agent、Workspace、Journal、Todo 与 built-ins wire contract
+    contracts/        API registry、领域 contract 与 wire 解析
     tooling/          CLI、构建、Git、基准脚本与专用 TypeScript 配置
     docs/             文档索引以及产品、架构、工程、使用与界面约定
     tests/            单元、UI、contract 与架构测试
     e2e/              浏览器流程测试
 
-`application/persistence/VersionedSessionController` 统一三个领域的页面内乐观状态、CAS、冲突、重载、丢弃和删除前冻结语义；各领域 controller 只保留自己的校验、投影和命令。`application/workbench/WorkbenchController` 组合普通仓库 catalog、Workspace slot、两个内置 slot 与跨仓导航；`application/agent` 独立拥有硬范围、会话、staging、proposal 与审批状态机；`application/system` 只拥有服务配置端口和状态机。`AppRoot` 是客户端显式组合根。client HTTP 与 Server 文件系统实现只存在于 infrastructure，wire 解析只存在于 contracts。
-
-构建、测试和工具缓存统一写入可删除的 `.artifacts/`：客户端和服务端位于
-`build/client` 与 `build/server`，Playwright 与 E2E 运行数据位于 `test/`。
-`pnpm clean` 只清除 `.artifacts/`。`.cognition-tree/` 保存本地仓库和服务状态，
-不属于生成产物；`node_modules/` 继续由 pnpm 管理。
-
-更具体的约束见：
+## 文档导航
 
 - [文档索引与事实所有权](docs/README.md)
 - [产品需求](docs/product-requirements.md)
 - [架构边界](docs/architecture.md)
+- [界面规范](docs/ui-guidelines.md)
 - [CTN 分析流水线](docs/ctn-analysis-pipeline.md)
 - [工程原则](docs/engineering-principles.md)
 - [使用与部署](docs/getting-started.md)
-- [界面规范](docs/ui-guidelines.md)

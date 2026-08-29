@@ -1,5 +1,9 @@
 # 使用与部署
 
+本文件只拥有运行、配置、迁移、升级与 CLI 操作步骤。产品承诺、源码边界和界面排布
+分别见[产品需求](product-requirements.md)、[架构边界](architecture.md)与
+[界面规范](ui-guidelines.md)；HTTP operation 的完整事实始终来自 OpenAPI registry。
+
 ## 1. 工具与单一入口
 
 要求 Node.js 22.18.0 或更高版本、pnpm 11.1.3 与 Git。
@@ -211,9 +215,9 @@ owner-only 服务管理操作：
     GET /api/v3/admin/operations
 
 内容只读、snapshot sync、Agent 会话、Provider/Profile 管理、仓库管理、两类外部
-token 与操作审计均属于唯一 `/api/v3` registry。浏览器与 trusted-client 的 sync PUT
-使用 `{ base: { revision, content }, content }`，响应返回最终 `{ outcome, snapshot }`；
-Agent proposal 不使用此合并路径。不存在 `/api/v2`、公开 command API、
+token 与操作审计均属于唯一 `/api/v3` registry。浏览器与 trusted-client 使用同一
+snapshot sync 并接收服务端最终 snapshot；Agent proposal 不使用此合并路径。不存在
+`/api/v2`、公开 command API、
 preview/commit、写入 automation scope 或兼容 parser。
 
 错误响应是带 `code`、`message`、`requestId`、服务端 `retryable` 与严格 `details` 的
