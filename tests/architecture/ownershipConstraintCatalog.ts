@@ -1,0 +1,229 @@
+import type { SourceModules } from "./moduleImports";
+import type {
+  TextCorpus,
+  TextPolicy,
+} from "../support/textPolicy";
+
+type UniqueOwner = readonly [
+  name: string,
+  corpus: TextCorpus,
+  pattern: RegExp,
+  allowedPath: NonNullable<TextPolicy["allowedPath"]>,
+  scope?: TextPolicy["scope"],
+];
+
+export function createOwnershipTextPolicies({
+  applicationModules,
+  contractModules,
+  infrastructureModules,
+  presentationModules,
+  sourceModules,
+}: {
+  applicationModules: SourceModules;
+  contractModules: SourceModules;
+  infrastructureModules: SourceModules;
+  presentationModules: SourceModules;
+  sourceModules: SourceModules;
+}): readonly TextPolicy[] {
+  const uniqueOwners: readonly UniqueOwner[] = [
+    [
+      "CTN API request dispatch",
+      contractModules,
+      /\bexport function parseApiOperationRequest\s*\(/,
+      /^contracts\/api\/registry\.ts$/,
+    ],
+    [
+      "CTN token parsing",
+      sourceModules,
+      /\bparseCtnSourceText\s*\(/,
+      /^core\/ctn\/analysis\//,
+      (filePath) => !filePath.startsWith("core/ctn/parser/"),
+    ],
+    [
+      "editor CTN analysis",
+      presentationModules,
+      /\banalyzeCtnSource\s*\(/,
+      /^presentation\/editor\//,
+    ],
+    [
+      "workspace analysis scan",
+      applicationModules,
+      /\bindex\.createScan\s*\(/,
+      /^application\/workspace\/analysis\//,
+    ],
+    [
+      "cross-domain search execution",
+      applicationModules,
+      /\bexport function createSearchQuery\s*</,
+      /^application\/search\/searchIndex\.ts$/,
+    ],
+    [
+      "Activity descriptor catalog",
+      presentationModules,
+      /\bexport const activityDescriptors\b/,
+      /^presentation\/activities\/activityCatalog\.ts$/,
+    ],
+    [
+      "filesystem persistence primitives",
+      infrastructureModules,
+      /function (?:fsyncDirectory|writeFileDurably)\s*\(/,
+      /^infrastructure\/server\/persistence\//,
+    ],
+    [
+      "CTN tone class projection",
+      presentationModules,
+      /`ctn-tone-\$\{tone\}`/,
+      /^presentation\/ui\/shared\//,
+    ],
+    [
+      "CTN custom tone projection",
+      presentationModules,
+      /`--ctn-tone-color: \$\{tone\};`/,
+      /^presentation\/ui\/shared\//,
+    ],
+  ];
+
+  return [
+    ...uniqueOwners.map(([name, corpus, pattern, allowedPath, scope]) => ({
+      allowedPath,
+      corpus,
+      matches: 1,
+      name,
+      pattern,
+      scope,
+    })),
+    {
+      allowedPath:
+        /^contracts\/api\/operations\/(?:admin|agent|auth|content|foundation|sync)\.ts$/,
+      corpus: contractModules,
+      matches: { min: 1 },
+      name: "CTN API v3 feature operation declarations",
+      pattern: /\bpath:\s*"\/api\/v3\//,
+    },
+    {
+      allowedPath: /^core\/ctn\/(?:metadata|parser)\//,
+      corpus: sourceModules,
+      matches: { min: 1 },
+      name: "CTN metadata interpretation",
+      pattern: /\bparseCtnBlockMetadataLine\s*\(/,
+    },
+    {
+      corpus: applicationModules,
+      matches: 0,
+      name: "presentation contracts in application projections",
+      pattern:
+        /\b(?:className|CSSProperties)\b|(?:ctn-tone-|ctn-text-color-|--ctn-)/,
+      scope: /^application\/workspace\/projection\//,
+    },
+    {
+      corpus: presentationModules,
+      matches: 0,
+      name: "Search Activity CTN parsing",
+      pattern:
+        /\b(?:analyzeCtnSource|parseCtnSourceText|create(?:Journal|Todo|Workspace)ParseIndex)\s*\(/,
+      scope: /^presentation\/activities\/search\//,
+    },
+    {
+      corpus: presentationModules,
+      matches: 0,
+      name: "canonical content preparation in presentation",
+      pattern:
+        /\b(?:parseWorkspaceSyntax|create(?:Journal|Todo|Workspace)ParseIndex|validate(?:Journal|Todo)Content(?:Analysis|Transition|AnalysisTransition)?)\s*\(/,
+    },
+    {
+      corpus: sourceModules,
+      matches: 0,
+      name: "plain and prepared mutation dual APIs",
+      pattern:
+        /\b(?:mutatePrepared|mutatePlain|mutateContent|commitPreparedSnapshot|commitSnapshot)\b/,
+    },
+    {
+      corpus: sourceModules,
+      matches: 0,
+      name: "hidden application or presentation syntax defaults",
+      pattern:
+        /\b(?:fallbackSyntax|defaultWorkspaceSyntax|defaultJournalSyntax|defaultTodoSyntax)\b/,
+      scope: /^(?:application|presentation)\//,
+    },
+    {
+      corpus: sourceModules,
+      matches: 0,
+      name: "legacy HTTP API namespace",
+      pattern: /["'`]\/api\/(?:v1|v2)(?:\/|["'`])/,
+    },
+    {
+      corpus: sourceModules,
+      matches: 0,
+      name: "versioned internal API identifiers",
+      pattern: /\b(?:ApiV1|apiV1)\b/,
+    },
+    {
+      corpus: sourceModules,
+      matches: 0,
+      name: "legacy public command authority",
+      pattern: /\b(?:ApiCommandResult|commandId|preparedCommandExecutor)\b/,
+    },
+    {
+      corpus: sourceModules,
+      matches: 0,
+      name: "automation mutation scopes",
+      pattern: /["'`](?:workspace|journal|todo):(?:write|delete)["'`]/,
+    },
+    {
+      corpus: sourceModules,
+      matches: 0,
+      name: "legacy Agent profile file authority",
+      pattern: /\b(?:CTN_AGENT_PROFILES_FILE|loadAgentProfileCatalog|apiKeyEnv)\b/,
+    },
+    {
+      corpus: sourceModules,
+      matches: 0,
+      name: "retired user environment configuration",
+      pattern:
+        /\bCTN_(?:API_HOST|API_PORT|API_TOKEN|PUBLIC_URL|REPOSITORY_ROOT|REPOSITORY_HOST_ROOT|SERVER_STATE_DIR|AGENT_MAX_AUDIT_ENTRIES|AGENT_PRIVATE_TARGETS)\b/,
+    },
+    {
+      corpus: sourceModules,
+      matches: 0,
+      name: "retired client startup configuration",
+      pattern:
+        /\bcognition-tree\.config\.json\b|\b(?:loadClientApiConfiguration|parseClientStartupConfiguration)\b/,
+    },
+    {
+      corpus: sourceModules,
+      matches: 0,
+      name: "retired remote repository authority",
+      pattern: new RegExp([
+        "web",
+        "dav",
+        "|CTN_WEB",
+        "DAV_PRIVATE_TARGETS",
+        "|CompositeRepository",
+        "Catalog",
+      ].join(""), "i"),
+    },
+    {
+      corpus: infrastructureModules,
+      matches: 0,
+      name: "Ollama nested code Agent integration",
+      pattern: /["'`]\/api\/(?:tasks|mcp)(?:\/|["'`])/,
+      scope:
+        /^infrastructure\/server\/agent\/(?:ollamaRuntime|providerOperations|providerProbe)\.ts$/,
+    },
+    {
+      corpus: infrastructureModules,
+      matches: 0,
+      name: "duplicate API route-kind dispatch",
+      pattern: /\b(?:route\.kind|context\.method)\b/,
+      scope: /^infrastructure\/server\/api\//,
+    },
+    {
+      corpus: sourceModules,
+      matches: 0,
+      name: "runtime content migrations outside the system control plane",
+      pattern: /\b(?:migrate|migration)(?:[A-Z_]|[a-z]+\b)/i,
+      scope:
+        /^(?:core|application\/(?:workspace|journal|todo)|infrastructure\/server\/repository)\//,
+    },
+  ];
+}

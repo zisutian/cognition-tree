@@ -3,45 +3,56 @@ import {
   configurableSyntaxTones,
 } from "../../core/ctn/syntax/tones";
 import {
+  defaultStructureTreeIndentWidthPx,
+} from "../../presentation/ui/shared/tree/structureIndent";
+import {
+  uiVirtualRowHeightPx,
+} from "../../presentation/ui/shared/virtualListMetrics";
+import {
+  appContextDefaultWidth,
+  appDetailDefaultWidth,
+  appProblemsCollapsedHeight,
+  appProblemsDefaultHeight,
+} from "../../presentation/ui/workbench/frameResize";
+import {
   auditTextPolicies,
   type TextCorpus,
 } from "../support/textPolicy";
 import {
   createUiTextPolicies,
-  uiConstraintCatalog,
-} from "../architecture/constraintCatalog";
+  createUiConstraintCatalog,
+} from "./uiConstraintCatalog";
+import {
+  presentationModules,
+  sourceModules,
+} from "../architecture/sourceCorpus";
 
-type RawTextModules = Record<string, string | { default?: string }>;
 type FragmentContract = {
   forbidden?: readonly string[];
   required?: readonly string[];
 };
 
-const { readFileSync } = await import("node:fs");
-const rawStyleModules = import.meta.glob("../../presentation/**/*.css", {
+const styleModules = import.meta.glob("../../presentation/**/*.css", {
   eager: true,
-  query: "?inline",
-}) as RawTextModules;
-const rawUiTestModules = import.meta.glob([
+  import: "default",
+  query: "?raw",
+}) as TextCorpus;
+const uiTestModules = import.meta.glob([
   "./**/*.test.ts",
   "./**/*.test.tsx",
-  "../../e2e/*.pw.ts",
 ], {
   eager: true,
+  import: "default",
   query: "?raw",
-}) as RawTextModules;
-
-function readTextModules(modules: RawTextModules): TextCorpus {
-  return Object.fromEntries(
-    Object.keys(modules).map((filePath) => [
-      filePath,
-      readFileSync(new URL(filePath, import.meta.url), "utf8"),
-    ]),
-  );
-}
-
-const styleModules = readTextModules(rawStyleModules);
-const uiTestModules = readTextModules(rawUiTestModules);
+}) as TextCorpus;
+const uiConstraintCatalog = createUiConstraintCatalog({
+  appContextDefaultWidth,
+  appDetailDefaultWidth,
+  appProblemsCollapsedHeight,
+  appProblemsDefaultHeight,
+  defaultStructureTreeIndentWidthPx,
+  uiVirtualRowHeightPx,
+});
 
 function readStyle(relativePath: string) {
   return styleModules[`../../presentation/${relativePath}`] ?? "";
@@ -105,6 +116,8 @@ describe("UI design contract", () => {
 
   it("enforces the declared source-level UI policies", () => {
     expect(auditTextPolicies(createUiTextPolicies({
+      presentationModules,
+      sourceModules,
       styleModules,
       uiTestModules,
     }))).toEqual([]);

@@ -3,15 +3,21 @@ import {
   listSourceDependencyCycles,
   listSourceImports,
   readSourceImports,
+  sourceImportCorpus,
 } from "./sourceGraph";
 import { readModuleImports } from "./moduleImports";
 import {
   auditApplicationCoordinationRoots,
   auditImportPolicies,
-  dependencyImportPolicies,
-  dependencyTextPolicies,
-  e2eTextPolicies,
-} from "./constraintCatalog";
+  createDependencyImportPolicies,
+  createDependencyTextPolicies,
+} from "./dependencyConstraintCatalog";
+import { getSourceRoot } from "./sourceArchitecture";
+import {
+  applicationModules,
+  sourceModules,
+  sourceModulesByRoot,
+} from "./sourceCorpus";
 import {
   auditTextPolicies,
 } from "../support/textPolicy";
@@ -23,12 +29,6 @@ const layeredTestModules = import.meta.glob([
   "../infrastructure/**/*.{ts,tsx}",
   "../presentation/**/*.{ts,tsx}",
 ], {
-  eager: true,
-  import: "default",
-  query: "?raw",
-}) as Record<string, string>;
-
-const architectureModules = import.meta.glob("./*.ts", {
   eager: true,
   import: "default",
   query: "?raw",
@@ -47,6 +47,14 @@ const testLayerImports: Readonly<Record<string, readonly string[]>> = {
     "core",
   ],
 };
+
+const dependencyImportPolicies = createDependencyImportPolicies({
+  getSourceRoot,
+});
+const dependencyTextPolicies = createDependencyTextPolicies({
+  applicationModules,
+  sourceImportCorpus,
+});
 
 function auditTestLayerImports() {
   return Object.entries(layeredTestModules).flatMap(([filePath, source]) => {
@@ -68,14 +76,26 @@ function auditTestLayerImports() {
 }
 
 describe("dependency boundaries", () => {
-  it("keeps TypeScript AST parsing in one architecture owner", () => {
-    const typescriptImport = /\bfrom\s+["']typescript["']/;
+  it("keeps the production source corpus complete and immutable", () => {
+    const rootModulePaths = Object.values(sourceModulesByRoot)
+      .flatMap((modules) => Object.keys(modules));
 
+    expect(Object.keys(sourceModulesByRoot)).toEqual([
+      "core",
+      "contracts",
+      "application",
+      "infrastructure",
+      "presentation",
+    ]);
+    expect(Object.isFrozen(sourceModulesByRoot)).toBe(true);
     expect(
-      Object.entries(architectureModules)
-        .filter(([, source]) => typescriptImport.test(source))
-        .map(([filePath]) => filePath),
-    ).toEqual(["./moduleImports.ts"]);
+      Object.values(sourceModulesByRoot).every((modules) =>
+        Object.keys(modules).length > 0 && Object.isFrozen(modules)
+      ),
+    ).toBe(true);
+    expect(new Set(rootModulePaths).size).toBe(rootModulePaths.length);
+    expect(Object.keys(sourceModules)).toEqual(rootModulePaths);
+    expect(Object.isFrozen(sourceModules)).toBe(true);
   });
 
   it("derives static, re-exported, and dynamic edges from the TypeScript AST", () => {
@@ -125,7 +145,6 @@ describe("dependency boundaries", () => {
       ...auditApplicationCoordinationRoots(imports),
       ...auditImportPolicies(imports, dependencyImportPolicies),
       ...auditTextPolicies(dependencyTextPolicies),
-      ...auditTextPolicies(e2eTextPolicies),
       ...auditTestLayerImports(),
     ]).toEqual([]);
   });

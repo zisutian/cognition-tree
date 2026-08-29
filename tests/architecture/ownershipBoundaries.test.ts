@@ -7,11 +7,26 @@ import {
   apiAutomationScopes,
 } from "../../contracts/api/types";
 import {
-  ownershipTextPolicies,
-} from "./constraintCatalog";
+  createOwnershipTextPolicies,
+} from "./ownershipConstraintCatalog";
+import {
+  applicationModules,
+  contractModules,
+  infrastructureModules,
+  presentationModules,
+  sourceModules,
+} from "./sourceCorpus";
 import {
   auditTextPolicies,
 } from "../support/textPolicy";
+
+const ownershipTextPolicies = createOwnershipTextPolicies({
+  applicationModules,
+  contractModules,
+  infrastructureModules,
+  presentationModules,
+  sourceModules,
+});
 
 describe("source ownership boundaries", () => {
   it("enforces the shared ownership and forbidden-boundary catalog", () => {

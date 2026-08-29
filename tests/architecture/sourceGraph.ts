@@ -2,100 +2,13 @@ import {
   readModuleImports,
   type SourceModules,
 } from "./moduleImports";
-
-export type SourceRoot =
-  | "core"
-  | "contracts"
-  | "application"
-  | "infrastructure"
-  | "presentation";
-
-export type SourceImport = Readonly<{
-  filePath: string;
-  importPath: string;
-  targetPath: string;
-  targetRoot: SourceRoot;
-}>;
-
-export type InternalModuleImport = Readonly<
-  Omit<SourceImport, "targetRoot">
->;
-
-export const coreModules = import.meta.glob("../../core/**/*.ts", {
-  eager: true,
-  import: "default",
-  query: "?raw",
-}) as SourceModules;
-
-export const contractModules = import.meta.glob("../../contracts/**/*.ts", {
-  eager: true,
-  import: "default",
-  query: "?raw",
-}) as SourceModules;
-
-export const applicationModules = import.meta.glob(
-  "../../application/**/*.{ts,tsx}",
-  { eager: true, import: "default", query: "?raw" },
-) as SourceModules;
-
-export const infrastructureModules = import.meta.glob(
-  "../../infrastructure/**/*.ts",
-  { eager: true, import: "default", query: "?raw" },
-) as SourceModules;
-
-export const presentationModules = import.meta.glob(
-  "../../presentation/**/*.{ts,tsx}",
-  { eager: true, import: "default", query: "?raw" },
-) as SourceModules;
-
-export const sourceModulesByRoot: Readonly<
-  Record<SourceRoot, SourceModules>
-> = Object.freeze({
-  core: coreModules,
-  contracts: contractModules,
-  application: applicationModules,
-  infrastructure: infrastructureModules,
-  presentation: presentationModules,
-});
-
-export const sourceModules: SourceModules = Object.freeze(
-  Object.assign({}, ...Object.values(sourceModulesByRoot)),
-);
-
-export function modulePathToRelative(filePath: string, prefix: string) {
-  return filePath.startsWith(prefix) ? filePath.slice(prefix.length) : filePath;
-}
-
-export function sourcePathToRelative(filePath: string) {
-  return modulePathToRelative(filePath, "../../");
-}
-
-export function getSourceRoot(filePath: string): SourceRoot {
-  const root = sourcePathToRelative(filePath).split("/")[0];
-
-  if (!(root && root in sourceModulesByRoot)) {
-    throw new Error(`Unknown source root for ${filePath}`);
-  }
-  return root as SourceRoot;
-}
-
-export function listSourceFiles(directory: string) {
-  const prefix = `../../${directory}/`;
-
-  return Object.keys(sourceModules)
-    .filter((filePath) => filePath.startsWith(prefix))
-    .sort();
-}
-
-export function selectSourceModules(directory: string) {
-  const selected = new Set(listSourceFiles(directory));
-
-  return Object.fromEntries(
-    Object.entries(sourceModules).filter(([filePath]) =>
-      selected.has(filePath)
-    ),
-  );
-}
+import {
+  getSourceRoot,
+  sourcePathToRelative,
+  type InternalModuleImport,
+  type SourceImport,
+} from "./sourceArchitecture";
+import { sourceModules } from "./sourceCorpus";
 
 function normalizePath(segments: string[]) {
   return segments.reduce<string[]>((normalized, segment) => {

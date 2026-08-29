@@ -12,6 +12,15 @@ export type TextPolicy = {
   scope?: PathPredicate;
 };
 
+export function forbidTextPolicy(
+  name: string,
+  corpus: TextCorpus,
+  pattern: RegExp,
+  scope?: TextPolicy["scope"],
+): TextPolicy {
+  return { corpus, matches: 0, name, pattern, scope };
+}
+
 function test(value: string, predicate?: PathPredicate) {
   if (!predicate) return true;
   if (typeof predicate === "function") return predicate(value);
