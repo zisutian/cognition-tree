@@ -265,6 +265,12 @@ describe("versioned session controller", () => {
     expect(controller.getState()).toMatchObject({
       content: { values: [1, 2] },
       projection: { count: 2 },
+      snapshot: {
+        content: { values: [1, 2] },
+        localRevision: localRevision(0),
+        pendingChanges: true,
+        projection: { count: 2 },
+      },
       status: "ready",
     });
 
@@ -277,6 +283,26 @@ describe("versioned session controller", () => {
       { values: [1] },
       { values: [1, 2] },
     ]);
+    expect(harness.expectedLocalRevisions).toEqual([
+      localRevision(0),
+      localRevision(1),
+    ]);
+    expect(controller.getState()).toMatchObject({
+      content: { values: [1, 2] },
+      projection: { count: 2 },
+      snapshot: {
+        content: { values: [1, 2] },
+        localRevision: localRevision(2),
+        pendingChanges: true,
+        projection: { count: 2 },
+      },
+      status: "ready",
+    });
+    expect(harness.getSnapshot()).toMatchObject({
+      content: { values: [1, 2] },
+      localRevision: localRevision(2),
+      projection: { count: 2 },
+    });
     const optimisticIndex = visibleCounts.indexOf(2);
 
     expect(optimisticIndex).toBeGreaterThanOrEqual(0);

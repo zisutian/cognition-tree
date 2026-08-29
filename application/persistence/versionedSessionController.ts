@@ -113,10 +113,8 @@ type ActiveVersionedSession<
   Revision extends string,
   LocalRevision extends string,
 > = {
-  content: Content;
   generation: number;
   persistence: VersionedRepositoryPersistenceState<Revision>;
-  projection: Projection;
   queue: VersionedRepositorySaveQueue<Content, Projection, LocalRevision> | null;
   snapshot: VersionedRepositorySnapshot<
     Content,
@@ -230,16 +228,14 @@ export function createVersionedSessionController<
     ) {
       return;
     }
+    const snapshot = session.snapshot;
+
     publish({
-      content: session.content,
+      content: snapshot.content,
       location: repository.location,
       persistence: session.persistence,
-      projection: session.projection,
-      snapshot: {
-        ...session.snapshot,
-        content: session.content,
-        projection: session.projection,
-      },
+      projection: snapshot.projection,
+      snapshot,
       status: "ready",
       storageLabel: repository.label,
     });
@@ -261,10 +257,8 @@ export function createVersionedSessionController<
         if (active !== session || generation !== expectedGeneration) return;
         session.snapshot = {
           ...session.snapshot,
-          content: session.content,
           localRevision,
           pendingChanges: true,
-          projection: session.projection,
         };
         publishReady(session);
       },
@@ -306,13 +300,6 @@ export function createVersionedSessionController<
     }
     session.queue = queue;
   };
-  const prepareSnapshot = (snapshot: Snapshot) => {
-    return {
-      content: snapshot.content,
-      projection: snapshot.projection,
-      snapshot,
-    };
-  };
   const installSnapshot = (
     snapshot: Snapshot,
     expectedTransition: number,
@@ -324,14 +311,11 @@ export function createVersionedSessionController<
     ) {
       return;
     }
-    const prepared = prepareSnapshot(snapshot);
     const session: Session = {
-      content: prepared.content,
       generation: ++generation,
-      persistence: initialPersistenceState(prepared.snapshot),
-      projection: prepared.projection,
+      persistence: initialPersistenceState(snapshot),
       queue: null,
-      snapshot: prepared.snapshot,
+      snapshot,
     };
 
     active?.queue?.dispose();
@@ -379,8 +363,6 @@ export function createVersionedSessionController<
     },
     prepared: PreparedVersionedContent<Content, Projection>,
   ) => {
-    session.content = prepared.content;
-    session.projection = prepared.projection;
     session.snapshot = {
       ...session.snapshot,
       content: prepared.content,
@@ -397,8 +379,8 @@ export function createVersionedSessionController<
   ) => {
     const session = requireActive();
     const prepared = update({
-      content: session.content,
-      projection: session.projection,
+      content: session.snapshot.content,
+      projection: session.snapshot.projection,
     });
 
     commitMutation(session, prepared);
