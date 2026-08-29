@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   listSourceDependencyCycles,
   listSourceImports,
-  readModuleImports,
   readSourceImports,
 } from "./sourceGraph";
+import { readModuleImports } from "./moduleImports";
 import {
   auditApplicationCoordinationRoots,
   auditImportPolicies,
@@ -23,6 +23,12 @@ const layeredTestModules = import.meta.glob([
   "../infrastructure/**/*.{ts,tsx}",
   "../presentation/**/*.{ts,tsx}",
 ], {
+  eager: true,
+  import: "default",
+  query: "?raw",
+}) as Record<string, string>;
+
+const architectureModules = import.meta.glob("./*.ts", {
   eager: true,
   import: "default",
   query: "?raw",
@@ -62,6 +68,16 @@ function auditTestLayerImports() {
 }
 
 describe("dependency boundaries", () => {
+  it("keeps TypeScript AST parsing in one architecture owner", () => {
+    const typescriptImport = /\bfrom\s+["']typescript["']/;
+
+    expect(
+      Object.entries(architectureModules)
+        .filter(([, source]) => typescriptImport.test(source))
+        .map(([filePath]) => filePath),
+    ).toEqual(["./moduleImports.ts"]);
+  });
+
   it("derives static, re-exported, and dynamic edges from the TypeScript AST", () => {
     const modules = {
       "sample.ts": `
@@ -88,6 +104,18 @@ describe("dependency boundaries", () => {
       targetRoot: "application",
       targetPath: "../../application/workbench/workbenchController.ts",
     });
+  });
+
+  it("returns isolated copies of indexed source imports", () => {
+    const filePath =
+      "../../presentation/shell/application/useWorkbenchApplicationBindings.ts";
+    const first = readSourceImports(filePath);
+    const second = readSourceImports(filePath);
+
+    expect(first.length).toBeGreaterThan(0);
+    expect(second).toEqual(first);
+    expect(second).not.toBe(first);
+    expect(second[0]).not.toBe(first[0]);
   });
 
   it("enforces the shared dependency and runtime policy catalog", () => {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { readModuleImports, type SourceModules } from "./sourceGraph.ts";
+import { readModuleImports, type SourceModules } from "./moduleImports.ts";
 
 const cliModules = import.meta.glob("../../tooling/cli/**/*.ts", {
   eager: true,

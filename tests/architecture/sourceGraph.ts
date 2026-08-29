@@ -1,6 +1,8 @@
-import ts from "typescript";
+import {
+  readModuleImports,
+  type SourceModules,
+} from "./moduleImports";
 
-export type SourceModules = Record<string, string>;
 export type SourceRoot =
   | "core"
   | "contracts"
@@ -8,14 +10,16 @@ export type SourceRoot =
   | "infrastructure"
   | "presentation";
 
-export type SourceImport = {
+export type SourceImport = Readonly<{
   filePath: string;
   importPath: string;
   targetPath: string;
   targetRoot: SourceRoot;
-};
+}>;
 
-export type InternalModuleImport = Omit<SourceImport, "targetRoot">;
+export type InternalModuleImport = Readonly<
+  Omit<SourceImport, "targetRoot">
+>;
 
 export const coreModules = import.meta.glob("../../core/**/*.ts", {
   eager: true,
@@ -46,17 +50,16 @@ export const presentationModules = import.meta.glob(
 
 export const sourceModulesByRoot: Readonly<
   Record<SourceRoot, SourceModules>
-> = {
+> = Object.freeze({
   core: coreModules,
   contracts: contractModules,
   application: applicationModules,
   infrastructure: infrastructureModules,
   presentation: presentationModules,
-};
+});
 
-export const sourceModules: SourceModules = Object.assign(
-  {},
-  ...Object.values(sourceModulesByRoot),
+export const sourceModules: SourceModules = Object.freeze(
+  Object.assign({}, ...Object.values(sourceModulesByRoot)),
 );
 
 export function modulePathToRelative(filePath: string, prefix: string) {
@@ -94,58 +97,6 @@ export function selectSourceModules(directory: string) {
   );
 }
 
-function getScriptKind(filePath: string) {
-  return filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-}
-
-export function readModuleImports(
-  modules: SourceModules,
-  filePath: string,
-): string[] {
-  const sourceFile = ts.createSourceFile(
-    filePath,
-    modules[filePath] ?? "",
-    ts.ScriptTarget.Latest,
-    true,
-    getScriptKind(filePath),
-  );
-  const imports: string[] = [];
-  const visit = (node: ts.Node) => {
-    if (
-      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
-      node.moduleSpecifier &&
-      ts.isStringLiteralLike(node.moduleSpecifier)
-    ) {
-      imports.push(node.moduleSpecifier.text);
-    } else if (
-      ts.isImportEqualsDeclaration(node) &&
-      ts.isExternalModuleReference(node.moduleReference) &&
-      node.moduleReference.expression &&
-      ts.isStringLiteralLike(node.moduleReference.expression)
-    ) {
-      imports.push(node.moduleReference.expression.text);
-    } else if (
-      ts.isCallExpression(node) &&
-      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
-      node.arguments.length === 1 &&
-      ts.isStringLiteralLike(node.arguments[0])
-    ) {
-      imports.push(node.arguments[0].text);
-    }
-    ts.forEachChild(node, visit);
-  };
-
-  visit(sourceFile);
-  return imports;
-}
-
-export const sourceImportCorpus: SourceModules = Object.fromEntries(
-  Object.keys(sourceModules).map((filePath) => [
-    filePath,
-    readModuleImports(sourceModules, filePath).join("\n"),
-  ]),
-);
-
 function normalizePath(segments: string[]) {
   return segments.reduce<string[]>((normalized, segment) => {
     if (!segment || segment === ".") return normalized;
@@ -168,12 +119,13 @@ function resolveModuleFilePath(modules: SourceModules, targetPath: string) {
   ].find((candidate) => candidate in modules) ?? null;
 }
 
-export function readInternalModuleImports(
+function resolveInternalModuleImports(
   modules: SourceModules,
   filePath: string,
-  rootPrefix = "../../",
+  importPaths: readonly string[],
+  rootPrefix: string,
 ): InternalModuleImport[] {
-  return readModuleImports(modules, filePath).flatMap((importPath) => {
+  return importPaths.flatMap((importPath) => {
     if (!importPath.startsWith(".")) return [];
     const unresolved = normalizePath([
       ...filePath.split("/").slice(0, -1),
@@ -187,15 +139,73 @@ export function readInternalModuleImports(
   });
 }
 
-export function readSourceImports(filePath: string): SourceImport[] {
-  return readInternalModuleImports(sourceModules, filePath).map((entry) => ({
-    ...entry,
-    targetRoot: getSourceRoot(entry.targetPath),
-  }));
+export function readInternalModuleImports(
+  modules: SourceModules,
+  filePath: string,
+  rootPrefix = "../../",
+): readonly InternalModuleImport[] {
+  const indexedImportPaths = modules === sourceModules
+    ? sourceImportIndex[filePath]?.importPaths
+    : undefined;
+
+  return resolveInternalModuleImports(
+    modules,
+    filePath,
+    indexedImportPaths ?? readModuleImports(modules, filePath),
+    rootPrefix,
+  );
 }
 
-export function listSourceImports() {
-  return Object.keys(sourceModules).flatMap(readSourceImports);
+type SourceImportIndexEntry = Readonly<{
+  importPaths: readonly string[];
+  sourceImports: readonly SourceImport[];
+}>;
+
+const sourceModulePaths = Object.freeze(Object.keys(sourceModules));
+const sourceImportIndex: Readonly<Record<string, SourceImportIndexEntry>> =
+  Object.freeze(Object.fromEntries(sourceModulePaths.map((filePath) => {
+    const importPaths = Object.freeze(
+      readModuleImports(sourceModules, filePath),
+    );
+    const sourceImports = Object.freeze(
+      resolveInternalModuleImports(
+        sourceModules,
+        filePath,
+        importPaths,
+        "../../",
+      ).map((entry) => Object.freeze({
+        ...entry,
+        targetRoot: getSourceRoot(entry.targetPath),
+      })),
+    );
+
+    return [
+      filePath,
+      Object.freeze({ importPaths, sourceImports }),
+    ];
+  })));
+
+export const sourceImportCorpus: SourceModules = Object.freeze(
+  Object.fromEntries(sourceModulePaths.map((filePath) => [
+    filePath,
+    sourceImportIndex[filePath]?.importPaths.join("\n") ?? "",
+  ])),
+);
+
+function copySourceImport(sourceImport: Readonly<SourceImport>): SourceImport {
+  return { ...sourceImport };
+}
+
+export function readSourceImports(filePath: string): readonly SourceImport[] {
+  return (sourceImportIndex[filePath]?.sourceImports ?? []).map(
+    copySourceImport,
+  );
+}
+
+export function listSourceImports(): readonly SourceImport[] {
+  return sourceModulePaths.flatMap((filePath) =>
+    (sourceImportIndex[filePath]?.sourceImports ?? []).map(copySourceImport)
+  );
 }
 
 export function findDependencyCycles(
@@ -245,9 +255,11 @@ export function findDependencyCycles(
 
 export function listSourceDependencyCycles() {
   const graph = new Map(
-    Object.keys(sourceModules).map((filePath) => [
+    sourceModulePaths.map((filePath) => [
       filePath,
-      readSourceImports(filePath).map(({ targetPath }) => targetPath),
+      (sourceImportIndex[filePath]?.sourceImports ?? []).map(
+        ({ targetPath }) => targetPath,
+      ),
     ]),
   );
 
