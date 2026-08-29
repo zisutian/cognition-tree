@@ -17,11 +17,12 @@ import {
   AgentConfigurationConflictError,
   AgentConfigurationValidationError,
 } from "./configurationStore.ts";
-import { OllamaRuntime } from "./ollamaRuntime.ts";
-import { OpenAiChatRuntime } from "./openAiChatRuntime.ts";
 import { createAgentRuntimeProfile } from "./runtimeProfiles.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import { AgentProviderProbeService } from "./providerProbe.ts";
+import {
+  ConfiguredAgentRuntimeFactory,
+} from "./configuredAgentRuntimeFactory.ts";
 import {
   CodexAppServerClient,
   resolveCodexEntrypoint,
@@ -99,7 +100,7 @@ export class AgentProviderOperations {
   readonly #probeService: AgentProviderProbeService;
   readonly #projectRoot: string;
   readonly #runtime: ApiRuntime;
-  readonly #targetPolicy: AgentProviderTargetPolicy;
+  readonly #runtimeFactory: ConfiguredAgentRuntimeFactory;
   #disposed = false;
 
   constructor({
@@ -127,7 +128,10 @@ export class AgentProviderOperations {
     });
     this.#projectRoot = path.resolve(projectRoot);
     this.#runtime = runtime;
-    this.#targetPolicy = targetPolicy;
+    this.#runtimeFactory = new ConfiguredAgentRuntimeFactory({
+      projectRoot: this.#projectRoot,
+      targetPolicy,
+    });
   }
 
   async discoverOllama(endpointValue: string) {
@@ -473,17 +477,11 @@ export class AgentProviderOperations {
       ),
       maxToolSteps: 2,
     };
-    const beforeRequest = () => this.#targetPolicy.assertRequestTarget(
-      new URL(resolved.provider.baseUrl!),
-      resolved.privateNetworkOrigin,
-    );
-    const runtime = verificationProfile.kind === "ollama"
-      ? new OllamaRuntime(verificationProfile, beforeRequest)
-      : new OpenAiChatRuntime(
-        verificationProfile,
-        resolved.apiKey ?? "",
-        beforeRequest,
-      );
+    const runtime = this.#runtimeFactory.create({
+      configuration: resolved,
+      openAiAuthentication: "allow-unauthenticated",
+      profile: verificationProfile,
+    });
     const session = await runtime.openSession({
       instructions: "This is a no-write tool-call conformance check. First call describe_syntax with no arguments. After its fake guide, call stage_workspace_create_note exactly once with title=Conformance, body='- Conformance', and parentFolderId=null. Do not call list. After the fake staging result, answer in natural language.",
       profileId,

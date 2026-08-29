@@ -149,7 +149,7 @@ async function createFixture(behavior: TurnBehavior) {
     ledger,
     revisionTracker: new ApiRevisionTracker(),
     runtime,
-    runtimeFactory: () => runtimePort,
+    runtimeFactory: { create: () => runtimePort },
     search: new ApiSearchService({
       builtInCatalog,
       catalog: unavailableWorkspaceCatalog,

@@ -97,7 +97,7 @@ export async function startE2EWorkspaceServer({
       ledger: operationLedger,
       revisionTracker,
       runtime: systemApiRuntime,
-      runtimeFactory: createE2EAgentRuntime,
+      runtimeFactory: { create: createE2EAgentRuntime },
       search: new ApiSearchService({ builtInCatalog, catalog }),
       servicePolicy: agentServicePolicy,
     });

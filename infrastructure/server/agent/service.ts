@@ -45,12 +45,9 @@ import type { ApiSearchService } from "../api/search.ts";
 import { ApiEventHub } from "../api/sync/events.ts";
 import { ApiRevisionTracker } from "../api/sync/revisionTracker.ts";
 import { AgentPrivateIpcServer } from "./privateIpc.ts";
-import { CodexRuntime } from "./codexRuntime.ts";
 import {
   AgentContextLimitError,
-  OpenAiChatRuntime,
 } from "./openAiChatRuntime.ts";
-import { OllamaRuntime } from "./ollamaRuntime.ts";
 import type {
   AgentConfigurationStore,
   ResolvedAgentConfiguration,
@@ -63,6 +60,10 @@ import {
   createAgentRuntimeProfile,
   type AgentRuntimeProfile,
 } from "./runtimeProfiles.ts";
+import {
+  ConfiguredAgentRuntimeFactory,
+  type AgentRuntimeFactory,
+} from "./configuredAgentRuntimeFactory.ts";
 import type { AgentServicePolicy } from "./servicePolicy.ts";
 import { AgentServiceError } from "./errors.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
@@ -98,12 +99,6 @@ type SessionRecord = {
   syntaxKnowledge: AgentSyntaxKnowledge | null;
 };
 
-type RuntimeFactory = (
-  profile: AgentRuntimeProfile,
-  apiKey: string | null,
-  configuration: ResolvedAgentConfiguration,
-) => AgentRuntimePort;
-
 const maximumRetainedEvents = 1_000;
 
 function unique(values: readonly string[]) {
@@ -138,10 +133,9 @@ export class AgentService {
   readonly #ipc: AgentPrivateIpcServer;
   readonly #ledger: OperationLedger | null;
   readonly #profileQueues = new Map<string, Promise<void>>();
-  readonly #projectRoot: string;
   readonly #revisionTracker: ApiRevisionTracker;
   readonly #runtime: ApiRuntime;
-  readonly #runtimeFactory: RuntimeFactory;
+  readonly #runtimeFactory: AgentRuntimeFactory;
   readonly #servicePolicy: AgentServicePolicy;
   readonly #sessions = new Map<string, SessionRecord>();
   readonly #sweeper: NodeJS.Timeout;
@@ -171,7 +165,7 @@ export class AgentService {
     projectRoot?: string;
     revisionTracker: ApiRevisionTracker;
     runtime: ApiRuntime;
-    runtimeFactory?: RuntimeFactory;
+    runtimeFactory?: AgentRuntimeFactory;
     search: ApiSearchService;
     servicePolicy: AgentServicePolicy;
     targetPolicy?: AgentProviderTargetPolicy;
@@ -182,43 +176,11 @@ export class AgentService {
     this.#eventHub = eventHub;
     this.#ipc = ipc;
     this.#ledger = ledger;
-    this.#projectRoot = path.resolve(projectRoot);
     this.#revisionTracker = revisionTracker;
     this.#runtime = runtime;
-    this.#runtimeFactory = runtimeFactory ?? ((profile, apiKey, configuration) => {
-      const beforeRequest = async () => {
-        if (!configuration.provider.baseUrl) return;
-        await targetPolicy.assertRequestTarget(
-          new URL(configuration.provider.baseUrl),
-          configuration.privateNetworkOrigin,
-        );
-      };
-
-      if (profile.kind === "ollama") return new OllamaRuntime(profile, beforeRequest);
-      if (profile.kind === "codex") {
-        const authentication = configuration.provider.authenticationType ===
-            "chatgpt-device-code"
-          ? configuration.codexHome
-            ? {
-                codexHome: configuration.codexHome,
-                type: "chatgpt-device-code" as const,
-              }
-            : null
-          : apiKey
-            ? { apiKey, type: "api-key" as const }
-            : null;
-
-        if (!authentication) {
-          throw new Error("Agent provider credential is unavailable");
-        }
-        return new CodexRuntime({
-          authentication,
-          profile,
-          projectRoot: this.#projectRoot,
-        });
-      }
-      if (!apiKey) throw new Error("Agent provider credential is unavailable");
-      return new OpenAiChatRuntime(profile, apiKey, beforeRequest);
+    this.#runtimeFactory = runtimeFactory ?? new ConfiguredAgentRuntimeFactory({
+      projectRoot,
+      targetPolicy,
     });
     this.#servicePolicy = servicePolicy;
     this.#tools = new AgentSessionTools({
@@ -359,11 +321,11 @@ export class AgentService {
       },
       scope,
     });
-    const runtimePort = this.#runtimeFactory(
-      profile,
-      configuration.apiKey,
+    const runtimePort = this.#runtimeFactory.create({
       configuration,
-    );
+      openAiAuthentication: "require-api-key",
+      profile,
+    });
     let capability: string | null = null;
 
     try {
