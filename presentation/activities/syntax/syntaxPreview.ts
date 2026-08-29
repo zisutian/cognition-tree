@@ -1,12 +1,14 @@
 import type {
-  CtnSyntaxDraftInline,
-} from "../../../core/ctn/syntax/draft";
+  AvailableSyntaxViewModel,
+} from "../../../application/syntax/syntaxViewModel";
 
-export function getInlinePreviewValue(rule: CtnSyntaxDraftInline) {
+type SyntaxInlineRule = AvailableSyntaxViewModel["draft"]["inline"][number];
+
+export function getInlinePreviewValue(rule: SyntaxInlineRule) {
   return rule.label || "行内规则";
 }
 
-export function getInlinePreviewMarker(rule: CtnSyntaxDraftInline) {
+export function getInlinePreviewMarker(rule: SyntaxInlineRule) {
   return rule.kind === "paired"
     ? `${rule.open || "{"}${rule.close || "}"}`
     : rule.marker || "*";

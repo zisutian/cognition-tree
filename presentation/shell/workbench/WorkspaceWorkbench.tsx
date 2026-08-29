@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { WorkbenchDiagnostics } from "../../../application/workbench/problems/workbenchProblems";
-import type { UiSyntaxFocusTarget } from "../../../application/workspace/projection/viewSyntax";
+import type { SyntaxFocusTarget } from "../../../application/syntax/syntaxProjection";
 import type { WorkbenchApplication } from "../../activities/workbenchApplication";
 import {
   activityDescriptors,
@@ -61,7 +61,7 @@ export function WorkspaceWorkbench({
   const [syntaxProblems, setSyntaxProblems] =
     useState<WorkbenchDiagnostics | null>(null);
   const [systemSyntaxFocusRequest, setSystemSyntaxFocusRequest] = useState<
-    Extract<UiSyntaxFocusTarget, { systemOwner: "journal" | "todo" }> | null
+    Extract<SyntaxFocusTarget, { systemOwner: "journal" | "todo" }> | null
   >(null);
   const nextSystemSyntaxFocusRequestIdRef = useRef(1);
   const openSystemSyntax = (

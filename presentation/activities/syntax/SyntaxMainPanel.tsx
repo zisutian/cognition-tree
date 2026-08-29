@@ -4,7 +4,7 @@ import {
 } from "../../../application/syntax/syntaxViewModel";
 import { RotateCcw } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { syntaxFieldIds } from "../../../application/workspace/projection/viewSyntaxFields";
+import { syntaxFieldIds } from "../../../application/syntax/syntaxProjection";
 import {
   Button,
   EmptyState,

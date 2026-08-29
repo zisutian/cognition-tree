@@ -12,7 +12,7 @@ import type {
   SyntaxViewModel,
 } from "../../../application/syntax/syntaxViewModel";
 import { syntaxFieldIds } from
-  "../../../application/workspace/projection/viewSyntaxFields";
+  "../../../application/syntax/syntaxProjection";
 import {
   CompactContextActionButtons,
   CompactContextList,

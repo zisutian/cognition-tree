@@ -1,8 +1,9 @@
 import { Check, ChevronDown } from "lucide-react";
 import type { SyntaxViewModel } from "../../../application/syntax/syntaxViewModel";
-import type { CtnBlockKind } from "../../../core/ctn/syntax/types";
 import { Popover } from "../../ui/shared/Popover";
 import { Button } from "../../ui/shared/primitives";
+
+type SyntaxKind = SyntaxViewModel["kindOptions"][number]["value"];
 
 export function SyntaxKindPicker({
   ariaLabel,
@@ -14,8 +15,8 @@ export function SyntaxKindPicker({
   ariaLabel: string;
   fieldId?: string;
   options: SyntaxViewModel["kindOptions"];
-  value: CtnBlockKind;
-  onChange: (kind: CtnBlockKind) => void;
+  value: SyntaxKind;
+  onChange: (kind: SyntaxKind) => void;
 }) {
   const selectedOption =
     options.find((option) => option.value === value) ?? {

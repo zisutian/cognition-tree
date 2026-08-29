@@ -2,12 +2,9 @@ import { Plus, Trash2 } from "lucide-react";
 import type {
   AvailableSyntaxViewModel,
 } from "../../../application/syntax/syntaxViewModel";
-import type {
-  CtnSyntaxDraftInline,
-} from "../../../core/ctn/syntax/draft";
 import {
   createSyntaxRuleFieldId,
-} from "../../../application/workspace/projection/viewSyntaxFields";
+} from "../../../application/syntax/syntaxProjection";
 import { Button } from "../../ui/shared/primitives";
 import { InputControl } from "../../ui/shared/controls";
 import { SyntaxRuleSpacer } from "./SyntaxRuleLayout";
@@ -19,7 +16,7 @@ function InlineRuleRow({
   syntax,
 }: {
   protectedRuleIds: string[];
-  rule: CtnSyntaxDraftInline;
+  rule: AvailableSyntaxViewModel["draft"]["inline"][number];
   syntax: AvailableSyntaxViewModel;
 }) {
   const isProtected = protectedRuleIds.includes(rule.id);

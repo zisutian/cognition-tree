@@ -8,7 +8,7 @@ import { createSyntaxView } from "../../fixtures/syntaxViewFixture";
 import { createCtnSyntaxDraft } from "../../../../core/ctn/syntax/draft";
 import { defaultJournalSyntax } from "../../../../core/journal/syntax/defaultJournalSyntax";
 import { defaultTodoSyntax } from "../../../../core/todo/syntax/defaultTodoSyntax";
-import { createUiSyntaxView } from "../../../../application/workspace/projection/viewSyntax";
+import { createSyntaxProjection } from "../../../../application/syntax/syntaxProjection";
 import { expectMarkupSemantics } from "../../markupSemantics";
 import type {
   SyntaxViewModel,
@@ -136,7 +136,7 @@ describe("syntax panels", () => {
       <SyntaxMainPanel
         view={{
           ...base,
-          ...createUiSyntaxView({ draft, owner: "journal" }),
+          ...createSyntaxProjection({ draft, owner: "journal" }),
           nameEditable: false,
           protectedInlineRuleIds: [referenceId],
           protectedInlineTriggerRuleIds: [referenceId],
@@ -169,7 +169,7 @@ describe("syntax panels", () => {
       <SyntaxMainPanel
         view={{
           ...base,
-          ...createUiSyntaxView({ draft, owner: "todo" }),
+          ...createSyntaxProjection({ draft, owner: "todo" }),
           nameEditable: false,
           protectedBlockRuleIds: [todoItemId],
           protectedInlineRuleIds: [referenceId],

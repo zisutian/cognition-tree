@@ -1,7 +1,7 @@
 import type {
   AvailableSyntaxViewModel,
 } from "../../../application/syntax/syntaxViewModel";
-import type { UiSyntaxTone } from "../../../application/workspace/projection/viewSyntax";
+import type { SyntaxTone } from "../../../application/syntax/syntaxProjection";
 import {
   PanelBody,
   cx,
@@ -26,8 +26,8 @@ function SyntaxRenderLine({
 }: {
   inline?: boolean;
   marker: string;
-  textColor?: UiSyntaxTone;
-  tone: UiSyntaxTone;
+  textColor?: SyntaxTone;
+  tone: SyntaxTone;
   value: string;
 }) {
   const toneClassName = getToneClassName(tone);

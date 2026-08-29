@@ -3,7 +3,7 @@ import {
   createUiSystemSyntaxDiagnostics,
   createUiSyntaxDiagnostics,
 } from "../../../application/workspace/projection/viewDiagnostics";
-import { createUiSyntaxView } from "../../../application/workspace/projection/viewSyntax";
+import { createSyntaxProjection } from "../../../application/syntax/syntaxProjection";
 import type { SyntaxRuntime } from "../../workspace/runtime/useSyntaxRuntime";
 import { createSyntaxDraftActions } from "../../../application/syntax/syntaxDraftActions";
 import {
@@ -128,7 +128,7 @@ export function useSyntaxActivity({
       ? focusTarget
       : null;
   const view = useMemo(
-    () => createUiSyntaxView({
+    () => createSyntaxProjection({
       draft,
       focusTarget: focusTargetForSelectedFile,
       owner,

@@ -1,6 +1,6 @@
 import type { WorkbenchApplication } from "./workbenchApplication";
 import type { WorkbenchDiagnostics } from "../../application/workbench/problems/workbenchProblems";
-import type { UiSyntaxFocusTarget } from "../../application/workspace/projection/viewSyntax";
+import type { SyntaxFocusTarget } from "../../application/syntax/syntaxProjection";
 import type { CreateActivitySlots } from "../ui/activityTypes";
 import type { ReactNode } from "react";
 
@@ -18,7 +18,7 @@ export type ActivityControllerProps = {
   ) => void;
   renderActivity: RenderActivity;
   systemSyntaxFocusRequest?: Extract<
-    UiSyntaxFocusTarget,
+    SyntaxFocusTarget,
     { systemOwner: "journal" | "todo" }
   > | null;
   onConsumeSystemSyntaxFocusRequest?: (requestId: number) => void;

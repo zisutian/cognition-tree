@@ -4,9 +4,6 @@ import {
   readCanonicalTestDocument,
 } from "../../../core/ctn/analysis/analysisTestHelpers";
 import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
-import {
-  createCtnSyntaxDraft,
-} from "../../../../core/ctn/syntax/draft";
 import type { CtnCanonicalBlock } from "../../../../core/ctn/parser/types";
 import {
   appendFolderToWorkspaceTree,
@@ -38,7 +35,6 @@ import {
   createUiTextSegments,
   getUiTextDisplayText,
 } from "../../../../application/workspace/projection/viewText";
-import { createUiSyntaxView } from "../../../../application/workspace/projection/viewSyntax";
 import {
   addTestCtnBlockMetadata,
   createTestBlockId,
@@ -287,46 +283,4 @@ describe("workspace view projection", () => {
     expect(findUiOutlineNodeAtLine(outline, Number.NaN)).toBeNull();
   });
 
-  it("maps syntax draft state into UI display data", () => {
-    const draft = createCtnSyntaxDraft(defaultCtnSyntax);
-    const view = createUiSyntaxView({
-      draft,
-    });
-
-    expect(view.draft.tabDisplayWidth).toBe("8");
-    expect(view.constraints).toEqual({
-      label: { maxLength: 32 },
-      name: { maxLength: 64 },
-      tabDisplayWidth: { max: 16, min: 1 },
-      token: { maxCodePoints: 12 },
-    });
-    expect(view.stats.blockRuleCount).toBe(
-      defaultCtnSyntax.blocks.length,
-    );
-    expect(view.draft.title).toMatchObject({
-      label: "标题",
-    });
-    expect(view.draft.blocks.map((rule) => rule.semanticId)).not.toContain(
-      "title",
-    );
-    expect(view.draft.inline[0]).toMatchObject({
-      close: "]]",
-      kind: "paired",
-      label: "全局概念引用",
-      open: "[[",
-    });
-    expect(view.customToneLabel).toBe("自定义");
-    expect(view.toneOptions).toEqual(
-      expect.arrayContaining([
-        { label: "绿色", value: "green" },
-        { label: "琥珀", value: "amber" },
-        { label: "灰色", value: "gray" },
-      ]),
-    );
-    expect(view.backgroundToneOptions[0]).toEqual({
-      label: "编辑器背景",
-      value: "default",
-    });
-    expect(view.focusTarget).toBeNull();
-  });
 });

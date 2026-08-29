@@ -1,8 +1,75 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type {
   CtnSyntaxDraft,
-} from "../../../core/ctn/syntax/draft";
+} from "../../core/ctn/syntax/draft";
+import {
+  ctnSyntaxSchema,
+} from "../../core/ctn/syntax/schema";
+import type {
+  CtnBlockKind,
+  CtnSyntaxOwner,
+  CtnSyntaxTone,
+} from "../../core/ctn/syntax/types";
 
-export type UiSyntaxFieldId = string;
+export type SyntaxTone = CtnSyntaxTone;
+
+export type SyntaxToneOption = {
+  label: string;
+  value: SyntaxTone;
+};
+
+export type SyntaxKindOption = {
+  label: string;
+  value: CtnBlockKind;
+};
+
+export type SyntaxFieldId = string;
+
+export type SyntaxFocusTarget =
+  | {
+      fieldId: SyntaxFieldId;
+      requestId: number;
+      syntaxFileId: string;
+    }
+  | {
+      fieldId: SyntaxFieldId;
+      requestId: number;
+      systemOwner: "journal" | "todo";
+    };
+
+export type SyntaxConstraints = {
+  label: {
+    maxLength: number;
+  };
+  name: {
+    maxLength: number;
+  };
+  tabDisplayWidth: {
+    max: number;
+    min: number;
+  };
+  token: {
+    maxCodePoints: number;
+  };
+};
+
+export type SyntaxProjection = {
+  backgroundToneOptions: SyntaxToneOption[];
+  constraints: SyntaxConstraints;
+  customToneLabel: string;
+  draft: CtnSyntaxDraft | null;
+  focusTarget: SyntaxFocusTarget | null;
+  kindOptions: SyntaxKindOption[];
+  owner: CtnSyntaxOwner;
+  rootRuleLabel: string | null;
+  rootTextColorOptions: SyntaxToneOption[];
+  stats: {
+    blockRuleCount: number;
+    inlineRuleCount: number;
+  };
+  toneOptions: SyntaxToneOption[];
+};
 
 export const syntaxFieldIds = {
   blockRuleGroup: "syntax-block-rule-group",
@@ -12,7 +79,7 @@ export const syntaxFieldIds = {
   tabDisplayWidth: "syntax-tab-display-width",
   title: "syntax-title-rule",
   viewRoot: "syntax-view-root",
-} as const satisfies Record<string, UiSyntaxFieldId>;
+} as const satisfies Record<string, SyntaxFieldId>;
 
 type SyntaxRuleKind = "block" | "inline";
 
@@ -20,12 +87,103 @@ export function createSyntaxRuleFieldId(
   kind: SyntaxRuleKind,
   ruleId: string,
   field = "row",
-): UiSyntaxFieldId {
+): SyntaxFieldId {
   return `syntax-${kind}-${ruleId}-${field}`;
 }
 
-export type UiSyntaxDiagnosticLocation = {
-  fieldId: UiSyntaxFieldId;
+const kindLabels: Record<CtnBlockKind, string> = {
+  line: "普通块",
+  multiline: "多行块",
+};
+
+const syntaxKindOptions: SyntaxKindOption[] =
+  ctnSyntaxSchema.blockKinds.map((value) => ({
+    label: kindLabels[value],
+    value,
+  }));
+
+const toneLabels: Record<(typeof ctnSyntaxSchema.tones)[number], string> = {
+  amber: "琥珀",
+  blue: "蓝色",
+  cyan: "青色",
+  gray: "灰色",
+  green: "绿色",
+  indigo: "靛蓝",
+  pink: "粉色",
+  red: "红色",
+  teal: "青绿",
+  violet: "紫色",
+};
+
+export const syntaxToneOptions: SyntaxToneOption[] =
+  ctnSyntaxSchema.tones.map((tone) => ({
+    label: toneLabels[tone],
+    value: tone,
+  }));
+
+const backgroundSyntaxToneOptions: SyntaxToneOption[] = [
+  { label: "编辑器背景", value: "default" },
+  ...syntaxToneOptions,
+];
+
+const defaultTextColorOptions: SyntaxToneOption[] = [
+  { label: "编辑器文字", value: "default" },
+  ...syntaxToneOptions,
+];
+
+const syntaxConstraints: SyntaxConstraints = {
+  label: {
+    maxLength: ctnSyntaxSchema.label.maxLength,
+  },
+  name: {
+    maxLength: ctnSyntaxSchema.name.maxLength,
+  },
+  tabDisplayWidth: {
+    max: ctnSyntaxSchema.tabDisplayWidth.max,
+    min: ctnSyntaxSchema.tabDisplayWidth.min,
+  },
+  token: {
+    maxCodePoints: ctnSyntaxSchema.token.maxCodePoints,
+  },
+};
+
+export function createSyntaxProjection<Draft extends CtnSyntaxDraft | null>({
+  draft,
+  focusTarget = null,
+  owner = "workspace",
+}: {
+  draft: Draft;
+  focusTarget?: SyntaxFocusTarget | null;
+  owner?: CtnSyntaxOwner;
+}): Omit<SyntaxProjection, "draft"> & { draft: Draft } {
+  const rootSemanticId = ctnSyntaxSchema.owners[owner].root.semanticId;
+
+  return {
+    backgroundToneOptions: backgroundSyntaxToneOptions,
+    constraints: syntaxConstraints,
+    customToneLabel: "自定义",
+    draft,
+    focusTarget,
+    kindOptions: syntaxKindOptions,
+    owner,
+    rootRuleLabel: rootSemanticId === "concept"
+      ? "顶格概念"
+      : rootSemanticId === "body"
+        ? "顶格正文"
+        : null,
+    rootTextColorOptions: owner === "journal"
+      ? defaultTextColorOptions
+      : syntaxToneOptions,
+    stats: {
+      blockRuleCount: draft?.blocks.length ?? 0,
+      inlineRuleCount: draft?.inline.length ?? 0,
+    },
+    toneOptions: syntaxToneOptions,
+  };
+}
+
+export type SyntaxDiagnosticLocation = {
+  fieldId: SyntaxFieldId;
   label: string;
 };
 
@@ -54,7 +212,7 @@ function ruleLocation({
   ruleId: string | undefined;
   ruleLabel: string | undefined;
   fixedTodoItem?: boolean;
-}): UiSyntaxDiagnosticLocation {
+}): SyntaxDiagnosticLocation {
   const groupLabel = kind === "block" ? "块规则" : "行内规则";
   const itemLabel = ruleLabel?.trim() || `${groupLabel} ${index + 1}`;
   const isFixedTodoField = fixedTodoItem &&
@@ -84,10 +242,10 @@ function ruleLocation({
   };
 }
 
-export function resolveUiSyntaxDiagnosticLocation(
+export function resolveSyntaxDiagnosticLocation(
   draft: CtnSyntaxDraft,
   path: string,
-): UiSyntaxDiagnosticLocation {
+): SyntaxDiagnosticLocation {
   const normalized = path.replace(/^\$\./, "");
 
   if (normalized === "name") {

@@ -3,12 +3,12 @@ import type {
   AvailableSyntaxViewModel,
 } from "../../../application/syntax/syntaxViewModel";
 import type {
-  UiSyntaxTone,
-} from "../../../application/workspace/projection/viewSyntax";
+  SyntaxTone,
+} from "../../../application/syntax/syntaxProjection";
 import {
   createSyntaxRuleFieldId,
   syntaxFieldIds,
-} from "../../../application/workspace/projection/viewSyntaxFields";
+} from "../../../application/syntax/syntaxProjection";
 import { Button } from "../../ui/shared/primitives";
 import { InputControl } from "../../ui/shared/controls";
 import { SyntaxKindPicker } from "./SyntaxKindPicker";
@@ -28,9 +28,9 @@ function SyntaxToneCells({
   customToneLabel: string;
   label: string;
   textColorOptions: AvailableSyntaxViewModel["toneOptions"];
-  textColor: UiSyntaxTone;
-  tone: UiSyntaxTone;
-  onChange: (patch: { textColor?: UiSyntaxTone; tone?: UiSyntaxTone }) => void;
+  textColor: SyntaxTone;
+  tone: SyntaxTone;
+  onChange: (patch: { textColor?: SyntaxTone; tone?: SyntaxTone }) => void;
 }) {
   return (
     <>

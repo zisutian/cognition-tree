@@ -1,9 +1,9 @@
 import { Check, ChevronDown } from "lucide-react";
 import type { CSSProperties } from "react";
 import type {
-  UiSyntaxTone,
-  UiSyntaxToneOption,
-} from "../../../application/workspace/projection/viewSyntax";
+  SyntaxTone,
+  SyntaxToneOption,
+} from "../../../application/syntax/syntaxProjection";
 import { Popover } from "../../ui/shared/Popover";
 import { ColorControl } from "../../ui/shared/controls";
 import { Button } from "../../ui/shared/primitives";
@@ -15,15 +15,15 @@ type TonePickerProps = {
   ariaLabel: string;
   customToneLabel: string;
   fieldId?: string;
-  options: UiSyntaxToneOption[];
+  options: SyntaxToneOption[];
   showLabel?: boolean;
-  value: UiSyntaxTone;
-  onChange: (tone: UiSyntaxTone) => void;
+  value: SyntaxTone;
+  onChange: (tone: SyntaxTone) => void;
 };
 
 function getToneLabel(
-  tone: UiSyntaxTone,
-  options: UiSyntaxToneOption[],
+  tone: SyntaxTone,
+  options: SyntaxToneOption[],
   customToneLabel: string,
 ) {
   if (isCustomTone(tone)) {
@@ -39,14 +39,14 @@ function getToneLabel(
   return option.label;
 }
 
-export function getToneSwatchClass(tone: UiSyntaxTone) {
+export function getToneSwatchClass(tone: SyntaxTone) {
   return isCustomTone(tone)
     ? "syntax-tone-swatch syntax-tone-custom"
     : `syntax-tone-swatch syntax-tone-${tone}`;
 }
 
 export function getToneSwatchStyle(
-  tone: UiSyntaxTone,
+  tone: SyntaxTone,
 ): CSSProperties | undefined {
   return isCustomTone(tone)
     ? ({ "--syntax-tone-color": tone } as CSSProperties)
@@ -65,7 +65,7 @@ export function TonePicker({
   const isCustomValue = isCustomTone(value);
   const customTone = isCustomValue ? value : defaultCustomTone;
 
-  const selectTone = (tone: UiSyntaxTone) => {
+  const selectTone = (tone: SyntaxTone) => {
     onChange(tone);
   };
 

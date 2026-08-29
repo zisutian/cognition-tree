@@ -1,14 +1,14 @@
 import type {
   AvailableSyntaxViewModel,
 } from "../../../application/syntax/syntaxViewModel";
-import { createUiSyntaxView } from "../../../application/workspace/projection/viewSyntax";
+import { createSyntaxProjection } from "../../../application/syntax/syntaxProjection";
 import { createCtnSyntaxDraft } from "../../../core/ctn/syntax/draft";
 import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
 
 export function createSyntaxView(
   overrides: Partial<AvailableSyntaxViewModel> = {},
 ): AvailableSyntaxViewModel {
-  const syntax = createUiSyntaxView({
+  const syntax = createSyntaxProjection({
     draft: createCtnSyntaxDraft(defaultCtnSyntax),
   });
 

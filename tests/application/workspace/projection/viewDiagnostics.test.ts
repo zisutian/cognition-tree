@@ -12,7 +12,10 @@ import {
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
 } from "../../../../application/workspace/projection/viewDiagnostics";
-import { createSyntaxRuleFieldId } from "../../../../application/workspace/projection/viewSyntaxFields";
+import {
+  createSyntaxRuleFieldId,
+  syntaxFieldIds,
+} from "../../../../application/syntax/syntaxProjection";
 import {
   createWorkspaceParseIndex,
   type ParsedWorkspaceNote,
@@ -185,7 +188,7 @@ describe("workbench diagnostic projection", () => {
         code: "duplicate-syntax-name",
         message,
         target: {
-          fieldId: "syntax-name",
+          fieldId: syntaxFieldIds.name,
           kind: "syntax-field",
           path: "$.name",
           syntaxFileId: "syntax-main",

@@ -1,8 +1,8 @@
 import type { CtnSyntaxDraft } from "../../core/ctn/syntax/draft";
 import type { CtnSyntaxOwner } from "../../core/ctn/syntax/types";
-import type { UiSyntaxView } from "../workspace/projection/viewSyntax";
 import type { UiWorkbenchDiagnostic } from "../workspace/projection/viewDiagnostics";
 import type { createSyntaxDraftActions } from "./syntaxDraftActions";
+import type { SyntaxProjection } from "./syntaxProjection";
 
 export type SyntaxSystemOwner = "journal" | "todo";
 
@@ -29,7 +29,7 @@ export type SyntaxFileView = {
 
 type SyntaxDraftActionProjection = ReturnType<typeof createSyntaxDraftActions>;
 
-export type SyntaxViewModel = UiSyntaxView &
+export type SyntaxViewModel = SyntaxProjection &
   Omit<SyntaxDraftActionProjection, "actions"> & {
     actions: SyntaxDraftActionProjection["actions"] | null;
     activeFileId: string | null;

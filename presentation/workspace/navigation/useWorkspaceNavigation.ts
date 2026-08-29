@@ -2,8 +2,10 @@ import { useCallback, useRef, useState } from "react";
 import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import { findWorkspaceNote } from "../../../core/workspace/queries/workspaceQueries";
 import type { UiEditorFocusTarget } from "../../../application/workspace/projection/viewEditor";
-import type { UiSyntaxFocusTarget } from "../../../application/workspace/projection/viewSyntax";
-import type { UiSyntaxFieldId } from "../../../application/workspace/projection/viewSyntaxFields";
+import type {
+  SyntaxFieldId,
+  SyntaxFocusTarget,
+} from "../../../application/syntax/syntaxProjection";
 import type { UiNoteId } from "../../../application/workspace/projection/viewTree";
 import type { WorkspaceSelection } from "../selection/useWorkspaceSelection";
 import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
@@ -15,7 +17,7 @@ export type WorkspaceNoteFocusRequest = UiEditorFocusTarget & {
   noteId: UiNoteId;
 };
 
-export type WorkspaceSyntaxFocusRequest = UiSyntaxFocusTarget;
+export type WorkspaceSyntaxFocusRequest = SyntaxFocusTarget;
 
 export type WorkspacePortableNameTarget =
   | { entity: "folder"; folderId: string }
@@ -98,7 +100,7 @@ export function useWorkspaceNavigation({
     [selection.selectFolder, selection.selectNote, workspace],
   );
   const openSyntaxField = useCallback(
-    (syntaxFileId: string, fieldId: UiSyntaxFieldId) => {
+    (syntaxFileId: string, fieldId: SyntaxFieldId) => {
       setSyntaxFocusRequest({
         fieldId,
         requestId: nextRequestId(),

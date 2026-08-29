@@ -13,9 +13,10 @@ import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/wo
 import type { NoteId } from "../../../core/workspace/model/workspaceData";
 import { collectWorkspacePortableNameIssues } from "../../../core/workspace/queries/workspacePortableNameIssues";
 import {
-  resolveUiSyntaxDiagnosticLocation,
-  type UiSyntaxFieldId,
-} from "./viewSyntaxFields";
+  resolveSyntaxDiagnosticLocation,
+  syntaxFieldIds,
+  type SyntaxFieldId,
+} from "../../syntax/syntaxProjection";
 
 export type UiWorkbenchDiagnosticSource =
   | "document"
@@ -31,13 +32,13 @@ export type UiWorkbenchDiagnosticTarget =
       noteId: NoteId;
     }
   | {
-      fieldId: UiSyntaxFieldId;
+      fieldId: SyntaxFieldId;
       kind: "syntax-field";
       path: string;
       syntaxFileId: string;
     }
   | {
-      fieldId: UiSyntaxFieldId;
+      fieldId: SyntaxFieldId;
       kind: "system-syntax";
       owner: "journal" | "todo";
       path: string;
@@ -198,7 +199,7 @@ export function createUiSyntaxDiagnostics(
 ): UiWorkbenchDiagnostic[] {
   const schemaDiagnostics: UiWorkbenchDiagnostic[] =
     draftResult.diagnostics.map((diagnostic) => {
-      const location = resolveUiSyntaxDiagnosticLocation(
+      const location = resolveSyntaxDiagnosticLocation(
         draft,
         diagnostic.path,
       );
@@ -233,7 +234,7 @@ export function createUiSyntaxDiagnostics(
     severity: "error",
     source: "syntax",
     target: {
-      fieldId: "syntax-name",
+      fieldId: syntaxFieldIds.name,
       kind: "syntax-field",
       path: "$.name",
       syntaxFileId,
@@ -251,7 +252,7 @@ export function createUiSystemSyntaxDiagnostics(
   const ownerLabel = owner === "journal" ? "日记" : "代办";
 
   return draftResult.diagnostics.map((diagnostic) => {
-    const location = resolveUiSyntaxDiagnosticLocation(draft, diagnostic.path);
+    const location = resolveSyntaxDiagnosticLocation(draft, diagnostic.path);
 
     return {
       code: diagnostic.code,
