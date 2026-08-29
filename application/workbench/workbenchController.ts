@@ -152,18 +152,12 @@ export type WorkbenchController = {
   consumeWorkspaceNoteDestination(requestId: number): void;
   createRepository(input: CreateRepositoryRequest): Promise<void>;
   deleteRepository(input: DeleteRepositoryRequest): Promise<void>;
-  discardJournalPendingChangesAndReload(): Promise<void>;
-  discardTodoPendingChangesAndReload(): Promise<void>;
   dispose(): void;
   flushLoadedContent(): Promise<void>;
   getSnapshot(): WorkbenchControllerSnapshot;
   reloadBuiltIns(): Promise<void>;
   refreshRepositories(): Promise<void>;
-  reloadJournal(): Promise<void>;
-  reloadTodo(): Promise<void>;
   renameRepository(input: RenameRepositoryRequest): Promise<void>;
-  requestJournalSync(): void;
-  requestTodoSync(): void;
   requestWorkspaceNoteDestination(
     destination: WorkspaceContentDestination,
   ): number;
@@ -540,10 +534,6 @@ export function createWorkbenchController({
         throw error;
       }
     },
-    discardJournalPendingChangesAndReload: () =>
-      journalFacade.discardPendingChangesAndReload(),
-    discardTodoPendingChangesAndReload: () =>
-      todoFacade.discardPendingChangesAndReload(),
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -580,11 +570,7 @@ export function createWorkbenchController({
       await workspaceSlot.flushReady();
       await repositoryCatalogController.reload();
     },
-    reloadJournal: journalFacade.reload,
-    reloadTodo: todoFacade.reload,
     renameRepository: repositoryCatalogController.renameRepository,
-    requestJournalSync: journalFacade.requestSync,
-    requestTodoSync: todoFacade.requestSync,
     requestWorkspaceNoteDestination: navigationController.request,
     retryBuiltIn: builtInCatalogController.retry,
     retryWorkspaceNoteDestination: navigationController.retry,
