@@ -56,11 +56,12 @@ union；缺失输入在组合根暴露，不用默认 syntax、默认时区、�
 
 架构测试约束依赖方向、唯一所有者和禁止边界，不锁定偶然文件清单。样式声明、共享密度和颜色映射集中在 design contract 及对应 presentation adapter；组件测试验证可访问语义、状态与交互，只有输出本身就是 class 或 CSS 变量的 adapter 才直接验证映射。Activity 与流程 E2E 不断言 class、selector 或 CSS 属性名；确属浏览器事实的颜色和几何只比较计算结果与相对关系。
 
-源码级硬约束只表达三类长期规则：唯一所有者、禁止边界、完整词汇或优先级，
-并由一个声明式 constraint catalog 统一提供给依赖、ownership 和 UI 守卫。
-不同规格不得复制同一正则或文件清单。SSR 组件使用聚合的 has、lacks、
-ordered 语义契约；ordered 中的每一项必须实际存在，不使用可能把 -1 当作
-有效顺序的 indexOf 比较。
+源码级硬约束只表达三类长期规则：唯一所有者、禁止边界、完整词汇或优先级。
+依赖、ownership、E2E 和 UI 各自由一个声明式 constraint catalog 持有，并由对应
+测试组合根注入源码语料或运行时常量；catalog 不读取文件、不建立 AST，也不互相
+导入。跨域共同规则只有一个共享 owner，不在不同 catalog 复制同一正则或文件清单。
+SSR 组件使用聚合的 has、lacks、ordered 语义契约；ordered 中的每一项必须实际
+存在，不使用可能把 -1 当作有效顺序的 indexOf 比较。
 
 E2E 按独立功能域造数。完整 repository、Journal、Todo 与 API 状态只由测试
 组合根在每个用例前重置；共享种子、页面入口和 Canvas 读取放入 e2e/support。
