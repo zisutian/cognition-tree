@@ -24,7 +24,6 @@ import {
 } from "../../../application/agent/index.ts";
 import type {
   AgentCreateSessionRequestDto,
-  AgentEventDto,
   AgentOperationAuditEntryDto,
   AgentProfileSummaryDto,
   AgentSessionSnapshotDto,
@@ -73,24 +72,18 @@ import {
   toAgentProposalDto,
   type AgentStaging,
 } from "./sessionTools.ts";
+import {
+  AgentSessionEventStream,
+} from "./sessionEventStream.ts";
 
 export { AgentServiceError } from "./errors.ts";
 export type { AgentServiceErrorCode } from "./errors.ts";
-
-type AgentEventWithoutSequence =
-  | Omit<Extract<AgentEventDto, { type: "message-delta" }>, "sequence" | "sessionId">
-  | Omit<Extract<AgentEventDto, { type: "problem" }>, "sequence" | "sessionId">
-  | Omit<Extract<AgentEventDto, { type: "proposal-updated" }>, "sequence" | "sessionId">
-  | Omit<Extract<AgentEventDto, { type: "session-snapshot" }>, "sequence" | "sessionId">
-  | Omit<Extract<AgentEventDto, { type: "turn-completed" }>, "sequence" | "sessionId">;
 
 type SessionRecord = {
   abortController: AbortController | null;
   capability: string | null;
   controller: AgentSessionController;
-  eventSequence: number;
-  events: AgentEventDto[];
-  eventStreams: Set<ServerResponse>;
+  events: AgentSessionEventStream;
   configuration: ResolvedAgentConfiguration;
   profile: AgentRuntimeProfile;
   runtime: AgentRuntimePort;
@@ -99,18 +92,8 @@ type SessionRecord = {
   syntaxKnowledge: AgentSyntaxKnowledge | null;
 };
 
-const maximumRetainedEvents = 1_000;
-
 function unique(values: readonly string[]) {
   return [...new Set(values)];
-}
-
-function writeAgentEvent(response: ServerResponse, event: AgentEventDto) {
-  response.write(
-    `event: ${event.type}\nid: ${event.sequence}\ndata: ${
-      serializeJsonIteratively(event, { sortObjectKeys: true })
-    }\n\n`,
-  );
 }
 
 function isAbort(error: unknown, signal: AbortSignal) {
@@ -348,9 +331,7 @@ export class AgentService {
         capability,
         configuration,
         controller,
-        eventSequence: 0,
-        events: [],
-        eventStreams: new Set(),
+        events: new AgentSessionEventStream(sessionId),
         profile,
         runtime: runtimePort,
         runtimeSession,
@@ -423,29 +404,12 @@ export class AgentService {
   }) {
     const record = this.#requireSession(sessionId);
 
-    response.writeHead(200, {
-      ...headers,
-      "Cache-Control": "no-store",
-      "Content-Type": "text/event-stream; charset=utf-8",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
+    record.events.connect({
+      afterSequence,
+      createSnapshot: (sequence) => this.#snapshot(record, sequence),
+      headers,
+      response,
     });
-    const firstRetained = record.events[0]?.sequence ?? record.eventSequence;
-
-    if (afterSequence < firstRetained - 1 || afterSequence > record.eventSequence) {
-      writeAgentEvent(response, {
-        sequence: record.eventSequence,
-        sessionId,
-        snapshot: this.#snapshot(record),
-        type: "session-snapshot",
-      });
-    } else {
-      for (const event of record.events) {
-        if (event.sequence > afterSequence) writeAgentEvent(response, event);
-      }
-    }
-    record.eventStreams.add(response);
-    response.once("close", () => record.eventStreams.delete(response));
   }
 
   async decideProposal({
@@ -545,7 +509,7 @@ export class AgentService {
 
   #snapshot(
     record: SessionRecord,
-    sequence = record.eventSequence,
+    sequence = record.events.sequence,
   ): AgentSessionSnapshotDto {
     const snapshot = record.controller.snapshot();
 
@@ -664,7 +628,7 @@ export class AgentService {
       controller.discardEmptyAssistantMessage(messageId);
       controller.finishTurn(turnId);
       record.abortController = null;
-      this.#emit(record, { status: "completed", turnId, type: "turn-completed" });
+      record.events.emit({ status: "completed", turnId, type: "turn-completed" });
       this.#emitSnapshot(record);
     } catch (error) {
       record.abortController = null;
@@ -680,8 +644,8 @@ export class AgentService {
       } else {
         controller.failTurn(turnId, message);
       }
-      this.#emit(record, { code: "agent_turn_failed", message, type: "problem" });
-      this.#emit(record, { status: "failed", turnId, type: "turn-completed" });
+      record.events.emit({ code: "agent_turn_failed", message, type: "problem" });
+      record.events.emit({ status: "failed", turnId, type: "turn-completed" });
       this.#emitSnapshot(record);
     }
   }
@@ -710,7 +674,7 @@ export class AgentService {
           onEvent: async (event) => {
             if (event.type === "text-delta") {
               record.controller.appendAssistantMessage(messageId, event.textDelta);
-              this.#emit(record, {
+              record.events.emit({
                 messageId,
                 textDelta: event.textDelta,
                 type: "message-delta",
@@ -732,7 +696,7 @@ export class AgentService {
 
         if (current && current.content.length === beforeLength && result.finalText) {
           record.controller.appendAssistantMessage(messageId, result.finalText);
-          this.#emit(record, {
+          record.events.emit({
             messageId,
             textDelta: result.finalText,
             type: "message-delta",
@@ -777,7 +741,7 @@ export class AgentService {
       if (!(error instanceof AgentSessionStateError)) throw error;
     }
     record.abortController = null;
-    this.#emit(record, { status: "cancelled", turnId, type: "turn-completed" });
+    record.events.emit({ status: "cancelled", turnId, type: "turn-completed" });
     this.#emitSnapshot(record);
   }
 
@@ -990,7 +954,7 @@ export class AgentService {
           onEvent: (event) => {
             if (event.type !== "text-delta") return;
             record.controller.appendAssistantMessage(messageId, event.textDelta);
-            this.#emit(record, {
+            record.events.emit({
               messageId,
               textDelta: event.textDelta,
               type: "message-delta",
@@ -1006,7 +970,7 @@ export class AgentService {
 
         if (!summary?.content && result.finalText) {
           record.controller.appendAssistantMessage(messageId, result.finalText);
-          this.#emit(record, {
+          record.events.emit({
             messageId,
             textDelta: result.finalText,
             type: "message-delta",
@@ -1014,7 +978,7 @@ export class AgentService {
         }
         record.controller.finishTurn(turnId);
         record.abortController = null;
-        this.#emit(record, { status: "completed", turnId, type: "turn-completed" });
+        record.events.emit({ status: "completed", turnId, type: "turn-completed" });
         this.#emitSnapshot(record);
       } catch (error) {
         record.abortController = null;
@@ -1027,42 +991,27 @@ export class AgentService {
           : "Agent receipt summary failed";
 
         record.controller.failTurn(turnId, message);
-        this.#emit(record, {
+        record.events.emit({
           code: "receipt_summary_failed",
           message,
           type: "problem",
         });
-        this.#emit(record, { status: "failed", turnId, type: "turn-completed" });
+        record.events.emit({ status: "failed", turnId, type: "turn-completed" });
         this.#emitSnapshot(record);
       }
     });
   }
 
   #emitProposal(record: SessionRecord, proposal: AgentProposal) {
-    this.#emit(record, { proposal: toAgentProposalDto(proposal), type: "proposal-updated" });
+    record.events.emit({
+      proposal: toAgentProposalDto(proposal),
+      type: "proposal-updated",
+    });
     this.#emitSnapshot(record);
   }
 
   #emitSnapshot(record: SessionRecord) {
-    this.#emit(record, {
-      snapshot: this.#snapshot(record, record.eventSequence + 1),
-      type: "session-snapshot",
-    });
-  }
-
-  #emit(record: SessionRecord, value: AgentEventWithoutSequence) {
-    record.eventSequence += 1;
-    const event = {
-      ...value,
-      sequence: record.eventSequence,
-      sessionId: record.controller.snapshot().id,
-    } as AgentEventDto;
-
-    record.events.push(event);
-    if (record.events.length > maximumRetainedEvents) {
-      record.events.splice(0, record.events.length - maximumRetainedEvents);
-    }
-    for (const response of record.eventStreams) writeAgentEvent(response, event);
+    record.events.emitSnapshot((sequence) => this.#snapshot(record, sequence));
   }
 
   #isExpired(record: SessionRecord) {
@@ -1097,8 +1046,7 @@ export class AgentService {
   async #disposeRecord(record: SessionRecord) {
     record.abortController?.abort(new Error("Agent session ended"));
     if (record.capability) this.#ipc.revoke(record.capability);
-    for (const response of record.eventStreams) response.end();
-    record.eventStreams.clear();
+    record.events.close();
     await record.runtimeSession.dispose();
   }
 }
