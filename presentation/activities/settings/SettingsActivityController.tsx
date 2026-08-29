@@ -1,10 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { createSettingsActivitySlots } from "./SettingsActivitySlots";
-import type { SettingsSection } from "./settingsTypes";
-import type { AgentSettingsPage } from "./AgentSettingsPanel";
 import type {
-  AgentSettingsSelection,
+  AgentSettingsRoute,
   ApiAccessSelection,
+  SettingsSection,
 } from "./settingsTypes";
 import type { ActivityControllerProps } from "../activityController";
 import {
@@ -23,9 +22,8 @@ export function SettingsActivityController({
   renderActivity,
 }: ActivityControllerProps) {
   const [section, setSection] = useState<SettingsSection>("interface");
-  const [agentPage, setAgentPage] = useState<AgentSettingsPage>("overview");
-  const [agentSelection, setAgentSelection] = useState<AgentSettingsSelection>({
-    kind: "overview",
+  const [agentRoute, setAgentRoute] = useState<AgentSettingsRoute>({
+    page: "overview",
   });
   const [apiAccessSelection, setApiAccessSelection] = useState<ApiAccessSelection>({
     kind: "overview",
@@ -48,38 +46,35 @@ export function SettingsActivityController({
   const apiAccessActive = active && section === "api-access";
   const auditActive = active && section === "audit";
   const configuration = application.agent.configurationState.configuration;
-  const providers = configuration?.providers ?? [];
-  const profiles = configuration?.profiles ?? [];
 
   useEffect(() => {
-    if (agentPage === "overview") {
-      if (agentSelection.kind !== "overview") {
-        setAgentSelection({ kind: "overview" });
+    const providers = configuration?.providers ?? [];
+    const profiles = configuration?.profiles ?? [];
+
+    if (agentRoute.page === "overview") return;
+    if (agentRoute.page === "providers") {
+      const selectedProviderId = providers.some(
+        ({ id }) => id === agentRoute.selectedProviderId,
+      )
+        ? agentRoute.selectedProviderId
+        : providers[0]?.id ?? null;
+
+      if (selectedProviderId !== agentRoute.selectedProviderId) {
+        setAgentRoute({ page: "providers", selectedProviderId });
       }
       return;
     }
-    if (agentPage === "providers") {
-      const currentExists = agentSelection.kind === "provider" && providers.some(
-        ({ id }) => id === agentSelection.id,
-      );
 
-      if (!currentExists) {
-        setAgentSelection(providers[0]
-          ? { id: providers[0].id, kind: "provider" }
-          : { kind: "overview" });
-      }
-      return;
-    }
-    const currentExists = agentSelection.kind === "profile" && profiles.some(
-      ({ id }) => id === agentSelection.id,
-    );
+    const selectedProfileId = profiles.some(
+      ({ id }) => id === agentRoute.selectedProfileId,
+    )
+      ? agentRoute.selectedProfileId
+      : profiles[0]?.id ?? null;
 
-    if (!currentExists) {
-      setAgentSelection(profiles[0]
-        ? { id: profiles[0].id, kind: "profile" }
-        : { kind: "overview" });
+    if (selectedProfileId !== agentRoute.selectedProfileId) {
+      setAgentRoute({ page: "profiles", selectedProfileId });
     }
-  }, [agentPage, agentSelection, configuration]);
+  }, [agentRoute, configuration]);
 
   useEffect(() => {
     if (apiAccessActive) {
@@ -151,12 +146,10 @@ export function SettingsActivityController({
       }) =>
         createSettingsActivitySlots({
           agent: application.agent,
-          agentPage,
-          agentSelection,
+          agentRoute,
           apiAccessSession,
           apiAccessSelection,
-          onAgentPageChange: setAgentPage,
-          onAgentSelectionChange: setAgentSelection,
+          onAgentRouteChange: setAgentRoute,
           onApiAccessSelectionChange: setApiAccessSelection,
           onCollapseDetail,
           onSectionChange: changeSection,

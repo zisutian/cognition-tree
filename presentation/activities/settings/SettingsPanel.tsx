@@ -8,9 +8,8 @@ import {
 } from "../../ui/shared/CompactContextList";
 import { ApiAccessSettingsPanel } from "./ApiAccessSettingsPanel";
 import { AgentSettingsPanel } from "./AgentSettingsPanel";
-import type { AgentSettingsPage } from "./AgentSettingsPanel";
 import type {
-  AgentSettingsSelection,
+  AgentSettingsRoute,
   ApiAccessSelection,
   SettingsSection,
 } from "./settingsTypes";
@@ -75,12 +74,10 @@ export function SettingsContext({
 
 export function SettingsPanel({
   agent,
-  agentPage = "overview",
-  agentSelection = { kind: "overview" },
+  agentRoute,
   apiAccessSession,
   apiAccessSelection = { kind: "overview" },
-  onAgentPageChange = () => undefined,
-  onAgentSelectionChange = () => undefined,
+  onAgentRouteChange,
   onApiAccessSelectionChange = () => undefined,
   operationsSession,
   section = "interface",
@@ -89,12 +86,10 @@ export function SettingsPanel({
   workbench,
 }: {
   agent: AgentApplication;
-  agentPage?: AgentSettingsPage;
-  agentSelection?: AgentSettingsSelection;
+  agentRoute: AgentSettingsRoute;
   apiAccessSession: ApiAccessSettingsPanelView;
   apiAccessSelection?: ApiAccessSelection;
-  onAgentPageChange?: (page: AgentSettingsPage) => void;
-  onAgentSelectionChange?: (selection: AgentSettingsSelection) => void;
+  onAgentRouteChange: (route: AgentSettingsRoute) => void;
   onApiAccessSelectionChange?: (selection: ApiAccessSelection) => void;
   operationsSession: OperationsSettingsPanelView;
   section?: SettingsSection;
@@ -106,10 +101,8 @@ export function SettingsPanel({
     return (
       <AgentSettingsPanel
         agent={agent}
-        selection={agentSelection}
-        onPageChange={onAgentPageChange}
-        onSelectionChange={onAgentSelectionChange}
-        page={agentPage}
+        onRouteChange={onAgentRouteChange}
+        route={agentRoute}
       />
     );
   }

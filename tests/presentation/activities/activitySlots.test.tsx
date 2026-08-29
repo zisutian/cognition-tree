@@ -135,7 +135,9 @@ function createSlots(
     case "settings":
       return createSettingsActivitySlots({
         agent: createAgentApplicationFixture(),
+        agentRoute: { page: "overview" },
         apiAccessSession: createApiAccessSettingsSessionFixture(),
+        onAgentRouteChange: () => undefined,
         onCollapseDetail: controls.onCollapseDetail,
         operationsSession: createOperationsSettingsSessionFixture(),
         system: {} as Parameters<

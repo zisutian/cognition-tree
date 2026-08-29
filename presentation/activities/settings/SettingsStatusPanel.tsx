@@ -18,7 +18,7 @@ import {
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
 import type {
-  AgentSettingsSelection,
+  AgentSettingsRoute,
   ApiAccessSelection,
   SettingsSection,
 } from "./settingsTypes";
@@ -342,7 +342,7 @@ function operationStatus(session: OperationsSettingsStatusView) {
 
 export function SettingsStatusPanel({
   agent,
-  agentSelection,
+  agentRoute,
   apiAccessSession,
   apiAccessSelection,
   onCollapseDetail,
@@ -352,7 +352,7 @@ export function SettingsStatusPanel({
   systemOwnerCredentialSession,
 }: {
   agent: AgentApplication;
-  agentSelection: AgentSettingsSelection;
+  agentRoute: AgentSettingsRoute;
   apiAccessSession: ApiAccessSettingsStatusView;
   apiAccessSelection: ApiAccessSelection;
   onCollapseDetail: () => void;
@@ -372,33 +372,34 @@ export function SettingsStatusPanel({
     const configuration = agent.configurationState.configuration;
     const providers = configuration?.providers ?? [];
     const profiles = configuration?.profiles ?? [];
-    const selection = agentSelection.kind === "provider"
-      ? providers.find(({ id }) => id === agentSelection.id) ?? null
-      : agentSelection.kind === "profile"
-        ? profiles.find(({ id }) => id === agentSelection.id) ?? null
-        : null;
+    const selectedProvider = agentRoute.page === "providers"
+      ? providers.find(({ id }) => id === agentRoute.selectedProviderId) ?? null
+      : null;
+    const selectedProfile = agentRoute.page === "profiles"
+      ? profiles.find(({ id }) => id === agentRoute.selectedProfileId) ?? null
+      : null;
 
-    content = agentSelection.kind === "provider" && selection
-      ? providerStatus({ agent, provider: selection as AgentProviderView })
-      : agentSelection.kind === "profile" && selection
-        ? profileStatus({ agent, profile: selection as AgentProfileView })
+    content = selectedProvider
+      ? providerStatus({ agent, provider: selectedProvider })
+      : selectedProfile
+        ? profileStatus({ agent, profile: selectedProfile })
         : (
-            <ToolSection title="智能体">
-              <ToolPropertyList aria-label="智能体状态">
-                <ToolPropertyRow
-                  label="状态"
-                  value={(
-                    <StatusBadge tone={agent.state.status?.enabled ? "success" : "warning"}>
-                      {agent.state.status?.enabled ? "可用" : "不可用"}
-                    </StatusBadge>
-                  )}
-                />
-                <ToolPropertyRow label="Provider" value={providers.length} />
-                <ToolPropertyRow label="Profile" value={profiles.length} />
-                <ToolPropertyRow label="默认 Profile" value={agent.state.preferredProfileId ?? "未选择"} />
-              </ToolPropertyList>
-            </ToolSection>
-          );
+          <ToolSection title="智能体">
+            <ToolPropertyList aria-label="智能体状态">
+              <ToolPropertyRow
+                label="状态"
+                value={(
+                  <StatusBadge tone={agent.state.status?.enabled ? "success" : "warning"}>
+                    {agent.state.status?.enabled ? "可用" : "不可用"}
+                  </StatusBadge>
+                )}
+              />
+              <ToolPropertyRow label="Provider" value={providers.length} />
+              <ToolPropertyRow label="Profile" value={profiles.length} />
+              <ToolPropertyRow label="默认 Profile" value={agent.state.preferredProfileId ?? "未选择"} />
+            </ToolPropertyList>
+          </ToolSection>
+        );
   } else if (section === "api-access") {
     content = apiAccessStatus({
       selection: apiAccessSelection,

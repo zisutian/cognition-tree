@@ -225,11 +225,14 @@ const agent = {
     },
   },
 };
+const overviewAgentRoute = { page: "overview" } as const;
+const onAgentRouteChange = () => undefined;
 
 describe("settings activity", () => {
   it("separates interface preferences from scoped server API access", () => {
     const statusProps = {
       agent,
+      agentRoute: overviewAgentRoute,
       apiAccessSession,
       apiAccessSelection: { kind: "overview" } as const,
       onCollapseDetail: () => undefined,
@@ -241,7 +244,9 @@ describe("settings activity", () => {
     const panelMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
+        agentRoute={overviewAgentRoute}
         apiAccessSession={apiAccessSession}
+        onAgentRouteChange={onAgentRouteChange}
         operationsSession={operationsSession}
         system={system}
         systemOwnerCredentialSession={systemOwnerCredentialSession}
@@ -255,7 +260,9 @@ describe("settings activity", () => {
     const apiMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
+        agentRoute={overviewAgentRoute}
         apiAccessSession={apiAccessSession}
+        onAgentRouteChange={onAgentRouteChange}
         operationsSession={operationsSession}
         section="api-access"
         system={system}
@@ -269,7 +276,9 @@ describe("settings activity", () => {
     const agentMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
+        agentRoute={overviewAgentRoute}
         apiAccessSession={apiAccessSession}
+        onAgentRouteChange={onAgentRouteChange}
         operationsSession={operationsSession}
         section="agent"
         system={system}
@@ -283,8 +292,12 @@ describe("settings activity", () => {
     const agentProviderMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
-        agentPage="providers"
+        agentRoute={{
+          page: "providers",
+          selectedProviderId: "ollama-provider",
+        }}
         apiAccessSession={apiAccessSession}
+        onAgentRouteChange={onAgentRouteChange}
         operationsSession={operationsSession}
         section="agent"
         system={system}
@@ -298,8 +311,12 @@ describe("settings activity", () => {
     const agentProfileMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
-        agentPage="profiles"
+        agentRoute={{
+          page: "profiles",
+          selectedProfileId: "ollama-local",
+        }}
         apiAccessSession={apiAccessSession}
+        onAgentRouteChange={onAgentRouteChange}
         operationsSession={operationsSession}
         section="agent"
         system={system}
@@ -313,7 +330,9 @@ describe("settings activity", () => {
     const serviceMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
+        agentRoute={overviewAgentRoute}
         apiAccessSession={apiAccessSession}
+        onAgentRouteChange={onAgentRouteChange}
         operationsSession={operationsSession}
         section="system"
         system={system}
@@ -327,28 +346,35 @@ describe("settings activity", () => {
     const agentProviderStatusMarkup = renderToStaticMarkup(
       <SettingsStatusPanel
         {...statusProps}
-        agentSelection={{ id: "ollama-provider", kind: "provider" }}
+        agentRoute={{
+          page: "providers",
+          selectedProviderId: "ollama-provider",
+        }}
         section="agent"
       />,
     );
     const agentProfileStatusMarkup = renderToStaticMarkup(
       <SettingsStatusPanel
         {...statusProps}
-        agentSelection={{ id: "ollama-local", kind: "profile" }}
+        agentRoute={{
+          page: "profiles",
+          selectedProfileId: "ollama-local",
+        }}
         section="agent"
       />,
     );
     const serviceStatusMarkup = renderToStaticMarkup(
       <SettingsStatusPanel
         {...statusProps}
-        agentSelection={{ kind: "overview" }}
         section="system"
       />,
     );
     const auditMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
+        agentRoute={overviewAgentRoute}
         apiAccessSession={apiAccessSession}
+        onAgentRouteChange={onAgentRouteChange}
         operationsSession={operationsSession}
         section="audit"
         system={system}

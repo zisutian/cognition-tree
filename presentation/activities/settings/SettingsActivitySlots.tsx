@@ -7,12 +7,11 @@ import {
 } from "./SettingsPanel";
 import type { AgentApplication } from "../../../application/agent";
 import type { SystemApplication } from "../../../application/system";
-import type { AgentSettingsPage } from "./AgentSettingsPanel";
 import {
   SettingsStatusPanel,
 } from "./SettingsStatusPanel";
 import type {
-  AgentSettingsSelection,
+  AgentSettingsRoute,
   ApiAccessSelection,
   SettingsSection,
 } from "./settingsTypes";
@@ -33,12 +32,10 @@ import type {
 
 export function createSettingsActivitySlots({
   agent,
-  agentPage = "overview",
-  agentSelection = { kind: "overview" },
+  agentRoute,
   apiAccessSession,
   apiAccessSelection = { kind: "overview" },
-  onAgentPageChange = () => undefined,
-  onAgentSelectionChange = () => undefined,
+  onAgentRouteChange,
   onApiAccessSelectionChange = () => undefined,
   onCollapseDetail,
   onSectionChange = () => undefined,
@@ -49,12 +46,10 @@ export function createSettingsActivitySlots({
   workbench,
 }: {
   agent: AgentApplication;
-  agentPage?: AgentSettingsPage;
-  agentSelection?: AgentSettingsSelection;
+  agentRoute: AgentSettingsRoute;
   apiAccessSession: ApiAccessSettingsView;
   apiAccessSelection?: ApiAccessSelection;
-  onAgentPageChange?(page: AgentSettingsPage): void;
-  onAgentSelectionChange?(selection: AgentSettingsSelection): void;
+  onAgentRouteChange(route: AgentSettingsRoute): void;
   onApiAccessSelectionChange?(selection: ApiAccessSelection): void;
   onCollapseDetail(): void;
   onSectionChange?(section: SettingsSection): void;
@@ -98,7 +93,7 @@ export function createSettingsActivitySlots({
     detail: (
       <SettingsStatusPanel
         agent={agent}
-        agentSelection={agentSelection}
+        agentRoute={agentRoute}
         apiAccessSession={apiAccessSession}
         apiAccessSelection={apiAccessSelection}
         onCollapseDetail={onCollapseDetail}
@@ -114,13 +109,11 @@ export function createSettingsActivitySlots({
     main: (
       <SettingsPanel
         agent={agent}
-        agentPage={agentPage}
+        agentRoute={agentRoute}
         apiAccessSession={apiAccessSession}
         apiAccessSelection={apiAccessSelection}
-        onAgentPageChange={onAgentPageChange}
-        onAgentSelectionChange={onAgentSelectionChange}
+        onAgentRouteChange={onAgentRouteChange}
         onApiAccessSelectionChange={onApiAccessSelectionChange}
-        agentSelection={agentSelection}
         operationsSession={operationsPanelSession}
         section={section}
         system={systemSettings}

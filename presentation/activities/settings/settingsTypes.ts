@@ -7,10 +7,10 @@ export type SettingsSection =
   | "interface"
   | "system";
 
-export type AgentSettingsSelection =
-  | { kind: "overview" }
-  | { id: string; kind: "profile" }
-  | { id: string; kind: "provider" };
+export type AgentSettingsRoute =
+  | { page: "overview" }
+  | { page: "profiles"; selectedProfileId: string | null }
+  | { page: "providers"; selectedProviderId: string | null };
 
 export type ApiAccessSelection =
   | { kind: "overview" }
