@@ -67,6 +67,11 @@ export type SystemConfigurationSnapshot = Readonly<{
 
 export type SystemConfigurationInput = Omit<SystemConfiguration, "dataRoot">;
 
+export type SystemConfigurationUpdateRequest = Readonly<{
+  baseRevision: `sha256:${string}`;
+  configuration: SystemConfigurationInput;
+}>;
+
 export type OwnerCredentialRotation = Readonly<{
   configuration: SystemConfigurationSnapshot;
   secret: string;
@@ -118,7 +123,9 @@ export type SystemConfigurationController = {
   migrateDataRoot(destination: string): Promise<void>;
   rotateOwnerCredential(): Promise<string>;
   subscribe(listener: () => void): () => void;
-  update(configuration: SystemConfigurationInput): Promise<void>;
+  update(
+    request: SystemConfigurationUpdateRequest,
+  ): Promise<SystemConfigurationSnapshot>;
 };
 
 export type OwnerAuthenticationPort = {
@@ -183,10 +190,13 @@ export function createSystemConfigurationController(
   ) => {
     publish({ errorMessage: null, operationStatus: "working" });
     try {
+      const configuration = await operation();
+
       publish({
-        configuration: await operation(),
+        configuration,
         operationStatus: "idle",
       });
+      return configuration;
     } catch (error) {
       publish({ errorMessage: errorMessage(error), operationStatus: "idle" });
       throw error;
@@ -194,9 +204,9 @@ export function createSystemConfigurationController(
   };
 
   return {
-    clearOwnerCredential: () => mutate(() =>
-      port.clearOwnerCredential(revision())
-    ),
+    async clearOwnerCredential() {
+      await mutate(() => port.clearOwnerCredential(revision()));
+    },
     getSnapshot: () => state,
     async load() {
       publish({ errorMessage: null, loadStatus: "loading" });
@@ -251,8 +261,8 @@ export function createSystemConfigurationController(
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    update: (configuration) => mutate(() =>
-      port.update(revision(), configuration)
+    update: ({ baseRevision, configuration }) => mutate(() =>
+      port.update(baseRevision, configuration)
     ),
   };
 }

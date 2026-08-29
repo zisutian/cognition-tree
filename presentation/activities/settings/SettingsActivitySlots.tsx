@@ -79,11 +79,10 @@ export function createSettingsActivitySlots({
       logout: () => system.authenticationController.logout(),
     },
     configurationController: {
-      getSnapshot: () => system.configurationController.getSnapshot(),
+      load: () => system.configurationController.load(),
       migrateDataRoot: (destination: string) =>
         system.configurationController.migrateDataRoot(destination),
-      update: (configuration) =>
-        system.configurationController.update(configuration),
+      update: (request) => system.configurationController.update(request),
     },
     configurationState: system.configurationState,
   } satisfies SystemSettingsPanelApplication;

@@ -96,7 +96,7 @@ const system = {
     migrateDataRoot: async () => undefined,
     rotateOwnerCredential: async () => "secret",
     subscribe: () => () => undefined,
-    update: async () => undefined,
+    update: async () => systemConfiguration,
   },
   configurationState,
 } satisfies SystemApplication;

@@ -5,6 +5,7 @@ import {
   createSystemConfigurationController,
   type DataRootMigrationStatus,
   type SystemAdministrationPort,
+  type SystemConfigurationInput,
   type SystemConfigurationSnapshot,
 } from "../../../application/system/systemConfiguration.ts";
 
@@ -35,6 +36,27 @@ const rotatedConfiguration: SystemConfigurationSnapshot = {
   ...configuration,
   ownerCredentialConfigured: true,
   revision: `sha256:${"b".repeat(64)}`,
+  version: 2,
+};
+const updateRevision = `sha256:${"c".repeat(64)}` as const;
+const updateInput: SystemConfigurationInput = {
+  listenMode: "loopback",
+  maxAuditEntries: 2_000,
+  port: 3_001,
+  publicOrigin: null,
+  repositoryHostRoot: null,
+};
+const updatedConfiguration: SystemConfigurationSnapshot = {
+  ...configuration,
+  configuration: {
+    ...configuration.configuration,
+    maxAuditEntries: updateInput.maxAuditEntries,
+  },
+  effectiveConfiguration: {
+    ...configuration.effectiveConfiguration,
+    maxAuditEntries: updateInput.maxAuditEntries,
+  },
+  revision: `sha256:${"d".repeat(64)}`,
   version: 2,
 };
 
@@ -68,6 +90,33 @@ function port(statuses: DataRootMigrationStatus[]): SystemAdministrationPort {
 }
 
 describe("system configuration controller", () => {
+  it("updates the caller's exact base revision and returns the published snapshot", async () => {
+    const administration = {
+      ...port([]),
+      update: vi.fn(async () => updatedConfiguration),
+    };
+    const controller = createSystemConfigurationController(administration, {
+      pollMigration: async () => undefined,
+      pollMigrationIntervalMilliseconds: 1,
+    });
+
+    await controller.load();
+    const result = await controller.update({
+      baseRevision: updateRevision,
+      configuration: updateInput,
+    });
+
+    expect(administration.update).toHaveBeenCalledWith(
+      updateRevision,
+      updateInput,
+    );
+    expect(result).toBe(updatedConfiguration);
+    expect(controller.getSnapshot()).toMatchObject({
+      configuration: updatedConfiguration,
+      operationStatus: "idle",
+    });
+  });
+
   it("returns a rotated owner secret without publishing it in the snapshot", async () => {
     const administration = port([]);
     const controller = createSystemConfigurationController(administration, {

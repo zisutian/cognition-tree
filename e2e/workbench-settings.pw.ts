@@ -145,6 +145,72 @@ test.describe("settings activity flows", () => {
     await expect(statusPanel).toContainText("未创建");
   });
 
+  test("preserves system draft edits made while a save response is pending", async ({
+    page,
+  }) => {
+    await openWorkbench(page, syntaxRepositoryId);
+    await getActivityButton(page, "设置").click();
+    await page.getByRole("button", { name: "服务", exact: true }).click();
+    const panel = page.getByRole("region", { name: "服务设置" });
+    const auditLimit = panel.getByRole("spinbutton", {
+      name: "操作审计保留条数",
+    });
+    const save = panel.getByRole("button", { name: "保存服务设置" });
+    const original = Number(await auditLimit.inputValue());
+    const submitted = original + 1;
+    const continued = original + 2;
+    const configurationEndpoint = "**/api/v3/admin/system-configuration";
+    let markResponseHeld!: () => void;
+    let releaseResponse!: () => void;
+    const responseHeld = new Promise<void>((resolve) => {
+      markResponseHeld = resolve;
+    });
+    const responseRelease = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+    let intercepted = false;
+
+    await page.route(configurationEndpoint, async (route) => {
+      if (route.request().method() !== "PATCH" || intercepted) {
+        await route.continue();
+        return;
+      }
+      intercepted = true;
+      const response = await route.fetch();
+
+      markResponseHeld();
+      await responseRelease;
+      await route.fulfill({ response });
+    });
+    await auditLimit.fill(String(submitted));
+    await save.click();
+    await responseHeld;
+    await expect(save).toBeDisabled();
+    await auditLimit.fill(String(continued));
+    releaseResponse();
+    await expect(save).toBeEnabled();
+    await page.unroute(configurationEndpoint);
+
+    await expect(auditLimit).toHaveValue(String(continued));
+    const continuedResponse = page.waitForResponse((response) =>
+      response.request().method() === "PATCH" &&
+      response.url().endsWith("/api/v3/admin/system-configuration")
+    );
+
+    await save.click();
+    expect((await continuedResponse).ok()).toBe(true);
+    await expect(save).toBeEnabled();
+    await auditLimit.fill(String(original));
+    const cleanupResponse = page.waitForResponse((response) =>
+      response.request().method() === "PATCH" &&
+      response.url().endsWith("/api/v3/admin/system-configuration")
+    );
+
+    await save.click();
+    expect((await cleanupResponse).ok()).toBe(true);
+    await expect(save).toBeEnabled();
+  });
+
   test("creates only read-scoped tokens and retains only the prefix", async ({
     api,
     page,
