@@ -21,117 +21,18 @@ import { OllamaRuntime } from "./ollamaRuntime.ts";
 import { OpenAiChatRuntime } from "./openAiChatRuntime.ts";
 import { createAgentRuntimeProfile } from "./runtimeProfiles.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
+import { AgentProviderProbeService } from "./providerProbe.ts";
 import {
   CodexAppServerClient,
   resolveCodexEntrypoint,
   withTimeout,
 } from "./codexAppServerClient.ts";
 
-const responseByteLimit = 1024 * 1024;
-const probeTimeoutMilliseconds = 5_000;
+const codexAppServerRequestTimeoutMilliseconds = 5_000;
 const conformanceResultLimit = 100;
 const conformanceOutputTokenLimit = 512;
 const defaultCodexDeviceLoginTtlMilliseconds = 15 * 60 * 1_000;
 const codexDeviceLoginResultLimit = 100;
-
-function validatedEndpoint(value: string) {
-  let endpoint: URL;
-
-  try {
-    endpoint = new URL(value);
-  } catch {
-    throw new AgentConfigurationValidationError(
-      "Provider endpoint must be an absolute HTTP(S) URL",
-    );
-  }
-  if (endpoint.protocol !== "http:" && endpoint.protocol !== "https:") {
-    throw new AgentConfigurationValidationError(
-      "Provider endpoint must use HTTP or HTTPS",
-    );
-  }
-  if (endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
-    throw new AgentConfigurationValidationError(
-      "Provider endpoint cannot contain credentials, query, or fragment",
-    );
-  }
-  return endpoint;
-}
-
-async function readLimitedJson(response: Response) {
-  if (!response.body) {
-    throw new Error("Provider response has no body");
-  }
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-
-    if (done) break;
-    length += value.byteLength;
-    if (length > responseByteLimit) {
-      await reader.cancel();
-      throw new Error("Provider response exceeded the size limit");
-    }
-    chunks.push(value);
-  }
-  const body = new Uint8Array(length);
-  let offset = 0;
-
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return JSON.parse(new TextDecoder().decode(body)) as unknown;
-}
-
-async function requestJson(
-  url: URL,
-  {
-    apiKey,
-    body,
-    fetch: fetchFn,
-  }: {
-    apiKey: string | null;
-    body?: unknown;
-    fetch: typeof fetch;
-  },
-) {
-  const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(new Error("Provider request timed out")),
-    probeTimeoutMilliseconds,
-  );
-
-  timeout.unref();
-  try {
-    const response = await fetchFn(url, {
-      body: body === undefined ? undefined : JSON.stringify(body),
-      headers: {
-        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-      },
-      method: body === undefined ? "GET" : "POST",
-      redirect: "manual",
-      signal: controller.signal,
-    });
-
-    if (response.status >= 300 && response.status < 400) {
-      throw new Error("Provider redirects are not allowed");
-    }
-    if (!response.ok) throw new Error(`Provider returned HTTP ${response.status}`);
-    return await readLimitedJson(response);
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function positiveSafeInteger(value: unknown) {
-  return Number.isSafeInteger(value) && (value as number) > 0
-    ? value as number
-    : null;
-}
 
 function verifiedDeviceLoginUrl(value: unknown) {
   if (typeof value !== "string") {
@@ -148,70 +49,6 @@ function verifiedDeviceLoginUrl(value: unknown) {
     throw new Error("Codex returned an invalid device login URL");
   }
   return url.toString();
-}
-
-function parseLoadedContexts(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return new Map<string, number | null>();
-  }
-  const candidates = (value as Record<string, unknown>).models;
-
-  if (!Array.isArray(candidates)) return new Map<string, number | null>();
-  return new Map(candidates.flatMap((candidate): Array<[string, number | null]> => {
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
-      return [];
-    }
-    const record = candidate as Record<string, unknown>;
-    const model = typeof record.model === "string"
-      ? record.model
-      : typeof record.name === "string"
-        ? record.name
-        : null;
-    const context = positiveSafeInteger(record.context_length);
-
-    return model ? [[model, context]] : [];
-  }));
-}
-
-function parseDeclaredMaximumContext(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const modelInfo = (value as Record<string, unknown>).model_info;
-
-  if (!modelInfo || typeof modelInfo !== "object" || Array.isArray(modelInfo)) {
-    return null;
-  }
-  const candidates = Object.entries(modelInfo)
-    .filter(([key]) => key.endsWith(".context_length"))
-    .map(([, candidate]) => positiveSafeInteger(candidate))
-    .filter((candidate): candidate is number => candidate !== null);
-
-  return candidates.length > 0 ? Math.max(...candidates) : null;
-}
-
-function parseModels(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Provider model response is invalid");
-  }
-  const record = value as Record<string, unknown>;
-  const models = Array.isArray(record.models) ? record.models : record.data;
-
-  if (!Array.isArray(models)) throw new Error("Provider model list is invalid");
-  return [...new Set(models.flatMap((candidate) => {
-    if (typeof candidate === "string" && candidate) return [candidate];
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
-      return [];
-    }
-    const record = candidate as Record<string, unknown>;
-    const model = typeof record.model === "string"
-      ? record.model
-      : typeof record.name === "string"
-        ? record.name
-        : typeof record.id === "string"
-          ? record.id
-        : null;
-
-    return model ? [model] : [];
-  }))].sort();
 }
 
 const conformanceTools: readonly AgentRuntimeTool[] =
@@ -259,7 +96,7 @@ export class AgentProviderOperations {
   readonly #codexDeviceLoginReservations = new Set<string>();
   readonly #codexDeviceLogins = new Map<string, CodexDeviceLoginRecord>();
   readonly #codexDeviceLoginTtlMilliseconds: number;
-  readonly #fetch: typeof fetch;
+  readonly #probeService: AgentProviderProbeService;
   readonly #projectRoot: string;
   readonly #runtime: ApiRuntime;
   readonly #targetPolicy: AgentProviderTargetPolicy;
@@ -282,115 +119,23 @@ export class AgentProviderOperations {
   }) {
     this.#configurationStore = configurationStore;
     this.#codexDeviceLoginTtlMilliseconds = codexDeviceLoginTtlMilliseconds;
-    this.#fetch = fetchFn;
+    this.#probeService = new AgentProviderProbeService({
+      configurationStore,
+      fetch: fetchFn,
+      runtime,
+      targetPolicy,
+    });
     this.#projectRoot = path.resolve(projectRoot);
     this.#runtime = runtime;
     this.#targetPolicy = targetPolicy;
   }
 
   async discoverOllama(endpointValue: string) {
-    const endpoint = validatedEndpoint(endpointValue);
-    await this.#targetPolicy.assertRequestTarget(endpoint, null);
-    const url = new URL("api/tags", `${endpoint.toString().replace(/\/?$/, "/")}`);
-    const models = parseModels(await requestJson(url, {
-      apiKey: null,
-      fetch: this.#fetch,
-    }));
-
-    return { endpoint: endpoint.toString().replace(/\/$/, ""), models };
+    return this.#probeService.discoverOllama(endpointValue);
   }
 
   async probe(providerId: string) {
-    const resolved = await this.#configurationStore.resolveProvider(providerId);
-
-    if (!resolved) {
-      throw new AgentConfigurationValidationError("Agent provider does not exist");
-    }
-    if (resolved.provider.kind === "codex") {
-      return {
-        modelContexts: [],
-        models: [],
-        probedAt: readApiRuntimeNow(this.#runtime).timestamp,
-        reachable: resolved.provider.authenticationStatus === "configured",
-      };
-    }
-    const endpoint = validatedEndpoint(resolved.provider.baseUrl!);
-    const path = resolved.provider.kind === "ollama" ? "api/tags" : "models";
-    const url = new URL(path, `${endpoint.toString().replace(/\/?$/, "/")}`);
-    await this.#targetPolicy.assertRequestTarget(
-      url,
-      resolved.privateNetworkOrigin,
-    );
-    const models = parseModels(await requestJson(url, {
-      apiKey: resolved.apiKey,
-      fetch: this.#fetch,
-    }));
-
-    if (resolved.provider.kind !== "ollama") {
-      return {
-        modelContexts: [],
-        models,
-        probedAt: readApiRuntimeNow(this.#runtime).timestamp,
-        reachable: true,
-      };
-    }
-    const snapshot = await this.#configurationStore.readSnapshot();
-    const configuredModels = [...new Set(snapshot.profiles
-      .filter(({ providerId: candidate }) => candidate === providerId)
-      .map(({ model }) => model))].sort();
-    const psUrl = new URL(
-      "api/ps",
-      `${endpoint.toString().replace(/\/?$/, "/")}`,
-    );
-
-    await this.#targetPolicy.assertRequestTarget(
-      psUrl,
-      resolved.privateNetworkOrigin,
-    );
-    const loadedContexts = parseLoadedContexts(await requestJson(psUrl, {
-      apiKey: resolved.apiKey,
-      fetch: this.#fetch,
-    }));
-    const modelContexts = [];
-
-    for (const model of configuredModels) {
-      const showUrl = new URL(
-        "api/show",
-        `${endpoint.toString().replace(/\/?$/, "/")}`,
-      );
-
-      await this.#targetPolicy.assertRequestTarget(
-        showUrl,
-        resolved.privateNetworkOrigin,
-      );
-      const declaredMaximumContextTokens = parseDeclaredMaximumContext(
-        await requestJson(showUrl, {
-          apiKey: resolved.apiKey,
-          body: { model },
-          fetch: this.#fetch,
-        }),
-      );
-
-      modelContexts.push({
-        declaredMaximumContextTokens,
-        model,
-        residentContext: !loadedContexts.has(model)
-          ? { status: "not-loaded" as const }
-          : loadedContexts.get(model) === null
-            ? { status: "loaded-unreported" as const }
-            : {
-                allocatedContextTokens: loadedContexts.get(model)!,
-                status: "loaded" as const,
-              },
-      });
-    }
-
-    return {
-      modelContexts,
-      models,
-      probedAt: readApiRuntimeNow(this.#runtime).timestamp,
-      reachable: true,
-    };
+    return this.#probeService.probe(providerId);
   }
 
   async startCodexDeviceLogin(baseRevision: string, providerId: string) {
@@ -451,14 +196,18 @@ export class AgentProviderOperations {
       child.once("exit", () => this.#codexDeviceLoginChildren.delete(child!));
       const client = new CodexAppServerClient(child);
 
-      await withTimeout(client.request("initialize", {
-        capabilities: { experimentalApi: true },
-        clientInfo: {
-          name: "cognition_tree",
-          title: "Cognition Tree",
-          version: "0.1.0",
-        },
-      }), probeTimeoutMilliseconds, "Codex device login initialize timed out");
+      await withTimeout(
+        client.request("initialize", {
+          capabilities: { experimentalApi: true },
+          clientInfo: {
+            name: "cognition_tree",
+            title: "Cognition Tree",
+            version: "0.1.0",
+          },
+        }),
+        codexAppServerRequestTimeoutMilliseconds,
+        "Codex device login initialize timed out",
+      );
       if (this.#disposed) {
         throw new AgentProviderOperationConflictError(
           "Agent provider operations are closing",
@@ -490,7 +239,7 @@ export class AgentProviderOperations {
       });
       const login = await withTimeout(
         client.request("account/login/start", { type: "chatgptDeviceCode" }),
-        probeTimeoutMilliseconds,
+        codexAppServerRequestTimeoutMilliseconds,
         "Codex device login start timed out",
       );
       const loginRecord = login && typeof login === "object" && !Array.isArray(login)
@@ -938,7 +687,7 @@ export class AgentProviderOperations {
       record.client.request("account/login/cancel", {
         loginId: record.codexLoginId,
       }),
-      probeTimeoutMilliseconds,
+      codexAppServerRequestTimeoutMilliseconds,
       "Codex device login cancellation timed out",
     ).catch(() => undefined);
     record.status = {

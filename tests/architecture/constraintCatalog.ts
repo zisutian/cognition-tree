@@ -499,7 +499,7 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
     matches: 0,
     name: "Ollama nested code Agent integration",
     pattern: /["'`]\/api\/(?:tasks|mcp)(?:\/|["'`])/,
-    scope: /^infrastructure\/server\/agent\/(?:ollamaRuntime|providerOperations)\.ts$/,
+    scope: /^infrastructure\/server\/agent\/(?:ollamaRuntime|providerOperations|providerProbe)\.ts$/,
   },
   {
     corpus: infrastructureModules,

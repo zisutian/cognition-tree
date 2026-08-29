@@ -427,6 +427,158 @@ describe("Agent provider operations", () => {
     }
   });
 
+  it("probes Codex authentication state without fetching provider metadata", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const fetchFn = vi.fn();
+    const store = new AgentConfigurationStore(directory, {
+      createId: () => "codex-probe",
+    });
+    const operations = new AgentProviderOperations({
+      configurationStore: store,
+      fetch: fetchFn,
+      runtime,
+    });
+
+    try {
+      const initial = await store.readSnapshot();
+      const provider = await store.createProvider(initial.revision, {
+        apiKey: "codex-probe-secret",
+        authenticationType: "api-key",
+        baseUrl: null,
+        kind: "codex",
+        label: "Codex probe",
+        privateNetworkAccessConfirmed: false,
+      });
+
+      await expect(operations.probe(provider.provider.id)).resolves.toEqual({
+        modelContexts: [],
+        models: [],
+        probedAt: "2026-08-25T00:00:00.000Z",
+        reachable: true,
+      });
+      expect(fetchFn).not.toHaveBeenCalled();
+    } finally {
+      await operations.dispose();
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("probes OpenAI model ids with the configured Bearer credential", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const fetchFn = vi.fn<typeof fetch>(async () =>
+      new Response(JSON.stringify({
+        data: [{ id: "gpt-5" }, { id: "gpt-4.1" }, { id: "gpt-5" }],
+      }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      })
+    );
+    const store = new AgentConfigurationStore(directory, {
+      createId: () => "openai-probe",
+    });
+    const operations = new AgentProviderOperations({
+      configurationStore: store,
+      fetch: fetchFn,
+      runtime,
+    });
+
+    try {
+      const initial = await store.readSnapshot();
+      const provider = await store.createProvider(initial.revision, {
+        apiKey: "openai-probe-secret",
+        authenticationType: "api-key",
+        baseUrl: "http://127.0.0.1:12345/v1",
+        kind: "openai-chat",
+        label: "OpenAI-compatible probe",
+        privateNetworkAccessConfirmed: false,
+      });
+
+      await expect(operations.probe(provider.provider.id)).resolves.toEqual({
+        modelContexts: [],
+        models: ["gpt-4.1", "gpt-5"],
+        probedAt: "2026-08-25T00:00:00.000Z",
+        reachable: true,
+      });
+      expect(fetchFn).toHaveBeenCalledOnce();
+      const [requestedUrl, request] = fetchFn.mock.calls[0]!;
+
+      expect(String(requestedUrl)).toBe("http://127.0.0.1:12345/v1/models");
+      expect(request).toMatchObject({
+        headers: { Authorization: "Bearer openai-probe-secret" },
+        method: "GET",
+        redirect: "manual",
+      });
+    } finally {
+      await operations.dispose();
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("rejects redirected and oversized Provider metadata responses", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const fetchFn = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, {
+        headers: { Location: "https://redirected.example/models" },
+        status: 302,
+      }))
+      .mockResolvedValueOnce(new Response(
+        new Uint8Array(1024 * 1024 + 1),
+        { status: 200 },
+      ));
+    const operations = new AgentProviderOperations({
+      configurationStore: new AgentConfigurationStore(directory),
+      fetch: fetchFn,
+      runtime,
+    });
+
+    try {
+      await expect(operations.discoverOllama("http://127.0.0.1:12345"))
+        .rejects.toThrow("Provider redirects are not allowed");
+      await expect(operations.discoverOllama("http://127.0.0.1:12345"))
+        .rejects.toThrow("Provider response exceeded the size limit");
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+    } finally {
+      await operations.dispose();
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("times out a stalled Provider metadata request", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const fetchFn = vi.fn<typeof fetch>((_input, init) =>
+      new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+
+        if (!signal) {
+          reject(new Error("Provider request did not include an abort signal"));
+          return;
+        }
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      })
+    );
+    const operations = new AgentProviderOperations({
+      configurationStore: new AgentConfigurationStore(directory),
+      fetch: fetchFn,
+      runtime,
+    });
+
+    vi.useFakeTimers();
+    try {
+      const result = expect(
+        operations.discoverOllama("http://127.0.0.1:12345"),
+      ).rejects.toThrow("Provider request timed out");
+
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(5_000);
+      await result;
+      expect(fetchFn).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+      await operations.dispose();
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   it("rejects metadata discovery before making a request", async () => {
     const fetchFn = vi.fn();
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
