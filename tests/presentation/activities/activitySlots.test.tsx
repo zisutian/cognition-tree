@@ -36,6 +36,9 @@ import { createWorkspaceShell } from "../fixtures/workspaceShellFixture";
 import { createSearchController } from "../../../application/search/searchController";
 import { createAgentActivitySlots } from "../../../presentation/activities/agent/AgentActivitySlots";
 import { createAgentApplicationFixture } from "../fixtures/agentApplicationFixture";
+import {
+  createApiAccessSettingsSessionFixture,
+} from "../fixtures/apiAccessSettingsSessionFixture";
 
 const controls = {
   contextWidth: appContextDefaultWidth,
@@ -126,12 +129,7 @@ function createSlots(
     case "settings":
       return createSettingsActivitySlots({
         agent: createAgentApplicationFixture(),
-        apiAccess: {
-          administration: {} as Parameters<
-            typeof createSettingsActivitySlots
-          >[0]["apiAccess"]["administration"],
-          repositories: [],
-        },
+        apiAccessSession: createApiAccessSettingsSessionFixture(),
         operations: {
           administration: {} as Parameters<
             typeof createSettingsActivitySlots

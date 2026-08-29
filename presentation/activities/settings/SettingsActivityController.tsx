@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { createSettingsActivitySlots } from "./SettingsActivitySlots";
 import type { SettingsSection } from "./settingsTypes";
 import type { AgentSettingsPage } from "./AgentSettingsPanel";
 import type {
   AgentSettingsSelection,
   ApiAccessSelection,
-  ApiAccessStatusSnapshot,
   OperationsStatusSnapshot,
 } from "./settingsTypes";
 import type { ActivityControllerProps } from "../activityController";
+import {
+  useApiAccessSettingsSession,
+} from "./useApiAccessSettingsSession";
 
 export function SettingsActivityController({
   active,
@@ -23,14 +25,6 @@ export function SettingsActivityController({
   const [apiAccessSelection, setApiAccessSelection] = useState<ApiAccessSelection>({
     kind: "overview",
   });
-  const [apiAccessSnapshot, setApiAccessSnapshot] = useState<ApiAccessStatusSnapshot>({
-    dismissSecret: () => undefined,
-    errorMessage: null,
-    loading: true,
-    secret: null,
-    tokens: [],
-    trustedClientTokens: [],
-  });
   const [operationsSelectedEntryId, setOperationsSelectedEntryId] = useState<string | null>(null);
   const [operationsSnapshot, setOperationsSnapshot] = useState<OperationsStatusSnapshot>({
     entries: [],
@@ -38,6 +32,8 @@ export function SettingsActivityController({
     loading: true,
     status: null,
   });
+  const apiAccessSession = useApiAccessSettingsSession(application.apiAccess);
+  const apiAccessActive = active && section === "api-access";
   const configuration = application.agent.configurationState.configuration;
   const providers = configuration?.providers ?? [];
   const profiles = configuration?.profiles ?? [];
@@ -72,6 +68,49 @@ export function SettingsActivityController({
     }
   }, [agentPage, agentSelection, configuration]);
 
+  useEffect(() => {
+    if (apiAccessActive) {
+      void apiAccessSession.load();
+    }
+  }, [apiAccessActive, apiAccessSession.load]);
+
+  useLayoutEffect(() => {
+    if (!active) {
+      apiAccessSession.reset();
+    }
+  }, [active, apiAccessSession.reset]);
+
+  useEffect(() => {
+    if (!apiAccessActive) return;
+    const { tokens, trustedClientTokens } = apiAccessSession.snapshot;
+    const selectionExists = apiAccessSelection.kind === "automation"
+      ? tokens.some(({ id }) => id === apiAccessSelection.id)
+      : apiAccessSelection.kind === "trusted"
+        ? trustedClientTokens.some(({ id }) => id === apiAccessSelection.id)
+        : false;
+
+    if (selectionExists) return;
+    if (tokens[0]) {
+      setApiAccessSelection({ id: tokens[0].id, kind: "automation" });
+    } else if (trustedClientTokens[0]) {
+      setApiAccessSelection({ id: trustedClientTokens[0].id, kind: "trusted" });
+    } else if (apiAccessSelection.kind !== "overview") {
+      setApiAccessSelection({ kind: "overview" });
+    }
+  }, [
+    apiAccessActive,
+    apiAccessSelection,
+    apiAccessSession.snapshot.tokens,
+    apiAccessSession.snapshot.trustedClientTokens,
+  ]);
+
+  const changeSection = (nextSection: SettingsSection) => {
+    if (section === "api-access" && nextSection !== "api-access") {
+      apiAccessSession.reset();
+    }
+    setSection(nextSection);
+  };
+
   return active
     ? renderActivity(({
         contextWidth,
@@ -82,17 +121,15 @@ export function SettingsActivityController({
           agent: application.agent,
           agentPage,
           agentSelection,
-          apiAccess: application.apiAccess,
+          apiAccessSession,
           apiAccessSelection,
-          apiAccessSnapshot,
           onAgentPageChange: setAgentPage,
           onAgentSelectionChange: setAgentSelection,
           onApiAccessSelectionChange: setApiAccessSelection,
-          onApiAccessSnapshotChange: setApiAccessSnapshot,
           onCollapseDetail,
           onOperationsSelectedEntryIdChange: setOperationsSelectedEntryId,
           onOperationsSnapshotChange: setOperationsSnapshot,
-          onSectionChange: setSection,
+          onSectionChange: changeSection,
           operations: application.operations,
           operationsSelectedEntryId,
           operationsSnapshot,

@@ -10,6 +10,9 @@ import {
 } from "../../../../presentation/ui/workbench/frameResize";
 import { expectMarkupSemantics } from "../../markupSemantics";
 import { createAgentApplicationFixture } from "../../fixtures/agentApplicationFixture";
+import {
+  createApiAccessSettingsSessionFixture,
+} from "../../fixtures/apiAccessSettingsSessionFixture";
 import type { SystemApplication } from "../../../../application/system";
 
 const apiAccess = {
@@ -33,6 +36,9 @@ const operations = {
     list: async () => ({ cursor: null, entries: [] }),
   },
 };
+const apiAccessSession = createApiAccessSettingsSessionFixture({
+  repositories: apiAccess.repositories,
+});
 const baseAgent = createAgentApplicationFixture();
 const systemConfiguration = {
   configuration: {
@@ -214,15 +220,8 @@ describe("settings activity", () => {
   it("separates interface preferences from scoped server API access", () => {
     const statusProps = {
       agent,
+      apiAccessSession,
       apiAccessSelection: { kind: "overview" } as const,
-      apiAccessSnapshot: {
-        dismissSecret: () => undefined,
-        errorMessage: null,
-        loading: false,
-        secret: null,
-        tokens: [],
-        trustedClientTokens: [],
-      },
       onCollapseDetail: () => undefined,
       operationsSelectedEntryId: null,
       operationsSnapshot: {
@@ -237,7 +236,7 @@ describe("settings activity", () => {
     const panelMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
-        apiAccess={apiAccess}
+        apiAccessSession={apiAccessSession}
         operations={operations}
         system={system}
         workbench={{
@@ -250,7 +249,7 @@ describe("settings activity", () => {
     const apiMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
-        apiAccess={apiAccess}
+        apiAccessSession={apiAccessSession}
         operations={operations}
         section="api-access"
         system={system}
@@ -263,7 +262,7 @@ describe("settings activity", () => {
     const agentMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
-        apiAccess={apiAccess}
+        apiAccessSession={apiAccessSession}
         operations={operations}
         section="agent"
         system={system}
@@ -277,7 +276,7 @@ describe("settings activity", () => {
       <SettingsPanel
         agent={agent}
         agentPage="providers"
-        apiAccess={apiAccess}
+        apiAccessSession={apiAccessSession}
         operations={operations}
         section="agent"
         system={system}
@@ -291,7 +290,7 @@ describe("settings activity", () => {
       <SettingsPanel
         agent={agent}
         agentPage="profiles"
-        apiAccess={apiAccess}
+        apiAccessSession={apiAccessSession}
         operations={operations}
         section="agent"
         system={system}
@@ -304,7 +303,7 @@ describe("settings activity", () => {
     const serviceMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
-        apiAccess={apiAccess}
+        apiAccessSession={apiAccessSession}
         operations={operations}
         section="system"
         system={system}
@@ -338,7 +337,7 @@ describe("settings activity", () => {
     const auditMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
-        apiAccess={apiAccess}
+        apiAccessSession={apiAccessSession}
         operations={operations}
         section="audit"
         system={system}

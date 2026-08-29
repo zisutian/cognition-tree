@@ -1,11 +1,8 @@
 import {
-  useCallback,
-  useEffect,
   useMemo,
   useState,
 } from "react";
 import type {
-  ApiAccessApplication,
   AutomationApiScope,
   AutomationApiToken,
   TrustedClientToken,
@@ -32,8 +29,10 @@ import {
 } from "../../ui/shared/ToolSurface";
 import type {
   ApiAccessSelection,
-  ApiAccessStatusSnapshot,
 } from "./settingsTypes";
+import type {
+  ApiAccessSettingsPanelView,
+} from "./useApiAccessSettingsSession";
 
 type AutomationDomain = "journal" | "todo" | "workspace";
 type PermissionLevel = "none" | "read";
@@ -138,89 +137,24 @@ function TrustedClientTokenList({
 }
 
 export function ApiAccessSettingsPanel({
-  apiAccess,
   onSelectionChange,
-  onStatusChange,
   selection,
+  session,
 }: {
-  apiAccess: ApiAccessApplication;
   onSelectionChange(selection: ApiAccessSelection): void;
-  onStatusChange(snapshot: ApiAccessStatusSnapshot): void;
   selection: ApiAccessSelection;
+  session: ApiAccessSettingsPanelView;
 }) {
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [permissions, setPermissions] = useState(initialPermissions);
   const [repositoryIds, setRepositoryIds] = useState<string[] | null>(null);
-  const [secret, setSecret] = useState<string | null>(null);
-  const [tokens, setTokens] = useState<AutomationApiToken[]>([]);
   const [trustedClientName, setTrustedClientName] = useState("");
-  const [trustedClientTokens, setTrustedClientTokens] = useState<TrustedClientToken[]>([]);
-  const administration = apiAccess.administration;
-  const dismissSecret = useCallback(() => setSecret(null), []);
-  const load = useCallback(async () => {
-    setLoading(true);
-    setErrorMessage(null);
-    const [tokenResult, trustedResult] = await Promise.allSettled([
-      administration.listTokens(),
-      administration.listTrustedClientTokens(),
-    ]);
-    const failures: string[] = [];
-
-    if (tokenResult.status === "fulfilled") {
-      setTokens(tokenResult.value);
-    } else {
-      failures.push(
-        tokenResult.reason instanceof Error
-          ? `无法加载自动化令牌：${tokenResult.reason.message}`
-          : "无法加载自动化令牌。",
-      );
-    }
-    if (trustedResult.status === "fulfilled") {
-      setTrustedClientTokens(trustedResult.value);
-    } else {
-      failures.push(
-        trustedResult.reason instanceof Error
-          ? `无法加载可信客户端令牌：${trustedResult.reason.message}`
-          : "无法加载可信客户端令牌。",
-      );
-    }
-    setErrorMessage(failures.length > 0 ? failures.join(" ") : null);
-    setLoading(false);
-  }, [administration]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    onStatusChange({
-      dismissSecret,
-      errorMessage,
-      loading,
-      secret,
-      tokens,
-      trustedClientTokens,
-    });
-  }, [dismissSecret, errorMessage, loading, onStatusChange, secret, tokens, trustedClientTokens]);
-
-  useEffect(() => {
-    const selectionExists = selection.kind === "automation"
-      ? tokens.some(({ id }) => id === selection.id)
-      : selection.kind === "trusted"
-        ? trustedClientTokens.some(({ id }) => id === selection.id)
-        : false;
-
-    if (selectionExists) return;
-    if (tokens[0]) {
-      onSelectionChange({ id: tokens[0].id, kind: "automation" });
-    } else if (trustedClientTokens[0]) {
-      onSelectionChange({ id: trustedClientTokens[0].id, kind: "trusted" });
-    } else if (selection.kind !== "overview") {
-      onSelectionChange({ kind: "overview" });
-    }
-  }, [onSelectionChange, selection, tokens, trustedClientTokens]);
+  const {
+    errorMessage,
+    loading,
+    tokens,
+    trustedClientTokens,
+  } = session.snapshot;
 
   const scopes = useMemo(
     () => permissionsToScopes(permissions),
@@ -239,99 +173,65 @@ export function ApiAccessSettingsPanel({
     if (name.trim().length === 0 || scopes.length === 0) {
       return;
     }
-    setLoading(true);
-    setErrorMessage(null);
-    try {
-      const created = await administration.createToken({
-        name: name.trim(),
-        repositoryIds: permissions.workspace === "none"
-          ? null
-          : repositoryIds,
-        scopes,
-      });
+    const created = await session.createToken({
+      name: name.trim(),
+      repositoryIds: permissions.workspace === "none"
+        ? null
+        : repositoryIds,
+      scopes,
+    });
 
-      setSecret(created.secret);
-      setName("");
-      setTokens((current) => [
-        created.token,
-        ...current.filter(({ id }) => id !== created.token.id),
-      ]);
-      onSelectionChange({ id: created.token.id, kind: "automation" });
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "无法创建 API 令牌。",
-      );
-    } finally {
-      setLoading(false);
-    }
+    if (!created) return;
+    setName("");
+    onSelectionChange({ id: created.id, kind: "automation" });
   };
   const revokeToken = async (tokenId: string) => {
-    if (!administration) return;
-    setErrorMessage(null);
-    try {
-      await administration.revokeToken(tokenId);
-      setTokens((current) => {
-        const index = current.findIndex(({ id }) => id === tokenId);
-        const remaining = current.filter(({ id }) => id !== tokenId);
-        const next = remaining[Math.min(Math.max(index, 0), Math.max(0, remaining.length - 1))];
+    const index = tokens.findIndex(({ id }) => id === tokenId);
+    const remaining = tokens.filter(({ id }) => id !== tokenId);
+    const revoked = await session.revokeToken(tokenId);
 
-        onSelectionChange(next
-          ? { id: next.id, kind: "automation" }
-          : trustedClientTokens[0]
-            ? { id: trustedClientTokens[0].id, kind: "trusted" }
-            : { kind: "overview" });
-        return remaining;
-      });
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "无法撤销 API 令牌。",
-      );
-    }
+    if (!revoked) return;
+    const next = remaining[
+      Math.min(Math.max(index, 0), Math.max(0, remaining.length - 1))
+    ];
+
+    onSelectionChange(next
+      ? { id: next.id, kind: "automation" }
+      : trustedClientTokens[0]
+        ? { id: trustedClientTokens[0].id, kind: "trusted" }
+        : { kind: "overview" });
   };
   const createTrustedClientToken = async () => {
     const tokenName = trustedClientName.trim();
 
     if (!tokenName) return;
-    setLoading(true);
-    setErrorMessage(null);
-    try {
-      const created = await administration.createTrustedClientToken(tokenName);
+    const created = await session.createTrustedClientToken(tokenName);
 
-      setSecret(created.secret);
-      setTrustedClientName("");
-      setTrustedClientTokens((current) => [created.token, ...current]);
-      onSelectionChange({ id: created.token.id, kind: "trusted" });
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "无法创建可信客户端令牌。");
-    } finally {
-      setLoading(false);
-    }
+    if (!created) return;
+    setTrustedClientName("");
+    onSelectionChange({ id: created.id, kind: "trusted" });
   };
   const revokeTrustedClientToken = async (tokenId: string) => {
-    setErrorMessage(null);
-    try {
-      await administration.revokeTrustedClientToken(tokenId);
-      setTrustedClientTokens((current) => {
-        const index = current.findIndex(({ id }) => id === tokenId);
-        const remaining = current.filter(({ id }) => id !== tokenId);
-        const next = remaining[Math.min(Math.max(index, 0), Math.max(0, remaining.length - 1))];
+    const index = trustedClientTokens.findIndex(({ id }) => id === tokenId);
+    const remaining = trustedClientTokens.filter(({ id }) => id !== tokenId);
+    const revoked = await session.revokeTrustedClientToken(tokenId);
 
-        onSelectionChange(next
-          ? { id: next.id, kind: "trusted" }
-          : tokens[0]
-            ? { id: tokens[0].id, kind: "automation" }
-            : { kind: "overview" });
-        return remaining;
-      });
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "无法撤销可信客户端令牌。");
-    }
+    if (!revoked) return;
+    const next = remaining[
+      Math.min(Math.max(index, 0), Math.max(0, remaining.length - 1))
+    ];
+
+    onSelectionChange(next
+      ? { id: next.id, kind: "trusted" }
+      : tokens[0]
+        ? { id: tokens[0].id, kind: "automation" }
+        : { kind: "overview" });
   };
 
   return (
     <ToolPanel
       actions={(
-        <Button disabled={loading} onClick={() => void load()} type="button">
+        <Button disabled={loading} onClick={() => void session.load()} type="button">
           刷新
         </Button>
       )}
@@ -380,7 +280,7 @@ export function ApiAccessSettingsPanel({
                         onChange={(value) => setRepositoryIds(value === "all" ? null : [])}
                         options={[
                           { label: "全部仓库", value: "all" },
-                          { disabled: apiAccess.repositories.length === 0, label: "指定仓库", value: "selected" },
+                          { disabled: session.repositories.length === 0, label: "指定仓库", value: "selected" },
                         ]}
                         value={repositoryIds === null ? "all" : "selected"}
                       />
@@ -395,7 +295,7 @@ export function ApiAccessSettingsPanel({
                           layout="wrap"
                           mode="multiple"
                           onChange={setRepositoryIds}
-                          options={apiAccess.repositories.map(({ id, label }) => ({
+                          options={session.repositories.map(({ id, label }) => ({
                             ariaLabel: `${label}（${id}）`,
                             label,
                             value: id,

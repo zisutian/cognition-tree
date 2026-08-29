@@ -146,6 +146,81 @@ test.describe("settings activity flows", () => {
     expect(revoked.status()).toBe(401);
   });
 
+  test("clears a one-time API secret when leaving API access settings", async ({
+    page,
+  }) => {
+    await openWorkbench(page, syntaxRepositoryId);
+    await getActivityButton(page, "设置").click();
+    const settingsContext = page.locator(".settings-context");
+
+    await settingsContext.getByRole("button", {
+      name: "API 访问",
+      exact: true,
+    }).click();
+    const panel = page.locator(".app-main-content")
+      .getByRole("region", { name: "API 访问", exact: true });
+
+    await panel.getByRole("textbox", { name: "名称", exact: true })
+      .fill("E2E transient secret");
+    await panel.getByRole("button", { name: "创建令牌" }).click();
+    const oneTimeSecret = page.getByRole("region", { name: "设置状态" })
+      .getByLabel("新令牌");
+    const secret = (await oneTimeSecret.locator("code").textContent()) ?? "";
+
+    expect(secret).toMatch(/^ctn_[A-Za-z0-9_-]+$/);
+    await page.evaluate((value) => {
+      const observation = { reappeared: false };
+      const observer = new MutationObserver((records) => {
+        if (records.some((record) =>
+          (record.type === "characterData" &&
+            record.target.textContent?.includes(value)) ||
+          [...record.addedNodes].some((node) => node.textContent?.includes(value))
+        )) {
+          observation.reappeared = true;
+        }
+      });
+
+      observer.observe(document.body, {
+        characterData: true,
+        childList: true,
+        subtree: true,
+      });
+      (globalThis as typeof globalThis & {
+        __ctnApiSecretObservation?: {
+          observation: { reappeared: boolean };
+          observer: MutationObserver;
+        };
+      }).__ctnApiSecretObservation = { observation, observer };
+    }, secret);
+    await settingsContext.getByRole("button", {
+      name: "界面",
+      exact: true,
+    }).click();
+    await settingsContext.getByRole("button", {
+      name: "API 访问",
+      exact: true,
+    }).click();
+
+    await expect(page.getByText(secret, { exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => {
+      const runtime = (globalThis as typeof globalThis & {
+        __ctnApiSecretObservation?: {
+          observation: { reappeared: boolean };
+          observer: MutationObserver;
+        };
+      }).__ctnApiSecretObservation;
+
+      runtime?.observer.disconnect();
+      return runtime?.observation.reappeared ?? false;
+    })).toBe(false);
+    const tokenRow = panel.getByRole("list", { name: "自动化令牌" })
+      .getByRole("listitem")
+      .filter({ hasText: "E2E transient secret" });
+
+    await tokenRow.getByRole("button", { name: "撤销" }).click();
+    await expect(tokenRow).toHaveCount(0);
+  });
+
   test("persists an explicit Agent profile without unavailable fallback", async ({
     page,
   }) => {

@@ -20,10 +20,12 @@ import {
 import type {
   AgentSettingsSelection,
   ApiAccessSelection,
-  ApiAccessStatusSnapshot,
   OperationsStatusSnapshot,
   SettingsSection,
 } from "./settingsTypes";
+import type {
+  ApiAccessSettingsStatusView,
+} from "./useApiAccessSettingsSession";
 
 const authenticationLabels = {
   configured: "已配置",
@@ -219,11 +221,12 @@ function systemStatus(system: SystemApplication) {
 
 function apiAccessStatus({
   selection,
-  snapshot,
+  session,
 }: {
   selection: ApiAccessSelection;
-  snapshot: ApiAccessStatusSnapshot;
+  session: ApiAccessSettingsStatusView;
 }) {
+  const snapshot = session.snapshot;
   const automationToken = selection.kind === "automation"
     ? snapshot.tokens.find(({ id }) => id === selection.id) ?? null
     : null;
@@ -238,7 +241,7 @@ function apiAccessStatus({
         <ToolSection title="新令牌">
           <ToolPropertyList aria-label="新令牌">
             <ToolPropertyRow
-              actions={<Button onClick={snapshot.dismissSecret} type="button">关闭显示</Button>}
+              actions={<Button onClick={session.dismissSecret} type="button">关闭显示</Button>}
               label="密钥"
               value={<code>{snapshot.secret}</code>}
             />
@@ -332,8 +335,8 @@ function operationStatus({
 export function SettingsStatusPanel({
   agent,
   agentSelection,
+  apiAccessSession,
   apiAccessSelection,
-  apiAccessSnapshot,
   onCollapseDetail,
   operationsSelectedEntryId,
   operationsSnapshot,
@@ -342,8 +345,8 @@ export function SettingsStatusPanel({
 }: {
   agent: AgentApplication;
   agentSelection: AgentSettingsSelection;
+  apiAccessSession: ApiAccessSettingsStatusView;
   apiAccessSelection: ApiAccessSelection;
-  apiAccessSnapshot: ApiAccessStatusSnapshot;
   onCollapseDetail: () => void;
   operationsSelectedEntryId: string | null;
   operationsSnapshot: OperationsStatusSnapshot;
@@ -388,7 +391,7 @@ export function SettingsStatusPanel({
   } else if (section === "api-access") {
     content = apiAccessStatus({
       selection: apiAccessSelection,
-      snapshot: apiAccessSnapshot,
+      session: apiAccessSession,
     });
   } else if (section === "audit") {
     content = operationStatus({

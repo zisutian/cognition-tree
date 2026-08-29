@@ -2,9 +2,6 @@
 
 import { Bot, ClipboardList, KeyRound, PanelLeft, ServerCog } from "lucide-react";
 import type { AgentApplication } from "../../../application/agent";
-import type {
-  ApiAccessApplication,
-} from "../../../application/apiAccess/apiAccessAdministration";
 import {
   CompactContextList,
   CompactContextRow,
@@ -15,10 +12,12 @@ import type { AgentSettingsPage } from "./AgentSettingsPanel";
 import type {
   AgentSettingsSelection,
   ApiAccessSelection,
-  ApiAccessStatusSnapshot,
   OperationsStatusSnapshot,
   SettingsSection,
 } from "./settingsTypes";
+import type {
+  ApiAccessSettingsPanelView,
+} from "./useApiAccessSettingsSession";
 import type { SystemApplication } from "../../../application/system";
 import { SystemSettingsPanel } from "./SystemSettingsPanel";
 import type { OperationApplication } from "../../../application/operations/operationAdministration";
@@ -72,12 +71,11 @@ export function SettingsPanel({
   agent,
   agentPage = "overview",
   agentSelection = { kind: "overview" },
-  apiAccess,
+  apiAccessSession,
   apiAccessSelection = { kind: "overview" },
   onAgentPageChange = () => undefined,
   onAgentSelectionChange = () => undefined,
   onApiAccessSelectionChange = () => undefined,
-  onApiAccessSnapshotChange = () => undefined,
   onOperationsSelectedEntryIdChange = () => undefined,
   onOperationsSnapshotChange = () => undefined,
   operations,
@@ -89,12 +87,11 @@ export function SettingsPanel({
   agent: AgentApplication;
   agentPage?: AgentSettingsPage;
   agentSelection?: AgentSettingsSelection;
-  apiAccess: ApiAccessApplication;
+  apiAccessSession: ApiAccessSettingsPanelView;
   apiAccessSelection?: ApiAccessSelection;
   onAgentPageChange?: (page: AgentSettingsPage) => void;
   onAgentSelectionChange?: (selection: AgentSettingsSelection) => void;
   onApiAccessSelectionChange?: (selection: ApiAccessSelection) => void;
-  onApiAccessSnapshotChange?: (snapshot: ApiAccessStatusSnapshot) => void;
   onOperationsSelectedEntryIdChange?: (entryId: string | null) => void;
   onOperationsSnapshotChange?: (snapshot: OperationsStatusSnapshot) => void;
   operations: OperationApplication;
@@ -118,10 +115,9 @@ export function SettingsPanel({
   if (section === "api-access") {
     return (
       <ApiAccessSettingsPanel
-        apiAccess={apiAccess}
         onSelectionChange={onApiAccessSelectionChange}
-        onStatusChange={onApiAccessSnapshotChange}
         selection={apiAccessSelection}
+        session={apiAccessSession}
       />
     );
   }
