@@ -96,6 +96,15 @@ function isCoreCommandModule(filePath: string) {
   return /^\.\.\/\.\.\/core\/.+\/commands\//.test(filePath);
 }
 
+function isSyntaxActivityReactView(filePath: string) {
+  return filePath.startsWith("../../presentation/activities/syntax/") &&
+    filePath.endsWith(".tsx");
+}
+
+function isCoreSyntaxModule(filePath: string) {
+  return filePath.startsWith("../../core/ctn/syntax/");
+}
+
 function isApplicationArea(filePath: string, area: string) {
   return filePath.startsWith(`../../application/${area}/`);
 }
@@ -211,6 +220,13 @@ export function createDependencyImportPolicies({
         filePath.startsWith("../../presentation/activities/") &&
         targetPath.startsWith("../../presentation/shell/"),
       name: "Activity independence from shell composition",
+    },
+    {
+      allows: () => false,
+      applies: ({ filePath, targetPath }) =>
+        isSyntaxActivityReactView(filePath) &&
+        isCoreSyntaxModule(targetPath),
+      name: "Syntax Activity views consume application projection",
     },
     {
       allows: () => false,

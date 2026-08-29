@@ -19,11 +19,11 @@
 
 core/
 
-    纯领域代码。core/ctn 提供解析、metadata reconcile、引用与 syntax；core/naming 提供名称值和唯一键；core/workspace、journal、todo 分别拥有自己的内容、命令、查询与 transition。
+    纯领域代码。core/ctn 提供解析、metadata reconcile、引用与 syntax schema/compiler；core/naming 提供名称值和唯一键；core/workspace、journal、todo 分别拥有自己的内容、命令、查询与 transition。
 
 application/
 
-    框架无关的用例、端口、session controller、read model 和问题投影。application/persistence 持有通用 VersionedRepository、保存队列和 VersionedSessionController。跨内容领域协调只允许两个显式且互不导入的根：application/workbench 拥有工作台、跨仓导航、保存前 flush 和搜索组合；application/agent 拥有硬范围、runtime port、staging、proposal、审批状态机与 exact commit 用例。application/system 只拥有启动配置用例、端口和状态机，不感知内容领域。
+    框架无关的用例、端口、session controller、read model 和问题投影。application/persistence 持有通用 VersionedRepository、保存队列和 VersionedSessionController；application/syntax 独占 UI-neutral 的 syntax draft projection，包括选项、约束、稳定 field ID、focus target 与诊断位置。跨内容领域协调只允许两个显式且互不导入的根：application/workbench 拥有工作台、跨仓导航、保存前 flush 和搜索组合；application/agent 拥有硬范围、runtime port、staging、proposal、审批状态机与 exact commit 用例。application/system 只拥有启动配置用例、端口和状态机，不感知内容领域。
 
 infrastructure/
 
@@ -37,7 +37,7 @@ infrastructure/
 
 presentation/
 
-    React bindings、AppRoot、Activity Controller/View、CodeMirror 与共享 UI。React hooks 只存在于这一层。
+    React bindings、AppRoot、Activity Controller/View、CodeMirror 与共享 UI。React hooks 只存在于这一层。Syntax 编辑视图只消费 application/syntax 的 draft projection 并映射 React 交互，不重新定义选项、约束、field ID、focus target 或诊断位置；core/ctn/syntax 仍只提供 syntax schema/compiler，不制造 React/view contract。非视图 draft persistence 或分析 adapter 可为实际领域行为依赖 core syntax 接口，但不得成为第二个展示投影 owner。
 
 contracts/
 

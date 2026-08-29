@@ -214,6 +214,36 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps Syntax Activity React views on the application projection boundary", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath:
+          "../../presentation/activities/syntax/SyntaxRuleField.tsx",
+        importPath: "../../../core/ctn/syntax/schema",
+        targetPath: "../../core/ctn/syntax/schema.ts",
+        targetRoot: "core",
+      },
+      {
+        filePath:
+          "../../presentation/activities/syntax/syntaxDraftPersistence.ts",
+        importPath: "../../../core/ctn/syntax/draft",
+        targetPath: "../../core/ctn/syntax/draft.ts",
+        targetRoot: "core",
+      },
+      {
+        filePath:
+          "../../presentation/activities/syntax/SyntaxMainPanel.tsx",
+        importPath: "../../../application/syntax/syntaxProjection",
+        targetPath: "../../application/syntax/syntaxProjection.ts",
+        targetRoot: "application",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "Syntax Activity views consume application projection: ../../presentation/activities/syntax/SyntaxRuleField.tsx imports ../../../core/ctn/syntax/schema",
+    ]);
+  });
+
   it("allows cross-domain application coordination only in explicit roots", () => {
     const imports = [
       {
