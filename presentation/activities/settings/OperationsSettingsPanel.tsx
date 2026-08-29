@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useCallback, useEffect, useState } from "react";
 import type {
-  OperationApplication,
   OperationAuditEntry,
-  OperationAuditStatus,
 } from "../../../application/operations/operationAdministration";
 import { Button, EmptyState } from "../../ui/shared/primitives";
 import {
@@ -18,7 +15,9 @@ import {
   ToolSection,
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
-import type { OperationsStatusSnapshot } from "./settingsTypes";
+import type {
+  OperationsSettingsPanelView,
+} from "./useOperationsSettingsSession";
 
 function sourceLabel(source: OperationAuditEntry["source"]) {
   return source === "agent" ? "智能体" : "可信客户端";
@@ -45,58 +44,22 @@ function targetLabel(entry: OperationAuditEntry) {
 }
 
 export function OperationsSettingsPanel({
-  onSelectedEntryIdChange,
-  onStatusChange,
-  operations,
-  selectedEntryId,
+  session,
 }: {
-  onSelectedEntryIdChange(entryId: string | null): void;
-  onStatusChange(snapshot: OperationsStatusSnapshot): void;
-  operations: OperationApplication;
-  selectedEntryId: string | null;
+  session: OperationsSettingsPanelView;
 }) {
-  const [entries, setEntries] = useState<OperationAuditEntry[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<OperationAuditStatus | null>(null);
-  const load = useCallback(async () => {
-    setLoading(true);
-    setErrorMessage(null);
-    try {
-      const nextStatus = await operations.administration.getStatus();
-
-      setStatus(nextStatus);
-      if (nextStatus.status === "unavailable") {
-        setEntries([]);
-        return;
-      }
-      setEntries((await operations.administration.list()).entries);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "无法加载操作审计。");
-    } finally {
-      setLoading(false);
-    }
-  }, [operations.administration]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    onStatusChange({ entries, errorMessage, loading, status });
-  }, [entries, errorMessage, loading, onStatusChange, status]);
-
-  useEffect(() => {
-    if (selectedEntryId && entries.some(({ id }) => id === selectedEntryId)) {
-      return;
-    }
-    onSelectedEntryIdChange(entries[0]?.id ?? null);
-  }, [entries, onSelectedEntryIdChange, selectedEntryId]);
+  const {
+    entries,
+    errorMessage,
+    loading,
+    selectedEntryId,
+    status,
+  } = session.snapshot;
 
   return (
     <ToolPanel
       actions={(
-        <Button disabled={loading} onClick={() => void load()} type="button">
+        <Button disabled={loading} onClick={() => void session.load()} type="button">
           刷新
         </Button>
       )}
@@ -120,7 +83,7 @@ export function OperationsSettingsPanel({
                       {entries.map((entry) => (
                         <ManagementRow
                           key={entry.id}
-                          onSelect={() => onSelectedEntryIdChange(entry.id)}
+                          onSelect={() => session.selectEntry(entry.id)}
                           selected={selectedEntryId === entry.id}
                           status={(
                             <StatusBadge tone={

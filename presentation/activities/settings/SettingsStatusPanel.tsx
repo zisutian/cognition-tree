@@ -20,7 +20,6 @@ import {
 import type {
   AgentSettingsSelection,
   ApiAccessSelection,
-  OperationsStatusSnapshot,
   SettingsSection,
 } from "./settingsTypes";
 import type {
@@ -29,6 +28,9 @@ import type {
 import type {
   SystemOwnerCredentialStatusView,
 } from "./useSystemOwnerCredentialSession";
+import type {
+  OperationsSettingsStatusView,
+} from "./useOperationsSettingsSession";
 
 const authenticationLabels = {
   configured: "已配置",
@@ -287,14 +289,11 @@ function apiAccessStatus({
   );
 }
 
-function operationStatus({
-  selectedEntryId,
-  snapshot,
-}: {
-  selectedEntryId: string | null;
-  snapshot: OperationsStatusSnapshot;
-}) {
-  const entry = snapshot.entries.find(({ id }) => id === selectedEntryId) ?? null;
+function operationStatus(session: OperationsSettingsStatusView) {
+  const { snapshot } = session;
+  const entry = snapshot.entries.find(
+    ({ id }) => id === snapshot.selectedEntryId,
+  ) ?? null;
 
   if (!entry) {
     return (
@@ -347,8 +346,7 @@ export function SettingsStatusPanel({
   apiAccessSession,
   apiAccessSelection,
   onCollapseDetail,
-  operationsSelectedEntryId,
-  operationsSnapshot,
+  operationsSession,
   section,
   systemConfigurationState,
   systemOwnerCredentialSession,
@@ -358,8 +356,7 @@ export function SettingsStatusPanel({
   apiAccessSession: ApiAccessSettingsStatusView;
   apiAccessSelection: ApiAccessSelection;
   onCollapseDetail: () => void;
-  operationsSelectedEntryId: string | null;
-  operationsSnapshot: OperationsStatusSnapshot;
+  operationsSession: OperationsSettingsStatusView;
   section: SettingsSection;
   systemConfigurationState: SystemConfigurationState;
   systemOwnerCredentialSession: SystemOwnerCredentialStatusView;
@@ -408,10 +405,7 @@ export function SettingsStatusPanel({
       session: apiAccessSession,
     });
   } else if (section === "audit") {
-    content = operationStatus({
-      selectedEntryId: operationsSelectedEntryId,
-      snapshot: operationsSnapshot,
-    });
+    content = operationStatus(operationsSession);
   } else {
     content = <EmptyState compact title="当前页面没有状态对象" />;
   }

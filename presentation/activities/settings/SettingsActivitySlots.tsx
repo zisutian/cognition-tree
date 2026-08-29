@@ -7,7 +7,6 @@ import {
 } from "./SettingsPanel";
 import type { AgentApplication } from "../../../application/agent";
 import type { SystemApplication } from "../../../application/system";
-import type { OperationApplication } from "../../../application/operations/operationAdministration";
 import type { AgentSettingsPage } from "./AgentSettingsPanel";
 import {
   SettingsStatusPanel,
@@ -15,7 +14,6 @@ import {
 import type {
   AgentSettingsSelection,
   ApiAccessSelection,
-  OperationsStatusSnapshot,
   SettingsSection,
 } from "./settingsTypes";
 import type {
@@ -24,6 +22,11 @@ import type {
 import type {
   SystemOwnerCredentialView,
 } from "./useSystemOwnerCredentialSession";
+import type {
+  OperationsSettingsPanelView,
+  OperationsSettingsStatusView,
+  OperationsSettingsView,
+} from "./useOperationsSettingsSession";
 import type {
   SystemSettingsPanelApplication,
 } from "./SystemSettingsPanel";
@@ -38,17 +41,8 @@ export function createSettingsActivitySlots({
   onAgentSelectionChange = () => undefined,
   onApiAccessSelectionChange = () => undefined,
   onCollapseDetail,
-  onOperationsSelectedEntryIdChange = () => undefined,
-  onOperationsSnapshotChange = () => undefined,
   onSectionChange = () => undefined,
-  operations,
-  operationsSelectedEntryId = null,
-  operationsSnapshot = {
-    entries: [],
-    errorMessage: null,
-    loading: true,
-    status: null,
-  },
+  operationsSession,
   section = "interface",
   system,
   systemOwnerCredentialSession,
@@ -63,12 +57,8 @@ export function createSettingsActivitySlots({
   onAgentSelectionChange?(selection: AgentSettingsSelection): void;
   onApiAccessSelectionChange?(selection: ApiAccessSelection): void;
   onCollapseDetail(): void;
-  onOperationsSelectedEntryIdChange?(entryId: string | null): void;
-  onOperationsSnapshotChange?(snapshot: OperationsStatusSnapshot): void;
   onSectionChange?(section: SettingsSection): void;
-  operations: OperationApplication;
-  operationsSelectedEntryId?: string | null;
-  operationsSnapshot?: OperationsStatusSnapshot;
+  operationsSession: OperationsSettingsView;
   section?: SettingsSection;
   system: SystemApplication;
   systemOwnerCredentialSession: SystemOwnerCredentialView;
@@ -86,6 +76,14 @@ export function createSettingsActivitySlots({
     },
     configurationState: system.configurationState,
   } satisfies SystemSettingsPanelApplication;
+  const operationsPanelSession = {
+    load: operationsSession.load,
+    selectEntry: operationsSession.selectEntry,
+    snapshot: operationsSession.snapshot,
+  } satisfies OperationsSettingsPanelView;
+  const operationsStatusSession = {
+    snapshot: operationsSession.snapshot,
+  } satisfies OperationsSettingsStatusView;
 
   return {
     context: {
@@ -104,8 +102,7 @@ export function createSettingsActivitySlots({
         apiAccessSession={apiAccessSession}
         apiAccessSelection={apiAccessSelection}
         onCollapseDetail={onCollapseDetail}
-        operationsSelectedEntryId={operationsSelectedEntryId}
-        operationsSnapshot={operationsSnapshot}
+        operationsSession={operationsStatusSession}
         section={section}
         systemConfigurationState={system.configurationState}
         systemOwnerCredentialSession={{
@@ -123,11 +120,8 @@ export function createSettingsActivitySlots({
         onAgentPageChange={onAgentPageChange}
         onAgentSelectionChange={onAgentSelectionChange}
         onApiAccessSelectionChange={onApiAccessSelectionChange}
-        onOperationsSelectedEntryIdChange={onOperationsSelectedEntryIdChange}
-        onOperationsSnapshotChange={onOperationsSnapshotChange}
         agentSelection={agentSelection}
-        operations={operations}
-        operationsSelectedEntryId={operationsSelectedEntryId}
+        operationsSession={operationsPanelSession}
         section={section}
         system={systemSettings}
         systemOwnerCredentialSession={{

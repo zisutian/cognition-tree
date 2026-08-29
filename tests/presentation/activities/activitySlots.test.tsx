@@ -42,6 +42,9 @@ import {
 import {
   createSystemOwnerCredentialSessionFixture,
 } from "../fixtures/systemOwnerCredentialSessionFixture";
+import {
+  createOperationsSettingsSessionFixture,
+} from "../fixtures/operationsSettingsSessionFixture";
 
 const controls = {
   contextWidth: appContextDefaultWidth,
@@ -133,12 +136,8 @@ function createSlots(
       return createSettingsActivitySlots({
         agent: createAgentApplicationFixture(),
         apiAccessSession: createApiAccessSettingsSessionFixture(),
-        operations: {
-          administration: {} as Parameters<
-            typeof createSettingsActivitySlots
-          >[0]["operations"]["administration"],
-        },
         onCollapseDetail: controls.onCollapseDetail,
+        operationsSession: createOperationsSettingsSessionFixture(),
         system: {} as Parameters<
           typeof createSettingsActivitySlots
         >[0]["system"],

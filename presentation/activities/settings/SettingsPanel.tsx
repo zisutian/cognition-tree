@@ -12,7 +12,6 @@ import type { AgentSettingsPage } from "./AgentSettingsPanel";
 import type {
   AgentSettingsSelection,
   ApiAccessSelection,
-  OperationsStatusSnapshot,
   SettingsSection,
 } from "./settingsTypes";
 import type {
@@ -22,8 +21,10 @@ import {
   SystemSettingsPanel,
   type SystemSettingsPanelApplication,
 } from "./SystemSettingsPanel";
-import type { OperationApplication } from "../../../application/operations/operationAdministration";
 import { OperationsSettingsPanel } from "./OperationsSettingsPanel";
+import type {
+  OperationsSettingsPanelView,
+} from "./useOperationsSettingsSession";
 import {
   InterfaceSettingsPanel,
   type SettingsWorkbenchPreferences,
@@ -81,10 +82,7 @@ export function SettingsPanel({
   onAgentPageChange = () => undefined,
   onAgentSelectionChange = () => undefined,
   onApiAccessSelectionChange = () => undefined,
-  onOperationsSelectedEntryIdChange = () => undefined,
-  onOperationsSnapshotChange = () => undefined,
-  operations,
-  operationsSelectedEntryId = null,
+  operationsSession,
   section = "interface",
   system,
   systemOwnerCredentialSession,
@@ -98,10 +96,7 @@ export function SettingsPanel({
   onAgentPageChange?: (page: AgentSettingsPage) => void;
   onAgentSelectionChange?: (selection: AgentSettingsSelection) => void;
   onApiAccessSelectionChange?: (selection: ApiAccessSelection) => void;
-  onOperationsSelectedEntryIdChange?: (entryId: string | null) => void;
-  onOperationsSnapshotChange?: (snapshot: OperationsStatusSnapshot) => void;
-  operations: OperationApplication;
-  operationsSelectedEntryId?: string | null;
+  operationsSession: OperationsSettingsPanelView;
   section?: SettingsSection;
   system: SystemSettingsPanelApplication;
   systemOwnerCredentialSession: SystemOwnerCredentialPanelActions;
@@ -137,12 +132,7 @@ export function SettingsPanel({
   }
   if (section === "audit") {
     return (
-      <OperationsSettingsPanel
-        onSelectedEntryIdChange={onOperationsSelectedEntryIdChange}
-        onStatusChange={onOperationsSnapshotChange}
-        operations={operations}
-        selectedEntryId={operationsSelectedEntryId}
-      />
+      <OperationsSettingsPanel session={operationsSession} />
     );
   }
   return <InterfaceSettingsPanel workbench={workbench} />;

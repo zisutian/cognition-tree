@@ -16,6 +16,9 @@ import {
 import {
   createSystemOwnerCredentialSessionFixture,
 } from "../../fixtures/systemOwnerCredentialSessionFixture";
+import {
+  createOperationsSettingsSessionFixture,
+} from "../../fixtures/operationsSettingsSessionFixture";
 import type { SystemApplication } from "../../../../application/system";
 
 const apiAccess = {
@@ -33,14 +36,17 @@ const apiAccess = {
   },
   repositories: [{ id: "primary", label: "主仓库" }],
 };
-const operations = {
-  administration: {
-    getStatus: async () => ({ status: "available" as const }),
-    list: async () => ({ cursor: null, entries: [] }),
-  },
-};
 const apiAccessSession = createApiAccessSettingsSessionFixture({
   repositories: apiAccess.repositories,
+});
+const operationsSession = createOperationsSettingsSessionFixture({
+  snapshot: {
+    entries: [],
+    errorMessage: null,
+    loading: false,
+    selectedEntryId: null,
+    status: { status: "available" },
+  },
 });
 const systemOwnerCredentialSession = createSystemOwnerCredentialSessionFixture({
   snapshot: { secret: "ctn_owner_once" },
@@ -227,13 +233,7 @@ describe("settings activity", () => {
       apiAccessSession,
       apiAccessSelection: { kind: "overview" } as const,
       onCollapseDetail: () => undefined,
-      operationsSelectedEntryId: null,
-      operationsSnapshot: {
-        entries: [],
-        errorMessage: null,
-        loading: false,
-        status: { status: "available" as const },
-      },
+      operationsSession,
       systemConfigurationState: configurationState,
       systemOwnerCredentialSession,
     };
@@ -242,7 +242,7 @@ describe("settings activity", () => {
       <SettingsPanel
         agent={agent}
         apiAccessSession={apiAccessSession}
-        operations={operations}
+        operationsSession={operationsSession}
         system={system}
         systemOwnerCredentialSession={systemOwnerCredentialSession}
         workbench={{
@@ -256,7 +256,7 @@ describe("settings activity", () => {
       <SettingsPanel
         agent={agent}
         apiAccessSession={apiAccessSession}
-        operations={operations}
+        operationsSession={operationsSession}
         section="api-access"
         system={system}
         systemOwnerCredentialSession={systemOwnerCredentialSession}
@@ -270,7 +270,7 @@ describe("settings activity", () => {
       <SettingsPanel
         agent={agent}
         apiAccessSession={apiAccessSession}
-        operations={operations}
+        operationsSession={operationsSession}
         section="agent"
         system={system}
         systemOwnerCredentialSession={systemOwnerCredentialSession}
@@ -285,7 +285,7 @@ describe("settings activity", () => {
         agent={agent}
         agentPage="providers"
         apiAccessSession={apiAccessSession}
-        operations={operations}
+        operationsSession={operationsSession}
         section="agent"
         system={system}
         systemOwnerCredentialSession={systemOwnerCredentialSession}
@@ -300,7 +300,7 @@ describe("settings activity", () => {
         agent={agent}
         agentPage="profiles"
         apiAccessSession={apiAccessSession}
-        operations={operations}
+        operationsSession={operationsSession}
         section="agent"
         system={system}
         systemOwnerCredentialSession={systemOwnerCredentialSession}
@@ -314,7 +314,7 @@ describe("settings activity", () => {
       <SettingsPanel
         agent={agent}
         apiAccessSession={apiAccessSession}
-        operations={operations}
+        operationsSession={operationsSession}
         section="system"
         system={system}
         systemOwnerCredentialSession={systemOwnerCredentialSession}
@@ -349,7 +349,7 @@ describe("settings activity", () => {
       <SettingsPanel
         agent={agent}
         apiAccessSession={apiAccessSession}
-        operations={operations}
+        operationsSession={operationsSession}
         section="audit"
         system={system}
         systemOwnerCredentialSession={systemOwnerCredentialSession}
