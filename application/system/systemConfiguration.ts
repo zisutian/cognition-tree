@@ -109,16 +109,14 @@ export type SystemConfigurationState = Readonly<{
   loadStatus: "failed" | "idle" | "loading" | "ready";
   migration: DataRootMigrationStatus | null;
   operationStatus: "idle" | "working";
-  revealedOwnerSecret: string | null;
 }>;
 
 export type SystemConfigurationController = {
   clearOwnerCredential(): Promise<void>;
-  dismissRevealedOwnerSecret(): void;
   getSnapshot(): SystemConfigurationState;
   load(): Promise<void>;
   migrateDataRoot(destination: string): Promise<void>;
-  rotateOwnerCredential(): Promise<void>;
+  rotateOwnerCredential(): Promise<string>;
   subscribe(listener: () => void): () => void;
   update(configuration: SystemConfigurationInput): Promise<void>;
 };
@@ -171,7 +169,6 @@ export function createSystemConfigurationController(
     loadStatus: "idle",
     migration: null,
     operationStatus: "idle",
-    revealedOwnerSecret: null,
   };
   const publish = (patch: Partial<SystemConfigurationState>) => {
     state = { ...state, ...patch };
@@ -189,7 +186,6 @@ export function createSystemConfigurationController(
       publish({
         configuration: await operation(),
         operationStatus: "idle",
-        revealedOwnerSecret: null,
       });
     } catch (error) {
       publish({ errorMessage: errorMessage(error), operationStatus: "idle" });
@@ -201,9 +197,6 @@ export function createSystemConfigurationController(
     clearOwnerCredential: () => mutate(() =>
       port.clearOwnerCredential(revision())
     ),
-    dismissRevealedOwnerSecret() {
-      publish({ revealedOwnerSecret: null });
-    },
     getSnapshot: () => state,
     async load() {
       publish({ errorMessage: null, loadStatus: "loading" });
@@ -211,7 +204,6 @@ export function createSystemConfigurationController(
         publish({
           configuration: await port.load(),
           loadStatus: "ready",
-          revealedOwnerSecret: null,
         });
       } catch (error) {
         publish({ errorMessage: errorMessage(error), loadStatus: "failed" });
@@ -221,7 +213,6 @@ export function createSystemConfigurationController(
       publish({
         errorMessage: null,
         operationStatus: "working",
-        revealedOwnerSecret: null,
       });
       try {
         let migration = await port.migrateDataRoot(revision(), destination);
@@ -249,8 +240,8 @@ export function createSystemConfigurationController(
         publish({
           configuration: rotated.configuration,
           operationStatus: "idle",
-          revealedOwnerSecret: rotated.secret,
         });
+        return rotated.secret;
       } catch (error) {
         publish({ errorMessage: errorMessage(error), operationStatus: "idle" });
         throw error;

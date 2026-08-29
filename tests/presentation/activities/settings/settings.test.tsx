@@ -13,6 +13,9 @@ import { createAgentApplicationFixture } from "../../fixtures/agentApplicationFi
 import {
   createApiAccessSettingsSessionFixture,
 } from "../../fixtures/apiAccessSettingsSessionFixture";
+import {
+  createSystemOwnerCredentialSessionFixture,
+} from "../../fixtures/systemOwnerCredentialSessionFixture";
 import type { SystemApplication } from "../../../../application/system";
 
 const apiAccess = {
@@ -38,6 +41,9 @@ const operations = {
 };
 const apiAccessSession = createApiAccessSettingsSessionFixture({
   repositories: apiAccess.repositories,
+});
+const systemOwnerCredentialSession = createSystemOwnerCredentialSessionFixture({
+  snapshot: { secret: "ctn_owner_once" },
 });
 const baseAgent = createAgentApplicationFixture();
 const systemConfiguration = {
@@ -73,7 +79,6 @@ const configurationState = {
   loadStatus: "ready" as const,
   migration: null,
   operationStatus: "idle" as const,
-  revealedOwnerSecret: null,
 };
 const system = {
   authenticationController: {
@@ -86,11 +91,10 @@ const system = {
   authenticationState,
   configurationController: {
     clearOwnerCredential: async () => undefined,
-    dismissRevealedOwnerSecret: () => undefined,
     getSnapshot: () => configurationState,
     load: async () => undefined,
     migrateDataRoot: async () => undefined,
-    rotateOwnerCredential: async () => undefined,
+    rotateOwnerCredential: async () => "secret",
     subscribe: () => () => undefined,
     update: async () => undefined,
   },
@@ -230,7 +234,8 @@ describe("settings activity", () => {
         loading: false,
         status: { status: "available" as const },
       },
-      system,
+      systemConfigurationState: configurationState,
+      systemOwnerCredentialSession,
     };
     const contextMarkup = renderToStaticMarkup(<SettingsContext />);
     const panelMarkup = renderToStaticMarkup(
@@ -239,6 +244,7 @@ describe("settings activity", () => {
         apiAccessSession={apiAccessSession}
         operations={operations}
         system={system}
+        systemOwnerCredentialSession={systemOwnerCredentialSession}
         workbench={{
           contextWidth: appContextDefaultWidth,
           onContextWidthChange: () => undefined,
@@ -253,6 +259,7 @@ describe("settings activity", () => {
         operations={operations}
         section="api-access"
         system={system}
+        systemOwnerCredentialSession={systemOwnerCredentialSession}
         workbench={{
           contextWidth: appContextDefaultWidth,
           onContextWidthChange: () => undefined,
@@ -266,6 +273,7 @@ describe("settings activity", () => {
         operations={operations}
         section="agent"
         system={system}
+        systemOwnerCredentialSession={systemOwnerCredentialSession}
         workbench={{
           contextWidth: appContextDefaultWidth,
           onContextWidthChange: () => undefined,
@@ -280,6 +288,7 @@ describe("settings activity", () => {
         operations={operations}
         section="agent"
         system={system}
+        systemOwnerCredentialSession={systemOwnerCredentialSession}
         workbench={{
           contextWidth: appContextDefaultWidth,
           onContextWidthChange: () => undefined,
@@ -294,6 +303,7 @@ describe("settings activity", () => {
         operations={operations}
         section="agent"
         system={system}
+        systemOwnerCredentialSession={systemOwnerCredentialSession}
         workbench={{
           contextWidth: appContextDefaultWidth,
           onContextWidthChange: () => undefined,
@@ -307,6 +317,7 @@ describe("settings activity", () => {
         operations={operations}
         section="system"
         system={system}
+        systemOwnerCredentialSession={systemOwnerCredentialSession}
         workbench={{
           contextWidth: appContextDefaultWidth,
           onContextWidthChange: () => undefined,
@@ -341,6 +352,7 @@ describe("settings activity", () => {
         operations={operations}
         section="audit"
         system={system}
+        systemOwnerCredentialSession={systemOwnerCredentialSession}
         workbench={{
           contextWidth: appContextDefaultWidth,
           onContextWidthChange: () => undefined,
@@ -438,6 +450,8 @@ describe("settings activity", () => {
         "所有者凭据",
         "迁移数据根",
         "操作审计保留条数",
+        "ctn_owner_once",
+        "关闭显示",
       ],
       lacks: ["CTN_", "owner token"],
     });

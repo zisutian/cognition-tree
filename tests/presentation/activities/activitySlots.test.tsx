@@ -39,6 +39,9 @@ import { createAgentApplicationFixture } from "../fixtures/agentApplicationFixtu
 import {
   createApiAccessSettingsSessionFixture,
 } from "../fixtures/apiAccessSettingsSessionFixture";
+import {
+  createSystemOwnerCredentialSessionFixture,
+} from "../fixtures/systemOwnerCredentialSessionFixture";
 
 const controls = {
   contextWidth: appContextDefaultWidth,
@@ -139,6 +142,8 @@ function createSlots(
         system: {} as Parameters<
           typeof createSettingsActivitySlots
         >[0]["system"],
+        systemOwnerCredentialSession:
+          createSystemOwnerCredentialSessionFixture(),
         workbench: {
           contextWidth: controls.contextWidth,
           onContextWidthChange: controls.onContextWidthChange,

@@ -18,14 +18,19 @@ import type {
 import type {
   ApiAccessSettingsPanelView,
 } from "./useApiAccessSettingsSession";
-import type { SystemApplication } from "../../../application/system";
-import { SystemSettingsPanel } from "./SystemSettingsPanel";
+import {
+  SystemSettingsPanel,
+  type SystemSettingsPanelApplication,
+} from "./SystemSettingsPanel";
 import type { OperationApplication } from "../../../application/operations/operationAdministration";
 import { OperationsSettingsPanel } from "./OperationsSettingsPanel";
 import {
   InterfaceSettingsPanel,
   type SettingsWorkbenchPreferences,
 } from "./InterfaceSettingsPanel";
+import type {
+  SystemOwnerCredentialPanelActions,
+} from "./useSystemOwnerCredentialSession";
 
 export type { SettingsSection } from "./settingsTypes";
 export type { SettingsWorkbenchPreferences } from "./InterfaceSettingsPanel";
@@ -82,6 +87,7 @@ export function SettingsPanel({
   operationsSelectedEntryId = null,
   section = "interface",
   system,
+  systemOwnerCredentialSession,
   workbench,
 }: {
   agent: AgentApplication;
@@ -97,7 +103,8 @@ export function SettingsPanel({
   operations: OperationApplication;
   operationsSelectedEntryId?: string | null;
   section?: SettingsSection;
-  system: SystemApplication;
+  system: SystemSettingsPanelApplication;
+  systemOwnerCredentialSession: SystemOwnerCredentialPanelActions;
   workbench: SettingsWorkbenchPreferences;
 }) {
   if (section === "agent") {
@@ -111,7 +118,14 @@ export function SettingsPanel({
       />
     );
   }
-  if (section === "system") return <SystemSettingsPanel system={system} />;
+  if (section === "system") {
+    return (
+      <SystemSettingsPanel
+        ownerCredentialSession={systemOwnerCredentialSession}
+        system={system}
+      />
+    );
+  }
   if (section === "api-access") {
     return (
       <ApiAccessSettingsPanel

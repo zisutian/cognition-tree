@@ -6,7 +6,7 @@ import type {
   AgentProfileView,
   AgentProviderView,
 } from "../../../application/agent";
-import type { SystemApplication } from "../../../application/system";
+import type { SystemConfigurationState } from "../../../application/system";
 import { Button, EmptyState } from "../../ui/shared/primitives";
 import { StatusBadge } from "../../ui/shared/StatusPresentation";
 import {
@@ -26,6 +26,9 @@ import type {
 import type {
   ApiAccessSettingsStatusView,
 } from "./useApiAccessSettingsSession";
+import type {
+  SystemOwnerCredentialStatusView,
+} from "./useSystemOwnerCredentialSession";
 
 const authenticationLabels = {
   configured: "已配置",
@@ -160,9 +163,15 @@ function profileStatus({
   );
 }
 
-function systemStatus(system: SystemApplication) {
-  const state = system.configurationState;
+function systemStatus({
+  ownerCredentialSession,
+  state,
+}: {
+  ownerCredentialSession: SystemOwnerCredentialStatusView;
+  state: SystemConfigurationState;
+}) {
   const snapshot = state.configuration;
+  const ownerSecret = ownerCredentialSession.snapshot.secret;
 
   if (!snapshot) {
     return <EmptyState compact description={state.errorMessage ?? "正在读取服务状态。"} title="服务状态不可用" />;
@@ -198,11 +207,11 @@ function systemStatus(system: SystemApplication) {
               </StatusBadge>
             )}
           />
-          {state.revealedOwnerSecret ? (
+          {ownerSecret ? (
             <ToolPropertyRow
-              actions={<Button onClick={() => system.configurationController.dismissRevealedOwnerSecret()} type="button">关闭显示</Button>}
+              actions={<Button onClick={ownerCredentialSession.dismissSecret} type="button">关闭显示</Button>}
               label="新密钥"
-              value={<code>{state.revealedOwnerSecret}</code>}
+              value={<code>{ownerSecret}</code>}
             />
           ) : null}
         </ToolPropertyList>
@@ -341,7 +350,8 @@ export function SettingsStatusPanel({
   operationsSelectedEntryId,
   operationsSnapshot,
   section,
-  system,
+  systemConfigurationState,
+  systemOwnerCredentialSession,
 }: {
   agent: AgentApplication;
   agentSelection: AgentSettingsSelection;
@@ -351,12 +361,16 @@ export function SettingsStatusPanel({
   operationsSelectedEntryId: string | null;
   operationsSnapshot: OperationsStatusSnapshot;
   section: SettingsSection;
-  system: SystemApplication;
+  systemConfigurationState: SystemConfigurationState;
+  systemOwnerCredentialSession: SystemOwnerCredentialStatusView;
 }) {
   let content;
 
   if (section === "system") {
-    content = systemStatus(system);
+    content = systemStatus({
+      ownerCredentialSession: systemOwnerCredentialSession,
+      state: systemConfigurationState,
+    });
   } else if (section === "agent") {
     const configuration = agent.configurationState.configuration;
     const providers = configuration?.providers ?? [];

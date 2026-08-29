@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { createSettingsActivitySlots } from "./SettingsActivitySlots";
 import type { SettingsSection } from "./settingsTypes";
 import type { AgentSettingsPage } from "./AgentSettingsPanel";
@@ -11,6 +11,9 @@ import type { ActivityControllerProps } from "../activityController";
 import {
   useApiAccessSettingsSession,
 } from "./useApiAccessSettingsSession";
+import {
+  useSystemOwnerCredentialSession,
+} from "./useSystemOwnerCredentialSession";
 
 export function SettingsActivityController({
   active,
@@ -33,6 +36,17 @@ export function SettingsActivityController({
     status: null,
   });
   const apiAccessSession = useApiAccessSettingsSession(application.apiAccess);
+  const systemConfigurationController =
+    application.system.configurationController;
+  const systemOwnerCredentialController = useMemo(() => ({
+    clearOwnerCredential: () =>
+      systemConfigurationController.clearOwnerCredential(),
+    rotateOwnerCredential: () =>
+      systemConfigurationController.rotateOwnerCredential(),
+  }), [systemConfigurationController]);
+  const systemOwnerCredentialSession = useSystemOwnerCredentialSession(
+    systemOwnerCredentialController,
+  );
   const apiAccessActive = active && section === "api-access";
   const configuration = application.agent.configurationState.configuration;
   const providers = configuration?.providers ?? [];
@@ -77,8 +91,13 @@ export function SettingsActivityController({
   useLayoutEffect(() => {
     if (!active) {
       apiAccessSession.reset();
+      systemOwnerCredentialSession.reset();
     }
-  }, [active, apiAccessSession.reset]);
+  }, [
+    active,
+    apiAccessSession.reset,
+    systemOwnerCredentialSession.reset,
+  ]);
 
   useEffect(() => {
     if (!apiAccessActive) return;
@@ -108,6 +127,9 @@ export function SettingsActivityController({
     if (section === "api-access" && nextSection !== "api-access") {
       apiAccessSession.reset();
     }
+    if (section === "system" && nextSection !== "system") {
+      systemOwnerCredentialSession.reset();
+    }
     setSection(nextSection);
   };
 
@@ -135,6 +157,14 @@ export function SettingsActivityController({
           operationsSnapshot,
           section,
           system: application.system,
+          systemOwnerCredentialSession: {
+            clearOwnerCredential:
+              systemOwnerCredentialSession.clearOwnerCredential,
+            dismissSecret: systemOwnerCredentialSession.dismissSecret,
+            rotateOwnerCredential:
+              systemOwnerCredentialSession.rotateOwnerCredential,
+            snapshot: systemOwnerCredentialSession.snapshot,
+          },
           workbench: { contextWidth, onContextWidthChange },
         }),
       )

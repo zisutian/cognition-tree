@@ -31,6 +31,12 @@ const configuration: SystemConfigurationSnapshot = {
   revision,
   version: 1,
 };
+const rotatedConfiguration: SystemConfigurationSnapshot = {
+  ...configuration,
+  ownerCredentialConfigured: true,
+  revision: `sha256:${"b".repeat(64)}`,
+  version: 2,
+};
 
 function migration(
   status: DataRootMigrationStatus["status"],
@@ -53,23 +59,35 @@ function port(statuses: DataRootMigrationStatus[]): SystemAdministrationPort {
     getMigration: vi.fn(async () => statuses[nextStatus++]!),
     load: vi.fn(async () => configuration),
     migrateDataRoot: vi.fn(async () => statuses[0]!),
-    rotateOwnerCredential: vi.fn(async () => ({ configuration, secret: "secret" })),
+    rotateOwnerCredential: vi.fn(async () => ({
+      configuration: rotatedConfiguration,
+      secret: "secret",
+    })),
     update: vi.fn(async () => configuration),
   };
 }
 
 describe("system configuration controller", () => {
-  it("keeps a rotated owner secret only until the user dismisses it", async () => {
-    const controller = createSystemConfigurationController(port([]), {
+  it("returns a rotated owner secret without publishing it in the snapshot", async () => {
+    const administration = port([]);
+    const controller = createSystemConfigurationController(administration, {
       pollMigration: async () => undefined,
       pollMigrationIntervalMilliseconds: 1,
     });
 
     await controller.load();
-    await controller.rotateOwnerCredential();
-    expect(controller.getSnapshot().revealedOwnerSecret).toBe("secret");
-    controller.dismissRevealedOwnerSecret();
-    expect(controller.getSnapshot().revealedOwnerSecret).toBeNull();
+    const secret = await controller.rotateOwnerCredential();
+
+    expect(secret).toBe("secret");
+    expect(administration.rotateOwnerCredential).toHaveBeenCalledWith(revision);
+    const snapshot = controller.getSnapshot();
+
+    expect(snapshot.configuration).toBe(rotatedConfiguration);
+    expect(snapshot.operationStatus).toBe("idle");
+    expect(Object.keys(snapshot).some((key) =>
+      key.toLowerCase().includes("secret")
+    )).toBe(false);
+    expect(JSON.stringify(snapshot)).not.toContain(secret);
   });
 
   it("polls a migration through verification until restart is visible", async () => {

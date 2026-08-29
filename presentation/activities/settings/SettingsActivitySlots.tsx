@@ -21,6 +21,12 @@ import type {
 import type {
   ApiAccessSettingsView,
 } from "./useApiAccessSettingsSession";
+import type {
+  SystemOwnerCredentialView,
+} from "./useSystemOwnerCredentialSession";
+import type {
+  SystemSettingsPanelApplication,
+} from "./SystemSettingsPanel";
 
 export function createSettingsActivitySlots({
   agent,
@@ -45,6 +51,7 @@ export function createSettingsActivitySlots({
   },
   section = "interface",
   system,
+  systemOwnerCredentialSession,
   workbench,
 }: {
   agent: AgentApplication;
@@ -64,8 +71,23 @@ export function createSettingsActivitySlots({
   operationsSnapshot?: OperationsStatusSnapshot;
   section?: SettingsSection;
   system: SystemApplication;
+  systemOwnerCredentialSession: SystemOwnerCredentialView;
   workbench: SettingsWorkbenchPreferences;
 }): ActivitySlots {
+  const systemSettings = {
+    authenticationController: {
+      logout: () => system.authenticationController.logout(),
+    },
+    configurationController: {
+      getSnapshot: () => system.configurationController.getSnapshot(),
+      migrateDataRoot: (destination: string) =>
+        system.configurationController.migrateDataRoot(destination),
+      update: (configuration) =>
+        system.configurationController.update(configuration),
+    },
+    configurationState: system.configurationState,
+  } satisfies SystemSettingsPanelApplication;
+
   return {
     context: {
       content: (
@@ -86,7 +108,11 @@ export function createSettingsActivitySlots({
         operationsSelectedEntryId={operationsSelectedEntryId}
         operationsSnapshot={operationsSnapshot}
         section={section}
-        system={system}
+        systemConfigurationState={system.configurationState}
+        systemOwnerCredentialSession={{
+          dismissSecret: systemOwnerCredentialSession.dismissSecret,
+          snapshot: systemOwnerCredentialSession.snapshot,
+        }}
       />
     ),
     main: (
@@ -104,7 +130,14 @@ export function createSettingsActivitySlots({
         operations={operations}
         operationsSelectedEntryId={operationsSelectedEntryId}
         section={section}
-        system={system}
+        system={systemSettings}
+        systemOwnerCredentialSession={{
+          clearOwnerCredential:
+            systemOwnerCredentialSession.clearOwnerCredential,
+          dismissSecret: systemOwnerCredentialSession.dismissSecret,
+          rotateOwnerCredential:
+            systemOwnerCredentialSession.rotateOwnerCredential,
+        }}
         workbench={workbench}
       />
     ),

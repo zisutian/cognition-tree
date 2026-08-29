@@ -2,8 +2,10 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type {
-  SystemApplication,
+  OwnerAuthenticationController,
+  SystemConfigurationController,
   SystemConfigurationInput,
+  SystemConfigurationState,
 } from "../../../application/system";
 import { Button } from "../../ui/shared/primitives";
 import { ChoiceGroup, InputControl } from "../../ui/shared/controls";
@@ -19,9 +21,21 @@ import {
   ToolSection,
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
+import type {
+  SystemOwnerCredentialPanelActions,
+} from "./useSystemOwnerCredentialSession";
+
+export type SystemSettingsPanelApplication = Readonly<{
+  authenticationController: Pick<OwnerAuthenticationController, "logout">;
+  configurationController: Pick<
+    SystemConfigurationController,
+    "getSnapshot" | "migrateDataRoot" | "update"
+  >;
+  configurationState: SystemConfigurationState;
+}>;
 
 function toInput(
-  configuration: SystemApplication["configurationState"]["configuration"],
+  configuration: SystemConfigurationState["configuration"],
 ): SystemConfigurationInput | null {
   if (!configuration) return null;
   return {
@@ -49,7 +63,13 @@ function reconnectAfterRestart(address: string | null) {
   }, 750);
 }
 
-export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
+export function SystemSettingsPanel({
+  ownerCredentialSession,
+  system,
+}: {
+  ownerCredentialSession: SystemOwnerCredentialPanelActions;
+  system: SystemSettingsPanelApplication;
+}) {
   const feedback = useFeedback();
   const { authenticationController, configurationController, configurationState } = system;
   const snapshot = configurationState.configuration;
@@ -60,9 +80,6 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
   const busy = configurationState.operationStatus === "working";
 
   useEffect(() => setDraft(toInput(snapshot)), [snapshot]);
-  useEffect(() => () => {
-    configurationController.dismissRevealedOwnerSecret();
-  }, [configurationController]);
 
   if (!snapshot || !draft) {
     return (
@@ -77,6 +94,7 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
   }
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    ownerCredentialSession.dismissSecret();
     void feedback.runAction(async () => {
       await configurationController.update(draft);
       const updated = configurationController.getSnapshot().configuration;
@@ -150,12 +168,15 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
 
           <ToolSection title="所有者凭据">
             <div className="ui-actions">
-              <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.rotateOwnerCredential())} type="button">{snapshot.ownerCredentialConfigured ? "轮换密钥" : "创建密钥"}</Button>
-              <Button disabled={busy || !snapshot.ownerCredentialConfigured || snapshot.configuration.listenMode === "lan"} onClick={() => void feedback.runAction(() => configurationController.clearOwnerCredential())} type="button" variant="danger">清除凭据</Button>
-              <Button onClick={() => void feedback.runAction(async () => {
-                await authenticationController.logout();
-                globalThis.location.reload();
-              })} type="button">退出登录</Button>
+              <Button disabled={busy} onClick={() => void feedback.runAction(() => ownerCredentialSession.rotateOwnerCredential())} type="button">{snapshot.ownerCredentialConfigured ? "轮换密钥" : "创建密钥"}</Button>
+              <Button disabled={busy || !snapshot.ownerCredentialConfigured || snapshot.configuration.listenMode === "lan"} onClick={() => void feedback.runAction(() => ownerCredentialSession.clearOwnerCredential())} type="button" variant="danger">清除凭据</Button>
+              <Button onClick={() => {
+                ownerCredentialSession.dismissSecret();
+                void feedback.runAction(async () => {
+                  await authenticationController.logout();
+                  globalThis.location.reload();
+                });
+              }} type="button">退出登录</Button>
             </div>
           </ToolSection>
 
@@ -167,10 +188,13 @@ export function SystemSettingsPanel({ system }: { system: SystemApplication }) {
                 )}
               </FieldRow>
               <FormActions>
-                <Button disabled={busy || !migrationDestination} onClick={() => void feedback.runAction(async () => {
-                  await configurationController.migrateDataRoot(migrationDestination);
-                  reconnectAfterRestart(globalThis.location.origin);
-                })} type="button">开始迁移</Button>
+                <Button disabled={busy || !migrationDestination} onClick={() => {
+                  ownerCredentialSession.dismissSecret();
+                  void feedback.runAction(async () => {
+                    await configurationController.migrateDataRoot(migrationDestination);
+                    reconnectAfterRestart(globalThis.location.origin);
+                  });
+                }} type="button">开始迁移</Button>
               </FormActions>
             </FormLayout>
           </ToolSection>

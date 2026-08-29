@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { expect } from "@playwright/test";
+import { expect, type JSHandle, type Page } from "@playwright/test";
 import {
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
@@ -16,6 +16,45 @@ import {
 
 const syntaxRepositoryId = "workbench-syntax-view";
 const deniedRepositoryId = "workbench-settings-denied";
+
+type TextReappearanceObservation = {
+  observer: MutationObserver;
+  state: { reappeared: boolean };
+};
+
+function observeTextReappearance(page: Page, text: string) {
+  return page.evaluateHandle((value): TextReappearanceObservation => {
+    const state = { reappeared: false };
+    const observer = new MutationObserver((records) => {
+      if (records.some((record) =>
+        (record.type === "characterData" &&
+          record.target.textContent?.includes(value)) ||
+        [...record.addedNodes].some((node) => node.textContent?.includes(value))
+      )) {
+        state.reappeared = true;
+      }
+    });
+
+    observer.observe(document.body, {
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
+    return { observer, state };
+  }, text);
+}
+
+async function stopTextReappearanceObservation(
+  observation: JSHandle<TextReappearanceObservation>,
+) {
+  const reappeared = await observation.evaluate(({ observer, state }) => {
+    observer.disconnect();
+    return state.reappeared;
+  });
+
+  await observation.dispose();
+  return reappeared;
+}
 
 test.describe("settings activity flows", () => {
   test.beforeEach(async ({ api }) => {
@@ -39,12 +78,69 @@ test.describe("settings activity flows", () => {
     await expect(statusPanel).toContainText("仅本机 · 3001");
     await panel.getByRole("button", { name: "创建密钥" }).click();
     const oneTimeSecret = statusPanel.getByLabel("所有者凭据状态");
-
     await expect(oneTimeSecret.locator("code")).toHaveText(
       /^ctn_owner_[A-Za-z0-9_-]{43}$/,
     );
-    await oneTimeSecret.getByRole("button", { name: "关闭显示" }).click();
+    const secret = (await oneTimeSecret.locator("code").textContent()) ?? "";
+
+    expect(secret).toMatch(/^ctn_owner_[A-Za-z0-9_-]{43}$/);
+    const secretObservation = await observeTextReappearance(page, secret);
+    const settingsContext = page.locator(".settings-context");
+
+    await settingsContext.getByRole("button", {
+      name: "界面",
+      exact: true,
+    }).click();
+    await settingsContext.getByRole("button", {
+      name: "服务",
+      exact: true,
+    }).click();
+    await expect(page.getByText(secret, { exact: true })).toHaveCount(0);
+    expect(await stopTextReappearanceObservation(secretObservation)).toBe(false);
+    const ownerCredentialEndpoint =
+      "**/api/v3/admin/system-configuration/owner-credential";
+    let markRotationResponseHeld!: () => void;
+    let releaseRotationResponse!: () => void;
+    const rotationResponseHeld = new Promise<void>((resolve) => {
+      markRotationResponseHeld = resolve;
+    });
+    const rotationResponseRelease = new Promise<void>((resolve) => {
+      releaseRotationResponse = resolve;
+    });
+    let lateSecret = "";
+
+    await page.route(ownerCredentialEndpoint, async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.continue();
+        return;
+      }
+      const response = await route.fetch();
+      const body = await response.json() as { secret?: unknown };
+
+      lateSecret = typeof body.secret === "string" ? body.secret : "";
+      markRotationResponseHeld();
+      await rotationResponseRelease;
+      await route.fulfill({ response });
+    });
+    await panel.getByRole("button", { name: "轮换密钥" }).click();
+    await rotationResponseHeld;
+    expect(lateSecret).toMatch(/^ctn_owner_[A-Za-z0-9_-]{43}$/);
+    await settingsContext.getByRole("button", {
+      name: "界面",
+      exact: true,
+    }).click();
+    releaseRotationResponse();
+    await settingsContext.getByRole("button", {
+      name: "服务",
+      exact: true,
+    }).click();
+    await expect(panel.getByRole("button", { name: "轮换密钥" }))
+      .toBeEnabled();
+    await page.unroute(ownerCredentialEndpoint);
     await expect(oneTimeSecret.locator("code")).toHaveCount(0);
+    await expect(oneTimeSecret.getByText("新密钥", { exact: true }))
+      .toHaveCount(0);
+    await expect(page.getByText(lateSecret, { exact: true })).toHaveCount(0);
     await panel.getByRole("button", { name: "清除凭据" }).click();
     await expect(statusPanel).toContainText("未创建");
   });
@@ -168,30 +264,7 @@ test.describe("settings activity flows", () => {
     const secret = (await oneTimeSecret.locator("code").textContent()) ?? "";
 
     expect(secret).toMatch(/^ctn_[A-Za-z0-9_-]+$/);
-    await page.evaluate((value) => {
-      const observation = { reappeared: false };
-      const observer = new MutationObserver((records) => {
-        if (records.some((record) =>
-          (record.type === "characterData" &&
-            record.target.textContent?.includes(value)) ||
-          [...record.addedNodes].some((node) => node.textContent?.includes(value))
-        )) {
-          observation.reappeared = true;
-        }
-      });
-
-      observer.observe(document.body, {
-        characterData: true,
-        childList: true,
-        subtree: true,
-      });
-      (globalThis as typeof globalThis & {
-        __ctnApiSecretObservation?: {
-          observation: { reappeared: boolean };
-          observer: MutationObserver;
-        };
-      }).__ctnApiSecretObservation = { observation, observer };
-    }, secret);
+    const secretObservation = await observeTextReappearance(page, secret);
     await settingsContext.getByRole("button", {
       name: "界面",
       exact: true,
@@ -202,17 +275,7 @@ test.describe("settings activity flows", () => {
     }).click();
 
     await expect(page.getByText(secret, { exact: true })).toHaveCount(0);
-    expect(await page.evaluate(() => {
-      const runtime = (globalThis as typeof globalThis & {
-        __ctnApiSecretObservation?: {
-          observation: { reappeared: boolean };
-          observer: MutationObserver;
-        };
-      }).__ctnApiSecretObservation;
-
-      runtime?.observer.disconnect();
-      return runtime?.observation.reappeared ?? false;
-    })).toBe(false);
+    expect(await stopTextReappearanceObservation(secretObservation)).toBe(false);
     const tokenRow = panel.getByRole("list", { name: "自动化令牌" })
       .getByRole("listitem")
       .filter({ hasText: "E2E transient secret" });
