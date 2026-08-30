@@ -118,8 +118,9 @@ export function AuthenticatedWorkbenchRoot({
     return () => {
       queueMicrotask(() => {
         if (lifecycleEpochRef.current === lifecycleEpoch) {
-          controller.dispose();
           agentRuntime.dispose();
+          systemConfigurationController.dispose();
+          controller.dispose();
           feedbackController.dispose();
         }
       });

@@ -335,4 +335,66 @@ describe("system configuration controller", () => {
       operationStatus: "idle",
     });
   });
+
+  it("terminates migration polling and rejects work after disposal", async () => {
+    const administration = port([
+      migration("copying"),
+      migration("restarting"),
+    ]);
+    const pollStarted = createDeferred<void>();
+    const releasePoll = createDeferred<void>();
+    const listener = vi.fn();
+    const controller = createSystemConfigurationController(administration, {
+      pollMigration: async () => {
+        pollStarted.resolve();
+        await releasePoll.promise;
+      },
+      pollMigrationIntervalMilliseconds: 1,
+    });
+
+    await controller.load();
+    controller.subscribe(listener);
+    const migrating = controller.migrateDataRoot("/data/next");
+
+    await pollStarted.promise;
+    const terminalSnapshot = controller.getSnapshot();
+
+    listener.mockClear();
+    controller.dispose();
+    releasePoll.resolve();
+    await migrating;
+
+    expect(administration.getMigration).not.toHaveBeenCalled();
+    expect(controller.getSnapshot()).toBe(terminalSnapshot);
+    await expect(controller.load()).rejects.toThrow("disposed");
+    expect(administration.load).toHaveBeenCalledOnce();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("does not start migration after its preparation owner is disposed", async () => {
+    const administration = port([migration("copying")]);
+    const preparationStarted = createDeferred<void>();
+    const releasePreparation = createDeferred<void>();
+    const controller = createSystemConfigurationController(administration, {
+      pollMigration: async () => undefined,
+      pollMigrationIntervalMilliseconds: 1,
+      prepareMigration: async () => {
+        preparationStarted.resolve();
+        await releasePreparation.promise;
+      },
+    });
+
+    await controller.load();
+    const migrating = controller.migrateDataRoot("/data/next");
+
+    await preparationStarted.promise;
+    controller.dispose();
+    releasePreparation.resolve();
+    await migrating;
+
+    expect(administration.migrateDataRoot).not.toHaveBeenCalled();
+    expect(controller.getSnapshot()).toMatchObject({
+      migration: null,
+    });
+  });
 });

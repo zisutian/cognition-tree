@@ -25,19 +25,14 @@ export function createClientSystemConfigurationRuntime(
   const administration = createHttpSystemAdministrationClient(api);
 
   return createSystemConfigurationController(
-    {
-      ...administration,
-      async migrateDataRoot(baseRevision, destination) {
-        await flushLoadedContent();
-        return administration.migrateDataRoot(baseRevision, destination);
-      },
-    },
+    administration,
     {
       pollMigration: (milliseconds) =>
         new Promise<void>((resolve) =>
           globalThis.setTimeout(resolve, milliseconds)
         ),
       pollMigrationIntervalMilliseconds: 100,
+      prepareMigration: flushLoadedContent,
     },
   );
 }

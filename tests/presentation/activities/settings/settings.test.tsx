@@ -107,6 +107,7 @@ const system = {
   configurationController: {
     activateOwnerCredentialRotation: async () => undefined,
     clearOwnerCredential: async () => undefined,
+    dispose: () => undefined,
     getSnapshot: () => configurationState,
     load: async () => undefined,
     migrateDataRoot: async () => undefined,

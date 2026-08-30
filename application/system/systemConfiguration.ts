@@ -153,6 +153,7 @@ export type SystemConfigurationController = {
     activation: OwnerCredentialRotationActivation,
   ): Promise<void>;
   clearOwnerCredential(): Promise<void>;
+  dispose(): void;
   getSnapshot(): SystemConfigurationState;
   load(): Promise<void>;
   migrateDataRoot(destination: string): Promise<void>;
@@ -199,13 +200,16 @@ export function createSystemConfigurationController(
   {
     pollMigration,
     pollMigrationIntervalMilliseconds,
+    prepareMigration = async () => undefined,
   }: {
     pollMigration(milliseconds: number): Promise<void>;
     pollMigrationIntervalMilliseconds: number;
+    prepareMigration?: () => Promise<void>;
   },
 ): SystemConfigurationController {
   const listeners = new Set<() => void>();
   let configurationAuthorityVersion = 0;
+  let disposed = false;
   let loadRequestVersion = 0;
   let operationCount = 0;
   let state: SystemConfigurationState = {
@@ -216,14 +220,21 @@ export function createSystemConfigurationController(
     operationStatus: "idle",
   };
   const publish = (patch: Partial<SystemConfigurationState>) => {
+    if (disposed) return;
     state = { ...state, ...patch };
     listeners.forEach((listener) => listener());
+  };
+  const requireActive = () => {
+    if (disposed) {
+      throw new Error("System configuration controller is disposed.");
+    }
   };
   const revision = () => {
     if (!state.configuration) throw new Error("System configuration is not loaded.");
     return state.configuration.revision;
   };
   const installConfiguration = (configuration: SystemConfigurationSnapshot) => {
+    if (disposed) return;
     configurationAuthorityVersion += 1;
     publish({ configuration, loadStatus: "ready" });
   };
@@ -238,6 +249,7 @@ export function createSystemConfigurationController(
     installConfiguration(configuration);
   };
   const runOperation = async <Result>(operation: () => Promise<Result>) => {
+    requireActive();
     operationCount += 1;
     publish({ errorMessage: null, operationStatus: "working" });
     try {
@@ -270,12 +282,20 @@ export function createSystemConfigurationController(
       );
     },
     async clearOwnerCredential() {
+      requireActive();
       const baseRevision = revision();
 
       await mutate(() => port.clearOwnerCredential(baseRevision));
     },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      loadRequestVersion += 1;
+      listeners.clear();
+    },
     getSnapshot: () => state,
     async load() {
+      requireActive();
       const requestVersion = ++loadRequestVersion;
       const expectedAuthorityVersion = configurationAuthorityVersion;
 
@@ -284,12 +304,14 @@ export function createSystemConfigurationController(
         const configuration = await port.load();
 
         if (
+          disposed ||
           requestVersion !== loadRequestVersion ||
           expectedAuthorityVersion !== configurationAuthorityVersion
         ) return;
         installConfiguration(configuration);
       } catch (error) {
         if (
+          disposed ||
           requestVersion !== loadRequestVersion ||
           expectedAuthorityVersion !== configurationAuthorityVersion
         ) return;
@@ -297,15 +319,21 @@ export function createSystemConfigurationController(
       }
     },
     async migrateDataRoot(destination) {
+      requireActive();
       const baseRevision = revision();
 
       await runOperation(async () => {
+        await prepareMigration();
+        if (disposed) return;
         let migration = await port.migrateDataRoot(baseRevision, destination);
 
+        if (disposed) return;
         publish({ migration });
         while (migration.status === "copying" || migration.status === "verifying") {
           await pollMigration(pollMigrationIntervalMilliseconds);
+          if (disposed) return;
           migration = await port.getMigration(migration.id);
+          if (disposed) return;
           publish({ migration });
         }
         if (migration.status === "failed") {
@@ -313,11 +341,12 @@ export function createSystemConfigurationController(
         }
       });
     },
-    prepareOwnerCredentialRotation() {
+    async prepareOwnerCredentialRotation() {
+      requireActive();
       const expectedAuthorityVersion = configurationAuthorityVersion;
       const baseRevision = revision();
 
-      return runOperation(async () => {
+      return await runOperation(async () => {
         const preparation = await port.prepareOwnerCredentialRotation(
           baseRevision,
         );
@@ -330,6 +359,7 @@ export function createSystemConfigurationController(
       });
     },
     subscribe(listener) {
+      if (disposed) return () => undefined;
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
