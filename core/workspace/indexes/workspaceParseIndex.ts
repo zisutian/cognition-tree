@@ -198,10 +198,21 @@ type ReferenceGraphCacheEntry = {
   analysisKey: string;
 };
 
-const referenceGraphCacheByIndex = new WeakMap<
-  WorkspaceParseIndex,
-  ReferenceGraphCacheEntry
->();
+const referenceGraphCacheReader = Symbol("referenceGraphCacheReader");
+
+type WorkspaceParseIndexInternal = WorkspaceParseIndex & {
+  [referenceGraphCacheReader](): ReferenceGraphCacheEntry | null;
+};
+
+function readReferenceGraphCache(
+  index: WorkspaceParseIndex,
+): ReferenceGraphCacheEntry | null {
+  const reader = (index as Partial<WorkspaceParseIndexInternal>)[
+    referenceGraphCacheReader
+  ];
+
+  return reader?.() ?? null;
+}
 
 function createReferenceGraphNoteSnapshot(
   notes: WorkspaceNote[],
@@ -373,10 +384,10 @@ export function createWorkspaceParseIndex(
     ),
   );
   const previousReferenceGraphCache = previousIndex
-    ? referenceGraphCacheByIndex.get(previousIndex) ?? null
+    ? readReferenceGraphCache(previousIndex)
     : null;
   const analyzedNoteIds: NoteId[] = [];
-  let referenceGraph: NoteReferenceGraph | null = null;
+  let ownedReferenceGraphCache: ReferenceGraphCacheEntry | null = null;
   const resolveParsedNote = (note: WorkspaceNote): ParsedWorkspaceNote => {
     const currentCacheEntry = parseCacheEntries.get(note.id);
     const parsedNote = createParsedWorkspaceNote(
@@ -461,14 +472,13 @@ export function createWorkspaceParseIndex(
     return null;
   };
   const commitReferenceGraph = (graph: NoteReferenceGraph) => {
-    referenceGraph ??= graph;
-    referenceGraphCacheByIndex.set(index, {
-      graph: referenceGraph,
+    ownedReferenceGraphCache ??= {
+      graph,
       notes: createReferenceGraphNoteSnapshot(notes),
       analysisKey,
-    });
+    };
 
-    return referenceGraph;
+    return ownedReferenceGraphCache.graph;
   };
   const createScan = (): WorkspaceParseScan => {
     const reusableReferenceGraph = getReusableReferenceGraph();
@@ -505,7 +515,8 @@ export function createWorkspaceParseIndex(
     };
   };
 
-  const index: WorkspaceParseIndex = {
+  const index: WorkspaceParseIndexInternal = {
+    [referenceGraphCacheReader]: () => ownedReferenceGraphCache,
     analysisStats: {
       analyzedNoteIds,
       runCount: analyzedNoteIds.length,

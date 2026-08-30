@@ -34,7 +34,11 @@ CTN source + mode + compiled syntax
             └─ standard text-editor commands
 ```
 
-Workspace、Journal 和 Todo 会话各自持有 parse index 与共享 block ID registry。单文档编辑只分析候选 editable 文本一次，metadata 协调器把该分析直接 canonicalize，下一索引通过 analysis override 差量替换对应文档。创建和结构移动同样返回已构建的 canonical analysis。未变化文档只能复用旧索引，不能被热编辑路径访问。
+Workspace、Journal 和 Todo 会话各自持有 parse index 与共享 block ID registry；Workspace
+引用图缓存同样由对应 parse index 实例拥有，不建立模块级运行期 cache。单文档编辑只分析
+候选 editable 文本一次，metadata 协调器把该分析直接 canonicalize，下一索引通过 analysis
+override 差量替换对应文档。创建和结构移动同样返回已构建的 canonical analysis。未变化
+文档只能复用旧索引，不能被热编辑路径访问。
 
 ## 失效规则
 
