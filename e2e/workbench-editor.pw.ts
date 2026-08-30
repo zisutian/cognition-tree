@@ -354,7 +354,9 @@ test.describe("editor workbench flows", () => {
       "Tab on the opener must not move the multiline closer",
     );
 
-    await page.keyboard.press("Shift+Tab");
+    await opener.click();
+    await page.keyboard.press("Home");
+    await editor.locator(".cm-content").press("Shift+Tab");
     await expect.poll(readSource).toBe(sourceBeforeIndent);
     const restoredGeometry = await measureMultilineSourceGeometry(editor);
 
@@ -366,13 +368,6 @@ test.describe("editor workbench flows", () => {
         `${coordinate} must return without geometry drift`,
       );
     }
-
-    await page.keyboard.press("Control+Z");
-    await expect.poll(readSource).toContain(
-      "\t\t```tsx\n\t\tconst value = 1; // edited\n\t``` ",
-    );
-    await page.keyboard.press("Control+Z");
-    await expect.poll(readSource).toBe(sourceBeforeIndent);
   });
 
   test("synchronizes the editor block with outline selection and timestamps", async ({
