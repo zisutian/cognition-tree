@@ -7,12 +7,16 @@ import {
   readFile,
   rm,
   symlink,
+  truncate,
   writeFile,
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CliCredentialStore } from "../../../tooling/cli/credentialStore.ts";
+import {
+  cliMaximumCredentialFileBytes,
+  CliCredentialStore,
+} from "../../../tooling/cli/credentialStore.ts";
 import { runCtnCli } from "../../../tooling/cli/ctnCli.ts";
 import {
   cliMaximumJsonResponseBytes,
@@ -153,6 +157,22 @@ describe("trusted-client CLI security", () => {
     await rm(file);
     await symlink(target, file);
     await expect(store.read()).rejects.toThrow();
+  });
+
+  it("rejects an oversized credential file before parsing it", async () => {
+    const root = await temporaryRoot();
+    const file = path.join(
+      root,
+      "cognition-tree",
+      "cli-v1",
+      "credentials.json",
+    );
+    const store = new CliCredentialStore(file);
+
+    await store.read();
+    await writeFile(file, "{}", { mode: 0o600 });
+    await truncate(file, cliMaximumCredentialFileBytes + 1);
+    await expect(store.read()).rejects.toThrow(/exceeds the size limit/i);
   });
 
   it("keeps profile secrets out of list output and leaves no fallback default", async () => {

@@ -12,6 +12,9 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { readBoundedUtf8File } from "./boundedFile.ts";
+
+export const cliMaximumCredentialFileBytes = 1024 * 1024;
 
 export type CliCredentialProfile = {
   name: string;
@@ -151,7 +154,14 @@ export class CliCredentialStore {
       if (!stats.isFile() || (stats.mode & 0o777) !== 0o600) {
         throw new Error("CLI credential file must be a regular 0600 file");
       }
-      return parseState(JSON.parse(await handle.readFile("utf8")) as unknown);
+      if (stats.size > cliMaximumCredentialFileBytes) {
+        throw new Error("CLI credential file exceeds the size limit");
+      }
+      return parseState(JSON.parse(await readBoundedUtf8File(
+        handle,
+        cliMaximumCredentialFileBytes,
+        "CLI credential file",
+      )) as unknown);
     } finally {
       await handle.close();
     }
@@ -159,6 +169,11 @@ export class CliCredentialStore {
 
   async write(state: CliCredentialState) {
     const parsed = parseState(state);
+    const source = `${JSON.stringify(parsed, null, 2)}\n`;
+
+    if (Buffer.byteLength(source) > cliMaximumCredentialFileBytes) {
+      throw new Error("CLI credential file exceeds the size limit");
+    }
 
     await ensureDirectory(this.#directory);
     try {
@@ -183,7 +198,7 @@ export class CliCredentialStore {
           constants.O_WRONLY,
         0o600,
       );
-      await handle.writeFile(`${JSON.stringify(parsed, null, 2)}\n`, "utf8");
+      await handle.writeFile(source, "utf8");
       await handle.sync();
       await handle.close();
       handle = null;

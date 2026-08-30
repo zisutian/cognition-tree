@@ -4,6 +4,9 @@ import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, open, rename, unlink } from "node:fs/promises";
 import path from "node:path";
+import { readBoundedUtf8File } from "./boundedFile.ts";
+
+export const cliMaximumCheckoutFileBytes = 128 * 1024 * 1024;
 
 function isMissing(error: unknown) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
@@ -17,7 +20,14 @@ export async function readCliFile(file: string) {
     const stats = await handle.stat();
 
     if (!stats.isFile()) throw new Error(`Not a regular file: ${target}`);
-    return await handle.readFile("utf8");
+    if (stats.size > cliMaximumCheckoutFileBytes) {
+      throw new Error(`CLI file exceeds the size limit: ${target}`);
+    }
+    return await readBoundedUtf8File(
+      handle,
+      cliMaximumCheckoutFileBytes,
+      "CLI file",
+    );
   } finally {
     await handle.close();
   }
@@ -30,6 +40,10 @@ export async function writeCliFileAtomically(
 ) {
   const target = path.resolve(file);
   const directory = path.dirname(target);
+
+  if (Buffer.byteLength(source) > cliMaximumCheckoutFileBytes) {
+    throw new Error(`CLI file exceeds the size limit: ${target}`);
+  }
 
   if (expectedCurrentSource !== undefined) {
     const current = await readCliFile(target);
