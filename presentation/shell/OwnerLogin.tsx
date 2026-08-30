@@ -7,6 +7,8 @@ import type {
 } from "../../application/system";
 import { Button } from "../ui/shared/primitives";
 import { InputControl } from "../ui/shared/controls";
+import { useExclusiveAsyncAction } from
+  "../ui/shared/useExclusiveAsyncAction";
 import "./ownerLogin.css";
 
 export function OwnerLogin({
@@ -17,9 +19,12 @@ export function OwnerLogin({
   state: OwnerAuthenticationState;
 }) {
   const [secret, setSecret] = useState("");
+  const loginAction = useExclusiveAsyncAction();
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    void controller.login(secret).then(() => setSecret(""), () => undefined);
+    const pending = loginAction.run(() => controller.login(secret));
+
+    if (pending) void pending.catch(() => undefined);
   };
 
   if (state.status === "idle" || state.status === "loading") {
@@ -42,7 +47,9 @@ export function OwnerLogin({
             value={secret}
           />
         </label>
-        <Button type="submit" variant="primary">登录</Button>
+        <Button disabled={loginAction.busy} type="submit" variant="primary">
+          登录
+        </Button>
       </form>
     </main>
   );

@@ -25,6 +25,8 @@ import {
   ToolSection,
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
+import { useExclusiveAsyncAction } from
+  "../../ui/shared/useExclusiveAsyncAction";
 
 type ScopeDomain = AgentScope["domain"];
 type WorkspaceTargetKind = Extract<
@@ -83,6 +85,7 @@ export function AgentSessionCreatePanel({
   const [journalEntryIds, setJournalEntryIds] = useState<string[]>([]);
   const [todoAll, setTodoAll] = useState(true);
   const [todoCollectionIds, setTodoCollectionIds] = useState<string[]>([]);
+  const createAction = useExclusiveAsyncAction();
 
   useEffect(() => {
     if (!scopeCatalog.repositoryOptions.some(({ id }) => id === repositoryId)) {
@@ -146,12 +149,14 @@ export function AgentSessionCreatePanel({
   ) ?? null;
   const createSession = async () => {
     if (!scope) return;
-    const created = await feedback.runAction(async () => {
-      await controller.createSession({ scope });
-      return true;
-    });
+    const pending = createAction.run(() =>
+      feedback.runAction(async () => {
+        await controller.createSession({ scope });
+        return true;
+      })
+    );
 
-    if (created) onCreated();
+    if (pending && await pending) onCreated();
   };
 
   return (
@@ -365,6 +370,7 @@ export function AgentSessionCreatePanel({
                   <Button
                     disabled={
                       !scope ||
+                      createAction.busy ||
                       preferredProfile?.availability !== "available" ||
                       state.operationStatus === "working" ||
                       state.status?.enabled !== true

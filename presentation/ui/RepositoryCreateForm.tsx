@@ -8,6 +8,7 @@ import {
   FormActions,
   FormLayout,
 } from "./shared/FormLayout";
+import { useExclusiveAsyncAction } from "./shared/useExclusiveAsyncAction";
 
 export type RepositoryCreateFormDraft = { name: string };
 
@@ -44,23 +45,27 @@ export function RepositoryCreateForm({
     () => createRepositoryCreateFormDraft(initialName),
   );
   const [errorMessage, setErrorMessage] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const submission = useExclusiveAsyncAction();
+  const submitting = submission.busy;
   const busy = disabled || submitting;
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (disabled) return;
+    const pending = submission.run(() =>
+      onCreate(createRepositoryRequest(draft))
+    );
+
+    if (!pending) return;
     setErrorMessage("");
-    setSubmitting(true);
 
     try {
-      await onCreate(createRepositoryRequest(draft));
+      await pending;
       setDraft(clearRepositoryCreateFormAfterSuccess());
     } catch (error) {
       const message = error instanceof Error ? error.message : "创建仓库失败。";
 
       setErrorMessage(message);
       onError?.(error);
-    } finally {
-      setSubmitting(false);
     }
   };
 

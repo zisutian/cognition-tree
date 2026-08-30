@@ -3,6 +3,8 @@ import type { RepositoryOption } from
   "../../../application/repository/ordinaryRepositoryViewModel";
 import { Button } from "../../ui/shared/primitives";
 import { InputControl } from "../../ui/shared/controls";
+import { useExclusiveAsyncAction } from
+  "../../ui/shared/useExclusiveAsyncAction";
 
 export function canDeleteManagedRepositoryData(
   repository: RepositoryOption,
@@ -20,16 +22,14 @@ export function RepositoryDeleteConfirmation({
   onCancel: () => void;
   onDelete: () => Promise<boolean>;
 }) {
-  const [busy, setBusy] = useState(false);
   const [confirmation, setConfirmation] = useState("");
+  const deletion = useExclusiveAsyncAction();
+  const busy = deletion.busy;
   const runDeletion = async () => {
-    setBusy(true);
-    try {
-      if (await onDelete()) {
-        onCancel();
-      }
-    } finally {
-      setBusy(false);
+    const pending = deletion.run(onDelete);
+
+    if (pending && await pending) {
+      onCancel();
     }
   };
 

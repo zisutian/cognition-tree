@@ -21,10 +21,13 @@ import {
 } from "../../ui/shared/CompactContextList";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import { Button } from "../../ui/shared/primitives";
+import { useExclusiveAsyncAction } from
+  "../../ui/shared/useExclusiveAsyncAction";
 
 export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
   const feedback = useFeedback();
-  const [busy, setBusy] = useState(false);
+  const operationAction = useExclusiveAsyncAction();
+  const busy = operationAction.busy;
   const [pendingDeleteFile, setPendingDeleteFile] =
     useState<SyntaxFileView | null>(null);
   const [renamingFile, setRenamingFile] = useState<{
@@ -35,15 +38,14 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
   const [renameSubmittedFileId, setRenameSubmittedFileId] =
     useState<string | null>(null);
   const runOperation = async (operation: () => Promise<unknown>) => {
-    setBusy(true);
-    try {
-      return await feedback.runAction(async () => {
+    const pending = operationAction.run(() =>
+      feedback.runAction(async () => {
         await operation();
         return true;
-      }) === true;
-    } finally {
-      setBusy(false);
-    }
+      })
+    );
+
+    return pending ? await pending === true : false;
   };
   const mutationBlocked = busy || view.hasDraftErrors;
 

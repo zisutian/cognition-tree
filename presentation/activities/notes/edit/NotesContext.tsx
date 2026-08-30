@@ -9,6 +9,8 @@ import {
   type TreeNode,
 } from "../../../ui/shared/tree";
 import { useFeedback } from "../../../ui/shared/FeedbackProvider";
+import { useExclusiveAsyncAction } from
+  "../../../ui/shared/useExclusiveAsyncAction";
 
 export function submitNotesFolderCreation({
   directory,
@@ -77,7 +79,8 @@ export function NotesContext({
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [folderTitle, setFolderTitle] = useState("新文件夹");
   const [moveNode, setMoveNode] = useState<TreeNode | null>(null);
-  const [reloading, setReloading] = useState(false);
+  const reloadAction = useExclusiveAsyncAction();
+  const reloading = reloadAction.busy;
   const lastActiveNodeIdsRef = useRef<{
     folder: string | null;
     note: string | null;
@@ -148,9 +151,9 @@ export function NotesContext({
     });
   };
   const reload = () => {
-    if (reloading) return;
-    setReloading(true);
-    void feedback.runAction(onReload).finally(() => setReloading(false));
+    const pending = reloadAction.run(() => feedback.runAction(onReload));
+
+    if (pending) void pending;
   };
 
   return (
