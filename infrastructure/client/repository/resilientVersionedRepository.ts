@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  VersionedRepositoryBackendConflictError,
-  VersionedRepositoryBackendMergeConflictError,
   VersionedRepositoryLocalConflictError,
   VersionedRepositoryRemoteError,
   type VersionedRepository,
@@ -12,7 +10,6 @@ import {
   type VersionedContentPreparationPolicy,
   type VersionedRepositoryConflictProof,
   type VersionedRepositorySnapshot,
-  type VersionedRepositorySnapshotTransition,
   type VersionedRepositorySyncResult,
 } from "../../../application/persistence/versionedRepository";
 import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
@@ -21,9 +18,9 @@ import {
   LocalFirstRepositoryRemoteReconciliation,
 } from "./resilientVersionedRepositoryRemoteReconciliation.ts";
 import { LocalFirstRepositoryStaging } from "./resilientVersionedRepositoryStaging.ts";
+import { LocalFirstRepositorySynchronization } from "./resilientVersionedRepositorySynchronization.ts";
 import {
   canUseVersionedRepositoryCachedSnapshot,
-  isRetryableVersionedRepositoryRemoteError,
   normalizeVersionedConflictUnitIds,
   versionedContentEqual,
   versionedRepositoryErrorMessage,
@@ -90,12 +87,6 @@ export function createLocalFirstVersionedRepository<
     LocalRevision,
     Projection
   >;
-  type SnapshotTransition = VersionedRepositorySnapshotTransition<
-    Content,
-    Projection,
-    Revision,
-    LocalRevision
-  >;
   type SyncResult = VersionedRepositorySyncResult<
     Content,
     Projection,
@@ -125,6 +116,15 @@ export function createLocalFirstVersionedRepository<
     mergeContent,
     preparation,
     projections,
+  });
+  const synchronization = new LocalFirstRepositorySynchronization({
+    backend,
+    cache,
+    createBusyError,
+    createLocalRevision,
+    preparation,
+    projections,
+    remoteReconciliation,
   });
   const resolveIdentity = () => Promise.resolve(repositoryIdentity);
 
@@ -211,255 +211,11 @@ export function createLocalFirstVersionedRepository<
       await loadSnapshot();
     }
   };
-  const synchronize = async (): Promise<SyncResult> => {
+  const synchronize = async () => {
     const identity = await resolveIdentity();
-    const transitions: SnapshotTransition[] = [];
-    const complete = (
-      transition: SnapshotTransition,
-      result:
-        | { status: "conflict" | "offline" | "synced" }
-        | { message: string; status: "sync-error" },
-    ): SyncResult => {
-      const completedTransitions: SyncResult["transitions"] =
-        transitions.length === 0
-          ? [transition]
-          : [transitions[0]!, ...transitions.slice(1), transition];
-
-      switch (result.status) {
-        case "conflict":
-          return { status: "conflict", transitions: completedTransitions };
-        case "offline":
-          return { status: "offline", transitions: completedTransitions };
-        case "synced":
-          return { status: "synced", transitions: completedTransitions };
-        case "sync-error":
-          return {
-            message: result.message,
-            status: "sync-error",
-            transitions: completedTransitions,
-          };
-      }
-    };
 
     await ensureInitialized();
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const local = await cache.load(identity);
-
-      if (!local) {
-        throw new Error(
-          "Local repository state disappeared during synchronization.",
-        );
-      }
-      if (!local.pendingBaseRevision) {
-        return complete(projections.toTransition(
-          local.localRevision,
-          local,
-        ), {
-          status: "synced",
-        });
-      }
-      const localPrepared = projections.prepareLocalState(local);
-      const syncContext = await cache.loadSyncContext(identity);
-      const preparedBase = projections.readRemoteBase(
-        local.pendingBaseRevision,
-      );
-
-      if (
-        preparation.validateTransition &&
-        syncContext?.baseContent &&
-        !preparedBase
-      ) {
-        const basePrepared = projections.prepare(
-          syncContext.baseContent,
-          localPrepared.projection,
-        );
-
-        preparation.validateTransition(basePrepared, localPrepared);
-        projections.rememberRemote(local.pendingBaseRevision, basePrepared);
-      } else if (preparation.validateTransition && preparedBase) {
-        preparation.validateTransition(preparedBase, localPrepared);
-      }
-      try {
-        if (!syncContext?.baseContent) {
-          throw new Error("Repository synchronization base is unavailable.");
-        }
-        const synchronized = await backend.synchronizeRemoteSnapshot({
-          base: {
-            content: syncContext.baseContent,
-            revision: local.pendingBaseRevision,
-          },
-          content: local.content,
-        });
-        const transition = await remoteReconciliation.installSynchronizedSnapshot(
-          identity,
-          local,
-          localPrepared,
-          synchronized.snapshot,
-        );
-        if (transition.snapshot.conflictRevision !== null) {
-          return complete(transition, {
-            status: "conflict",
-          });
-        }
-        return complete(transition, {
-          status: "synced",
-        });
-      } catch (error) {
-        if (error instanceof VersionedRepositoryBackendMergeConflictError) {
-          projections.clearRemoteBase();
-          let remote;
-
-          try {
-            remote = await backend.loadRemoteSnapshot();
-          } catch (loadError) {
-            if (!isRetryableVersionedRepositoryRemoteError(loadError)) {
-              throw loadError;
-            }
-            const current = await cache.load(identity);
-            if (!current) throw loadError;
-            return complete(projections.toTransition(
-              current.localRevision,
-              current,
-              projections.prepareLocalState(
-                current,
-                localPrepared.projection,
-              ),
-            ), {
-              message: versionedRepositoryErrorMessage(loadError),
-              status: "sync-error",
-            });
-          }
-          if (remote.revision !== error.currentRevision) {
-            if (attempt + 1 < 3) continue;
-            throw createBusyError();
-          }
-          const current = await cache.load(identity);
-
-          if (!current || !syncContext?.baseContent) {
-            throw new Error(
-              "Local repository state disappeared during conflict recovery.",
-            );
-          }
-          if (current.localRevision !== local.localRevision) {
-            if (attempt + 1 < 3) continue;
-            throw createBusyError();
-          }
-          try {
-            const conflicted = await cache.recordConflict({
-              baseContent: syncContext.baseContent,
-              currentRemoteRevision: remote.revision,
-              expectedLocalRevision: current.localRevision,
-              identity,
-              localRevision: createLocalRevision(),
-              localContent: current.content,
-              remoteContent: remote.content,
-              unitIds: error.unitIds,
-            });
-
-            return complete(projections.toTransition(
-              current.localRevision,
-              conflicted,
-              localPrepared,
-            ), {
-              status: "conflict",
-            });
-          } catch (recordError) {
-            if (
-              recordError instanceof VersionedRepositoryLocalConflictError &&
-              attempt + 1 < 3
-            ) {
-              continue;
-            }
-            throw recordError;
-          }
-        }
-        if (error instanceof VersionedRepositoryBackendConflictError) {
-          const conflictRevision = error.currentRevision as Revision;
-          let remote;
-
-          projections.clearRemoteBase();
-
-          try {
-            remote = await backend.loadRemoteSnapshot();
-          } catch (loadError) {
-            if (!isRetryableVersionedRepositoryRemoteError(loadError)) {
-              throw loadError;
-            }
-            const current = await cache.load(identity);
-            if (!current) throw loadError;
-
-            return complete(projections.toTransition(
-              current.localRevision,
-              current,
-              projections.prepareLocalState(
-                current,
-                localPrepared.projection,
-              ),
-            ), {
-              message: versionedRepositoryErrorMessage(loadError),
-              status: "sync-error",
-            });
-          }
-
-          if (remote.revision !== conflictRevision) {
-            if (attempt + 1 < 3) continue;
-            throw createBusyError();
-          }
-          const remotePrepared = projections.prepareRemote(
-            remote.content,
-            remote.revision,
-            localPrepared.projection,
-          );
-          let transition;
-          try {
-            transition = await remoteReconciliation.reconcilePendingSnapshot(
-              identity,
-              local,
-              localPrepared,
-              remote,
-              remotePrepared,
-            );
-          } catch (rebaseError) {
-            if (
-              rebaseError instanceof VersionedRepositoryLocalConflictError &&
-              attempt + 1 < 3
-            ) {
-              continue;
-            }
-            throw rebaseError;
-          }
-          if (
-            transition.snapshot.conflictRevision !== null
-          ) {
-            return complete(transition, {
-              status: "conflict",
-            });
-          }
-          transitions.push(transition);
-          continue;
-        }
-        const current = await cache.load(identity);
-        if (!current) throw error;
-        const transition = projections.toTransition(
-          current.localRevision,
-          current,
-          projections.prepareLocalState(
-            current,
-            localPrepared.projection,
-          ),
-        );
-        if (isRetryableVersionedRepositoryRemoteError(error)) {
-          return complete(transition, {
-            status: "offline",
-          });
-        }
-        return complete(transition, {
-          message: versionedRepositoryErrorMessage(error),
-          status: "sync-error",
-        });
-      }
-    }
-    throw createBusyError();
+    return synchronization.synchronize(identity);
   };
   const loadConflictSnapshot = async () => {
     const identity = await resolveIdentity();

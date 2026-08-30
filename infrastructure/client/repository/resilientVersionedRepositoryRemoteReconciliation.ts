@@ -5,6 +5,8 @@ import {
   type PreparedVersionedContent,
   type VersionedContentMergePolicy,
   type VersionedContentPreparationPolicy,
+  type VersionedRepositorySnapshot,
+  type VersionedRepositorySnapshotTransition,
   type VersionedRemoteSnapshot,
 } from "../../../application/persistence/versionedRepository";
 import type {
@@ -55,11 +57,57 @@ type LocalFirstRepositoryRemoteReconciliationOptions<
   >;
 }>;
 
+export interface LocalFirstRepositoryRemoteReconciliationPort<
+  Content,
+  Revision extends string,
+  LocalRevision extends string,
+  Projection,
+> {
+  installSynchronizedSnapshot(
+    identity: string,
+    submitted: VersionedRepositoryLocalState<Content, Revision, LocalRevision>,
+    submittedPrepared: PreparedVersionedContent<Content, Projection>,
+    remote: VersionedRemoteSnapshot<Content, Revision>,
+  ): Promise<VersionedRepositorySnapshotTransition<
+    Content,
+    Projection,
+    Revision,
+    LocalRevision
+  >>;
+  reconcilePendingSnapshot(
+    identity: string,
+    current: VersionedRepositoryLocalState<Content, Revision, LocalRevision>,
+    currentPrepared: PreparedVersionedContent<Content, Projection>,
+    remote: VersionedRemoteSnapshot<Content, Revision>,
+    remotePrepared: PreparedVersionedContent<Content, Projection>,
+  ): Promise<VersionedRepositorySnapshotTransition<
+    Content,
+    Projection,
+    Revision,
+    LocalRevision
+  >>;
+  reconcileRemoteSnapshot(
+    identity: string,
+    remote: VersionedRemoteSnapshot<Content, Revision>,
+    remotePrepared: PreparedVersionedContent<Content, Projection>,
+  ): Promise<VersionedRepositorySnapshot<
+    Content,
+    Revision,
+    LocalRevision,
+    Projection
+  >>;
+}
+
 export class LocalFirstRepositoryRemoteReconciliation<
   Content,
   Revision extends string,
   LocalRevision extends string,
   Projection,
+> implements LocalFirstRepositoryRemoteReconciliationPort<
+  Content,
+  Revision,
+  LocalRevision,
+  Projection
 > {
   readonly #cache: VersionedRepositoryCache<
     Content,
