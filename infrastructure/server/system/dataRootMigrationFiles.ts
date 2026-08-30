@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createHash } from "node:crypto";
+import { constants } from "node:fs";
 import {
   chmod,
   copyFile,
   lstat,
   mkdir,
+  open,
   opendir,
-  readFile,
   realpath,
   rm,
   stat,
@@ -29,6 +30,13 @@ const authoritativePartitions = [
 type FileFingerprint = Readonly<{
   digest: string;
   path: string;
+  size: number;
+}>;
+
+type StableFileIdentity = Readonly<{
+  device: string;
+  inode: string;
+  modified: number;
   size: number;
 }>;
 
@@ -54,6 +62,78 @@ function overlaps(left: string, right: string) {
   return relative === "" ||
     (!relative.startsWith("..") && !path.isAbsolute(relative)) ||
     (!reverse.startsWith("..") && !path.isAbsolute(reverse));
+}
+
+function stableFileIdentity(
+  stats: Awaited<ReturnType<typeof lstat>>,
+): StableFileIdentity {
+  return {
+    device: String(stats.dev),
+    inode: String(stats.ino),
+    modified: Number(stats.mtimeMs),
+    size: Number(stats.size),
+  };
+}
+
+function sameStableFile(
+  left: StableFileIdentity,
+  right: StableFileIdentity,
+) {
+  return left.device === right.device && left.inode === right.inode &&
+    left.modified === right.modified && left.size === right.size;
+}
+
+async function fingerprintFile(
+  current: string,
+  relative: string,
+  observed: Awaited<ReturnType<typeof lstat>>,
+): Promise<FileFingerprint> {
+  const handle = await open(
+    current,
+    constants.O_RDONLY | constants.O_NOFOLLOW,
+  );
+
+  try {
+    const before = await handle.stat();
+
+    if (
+      !before.isFile() ||
+      !sameStableFile(
+        stableFileIdentity(observed),
+        stableFileIdentity(before),
+      )
+    ) {
+      throw new Error(`Data-root file changed before verification: ${current}`);
+    }
+    const hash = createHash("sha256");
+    const buffer = Buffer.allocUnsafe(64 * 1024);
+
+    while (true) {
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, null);
+
+      if (bytesRead === 0) break;
+      hash.update(buffer.subarray(0, bytesRead));
+    }
+    const after = await handle.stat();
+
+    if (!after.isFile() || !sameStableFile(
+      stableFileIdentity(before),
+      stableFileIdentity(after),
+    )) {
+      throw new Error(`Data-root file changed during verification: ${current}`);
+    }
+    return {
+      digest: hash.digest("hex"),
+      path: relative,
+      size: after.size,
+    };
+  } finally {
+    try {
+      await handle.utimes(observed.atime, observed.mtime);
+    } finally {
+      await handle.close();
+    }
+  }
 }
 
 async function prepareDestination(
@@ -165,15 +245,7 @@ async function fingerprints(
     throw new Error(`Symbolic link is not allowed: ${current}`);
   }
   if (stats.isFile()) {
-    try {
-      return [{
-        digest: createHash("sha256").update(await readFile(current)).digest("hex"),
-        path: relative,
-        size: stats.size,
-      }];
-    } finally {
-      await utimes(current, stats.atime, stats.mtime);
-    }
+    return [await fingerprintFile(current, relative, stats)];
   }
   if (!stats.isDirectory()) {
     throw new Error(`Unsupported data-root entry: ${current}`);
