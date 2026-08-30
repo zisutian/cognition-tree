@@ -99,4 +99,19 @@ describe("local repository authority characterization", () => {
         .resolves.toBeUndefined();
     });
   });
+
+  it("closes catalog admission permanently when disposal begins", async () => {
+    await withLocalAuthority([firstUuid], async (catalog) => {
+      const disposal = catalog.dispose();
+
+      await expect(catalog.listRepositories()).rejects.toMatchObject({
+        code: "adapter_unavailable",
+      });
+      expect(() => catalog.initialize()).toThrow(expect.objectContaining({
+        code: "adapter_unavailable",
+      }));
+      await expect(disposal).resolves.toBeUndefined();
+      await expect(catalog.dispose()).resolves.toBeUndefined();
+    });
+  });
 });

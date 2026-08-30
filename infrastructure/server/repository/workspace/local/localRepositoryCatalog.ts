@@ -70,8 +70,10 @@ async function pathExists(filePath: string) {
 }
 
 export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
+  #acceptingOperations = true;
   #createId: NonNullable<LocalRepositoryCatalogOptions["createId"]>;
   #createStore: NonNullable<LocalRepositoryCatalogOptions["createStore"]>;
+  #disposePromise: Promise<void> | null = null;
   #hostRoot: string | null;
   #onRepositoryDeletionPhase: NonNullable<
     LocalRepositoryCatalogOptions["onRepositoryDeletionPhase"]
@@ -108,11 +110,14 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
   }
 
   initialize() {
-    return this.#rootLease.initialize();
+    this.#assertAcceptingOperations();
+    return this.#enqueueOperation(() => this.#rootLease.initialize());
   }
 
-  async dispose() {
-    return this.#enqueueOperation(async () => {
+  dispose() {
+    if (this.#disposePromise) return this.#disposePromise;
+    this.#acceptingOperations = false;
+    this.#disposePromise = this.#enqueueOperation(async () => {
       const stores = [...this.#storesById.values()];
       const storeDrains = stores.map((store) => store.closeForDeletion());
 
@@ -120,11 +125,13 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
       this.#storesById.clear();
       await this.#rootLease.dispose();
     });
+    return this.#disposePromise;
   }
 
   async listRepositories(): Promise<RepositoryCatalogDto> {
+    this.#assertAcceptingOperations();
     return this.#enqueueOperation(async () => {
-      await this.initialize();
+      await this.#rootLease.initialize();
       this.#rootLease.assertOwned();
       return this.#listRepositories();
     });
@@ -133,8 +140,9 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
   async createRepository(
     request: CreateRepositoryDto,
   ): Promise<RepositoryDescriptorDto> {
+    this.#assertAcceptingOperations();
     return this.#enqueueOperation(async () => {
-      await this.initialize();
+      await this.#rootLease.initialize();
       this.#rootLease.assertOwned();
       const label = await this.#assertAvailableLabel(request.label);
       const id = await this.#allocateRepositoryId();
@@ -146,16 +154,18 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
   async createRepositoryWithId(
     request: CreateLocalRepositoryWithId,
   ): Promise<RepositoryDescriptorDto> {
+    this.#assertAcceptingOperations();
     return this.#enqueueOperation(async () => {
-      await this.initialize();
+      await this.#rootLease.initialize();
       this.#rootLease.assertOwned();
       return this.#createRepositoryWithId(request);
     });
   }
 
   async deleteRepository(repositoryId: string): Promise<void> {
+    this.#assertAcceptingOperations();
     return this.#enqueueOperation(async () => {
-      await this.initialize();
+      await this.#rootLease.initialize();
       this.#rootLease.assertOwned();
       const repositoryPath = this.#resolveRepositoryPath(repositoryId);
       const store = this.#storesById.get(repositoryId);
@@ -174,12 +184,14 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
   }
 
   async getStore(repositoryId: string) {
+    this.#assertAcceptingOperations();
     return this.#enqueueOperation(() => this.#getStore(repositoryId));
   }
 
   async renameRepository(repositoryId: string, request: RenameRepositoryDto) {
+    this.#assertAcceptingOperations();
     return this.#enqueueOperation(async () => {
-      await this.initialize();
+      await this.#rootLease.initialize();
       this.#rootLease.assertOwned();
       const parsedLabel = await this.#assertAvailableLabel(
         request.label,
@@ -193,7 +205,7 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
   }
 
   async #getStore(repositoryId: string) {
-    await this.initialize();
+    await this.#rootLease.initialize();
     this.#rootLease.assertOwned();
     const repositoryPath = this.#resolveRepositoryPath(repositoryId);
     const stats = await lstat(repositoryPath).catch((error: unknown) => {
@@ -370,6 +382,15 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
       throw new RepositoryCatalogError("invalid_request", "Repository escapes the configured root");
     }
     return repositoryPath;
+  }
+
+  #assertAcceptingOperations() {
+    if (!this.#acceptingOperations) {
+      throw new RepositoryCatalogError(
+        "adapter_unavailable",
+        "Local repository catalog is disposed",
+      );
+    }
   }
 
   #enqueueOperation<Result>(operation: () => Promise<Result>) {

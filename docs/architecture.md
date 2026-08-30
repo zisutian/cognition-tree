@@ -443,7 +443,7 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     /api/v3 transport 与两类 SSE；client/runtime 只负责把
     这些实现注入 application 端口。源码中不存在 IndexedDB 或存储模式分支。
     server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
-    repository/workspace/local 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。localRepositoryRootLease 独占 canonical root、writer lock、丢失检测与启动时 staging/tombstone 清理；localRepositoryInventory 独占目录枚举、metadata/identity 校验、问题分类与 label issue 投影；LocalRepositoryCatalog 独占稳定 ID 分配、名称约束与 store 组合。
+    repository/workspace/local 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。localRepositoryRootLease 独占 canonical root、writer lock、丢失检测与启动时 staging/tombstone 清理；localRepositoryInventory 独占目录枚举、metadata/identity 校验、问题分类与 label issue 投影；LocalRepositoryCatalog 独占稳定 ID 分配、名称约束与 store 组合。catalog dispose 在调用时关闭新操作入口，排空已接纳操作后释放 store 与 root lease；catalog 和 root lease 都是不可重启终态。
     localRepositoryDeletion 独占普通仓库删除的 managed-data 校验、durable tombstone
     rename 提交点、失败回滚与可恢复物理 cleanup；catalog 只先排空驻留 store 并委托。
     API server 的 api/http 拥有 request lifecycle、认证、限制和 registry 分派；

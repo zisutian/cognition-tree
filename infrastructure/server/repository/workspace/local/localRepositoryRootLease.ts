@@ -13,6 +13,8 @@ const repositoryDeletionTombstonePattern =
   /^\.delete-.+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class LocalRepositoryRootLease {
+  #disposePromise: Promise<void> | null = null;
+  #disposed = false;
   #initializePromise: Promise<void> | null = null;
   #lockCompromised = false;
   #releaseWriterLock: (() => Promise<void>) | null = null;
@@ -27,6 +29,7 @@ export class LocalRepositoryRootLease {
   }
 
   async initialize() {
+    this.#assertActive();
     if (!this.#initializePromise) {
       this.#initializePromise = this.#initialize();
     }
@@ -39,19 +42,37 @@ export class LocalRepositoryRootLease {
     }
   }
 
-  async dispose() {
-    const release = this.#releaseWriterLock;
+  dispose() {
+    if (this.#disposePromise) return this.#disposePromise;
+    this.#disposed = true;
+    const initializePromise = this.#initializePromise;
 
-    this.#releaseWriterLock = null;
-    this.#initializePromise = null;
-    if (release) await release();
+    this.#disposePromise = (async () => {
+      await initializePromise?.catch(() => undefined);
+      const release = this.#releaseWriterLock;
+
+      this.#releaseWriterLock = null;
+      this.#initializePromise = null;
+      if (release) await release();
+    })();
+    return this.#disposePromise;
   }
 
   assertOwned() {
+    this.#assertActive();
     if (this.#lockCompromised || !this.#releaseWriterLock) {
       throw new RepositoryCatalogError(
         "repository_busy",
         "Local repository writer lock was lost",
+      );
+    }
+  }
+
+  #assertActive() {
+    if (this.#disposed) {
+      throw new RepositoryCatalogError(
+        "adapter_unavailable",
+        "Local repository root lease is disposed",
       );
     }
   }
