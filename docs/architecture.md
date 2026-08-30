@@ -509,15 +509,17 @@ catalog 是 ID、标签、图标、分组、可用条件与懒加载元数据的
 
 Activity 内部仍按语义拆分独立 view：Repository 的 catalog、状态、恢复与危险操作，
 Todo 的集合、编辑与周期结构，以及 Notes 的编辑、结构与图谱不因视觉相似而共享业务
-状态。引用图谱 Canvas 只声明 DOM，模拟、位置缓存、缩放和平移属于专用 hook/controller。
+状态。引用图谱 Canvas 只声明 DOM 并接收当前仓库 session 选出的 controller；模拟、位置
+缓存、缩放和平移属于专用 hook/controller，controller cache 不得成为模块级全局状态。
 
 Agent Presentation 只消费 AgentClientController 的会话快照、连续事件和冻结 proposal
 review，不解析正文或生成审批摘要。发送、批准与 destructive confirmation 前的 scope
 同步由 AppRoot 作为组合根注入；事件序列出现缺口时重读 session snapshot。Provider、
 Profile、凭据与符合性状态只经 Settings application facade 管理。
 
-Settings 的页内选择和未提交表单、Search 的查询草稿、Notes 的模式以及工作台布局都属于
-Presentation 页面会话状态，不进入领域 content 或服务端配置。write-only secret 随对应
+Settings 的页内选择和未提交表单、Search 的查询草稿、Notes 的模式/图谱筛选/图谱设置
+以及工作台布局都属于 Presentation 页面会话状态；需要跨仓库保留的状态由显式
+repository session owner 分区，不进入领域 content 或服务端配置。write-only secret 随对应
 表单卸载而清除；服务端 pending 操作具有独立生命周期，不由页面卸载取消。
 
 `application/problems` 的 ProblemCenter 是运行期 operational incident 的唯一 owner。

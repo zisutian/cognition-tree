@@ -6,7 +6,6 @@ import {
 import type { VisibleReferenceGraphNode } from "./referenceGraphView";
 
 const maximumCachedGraphControllers = 12;
-const graphControllers = new Map<string, ReferenceGraphController>();
 
 export function consumeReferenceGraphResetSignal(
   previousSignal: { current: number },
@@ -94,27 +93,27 @@ export class ReferenceGraphController {
   }
 }
 
-export function getReferenceGraphController(topologyRevision: string) {
-  const existing = graphControllers.get(topologyRevision);
+export class ReferenceGraphControllerCache {
+  readonly #controllers = new Map<string, ReferenceGraphController>();
 
-  if (existing) {
-    graphControllers.delete(topologyRevision);
-    graphControllers.set(topologyRevision, existing);
-    return existing;
-  }
+  get(topologyRevision: string) {
+    const existing = this.#controllers.get(topologyRevision);
 
-  const controller = new ReferenceGraphController();
-  graphControllers.set(topologyRevision, controller);
-
-  while (graphControllers.size > maximumCachedGraphControllers) {
-    const oldestRevision = graphControllers.keys().next().value;
-
-    if (oldestRevision === undefined) {
-      break;
+    if (existing) {
+      this.#controllers.delete(topologyRevision);
+      this.#controllers.set(topologyRevision, existing);
+      return existing;
     }
 
-    graphControllers.delete(oldestRevision);
-  }
+    const controller = new ReferenceGraphController();
 
-  return controller;
+    this.#controllers.set(topologyRevision, controller);
+    while (this.#controllers.size > maximumCachedGraphControllers) {
+      const oldestRevision = this.#controllers.keys().next().value;
+
+      if (oldestRevision === undefined) break;
+      this.#controllers.delete(oldestRevision);
+    }
+    return controller;
+  }
 }

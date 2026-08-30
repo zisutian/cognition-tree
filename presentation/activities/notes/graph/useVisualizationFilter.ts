@@ -1,24 +1,44 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type {
   ReferenceGraphLocalDepth,
   ReferenceGraphMode,
   VisualizationFilterController,
 } from "../../../../application/workspace/notes/graph/visualizationViewModel";
+import {
+  useRepositorySessionState,
+} from "../../../ui/workbench/useRepositorySessionState";
 
-export function useVisualizationFilter(): VisualizationFilterController {
-  const [mode, setMode] = useState<ReferenceGraphMode>("global");
-  const [localDepth, setLocalDepth] = useState<ReferenceGraphLocalDepth>(1);
-  const [query, setQuery] = useState("");
-  const [hideIsolated, setHideIsolated] = useState(false);
+type VisualizationFilterState = VisualizationFilterController["filter"];
+
+function createVisualizationFilterState(): VisualizationFilterState {
+  return {
+    hideIsolated: false,
+    localDepth: 1,
+    mode: "global",
+    query: "",
+  };
+}
+
+export function useVisualizationFilter(
+  repositoryId: string,
+): VisualizationFilterController {
+  const [filter, setFilter] = useRepositorySessionState(
+    repositoryId,
+    createVisualizationFilterState,
+  );
 
   return useMemo(
     () => ({
-      filter: { hideIsolated, localDepth, mode, query },
-      setHideIsolated,
-      setLocalDepth,
-      setMode,
-      setQuery,
+      filter,
+      setHideIsolated: (hideIsolated: boolean) =>
+        setFilter((current) => ({ ...current, hideIsolated })),
+      setLocalDepth: (localDepth: ReferenceGraphLocalDepth) =>
+        setFilter((current) => ({ ...current, localDepth })),
+      setMode: (mode: ReferenceGraphMode) =>
+        setFilter((current) => ({ ...current, mode })),
+      setQuery: (query: string) =>
+        setFilter((current) => ({ ...current, query })),
     }),
-    [hideIsolated, localDepth, mode, query],
+    [filter, setFilter],
   );
 }

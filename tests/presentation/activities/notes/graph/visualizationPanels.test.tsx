@@ -9,11 +9,13 @@ import {
   createVisualizationView,
 } from "../../../fixtures/visualizationViewFixture";
 import { defaultReferenceGraphSettings } from "../../../../../presentation/activities/notes/graph/referenceGraphSettings";
+import { ReferenceGraphController } from "../../../../../presentation/activities/notes/graph/referenceGraphController";
 
 describe("visualization panels", () => {
   it("exposes keyboard graph navigation and live selection status", () => {
     const markup = renderToStaticMarkup(
       <ReferenceGraphCanvas
+        controller={new ReferenceGraphController()}
         displaySettings={{ ...defaultReferenceGraphSettings.display }}
         forceSettings={{ ...defaultReferenceGraphSettings.forces }}
         graph={{
@@ -31,7 +33,6 @@ describe("visualization panels", () => {
         }}
         resetSignal={0}
         selectedNoteId={null}
-        topologyRevision="revision-1"
         onSelectNote={() => undefined}
       />,
     );

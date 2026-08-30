@@ -2,7 +2,6 @@ import type { Simulation } from "d3-force";
 import {
   useEffect,
   useId,
-  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -35,7 +34,7 @@ import {
 } from "./referenceGraphCanvasModel";
 import {
   consumeReferenceGraphResetSignal,
-  getReferenceGraphController,
+  type ReferenceGraphController,
 } from "./referenceGraphController";
 import {
   createReferenceGraphSimulation,
@@ -49,12 +48,12 @@ import {
 } from "./referenceGraphSettings";
 
 export type ReferenceGraphCanvasProps = {
+  controller: ReferenceGraphController;
   displaySettings: GraphDisplaySettings;
   forceSettings: GraphForceSettings;
   graph: VisibleReferenceGraph;
   resetSignal: number;
   selectedNoteId: UiNoteId | null;
-  topologyRevision: string;
   onSelectNote: (noteId: UiNoteId) => void;
 };
 
@@ -74,12 +73,12 @@ type GraphDragState =
     };
 
 export function useReferenceGraphCanvasRuntime({
+  controller,
   displaySettings,
   forceSettings,
   graph,
   resetSignal,
   selectedNoteId,
-  topologyRevision,
   onSelectNote,
 }: ReferenceGraphCanvasProps) {
   const forceSettingsKey = getReferenceGraphForceSettingsKey(forceSettings);
@@ -104,10 +103,6 @@ export function useReferenceGraphCanvasRuntime({
   const simulationSizeRef = useRef(canvasSize);
   const [announcement, setAnnouncement] = useState("");
   const announcementId = useId();
-  const controller = useMemo(
-    () => getReferenceGraphController(topologyRevision),
-    [topologyRevision],
-  );
   const controllerRef = useRef(controller);
   const canvasSizeRef = useRef(canvasSize);
   const transformRef = useRef<GraphTransform>(controller.transform);
@@ -315,7 +310,7 @@ export function useReferenceGraphCanvasRuntime({
         redrawFrameRef.current = null;
       }
     };
-  }, [topologyRevision]);
+  }, [controller]);
 
   useEffect(() => {
     const simulation = simulationRef.current;

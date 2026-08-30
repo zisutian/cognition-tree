@@ -12,7 +12,7 @@ import {
 } from "../../../../../presentation/activities/notes/graph/referenceGraphCanvasModel";
 import {
   consumeReferenceGraphResetSignal,
-  getReferenceGraphController,
+  ReferenceGraphControllerCache,
   ReferenceGraphController,
 } from "../../../../../presentation/activities/notes/graph/referenceGraphController";
 import {
@@ -207,16 +207,19 @@ describe("reference graph canvas pointer movement", () => {
   });
 
   it("restores the same controller after leaving and reopening a topology", () => {
-    const first = getReferenceGraphController("reopen-test");
+    const cache = new ReferenceGraphControllerCache();
+    const first = cache.get("reopen-test");
 
     first.transform = { scale: 2, x: 40, y: 50 };
 
-    expect(getReferenceGraphController("reopen-test")).toBe(first);
-    expect(getReferenceGraphController("reopen-test").transform).toEqual({
+    expect(cache.get("reopen-test")).toBe(first);
+    expect(cache.get("reopen-test").transform).toEqual({
       scale: 2,
       x: 40,
       y: 50,
     });
+    expect(new ReferenceGraphControllerCache().get("reopen-test"))
+      .not.toBe(first);
   });
 
   it("preserves a cached viewport on mount and resets only for a new signal", () => {

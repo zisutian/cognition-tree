@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNotesActivity } from "./edit/useNotesActivity";
 import {
   createNotesActivitySlots,
@@ -18,11 +17,15 @@ import {
 import type { WorkspaceApplication } from "../../workspace/runtime/useWorkspaceApplication";
 import type { ActivityControllerProps } from "../activityController";
 import { renderWorkspaceUnavailableActivity } from "../unavailable/WorkspaceUnavailableActivityController";
+import {
+  useRepositorySessionState,
+} from "../../ui/workbench/useRepositorySessionState";
 
 function ActiveNotesActivity({
   application,
   mode,
   onModeChange,
+  repositoryId,
   repositoryName,
   renderActivity,
   visualizationSession,
@@ -30,6 +33,7 @@ function ActiveNotesActivity({
   application: WorkspaceApplication;
   mode: NotesMode;
   onModeChange(mode: NotesMode): void;
+  repositoryId: string;
   repositoryName: string;
   renderActivity: ActivityControllerProps["renderActivity"];
   visualizationSession: ReferenceGraphSession;
@@ -49,7 +53,7 @@ function ActiveNotesActivity({
     selection: application.selection,
     state: structureState,
   });
-  const visualizationFilter = useVisualizationFilter();
+  const visualizationFilter = useVisualizationFilter(repositoryId);
   const visualization = useVisualizationActivity({
     filter: visualizationFilter,
     runtime: application.runtime,
@@ -92,18 +96,11 @@ export function NotesActivityController({
 }: ActivityControllerProps) {
   const repositoryId = application.repository.activeDescriptor?.id ??
     "workspace-unavailable";
-  const [modeByRepository, setModeByRepository] = useState<
-    Record<string, NotesMode>
-  >({});
-  const visualizationSession = useReferenceGraphSession();
-  const mode = modeByRepository[repositoryId] ?? "edit";
-  const setMode = (nextMode: NotesMode) => {
-    setModeByRepository((current) =>
-      current[repositoryId] === nextMode
-        ? current
-        : { ...current, [repositoryId]: nextMode }
-    );
-  };
+  const [mode, setMode] = useRepositorySessionState<NotesMode>(
+    repositoryId,
+    () => "edit",
+  );
+  const visualizationSession = useReferenceGraphSession(repositoryId);
 
   if (!active) {
     return null;
@@ -121,6 +118,7 @@ export function NotesActivityController({
       application={application.workspace.application}
       mode={mode}
       onModeChange={setMode}
+      repositoryId={repositoryId}
       repositoryName={application.repository.activeDescriptor?.label ??
         (application.repository.session.status === "absent"
           ? "笔记"

@@ -1,10 +1,18 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
+import {
+  useRepositorySessionState,
+} from "../../../ui/workbench/useRepositorySessionState";
+import {
+  ReferenceGraphControllerCache,
+  type ReferenceGraphController,
+} from "./referenceGraphController";
 import {
   createDefaultReferenceGraphSettings,
   type ReferenceGraphSettings,
 } from "./referenceGraphSettings";
 
 export type ReferenceGraphSession = {
+  getController: (topologyRevision: string) => ReferenceGraphController;
   resetSignal: number;
   settings: ReferenceGraphSettings;
   resetSettings: () => void;
@@ -12,27 +20,60 @@ export type ReferenceGraphSession = {
   updateSettings: (settings: ReferenceGraphSettings) => void;
 };
 
-export function useReferenceGraphSession(): ReferenceGraphSession {
-  const [resetSignal, setResetSignal] = useState(0);
-  const [settings, setSettings] = useState(createDefaultReferenceGraphSettings);
+type ReferenceGraphSessionState = {
+  controllers: ReferenceGraphControllerCache;
+  resetSignal: number;
+  settings: ReferenceGraphSettings;
+};
+
+function createReferenceGraphSessionState(): ReferenceGraphSessionState {
+  return {
+    controllers: new ReferenceGraphControllerCache(),
+    resetSignal: 0,
+    settings: createDefaultReferenceGraphSettings(),
+  };
+}
+
+export function useReferenceGraphSession(
+  repositoryId: string,
+): ReferenceGraphSession {
+  const [session, setSession] = useRepositorySessionState(
+    repositoryId,
+    createReferenceGraphSessionState,
+  );
+  const getController = useCallback(
+    (topologyRevision: string) => session.controllers.get(topologyRevision),
+    [session.controllers],
+  );
   const updateSettings = useCallback((next: ReferenceGraphSettings) => {
-    setSettings(next);
-  }, []);
+    setSession((current) => ({ ...current, settings: next }));
+  }, [setSession]);
   const resetSettings = useCallback(() => {
     updateSettings(createDefaultReferenceGraphSettings());
   }, [updateSettings]);
   const resetView = useCallback(() => {
-    setResetSignal((current) => current + 1);
-  }, []);
+    setSession((current) => ({
+      ...current,
+      resetSignal: current.resetSignal + 1,
+    }));
+  }, [setSession]);
 
   return useMemo(
     () => ({
+      getController,
       resetSettings,
-      resetSignal,
+      resetSignal: session.resetSignal,
       resetView,
-      settings,
+      settings: session.settings,
       updateSettings,
     }),
-    [resetSettings, resetSignal, resetView, settings, updateSettings],
+    [
+      getController,
+      resetSettings,
+      resetView,
+      session.resetSignal,
+      session.settings,
+      updateSettings,
+    ],
   );
 }

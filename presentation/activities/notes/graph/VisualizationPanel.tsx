@@ -60,12 +60,12 @@ export function VisualizationPanel({
         <div className="graph-canvas">
           {visibleGraph.nodes.length > 0 ? (
             <ReferenceGraphCanvas
+              controller={session.getController(topologyRevision)}
               displaySettings={session.settings.display}
               forceSettings={session.settings.forces}
               graph={visibleGraph}
               resetSignal={session.resetSignal}
               selectedNoteId={visualization.activeNoteId}
-              topologyRevision={topologyRevision}
               onSelectNote={visualization.onSelectNote}
             />
           ) : (

@@ -7,6 +7,9 @@ import {
 import type {
   ReferenceGraphSession,
 } from "../../../presentation/activities/notes/graph/useReferenceGraphSession";
+import {
+  ReferenceGraphControllerCache,
+} from "../../../presentation/activities/notes/graph/referenceGraphController";
 
 export function createVisualizationView(
   overrides: Partial<VisualizationViewModel> = {},
@@ -44,7 +47,10 @@ export function createVisualizationView(
 export function createReferenceGraphSession(
   overrides: Partial<ReferenceGraphSession> = {},
 ): ReferenceGraphSession {
+  const controllers = new ReferenceGraphControllerCache();
+
   return {
+    getController: (topologyRevision) => controllers.get(topologyRevision),
     resetSettings: () => undefined,
     resetSignal: 0,
     resetView: () => undefined,
