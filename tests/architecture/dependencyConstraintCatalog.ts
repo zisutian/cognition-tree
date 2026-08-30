@@ -176,6 +176,11 @@ function isCoreSyntaxModule(filePath: string) {
   return filePath.startsWith("../../core/ctn/syntax/");
 }
 
+function isSystemSyntaxDefaultModule(filePath: string) {
+  return /^\.\.\/\.\.\/core\/(?:journal|todo)\/syntax\/default(?:Journal|Todo)Syntax\.ts$/
+    .test(filePath);
+}
+
 function isApplicationArea(filePath: string, area: string) {
   return filePath.startsWith(`../../application/${area}/`);
 }
@@ -411,6 +416,13 @@ export function createDependencyImportPolicies({
         isSyntaxActivityReactView(filePath) &&
         isCoreSyntaxModule(targetPath),
       name: "Syntax Activity views consume application projection",
+    },
+    {
+      allows: () => false,
+      applies: ({ filePath, targetPath }) =>
+        ["application", "presentation"].includes(getSourceRoot(filePath)) &&
+        isSystemSyntaxDefaultModule(targetPath),
+      name: "system syntax defaults stay behind domain projections",
     },
     {
       allows: () => false,

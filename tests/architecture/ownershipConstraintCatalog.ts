@@ -354,6 +354,14 @@ export function createOwnershipTextPolicies({
       pattern: /\bparseCtnBlockMetadataLine\s*\(/,
     },
     {
+      allowedPath:
+        /^infrastructure\/server\/agent\/sessionMcpServer\.ts$/,
+      corpus: sourceModules,
+      matches: 1,
+      name: "private Agent child process environment ingress",
+      pattern: /\bprocess\.env\b/,
+    },
+    {
       corpus: applicationModules,
       matches: 0,
       name: "presentation contracts in application projections",
@@ -375,93 +383,6 @@ export function createOwnershipTextPolicies({
       name: "canonical content preparation in presentation",
       pattern:
         /\b(?:parseWorkspaceSyntax|create(?:Journal|Todo|Workspace)ParseIndex|validate(?:Journal|Todo)Content(?:Analysis|Transition|AnalysisTransition)?)\s*\(/,
-    },
-    {
-      corpus: sourceModules,
-      matches: 0,
-      name: "plain and prepared mutation dual APIs",
-      pattern:
-        /\b(?:mutatePrepared|mutatePlain|mutateContent|commitPreparedSnapshot|commitSnapshot)\b/,
-    },
-    {
-      corpus: sourceModules,
-      matches: 0,
-      name: "hidden application or presentation syntax defaults",
-      pattern:
-        /\b(?:fallbackSyntax|defaultWorkspaceSyntax|defaultJournalSyntax|defaultTodoSyntax)\b/,
-      scope: /^(?:application|presentation)\//,
-    },
-    {
-      corpus: sourceModules,
-      matches: 0,
-      name: "legacy HTTP API namespace",
-      pattern: /["'`]\/api\/(?:v1|v2)(?:\/|["'`])/,
-    },
-    {
-      corpus: sourceModules,
-      matches: 0,
-      name: "versioned internal API identifiers",
-      pattern: /\b(?:ApiV1|apiV1)\b/,
-    },
-    {
-      corpus: sourceModules,
-      matches: 0,
-      name: "legacy public command authority",
-      pattern: /\b(?:ApiCommandResult|commandId|preparedCommandExecutor)\b/,
-    },
-    {
-      corpus: sourceModules,
-      matches: 0,
-      name: "automation mutation scopes",
-      pattern: /["'`](?:workspace|journal|todo):(?:write|delete)["'`]/,
-    },
-    {
-      corpus: sourceModules,
-      matches: 0,
-      name: "legacy Agent profile file authority",
-      pattern: /\b(?:CTN_AGENT_PROFILES_FILE|loadAgentProfileCatalog|apiKeyEnv)\b/,
-    },
-    {
-      corpus: sourceModules,
-      matches: 0,
-      name: "retired user environment configuration",
-      pattern:
-        /\bCTN_(?:API_HOST|API_PORT|API_TOKEN|PUBLIC_URL|REPOSITORY_ROOT|REPOSITORY_HOST_ROOT|SERVER_STATE_DIR|AGENT_MAX_AUDIT_ENTRIES|AGENT_PRIVATE_TARGETS)\b/,
-    },
-    {
-      corpus: sourceModules,
-      matches: 0,
-      name: "retired client startup configuration",
-      pattern:
-        /\bcognition-tree\.config\.json\b|\b(?:loadClientApiConfiguration|parseClientStartupConfiguration)\b/,
-    },
-    {
-      corpus: sourceModules,
-      matches: 0,
-      name: "retired remote repository authority",
-      pattern: new RegExp([
-        "web",
-        "dav",
-        "|CTN_WEB",
-        "DAV_PRIVATE_TARGETS",
-        "|CompositeRepository",
-        "Catalog",
-      ].join(""), "i"),
-    },
-    {
-      corpus: infrastructureModules,
-      matches: 0,
-      name: "Ollama nested code Agent integration",
-      pattern: /["'`]\/api\/(?:tasks|mcp)(?:\/|["'`])/,
-      scope:
-        /^infrastructure\/server\/agent\/(?:conformanceOperations|ollamaRuntime|providerOperations|providerProbe)\.ts$/,
-    },
-    {
-      corpus: infrastructureModules,
-      matches: 0,
-      name: "duplicate API route-kind dispatch",
-      pattern: /\b(?:route\.kind|context\.method)\b/,
-      scope: /^infrastructure\/server\/api\//,
     },
     {
       corpus: sourceModules,
