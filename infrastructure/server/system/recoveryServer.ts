@@ -6,17 +6,15 @@ import { SystemConfigurationValidationError } from "../../../application/system/
 import { isLoopbackAddress } from "../network/loopbackAddress.ts";
 import type { BootstrapConfigurationStore } from "./bootstrapConfigurationStore.ts";
 import {
+  recoveryPageHtml,
+  recoveryPageScript,
+  recoveryPageStylesheet,
+} from "./recoveryPage.ts";
+import {
   readRecoveryRequestDataRoot,
   RecoveryRequestAbortedError,
   RecoveryRequestError,
 } from "./recoveryRequest.ts";
-
-const recoveryHtml = `<!doctype html>
-<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>认知树恢复设置</title>
-<main><h1>认知树需要恢复服务设置</h1><p>内容和智能体尚未加载。请选择继续使用的数据根；留空会恢复为项目内的 .cognition-tree。</p>
-<form id="recovery"><label>数据根 <input id="dataRoot" placeholder="留空使用项目默认位置"></label><button>保存并重启</button></form><p id="result" role="status"></p></main>
-<script>document.querySelector('#recovery').addEventListener('submit',async event=>{event.preventDefault();const result=document.querySelector('#result');result.textContent='正在保存……';const dataRoot=document.querySelector('#dataRoot').value.trim();const response=await fetch('/api/v3/recovery/system-configuration',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dataRoot:dataRoot||null})});const body=await response.json();result.textContent=response.ok?'设置已保存，服务正在重启……':body.message||'恢复失败';});</script></html>`;
 
 function hostIsLoopback(request: IncomingMessage) {
   const host = request.headers.host;
@@ -33,8 +31,28 @@ function sendJson(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, {
     "Cache-Control": "no-store",
     "Content-Type": "application/json; charset=utf-8",
+    "X-Content-Type-Options": "nosniff",
   });
   response.end(JSON.stringify(body));
+}
+
+function sendPageAsset(
+  response: ServerResponse,
+  contentType: string,
+  body: string,
+  contentSecurityPolicy?: string,
+) {
+  response.writeHead(200, {
+    "Cache-Control": "no-store",
+    ...(contentSecurityPolicy
+      ? { "Content-Security-Policy": contentSecurityPolicy }
+      : {}),
+    "Content-Type": contentType,
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+  });
+  response.end(body);
 }
 
 function sendUnexpectedRecoveryFailure(
@@ -65,11 +83,30 @@ export async function runBootstrapRecoveryServer({
       const url = new URL(request.url ?? "/", "http://localhost");
 
       if (request.method === "GET" && url.pathname === "/") {
-        response.writeHead(200, {
-          "Cache-Control": "no-store",
-          "Content-Type": "text/html; charset=utf-8",
-        });
-        response.end(recoveryHtml);
+        sendPageAsset(
+          response,
+          "text/html; charset=utf-8",
+          recoveryPageHtml,
+          "default-src 'none'; script-src 'self'; style-src 'self'; " +
+            "connect-src 'self'; form-action 'self'; base-uri 'none'; " +
+            "frame-ancestors 'none'",
+        );
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/recovery.js") {
+        sendPageAsset(
+          response,
+          "text/javascript; charset=utf-8",
+          recoveryPageScript,
+        );
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/recovery.css") {
+        sendPageAsset(
+          response,
+          "text/css; charset=utf-8",
+          recoveryPageStylesheet,
+        );
         return;
       }
       if (request.method === "GET" && url.pathname === "/api/v3/recovery/status") {
