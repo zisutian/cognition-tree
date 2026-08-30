@@ -14,7 +14,10 @@ import type { ApiRuntime } from "../api/http/runtime.ts";
 import { readApiRuntimeNow } from "../api/http/runtime.ts";
 import type { ApiEventHub } from "../api/sync/events.ts";
 import type { ApiRevisionTracker } from "../api/sync/revisionTracker.ts";
-import type { AgentOperationAttempt } from "../operations/operationLedgerContract.ts";
+import {
+  AgentOperationIndeterminateError,
+  type AgentOperationAttempt,
+} from "../operations/operationLedgerContract.ts";
 import type { OperationLedger } from "../operations/operationLedger.ts";
 import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
 import type { WorkspaceRepositoryStore } from "../repository/store.ts";
@@ -27,12 +30,15 @@ import {
   VersionedContentRevisionConflictError,
 } from "../repository/versioned/contentStore.ts";
 import type { ResolvedAgentConfiguration } from "./configurationStore.ts";
-import { AgentServiceError } from "./errors.ts";
+import {
+  AgentProposalCommitIndeterminateError,
+  AgentServiceError,
+} from "./errors.ts";
 import type { AgentRuntimeProfile } from "./runtimeProfiles.ts";
 
 export type AgentProposalCommitRoute = AgentOperationAttempt["route"];
 
-type AgentProposalCommitContext = Readonly<{
+export type AgentProposalCommitContext = Readonly<{
   configuration: ResolvedAgentConfiguration;
   profile: AgentRuntimeProfile;
   runtimeKind: AgentOperationAuditEntryDto["runtimeKind"];
@@ -45,11 +51,25 @@ export type AgentProposalCommitOutcome = Readonly<{
   replayed: boolean;
 }>;
 
+export type AgentProposalCommitRequest = Readonly<{
+  context: AgentProposalCommitContext;
+  ownerId: string;
+  proposal: AgentProposal;
+  requestId: string;
+  route: AgentProposalCommitRoute;
+}>;
+
+export type AgentProposalCommitPort = Readonly<{
+  commit(
+    request: AgentProposalCommitRequest,
+  ): Promise<AgentProposalCommitOutcome>;
+}>;
+
 function unique(values: readonly string[]) {
   return [...new Set(values)];
 }
 
-export class AgentProposalCommitter {
+export class AgentProposalCommitter implements AgentProposalCommitPort {
   readonly #builtInCatalog: ApiBuiltInCatalog;
   readonly #catalog: WorkspaceRepositoryCatalog;
   readonly #eventHub: ApiEventHub;
@@ -86,13 +106,7 @@ export class AgentProposalCommitter {
     proposal: initialProposal,
     requestId,
     route,
-  }: {
-    context: AgentProposalCommitContext;
-    ownerId: string;
-    proposal: AgentProposal;
-    requestId: string;
-    route: AgentProposalCommitRoute;
-  }): Promise<AgentProposalCommitOutcome> {
+  }: AgentProposalCommitRequest): Promise<AgentProposalCommitOutcome> {
     const ledger = this.#ledger;
 
     if (!ledger) {
@@ -145,7 +159,15 @@ export class AgentProposalCommitter {
           result,
         );
       },
-    );
+    ).catch((error: unknown) => {
+      if (
+        error instanceof VersionedContentCommitOutcomeUnknownError ||
+        error instanceof AgentOperationIndeterminateError
+      ) {
+        throw new AgentProposalCommitIndeterminateError(error);
+      }
+      throw error;
+    });
 
     if (result.entry.result === "committed" && proposal.status !== "committed") {
       proposal = { ...proposal, status: "committed" };

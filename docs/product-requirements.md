@@ -145,6 +145,9 @@ proposal 只读且只属于一个 Workspace repository、Journal 或 Todo store�
 或拒绝；包含删除时，批准后还需独立二次确认。任意 revision 变化都会使 proposal 失效，
 不得自动 retry、merge 或 rebase；跨 store 任务必须按顺序形成多份 proposal。审查内容
 必须由领域事实确定性生成，不能由界面重新解析正文或使用模型摘要代替真实 diff。
+若耐久提交结果无法确认，账本与会话 Proposal 都必须进入 `indeterminate` 终态，界面
+显示“结果待确认”；不得标记为失败、再次批准或以同一幂等身份重放，必须重新读取权威
+内容后再决定后续动作。
 
 模型只获得当前 scope 内的读取、搜索、语法说明、proposal 和领域业务动作。多个调用、
 未知工具或无效参数必须零执行；工具协议与结果不能伪装成聊天消息。创建或替换 CTN

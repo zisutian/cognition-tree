@@ -3,6 +3,7 @@
 import {
   confirmAgentProposalDestruction,
   decideAgentProposal,
+  markAgentProposalIndeterminate,
   type AgentProposal,
   type AgentRuntimePort,
   type AgentSessionController,
@@ -11,10 +12,14 @@ import type {
   AgentOperationAuditEntryDto,
 } from "../../../contracts/agent/schemas.ts";
 import type { ResolvedAgentConfiguration } from "./configurationStore.ts";
-import { AgentServiceError } from "./errors.ts";
-import type {
-  AgentProposalCommitter,
-  AgentProposalCommitRoute,
+import {
+  AgentProposalCommitIndeterminateError,
+  AgentServiceError,
+} from "./errors.ts";
+import {
+  type AgentProposalCommitOutcome,
+  type AgentProposalCommitPort,
+  type AgentProposalCommitRoute,
 } from "./proposalCommitter.ts";
 import { toAgentProposalDto } from "./proposalCodec.ts";
 import type { AgentRuntimeProfile } from "./runtimeProfiles.ts";
@@ -28,14 +33,14 @@ export type AgentProposalWorkflowRecord = {
 
 function hasTerminalCommitStatus(proposal: AgentProposal) {
   return proposal.status === "committed" || proposal.status === "stale" ||
-    proposal.status === "failed";
+    proposal.status === "failed" || proposal.status === "indeterminate";
 }
 
 export class AgentProposalWorkflow<
   Record extends AgentProposalWorkflowRecord,
 > {
   readonly #assertScopeAvailable: (record: Record) => Promise<void>;
-  readonly #committer: AgentProposalCommitter;
+  readonly #committer: AgentProposalCommitPort;
   readonly #emitProposal: (record: Record, proposal: AgentProposal) => void;
   readonly #isClosing: () => boolean;
   readonly #scheduleReceiptSummary: (
@@ -51,7 +56,7 @@ export class AgentProposalWorkflow<
     scheduleReceiptSummary,
   }: {
     assertScopeAvailable: (record: Record) => Promise<void>;
-    committer: AgentProposalCommitter;
+    committer: AgentProposalCommitPort;
     emitProposal: (record: Record, proposal: AgentProposal) => void;
     isClosing: () => boolean;
     scheduleReceiptSummary: (
@@ -153,18 +158,30 @@ export class AgentProposalWorkflow<
     requestId: string,
     route: AgentProposalCommitRoute,
   ) {
-    const outcome = await this.#committer.commit({
-      context: {
-        configuration: record.configuration,
-        profile: record.profile,
-        runtimeKind: record.runtime.kind,
-        sessionId: record.controller.snapshot().id,
-      },
-      ownerId,
-      proposal,
-      requestId,
-      route,
-    });
+    let outcome: AgentProposalCommitOutcome;
+
+    try {
+      outcome = await this.#committer.commit({
+        context: {
+          configuration: record.configuration,
+          profile: record.profile,
+          runtimeKind: record.runtime.kind,
+          sessionId: record.controller.snapshot().id,
+        },
+        ownerId,
+        proposal,
+        requestId,
+        route,
+      });
+    } catch (error) {
+      if (error instanceof AgentProposalCommitIndeterminateError) {
+        const indeterminate = markAgentProposalIndeterminate(proposal);
+
+        record.controller.putProposal(indeterminate);
+        if (!this.#isClosing()) this.#emitProposal(record, indeterminate);
+      }
+      throw error;
+    }
 
     record.controller.putProposal(outcome.proposal);
     if (!this.#isClosing()) this.#emitProposal(record, outcome.proposal);

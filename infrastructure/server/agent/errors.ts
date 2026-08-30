@@ -17,3 +17,13 @@ export class AgentServiceError extends Error {
     this.code = code;
   }
 }
+
+export class AgentProposalCommitIndeterminateError extends Error {
+  readonly cause: unknown;
+
+  constructor(cause: unknown) {
+    super("Agent proposal commit outcome is indeterminate");
+    this.name = "AgentProposalCommitIndeterminateError";
+    this.cause = cause;
+  }
+}

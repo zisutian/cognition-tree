@@ -109,6 +109,7 @@ export const AgentProposalStatusSchema = Type.Union([
   Type.Literal("approved"),
   Type.Literal("rejected"),
   Type.Literal("committed"),
+  Type.Literal("indeterminate"),
   Type.Literal("stale"),
   Type.Literal("failed"),
 ]);

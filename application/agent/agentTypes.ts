@@ -36,6 +36,7 @@ export type AgentProposalStatus =
   | "approved"
   | "rejected"
   | "committed"
+  | "indeterminate"
   | "stale"
   | "failed";
 

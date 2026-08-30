@@ -50,7 +50,10 @@ import {
   OperationAuditFinalizeError,
   OperationAuditUnavailableError,
 } from "../../operations/operationLedgerContract.ts";
-import { AgentServiceError } from "../../agent/errors.ts";
+import {
+  AgentProposalCommitIndeterminateError,
+  AgentServiceError,
+} from "../../agent/errors.ts";
 import {
   AgentConfigurationConflictError,
   AgentConfigurationValidationError,
@@ -156,6 +159,9 @@ export function apiNotFound(message = "Resource does not exist"): never {
 
 export function mapApiError(error: unknown): ApiRequestError {
   if (error instanceof ApiRequestError) return error;
+  if (error instanceof AgentProposalCommitIndeterminateError) {
+    return mapApiError(error.cause);
+  }
   if (error instanceof AgentConfigurationConflictError) {
     return new ApiRequestError(
       "resource_conflict",

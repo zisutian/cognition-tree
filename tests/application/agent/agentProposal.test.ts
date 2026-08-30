@@ -6,6 +6,7 @@ import {
   confirmAgentProposalDestruction,
   createAgentProposal,
   decideAgentProposal,
+  markAgentProposalIndeterminate,
 } from "../../../application/agent/agentProposal.ts";
 
 const beforeRevision =
@@ -109,5 +110,13 @@ describe("Agent proposal authority", () => {
     expect(() => decideAgentProposal(rejected, "approve")).toThrow(
       "Proposal has already been decided",
     );
+  });
+
+  it("projects an indeterminate commit as a terminal immutable proposal", () => {
+    const approved = decideAgentProposal(proposal(), "approve");
+    const indeterminate = markAgentProposalIndeterminate(approved);
+
+    expect(approved.status).toBe("approved");
+    expect(indeterminate.status).toBe("indeterminate");
   });
 });

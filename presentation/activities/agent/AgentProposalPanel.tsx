@@ -31,6 +31,7 @@ const proposalStatusLabels: Record<AgentProposalView["status"], string> = {
   "awaiting-destructive-confirmation": "等待删除确认",
   committed: "已提交",
   failed: "提交失败",
+  indeterminate: "结果待确认",
   pending: "等待审批",
   rejected: "已拒绝",
   stale: "已过期",
@@ -169,6 +170,7 @@ function proposalStatusTone(status: AgentProposalView["status"]) {
     return "danger" as const;
   }
   if (
+    status === "indeterminate" ||
     status === "pending" ||
     status === "awaiting-destructive-confirmation"
   ) {

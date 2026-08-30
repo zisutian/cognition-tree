@@ -175,3 +175,11 @@ export function markAgentProposalFailed<
 >(proposal: AgentProposal<Content, Projection, Revision>) {
   return transitionProposal(proposal, "failed");
 }
+
+export function markAgentProposalIndeterminate<
+  Content,
+  Projection,
+  Revision extends string,
+>(proposal: AgentProposal<Content, Projection, Revision>) {
+  return transitionProposal(proposal, "indeterminate");
+}
