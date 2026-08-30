@@ -104,6 +104,8 @@ export function createAgentConfigurationController({
   port: AgentConfigurationPort;
 }): AgentConfigurationController {
   const listeners = new Set<() => void>();
+  let configurationAuthorityVersion = 0;
+  let loadRequestVersion = 0;
   let state: AgentConfigurationState = {
     codexDeviceLogins: {},
     conformanceChecks: {},
@@ -121,6 +123,27 @@ export function createAgentConfigurationController({
   const requireRevision = () => {
     if (!state.configuration) throw new Error("Agent configuration is not loaded.");
     return state.configuration.revision;
+  };
+  const installConfiguration = (
+    configuration: AgentConfigurationSnapshot,
+    patch: Partial<AgentConfigurationState> = {},
+  ) => {
+    configurationAuthorityVersion += 1;
+    publish({
+      ...patch,
+      configuration,
+      loadStatus: "ready",
+    });
+  };
+  const refreshConfiguration = async () => {
+    const expectedAuthorityVersion = configurationAuthorityVersion;
+    const configuration = await port.load();
+
+    if (configurationAuthorityVersion !== expectedAuthorityVersion) {
+      return false;
+    }
+    installConfiguration(configuration);
+    return true;
   };
   const publishConformance = (check: AgentConformanceCheckStatus) => {
     publish({
@@ -143,9 +166,18 @@ export function createAgentConfigurationController({
   ) => {
     publish({ errorMessage: null, operationStatus: "working" });
     try {
-      const configuration = await operation(requireRevision());
+      const baseRevision = requireRevision();
+      const configuration = await operation(baseRevision);
+      const currentRevision = state.configuration?.revision ?? null;
 
-      publish({ configuration, operationStatus: "idle" });
+      if (
+        currentRevision === baseRevision ||
+        currentRevision === configuration.revision
+      ) {
+        installConfiguration(configuration, { operationStatus: "idle" });
+      } else {
+        publish({ operationStatus: "idle" });
+      }
       await onConfigurationChanged();
     } catch (error) {
       publish({ errorMessage: message(error), operationStatus: "idle" });
@@ -187,9 +219,8 @@ export function createAgentConfigurationController({
           publish({ operationStatus: "idle" });
           return;
         }
-        const configuration = await port.load();
-
-        publish({ configuration, operationStatus: "idle" });
+        await refreshConfiguration();
+        publish({ operationStatus: "idle" });
         await onConfigurationChanged();
       } catch (error) {
         publish({ errorMessage: message(error), operationStatus: "idle" });
@@ -224,10 +255,23 @@ export function createAgentConfigurationController({
     },
     getSnapshot: () => state,
     async load() {
+      const requestVersion = ++loadRequestVersion;
+      const expectedAuthorityVersion = configurationAuthorityVersion;
+
       publish({ errorMessage: null, loadStatus: "loading" });
       try {
-        publish({ configuration: await port.load(), loadStatus: "ready" });
+        const configuration = await port.load();
+
+        if (
+          requestVersion !== loadRequestVersion ||
+          expectedAuthorityVersion !== configurationAuthorityVersion
+        ) return;
+        installConfiguration(configuration);
       } catch (error) {
+        if (
+          requestVersion !== loadRequestVersion ||
+          expectedAuthorityVersion !== configurationAuthorityVersion
+        ) return;
         publish({ errorMessage: message(error), loadStatus: "failed" });
       }
     },
@@ -269,7 +313,7 @@ export function createAgentConfigurationController({
               publishCodexDeviceLogin(current);
             }
             if (current.status === "succeeded") {
-              publish({ configuration: await port.load() });
+              await refreshConfiguration();
               await onConfigurationChanged();
             } else if (current.status === "failed") {
               publish({

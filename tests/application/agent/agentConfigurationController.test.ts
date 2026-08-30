@@ -6,6 +6,7 @@ import {
   type AgentConformanceCheckStatus,
   type AgentConfigurationPort,
   type AgentConfigurationSnapshot,
+  type AgentProviderInput,
 } from "../../../application/agent";
 
 const revision = (value: string) =>
@@ -13,6 +14,25 @@ const revision = (value: string) =>
 
 function snapshot(value: string): AgentConfigurationSnapshot {
   return { profiles: [], providers: [], revision: revision(value) };
+}
+
+function providerInput(): AgentProviderInput {
+  return {
+    authenticationType: "none",
+    baseUrl: "http://127.0.0.1:11434",
+    kind: "ollama",
+    label: "Local Ollama",
+    privateNetworkAccessConfirmed: false,
+  };
+}
+
+function createDeferred<Value>() {
+  let resolve!: (value: Value) => void;
+  const promise = new Promise<Value>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
 }
 
 function check(
@@ -108,13 +128,7 @@ describe("Agent configuration controller", () => {
 
     await controller.load();
     await controller.discoverOllama("http://127.0.0.1:11434");
-    await controller.createProvider({
-      authenticationType: "none",
-      baseUrl: "http://127.0.0.1:11434",
-      kind: "ollama",
-      label: "Local Ollama",
-      privateNetworkAccessConfirmed: false,
-    });
+    await controller.createProvider(providerInput());
 
     expect(adapter.createProvider).toHaveBeenCalledWith(
       revision("1"),
@@ -142,13 +156,9 @@ describe("Agent configuration controller", () => {
     });
 
     await controller.load();
-    await expect(controller.createProvider({
-      authenticationType: "none",
-      baseUrl: "http://127.0.0.1:11434",
-      kind: "ollama",
-      label: "Local Ollama",
-      privateNetworkAccessConfirmed: false,
-    })).rejects.toThrow("revision changed");
+    await expect(controller.createProvider(providerInput())).rejects.toThrow(
+      "revision changed",
+    );
     expect(controller.getSnapshot()).toMatchObject({
       configuration: { revision: revision("1") },
       errorMessage: "Agent configuration revision changed",
@@ -218,5 +228,59 @@ describe("Agent configuration controller", () => {
       });
     });
     expect(changed).toHaveBeenCalledOnce();
+  });
+
+  it("does not let an older load overwrite a committed mutation", async () => {
+    const adapter = port();
+    const controller = createAgentConfigurationController({
+      onConfigurationChanged: vi.fn(),
+      pollConformance: async () => undefined,
+      pollConformanceIntervalMilliseconds: 1,
+      port: adapter,
+    });
+
+    await controller.load();
+    const staleLoad = createDeferred<AgentConfigurationSnapshot>();
+
+    vi.mocked(adapter.load).mockImplementationOnce(() => staleLoad.promise);
+    const loading = controller.load();
+
+    await controller.createProvider(providerInput());
+    staleLoad.resolve(snapshot("1"));
+    await loading;
+
+    expect(controller.getSnapshot()).toMatchObject({
+      configuration: { revision: revision("2") },
+      loadStatus: "ready",
+    });
+  });
+
+  it("does not let a delayed mutation response regress later authority", async () => {
+    const adapter = port();
+    const controller = createAgentConfigurationController({
+      onConfigurationChanged: vi.fn(),
+      pollConformance: async () => undefined,
+      pollConformanceIntervalMilliseconds: 1,
+      port: adapter,
+    });
+
+    await controller.load();
+    const delayedMutation = createDeferred<AgentConfigurationSnapshot>();
+
+    vi.mocked(adapter.createProvider).mockImplementationOnce(
+      () => delayedMutation.promise,
+    );
+    const firstMutation = controller.createProvider(providerInput());
+
+    vi.mocked(adapter.load).mockResolvedValueOnce(snapshot("2"));
+    await controller.load();
+    await controller.clearProviderAuthentication("provider-1");
+    delayedMutation.resolve(snapshot("2"));
+    await firstMutation;
+
+    expect(controller.getSnapshot()).toMatchObject({
+      configuration: { revision: revision("3") },
+      loadStatus: "ready",
+    });
   });
 });
