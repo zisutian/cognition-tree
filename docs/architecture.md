@@ -406,6 +406,8 @@ AgentConfigurationController 独占客户端配置快照 authority；load、设�
 SystemConfigurationController 同样独占系统配置快照 authority；显式 load 采用最后请求优先，
 管理操作响应只能安装到其启动时的 authority 或相同 revision，旧响应不得回退新的服务配置；
 operationStatus 从所有在途管理操作计数投影。
+OwnerAuthenticationController 串行执行会改变 owner session cookie 的登录与登出命令；认证读取
+等待既有命令排空，并由 mutation/request version 阻止旧结果覆盖新的认证状态。
 
 Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 UUID、时间、页面事件和定时器实现由 infrastructure 注入。Problems 的选择与合并留在 application，Activity 切换和 DOM 聚焦只由 presentation 执行。
 

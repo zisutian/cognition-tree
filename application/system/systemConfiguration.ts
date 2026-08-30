@@ -343,6 +343,10 @@ export function createOwnerAuthenticationController(
   port: OwnerAuthenticationPort,
 ): OwnerAuthenticationController {
   const listeners = new Set<() => void>();
+  let authenticationMutationVersion = 0;
+  let loadRequestVersion = 0;
+  let mutationQueue: Promise<void> = Promise.resolve();
+  let pendingMutationCount = 0;
   let state: OwnerAuthenticationState = {
     authenticated: false,
     errorMessage: null,
@@ -352,44 +356,80 @@ export function createOwnerAuthenticationController(
     state = { ...state, ...patch };
     listeners.forEach((listener) => listener());
   };
-  const fail = (error: unknown) => {
-    publish({
-      authenticated: false,
-      errorMessage: errorMessage(error),
-      status: "failed",
+  const awaitMutationDrain = async () => {
+    while (true) {
+      const observedQueue = mutationQueue;
+
+      await observedQueue;
+      if (observedQueue === mutationQueue) {
+        return authenticationMutationVersion;
+      }
+    }
+  };
+  const mutate = (
+    operation: () => Promise<void>,
+    authenticated: boolean,
+  ) => {
+    authenticationMutationVersion += 1;
+    pendingMutationCount += 1;
+    publish({ errorMessage: null, status: "loading" });
+    const pending = mutationQueue.then(async () => {
+      publish({ errorMessage: null, status: "loading" });
+      try {
+        await operation();
+        pendingMutationCount -= 1;
+        publish({
+          authenticated,
+          status: pendingMutationCount > 0 ? "loading" : "ready",
+        });
+      } catch (error) {
+        pendingMutationCount -= 1;
+        publish({
+          authenticated: false,
+          errorMessage: errorMessage(error),
+          status: pendingMutationCount > 0 ? "loading" : "failed",
+        });
+        throw error;
+      }
     });
+
+    mutationQueue = pending.then(() => undefined, () => undefined);
+    return pending;
   };
 
   return {
     getSnapshot: () => state,
     async load() {
+      const requestVersion = ++loadRequestVersion;
+
       publish({ errorMessage: null, status: "loading" });
+      const expectedMutationVersion = await awaitMutationDrain();
+
+      if (requestVersion !== loadRequestVersion) return;
+
+      publish({ status: "loading" });
       try {
-        publish({ authenticated: await port.load(), status: "ready" });
+        const authenticated = await port.load();
+
+        if (
+          requestVersion !== loadRequestVersion ||
+          expectedMutationVersion !== authenticationMutationVersion
+        ) return;
+        publish({ authenticated, status: "ready" });
       } catch (error) {
-        fail(error);
+        if (
+          requestVersion !== loadRequestVersion ||
+          expectedMutationVersion !== authenticationMutationVersion
+        ) return;
+        publish({
+          authenticated: false,
+          errorMessage: errorMessage(error),
+          status: "failed",
+        });
       }
     },
-    async login(secret) {
-      publish({ errorMessage: null, status: "loading" });
-      try {
-        await port.login(secret);
-        publish({ authenticated: true, status: "ready" });
-      } catch (error) {
-        fail(error);
-        throw error;
-      }
-    },
-    async logout() {
-      publish({ errorMessage: null, status: "loading" });
-      try {
-        await port.logout();
-        publish({ authenticated: false, status: "ready" });
-      } catch (error) {
-        fail(error);
-        throw error;
-      }
-    },
+    login: (secret) => mutate(() => port.login(secret), true),
+    logout: () => mutate(() => port.logout(), false),
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
