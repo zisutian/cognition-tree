@@ -550,6 +550,31 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps local repository deletion behind its catalog", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath:
+          "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts",
+        importPath: "./localRepositoryDeletion",
+        targetPath:
+          "../../infrastructure/server/repository/workspace/local/localRepositoryDeletion.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath:
+          "../../infrastructure/server/repository/workspace/local/workspaceFileStore.ts",
+        importPath: "./localRepositoryDeletion",
+        targetPath:
+          "../../infrastructure/server/repository/workspace/local/localRepositoryDeletion.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "local repository deletion composition boundary: ../../infrastructure/server/repository/workspace/local/workspaceFileStore.ts imports ./localRepositoryDeletion",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

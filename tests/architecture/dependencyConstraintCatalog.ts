@@ -130,6 +130,10 @@ const resilientVersionedRepositoryPath =
   "../../infrastructure/client/repository/resilientVersionedRepository.ts";
 const resilientVersionedRepositoryProjectionPath =
   "../../infrastructure/client/repository/resilientVersionedRepositoryProjection.ts";
+const localRepositoryCatalogPath =
+  "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
+const localRepositoryDeletionPath =
+  "../../infrastructure/server/repository/workspace/local/localRepositoryDeletion.ts";
 
 function peerDomain(filePath: string) {
   return filePath.match(
@@ -351,6 +355,11 @@ export function createDependencyImportPolicies({
       applies: ({ targetPath }) =>
         targetPath === resilientVersionedRepositoryProjectionPath,
       name: "local-first repository projection composition boundary",
+    },
+    {
+      allows: ({ filePath }) => filePath === localRepositoryCatalogPath,
+      applies: ({ targetPath }) => targetPath === localRepositoryDeletionPath,
+      name: "local repository deletion composition boundary",
     },
     {
       allows: () => false,

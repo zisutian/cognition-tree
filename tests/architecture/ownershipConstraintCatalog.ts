@@ -178,6 +178,18 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/client\/repository\/resilientVersionedRepositoryProjection\.ts$/,
     ],
     [
+      "local repository deletion transaction",
+      infrastructureModules,
+      /\bexport async function deleteLocalRepositoryDirectory\s*\(/,
+      /^infrastructure\/server\/repository\/workspace\/local\/localRepositoryDeletion\.ts$/,
+    ],
+    [
+      "local repository deletion phases",
+      infrastructureModules,
+      /\bexport const localRepositoryDeletionPhases\b/,
+      /^infrastructure\/server\/repository\/workspace\/local\/localRepositoryDeletion\.ts$/,
+    ],
+    [
       "Agent Profile turn queue",
       infrastructureModules,
       /\bnew AgentProfileTurnQueue\s*\(/,
