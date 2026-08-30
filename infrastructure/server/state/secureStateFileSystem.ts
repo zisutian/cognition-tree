@@ -6,6 +6,7 @@ import {
   fsyncDirectory,
   isSecureDirectory,
   isSecureRegularFile,
+  readSecureFileUtf8,
   writeFileDurably,
 } from "../persistence/fileSystemPersistence.ts";
 
@@ -97,5 +98,6 @@ export async function assertSecureStateDirectory(directory: string) {
 export {
   fsyncDirectory,
   isSecureRegularFile,
+  readSecureFileUtf8,
   writeFileDurably,
 };

@@ -23,6 +23,7 @@ export function isSecureDirectory(stats: Stats, mode = 0o700) {
 export async function readSecureFileUtf8(
   filePath: string,
   maximumBytes: number,
+  label = "secure file",
 ) {
   if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
     throw new Error("Secure file limit must be a positive integer");
@@ -36,10 +37,10 @@ export async function readSecureFileUtf8(
     const stats = await handle.stat();
 
     if (!isSecureRegularFile(stats)) {
-      throw new Error("state file permissions or type are invalid");
+      throw new Error(`${label} permissions or type are invalid`);
     }
     if (stats.size > maximumBytes) {
-      throw new Error("state file exceeds the size limit");
+      throw new Error(`${label} exceeds the size limit`);
     }
     const chunks: Buffer[] = [];
     let size = 0;
@@ -53,7 +54,7 @@ export async function readSecureFileUtf8(
       if (bytesRead === 0) break;
       size += bytesRead;
       if (size > maximumBytes) {
-        throw new Error("state file exceeds the size limit");
+        throw new Error(`${label} exceeds the size limit`);
       }
       chunks.push(Buffer.from(buffer.subarray(0, bytesRead)));
     }
@@ -61,7 +62,7 @@ export async function readSecureFileUtf8(
       return new TextDecoder("utf-8", { fatal: true })
         .decode(Buffer.concat(chunks, size));
     } catch {
-      throw new Error("state file is invalid UTF-8");
+      throw new Error(`${label} is invalid UTF-8`);
     }
   } finally {
     await handle.close();

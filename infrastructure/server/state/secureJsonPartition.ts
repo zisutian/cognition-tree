@@ -217,7 +217,11 @@ export class SecureJsonPartition<Value> {
     let source: string;
 
     try {
-      source = await readSecureFileUtf8(this.#file, this.#maximumBytes);
+      source = await readSecureFileUtf8(
+        this.#file,
+        this.#maximumBytes,
+        "state file",
+      );
     } catch (error) {
       if (!isMissing(error)) {
         throw new SecureStatePartitionError(
@@ -391,7 +395,11 @@ export class SecureJsonPartition<Value> {
     try {
       return {
         kind: "source",
-        source: await readSecureFileUtf8(this.#file, this.#maximumBytes),
+        source: await readSecureFileUtf8(
+          this.#file,
+          this.#maximumBytes,
+          "state file",
+        ),
       };
     } catch (error) {
       return isMissing(error) ? { kind: "missing" } : { kind: "unavailable" };

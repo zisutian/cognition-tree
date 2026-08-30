@@ -4,7 +4,6 @@ import {
   chmod,
   lstat,
   opendir,
-  readFile,
   readdir,
   rm,
   rmdir,
@@ -17,6 +16,7 @@ import {
   ensureSecureStateDirectory,
   fsyncDirectory,
   isSecureRegularFile,
+  readSecureFileUtf8,
   writeFileDurably,
 } from "../state/secureStateFileSystem.ts";
 import { createStateDigest } from "../state/stateDigest.ts";
@@ -30,6 +30,7 @@ const apiKeyFileNamePattern = /^api-key-v([1-9][0-9]*)\.json$/;
 const managedFileNamePattern = /^codex-managed-v([1-9][0-9]*)-([A-Za-z0-9][A-Za-z0-9._-]{0,127})\.json$/;
 const managedHomeNamePattern = /^codex-home-v([1-9][0-9]*)-([A-Za-z0-9][A-Za-z0-9._-]{0,127})$/;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
+export const maximumAgentCredentialManifestBytes = 1024 * 1024;
 
 type ApiKeyCredential = Readonly<{
   apiKey: string;
@@ -81,6 +82,28 @@ function credentialDigest(
   return `sha256:${createStateDigest(serializeJsonIteratively(credential, {
     sortObjectKeys: true,
   }))}`;
+}
+
+function serializeCredential(
+  credential: ApiKeyCredential | CodexManagedCredential,
+) {
+  const source = `${serializeJsonIteratively(credential, {
+    indent: 2,
+    sortObjectKeys: true,
+  })}\n`;
+
+  if (Buffer.byteLength(source) > maximumAgentCredentialManifestBytes) {
+    throw new Error("Agent credential exceeds the size limit.");
+  }
+  return source;
+}
+
+async function readCredentialJson(file: string) {
+  return JSON.parse(await readSecureFileUtf8(
+    file,
+    maximumAgentCredentialManifestBytes,
+    "Agent credential file",
+  )) as unknown;
 }
 
 function parseCredential(value: unknown): ApiKeyCredential {
@@ -179,10 +202,6 @@ export class AgentProviderCredentialStore {
     positiveInteger(version, "Agent credential version");
     const providersDirectory = path.join(this.#root, "providers");
     const providerDirectory = path.join(providersDirectory, providerId);
-
-    await ensureSecureStateDirectory(this.#root);
-    await ensureSecureStateDirectory(providersDirectory);
-    await ensureSecureStateDirectory(providerDirectory);
     const credential: ApiKeyCredential = {
       apiKey,
       formatVersion: credentialFormatVersion,
@@ -190,6 +209,7 @@ export class AgentProviderCredentialStore {
       type: "api-key",
       version,
     };
+    const credentialSource = serializeCredential(credential);
     const reference = `providers/${providerId}/api-key-v${version}.json`;
     const file = path.join(this.#root, reference);
     const result = {
@@ -198,6 +218,9 @@ export class AgentProviderCredentialStore {
       version,
     } as const;
 
+    await ensureSecureStateDirectory(this.#root);
+    await ensureSecureStateDirectory(providersDirectory);
+    await ensureSecureStateDirectory(providerDirectory);
     try {
       const existing = await this.#read(result);
 
@@ -208,13 +231,7 @@ export class AgentProviderCredentialStore {
     } catch (error) {
       if (!isMissing(error)) throw error;
     }
-    await writeFileDurably(
-      file,
-      `${serializeJsonIteratively(credential, {
-        indent: 2,
-        sortObjectKeys: true,
-      })}\n`,
-    );
+    await writeFileDurably(file, credentialSource);
     await fsyncDirectory(providerDirectory);
     return result;
   }
@@ -283,10 +300,7 @@ export class AgentProviderCredentialStore {
     } as const;
     const file = path.join(this.#root, reference);
 
-    await writeFileDurably(file, `${serializeJsonIteratively(credential, {
-      indent: 2,
-      sortObjectKeys: true,
-    })}\n`);
+    await writeFileDurably(file, serializeCredential(credential));
     await fsyncDirectory(path.dirname(file));
     return result;
   }
@@ -304,11 +318,8 @@ export class AgentProviderCredentialStore {
     await assertSecureStateDirectory(
       path.join(this.#root, "providers", parsed.providerId),
     );
-    if (!isSecureRegularFile(await lstat(file))) {
-      throw new Error("Codex managed credential manifest is not secure.");
-    }
     const credential = parseManagedCredential(
-      JSON.parse(await readFile(file, "utf8")),
+      await readCredentialJson(file),
     );
 
     if (credential.providerId !== parsed.providerId ||
@@ -436,13 +447,8 @@ export class AgentProviderCredentialStore {
         const homeMatch = managedHomeNamePattern.exec(entry.name);
 
         if (entry.isFile() && apiKeyMatch) {
-          const stats = await lstat(entryPath);
-
-          if (!isSecureRegularFile(stats)) {
-            throw new Error("Agent credential file is not secure.");
-          }
           const credential = parseCredential(
-            JSON.parse(await readFile(entryPath, "utf8")),
+            await readCredentialJson(entryPath),
           );
           const version = Number(apiKeyMatch[1]);
 
@@ -462,13 +468,8 @@ export class AgentProviderCredentialStore {
           continue;
         }
         if (entry.isFile() && managedMatch) {
-          const stats = await lstat(entryPath);
-
-          if (!isSecureRegularFile(stats)) {
-            throw new Error("Codex managed credential manifest is not secure.");
-          }
           const credential = parseManagedCredential(
-            JSON.parse(await readFile(entryPath, "utf8")),
+            await readCredentialJson(entryPath),
           );
           const version = Number(managedMatch[1]);
           const loginId = managedMatch[2]!;
@@ -550,12 +551,7 @@ export class AgentProviderCredentialStore {
     await assertSecureStateDirectory(this.#root);
     await assertSecureStateDirectory(path.join(this.#root, "providers"));
     await assertSecureStateDirectory(path.join(this.#root, "providers", providerId));
-    const stats = await lstat(file);
-
-    if (!isSecureRegularFile(stats)) {
-      throw new Error("Agent credential file permissions or type are invalid.");
-    }
-    const credential = parseCredential(JSON.parse(await readFile(file, "utf8")));
+    const credential = parseCredential(await readCredentialJson(file));
 
     if (credential.providerId !== providerId || credential.version !== version ||
         credentialDigest(credential) !== reference.digest) {
