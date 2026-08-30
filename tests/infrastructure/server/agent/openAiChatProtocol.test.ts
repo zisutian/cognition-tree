@@ -21,7 +21,7 @@ function responseFromChunks(
       for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
       controller.close();
     },
-  }));
+  }), { headers: { "Content-Type": "text/event-stream" } });
 }
 
 async function collectSse(response: Response) {
@@ -55,6 +55,30 @@ describe("OpenAI-compatible SSE protocol", () => {
     await expect(collectSse(response)).rejects.toThrow(/incomplete SSE frame/i);
   });
 
+  it("rejects an invalid media type or UTF-8 byte sequence", async () => {
+    await expect(collectSse(new Response("data: value\n\n", {
+      headers: { "Content-Type": "application/json" },
+    }))).rejects.toThrow(/must use text\/event-stream/i);
+    const response = new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(Uint8Array.from([
+          0x64,
+          0x61,
+          0x74,
+          0x61,
+          0x3a,
+          0x20,
+          0xff,
+          0x0a,
+          0x0a,
+        ]));
+        controller.close();
+      },
+    }), { headers: { "Content-Type": "text/event-stream" } });
+
+    await expect(collectSse(response)).rejects.toThrow(/invalid UTF-8/i);
+  });
+
   it("cancels the response stream when its consumer stops early", async () => {
     let cancelled = false;
     const response = new Response(new ReadableStream<Uint8Array>({
@@ -64,7 +88,7 @@ describe("OpenAI-compatible SSE protocol", () => {
       start(controller) {
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       },
-    }));
+    }), { headers: { "Content-Type": "text/event-stream" } });
 
     for await (const value of readOpenAiChatSse(response)) {
       expect(value).toBe("[DONE]");

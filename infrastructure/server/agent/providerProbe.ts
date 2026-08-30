@@ -39,23 +39,51 @@ function validatedEndpoint(value: string) {
 }
 
 async function readLimitedJson(response: Response) {
+  const contentType = response.headers.get("content-type")
+    ?.split(";", 1)[0]?.trim().toLowerCase();
+
+  if (contentType !== "application/json") {
+    throw new Error("Provider response must use application/json");
+  }
+  const contentLength = response.headers.get("content-length");
+
+  if (contentLength && !/^\d+$/.test(contentLength)) {
+    throw new Error("Provider response Content-Length is invalid");
+  }
+  if (contentLength && Number(contentLength) > responseByteLimit) {
+    throw new Error("Provider response exceeded the size limit");
+  }
   if (!response.body) {
     throw new Error("Provider response has no body");
   }
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let length = 0;
+  let reachedEnd = false;
 
-  while (true) {
-    const { done, value } = await reader.read();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
 
-    if (done) break;
-    length += value.byteLength;
-    if (length > responseByteLimit) {
-      await reader.cancel();
-      throw new Error("Provider response exceeded the size limit");
+      if (done) {
+        reachedEnd = true;
+        break;
+      }
+      length += value.byteLength;
+      if (length > responseByteLimit) {
+        throw new Error("Provider response exceeded the size limit");
+      }
+      chunks.push(value);
     }
-    chunks.push(value);
+  } finally {
+    if (!reachedEnd) {
+      try {
+        await reader.cancel();
+      } catch {
+        // The original transport failure remains authoritative.
+      }
+    }
+    reader.releaseLock();
   }
   const body = new Uint8Array(length);
   let offset = 0;
@@ -64,7 +92,18 @@ async function readLimitedJson(response: Response) {
     body.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return JSON.parse(new TextDecoder().decode(body)) as unknown;
+  let source: string;
+
+  try {
+    source = new TextDecoder("utf-8", { fatal: true }).decode(body);
+  } catch {
+    throw new Error("Provider response is invalid UTF-8");
+  }
+  try {
+    return JSON.parse(source) as unknown;
+  } catch {
+    throw new Error("Provider response is invalid JSON");
+  }
 }
 
 async function requestJson(

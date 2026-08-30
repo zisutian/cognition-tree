@@ -632,7 +632,7 @@ describe("Agent provider operations", () => {
     }
   });
 
-  it("rejects redirected and oversized Provider metadata responses", async () => {
+  it("rejects invalid Provider metadata transports", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
     const fetchFn = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(null, {
@@ -641,8 +641,22 @@ describe("Agent provider operations", () => {
       }))
       .mockResolvedValueOnce(new Response(
         new Uint8Array(1024 * 1024 + 1),
-        { status: 200 },
-      ));
+        {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+        },
+      ))
+      .mockResolvedValueOnce(new Response(
+        Uint8Array.from([0x7b, 0x22, 0xff, 0x22, 0x7d]),
+        {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+        },
+      ))
+      .mockResolvedValueOnce(new Response("{}", {
+        headers: { "Content-Type": "text/plain" },
+        status: 200,
+      }));
     const operations = new AgentProviderOperations({
       configurationStore: new AgentConfigurationStore(directory),
       fetch: fetchFn,
@@ -654,7 +668,11 @@ describe("Agent provider operations", () => {
         .rejects.toThrow("Provider redirects are not allowed");
       await expect(operations.discoverOllama("http://127.0.0.1:12345"))
         .rejects.toThrow("Provider response exceeded the size limit");
-      expect(fetchFn).toHaveBeenCalledTimes(2);
+      await expect(operations.discoverOllama("http://127.0.0.1:12345"))
+        .rejects.toThrow("Provider response is invalid UTF-8");
+      await expect(operations.discoverOllama("http://127.0.0.1:12345"))
+        .rejects.toThrow("Provider response must use application/json");
+      expect(fetchFn).toHaveBeenCalledTimes(4);
     } finally {
       await operations.dispose();
       await rm(directory, { force: true, recursive: true });

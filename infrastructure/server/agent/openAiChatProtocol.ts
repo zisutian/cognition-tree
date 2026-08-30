@@ -182,12 +182,20 @@ export function countOpenAiChatStreamChunkCharacters(
 }
 
 export async function* readOpenAiChatSse(response: Response) {
+  const contentType = response.headers.get("content-type")
+    ?.split(";", 1)[0]?.trim().toLowerCase();
+
+  if (contentType !== "text/event-stream") {
+    throw new AgentRuntimeProtocolError(
+      "OpenAI-compatible response must use text/event-stream",
+    );
+  }
   if (!response.body) {
     throw new AgentRuntimeProtocolError(
       "OpenAI-compatible response has no body",
     );
   }
-  const decoder = new TextDecoder();
+  const decoder = new TextDecoder("utf-8", { fatal: true });
   let buffer = "";
   let pendingCarriageReturn = false;
   const reader = response.body.getReader();
@@ -231,9 +239,21 @@ export async function* readOpenAiChatSse(response: Response) {
 
       if (done) {
         reachedEnd = true;
-        appendDecoded(decoder.decode(), true);
+        try {
+          appendDecoded(decoder.decode(), true);
+        } catch {
+          throw new AgentRuntimeProtocolError(
+            "OpenAI-compatible runtime emitted invalid UTF-8",
+          );
+        }
       } else {
-        appendDecoded(decoder.decode(value, { stream: true }), false);
+        try {
+          appendDecoded(decoder.decode(value, { stream: true }), false);
+        } catch {
+          throw new AgentRuntimeProtocolError(
+            "OpenAI-compatible runtime emitted invalid UTF-8",
+          );
+        }
       }
       while (true) {
         const frame = takeFrame();
