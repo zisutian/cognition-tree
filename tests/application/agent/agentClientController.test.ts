@@ -13,6 +13,17 @@ const sessionId = "00000000-0000-4000-8000-000000000001";
 const messageId = "00000000-0000-4000-8000-000000000002";
 const proposalId = "00000000-0000-4000-8000-000000000003";
 
+function createDeferred<Value>() {
+  let resolve!: (value: Value) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<Value>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, reject, resolve };
+}
+
 function createSession(sequence = 3): AgentSessionSnapshot {
   return {
     activeTurnId: null,
@@ -261,6 +272,71 @@ describe("Agent client controller", () => {
       expect(harness.controller.getSnapshot().sessions).toEqual([]);
     });
     expect(harness.reports).toEqual([]);
+    harness.controller.dispose();
+  });
+
+  it("serializes reloads and never publishes a superseded session list", async () => {
+    const harness = createHarness();
+
+    await start(harness);
+    const stale = createDeferred<AgentSessionSnapshot[]>();
+    const current = createDeferred<AgentSessionSnapshot[]>();
+
+    vi.mocked(harness.port.listSessions)
+      .mockImplementationOnce(() => stale.promise)
+      .mockImplementationOnce(() => current.promise);
+    const firstReload = harness.controller.reload();
+
+    await vi.waitFor(() => {
+      expect(harness.port.listSessions).toHaveBeenCalledTimes(2);
+    });
+    const secondReload = harness.controller.reload();
+
+    expect(harness.port.listSessions).toHaveBeenCalledTimes(2);
+    stale.resolve([createSession(4)]);
+    await vi.waitFor(() => {
+      expect(harness.port.listSessions).toHaveBeenCalledTimes(3);
+    });
+    current.resolve([createSession(8)]);
+    await Promise.all([firstReload, secondReload]);
+
+    expect(harness.controller.getSnapshot().sessions[0]?.sequence).toBe(8);
+    harness.controller.dispose();
+  });
+
+  it("rereads instead of overwriting an event received during reload", async () => {
+    const harness = createHarness();
+
+    await start(harness);
+    const stale = createDeferred<AgentSessionSnapshot[]>();
+    const refreshedBase = createSession(4);
+    const refreshed = {
+      ...refreshedBase,
+      messages: [{ ...refreshedBase.messages[0]!, content: "AB" }],
+    };
+
+    vi.mocked(harness.port.listSessions)
+      .mockImplementationOnce(() => stale.promise)
+      .mockResolvedValueOnce([refreshed]);
+    const reload = harness.controller.reload();
+
+    await vi.waitFor(() => {
+      expect(harness.port.listSessions).toHaveBeenCalledTimes(2);
+    });
+    harness.emit({
+      messageId,
+      sequence: 4,
+      sessionId,
+      textDelta: "B",
+      type: "message-delta",
+    });
+    stale.resolve([createSession(3)]);
+    await reload;
+
+    expect(harness.port.listSessions).toHaveBeenCalledTimes(3);
+    expect(harness.controller.getSnapshot().sessions[0]?.sequence).toBe(4);
+    expect(harness.controller.getSnapshot().sessions[0]?.messages[0]?.content)
+      .toBe("AB");
     harness.controller.dispose();
   });
 

@@ -94,11 +94,13 @@ export function createAgentClientController({
 }): AgentClientController {
   const listeners = new Set<() => void>();
   let activeEventStream: AgentClientEventStream | null = null;
+  let activeReload: Promise<void> | null = null;
   let activeRecovery: Promise<void> | null = null;
   let activeRecoverySessionId: string | null = null;
   let cancelReconnect: (() => void) | null = null;
   let disposed = false;
   let operationCount = 0;
+  let reloadRequested = false;
   let started = false;
   let state: AgentClientState = {
     activeSessionId: null,
@@ -151,38 +153,66 @@ export function createAgentClientController({
   };
   const activeSession = () =>
     state.sessions.find(({ id }) => id === state.activeSessionId) ?? null;
+  const invalidateActiveReload = () => {
+    if (activeReload) reloadRequested = true;
+  };
   const publishSession = (session: AgentSessionSnapshot) => {
+    invalidateActiveReload();
     update({ sessions: replaceSession(state.sessions, session) });
   };
 
   let connectEvents = () => undefined;
-  const reloadState = async () => {
-    update({ errorMessage: null, loadStatus: "loading" });
-    try {
-      const [status, sessions] = await Promise.all([
-        port.getStatus(),
-        port.listSessions(),
-      ]);
-      const activeSessionId = sessions.some(({ id }) =>
-          id === state.activeSessionId
-        )
-        ? state.activeSessionId
-        : sessions[0]?.id ?? null;
+  const reloadState = () => {
+    reloadRequested = true;
+    if (activeReload) return activeReload;
+    const execution = (async () => {
+      update({ errorMessage: null, loadStatus: "loading" });
+      while (!disposed) {
+        if (!reloadRequested) {
+          // Stabilize through one microtask so a response continuation cannot
+          // enqueue a reload after this drain has already resolved.
+          await Promise.resolve();
+          if (!reloadRequested) break;
+        }
+        reloadRequested = false;
+        let status: AgentStatus;
+        let sessions: readonly AgentSessionSnapshot[];
 
-      stopEvents();
-      update({
-        activeSessionId,
-        errorMessage: null,
-        loadStatus: "ready",
-        preferredProfileId: reconcilePreferredProfile(status),
-        sessions,
-        status,
-      });
-      connectEvents();
-    } catch (error) {
-      update({ errorMessage: errorMessage(error), loadStatus: "failed" });
-      throw error;
-    }
+        try {
+          [status, sessions] = await Promise.all([
+            port.getStatus(),
+            port.listSessions(),
+          ]);
+        } catch (error) {
+          if (reloadRequested && !disposed) continue;
+          update({ errorMessage: errorMessage(error), loadStatus: "failed" });
+          throw error;
+        }
+        if (reloadRequested || disposed) continue;
+        const activeSessionId = sessions.some(({ id }) =>
+            id === state.activeSessionId
+          )
+          ? state.activeSessionId
+          : sessions[0]?.id ?? null;
+
+        stopEvents();
+        update({
+          activeSessionId,
+          errorMessage: null,
+          loadStatus: "ready",
+          preferredProfileId: reconcilePreferredProfile(status),
+          sessions,
+          status,
+        });
+        connectEvents();
+      }
+    })();
+
+    activeReload = execution;
+    void execution.finally(() => {
+      if (activeReload === execution) activeReload = null;
+    }).catch(() => undefined);
+    return execution;
   };
   const recoverActiveSession = (force = false): Promise<void> => {
     const sessionId = state.activeSessionId;
@@ -352,6 +382,7 @@ export function createAgentClientController({
       }
       const session = await port.createSession({ profileId: profile.id, scope });
 
+      invalidateActiveReload();
       update({ sessions: replaceSession(state.sessions, session) });
       setActiveSession(session.id);
     }),
@@ -369,6 +400,7 @@ export function createAgentClientController({
         ? sessions[0]?.id ?? null
         : state.activeSessionId;
 
+      invalidateActiveReload();
       stopEvents();
       update({ activeSessionId: nextActive, sessions });
       connectEvents();
@@ -384,6 +416,7 @@ export function createAgentClientController({
       try {
         const status = await port.getStatus();
 
+        invalidateActiveReload();
         update({
           errorMessage: null,
           loadStatus: "ready",
