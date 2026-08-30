@@ -166,6 +166,18 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/agent\/configurationStore\.ts$/,
     ],
     [
+      "Agent Provider configuration coordinator",
+      infrastructureModules,
+      /\bnew AgentProviderConfiguration\s*\(/,
+      /^infrastructure\/server\/agent\/configurationStore\.ts$/,
+    ],
+    [
+      "Agent Provider conformance invalidation",
+      infrastructureModules,
+      /\bfunction invalidateProviderConformance\s*\(/,
+      /^infrastructure\/server\/agent\/providerConfiguration\.ts$/,
+    ],
+    [
       "CTN tone class projection",
       presentationModules,
       /`ctn-tone-\$\{tone\}`/,

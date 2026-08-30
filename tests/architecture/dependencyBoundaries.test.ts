@@ -358,6 +358,29 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps Provider configuration transactions behind their store", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath: "../../infrastructure/server/agent/configurationStore.ts",
+        importPath: "./providerConfiguration",
+        targetPath:
+          "../../infrastructure/server/agent/providerConfiguration.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/agent/sessionTools.ts",
+        importPath: "./providerConfiguration",
+        targetPath:
+          "../../infrastructure/server/agent/providerConfiguration.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "Agent Provider configuration composition boundary: ../../infrastructure/server/agent/sessionTools.ts imports ./providerConfiguration",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

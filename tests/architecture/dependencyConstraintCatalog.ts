@@ -89,6 +89,8 @@ const agentSessionOpenerPath =
   "../../infrastructure/server/agent/sessionOpener.ts";
 const agentProfileConfigurationPath =
   "../../infrastructure/server/agent/profileConfiguration.ts";
+const agentProviderConfigurationPath =
+  "../../infrastructure/server/agent/providerConfiguration.ts";
 const agentConfigurationStorePath =
   "../../infrastructure/server/agent/configurationStore.ts";
 const agentServicePath = "../../infrastructure/server/agent/service.ts";
@@ -263,6 +265,11 @@ export function createDependencyImportPolicies({
       allows: ({ filePath }) => filePath === agentConfigurationStorePath,
       applies: ({ targetPath }) => targetPath === agentProfileConfigurationPath,
       name: "Agent Profile configuration composition boundary",
+    },
+    {
+      allows: ({ filePath }) => filePath === agentConfigurationStorePath,
+      applies: ({ targetPath }) => targetPath === agentProviderConfigurationPath,
+      name: "Agent Provider configuration composition boundary",
     },
     {
       allows: () => false,
