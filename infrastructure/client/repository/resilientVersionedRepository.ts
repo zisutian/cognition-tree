@@ -6,7 +6,6 @@ import {
   VersionedRepositoryLocalConflictError,
   VersionedRepositoryLocalMergeConflictError,
   VersionedRepositoryRemoteError,
-  VersionedRepositoryUnavailableError,
   type VersionedRepository,
   type VersionedRepositoryBackend,
   type VersionedContentConflictPreference,
@@ -21,6 +20,13 @@ import {
 } from "../../../application/persistence/versionedRepository";
 import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
 import { LocalFirstRepositoryProjectionState } from "./resilientVersionedRepositoryProjection.ts";
+import {
+  canUseVersionedRepositoryCachedSnapshot,
+  isRetryableVersionedRepositoryRemoteError,
+  normalizeVersionedConflictUnitIds,
+  versionedContentEqual,
+  versionedRepositoryErrorMessage,
+} from "./resilientVersionedRepositoryPolicy.ts";
 
 export type VersionedRepositoryLoadPolicy =
   | Readonly<{ mode: "cache-first" }>
@@ -48,23 +54,6 @@ type LocalFirstVersionedRepositoryOptions<
   subscribeReconnect?: (listener: () => void) => () => void;
   preparation: VersionedContentPreparationPolicy<Content, Projection>;
 };
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "Repository synchronization failed";
-}
-
-function isRetryableRemoteError(error: unknown) {
-  return error instanceof VersionedRepositoryUnavailableError ||
-    (error instanceof VersionedRepositoryRemoteError && error.retryable);
-}
-
-function canUseCachedSnapshot(error: unknown) {
-  return isRetryableRemoteError(error) &&
-    !(error instanceof VersionedRepositoryRemoteError &&
-      error.code === "repository_busy");
-}
 
 export function createLocalFirstVersionedRepository<
   Content,
@@ -124,10 +113,6 @@ export function createLocalFirstVersionedRepository<
   >(preparation);
   const resolveIdentity = () => Promise.resolve(repositoryIdentity);
 
-  const contentEqual = (left: Content, right: Content) =>
-    JSON.stringify(left) === JSON.stringify(right);
-  const normalizeUnitIds = (unitIds: readonly string[]) =>
-    [...new Set(unitIds)].sort();
   const continuePreparedChange = (
     change: PreparedVersionedContentChange<
       Content,
@@ -138,7 +123,7 @@ export function createLocalFirstVersionedRepository<
     current: Prepared,
   ): Prepared => {
     if (change.baseLocalRevision === currentLocalRevision) {
-      if (!contentEqual(change.before.content, current.content)) {
+      if (!versionedContentEqual(change.before.content, current.content)) {
         throw new VersionedRepositoryLocalMergeConflictError(["repository"]);
       }
       return change.after;
@@ -169,7 +154,7 @@ export function createLocalFirstVersionedRepository<
         baseContent,
         current,
         currentPrepared,
-        contentEqual,
+        versionedContentEqual,
       )
       : null;
     const merged = basePrepared && mergeContent
@@ -206,7 +191,7 @@ export function createLocalFirstVersionedRepository<
       expectedLocalRevision: current.localRevision,
       identity,
       localRevision: createLocalRevision(),
-      pendingChanges: !contentEqual(merged.content, remote.content),
+      pendingChanges: !versionedContentEqual(merged.content, remote.content),
       snapshot: remote,
     });
     projections.rememberLocal(state, mergedPrepared);
@@ -279,10 +264,13 @@ export function createLocalFirstVersionedRepository<
           expectedLocalRevision: current.localRevision,
           identity,
           localRevision: current.localRevision === submitted.localRevision &&
-              contentEqual(merged.content, submitted.content)
+              versionedContentEqual(merged.content, submitted.content)
             ? current.localRevision
             : createLocalRevision(),
-          pendingChanges: !contentEqual(merged.content, remote.content),
+          pendingChanges: !versionedContentEqual(
+            merged.content,
+            remote.content,
+          ),
           snapshot: remote,
         });
 
@@ -377,7 +365,7 @@ export function createLocalFirstVersionedRepository<
       try {
         remote = await backend.loadRemoteSnapshot();
       } catch (error) {
-        if (canUseCachedSnapshot(error)) {
+        if (canUseVersionedRepositoryCachedSnapshot(error)) {
           const fallback = await cache.load(identity) ?? local;
 
           return projections.toSnapshot(
@@ -544,7 +532,9 @@ export function createLocalFirstVersionedRepository<
           try {
             remote = await backend.loadRemoteSnapshot();
           } catch (loadError) {
-            if (!isRetryableRemoteError(loadError)) throw loadError;
+            if (!isRetryableVersionedRepositoryRemoteError(loadError)) {
+              throw loadError;
+            }
             const current = await cache.load(identity);
             if (!current) throw loadError;
             return complete(projections.toTransition(
@@ -555,7 +545,7 @@ export function createLocalFirstVersionedRepository<
                 localPrepared.projection,
               ),
             ), {
-              message: getErrorMessage(loadError),
+              message: versionedRepositoryErrorMessage(loadError),
               status: "sync-error",
             });
           }
@@ -612,7 +602,9 @@ export function createLocalFirstVersionedRepository<
           try {
             remote = await backend.loadRemoteSnapshot();
           } catch (loadError) {
-            if (!isRetryableRemoteError(loadError)) throw loadError;
+            if (!isRetryableVersionedRepositoryRemoteError(loadError)) {
+              throw loadError;
+            }
             const current = await cache.load(identity);
             if (!current) throw loadError;
 
@@ -624,7 +616,7 @@ export function createLocalFirstVersionedRepository<
                 localPrepared.projection,
               ),
             ), {
-              message: getErrorMessage(loadError),
+              message: versionedRepositoryErrorMessage(loadError),
               status: "sync-error",
             });
           }
@@ -676,13 +668,13 @@ export function createLocalFirstVersionedRepository<
             localPrepared.projection,
           ),
         );
-        if (isRetryableRemoteError(error)) {
+        if (isRetryableVersionedRepositoryRemoteError(error)) {
           return complete(transition, {
             status: "offline",
           });
         }
         return complete(transition, {
-          message: getErrorMessage(error),
+          message: versionedRepositoryErrorMessage(error),
           status: "sync-error",
         });
       }
@@ -758,14 +750,14 @@ export function createLocalFirstVersionedRepository<
         conflict.base,
         current,
         currentPrepared,
-        contentEqual,
+        versionedContentEqual,
       )
       : null;
     const unresolved = basePrepared && mergeContent
       ? mergeContent(basePrepared, currentPrepared, remotePrepared)
       : { status: "conflict" as const, unitIds: ["repository"] };
     const liveUnitIds = unresolved.status === "conflict"
-      ? normalizeUnitIds(unresolved.unitIds)
+      ? normalizeVersionedConflictUnitIds(unresolved.unitIds)
       : [];
     const merged = unresolved.status === "merged"
       ? unresolved
@@ -798,7 +790,9 @@ export function createLocalFirstVersionedRepository<
       : null;
     if (
       recovery &&
-      JSON.stringify(normalizeUnitIds(recovery.coveredUnitIds)) !==
+      JSON.stringify(
+        normalizeVersionedConflictUnitIds(recovery.coveredUnitIds),
+      ) !==
         JSON.stringify(liveUnitIds)
     ) {
       throw new Error(
@@ -814,7 +808,7 @@ export function createLocalFirstVersionedRepository<
       expectedLocalRevision: current.localRevision,
       identity,
       localRevision: createLocalRevision(),
-      pendingChanges: !contentEqual(content, conflict.remote),
+      pendingChanges: !versionedContentEqual(content, conflict.remote),
       snapshot: {
         content: conflict.remote,
         revision: conflict.remoteRevision,
@@ -850,7 +844,7 @@ export function createLocalFirstVersionedRepository<
         : [resolvedTransition];
 
       return {
-        message: getErrorMessage(error),
+        message: versionedRepositoryErrorMessage(error),
         status: "sync-error" as const,
         transitions: recoveryTransitions,
       };
@@ -942,7 +936,7 @@ export function createLocalFirstVersionedRepository<
                   syncContext.conflict.base,
                   current,
                   nextPrepared,
-                  contentEqual,
+                  versionedContentEqual,
                 )
               : null;
             const unresolved = basePrepared && mergeContent
@@ -956,7 +950,7 @@ export function createLocalFirstVersionedRepository<
                 expectedLocalRevision: current.localRevision,
                 identity,
                 localRevision: createLocalRevision(),
-                pendingChanges: !contentEqual(
+                pendingChanges: !versionedContentEqual(
                   unresolved.content,
                   syncContext.conflict.remote,
                 ),
