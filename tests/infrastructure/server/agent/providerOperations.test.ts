@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AgentConfigurationStore } from "../../../../infrastructure/server/agent/configurationStore.ts";
 import { CodexDeviceLoginOperations } from "../../../../infrastructure/server/agent/codexDeviceLoginOperations.ts";
 import { AgentProviderOperations } from "../../../../infrastructure/server/agent/providerOperations.ts";
-import { pinnedCodexVersion } from "../../../../infrastructure/server/agent/codexAppServerClient.ts";
+import { pinnedCodexVersion } from "../../../../infrastructure/server/agent/codexPackage.ts";
 import type { ApiRuntime } from "../../../../infrastructure/server/api/http/runtime.ts";
 import {
   replaceFileDurably,

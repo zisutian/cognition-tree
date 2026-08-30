@@ -19,11 +19,9 @@ import {
 } from "../../../application/agent/agentRuntimePort.ts";
 import type { AgentScope } from "../../../application/agent/agentTypes.ts";
 import type { CodexAgentProfile } from "./runtimeProfiles.ts";
-import {
-  CodexAppServerClient,
-  resolveCodexEntrypoint,
-  withTimeout,
-} from "./codexAppServerClient.ts";
+import { CodexAppServerClient } from "./codexAppServerClient.ts";
+import { resolveCodexEntrypoint } from "./codexPackage.ts";
+import { withRuntimeTimeout } from "./runtimeTimeout.ts";
 
 const codexProcessTerminationGraceMilliseconds = 2_000;
 
@@ -187,7 +185,7 @@ class CodexRuntimeSession implements AgentRuntimeSession {
 
   #interruptActiveTurn() {
     if (!this.#activeTurnId) return Promise.resolve();
-    return withTimeout(this.#client.request("turn/interrupt", {
+    return withRuntimeTimeout(this.#client.request("turn/interrupt", {
       threadId: this.#threadId,
       turnId: this.#activeTurnId,
     }), codexProcessTerminationGraceMilliseconds, "Codex interrupt timed out")
@@ -409,7 +407,7 @@ export class CodexRuntime implements AgentRuntimePort {
     const client = new CodexAppServerClient(child);
 
     try {
-      await withTimeout(client.request("initialize", {
+      await withRuntimeTimeout(client.request("initialize", {
         capabilities: { experimentalApi: true },
         clientInfo: {
           name: "cognition_tree",
@@ -419,7 +417,7 @@ export class CodexRuntime implements AgentRuntimePort {
       }), this.#profile.timeoutMilliseconds, "Codex initialize timed out");
       client.notify("initialized", {});
       if (this.#authentication.type === "api-key") {
-        const login = record(await withTimeout(client.request(
+        const login = record(await withRuntimeTimeout(client.request(
           "account/login/start",
           { apiKey: this.#authentication.apiKey, type: "apiKey" },
         ), this.#profile.timeoutMilliseconds, "Codex API key login timed out"));
@@ -428,7 +426,7 @@ export class CodexRuntime implements AgentRuntimePort {
           throw new AgentRuntimeProtocolError("Codex rejected API key login");
         }
       } else {
-        const accountResult = record(await withTimeout(client.request(
+        const accountResult = record(await withRuntimeTimeout(client.request(
           "account/read",
           { refreshToken: false },
         ), this.#profile.timeoutMilliseconds, "Codex account check timed out"));
@@ -440,7 +438,7 @@ export class CodexRuntime implements AgentRuntimePort {
           );
         }
       }
-      const result = record(await withTimeout(client.request("thread/start", {
+      const result = record(await withRuntimeTimeout(client.request("thread/start", {
         approvalPolicy: "never",
         baseInstructions: input.instructions,
         config: mcpConfig(input.privateToolProcess, temporary.cwd),

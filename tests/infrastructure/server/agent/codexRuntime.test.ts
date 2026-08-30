@@ -11,7 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { CodexRuntime } from "../../../../infrastructure/server/agent/codexRuntime.ts";
-import { pinnedCodexVersion } from "../../../../infrastructure/server/agent/codexAppServerClient.ts";
+import { pinnedCodexVersion } from "../../../../infrastructure/server/agent/codexPackage.ts";
 import type {
   CodexAgentProfile,
 } from "../../../../infrastructure/server/agent/runtimeProfiles.ts";

@@ -13,12 +13,10 @@ import type {
   AgentConfigurationProviderChange,
 } from "./configurationAccess.ts";
 import type { AgentConfigurationStore } from "./configurationStore.ts";
-import {
-  CodexAppServerClient,
-  resolveCodexEntrypoint,
-  withTimeout,
-} from "./codexAppServerClient.ts";
+import { CodexAppServerClient } from "./codexAppServerClient.ts";
+import { resolveCodexEntrypoint } from "./codexPackage.ts";
 import { AgentProviderOperationConflictError } from "./providerOperationErrors.ts";
+import { withRuntimeTimeout } from "./runtimeTimeout.ts";
 import { SecureStateCommitOutcomeUnknownError } from "../state/secureJsonPartition.ts";
 
 const codexAppServerRequestTimeoutMilliseconds = 5_000;
@@ -224,7 +222,7 @@ export class CodexDeviceLoginOperations {
       child.once("exit", () => this.#children.delete(child!));
       const client = new CodexAppServerClient(child);
 
-      await withTimeout(
+      await withRuntimeTimeout(
         client.request("initialize", {
           capabilities: { experimentalApi: true },
           clientInfo: {
@@ -265,7 +263,7 @@ export class CodexDeviceLoginOperations {
           typeof params.error === "string" ? params.error : null,
         );
       });
-      const login = await withTimeout(
+      const login = await withRuntimeTimeout(
         client.request("account/login/start", { type: "chatgptDeviceCode" }),
         codexAppServerRequestTimeoutMilliseconds,
         "Codex device login start timed out",
@@ -468,7 +466,7 @@ export class CodexDeviceLoginOperations {
     if (record.finishing) return record.status;
     record.finishing = true;
     clearTimeout(record.timeout);
-    await withTimeout(
+    await withRuntimeTimeout(
       record.client.request("account/login/cancel", {
         loginId: record.codexLoginId,
       }),

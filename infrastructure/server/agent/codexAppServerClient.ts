@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { AgentRuntimeProtocolError } from "../../../application/agent/agentRuntimePort.ts";
 import { listenToAgentJsonLines } from "./jsonLineTransport.ts";
-
-export const pinnedCodexVersion = "0.148.0";
 
 type OutgoingJsonRpcMessage = {
   error?: { code: number; message: string };
@@ -234,53 +230,4 @@ export class CodexAppServerClient {
       id: message.id,
     });
   }
-}
-
-export async function resolveCodexEntrypoint(projectRoot: string) {
-  const packageDirectory = path.join(
-    projectRoot,
-    "node_modules",
-    "@openai",
-    "codex",
-  );
-  const parsedPackageJson = JSON.parse(
-    await readFile(path.join(packageDirectory, "package.json"), "utf8"),
-  ) as unknown;
-  const packageJson = parsedPackageJson &&
-      typeof parsedPackageJson === "object" &&
-      !Array.isArray(parsedPackageJson)
-    ? parsedPackageJson as Record<string, unknown>
-    : null;
-
-  if (packageJson?.version !== pinnedCodexVersion) {
-    throw new AgentRuntimeProtocolError(
-      `Codex package version must be exactly ${pinnedCodexVersion}`,
-    );
-  }
-  return path.join(packageDirectory, "bin", "codex.js");
-}
-
-export function withTimeout<Value>(
-  promise: Promise<Value>,
-  milliseconds: number,
-  message: string,
-) {
-  return new Promise<Value>((resolve, reject) => {
-    const timeout = setTimeout(
-      () => reject(new AgentRuntimeProtocolError(message)),
-      milliseconds,
-    );
-
-    timeout.unref();
-    promise.then(
-      (value) => {
-        clearTimeout(timeout);
-        resolve(value);
-      },
-      (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      },
-    );
-  });
 }
