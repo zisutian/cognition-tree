@@ -13,17 +13,18 @@ import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
 import {
   LocalFirstRepositoryConflictResolution,
 } from "./resilientVersionedRepositoryConflictResolution.ts";
+import {
+  LocalFirstRepositoryLoading,
+  type VersionedRepositoryLoadPolicy,
+} from "./resilientVersionedRepositoryLoading.ts";
 import { LocalFirstRepositoryProjectionState } from "./resilientVersionedRepositoryProjection.ts";
 import {
   LocalFirstRepositoryRemoteReconciliation,
 } from "./resilientVersionedRepositoryRemoteReconciliation.ts";
 import { LocalFirstRepositoryStaging } from "./resilientVersionedRepositoryStaging.ts";
 import { LocalFirstRepositorySynchronization } from "./resilientVersionedRepositorySynchronization.ts";
-import { canUseVersionedRepositoryCachedSnapshot } from "./resilientVersionedRepositoryPolicy.ts";
 
-export type VersionedRepositoryLoadPolicy =
-  | Readonly<{ mode: "cache-first" }>
-  | Readonly<{ mode: "refresh-remote" }>;
+export type { VersionedRepositoryLoadPolicy } from "./resilientVersionedRepositoryLoading.ts";
 
 type LocalFirstVersionedRepositoryOptions<
   Content,
@@ -129,75 +130,19 @@ export function createLocalFirstVersionedRepository<
     projections,
     synchronization,
   });
+  const loading = new LocalFirstRepositoryLoading({
+    backend,
+    cache,
+    createLocalRevision,
+    loadPolicy,
+    projections,
+    remoteReconciliation,
+  });
   const resolveIdentity = () => Promise.resolve(repositoryIdentity);
 
   const runExplicitLoad = async () => {
     const identity = await resolveIdentity();
-    const local = await cache.load(identity);
-
-    if (local) {
-      const localPrepared = projections.prepareLocalState(local);
-      if (loadPolicy.mode === "cache-first") {
-        return projections.toSnapshot(local, localPrepared);
-      }
-      let remote;
-      try {
-        remote = await backend.loadRemoteSnapshot();
-      } catch (error) {
-        if (canUseVersionedRepositoryCachedSnapshot(error)) {
-          const fallback = await cache.load(identity) ?? local;
-
-          return projections.toSnapshot(
-            fallback,
-            projections.prepareLocalState(fallback),
-          );
-        }
-        throw error;
-      }
-      const remotePrepared = remote.revision === local.remoteRevision
-        ? {
-            content: remote.content,
-            projection: localPrepared.projection,
-          }
-        : projections.prepareRemote(
-            remote.content,
-            remote.revision,
-            localPrepared.projection,
-          );
-
-      return remoteReconciliation.reconcileRemoteSnapshot(
-        identity,
-        remote,
-        remotePrepared,
-      );
-    }
-
-    const remote = await backend.loadRemoteSnapshot();
-    const remotePrepared = projections.prepareRemote(
-      remote.content,
-      remote.revision,
-    );
-    try {
-      const state = await cache.create({
-        identity,
-        localRevision: createLocalRevision(),
-        snapshot: remote,
-      });
-
-      projections.rememberLocal(state, remotePrepared);
-      projections.rememberRemote(remote.revision, remotePrepared);
-      return projections.toSnapshot(state, remotePrepared);
-    } catch (error) {
-      const concurrentlyCreated = await cache.load(identity);
-      if (!concurrentlyCreated) {
-        throw error;
-      }
-      projections.clearLocal();
-      return projections.toSnapshot(
-        concurrentlyCreated,
-        projections.prepareLocalState(concurrentlyCreated),
-      );
-    }
+    return loading.load(identity);
   };
 
   const loadSnapshot = () => {
@@ -254,26 +199,7 @@ export function createLocalFirstVersionedRepository<
     async discardPendingSnapshotAndReload() {
       const identity = await resolveIdentity();
       await ensureInitialized();
-      const current = await cache.load(identity);
-      if (!current) {
-        throw new Error("Local repository state disappeared before discard.");
-      }
-      const remote = await backend.loadRemoteSnapshot();
-      const remotePrepared = projections.prepareRemote(
-        remote.content,
-        remote.revision,
-        projections.localProjection(),
-      );
-      const state = await cache.replaceFromRemote({
-        expectedLocalRevision: current.localRevision,
-        identity,
-        localRevision: createLocalRevision(),
-        snapshot: remote,
-      });
-
-      projections.rememberLocal(state, remotePrepared);
-      projections.rememberRemote(remote.revision, remotePrepared);
-      return projections.toSnapshot(state, remotePrepared);
+      return loading.discardPendingAndReload(identity);
     },
     loadSnapshot,
     loadConflict: loadConflictSnapshot,
