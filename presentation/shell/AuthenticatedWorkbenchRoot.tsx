@@ -37,7 +37,8 @@ export function AuthenticatedWorkbenchRoot({
   authenticationController: OwnerAuthenticationController;
   authenticationState: OwnerAuthenticationState;
 }) {
-  const controller = useMemo(() => createWorkbenchRuntime(api), [api]);
+  const workbenchRuntime = useMemo(() => createWorkbenchRuntime(api), [api]);
+  const controller = workbenchRuntime.controller;
   const feedbackController = useMemo(
     () => createProblemCenter<ActivityId>({
       scheduler: clientApplicationScheduler,
@@ -102,8 +103,10 @@ export function AuthenticatedWorkbenchRoot({
     agentConfigurationState: agentConfigurationSnapshot,
     agentController: agentRuntime.session,
     agentState: agentSnapshot,
+    apiAccessAdministration: workbenchRuntime.apiAccessAdministration,
     controller,
     feedbackController,
+    operationAdministration: workbenchRuntime.operationAdministration,
     snapshot,
     systemAuthenticationController: authenticationController,
     systemAuthenticationState: authenticationState,

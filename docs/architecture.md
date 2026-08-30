@@ -372,7 +372,8 @@ application/workbench/WorkbenchController 提供 start、dispose、subscribe、
 getSnapshot 与明确 facade。snapshot 只包含不可变状态，不嵌入可变 controller；
 查询和操作只能经 facade 执行。它组合 RepositoryCatalogController、Workspace
 session slot、Journal/Todo built-in slot、SearchIndex、引用解析与跨仓导航
-状态机，并独占以下跨领域流程：
+状态机，并独占以下跨领域流程；API Access、Operations、System 与 Agent administration
+由 client runtime 组合结果并列交给 Presentation，不经 Workbench 转发：
 
     普通仓库切换与一次性导航。
     Journal 的 [[仓库名:笔记名]] 解析。

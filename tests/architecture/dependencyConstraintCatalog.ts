@@ -385,6 +385,15 @@ export function createDependencyImportPolicies({
       name: "application coordination root independence",
     },
     {
+      allows: () => false,
+      applies: ({ filePath, targetPath }) =>
+        isApplicationArea(filePath, "workbench") &&
+        ["apiAccess", "operations", "system"].some((area) =>
+          isApplicationArea(targetPath, area)
+        ),
+      name: "workbench content coordination boundary",
+    },
+    {
       allows: allowsInfrastructureEdge,
       applies: isRefinedInfrastructureEdge,
       name: "infrastructure sublayer direction",

@@ -33,6 +33,10 @@ import type {
   SystemConfigurationController,
   SystemConfigurationState,
 } from "../../../application/system";
+import type { ApiAccessAdministration } from
+  "../../../application/apiAccess/apiAccessAdministration";
+import type { OperationAdministration } from
+  "../../../application/operations/operationAdministration";
 
 const workspaceFeedbackActivities = [
   "notes",
@@ -45,8 +49,10 @@ export function useWorkbenchApplicationBindings({
   agentConfigurationState,
   agentController,
   agentState,
+  apiAccessAdministration,
   controller,
   feedbackController,
+  operationAdministration,
   snapshot,
   systemAuthenticationController,
   systemAuthenticationState,
@@ -57,8 +63,10 @@ export function useWorkbenchApplicationBindings({
   agentConfigurationState: AgentConfigurationState;
   agentController: AgentClientController;
   agentState: AgentClientState;
+  apiAccessAdministration: ApiAccessAdministration;
   controller: WorkbenchController;
   feedbackController: ProblemCenterController<ActivityId>;
+  operationAdministration: OperationAdministration;
   snapshot: WorkbenchControllerSnapshot;
   systemAuthenticationController: OwnerAuthenticationController;
   systemAuthenticationState: OwnerAuthenticationState;
@@ -228,7 +236,7 @@ export function useWorkbenchApplicationBindings({
       state: agentState,
     },
     apiAccess: {
-      administration: controller.apiAccessAdministration,
+      administration: apiAccessAdministration,
       repositories: snapshot.catalog.state.status === "ready"
         ? snapshot.catalog.state.repositories.map(({ id, label }) => ({
             id,
@@ -238,7 +246,7 @@ export function useWorkbenchApplicationBindings({
     },
     journal,
     operations: {
-      administration: controller.operationAdministration,
+      administration: operationAdministration,
     },
     repository: createRepositoryProjection(
       controller,

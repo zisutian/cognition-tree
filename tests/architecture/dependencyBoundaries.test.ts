@@ -190,6 +190,12 @@ describe("dependency boundaries", () => {
         targetRoot: "application",
       },
       {
+        filePath: "../../application/workbench/controller.ts",
+        importPath: "../apiAccess/administration",
+        targetPath: "../../application/apiAccess/administration.ts",
+        targetRoot: "application",
+      },
+      {
         filePath:
           "../../infrastructure/server/agent/sessionTools.ts",
         importPath:
@@ -208,6 +214,7 @@ describe("dependency boundaries", () => {
       "server API independence from core commands: ../../infrastructure/server/api/http/queryHandlers.ts imports ../../../../core/todo/commands/todoCompletionRecurrenceCommands",
       "Agent session tool coordinator independence from domains: ../../infrastructure/server/agent/sessionTools.ts imports ../../../application/workspace/commands/workspaceAgentCommandPreparation",
       "application coordination root independence: ../../application/workbench/problems.ts imports ../agent/controller",
+      "workbench content coordination boundary: ../../application/workbench/controller.ts imports ../apiAccess/administration",
     ]);
   });
 

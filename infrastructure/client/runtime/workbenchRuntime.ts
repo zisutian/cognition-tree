@@ -4,6 +4,10 @@ import {
   createWorkbenchController,
   type WorkbenchController,
 } from "../../../application/workbench/workbenchController";
+import type { ApiAccessAdministration } from
+  "../../../application/apiAccess/apiAccessAdministration";
+import type { OperationAdministration } from
+  "../../../application/operations/operationAdministration";
 import {
   clientApplicationScheduler,
   clientWorkspaceSessionCommandDependencies,
@@ -20,22 +24,27 @@ import {
   createVersionedContentRevision,
 } from "../repository/versionedContentRevision";
 
+export type ClientWorkbenchRuntime = Readonly<{
+  apiAccessAdministration: ApiAccessAdministration;
+  controller: WorkbenchController;
+  operationAdministration: OperationAdministration;
+}>;
+
 export function createWorkbenchRuntime(
   api: OfficialClientApi,
-): WorkbenchController {
+): ClientWorkbenchRuntime {
   const workspace = createWorkspaceRepositoryRuntime(api);
   const builtIns = createBuiltInRuntime(api);
-
-  return createWorkbenchController({
+  const apiAccessAdministration = createHttpApiAdministration({
+    baseUrl: api.baseUrl,
+  });
+  const operationAdministration = createHttpOperationAdministration({
+    baseUrl: api.baseUrl,
+  });
+  const controller = createWorkbenchController({
     activeRepositorySelection: workspace.activeRepositorySelection,
-    apiAccessAdministration: createHttpApiAdministration({
-      baseUrl: api.baseUrl,
-    }),
     builtInCatalog: builtIns.catalog,
     journalRepositories: builtIns.journalRepositories,
-    operationAdministration: createHttpOperationAdministration({
-      baseUrl: api.baseUrl,
-    }),
     changeEvents: createHttpApiEventSource({
       baseUrl: api.baseUrl,
     }),
@@ -51,4 +60,6 @@ export function createWorkbenchRuntime(
     workspaceCommandDependencies: clientWorkspaceSessionCommandDependencies,
     workspaceRepositories: workspace.repositories,
   });
+
+  return { apiAccessAdministration, controller, operationAdministration };
 }

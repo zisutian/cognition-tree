@@ -34,7 +34,6 @@ describe("workbench repository application projection", () => {
       },
     };
     const controller = {
-      apiAccessAdministration: {},
       createRepository: vi.fn(),
       deleteRepository: vi.fn(),
       journal: { ...conflictActions, requestSync: vi.fn() },
