@@ -272,6 +272,27 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps session residency behind Agent service", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath: "../../infrastructure/server/agent/service.ts",
+        importPath: "./sessionPool",
+        targetPath: "../../infrastructure/server/agent/sessionPool.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/agent/conversationRunner.ts",
+        importPath: "./sessionPool",
+        targetPath: "../../infrastructure/server/agent/sessionPool.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "Agent session pool composition boundary: ../../infrastructure/server/agent/conversationRunner.ts imports ./sessionPool",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

@@ -88,6 +88,18 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/agent\/conversationRunner\.ts$/,
     ],
     [
+      "Agent session resident registry",
+      infrastructureModules,
+      /\bnew Map<string, AgentSessionRecord>\s*\(/,
+      /^infrastructure\/server\/agent\/sessionPool\.ts$/,
+    ],
+    [
+      "Agent session runtime stop",
+      infrastructureModules,
+      /\bruntimeStopPromise\s*\?\?=/,
+      /^infrastructure\/server\/agent\/sessionPool\.ts$/,
+    ],
+    [
       "CTN tone class projection",
       presentationModules,
       /`ctn-tone-\$\{tone\}`/,

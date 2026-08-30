@@ -81,6 +81,8 @@ const agentProviderOperationFacadeTargets: ReadonlySet<string> = new Set([
 ]);
 const agentConversationRunnerPath =
   "../../infrastructure/server/agent/conversationRunner.ts";
+const agentSessionPoolPath =
+  "../../infrastructure/server/agent/sessionPool.ts";
 const agentServicePath = "../../infrastructure/server/agent/service.ts";
 
 function peerDomain(filePath: string) {
@@ -233,6 +235,11 @@ export function createDependencyImportPolicies({
       allows: ({ filePath }) => filePath === agentServicePath,
       applies: ({ targetPath }) => targetPath === agentConversationRunnerPath,
       name: "Agent conversation composition boundary",
+    },
+    {
+      allows: ({ filePath }) => filePath === agentServicePath,
+      applies: ({ targetPath }) => targetPath === agentSessionPoolPath,
+      name: "Agent session pool composition boundary",
     },
     {
       allows: () => false,
