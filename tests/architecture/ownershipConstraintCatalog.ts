@@ -70,6 +70,12 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/persistence\//,
     ],
     [
+      "Agent proposal exact commit",
+      infrastructureModules,
+      /\bcommitAgentProposalExactly\s*\(/,
+      /^infrastructure\/server\/agent\/proposalCommitter\.ts$/,
+    ],
+    [
       "CTN tone class projection",
       presentationModules,
       /`ctn-tone-\$\{tone\}`/,
