@@ -85,6 +85,8 @@ const agentSessionPoolPath =
   "../../infrastructure/server/agent/sessionPool.ts";
 const agentProposalWorkflowPath =
   "../../infrastructure/server/agent/proposalWorkflow.ts";
+const agentSessionOpenerPath =
+  "../../infrastructure/server/agent/sessionOpener.ts";
 const agentServicePath = "../../infrastructure/server/agent/service.ts";
 
 function peerDomain(filePath: string) {
@@ -247,6 +249,11 @@ export function createDependencyImportPolicies({
       allows: ({ filePath }) => filePath === agentServicePath,
       applies: ({ targetPath }) => targetPath === agentProposalWorkflowPath,
       name: "Agent Proposal workflow composition boundary",
+    },
+    {
+      allows: ({ filePath }) => filePath === agentServicePath,
+      applies: ({ targetPath }) => targetPath === agentSessionOpenerPath,
+      name: "Agent session opener composition boundary",
     },
     {
       allows: () => false,

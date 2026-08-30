@@ -314,6 +314,27 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps session bootstrap behind Agent service", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath: "../../infrastructure/server/agent/service.ts",
+        importPath: "./sessionOpener",
+        targetPath: "../../infrastructure/server/agent/sessionOpener.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/agent/privateIpc.ts",
+        importPath: "./sessionOpener",
+        targetPath: "../../infrastructure/server/agent/sessionOpener.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "Agent session opener composition boundary: ../../infrastructure/server/agent/privateIpc.ts imports ./sessionOpener",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

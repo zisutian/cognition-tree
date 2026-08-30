@@ -112,6 +112,18 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/agent\/proposalWorkflow\.ts$/,
     ],
     [
+      "Agent session runtime open",
+      infrastructureModules,
+      /\bruntimePort\.openSession\s*\(/,
+      /^infrastructure\/server\/agent\/sessionOpener\.ts$/,
+    ],
+    [
+      "Agent session private IPC capability",
+      infrastructureModules,
+      /\bthis\.#ipc\.register\s*\(/,
+      /^infrastructure\/server\/agent\/sessionOpener\.ts$/,
+    ],
+    [
       "CTN tone class projection",
       presentationModules,
       /`ctn-tone-\$\{tone\}`/,
