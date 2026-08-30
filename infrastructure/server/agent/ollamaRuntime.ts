@@ -2,7 +2,7 @@
 
 import type { AgentRuntimePort } from "../../../application/agent/agentRuntimePort.ts";
 import type { AgentScope } from "../../../application/agent/agentTypes.ts";
-import { OpenAiCompatibleRuntimeSession } from "./openAiChatRuntime.ts";
+import { OpenAiCompatibleRuntimeSession } from "./openAiCompatibleSession.ts";
 import type { OllamaAgentProfile } from "./runtimeProfiles.ts";
 
 export class OllamaRuntime implements AgentRuntimePort {

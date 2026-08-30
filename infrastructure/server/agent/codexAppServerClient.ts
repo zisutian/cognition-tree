@@ -4,7 +4,7 @@ import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import readline from "node:readline";
-import { AgentRuntimeProtocolError } from "./openAiChatRuntime.ts";
+import { AgentRuntimeProtocolError } from "../../../application/agent/agentRuntimePort.ts";
 
 export const pinnedCodexVersion = "0.148.0";
 

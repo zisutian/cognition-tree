@@ -10,15 +10,15 @@ import {
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type {
-  AgentPrivateToolProcess,
-  AgentRuntimePort,
-  AgentRuntimeSession,
-  AgentRuntimeTurnRequest,
+import {
+  AgentRuntimeProtocolError,
+  type AgentPrivateToolProcess,
+  type AgentRuntimePort,
+  type AgentRuntimeSession,
+  type AgentRuntimeTurnRequest,
 } from "../../../application/agent/agentRuntimePort.ts";
 import type { AgentScope } from "../../../application/agent/agentTypes.ts";
 import type { CodexAgentProfile } from "./runtimeProfiles.ts";
-import { AgentRuntimeProtocolError } from "./openAiChatRuntime.ts";
 import {
   CodexAppServerClient,
   resolveCodexEntrypoint,

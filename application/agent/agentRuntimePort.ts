@@ -9,6 +9,13 @@ export class AgentContextLimitError extends Error {
   }
 }
 
+export class AgentRuntimeProtocolError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AgentRuntimeProtocolError";
+  }
+}
+
 export type AgentRuntimeTool = Readonly<{
   description: string;
   inputSchema: Readonly<Record<string, unknown>>;
