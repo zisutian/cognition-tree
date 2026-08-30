@@ -9,10 +9,7 @@ import {
   decideAgentProposal,
   AgentSessionController,
   type AgentProposal,
-  type AgentRuntimePort,
-  type AgentRuntimeSession,
   type AgentScope,
-  type AgentSyntaxKnowledge,
 } from "../../../application/agent/index.ts";
 import type {
   AgentCreateSessionRequestDto,
@@ -32,7 +29,6 @@ import type { ApiRevisionTracker } from "../api/sync/revisionTracker.ts";
 import { AgentPrivateIpcServer } from "./privateIpc.ts";
 import type {
   AgentConfigurationStore,
-  ResolvedAgentConfiguration,
 } from "./configurationStore.ts";
 import type {
   AgentConfigurationProfileUse,
@@ -40,7 +36,6 @@ import type {
 import type { OperationLedger } from "../operations/operationLedger.ts";
 import {
   createAgentRuntimeProfile,
-  type AgentRuntimeProfile,
 } from "./runtimeProfiles.ts";
 import {
   ConfiguredAgentRuntimeFactory,
@@ -57,29 +52,16 @@ import { AgentConversationRunner } from "./conversationRunner.ts";
 import { AgentSessionTools } from "./sessionTools.ts";
 import { toAgentProposalDto } from "./proposalCodec.ts";
 import { agentRuntimeToolsForScope } from "./sessionToolProtocol.ts";
-import type { AgentStaging } from "./sessionToolState.ts";
 import {
   AgentSessionEventStream,
 } from "./sessionEventStream.ts";
+import {
+  AgentSessionPool,
+  type AgentSessionRecord,
+} from "./sessionPool.ts";
 
 export { AgentServiceError } from "./errors.ts";
 export type { AgentServiceErrorCode } from "./errors.ts";
-
-type SessionRecord = {
-  abortController: AbortController | null;
-  capability: string | null;
-  controller: AgentSessionController;
-  disposePromise: Promise<void> | null;
-  events: AgentSessionEventStream;
-  configuration: ResolvedAgentConfiguration;
-  configurationUse: AgentConfigurationProfileUse;
-  profile: AgentRuntimeProfile;
-  runtime: AgentRuntimePort;
-  runtimeSession: AgentRuntimeSession;
-  runtimeStopPromise: Promise<void> | null;
-  staging: AgentStaging | null;
-  syntaxKnowledge: AgentSyntaxKnowledge | null;
-};
 
 function sessionMcpEntrypoint() {
   const current = fileURLToPath(import.meta.url);
@@ -90,19 +72,15 @@ function sessionMcpEntrypoint() {
 
 export class AgentService {
   readonly #configurationStore: AgentConfigurationStore;
-  readonly #conversation: AgentConversationRunner<SessionRecord>;
+  readonly #conversation: AgentConversationRunner<AgentSessionRecord>;
   readonly #ipc: AgentPrivateIpcServer;
   readonly #ledger: OperationLedger | null;
-  readonly #openingProfiles = new Map<string, number>();
   readonly #operations = new Set<Promise<unknown>>();
   readonly #proposalCommitter: AgentProposalCommitter;
   readonly #runtime: ApiRuntime;
   readonly #runtimeFactory: AgentRuntimeFactory;
   readonly #servicePolicy: AgentServicePolicy;
-  readonly #sessionDisposals = new Set<Promise<void>>();
-  readonly #sessionStarts = new Set<Promise<AgentSessionSnapshotDto>>();
-  readonly #sessions = new Map<string, SessionRecord>();
-  readonly #sweeper: NodeJS.Timeout;
+  readonly #sessionPool: AgentSessionPool;
   readonly #tools: AgentSessionTools;
   #disposed = false;
   #disposePromise: Promise<void> | null = null;
@@ -165,10 +143,11 @@ export class AgentService {
       emitSnapshot: (record) => this.#emitSnapshot(record),
       tools: this.#tools,
     });
-    this.#sweeper = setInterval(() => {
-      void this.#expireSessions();
-    }, 60_000);
-    this.#sweeper.unref();
+    this.#sessionPool = new AgentSessionPool({
+      ipc,
+      runtime,
+      servicePolicy,
+    });
   }
 
   async status(): Promise<AgentStatusDto> {
@@ -217,34 +196,26 @@ export class AgentService {
   }
 
   listSessions() {
-    this.#removeExpiredSessionsWithoutWaiting();
-    return [...this.#sessions.values()]
+    return this.#sessionPool.list()
       .map((record) => this.#snapshot(record))
       .sort((left, right) => right.lastActiveAt.localeCompare(left.lastActiveAt));
   }
 
   getSession(sessionId: string) {
-    const record = this.#requireSession(sessionId);
+    const record = this.#sessionPool.require(sessionId);
 
     return this.#snapshot(record);
   }
 
   hasResidentSessions() {
-    this.#removeExpiredSessionsWithoutWaiting();
-    return this.#sessionDisposals.size > 0 || this.#sessionStarts.size > 0 ||
-      this.#sessions.size > 0;
+    return this.#sessionPool.hasResidentSessions();
   }
 
   async createSession(request: AgentCreateSessionRequestDto) {
     this.#assertOpen();
     const execution = this.#openSession(request);
 
-    this.#sessionStarts.add(execution);
-    try {
-      return await execution;
-    } finally {
-      this.#sessionStarts.delete(execution);
-    }
+    return await this.#sessionPool.trackStart(execution);
   }
 
   async #openSession(request: AgentCreateSessionRequestDto) {
@@ -275,7 +246,7 @@ export class AgentService {
     configurationUse: AgentConfigurationProfileUse,
     transferConfigurationUse: () => void,
   ) {
-    this.#removeExpiredSessionsWithoutWaiting();
+    this.#sessionPool.pruneExpired();
     if (!this.#ledger) {
       throw new AgentServiceError(
         "profile_unavailable",
@@ -304,25 +275,14 @@ export class AgentService {
         configuration?.profile.unavailableReason ?? "Agent profile is unavailable",
       );
     }
-    const resident = [...this.#sessions.values()].filter(({ profile }) =>
-      profile.id === configuration.profile.id
-    ).length;
-    const opening = this.#openingProfiles.get(configuration.profile.id) ?? 0;
-
-    if (resident + opening >= configuration.profile.maxResidentSessions) {
-      throw new AgentServiceError(
-        "session_capacity_reached",
-        "Agent profile has reached maxResidentSessions",
-      );
-    }
-    this.#openingProfiles.set(configuration.profile.id, opening + 1);
     const scope = request.scope as AgentScope;
+    const profile = createAgentRuntimeProfile(configuration);
+    const capacity = this.#sessionPool.reserveProfile(profile);
 
     try {
       await this.#tools.assertScopeAvailable(scope);
       this.#assertOpen();
       const sessionId = this.#runtime.createId();
-      const profile = createAgentRuntimeProfile(configuration);
       const controller = new AgentSessionController({
         id: sessionId,
         profileId: profile.id,
@@ -338,8 +298,8 @@ export class AgentService {
         profile,
       });
       let capability: string | null = null;
-      let record: SessionRecord | null = null;
-      let runtimeSession: AgentRuntimeSession | null = null;
+      let record: AgentSessionRecord | null = null;
+      let runtimeSession: AgentSessionRecord["runtimeSession"] | null = null;
 
       try {
         const privateToolProcess = profile.kind === "codex"
@@ -375,15 +335,13 @@ export class AgentService {
         };
 
         transferConfigurationUse();
-        this.#sessions.set(sessionId, record);
+        this.#sessionPool.publish(record);
         this.#emitSnapshot(record);
         return this.#snapshot(record);
       } catch (error) {
-        if (record && this.#sessions.get(sessionId) === record) {
-          this.#sessions.delete(sessionId);
-        }
+        if (record) this.#sessionPool.unpublish(record);
         if (record) {
-          await this.#disposeRecord(record);
+          await this.#sessionPool.disposeRecord(record);
         } else {
           if (capability) this.#ipc.revoke(capability);
           if (runtimeSession) await runtimeSession.dispose();
@@ -391,13 +349,7 @@ export class AgentService {
         throw error;
       }
     } finally {
-      const remaining = (this.#openingProfiles.get(configuration.profile.id) ?? 1) - 1;
-
-      if (remaining > 0) {
-        this.#openingProfiles.set(configuration.profile.id, remaining);
-      } else {
-        this.#openingProfiles.delete(configuration.profile.id);
-      }
+      capacity.release();
     }
   }
 
@@ -407,16 +359,15 @@ export class AgentService {
   }
 
   async #deleteSession(sessionId: string) {
-    const record = this.#requireSession(sessionId);
+    const record = this.#sessionPool.remove(sessionId);
 
-    this.#sessions.delete(sessionId);
-    await this.#disposeRecord(record);
+    await this.#sessionPool.disposeRecord(record);
     return { deleted: true as const };
   }
 
   sendMessage(sessionId: string, content: string) {
     this.#assertOpen();
-    const record = this.#requireSession(sessionId);
+    const record = this.#sessionPool.require(sessionId);
 
     return this.#conversation.sendMessage(record, content);
   }
@@ -427,7 +378,7 @@ export class AgentService {
   }
 
   async #cancel(sessionId: string) {
-    const record = this.#requireSession(sessionId);
+    const record = this.#sessionPool.require(sessionId);
     const turnId = record.controller.snapshot().activeTurnId;
 
     if (!turnId || !record.abortController) {
@@ -442,7 +393,7 @@ export class AgentService {
       this.#ipc.revoke(record.capability);
       record.capability = null;
     }
-    await this.#stopRuntimeSession(record, true);
+    await this.#sessionPool.stopRuntimeSession(record, true);
     return { cancelled: true as const };
   }
 
@@ -457,7 +408,7 @@ export class AgentService {
     response: ServerResponse;
     sessionId: string;
   }) {
-    const record = this.#requireSession(sessionId);
+    const record = this.#sessionPool.require(sessionId);
 
     record.events.connect({
       afterSequence,
@@ -503,7 +454,7 @@ export class AgentService {
     requestId: string;
     sessionId: string;
   }) {
-    const record = this.#requireSession(sessionId);
+    const record = this.#sessionPool.require(sessionId);
 
     await this.#tools.assertScopeAvailable(record.controller.snapshot().scope);
     let proposal = record.controller.getProposal(proposalId);
@@ -575,7 +526,7 @@ export class AgentService {
     requestId: string;
     sessionId: string;
   }) {
-    const record = this.#requireSession(sessionId);
+    const record = this.#sessionPool.require(sessionId);
 
     await this.#tools.assertScopeAvailable(record.controller.snapshot().scope);
     let proposal = record.controller.getProposal(proposalId);
@@ -599,28 +550,21 @@ export class AgentService {
   dispose() {
     if (this.#disposePromise) return this.#disposePromise;
     this.#disposed = true;
-    clearInterval(this.#sweeper);
-    const records = [...this.#sessions.values()];
-
-    this.#sessions.clear();
-    const disposals = records.map((record) => this.#disposeRecord(record));
+    const poolDisposal = this.#sessionPool.dispose();
 
     this.#disposePromise = this.#finishDisposal(
-      [...this.#sessionStarts],
       [...this.#operations],
-      disposals,
+      poolDisposal,
     );
     return this.#disposePromise;
   }
 
   async #finishDisposal(
-    starts: readonly Promise<AgentSessionSnapshotDto>[],
     operations: readonly Promise<unknown>[],
-    disposals: readonly Promise<void>[],
+    poolDisposal: Promise<void>,
   ) {
-    await Promise.allSettled([...starts, ...operations, ...disposals]);
+    await Promise.allSettled([...operations, poolDisposal]);
     await this.#conversation.waitForIdle();
-    await Promise.allSettled(this.#sessionDisposals.values());
     await this.#ipc.dispose();
   }
 
@@ -641,7 +585,7 @@ export class AgentService {
   }
 
   #snapshot(
-    record: SessionRecord,
+    record: AgentSessionRecord,
     sequence = record.events.sequence,
   ): AgentSessionSnapshotDto {
     const snapshot = record.controller.snapshot();
@@ -671,20 +615,6 @@ export class AgentService {
     });
   }
 
-  #requireSession(sessionId: string) {
-    const record = this.#sessions.get(sessionId);
-
-    if (!record) {
-      throw new AgentServiceError("not_found", "Agent session does not exist");
-    }
-    if (this.#isExpired(record)) {
-      this.#sessions.delete(sessionId);
-      void this.#disposeRecord(record);
-      throw new AgentServiceError("session_unavailable", "Agent session expired");
-    }
-    return record;
-  }
-
   async #createPrivateToolProcess(sessionId: string, scope: AgentScope) {
     const endpoint = await this.#ipc.start();
     await this.#tools.assertScopeAvailable(scope);
@@ -694,7 +624,7 @@ export class AgentService {
     const capability = this.#ipc.register({
       expiresAt,
       handle: (request) => this.#conversation.executeTool(
-        this.#requireSession(sessionId),
+        this.#sessionPool.require(sessionId),
         {
           arguments: request.tool.input,
           callId: request.id,
@@ -724,7 +654,7 @@ export class AgentService {
   }
 
   async #commit(
-    record: SessionRecord,
+    record: AgentSessionRecord,
     proposal: AgentProposal,
     ownerId: string,
     requestId: string,
@@ -760,7 +690,7 @@ export class AgentService {
     throw new AgentServiceError("session_unavailable", "Agent commit failed");
   }
 
-  #emitProposal(record: SessionRecord, proposal: AgentProposal) {
+  #emitProposal(record: AgentSessionRecord, proposal: AgentProposal) {
     record.events.emit({
       proposal: toAgentProposalDto(proposal),
       type: "proposal-updated",
@@ -768,64 +698,7 @@ export class AgentService {
     this.#emitSnapshot(record);
   }
 
-  #emitSnapshot(record: SessionRecord) {
+  #emitSnapshot(record: AgentSessionRecord) {
     record.events.emitSnapshot((sequence) => this.#snapshot(record, sequence));
-  }
-
-  #isExpired(record: SessionRecord) {
-    const snapshot = record.controller.snapshot();
-    const now = this.#runtime.now().getTime();
-
-    return now - Date.parse(snapshot.lastActiveAt) >=
-        this.#servicePolicy.idleTtlMilliseconds ||
-      now - Date.parse(snapshot.createdAt) >=
-        this.#servicePolicy.absoluteTtlMilliseconds;
-  }
-
-  #removeExpiredSessionsWithoutWaiting() {
-    for (const [sessionId, record] of this.#sessions) {
-      if (!this.#isExpired(record)) continue;
-      this.#sessions.delete(sessionId);
-      void this.#disposeRecord(record);
-    }
-  }
-
-  async #expireSessions() {
-    const expired: SessionRecord[] = [];
-
-    for (const [sessionId, record] of this.#sessions) {
-      if (!this.#isExpired(record)) continue;
-      this.#sessions.delete(sessionId);
-      expired.push(record);
-    }
-    await Promise.allSettled(expired.map((record) => this.#disposeRecord(record)));
-  }
-
-  #disposeRecord(record: SessionRecord) {
-    if (record.disposePromise) return record.disposePromise;
-    const execution = (async () => {
-      record.abortController?.abort(new Error("Agent session ended"));
-      if (record.capability) this.#ipc.revoke(record.capability);
-      record.events.close();
-      try {
-        await this.#stopRuntimeSession(record, false);
-      } finally {
-        record.configurationUse.release();
-      }
-    })();
-
-    record.disposePromise = execution;
-    this.#sessionDisposals.add(execution);
-    void execution.finally(() => this.#sessionDisposals.delete(execution))
-      .catch(() => undefined);
-    return execution;
-  }
-
-  #stopRuntimeSession(record: SessionRecord, cancel: boolean) {
-    record.runtimeStopPromise ??= (async () => {
-      if (cancel) await record.runtimeSession.cancel().catch(() => undefined);
-      await record.runtimeSession.dispose();
-    })();
-    return record.runtimeStopPromise;
   }
 }

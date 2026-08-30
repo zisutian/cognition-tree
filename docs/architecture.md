@@ -408,10 +408,12 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     conformance 状态机，并统一拒绝关闭后启动的新操作；后两者分别独占自身记录、
     启动预留、执行任务与幂等释放；
     privateIpc 独占 capability 与本地监听器，并线性化并发启动和幂等关闭；
-    Agent service 关闭门统一阻止新 session 与 owner mutation，释放会等待 session
-    启动、审批操作和幂等 session 清理全部收敛；conversationRunner 独占普通对话、
-    提交回执、工具执行、上下文压缩和取消收尾的 turn 编排，内部 profileTurnQueue
-    独占跨 session 的 Profile FIFO、排队判定与直到真正空闲的关闭等待；
+    Agent service 关闭门统一阻止新 session 与 owner mutation，并协调 owner 操作、
+    session pool、turn queue 与 IPC 的关闭顺序；sessionPool 独占驻留表、Profile 容量
+    预留、过期驱逐、runtime stop/dispose 和 configuration use 释放；
+    conversationRunner 独占普通对话、提交回执、工具执行、上下文压缩和取消收尾的
+    turn 编排，内部 profileTurnQueue 独占跨 session 的 Profile FIFO、排队判定与直到
+    真正空闲的关闭等待；
     proposalCommitter 独占 Agent exact-CAS、幂等账本、审计 receipt 与提交后的
     revision/event 发布，service 只把终态投影回 session 并调度回执摘要；
     sessionEventStream 独占 session SSE sequence、重放窗口和终态关闭，关闭后不再接收
