@@ -189,6 +189,15 @@ describe("dependency boundaries", () => {
         targetPath: "../../application/agent/controller.ts",
         targetRoot: "application",
       },
+      {
+        filePath:
+          "../../infrastructure/server/agent/sessionTools.ts",
+        importPath:
+          "../../../application/workspace/commands/workspaceAgentCommandPreparation",
+        targetPath:
+          "../../application/workspace/commands/workspaceAgentCommandPreparation.ts",
+        targetRoot: "application",
+      },
     ], dependencyImportPolicies);
 
     expect(violations).toEqual([
@@ -197,6 +206,7 @@ describe("dependency boundaries", () => {
       "generic persistence and sync independence from domains: ../../application/persistence/merge.ts imports ../../core/todo/model",
       "generic client HTTP independence from domains: ../../infrastructure/client/http/apiTransport.ts imports ../../../application/workspace/persistence/workspaceRepository",
       "server API independence from core commands: ../../infrastructure/server/api/http/queryHandlers.ts imports ../../../../core/todo/commands/todoCompletionRecurrenceCommands",
+      "Agent session tool coordinator independence from domains: ../../infrastructure/server/agent/sessionTools.ts imports ../../../application/workspace/commands/workspaceAgentCommandPreparation",
       "application coordination root independence: ../../application/workbench/problems.ts imports ../agent/controller",
     ]);
   });

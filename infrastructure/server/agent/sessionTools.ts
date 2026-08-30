@@ -145,11 +145,7 @@ export class AgentSessionTools {
 
   async #describeSyntax(record: AgentToolSession) {
     const scope = record.controller.snapshot().scope;
-    const syntax = scope.domain === "workspace"
-      ? await this.#workspace.syntax(record, scope)
-      : scope.domain === "journal"
-      ? await this.#journal.syntax(record)
-      : await this.#todo.syntax(record);
+    const syntax = await this.#readSyntax(record, scope);
 
     if (!syntax) {
       record.syntaxKnowledge = null;
@@ -163,6 +159,17 @@ export class AgentSessionTools {
       available: true,
       guide: projectAgentSyntaxGuide(syntax),
     });
+  }
+
+  #readSyntax(record: AgentToolSession, scope: AgentScope) {
+    switch (scope.domain) {
+      case "workspace":
+        return this.#workspace.syntax(record, scope);
+      case "journal":
+        return this.#journal.syntax(record);
+      case "todo":
+        return this.#todo.syntax(record);
+    }
   }
 
   async #searchResources(record: AgentToolSession, query: string) {

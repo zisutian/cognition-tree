@@ -203,6 +203,14 @@ export function createDependencyImportPolicies({
     {
       allows: () => false,
       applies: ({ filePath, targetPath }) =>
+        filePath ===
+          "../../infrastructure/server/agent/sessionTools.ts" &&
+        isConcreteDomainModule(targetPath),
+      name: "Agent session tool coordinator independence from domains",
+    },
+    {
+      allows: () => false,
+      applies: ({ filePath, targetPath }) =>
         (isApplicationArea(filePath, "agent") &&
           isApplicationArea(targetPath, "workbench")) ||
         (isApplicationArea(filePath, "workbench") &&
