@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { WorkspaceRepository } from "../workspace/persistence/workspaceRepository";
 import type { WorkspaceRepositoryProvider } from "../workspace/persistence/workspaceRepositoryProvider";
 import type { WorkspaceRepositoryDescriptor } from "../repository/workspaceRepositoryCatalog";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
@@ -39,26 +38,37 @@ export function createWorkspaceSessionSlot({
   let controller: WorkspaceSessionController | null = null;
   let connectionKey = "";
   let disposed = false;
-  let repository: WorkspaceRepository | null = null;
   let started = false;
   let state: WorkspaceSessionControllerState | null = null;
   let unsubscribe: (() => void) | null = null;
 
-  const disposeController = () => {
-    unsubscribe?.();
-    unsubscribe = null;
-    controller?.dispose();
+  const releaseController = (
+    ownedController: WorkspaceSessionController | null,
+    ownedUnsubscribe: (() => void) | null,
+  ) => {
+    try {
+      ownedUnsubscribe?.();
+    } finally {
+      ownedController?.dispose();
+    }
+  };
+
+  const clearController = () => {
+    const previousController = controller;
+    const previousUnsubscribe = unsubscribe;
+
     controller = null;
     state = null;
+    unsubscribe = null;
+    releaseController(previousController, previousUnsubscribe);
   };
 
   return {
     dispose() {
       if (disposed) return;
       disposed = true;
-      disposeController();
+      clearController();
       connectionKey = "";
-      repository = null;
     },
     async flushReady() {
       if (state?.status === "ready") {
@@ -83,25 +93,47 @@ export function createWorkspaceSessionSlot({
       ) {
         return;
       }
-      disposeController();
-      connectionKey = nextConnectionKey;
-      repository = descriptor ? repositories.openRepository(descriptor) : null;
-      if (!repository) return;
+      if (!descriptor) {
+        clearController();
+        connectionKey = "";
+        return;
+      }
+      const repository = repositories.openRepository(descriptor);
 
       const nextController = createWorkspaceSessionController({
         commandDependencies,
         repository,
         scheduler,
       });
+      let nextState: WorkspaceSessionControllerState;
+      let nextUnsubscribe: () => void = () => undefined;
+
+      try {
+        nextState = nextController.getState();
+        nextUnsubscribe = nextController.subscribe(() => {
+          const publishedState = nextController.getState();
+
+          if (controller !== nextController) {
+            nextState = publishedState;
+            return;
+          }
+          state = publishedState;
+          onChange();
+        });
+        if (started) nextController.start();
+      } catch (error) {
+        releaseController(nextController, nextUnsubscribe);
+        throw error;
+      }
+
+      const previousController = controller;
+      const previousUnsubscribe = unsubscribe;
 
       controller = nextController;
-      state = nextController.getState();
-      unsubscribe = nextController.subscribe(() => {
-        if (controller !== nextController) return;
-        state = nextController.getState();
-        onChange();
-      });
-      if (started) nextController.start();
+      state = nextState;
+      unsubscribe = nextUnsubscribe;
+      connectionKey = nextConnectionKey;
+      releaseController(previousController, previousUnsubscribe);
     },
     start() {
       if (disposed || started) return;

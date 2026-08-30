@@ -121,4 +121,56 @@ describe("workspace session slot", () => {
     slot.dispose();
     expect(slot.getSnapshot().status).toBe("absent");
   });
+
+  it("keeps the active session when the replacement repository cannot open", () => {
+    const repository = createRepository("A");
+    const descriptorA: WorkspaceRepositoryDescriptor = {
+      id: "repository-a",
+      label: "A",
+      labelIssue: null,
+      location: repository.location,
+    };
+    const descriptorB: WorkspaceRepositoryDescriptor = {
+      ...descriptorA,
+      id: "repository-b",
+      label: "B",
+    };
+    let failReplacement = true;
+    const slot = createWorkspaceSessionSlot({
+      commandDependencies: {
+        createBlockId: () => "00000000-0000-4000-8000-000000000001",
+        createFolderId: () => "folder-created",
+        createNoteId: () => "note-created",
+        createSyntaxFileId: () =>
+          "syntax-00000000-0000-4000-8000-000000000002",
+        now: () => "2026-07-23T00:00:00.000Z",
+      },
+      onChange: vi.fn(),
+      repositories: {
+        openRepository(descriptor) {
+          if (descriptor.id === descriptorB.id && failReplacement) {
+            throw new Error("repository unavailable");
+          }
+          return repository;
+        },
+      },
+      scheduler: testApplicationScheduler,
+    });
+
+    slot.reconcile(descriptorA);
+    const activeController = slot.getController();
+    const disposeActive = vi.spyOn(activeController!, "dispose");
+
+    expect(() => slot.reconcile(descriptorB)).toThrow(
+      "repository unavailable",
+    );
+    expect(slot.getController()).toBe(activeController);
+    expect(disposeActive).not.toHaveBeenCalled();
+
+    failReplacement = false;
+    slot.reconcile(descriptorB);
+
+    expect(slot.getController()).not.toBe(activeController);
+    expect(disposeActive).toHaveBeenCalledOnce();
+  });
 });

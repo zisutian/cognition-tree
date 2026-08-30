@@ -67,4 +67,37 @@ describe("built-in session slot", () => {
     slot.dispose();
     expect(controllers[1].dispose).toHaveBeenCalledOnce();
   });
+
+  it("keeps the active controller when replacement preparation fails", () => {
+    const controllers: TestController[] = [];
+    let failReplacement = true;
+    const slot = createBuiltInSessionSlot({
+      createController(descriptor) {
+        const controller = createTestController(descriptor?.id ?? "none");
+
+        if (descriptor && failReplacement) {
+          controller.subscribe = () => {
+            throw new Error("subscription failed");
+          };
+        }
+        controllers.push(controller);
+        return controller;
+      },
+      onChange: vi.fn(),
+    });
+    const activeController = slot.getController();
+
+    expect(() => slot.reconcile(journalDescriptor)).toThrow(
+      "subscription failed",
+    );
+    expect(slot.getController()).toBe(activeController);
+    expect(activeController.dispose).not.toHaveBeenCalled();
+    expect(controllers[1].dispose).toHaveBeenCalledOnce();
+
+    failReplacement = false;
+    slot.reconcile(journalDescriptor);
+
+    expect(slot.getController()).toBe(controllers[2]);
+    expect(activeController.dispose).toHaveBeenCalledOnce();
+  });
 });

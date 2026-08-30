@@ -357,6 +357,8 @@ VersionedSessionController 与保存队列。该控制器负责页面内 ready �
 结果发布，dispose 是不可重启的终态，会使在途刷新和 mutation 的本地安装失效并清除
 订阅者；后台启动错误必须已投影到状态且不能逃逸。普通仓 operation 只由公开 snapshot
 持有，不设置影子状态；旧生命周期完成不得改写活动仓选择。
+Workbench session slot 先完整构造、订阅并启动候选 controller，再原子替换当前
+controller；候选准备失败时释放候选并保留旧会话，同一连接描述可直接重试。
 普通仓库切换只排空并替换 Workspace session，不
 停止或重建 Journal/Todo。
 
