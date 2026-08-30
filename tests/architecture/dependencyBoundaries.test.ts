@@ -525,6 +525,31 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps local-first projection state behind its repository", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath:
+          "../../infrastructure/client/repository/resilientVersionedRepository.ts",
+        importPath: "./resilientVersionedRepositoryProjection",
+        targetPath:
+          "../../infrastructure/client/repository/resilientVersionedRepositoryProjection.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath:
+          "../../infrastructure/client/http/journalRepository.ts",
+        importPath: "../repository/resilientVersionedRepositoryProjection",
+        targetPath:
+          "../../infrastructure/client/repository/resilientVersionedRepositoryProjection.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "local-first repository projection composition boundary: ../../infrastructure/client/http/journalRepository.ts imports ../repository/resilientVersionedRepositoryProjection",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

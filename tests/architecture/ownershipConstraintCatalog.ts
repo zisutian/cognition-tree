@@ -172,6 +172,12 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/operations\/operationLedgerProjection\.ts$/,
     ],
     [
+      "local-first repository projection state",
+      infrastructureModules,
+      /\bclass LocalFirstRepositoryProjectionState\b/,
+      /^infrastructure\/client\/repository\/resilientVersionedRepositoryProjection\.ts$/,
+    ],
+    [
       "Agent Profile turn queue",
       infrastructureModules,
       /\bnew AgentProfileTurnQueue\s*\(/,

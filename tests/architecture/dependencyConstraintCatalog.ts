@@ -126,6 +126,10 @@ const operationLedgerProjectionConsumers: ReadonlySet<string> = new Set([
   agentOperationLedgerPath,
   trustedClientOperationLedgerPath,
 ]);
+const resilientVersionedRepositoryPath =
+  "../../infrastructure/client/repository/resilientVersionedRepository.ts";
+const resilientVersionedRepositoryProjectionPath =
+  "../../infrastructure/client/repository/resilientVersionedRepositoryProjection.ts";
 
 function peerDomain(filePath: string) {
   return filePath.match(
@@ -341,6 +345,12 @@ export function createDependencyImportPolicies({
       applies: ({ targetPath }) =>
         targetPath === trustedClientOperationLedgerPath,
       name: "trusted-client operation ledger composition boundary",
+    },
+    {
+      allows: ({ filePath }) => filePath === resilientVersionedRepositoryPath,
+      applies: ({ targetPath }) =>
+        targetPath === resilientVersionedRepositoryProjectionPath,
+      name: "local-first repository projection composition boundary",
     },
     {
       allows: () => false,
