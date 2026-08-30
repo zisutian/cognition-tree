@@ -354,7 +354,9 @@ VersionedSessionController 与保存队列。该控制器负责页面内 ready �
 删除前冻结/恢复；冲突详情读取失败与整仓冲突是不同状态，解决动作只消费完整冲突
 快照。Workspace、Journal、Todo wrapper 只注入 preparation policy 与领域命令。
 普通仓与内置仓 catalog controller 各自拥有 reload generation；并发刷新只允许最新
-结果发布，stop 会使在途启动刷新失效，后台启动错误必须已投影到状态且不能逃逸。
+结果发布，dispose 是不可重启的终态，会使在途刷新和 mutation 的本地安装失效并清除
+订阅者；后台启动错误必须已投影到状态且不能逃逸。普通仓 operation 只由公开 snapshot
+持有，不设置影子状态；旧生命周期完成不得改写活动仓选择。
 普通仓库切换只排空并替换 Workspace session，不
 停止或重建 Journal/Todo。
 

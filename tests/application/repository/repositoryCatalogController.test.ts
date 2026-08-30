@@ -184,7 +184,7 @@ describe("repository catalog controller", () => {
     expect(harness.controller.getSnapshot().activeDescriptor).toBe(secondary);
   });
 
-  it("invalidates an in-flight startup reload when stopped", async () => {
+  it("invalidates an in-flight startup reload when disposed", async () => {
     const harness = createHarness();
     const pending = deferred<WorkspaceRepositoryCatalogData>();
 
@@ -192,7 +192,7 @@ describe("repository catalog controller", () => {
       pending.promise,
     );
     harness.controller.start();
-    harness.controller.stop();
+    harness.controller.dispose();
     pending.resolve(catalogData());
     await pending.promise;
     await Promise.resolve();
@@ -201,6 +201,23 @@ describe("repository catalog controller", () => {
       activeDescriptor: null,
       state: { status: "loading" },
     });
+  });
+
+  it("does not install a repository created after disposal", async () => {
+    const harness = createHarness();
+    const pending = deferred<WorkspaceRepositoryDescriptor>();
+    const created = { ...descriptor, id: "created", label: "Created" };
+
+    await harness.controller.reload();
+    harness.provisionRepository.mockReturnValueOnce(pending.promise);
+    const creating = harness.controller.createRepository({ name: "Created" });
+
+    harness.controller.dispose();
+    pending.resolve(created);
+
+    await expect(creating).resolves.toBe(created);
+    expect(harness.activeId()).toBe(descriptor.id);
+    expect(harness.controller.getSnapshot().activeDescriptor).toBe(descriptor);
   });
 
   it("does not let an older reload overwrite a completed catalog operation", async () => {

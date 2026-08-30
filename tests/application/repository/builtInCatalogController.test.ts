@@ -37,7 +37,7 @@ function createHarness() {
 }
 
 describe("built-in catalog controller", () => {
-  it("starts idempotently and invalidates its in-flight reload when stopped", async () => {
+  it("starts idempotently and invalidates its in-flight reload when disposed", async () => {
     const harness = createHarness();
     const pending = deferred<BuiltInCatalogData>();
 
@@ -46,12 +46,22 @@ describe("built-in catalog controller", () => {
     harness.controller.start();
 
     expect(harness.catalog.listBuiltIns).toHaveBeenCalledOnce();
-    harness.controller.stop();
+    harness.controller.dispose();
     pending.resolve(catalogData);
     await pending.promise;
     await Promise.resolve();
 
     expect(harness.controller.getState()).toEqual({ status: "loading" });
+  });
+
+  it("does not restart after disposal", async () => {
+    const harness = createHarness();
+
+    harness.controller.dispose();
+    harness.controller.start();
+    await harness.controller.reload();
+
+    expect(harness.catalog.listBuiltIns).not.toHaveBeenCalled();
   });
 
   it("contains a failed background refresh after preserving ready state", async () => {

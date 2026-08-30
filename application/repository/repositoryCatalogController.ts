@@ -26,12 +26,12 @@ export type RepositoryCatalogControllerSnapshot = {
 export type RepositoryCatalogController = {
   createRepository(input: CreateRepositoryRequest): Promise<WorkspaceRepositoryDescriptor>;
   deleteRepository(input: DeleteRepositoryRequest): Promise<void>;
+  dispose(): void;
   getSnapshot(): RepositoryCatalogControllerSnapshot;
   reload(): Promise<void>;
   renameRepository(input: RenameRepositoryRequest): Promise<void>;
   selectRepository(repositoryId: string): Promise<void>;
   start(): void;
-  stop(): void;
   subscribe(listener: () => void): () => void;
 };
 
@@ -52,8 +52,8 @@ export function createRepositoryCatalogController({
   ): Promise<WorkspaceRepositoryDescriptor>;
 }): RepositoryCatalogController {
   const listeners = new Set<() => void>();
+  let disposed = false;
   let generation = 0;
-  let operation: RepositoryCatalogOperation = "idle";
   let started = false;
   let snapshot: RepositoryCatalogControllerSnapshot = {
     activeDescriptor: null,
@@ -75,7 +75,6 @@ export function createRepositoryCatalogController({
     };
   };
   const publish = (state: RepositoryCatalogState) => {
-    operation = state.status === "ready" ? state.operation : "idle";
     snapshot = projectSnapshot(state);
     listeners.forEach((listener) => listener());
   };
@@ -113,7 +112,13 @@ export function createRepositoryCatalogController({
     });
   };
   const reload = async () => {
-    if (operation !== "idle") return;
+    if (
+      disposed ||
+      snapshot.state.status === "ready" &&
+        snapshot.state.operation !== "idle"
+    ) {
+      return;
+    }
     const operationGeneration = ++generation;
     const previous = snapshot.state;
 
@@ -134,19 +139,24 @@ export function createRepositoryCatalogController({
   const beginOperation = (
     nextOperation: Exclude<RepositoryCatalogOperation, "idle">,
   ) => {
+    if (disposed) {
+      throw new Error("Repository catalog controller is disposed.");
+    }
     const current = snapshot.state;
 
     if (current.status !== "ready") {
       throw new Error("Repository catalog is not ready.");
     }
-    if (operation !== "idle") {
+    if (current.operation !== "idle") {
       throw new Error("Another repository operation is already running.");
     }
-    generation += 1;
+    const operationGeneration = ++generation;
+
     publish({ ...current, operation: nextOperation });
-    return current;
+    return { operationGeneration, previous: current };
   };
-  const finishOperation = () => {
+  const finishOperation = (operationGeneration: number) => {
+    if (disposed || generation !== operationGeneration) return;
     const current = snapshot.state;
 
     if (current.status === "ready" && current.operation !== "idle") {
@@ -156,13 +166,15 @@ export function createRepositoryCatalogController({
 
   return {
     async createRepository(input) {
-      const current = beginOperation("creating");
+      const { operationGeneration, previous } = beginOperation("creating");
 
       try {
         const label = parsePortableName(input.name, "Repository label");
         const descriptor = await provisionRepository(input, label);
+
+        if (disposed || generation !== operationGeneration) return descriptor;
         const latest = snapshot.state;
-        const ready = latest.status === "ready" ? latest : current;
+        const ready = latest.status === "ready" ? latest : previous;
         const repositories = [
           ...ready.repositories.filter(({ id }) => id !== descriptor.id),
           descriptor,
@@ -178,15 +190,16 @@ export function createRepositoryCatalogController({
         });
         return descriptor;
       } catch (error) {
-        finishOperation();
+        finishOperation(operationGeneration);
         throw error;
       }
     },
     async deleteRepository(input) {
-      const previous = beginOperation("deleting");
+      const { operationGeneration, previous } = beginOperation("deleting");
 
       try {
         await catalog.deleteRepository(input);
+        if (disposed || generation !== operationGeneration) return;
         let nextCatalog: WorkspaceRepositoryCatalogData;
 
         try {
@@ -199,6 +212,7 @@ export function createRepositoryCatalogController({
             ),
           };
         }
+        if (disposed || generation !== operationGeneration) return;
         const preferredRepositoryId = previous.activeRepositoryId === input.id
           ? selectRepositoryAfterDeletion(
               previous.repositories,
@@ -208,16 +222,24 @@ export function createRepositoryCatalogController({
           : previous.activeRepositoryId;
 
         publishCatalog(nextCatalog, preferredRepositoryId);
-        finishOperation();
+        finishOperation(operationGeneration);
       } catch (error) {
-        publish({ ...previous, operation: "idle" });
+        if (!disposed && generation === operationGeneration) {
+          publish({ ...previous, operation: "idle" });
+        }
         throw error;
       }
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      generation += 1;
+      listeners.clear();
     },
     getSnapshot: () => snapshot,
     reload,
     async renameRepository(input) {
-      const previous = beginOperation("renaming");
+      const { operationGeneration, previous } = beginOperation("renaming");
 
       try {
         const label = parsePortableName(input.name, "Repository label");
@@ -226,45 +248,44 @@ export function createRepositoryCatalogController({
           throw new Error(`Repository does not exist: ${input.id}`);
         }
         await catalog.renameRepository({ id: input.id, label });
-        publishCatalog(
-          await catalog.listRepositories(),
-          previous.activeRepositoryId,
-        );
-        finishOperation();
+        if (disposed || generation !== operationGeneration) return;
+        const nextCatalog = await catalog.listRepositories();
+
+        if (disposed || generation !== operationGeneration) return;
+        publishCatalog(nextCatalog, previous.activeRepositoryId);
+        finishOperation(operationGeneration);
       } catch (error) {
-        publish({ ...previous, operation: "idle" });
+        if (!disposed && generation === operationGeneration) {
+          publish({ ...previous, operation: "idle" });
+        }
         throw error;
       }
     },
     async selectRepository(repositoryId) {
-      const current = beginOperation("switching");
+      const { operationGeneration, previous } = beginOperation("switching");
 
       try {
-        if (!current.repositories.some(({ id }) => id === repositoryId)) {
+        if (!previous.repositories.some(({ id }) => id === repositoryId)) {
           throw new Error(`Repository does not exist: ${repositoryId}`);
         }
         persistActiveRepository(repositoryId);
         publish({
-          ...current,
+          ...previous,
           activeRepositoryId: repositoryId,
           operation: "idle",
         });
       } catch (error) {
-        finishOperation();
+        finishOperation(operationGeneration);
         throw error;
       }
     },
     start() {
-      if (started) return;
+      if (disposed || started) return;
       started = true;
       void reload().catch(() => undefined);
     },
-    stop() {
-      if (!started) return;
-      started = false;
-      generation += 1;
-    },
     subscribe(listener) {
+      if (disposed) return () => undefined;
       listeners.add(listener);
       return () => listeners.delete(listener);
     },

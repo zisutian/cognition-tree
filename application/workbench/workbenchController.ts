@@ -537,8 +537,8 @@ export function createWorkbenchController({
     dispose() {
       if (disposed) return;
       disposed = true;
-      repositoryCatalogController.stop();
-      builtInCatalogController.stop();
+      repositoryCatalogController.dispose();
+      builtInCatalogController.dispose();
       unsubscribeCatalog();
       unsubscribeBuiltIns();
       checkpointReloadReconciler?.dispose();

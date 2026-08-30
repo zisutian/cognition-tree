@@ -23,6 +23,7 @@ export type BuiltInCatalogApplication = {
 
 export function createBuiltInCatalogController(catalog: BuiltInCatalog) {
   const listeners = new Set<() => void>();
+  let disposed = false;
   let state: BuiltInCatalogState = { status: "loading" };
   let generation = 0;
   let started = false;
@@ -31,7 +32,9 @@ export function createBuiltInCatalogController(catalog: BuiltInCatalog) {
     listeners.forEach((listener) => listener());
   };
   const reload = async () => {
-    if (state.status === "ready" && state.retryingId !== null) return;
+    if (disposed || state.status === "ready" && state.retryingId !== null) {
+      return;
+    }
     const operationGeneration = ++generation;
     const previous = state;
 
@@ -59,9 +62,18 @@ export function createBuiltInCatalogController(catalog: BuiltInCatalog) {
 
   return {
     catalogLabel: catalog.label,
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      generation += 1;
+      listeners.clear();
+    },
     getState: () => state,
     reload,
     async retry(id: BuiltInId) {
+      if (disposed) {
+        throw new Error("Built-in data catalog controller is disposed.");
+      }
       const previous = state;
 
       if (previous.status !== "ready") {
@@ -88,16 +100,12 @@ export function createBuiltInCatalogController(catalog: BuiltInCatalog) {
       }
     },
     start() {
-      if (started) return;
+      if (disposed || started) return;
       started = true;
       void reload().catch(() => undefined);
     },
-    stop() {
-      if (!started) return;
-      started = false;
-      generation += 1;
-    },
     subscribe(listener: () => void) {
+      if (disposed) return () => undefined;
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
