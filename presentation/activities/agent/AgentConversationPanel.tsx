@@ -16,6 +16,8 @@ import {
   ToolPanel,
   ToolToolbar,
 } from "../../ui/shared/ToolSurface";
+import { useExclusiveAsyncAction } from
+  "../../ui/shared/useExclusiveAsyncAction";
 import {
   agentSessionStateLabels,
   formatAgentScopeLabel,
@@ -23,6 +25,7 @@ import {
 
 export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
   const feedback = useFeedback();
+  const sendAction = useExclusiveAsyncAction();
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const session = agent.state.sessions.find(
@@ -52,17 +55,19 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
       </ToolPanel>
     );
   }
-  const canSend = session.state === "idle" &&
+  const canSend = !sendAction.busy && session.state === "idle" &&
     agent.state.operationStatus === "idle";
   const canCancel = session.state === "queued" || session.state === "running";
   const send = async () => {
     if (!canSend || draft.trim().length === 0) return;
-    const sent = await feedback.runAction(async () => {
-      await agent.controller.sendMessage(draft);
-      return true;
-    });
+    const pending = sendAction.run(() =>
+      feedback.runAction(async () => {
+        await agent.controller.sendMessage(draft);
+        return true;
+      })
+    );
 
-    if (sent) setDraft("");
+    if (pending && await pending) setDraft("");
   };
 
   return (

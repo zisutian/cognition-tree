@@ -27,6 +27,8 @@ import {
   ToolSection,
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
+import { useExclusiveAsyncAction } from
+  "../../ui/shared/useExclusiveAsyncAction";
 import type {
   ApiAccessSelection,
 } from "./settingsTypes";
@@ -77,11 +79,13 @@ function permissionsToScopes(
 }
 
 function TokenList({
+  disabled,
   onRevoke,
   onSelect,
   selection,
   tokens,
 }: {
+  disabled: boolean;
   onRevoke(tokenId: string): void;
   onSelect(tokenId: string): void;
   selection: ApiAccessSelection;
@@ -94,7 +98,7 @@ function TokenList({
     <ManagementList aria-label="自动化令牌">
       {tokens.map((token) => (
         <ManagementRow
-          actions={<Button onClick={() => onRevoke(token.id)} type="button" variant="danger">撤销</Button>}
+          actions={<Button disabled={disabled} onClick={() => onRevoke(token.id)} type="button" variant="danger">撤销</Button>}
           key={token.id}
           onSelect={() => onSelect(token.id)}
           selected={selection.kind === "automation" && selection.id === token.id}
@@ -107,11 +111,13 @@ function TokenList({
 }
 
 function TrustedClientTokenList({
+  disabled,
   onRevoke,
   onSelect,
   selection,
   tokens,
 }: {
+  disabled: boolean;
   onRevoke(tokenId: string): void;
   onSelect(tokenId: string): void;
   selection: ApiAccessSelection;
@@ -124,7 +130,7 @@ function TrustedClientTokenList({
     <ManagementList aria-label="可信客户端令牌">
       {tokens.map((token) => (
         <ManagementRow
-          actions={<Button onClick={() => onRevoke(token.id)} type="button" variant="danger">撤销</Button>}
+          actions={<Button disabled={disabled} onClick={() => onRevoke(token.id)} type="button" variant="danger">撤销</Button>}
           key={token.id}
           onSelect={() => onSelect(token.id)}
           selected={selection.kind === "trusted" && selection.id === token.id}
@@ -149,12 +155,14 @@ export function ApiAccessSettingsPanel({
   const [permissions, setPermissions] = useState(initialPermissions);
   const [repositoryIds, setRepositoryIds] = useState<string[] | null>(null);
   const [trustedClientName, setTrustedClientName] = useState("");
+  const operationAction = useExclusiveAsyncAction();
   const {
     errorMessage,
     loading,
     tokens,
     trustedClientTokens,
   } = session.snapshot;
+  const busy = loading || operationAction.busy;
 
   const scopes = useMemo(
     () => permissionsToScopes(permissions),
@@ -173,13 +181,15 @@ export function ApiAccessSettingsPanel({
     if (name.trim().length === 0 || scopes.length === 0) {
       return;
     }
-    const created = await session.createToken({
-      name: name.trim(),
-      repositoryIds: permissions.workspace === "none"
-        ? null
-        : repositoryIds,
-      scopes,
-    });
+    const created = await operationAction.run(() =>
+      session.createToken({
+        name: name.trim(),
+        repositoryIds: permissions.workspace === "none"
+          ? null
+          : repositoryIds,
+        scopes,
+      })
+    );
 
     if (!created) return;
     setName("");
@@ -188,7 +198,9 @@ export function ApiAccessSettingsPanel({
   const revokeToken = async (tokenId: string) => {
     const index = tokens.findIndex(({ id }) => id === tokenId);
     const remaining = tokens.filter(({ id }) => id !== tokenId);
-    const revoked = await session.revokeToken(tokenId);
+    const revoked = await operationAction.run(
+      () => session.revokeToken(tokenId),
+    );
 
     if (!revoked) return;
     const next = remaining[
@@ -205,7 +217,9 @@ export function ApiAccessSettingsPanel({
     const tokenName = trustedClientName.trim();
 
     if (!tokenName) return;
-    const created = await session.createTrustedClientToken(tokenName);
+    const created = await operationAction.run(
+      () => session.createTrustedClientToken(tokenName),
+    );
 
     if (!created) return;
     setTrustedClientName("");
@@ -214,7 +228,9 @@ export function ApiAccessSettingsPanel({
   const revokeTrustedClientToken = async (tokenId: string) => {
     const index = trustedClientTokens.findIndex(({ id }) => id === tokenId);
     const remaining = trustedClientTokens.filter(({ id }) => id !== tokenId);
-    const revoked = await session.revokeTrustedClientToken(tokenId);
+    const revoked = await operationAction.run(
+      () => session.revokeTrustedClientToken(tokenId),
+    );
 
     if (!revoked) return;
     const next = remaining[
@@ -231,7 +247,7 @@ export function ApiAccessSettingsPanel({
   return (
     <ToolPanel
       actions={(
-        <Button disabled={loading} onClick={() => void session.load()} type="button">
+        <Button disabled={busy} onClick={() => void operationAction.run(session.load)} type="button">
           刷新
         </Button>
       )}
@@ -308,11 +324,11 @@ export function ApiAccessSettingsPanel({
                 </>
               ) : null}
               <FormActions>
-                <Button disabled={loading || name.trim().length === 0 || scopes.length === 0 || (permissions.workspace !== "none" && repositoryIds !== null && repositoryIds.length === 0)} onClick={() => void createToken()} type="button" variant="primary">创建令牌</Button>
+                <Button disabled={busy || name.trim().length === 0 || scopes.length === 0 || (permissions.workspace !== "none" && repositoryIds !== null && repositoryIds.length === 0)} onClick={() => void createToken()} type="button" variant="primary">创建令牌</Button>
               </FormActions>
             </FormLayout>
             <h3 className="settings-subsection-heading">现有令牌</h3>
-            {loading && tokens.length === 0 ? <EmptyState compact description="正在读取自动化令牌。" title="正在加载" /> : <TokenList onRevoke={(id) => void revokeToken(id)} onSelect={(id) => onSelectionChange({ id, kind: "automation" })} selection={selection} tokens={tokens} />}
+            {loading && tokens.length === 0 ? <EmptyState compact description="正在读取自动化令牌。" title="正在加载" /> : <TokenList disabled={busy} onRevoke={(id) => void revokeToken(id)} onSelect={(id) => onSelectionChange({ id, kind: "automation" })} selection={selection} tokens={tokens} />}
           </ToolSection>
           <ToolSection title="可信客户端">
             <FormLayout>
@@ -322,10 +338,11 @@ export function ApiAccessSettingsPanel({
                 )}
               </FieldRow>
               <FormActions>
-                <Button disabled={loading || trustedClientName.trim().length === 0} onClick={() => void createTrustedClientToken()} type="button" variant="primary">创建可信客户端令牌</Button>
+                <Button disabled={busy || trustedClientName.trim().length === 0} onClick={() => void createTrustedClientToken()} type="button" variant="primary">创建可信客户端令牌</Button>
               </FormActions>
             </FormLayout>
             <TrustedClientTokenList
+              disabled={busy}
               onRevoke={(id) => void revokeTrustedClientToken(id)}
               onSelect={(id) => onSelectionChange({ id, kind: "trusted" })}
               selection={selection}
