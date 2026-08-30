@@ -243,6 +243,64 @@ const overviewAgentRoute = { page: "overview" } as const;
 const onAgentRouteChange = () => undefined;
 
 describe("settings activity", () => {
+  it("blocks provider mutations while a device login is pending", () => {
+    const pendingAgent = {
+      ...agent,
+      configurationState: {
+        ...agent.configurationState,
+        codexDeviceLogins: {
+          "codex-device-provider": {
+            completedAt: null,
+            errorMessage: null,
+            expiresAt: "2026-08-25T00:15:00.000Z",
+            id: "login-1",
+            providerId: "codex-device-provider",
+            startedAt: "2026-08-25T00:00:00.000Z",
+            status: "pending" as const,
+            userCode: "ABCD-EFGH",
+            verificationUrl: "https://auth.openai.com/device",
+          },
+        },
+        configuration: {
+          ...agent.configurationState.configuration!,
+          providers: agent.configurationState.configuration!.providers.map(
+            (provider) => provider.id === "codex-device-provider"
+              ? { ...provider, authenticationStatus: "configured" as const }
+              : provider,
+          ),
+        },
+      },
+    };
+    const markup = renderToStaticMarkup(
+      <SettingsPanel
+        agent={pendingAgent}
+        agentRoute={{
+          page: "providers",
+          selectedProviderId: "codex-device-provider",
+        }}
+        apiAccessSession={apiAccessSession}
+        onAgentRouteChange={onAgentRouteChange}
+        operationsSession={operationsSession}
+        section="agent"
+        system={system}
+        systemOwnerCredentialSession={systemOwnerCredentialSession}
+        workbench={{
+          contextWidth: appContextDefaultWidth,
+          onContextWidthChange: () => undefined,
+        }}
+      />,
+    );
+
+    expectMarkupSemantics(markup, {
+      has: [
+        /aria-label="退出 ChatGPT Codex 认证"[^>]*disabled=""/,
+        /aria-label="编辑 ChatGPT Codex"[^>]*disabled=""/,
+        /aria-label="删除 ChatGPT Codex"[^>]*disabled=""/,
+        /<button(?![^>]*disabled="")[^>]*aria-label="取消 ChatGPT Codex 登录"/,
+      ],
+    });
+  });
+
   it("separates interface preferences from scoped server API access", () => {
     const statusProps = {
       agent,

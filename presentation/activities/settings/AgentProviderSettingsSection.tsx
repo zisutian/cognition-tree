@@ -123,6 +123,7 @@ export function AgentProviderSettingsSection({
         <ManagementList aria-label="Provider 列表">
           {providers.map((provider, index) => {
             const login = agent.configurationState.codexDeviceLogins[provider.id];
+            const loginPending = login?.status === "pending";
 
             return (
               <ManagementRow
@@ -139,7 +140,7 @@ export function AgentProviderSettingsSection({
                     </Button>
                     {provider.kind === "codex"
                       && provider.authenticationType === "chatgpt-device-code"
-                      && login?.status !== "pending" ? (
+                      && !loginPending ? (
                         <Button
                           disabled={busy}
                           onClick={() => void feedback.runAction(() =>
@@ -152,8 +153,9 @@ export function AgentProviderSettingsSection({
                           使用 ChatGPT 登录
                         </Button>
                       ) : null}
-                    {login?.status === "pending" ? (
+                    {loginPending ? (
                       <Button
+                        aria-label={`取消 ${provider.label} 登录`}
                         disabled={busy}
                         onClick={() => void feedback.runAction(() =>
                           agent.configurationController.cancelCodexDeviceLogin(
@@ -167,7 +169,8 @@ export function AgentProviderSettingsSection({
                     ) : null}
                     {provider.authenticationStatus === "configured" ? (
                       <Button
-                        disabled={busy}
+                        aria-label={`退出 ${provider.label} 认证`}
+                        disabled={busy || loginPending}
                         onClick={() => void feedback.runAction(() =>
                           agent.configurationController
                             .clearProviderAuthentication(provider.id)
@@ -178,7 +181,8 @@ export function AgentProviderSettingsSection({
                       </Button>
                     ) : null}
                     <Button
-                      disabled={busy}
+                      aria-label={`编辑 ${provider.label}`}
+                      disabled={busy || loginPending}
                       onClick={() => setDraftSession({
                         draft: agentProviderDraftFrom(provider),
                         providerId: provider.id,
@@ -189,7 +193,8 @@ export function AgentProviderSettingsSection({
                       编辑
                     </Button>
                     <Button
-                      disabled={busy}
+                      aria-label={`删除 ${provider.label}`}
+                      disabled={busy || loginPending}
                       onClick={() => void feedback.runAction(async () => {
                         await agent.configurationController.deleteProvider(
                           provider.id,
