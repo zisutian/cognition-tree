@@ -7,17 +7,11 @@ import { lock } from "proper-lockfile";
 import { isRepositoryId } from "../../../../../contracts/workspace/parseCatalog.ts";
 import {
   createPortableNameKey,
-  getPortableNameIssue,
   parsePortableName,
 } from "../../../../../core/naming/portableName.ts";
-import {
-  UnsupportedRepositoryVersionError,
-  WorkspaceRepositoryContractError,
-} from "../../../../../contracts/workspace/contractValue.ts";
 import type {
   CreateRepositoryDto,
   RepositoryCatalogDto,
-  RepositoryCatalogIssueDto,
   RepositoryDescriptorDto,
   RenameRepositoryDto,
   WorkspaceRepositoryContentDto,
@@ -26,7 +20,6 @@ import {
   RepositoryCatalogError,
   type WorkspaceRepositoryCatalog,
 } from "../../catalog.ts";
-import { RepositoryCorruptError } from "../../store.ts";
 import { fsyncDirectory } from "../../../persistence/fileSystemPersistence.ts";
 import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
 import {
@@ -35,16 +28,11 @@ import {
 import {
   provisionWorkspaceFileRepository,
 } from "./workspaceFileRepositoryProvisioning.ts";
-import { readLocalJson } from "./localWorkingTree.ts";
-import { parseLocalRepositoryMetadata } from "./localWorkingTreeCodec.ts";
 import {
   deleteLocalRepositoryDirectory,
   type LocalRepositoryDeletionPhase,
 } from "./localRepositoryDeletion.ts";
-import {
-  localControlDirectoryName,
-  localRepositoryMetadataFileName,
-} from "./localWorkingTreeLayout.ts";
+import { readLocalRepositoryCatalog } from "./localRepositoryInventory.ts";
 
 const writerLockFileName = ".ctn-writer.lock";
 const catalogCreateStagingPattern =
@@ -361,86 +349,16 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
   }
 
   async #listRepositories(): Promise<RepositoryCatalogDto> {
-    const entries = await readdir(this.#rootDir, { withFileTypes: true });
-    const repositoryIds = entries
-      .filter((entry) =>
-        entry.isDirectory() &&
-        !entry.isSymbolicLink() &&
-        isRepositoryId(entry.name)
-      )
-      .map((entry) => entry.name)
-      .sort((left, right) => left.localeCompare(right));
-    const repositories: RepositoryDescriptorDto[] = [];
-    const issues: RepositoryCatalogIssueDto[] = [];
-
-    for (const repositoryId of repositoryIds) {
-      try {
-        const repositoryPath = this.#resolveRepositoryPath(repositoryId);
-        const repositoryStats = await lstat(repositoryPath);
-        if (!repositoryStats.isDirectory() || repositoryStats.isSymbolicLink()) {
-          throw new WorkspaceRepositoryContractError(
-            "$.layoutVersion",
-            "Local repository root is invalid",
-          );
-        }
-        const controlPath = path.join(repositoryPath, localControlDirectoryName);
-        const controlStats = await lstat(controlPath);
-        if (!controlStats.isDirectory() || controlStats.isSymbolicLink()) {
-          throw new WorkspaceRepositoryContractError(
-            "$.layoutVersion",
-            "Local control directory is invalid",
-          );
-        }
-        const metadata = parseLocalRepositoryMetadata(await readLocalJson(
-          path.join(controlPath, localRepositoryMetadataFileName),
-        ));
-
-        if (metadata.repositoryId !== repositoryId) {
-          throw new WorkspaceRepositoryContractError(
-            "$.repositoryId",
-            "repository identity does not match its directory",
-          );
-        }
-
-        repositories.push(this.#createDescriptor(repositoryId, metadata.label));
-      } catch (error) {
-        const code = this.#classifyCatalogIssue(error);
-
-        issues.push({
-          code,
-          id: repositoryId,
-          location: this.#createLocation(repositoryId),
-          message: code === "unsupported_repository_version"
-            ? "Repository version is not supported"
-            : "Repository metadata is invalid",
-        });
-      }
-    }
-
-    const countsByLabel = new Map<string, number>();
-    for (const repository of repositories) {
-      const key = createPortableNameKey(repository.label);
-      countsByLabel.set(key, (countsByLabel.get(key) ?? 0) + 1);
-    }
-
-    return {
-      issues,
-      repositories: repositories.map((repository) => {
-        const key = createPortableNameKey(repository.label);
-        const portableIssue = getPortableNameIssue(repository.label);
-
-        return {
-          ...repository,
-          labelIssue: portableIssue
-            ? "nonportable"
-            : reservedRepositoryLabelKeys.has(key)
-              ? "reserved"
-              : (countsByLabel.get(key) ?? 0) > 1
-                ? "conflict"
-                : null,
-        };
-      }),
-    };
+    return readLocalRepositoryCatalog({
+      createDescriptor: (repositoryId, label) =>
+        this.#createDescriptor(repositoryId, label),
+      createLocation: (repositoryId) => this.#createLocation(repositoryId),
+      isReservedLabel: (label) =>
+        reservedRepositoryLabelKeys.has(createPortableNameKey(label)),
+      resolveRepositoryPath: (repositoryId) =>
+        this.#resolveRepositoryPath(repositoryId),
+      rootDir: this.#rootDir,
+    });
   }
 
   async #initialize() {
@@ -505,23 +423,6 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
         "Local repository writer lock was lost",
       );
     }
-  }
-
-  #classifyCatalogIssue(
-    error: unknown,
-  ): RepositoryCatalogIssueDto["code"] {
-    if (error instanceof UnsupportedRepositoryVersionError) {
-      return "unsupported_repository_version";
-    }
-    if (hasFileSystemErrorCode(error, "ENOENT")) {
-      return "repository_corrupt";
-    }
-    if (error instanceof RepositoryCorruptError ||
-        error instanceof SyntaxError ||
-        error instanceof WorkspaceRepositoryContractError) {
-      return "repository_corrupt";
-    }
-    return "adapter_unavailable";
   }
 
   #createDescriptor(repositoryId: string, label: string): RepositoryDescriptorDto {
