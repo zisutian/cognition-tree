@@ -411,4 +411,26 @@ describe("Agent client controller", () => {
     });
     harness.controller.dispose();
   });
+
+  it("rejects every public side effect after dispose", async () => {
+    const harness = createHarness();
+
+    await start(harness);
+    harness.controller.dispose();
+    harness.controller.dispose();
+
+    await expect(harness.controller.sendMessage("must not be sent"))
+      .rejects.toThrow("disposed");
+    await expect(harness.controller.createSession({
+      scope: createSession().scope,
+    })).rejects.toThrow("disposed");
+    expect(() => harness.controller.setPreferredProfile("codex-safe"))
+      .toThrow("disposed");
+    expect(() => harness.controller.selectSession(sessionId))
+      .toThrow("disposed");
+    expect(harness.port.sendMessage).not.toHaveBeenCalled();
+    expect(harness.port.createSession).not.toHaveBeenCalled();
+    expect(harness.profilePreference.save).not.toHaveBeenCalled();
+    expect(harness.controller.subscribe(vi.fn())).toBeTypeOf("function");
+  });
 });

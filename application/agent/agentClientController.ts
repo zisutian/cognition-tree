@@ -117,6 +117,11 @@ export function createAgentClientController({
     state = next;
     listeners.forEach((listener) => listener());
   };
+  const requireActive = () => {
+    if (disposed) {
+      throw new Error("Agent client controller is disposed.");
+    }
+  };
   const update = (patch: Partial<AgentClientState>) =>
     publish({ ...state, ...patch });
   const reconcilePreferredProfile = (status: AgentStatus) => {
@@ -335,6 +340,7 @@ export function createAgentClientController({
     connectEvents();
   };
   const runOperation = async (operation: () => Promise<void>) => {
+    requireActive();
     operationCount += 1;
     update({ operationStatus: "working" });
     try {
@@ -430,6 +436,7 @@ export function createAgentClientController({
     }),
     reload: () => runOperation(reloadState),
     selectSession(sessionId) {
+      requireActive();
       if (!state.sessions.some(({ id }) => id === sessionId)) {
         recordProblem(
           "session_unavailable",
@@ -442,6 +449,7 @@ export function createAgentClientController({
       void recoverActiveSession().catch(() => undefined);
     },
     setPreferredProfile(profileId) {
+      requireActive();
       if (profileId === null) {
         profilePreference.clear();
         update({ preferredProfileId: null });
@@ -468,6 +476,7 @@ export function createAgentClientController({
       void controller.reload().catch(() => undefined);
     },
     subscribe(listener) {
+      if (disposed) return () => undefined;
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
