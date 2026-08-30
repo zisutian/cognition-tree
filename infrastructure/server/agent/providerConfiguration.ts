@@ -141,7 +141,13 @@ export class AgentProviderConfiguration {
           );
         }
         lifecycle.change = this.#beginProviderChange(state, providerId);
-        const previous = state.providers[index]!;
+        const previous = state.providers[index];
+
+        if (!previous) {
+          throw new AgentConfigurationValidationError(
+            "Agent provider does not exist",
+          );
+        }
         const normalized = normalizeProviderInput(input, this.#targetPolicy);
         const prepared = await this.#authenticationForInput(
           previous.id,
@@ -180,10 +186,7 @@ export class AgentProviderConfiguration {
         };
       });
 
-      if (outcome.credentialToRemove) {
-        await this.#credentialStore.remove(outcome.credentialToRemove)
-          .catch(() => undefined);
-      }
+      await this.#removeObsoleteCredential(outcome.credentialToRemove);
       return outcome.value;
     } catch (error) {
       await this.#removeRejectedCredentialCandidate(
@@ -222,21 +225,23 @@ export class AgentProviderConfiguration {
         lifecycle.change = this.#beginProviderChange(state, providerId);
         const [provider] = state.providers.splice(index, 1);
 
+        if (!provider) {
+          throw new AgentConfigurationValidationError(
+            "Agent provider does not exist",
+          );
+        }
         return {
           changed: true,
           result: {
             configuration: configurationSnapshot(state),
-            credential: provider!.authentication.type !== "none"
-              ? provider!.authentication.credential
+            credential: provider.authentication.type !== "none"
+              ? provider.authentication.credential
               : null,
           },
         };
       });
 
-      if (outcome.credential) {
-        await this.#credentialStore.remove(outcome.credential)
-          .catch(() => undefined);
-      }
+      await this.#removeObsoleteCredential(outcome.credential);
       return outcome.configuration;
     } finally {
       lifecycle.change?.release();
@@ -315,11 +320,13 @@ export class AgentProviderConfiguration {
 
     try {
       this.#access.assertProviderChange(change, providerId);
-      credential = await this.#credentialStore.activateCodexManagedHome(
-        providerId,
-        credentialVersion,
-        loginId,
-      );
+      const activatedCredential =
+        await this.#credentialStore.activateCodexManagedHome(
+          providerId,
+          credentialVersion,
+          loginId,
+        );
+      credential = activatedCredential;
       const outcome = await this.#mutate((state) => {
         assertAgentConfigurationRevision(state, baseRevision);
         this.#access.assertProviderChange(change, providerId);
@@ -334,7 +341,7 @@ export class AgentProviderConfiguration {
         const previousCredential = provider.authentication.credential;
 
         provider.authentication = {
-          credential: credential!,
+          credential: activatedCredential,
           type: "chatgpt-device-code",
         };
         candidateMayBeAuthoritative = true;
@@ -349,10 +356,7 @@ export class AgentProviderConfiguration {
         };
       });
 
-      if (outcome.previousCredential) {
-        await this.#credentialStore.remove(outcome.previousCredential)
-          .catch(() => undefined);
-      }
+      await this.#removeObsoleteCredential(outcome.previousCredential);
       return outcome.configuration;
     } catch (error) {
       await this.#removeRejectedCredentialCandidate(
@@ -396,10 +400,7 @@ export class AgentProviderConfiguration {
         };
       });
 
-      if (outcome.credential) {
-        await this.#credentialStore.remove(outcome.credential)
-          .catch(() => undefined);
-      }
+      await this.#removeObsoleteCredential(outcome.credential);
       return outcome.configuration;
     } finally {
       lifecycle.change?.release();
@@ -458,6 +459,13 @@ export class AgentProviderConfiguration {
         .filter(({ providerId: candidate }) => candidate === providerId)
         .map(({ id }) => id),
     );
+  }
+
+  async #removeObsoleteCredential(
+    credential: AgentCredentialReference | null,
+  ) {
+    if (!credential) return;
+    await this.#credentialStore.remove(credential).catch(() => undefined);
   }
 
   async #removeRejectedCredentialCandidate(
