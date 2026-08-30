@@ -402,7 +402,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     API server 的 api/http 拥有 request lifecycle、认证、限制和 registry 分派；
     api/resources、api/sync 分别拥有只读资源投影与 merge-aware snapshot 同步，search
     保持独立查询入口。server/access 独占 automation 与 trusted-client token；
-    server/operations 独占统一账本、审计状态和 Agent receipt；server/agent 拥有
+    server/operations 独占统一账本、审计状态和 Agent receipt；其中
+    operationLedgerContract 独占公开错误与命令类型，operationLedger 只实现事务；
+    server/agent 拥有
     store 组合、runtime adapter、私有 IPC 与内存会话，不重写领域 command；其中
     providerOperations 只显式组合无状态 providerProbe、Codex 设备码登录状态机和
     conformance 状态机，并统一拒绝关闭后启动的新操作；后两者分别独占自身记录、

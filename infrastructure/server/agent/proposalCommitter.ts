@@ -14,10 +14,8 @@ import type { ApiRuntime } from "../api/http/runtime.ts";
 import { readApiRuntimeNow } from "../api/http/runtime.ts";
 import type { ApiEventHub } from "../api/sync/events.ts";
 import type { ApiRevisionTracker } from "../api/sync/revisionTracker.ts";
-import type {
-  AgentOperationAttempt,
-  OperationLedger,
-} from "../operations/operationLedger.ts";
+import type { AgentOperationAttempt } from "../operations/operationLedgerContract.ts";
+import type { OperationLedger } from "../operations/operationLedger.ts";
 import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
 import type { WorkspaceRepositoryStore } from "../repository/store.ts";
 import { WorkspaceRevisionConflictError } from "../repository/store.ts";

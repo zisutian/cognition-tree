@@ -29,7 +29,7 @@ import {
   OperationAuditFinalizeError,
   OperationAuditUnavailableError,
   type TrustedClientOperationStore,
-} from "../../operations/operationLedger.ts";
+} from "../../operations/operationLedgerContract.ts";
 import { readApiRuntimeNow } from "../http/runtime.ts";
 
 async function publishApiChanges(

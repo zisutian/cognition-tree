@@ -48,7 +48,7 @@ import {
   AgentOperationIndeterminateError,
   OperationAuditFinalizeError,
   OperationAuditUnavailableError,
-} from "../../operations/operationLedger.ts";
+} from "../../operations/operationLedgerContract.ts";
 import { AgentServiceError } from "../../agent/errors.ts";
 import {
   AgentConfigurationConflictError,
