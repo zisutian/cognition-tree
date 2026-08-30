@@ -414,8 +414,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     conversationRunner 独占普通对话、提交回执、工具执行、上下文压缩和取消收尾的
     turn 编排，内部 profileTurnQueue 独占跨 session 的 Profile FIFO、排队判定与直到
     真正空闲的关闭等待；
+    proposalWorkflow 独占 owner 决策、破坏性二次确认、终态 session 投影和回执调度；
     proposalCommitter 独占 Agent exact-CAS、幂等账本、审计 receipt 与提交后的
-    revision/event 发布，service 只把终态投影回 session 并调度回执摘要；
+    revision/event 发布，service 只定位 session、跟踪 owner operation 并转发参数；
     sessionEventStream 独占 session SSE sequence、重放窗口和终态关闭，关闭后不再接收
     事件或连接；
     sessionToolProtocol、sessionToolState 与 proposalCodec 分别独占模型工具映射、会话

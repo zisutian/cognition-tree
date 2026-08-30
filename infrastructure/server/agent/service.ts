@@ -4,9 +4,7 @@ import type { OutgoingHttpHeaders, ServerResponse } from "node:http";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import {
-  confirmAgentProposalDestruction,
   createAgentRuntimeInstructions,
-  decideAgentProposal,
   AgentSessionController,
   type AgentProposal,
   type AgentScope,
@@ -45,8 +43,8 @@ import type { AgentServicePolicy } from "./servicePolicy.ts";
 import { AgentServiceError } from "./errors.ts";
 import {
   AgentProposalCommitter,
-  type AgentProposalCommitRoute,
 } from "./proposalCommitter.ts";
+import { AgentProposalWorkflow } from "./proposalWorkflow.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import { AgentConversationRunner } from "./conversationRunner.ts";
 import { AgentSessionTools } from "./sessionTools.ts";
@@ -76,7 +74,7 @@ export class AgentService {
   readonly #ipc: AgentPrivateIpcServer;
   readonly #ledger: OperationLedger | null;
   readonly #operations = new Set<Promise<unknown>>();
-  readonly #proposalCommitter: AgentProposalCommitter;
+  readonly #proposalWorkflow: AgentProposalWorkflow<AgentSessionRecord>;
   readonly #runtime: ApiRuntime;
   readonly #runtimeFactory: AgentRuntimeFactory;
   readonly #servicePolicy: AgentServicePolicy;
@@ -117,7 +115,7 @@ export class AgentService {
     this.#configurationStore = configurationStore;
     this.#ipc = ipc;
     this.#ledger = ledger;
-    this.#proposalCommitter = new AgentProposalCommitter({
+    const proposalCommitter = new AgentProposalCommitter({
       builtInCatalog,
       catalog,
       eventHub,
@@ -142,6 +140,15 @@ export class AgentService {
       emitProposal: (record, proposal) => this.#emitProposal(record, proposal),
       emitSnapshot: (record) => this.#emitSnapshot(record),
       tools: this.#tools,
+    });
+    this.#proposalWorkflow = new AgentProposalWorkflow({
+      assertScopeAvailable: (record) =>
+        this.#tools.assertScopeAvailable(record.controller.snapshot().scope),
+      committer: proposalCommitter,
+      emitProposal: (record, proposal) => this.#emitProposal(record, proposal),
+      isClosing: () => this.#disposed,
+      scheduleReceiptSummary: (record, receipt) =>
+        this.#conversation.scheduleReceiptSummary(record, receipt),
     });
     this.#sessionPool = new AgentSessionPool({
       ipc,
@@ -432,67 +439,15 @@ export class AgentService {
     sessionId: string;
   }) {
     this.#assertOpen();
-    return await this.#trackOperation(this.#decideProposal({
+    const record = this.#sessionPool.require(sessionId);
+
+    return await this.#trackOperation(this.#proposalWorkflow.decide({
       decision,
       ownerId,
       proposalId,
-      requestId,
-      sessionId,
-    }));
-  }
-
-  async #decideProposal({
-    decision,
-    ownerId,
-    proposalId,
-    requestId,
-    sessionId,
-  }: {
-    decision: "approve" | "reject";
-    ownerId: string;
-    proposalId: string;
-    requestId: string;
-    sessionId: string;
-  }) {
-    const record = this.#sessionPool.require(sessionId);
-
-    await this.#tools.assertScopeAvailable(record.controller.snapshot().scope);
-    let proposal = record.controller.getProposal(proposalId);
-
-    if (proposal.status === "committed" || proposal.status === "stale" ||
-        proposal.status === "failed") {
-      return toAgentProposalDto(proposal);
-    }
-    if (proposal.status === "rejected") {
-      if (decision !== "reject") {
-        throw new AgentServiceError("invalid_request", "Proposal was rejected");
-      }
-      return toAgentProposalDto(proposal);
-    }
-    if (proposal.status === "pending") {
-      proposal = decideAgentProposal(proposal, decision);
-      record.controller.putProposal(proposal);
-      this.#emitProposal(record, proposal);
-    }
-    if (decision === "reject") {
-      if (proposal.status !== "rejected") {
-        throw new AgentServiceError(
-          "invalid_request",
-          "Proposal has already been approved",
-        );
-      }
-      return toAgentProposalDto(proposal);
-    }
-    if (proposal.status === "awaiting-destructive-confirmation") {
-      return toAgentProposalDto(proposal);
-    }
-    return this.#commit(
       record,
-      proposal,
-      ownerId,
       requestId,
-      "proposal-decision",
-    );
+    }));
   }
 
   async confirmDestruction({
@@ -507,44 +462,14 @@ export class AgentService {
     sessionId: string;
   }) {
     this.#assertOpen();
-    return await this.#trackOperation(this.#confirmDestruction({
-      ownerId,
-      proposalId,
-      requestId,
-      sessionId,
-    }));
-  }
-
-  async #confirmDestruction({
-    ownerId,
-    proposalId,
-    requestId,
-    sessionId,
-  }: {
-    ownerId: string;
-    proposalId: string;
-    requestId: string;
-    sessionId: string;
-  }) {
     const record = this.#sessionPool.require(sessionId);
 
-    await this.#tools.assertScopeAvailable(record.controller.snapshot().scope);
-    let proposal = record.controller.getProposal(proposalId);
-
-    if (proposal.status === "committed" || proposal.status === "stale" ||
-        proposal.status === "failed") {
-      return toAgentProposalDto(proposal);
-    }
-    proposal = confirmAgentProposalDestruction(proposal);
-    record.controller.putProposal(proposal);
-    this.#emitProposal(record, proposal);
-    return this.#commit(
-      record,
-      proposal,
+    return await this.#trackOperation(this.#proposalWorkflow.confirmDestruction({
       ownerId,
+      proposalId,
+      record,
       requestId,
-      "destructive-confirmation",
-    );
+    }));
   }
 
   dispose() {
@@ -651,43 +576,6 @@ export class AgentService {
         },
       },
     };
-  }
-
-  async #commit(
-    record: AgentSessionRecord,
-    proposal: AgentProposal,
-    ownerId: string,
-    requestId: string,
-    route: AgentProposalCommitRoute,
-  ) {
-    const outcome = await this.#proposalCommitter.commit({
-      context: {
-        configuration: record.configuration,
-        profile: record.profile,
-        runtimeKind: record.runtime.kind,
-        sessionId: record.controller.snapshot().id,
-      },
-      ownerId,
-      proposal,
-      requestId,
-      route,
-    });
-
-    record.controller.putProposal(outcome.proposal);
-    if (!this.#disposed) this.#emitProposal(record, outcome.proposal);
-    if (outcome.receipt.result === "committed") {
-      if (!outcome.replayed && !this.#disposed) {
-        this.#conversation.scheduleReceiptSummary(record, outcome.receipt);
-      }
-      return toAgentProposalDto(outcome.proposal);
-    }
-    if (outcome.receipt.result === "stale") {
-      throw new AgentServiceError(
-        "proposal_stale",
-        "Store revision changed after the proposal was staged",
-      );
-    }
-    throw new AgentServiceError("session_unavailable", "Agent commit failed");
   }
 
   #emitProposal(record: AgentSessionRecord, proposal: AgentProposal) {
