@@ -190,6 +190,12 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/repository\/workspace\/local\/localRepositoryDeletion\.ts$/,
     ],
     [
+      "local repository inventory scan",
+      infrastructureModules,
+      /\bexport async function readLocalRepositoryCatalog\s*\(/,
+      /^infrastructure\/server\/repository\/workspace\/local\/localRepositoryInventory\.ts$/,
+    ],
+    [
       "Agent Profile turn queue",
       infrastructureModules,
       /\bnew AgentProfileTurnQueue\s*\(/,

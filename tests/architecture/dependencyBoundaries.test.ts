@@ -575,6 +575,31 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps local repository inventory behind its catalog", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath:
+          "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts",
+        importPath: "./localRepositoryInventory",
+        targetPath:
+          "../../infrastructure/server/repository/workspace/local/localRepositoryInventory.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath:
+          "../../infrastructure/server/repository/workspace/local/workspaceFileStore.ts",
+        importPath: "./localRepositoryInventory",
+        targetPath:
+          "../../infrastructure/server/repository/workspace/local/localRepositoryInventory.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "local repository inventory composition boundary: ../../infrastructure/server/repository/workspace/local/workspaceFileStore.ts imports ./localRepositoryInventory",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {
