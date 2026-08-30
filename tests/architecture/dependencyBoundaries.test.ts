@@ -293,6 +293,27 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps Proposal owner decisions behind Agent service", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath: "../../infrastructure/server/agent/service.ts",
+        importPath: "./proposalWorkflow",
+        targetPath: "../../infrastructure/server/agent/proposalWorkflow.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/agent/sessionTools.ts",
+        importPath: "./proposalWorkflow",
+        targetPath: "../../infrastructure/server/agent/proposalWorkflow.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "Agent Proposal workflow composition boundary: ../../infrastructure/server/agent/sessionTools.ts imports ./proposalWorkflow",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

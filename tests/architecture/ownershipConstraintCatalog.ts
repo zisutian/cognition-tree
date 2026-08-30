@@ -100,6 +100,18 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/agent\/sessionPool\.ts$/,
     ],
     [
+      "Agent Proposal owner decision",
+      infrastructureModules,
+      /\bdecideAgentProposal\s*\(/,
+      /^infrastructure\/server\/agent\/proposalWorkflow\.ts$/,
+    ],
+    [
+      "Agent Proposal destruction confirmation",
+      infrastructureModules,
+      /\bconfirmAgentProposalDestruction\s*\(/,
+      /^infrastructure\/server\/agent\/proposalWorkflow\.ts$/,
+    ],
+    [
       "CTN tone class projection",
       presentationModules,
       /`ctn-tone-\$\{tone\}`/,
