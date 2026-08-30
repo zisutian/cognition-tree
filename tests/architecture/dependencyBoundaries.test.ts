@@ -431,6 +431,14 @@ describe("dependency boundaries", () => {
         targetRoot: "infrastructure",
       },
       {
+        filePath:
+          "../../infrastructure/server/operations/operationLedgerStore.ts",
+        importPath: "./operationLedgerState",
+        targetPath:
+          "../../infrastructure/server/operations/operationLedgerState.ts",
+        targetRoot: "infrastructure",
+      },
+      {
         filePath: "../../infrastructure/server/api/sync/handlers.ts",
         importPath: "../../operations/operationLedgerState",
         targetPath:

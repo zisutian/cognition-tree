@@ -1,43 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomUUID } from "node:crypto";
-import { lstat, unlink } from "node:fs/promises";
-import path from "node:path";
 import {
   AgentOperationAuditEntrySchema,
   type AgentOperationAuditEntryDto,
 } from "../../../contracts/agent/schemas.ts";
 import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
-import {
-  type ApiOperationAuditPageDto,
-} from "../../../contracts/api/schemas/operations.ts";
-import {
-  SecureJsonPartition,
-  SecureStatePartitionError,
-  type SecureStateFileReplacer,
-} from "../state/secureJsonPartition.ts";
+import type { SecureStateFileReplacer } from "../state/secureJsonPartition.ts";
 import {
   AgentOperationIdempotencyError,
   AgentOperationIndeterminateError,
   type AgentOperationAttempt,
   type AgentOperationIdentity,
   OperationAuditFinalizeError,
-  type OperationAuditStatus,
-  OperationAuditUnavailableError,
   type TrustedClientOperationResult,
   type TrustedClientOperationStore,
 } from "./operationLedgerContract.ts";
-import {
-  createInitialOperationLedgerState,
-  type OperationLedgerState,
-  parseOperationLedgerState,
-} from "./operationLedgerState.ts";
+import type { OperationLedgerState } from "./operationLedgerState.ts";
 import {
   createTrustedClientAuditEntry,
   operationLedgerKey,
   projectAgentOperationAudit,
   projectIndeterminateAgentOperationAudit,
 } from "./operationLedgerProjection.ts";
+import { OperationLedgerStore } from "./operationLedgerStore.ts";
 
 const defaultReceiptRetentionMilliseconds = 24 * 60 * 60 * 1_000;
 
@@ -51,14 +37,10 @@ export class OperationLedger {
     digest: string;
     promise: Promise<{ entry: AgentOperationAuditEntryDto; replayed: boolean }>;
   }>();
-  #maxAuditEntries: number;
   readonly #now: () => string;
-  #operationQueue: Promise<void> = Promise.resolve();
-  readonly #partition: SecureJsonPartition<OperationLedgerState>;
   readonly #receiptRetentionMilliseconds: number;
   readonly #runtimeId: string;
-  readonly #stateDirectory: string;
-  #unavailableMessage: string | null = null;
+  readonly #store: OperationLedgerStore;
 
   constructor(
     stateDirectory: string,
@@ -70,64 +52,24 @@ export class OperationLedger {
       runtimeId?: string;
     } = {},
   ) {
-    if (!Number.isSafeInteger(maxAuditEntries) || maxAuditEntries < 1) {
-      throw new Error("maxAuditEntries must be a positive integer");
-    }
-    this.#maxAuditEntries = maxAuditEntries;
     this.#now = options.now ?? (() => new Date().toISOString());
+    this.#store = new OperationLedgerStore(stateDirectory, maxAuditEntries, {
+      now: this.#now,
+      ...(options.replaceStateFile
+        ? { replaceStateFile: options.replaceStateFile }
+        : {}),
+    });
     this.#receiptRetentionMilliseconds = options.receiptRetentionMilliseconds ??
       defaultReceiptRetentionMilliseconds;
     this.#runtimeId = options.runtimeId ?? randomUUID();
-    this.#stateDirectory = path.resolve(stateDirectory);
-    this.#partition = new SecureJsonPartition({
-      createInitial: createInitialOperationLedgerState,
-      directory: path.join(this.#stateDirectory, "operations-v1"),
-      fileName: "operations.json",
-      name: "operation ledger",
-      parse: parseOperationLedgerState,
-      ...(options.replaceStateFile
-        ? { replaceFile: options.replaceStateFile }
-        : {}),
-    });
   }
 
-  initialize(): Promise<OperationAuditStatus> {
-    return this.#enqueue(async () => {
-      if (this.#unavailableMessage) return this.#currentStatus();
-      try {
-        await this.#partition.mutate((state) => {
-          let changed = false;
-
-          for (const stored of state.auditEntries) {
-            if (!stored.pending) continue;
-            stored.pending = false;
-            stored.entry.result = "indeterminate";
-            stored.entry.updatedAt = this.#now();
-            changed = true;
-          }
-          return { changed, result: undefined };
-        });
-        await this.#removeLegacyAuditFile("agent-v2", "operations.json");
-        await this.#removeLegacyAuditFile("api-v1", "audit.json");
-        return { status: "available" };
-      } catch (error) {
-        this.#markUnavailable(error);
-        return this.#currentStatus();
-      }
-    });
+  initialize() {
+    return this.#store.initialize();
   }
 
-  status(): Promise<OperationAuditStatus> {
-    return this.#enqueue(async () => {
-      if (this.#unavailableMessage) return this.#currentStatus();
-      try {
-        await this.#partition.read(() => undefined);
-        return { status: "available" };
-      } catch (error) {
-        this.#markUnavailable(error);
-        return this.#currentStatus();
-      }
-    });
+  status() {
+    return this.#store.status();
   }
 
   runAgentIdempotent(
@@ -160,14 +102,14 @@ export class OperationLedger {
     route: string;
     store: TrustedClientOperationStore;
   }) {
-    return this.#mutate((state) => {
+    return this.#store.mutate((state) => {
       if (state.auditEntries.some(({ entry }) => entry.id === input.requestId)) {
         throw new Error("Operation requestId is already present in the audit ledger");
       }
       const entry = createTrustedClientAuditEntry(input);
 
       state.auditEntries.push({ entry, pending: true });
-      this.#trimAudit(state);
+      this.#store.trimAudit(state);
       return { changed: true, result: input.requestId };
     });
   }
@@ -180,7 +122,7 @@ export class OperationLedger {
       updatedAt: string;
     },
   ) {
-    return this.#mutate((state) => {
+    return this.#store.mutate((state) => {
       const stored = state.auditEntries.find(({ entry }) =>
         entry.id === operationId
       );
@@ -205,7 +147,7 @@ export class OperationLedger {
     },
   ) {
     try {
-      await this.#mutate((state) => {
+      await this.#store.mutate((state) => {
         const stored = state.auditEntries.find(({ entry }) =>
           entry.id === operationId
         );
@@ -218,7 +160,7 @@ export class OperationLedger {
         stored.entry.result = input.result;
         stored.entry.updatedAt = input.updatedAt;
         stored.pending = false;
-        this.#trimAudit(state);
+        this.#store.trimAudit(state);
         return { changed: true, result: undefined };
       });
     } catch (error) {
@@ -232,30 +174,12 @@ export class OperationLedger {
     }
   }
 
-  list({ cursor, limit }: { cursor: number; limit: number }): Promise<ApiOperationAuditPageDto> {
-    return this.#read((state) => {
-      const descending = state.auditEntries.map(({ entry }) => entry).reverse();
-      const entries = descending.slice(cursor, cursor + limit);
-      const next = cursor + entries.length;
-
-      return {
-        cursor: next < descending.length ? String(next) : null,
-        entries,
-      };
-    });
+  list(input: { cursor: number; limit: number }) {
+    return this.#store.list(input);
   }
 
   updateMaximumEntries(maxAuditEntries: number) {
-    if (!Number.isSafeInteger(maxAuditEntries) || maxAuditEntries < 1) {
-      return Promise.reject(new Error("maxAuditEntries must be a positive integer"));
-    }
-    return this.#enqueue(async () => {
-      await this.#mutatePartition((state) => ({
-        changed: this.#trimAudit(state, maxAuditEntries),
-        result: undefined,
-      }));
-      this.#maxAuditEntries = maxAuditEntries;
-    });
+    return this.#store.updateMaximumEntries(maxAuditEntries);
   }
 
   async #runAgent(
@@ -293,7 +217,7 @@ export class OperationLedger {
     identity: AgentOperationIdentity,
     attempt: AgentOperationAttempt,
   ): Promise<Exclude<BeginAgentResult, { kind: "indeterminate" }>> {
-    return this.#mutate<BeginAgentResult>((state) => {
+    return this.#store.mutate<BeginAgentResult>((state) => {
       const purged = this.#purgeReceipts(state);
       const key = operationLedgerKey(identity);
       const existing = state.agentReceipts.find((receipt) =>
@@ -317,7 +241,7 @@ export class OperationLedger {
             entry: projectIndeterminateAgentOperationAudit(existing),
             pending: false,
           });
-          this.#trimAudit(state);
+          this.#store.trimAudit(state);
           return {
             changed: true,
             result: { kind: "indeterminate" as const },
@@ -351,7 +275,7 @@ export class OperationLedger {
     identity: AgentOperationIdentity,
     entry: AgentOperationAuditEntryDto,
   ) {
-    return this.#mutate((state) => {
+    return this.#store.mutate((state) => {
       const receipt = state.agentReceipts.find((candidate) =>
         operationLedgerKey(candidate) === operationLedgerKey(identity)
       );
@@ -366,13 +290,13 @@ export class OperationLedger {
         entry: projectAgentOperationAudit(receipt, entry),
         pending: false,
       });
-      this.#trimAudit(state);
+      this.#store.trimAudit(state);
       return { changed: true, result: undefined };
     });
   }
 
   #markAgentIndeterminate(identity: AgentOperationIdentity) {
-    return this.#mutate((state) => {
+    return this.#store.mutate((state) => {
       const receipt = state.agentReceipts.find((candidate) =>
         operationLedgerKey(candidate) === operationLedgerKey(identity)
       );
@@ -386,7 +310,7 @@ export class OperationLedger {
         entry: projectIndeterminateAgentOperationAudit(receipt),
         pending: false,
       });
-      this.#trimAudit(state);
+      this.#store.trimAudit(state);
       return { changed: true, result: undefined };
     });
   }
@@ -399,130 +323,5 @@ export class OperationLedger {
       receipt.status === "pending" || Date.parse(receipt.updatedAt) >= cutoff
     );
     return state.agentReceipts.length !== receiptCount;
-  }
-
-  #trimAudit(
-    state: OperationLedgerState,
-    maxAuditEntries = this.#maxAuditEntries,
-  ): boolean {
-    let changed = false;
-
-    while (state.auditEntries.length > maxAuditEntries) {
-      const removable = state.auditEntries.findIndex(({ pending }) => !pending);
-
-      if (removable < 0) return changed;
-      state.auditEntries.splice(removable, 1);
-      changed = true;
-    }
-    return changed;
-  }
-
-  #currentStatus(): OperationAuditStatus {
-    return this.#unavailableMessage
-      ? { message: this.#unavailableMessage, status: "unavailable" }
-      : { status: "available" };
-  }
-
-  #enqueue<Result>(operation: () => Promise<Result>): Promise<Result> {
-    const pending = this.#operationQueue.then(operation);
-
-    this.#operationQueue = pending.then(() => undefined, () => undefined);
-    return pending;
-  }
-
-  #read<Result>(project: (state: OperationLedgerState) => Result) {
-    return this.#enqueue(() => this.#readPartition(project));
-  }
-
-  async #readPartition<Result>(
-    project: (state: OperationLedgerState) => Result,
-  ) {
-    if (this.#unavailableMessage) {
-      throw new OperationAuditUnavailableError(this.#unavailableMessage);
-    }
-    try {
-      return await this.#partition.read(project);
-    } catch (error) {
-      if (error instanceof SecureStatePartitionError) {
-        this.#markUnavailable(error);
-        throw new OperationAuditUnavailableError(
-          this.#unavailableMessage ?? "Operation audit is unavailable",
-        );
-      }
-      throw error;
-    }
-  }
-
-  #mutate<Result>(
-    operation: (
-      state: OperationLedgerState,
-    ) => { changed: boolean; result: Result } | Promise<{
-      changed: boolean;
-      result: Result;
-    }>,
-  ) {
-    return this.#enqueue(() => this.#mutatePartition(operation));
-  }
-
-  async #mutatePartition<Result>(
-    operation: (
-      state: OperationLedgerState,
-    ) => { changed: boolean; result: Result } | Promise<{
-      changed: boolean;
-      result: Result;
-    }>,
-  ) {
-    if (this.#unavailableMessage) {
-      throw new OperationAuditUnavailableError(this.#unavailableMessage);
-    }
-    try {
-      return await this.#partition.mutate(operation);
-    } catch (error) {
-      if (error instanceof SecureStatePartitionError) {
-        this.#markUnavailable(error);
-        throw new OperationAuditUnavailableError(
-          this.#unavailableMessage ?? "Operation audit is unavailable",
-        );
-      }
-      throw error;
-    }
-  }
-
-  #markUnavailable(error: unknown) {
-    this.#unavailableMessage = error instanceof Error
-      ? error.message
-      : "Operation audit is unavailable";
-  }
-
-  async #removeLegacyAuditFile(directoryName: string, fileName: string) {
-    const directory = path.join(this.#stateDirectory, directoryName);
-    const target = path.join(directory, fileName);
-    let directoryStats;
-
-    try {
-      directoryStats = await lstat(directory);
-    } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-        return;
-      }
-      throw error;
-    }
-    if (directoryStats.isSymbolicLink() || !directoryStats.isDirectory()) {
-      throw new Error(`Legacy audit directory ${directoryName} is not a regular directory`);
-    }
-    let targetStats;
-
-    try {
-      targetStats = await lstat(target);
-    } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-        return;
-      }
-      throw error;
-    }
-    if (targetStats.isSymbolicLink() || !targetStats.isFile()) {
-      throw new Error(`Legacy audit file ${directoryName}/${fileName} is not a regular file`);
-    }
-    await unlink(target);
   }
 }
