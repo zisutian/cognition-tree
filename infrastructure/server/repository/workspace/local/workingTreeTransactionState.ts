@@ -12,9 +12,11 @@ import {
   RepositoryCorruptError,
 } from "../../store.ts";
 import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
+import { readFileHandleUtf8 } from "../../../persistence/fileSystemPersistence.ts";
 import {
   localControlDirectoryName,
   localIndexFileName,
+  maximumLocalManagedFileBytes,
   localNoteMetadataDirectoryName,
   localRepositoryMetadataFileName,
   localSyntaxDirectoryName,
@@ -106,7 +108,11 @@ export async function readLocalManagedFile(
         "Local managed file must be a private regular file",
       );
     }
-    const source = await handle.readFile("utf8");
+    const source = await readFileHandleUtf8(
+      handle,
+      maximumLocalManagedFileBytes,
+      "Local managed file",
+    );
     const after = await handle.stat();
 
     if (

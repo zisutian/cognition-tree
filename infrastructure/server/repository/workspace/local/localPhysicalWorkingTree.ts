@@ -6,12 +6,14 @@ import { lstat, open, readdir } from "node:fs/promises";
 import path from "node:path";
 import { WorkspaceRepositoryContractError } from "../../../../../contracts/workspace/contractValue.ts";
 import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
+import { readFileHandleUtf8 } from "../../../persistence/fileSystemPersistence.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,
 } from "../../store.ts";
 import {
   localControlDirectoryName,
+  maximumLocalManagedFileBytes,
   type LocalRepositoryIndex,
 } from "./localWorkingTreeLayout.ts";
 import { assertLocalProjectedPath } from "./localWorkingTreePath.ts";
@@ -70,7 +72,11 @@ export async function readStableLocalFile(filePath: string) {
         "Managed Local note is not a private regular file",
       );
     }
-    const source = await handle.readFile("utf8");
+    const source = await readFileHandleUtf8(
+      handle,
+      maximumLocalManagedFileBytes,
+      "Managed Local note",
+    );
     const after = await handle.stat();
 
     if (

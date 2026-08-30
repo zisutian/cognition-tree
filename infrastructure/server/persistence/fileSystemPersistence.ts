@@ -2,7 +2,13 @@
 
 import { randomUUID } from "node:crypto";
 import { constants, type Dirent, type Stats } from "node:fs";
-import { open, readdir, rename, rm } from "node:fs/promises";
+import {
+  open,
+  readdir,
+  rename,
+  rm,
+  type FileHandle,
+} from "node:fs/promises";
 import path from "node:path";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import { hasFileSystemErrorCode } from "./fileSystemError.ts";
@@ -18,6 +24,36 @@ export function isSecureRegularFile(stats: Stats, mode = 0o600) {
 export function isSecureDirectory(stats: Stats, mode = 0o700) {
   return stats.isDirectory() && !stats.isSymbolicLink() &&
     (stats.mode & 0o777) === mode;
+}
+
+export async function readFileHandleUtf8(
+  handle: FileHandle,
+  maximumBytes: number,
+  label: string,
+) {
+  if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
+    throw new Error("File limit must be a positive integer");
+  }
+  const chunks: Buffer[] = [];
+  let size = 0;
+
+  while (true) {
+    const buffer = Buffer.allocUnsafe(
+      Math.min(64 * 1024, maximumBytes - size + 1),
+    );
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, null);
+
+    if (bytesRead === 0) break;
+    size += bytesRead;
+    if (size > maximumBytes) throw new Error(`${label} exceeds the size limit`);
+    chunks.push(Buffer.from(buffer.subarray(0, bytesRead)));
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true })
+      .decode(Buffer.concat(chunks, size));
+  } catch {
+    throw new Error(`${label} is invalid UTF-8`);
+  }
 }
 
 export async function readSecureFileUtf8(
@@ -42,28 +78,7 @@ export async function readSecureFileUtf8(
     if (stats.size > maximumBytes) {
       throw new Error(`${label} exceeds the size limit`);
     }
-    const chunks: Buffer[] = [];
-    let size = 0;
-
-    while (true) {
-      const buffer = Buffer.allocUnsafe(
-        Math.min(64 * 1024, maximumBytes - size + 1),
-      );
-      const { bytesRead } = await handle.read(buffer, 0, buffer.length, null);
-
-      if (bytesRead === 0) break;
-      size += bytesRead;
-      if (size > maximumBytes) {
-        throw new Error(`${label} exceeds the size limit`);
-      }
-      chunks.push(Buffer.from(buffer.subarray(0, bytesRead)));
-    }
-    try {
-      return new TextDecoder("utf-8", { fatal: true })
-        .decode(Buffer.concat(chunks, size));
-    } catch {
-      throw new Error(`${label} is invalid UTF-8`);
-    }
+    return await readFileHandleUtf8(handle, maximumBytes, label);
   } finally {
     await handle.close();
   }

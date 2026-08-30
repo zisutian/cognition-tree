@@ -8,6 +8,7 @@ import type { WorkspaceSyntax } from "../../../../../core/workspace/context/work
 export const localControlDirectoryName = ".ctn";
 export const localIndexFileName = "index.json";
 export const localLayoutVersion = 1 as const;
+export const maximumLocalManagedFileBytes = 64 * 1024 * 1024;
 export const localNoteMetadataDirectoryName = "note-metadata";
 export const localRepositoryMetadataFileName = "repository.json";
 export const localSyntaxDirectoryName = "syntax";

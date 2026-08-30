@@ -15,12 +15,14 @@ import {
 import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
 import {
   fsyncDirectory,
+  readFileHandleUtf8,
   replaceFileDurably,
 } from "../../../persistence/fileSystemPersistence.ts";
 import { readLocalJson } from "./localWorkingTree.ts";
 import { parseLocalRepositoryMetadata } from "./localWorkingTreeCodec.ts";
 import {
   localControlDirectoryName,
+  maximumLocalManagedFileBytes,
   localRepositoryMetadataFileName,
   type LocalManagedFileSet,
 } from "./localWorkingTreeLayout.ts";
@@ -109,7 +111,11 @@ async function readTransactionFile(
         "Local transaction payload is unsafe",
       );
     }
-    const source = await handle.readFile("utf8");
+    const source = await readFileHandleUtf8(
+      handle,
+      maximumLocalManagedFileBytes,
+      "Local transaction payload",
+    );
     const after = await handle.stat();
 
     if (

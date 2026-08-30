@@ -21,6 +21,50 @@ function revision(value: number) {
 }
 
 describe("filesystem versioned content preparation", () => {
+  it("bounds both persisted and newly serialized content", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-content-size-"));
+    const filePath = path.join(directory, "content.json");
+    const definition = {
+      createRevision: (content: Content) => revision(content.value),
+      normalizeReadError: (error: unknown) => error,
+      parseContent: (value: unknown) => value as Content,
+      prepareContent: (content: Content) => ({ preparedValue: content.value }),
+      serializeContent: (content: Content) => JSON.stringify({
+        ...content,
+        padding: "x".repeat(64),
+      }),
+      validateTransition: vi.fn(),
+      validateWriteBoundary: <Result>(operation: () => Result) => operation(),
+    };
+
+    try {
+      await writeFile(filePath, JSON.stringify({ value: 1 }), { mode: 0o600 });
+      const store = new FileSystemVersionedContentStore<Content, Projection>(
+        filePath,
+        definition,
+        { maximumBytes: 32 },
+      );
+      const before = await store.loadSnapshot();
+
+      await expect(store.commit({
+        baseRevision: before.revision,
+        content: { value: 2 },
+        projection: { preparedValue: 2 },
+      })).rejects.toMatchObject({ code: "invalid_request" });
+
+      await writeFile(filePath, " ".repeat(33), { mode: 0o600 });
+      const oversized = new FileSystemVersionedContentStore<Content, Projection>(
+        filePath,
+        definition,
+        { maximumBytes: 32 },
+      );
+
+      await expect(oversized.loadSnapshot()).rejects.toThrow(/size limit/i);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   it("checks CAS and caches the supplied prepared projection without rebuilding it", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-content-store-"));
     const filePath = path.join(directory, "content.json");

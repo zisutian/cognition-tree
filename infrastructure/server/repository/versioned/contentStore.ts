@@ -14,6 +14,7 @@ import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   fsyncDirectory,
   isSecureRegularFile,
+  readFileHandleUtf8,
   replaceFileDurably,
 } from "../../persistence/fileSystemPersistence.ts";
 import {
@@ -88,6 +89,7 @@ class VersionedContentRecoveryError extends Error {
 
 export type VersionedContentStoreOptions = Readonly<{
   acquireLock?: () => Promise<() => Promise<void>>;
+  maximumBytes?: number;
   replaceContent?: (content: string) => Promise<void>;
   synchronizeDirectory?: () => Promise<void>;
 }>;
@@ -97,6 +99,7 @@ export class FileSystemVersionedContentStore<Content, Projection>
   readonly #acquireLock: () => Promise<() => Promise<void>>;
   readonly #definition: VersionedContentStoreDefinition<Content, Projection>;
   readonly #filePath: string;
+  readonly #maximumBytes: number;
   #lastPreparedSnapshot: PreparedVersionedContentSnapshot<
     Content,
     Projection
@@ -111,7 +114,13 @@ export class FileSystemVersionedContentStore<Content, Projection>
     definition: VersionedContentStoreDefinition<Content, Projection>,
     options: VersionedContentStoreOptions = {},
   ) {
+    const maximumBytes = options.maximumBytes ?? 64 * 1024 * 1024;
+
+    if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
+      throw new Error("Versioned content limit must be a positive integer");
+    }
     this.#filePath = path.resolve(filePath);
+    this.#maximumBytes = maximumBytes;
     this.#definition = definition;
     this.#acquireLock = options.acquireLock ?? (() =>
       lock(this.#filePath, {
@@ -218,7 +227,11 @@ export class FileSystemVersionedContentStore<Content, Projection>
           "Versioned content file permissions or type are invalid",
         );
       }
-      const source = await handle.readFile("utf8");
+      const source = await readFileHandleUtf8(
+        handle,
+        this.#maximumBytes,
+        "Versioned content file",
+      );
       let value: unknown;
       try {
         value = JSON.parse(source) as unknown;
@@ -267,7 +280,15 @@ export class FileSystemVersionedContentStore<Content, Projection>
   }
 
   async #writeContent(content: Content) {
-    await this.#replaceContent(this.#definition.serializeContent(content));
+    const source = this.#definition.serializeContent(content);
+
+    if (Buffer.byteLength(source) > this.#maximumBytes) {
+      throw new RepositoryAdapterError(
+        "invalid_request",
+        "Versioned content exceeds the size limit",
+      );
+    }
+    await this.#replaceContent(source);
   }
 
   async #resolveFailedCommit(
