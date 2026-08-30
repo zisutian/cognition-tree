@@ -31,25 +31,21 @@ import {
   parseAgentConfigurationState,
   type AgentConfigurationState,
   type StoredAuthentication,
-  type StoredProfile,
   type StoredProvider,
 } from "./configurationStateCodec.ts";
 import {
-  AgentConfigurationConflictError,
   AgentConfigurationValidationError,
 } from "./configurationErrors.ts";
 import {
-  normalizeProfileInput,
   normalizeProviderInput,
 } from "./configurationInput.ts";
+import { assertAgentConfigurationRevision } from "./configurationRevision.ts";
 import {
   configurationSnapshot,
-  profileDigest,
   profileView,
-  providerDigest,
   providerView,
-  stateRevision,
 } from "./configurationViews.ts";
+import { AgentProfileConfiguration } from "./profileConfiguration.ts";
 
 export {
   AgentConfigurationConflictError,
@@ -71,21 +67,13 @@ export type ResolvedAgentProvider = Readonly<{
   provider: AgentProviderView;
 }>;
 
-function assertBaseRevision(
-  state: AgentConfigurationState,
-  baseRevision: string,
-) {
-  const current = stateRevision(state);
-
-  if (baseRevision !== current) throw new AgentConfigurationConflictError(current);
-}
-
 export class AgentConfigurationStore {
   readonly access = new AgentConfigurationAccess();
   readonly #createId: () => string;
   readonly #credentialStore: AgentProviderCredentialStore;
   #initialize: Promise<void> | null = null;
   readonly #partition: SecureJsonPartition<AgentConfigurationState>;
+  readonly #profiles: AgentProfileConfiguration;
   readonly #targetPolicy: AgentProviderTargetPolicy;
 
   constructor(
@@ -112,6 +100,11 @@ export class AgentConfigurationStore {
       ...(replaceConfigurationFile
         ? { replaceFile: replaceConfigurationFile }
         : {}),
+    });
+    this.#profiles = new AgentProfileConfiguration({
+      access: this.access,
+      createId,
+      mutate: (operation) => this.#mutate(operation),
     });
   }
 
@@ -208,7 +201,7 @@ export class AgentConfigurationStore {
 
     try {
       return await this.#mutate(async (state) => {
-        assertBaseRevision(state, baseRevision);
+        assertAgentConfigurationRevision(state, baseRevision);
         const id = `agent-provider-${this.#createId()}`;
         const normalized = normalizeProviderInput(input, this.#targetPolicy);
         const prepared = await this.#authenticationForInput(id, input);
@@ -253,7 +246,7 @@ export class AgentConfigurationStore {
 
     try {
       const outcome = await this.#mutate(async (state) => {
-        assertBaseRevision(state, baseRevision);
+        assertAgentConfigurationRevision(state, baseRevision);
         const index = state.providers.findIndex(({ id }) => id === providerId);
 
         if (index < 0) {
@@ -327,7 +320,7 @@ export class AgentConfigurationStore {
 
     try {
       const outcome = await this.#mutate((state) => {
-        assertBaseRevision(state, baseRevision);
+        assertAgentConfigurationRevision(state, baseRevision);
         if (state.profiles.some(({ providerId: candidate }) =>
           candidate === providerId
         )) {
@@ -371,7 +364,7 @@ export class AgentConfigurationStore {
     providerId: string,
   ): Promise<AgentConfigurationProviderChange> {
     return this.#read((state) => {
-      assertBaseRevision(state, baseRevision);
+      assertAgentConfigurationRevision(state, baseRevision);
       if (!state.providers.some(({ id }) => id === providerId)) {
         throw new AgentConfigurationValidationError(
           "Agent provider does not exist",
@@ -388,7 +381,7 @@ export class AgentConfigurationStore {
     change: AgentConfigurationProviderChange | null = null,
   ) {
     const credentialVersion = await this.#read((state) => {
-      assertBaseRevision(state, baseRevision);
+      assertAgentConfigurationRevision(state, baseRevision);
       const provider = state.providers.find(({ id }) => id === providerId);
 
       if (!provider || provider.kind !== "codex" ||
@@ -444,7 +437,7 @@ export class AgentConfigurationStore {
         loginId,
       );
       const outcome = await this.#mutate((state) => {
-        assertBaseRevision(state, baseRevision);
+        assertAgentConfigurationRevision(state, baseRevision);
         this.access.assertProviderChange(change, providerId);
         const provider = state.providers.find(({ id }) => id === providerId);
 
@@ -501,7 +494,7 @@ export class AgentConfigurationStore {
 
     try {
       const outcome = await this.#mutate((state) => {
-        assertBaseRevision(state, baseRevision);
+        assertAgentConfigurationRevision(state, baseRevision);
         const provider = state.providers.find(({ id }) => id === providerId);
 
         if (!provider || provider.authentication.type === "none") {
@@ -536,30 +529,11 @@ export class AgentConfigurationStore {
     }
   }
 
-  createProfile(baseRevision: string, input: AgentProfileInput) {
-    return this.#mutate((state) => {
-      assertBaseRevision(state, baseRevision);
-      const provider = state.providers.find(({ id }) => id === input.providerId);
-
-      if (!provider) {
-        throw new AgentConfigurationValidationError("Agent provider does not exist");
-      }
-      const profile: StoredProfile = {
-        ...normalizeProfileInput(input, provider),
-        conformance: null,
-        id: `agent-profile-${this.#createId()}`,
-        version: 1,
-      };
-
-      state.profiles.push(profile);
-      return {
-        changed: true,
-        result: {
-          configuration: configurationSnapshot(state),
-          profile: profileView(profile, provider),
-        },
-      };
-    });
+  createProfile(
+    baseRevision: string,
+    input: AgentProfileInput,
+  ) {
+    return this.#profiles.create(baseRevision, input);
   }
 
   updateProfile(
@@ -567,92 +541,22 @@ export class AgentConfigurationStore {
     profileId: string,
     input: AgentProfileInput,
   ) {
-    return this.#mutate((state) => {
-      assertBaseRevision(state, baseRevision);
-      const index = state.profiles.findIndex(({ id }) => id === profileId);
-
-      if (index < 0) {
-        throw new AgentConfigurationValidationError("Agent profile does not exist");
-      }
-      const provider = state.providers.find(({ id }) => id === input.providerId);
-
-      if (!provider) {
-        throw new AgentConfigurationValidationError("Agent provider does not exist");
-      }
-      const previous = state.profiles[index]!;
-      const profile: StoredProfile = {
-        ...normalizeProfileInput(input, provider),
-        conformance: null,
-        id: previous.id,
-        version: previous.version + 1,
-      };
-
-      state.profiles[index] = profile;
-      return {
-        changed: true,
-        result: {
-          configuration: configurationSnapshot(state),
-          profile: profileView(profile, provider),
-        },
-      };
-    });
+    return this.#profiles.update(baseRevision, profileId, input);
   }
 
   deleteProfile(baseRevision: string, profileId: string) {
-    return this.#mutate((state) => {
-      assertBaseRevision(state, baseRevision);
-      const index = state.profiles.findIndex(({ id }) => id === profileId);
-
-      if (index < 0) {
-        throw new AgentConfigurationValidationError("Agent profile does not exist");
-      }
-      this.access.assertProfileCanBeDeleted(profileId);
-      state.profiles.splice(index, 1);
-      return { changed: true, result: configurationSnapshot(state) };
-    });
+    return this.#profiles.delete(baseRevision, profileId);
   }
 
   setConformance(
     baseRevision: string,
     profileId: string,
-    input: { checkedAt: string; toolCallMode: AgentToolCallMode },
+    input: {
+      checkedAt: string;
+      toolCallMode: AgentToolCallMode;
+    },
   ) {
-    return this.#mutate((state) => {
-      assertBaseRevision(state, baseRevision);
-      const profile = state.profiles.find(({ id }) => id === profileId);
-
-      if (!profile) {
-        throw new AgentConfigurationValidationError("Agent profile does not exist");
-      }
-      const provider = state.providers.find(({ id }) => id === profile.providerId)!;
-
-      if (profile.parameters.kind !== "chat") {
-        throw new AgentConfigurationValidationError(
-          "Codex profiles do not use chat conformance",
-        );
-      }
-      if (profile.parameters.toolCallMode !== input.toolCallMode) {
-        throw new AgentConfigurationValidationError(
-          "Conformance mode does not match the profile",
-        );
-      }
-      if (!Number.isFinite(Date.parse(input.checkedAt))) {
-        throw new AgentConfigurationValidationError("Conformance timestamp is invalid");
-      }
-      profile.conformance = {
-        checkedAt: input.checkedAt,
-        profileDigest: profileDigest(profile),
-        providerDigest: providerDigest(provider),
-        toolCallMode: input.toolCallMode,
-      };
-      return {
-        changed: true,
-        result: {
-          configuration: configurationSnapshot(state),
-          profile: profileView(profile, provider),
-        },
-      };
-    });
+    return this.#profiles.setConformance(baseRevision, profileId, input);
   }
 
   async #authenticationForInput(
