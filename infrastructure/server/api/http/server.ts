@@ -286,18 +286,24 @@ export function createApiServer(
 ) {
   const apiRequestHandler = createApiRequestHandler(options);
   const server = http.createServer((request, response) => {
-    let pathname: string;
+    let handler = apiRequestHandler;
 
     try {
-      pathname = new URL(request.url ?? "/", "http://localhost").pathname;
+      const pathname = new URL(
+        request.url ?? "/",
+        "http://localhost",
+      ).pathname;
+
+      if (
+        fallbackRequestHandler &&
+        pathname !== "/api" &&
+        !pathname.startsWith("/api/")
+      ) {
+        handler = fallbackRequestHandler;
+      }
     } catch {
-      void apiRequestHandler(request, response);
-      return;
+      // Invalid request targets belong to the API error envelope.
     }
-    const handler = pathname === "/api" || pathname.startsWith("/api/") ||
-        !fallbackRequestHandler
-      ? apiRequestHandler
-      : fallbackRequestHandler;
 
     void handler(request, response).catch((error: unknown) => {
       if (response.headersSent) {
