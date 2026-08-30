@@ -222,6 +222,45 @@ async function assertSuccessfulResponse(response: Response) {
   });
 }
 
+async function assertNoContentResponse(response: Response) {
+  if (response.status !== 204) {
+    return rejectResponseBody(
+      response,
+      `API returned content where 204 No Content was required (${response.status}).`,
+      false,
+    );
+  }
+  if (!response.body) return;
+  const reader = response.body.getReader();
+  let reachedEnd = false;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        reachedEnd = true;
+        return;
+      }
+      if (value.byteLength > 0) {
+        throw new HttpApiResponseError(
+          `API returned content where 204 No Content was required (${response.status}).`,
+          { statusCode: response.status },
+        );
+      }
+    }
+  } finally {
+    if (!reachedEnd) {
+      try {
+        await reader.cancel();
+      } catch {
+        // The original response failure remains authoritative.
+      }
+    }
+    reader.releaseLock();
+  }
+}
+
 async function requestApiResponse<Result>(
   fetchFn: typeof fetch,
   baseUrl: string,
@@ -310,14 +349,7 @@ export async function requestApiNoContent(
     fetchFn,
     baseUrl,
     endpoint,
-    async (response) => {
-      if (response.status !== 204 || await response.text() !== "") {
-        throw new HttpApiResponseError(
-          `API returned content where 204 No Content was required (${response.status}).`,
-          { statusCode: response.status },
-        );
-      }
-    },
+    assertNoContentResponse,
     init,
     token,
   );

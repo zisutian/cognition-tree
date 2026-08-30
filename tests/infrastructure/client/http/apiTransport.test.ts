@@ -5,6 +5,7 @@ import {
   apiMaximumJsonResponseBytes,
   HttpApiResponseError,
   HttpApiUnavailableError,
+  requestApiNoContent,
   requestApiJson,
   resolveApiUrl,
 } from "../../../../infrastructure/client/http/apiTransport";
@@ -76,5 +77,24 @@ describe("HTTP API transport", () => {
       "https://api.test",
       "/api/v3/content/resource",
     )).rejects.toThrow(/invalid UTF-8/i);
+  });
+
+  it("cancels a body when a no-content operation returns the wrong status", async () => {
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      cancel() {
+        cancelled = true;
+      },
+      start() {
+        // Keep the body open until the transport rejects its status.
+      },
+    });
+
+    await expect(requestApiNoContent(
+      async () => new Response(body, { status: 200 }),
+      "https://api.test",
+      "/api/v3/content/resource",
+    )).rejects.toThrow(/204 No Content/i);
+    expect(cancelled).toBe(true);
   });
 });
