@@ -9,7 +9,7 @@ import {
 import type {
   AgentOperationAttempt,
   AgentOperationIdentity,
-  TrustedClientOperationStore,
+  BeginTrustedClientOperationInput,
 } from "./operationLedgerContract.ts";
 
 type AgentReceiptProjectionInput = Readonly<{
@@ -29,13 +29,9 @@ export function operationLedgerKey(
   return `${identity.proposalId}\u0000${identity.proposalVersion}`;
 }
 
-export function createTrustedClientAuditEntry(input: {
-  occurredAt: string;
-  principalId: string;
-  requestId: string;
-  route: string;
-  store: TrustedClientOperationStore;
-}): ApiOperationAuditEntryDto {
+export function createTrustedClientAuditEntry(
+  input: BeginTrustedClientOperationInput,
+): ApiOperationAuditEntryDto {
   return parseApiSchema(ApiOperationAuditEntrySchema, {
     afterRevision: null,
     beforeRevision: null,

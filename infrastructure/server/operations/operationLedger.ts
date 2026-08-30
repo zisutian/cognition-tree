@@ -12,18 +12,19 @@ import {
   AgentOperationIndeterminateError,
   type AgentOperationAttempt,
   type AgentOperationIdentity,
+  type AttachTrustedClientOperationIntentInput,
+  type BeginTrustedClientOperationInput,
+  type FinalizeTrustedClientOperationInput,
   OperationAuditFinalizeError,
-  type TrustedClientOperationResult,
-  type TrustedClientOperationStore,
 } from "./operationLedgerContract.ts";
 import type { OperationLedgerState } from "./operationLedgerState.ts";
 import {
-  createTrustedClientAuditEntry,
   operationLedgerKey,
   projectAgentOperationAudit,
   projectIndeterminateAgentOperationAudit,
 } from "./operationLedgerProjection.ts";
 import { OperationLedgerStore } from "./operationLedgerStore.ts";
+import { TrustedClientOperationLedger } from "./trustedClientOperationLedger.ts";
 
 const defaultReceiptRetentionMilliseconds = 24 * 60 * 60 * 1_000;
 
@@ -41,6 +42,7 @@ export class OperationLedger {
   readonly #receiptRetentionMilliseconds: number;
   readonly #runtimeId: string;
   readonly #store: OperationLedgerStore;
+  readonly #trusted: TrustedClientOperationLedger;
 
   constructor(
     stateDirectory: string,
@@ -62,6 +64,7 @@ export class OperationLedger {
     this.#receiptRetentionMilliseconds = options.receiptRetentionMilliseconds ??
       defaultReceiptRetentionMilliseconds;
     this.#runtimeId = options.runtimeId ?? randomUUID();
+    this.#trusted = new TrustedClientOperationLedger(this.#store);
   }
 
   initialize() {
@@ -95,83 +98,22 @@ export class OperationLedger {
     return promise;
   }
 
-  beginAuthenticatedAttempt(input: {
-    occurredAt: string;
-    principalId: string;
-    requestId: string;
-    route: string;
-    store: TrustedClientOperationStore;
-  }) {
-    return this.#store.mutate((state) => {
-      if (state.auditEntries.some(({ entry }) => entry.id === input.requestId)) {
-        throw new Error("Operation requestId is already present in the audit ledger");
-      }
-      const entry = createTrustedClientAuditEntry(input);
-
-      state.auditEntries.push({ entry, pending: true });
-      this.#store.trimAudit(state);
-      return { changed: true, result: input.requestId };
-    });
+  beginAuthenticatedAttempt(input: BeginTrustedClientOperationInput) {
+    return this.#trusted.begin(input);
   }
 
   attachIntent(
     operationId: string,
-    input: {
-      beforeRevision: `sha256:${string}`;
-      intentDigest: `sha256:${string}`;
-      updatedAt: string;
-    },
+    input: AttachTrustedClientOperationIntentInput,
   ) {
-    return this.#store.mutate((state) => {
-      const stored = state.auditEntries.find(({ entry }) =>
-        entry.id === operationId
-      );
-
-      if (!stored || !stored.pending || stored.entry.source !== "trusted-client") {
-        throw new Error("Pending trusted-client operation is unavailable");
-      }
-      stored.entry.beforeRevision = input.beforeRevision;
-      stored.entry.intentDigest = input.intentDigest;
-      stored.entry.updatedAt = input.updatedAt;
-      return { changed: true, result: undefined };
-    });
+    return this.#trusted.attachIntent(operationId, input);
   }
 
-  async finalizeTrustedAttempt(
+  finalizeTrustedAttempt(
     operationId: string,
-    input: {
-      afterRevision: `sha256:${string}` | null;
-      changeMetadata: { blockIds: string[]; resourceIds: string[] };
-      result: TrustedClientOperationResult;
-      updatedAt: string;
-    },
+    input: FinalizeTrustedClientOperationInput,
   ) {
-    try {
-      await this.#store.mutate((state) => {
-        const stored = state.auditEntries.find(({ entry }) =>
-          entry.id === operationId
-        );
-
-        if (!stored || !stored.pending || stored.entry.source !== "trusted-client") {
-          throw new Error("Pending trusted-client operation is unavailable");
-        }
-        stored.entry.afterRevision = input.afterRevision;
-        stored.entry.changeMetadata = input.changeMetadata;
-        stored.entry.result = input.result;
-        stored.entry.updatedAt = input.updatedAt;
-        stored.pending = false;
-        this.#store.trimAudit(state);
-        return { changed: true, result: undefined };
-      });
-    } catch (error) {
-      if (
-        (input.result === "committed" || input.result === "auto-merged") &&
-        input.afterRevision
-      ) {
-        throw new OperationAuditFinalizeError(input.afterRevision);
-      }
-      throw error;
-    }
+    return this.#trusted.finalize(operationId, input);
   }
 
   list(input: { cursor: number; limit: number }) {
