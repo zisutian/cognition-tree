@@ -600,6 +600,31 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps the local repository root lease behind its catalog", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath:
+          "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts",
+        importPath: "./localRepositoryRootLease",
+        targetPath:
+          "../../infrastructure/server/repository/workspace/local/localRepositoryRootLease.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath:
+          "../../infrastructure/server/repository/workspace/local/workspaceFileStore.ts",
+        importPath: "./localRepositoryRootLease",
+        targetPath:
+          "../../infrastructure/server/repository/workspace/local/localRepositoryRootLease.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "local repository root lease composition boundary: ../../infrastructure/server/repository/workspace/local/workspaceFileStore.ts imports ./localRepositoryRootLease",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

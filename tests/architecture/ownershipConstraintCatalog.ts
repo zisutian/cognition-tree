@@ -196,6 +196,12 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/repository\/workspace\/local\/localRepositoryInventory\.ts$/,
     ],
     [
+      "local repository root lease",
+      infrastructureModules,
+      /\bclass LocalRepositoryRootLease\b/,
+      /^infrastructure\/server\/repository\/workspace\/local\/localRepositoryRootLease\.ts$/,
+    ],
+    [
       "Agent Profile turn queue",
       infrastructureModules,
       /\bnew AgentProfileTurnQueue\s*\(/,

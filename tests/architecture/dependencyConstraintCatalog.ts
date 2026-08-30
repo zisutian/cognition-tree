@@ -136,6 +136,8 @@ const localRepositoryDeletionPath =
   "../../infrastructure/server/repository/workspace/local/localRepositoryDeletion.ts";
 const localRepositoryInventoryPath =
   "../../infrastructure/server/repository/workspace/local/localRepositoryInventory.ts";
+const localRepositoryRootLeasePath =
+  "../../infrastructure/server/repository/workspace/local/localRepositoryRootLease.ts";
 
 function peerDomain(filePath: string) {
   return filePath.match(
@@ -367,6 +369,11 @@ export function createDependencyImportPolicies({
       allows: ({ filePath }) => filePath === localRepositoryCatalogPath,
       applies: ({ targetPath }) => targetPath === localRepositoryInventoryPath,
       name: "local repository inventory composition boundary",
+    },
+    {
+      allows: ({ filePath }) => filePath === localRepositoryCatalogPath,
+      applies: ({ targetPath }) => targetPath === localRepositoryRootLeasePath,
+      name: "local repository root lease composition boundary",
     },
     {
       allows: () => false,
