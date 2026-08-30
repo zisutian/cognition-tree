@@ -8,8 +8,8 @@ import { parseApiEvent } from "../../../contracts/api/parse";
 import { resolveApiUrl } from "./apiTransport";
 import { readHttpSseData } from "./sseTransport";
 
-const initialReconnectDelayMs = 1_000;
-const maximumReconnectDelayMs = 30_000;
+export const apiEventInitialReconnectDelayMs = 1_000;
+export const apiEventMaximumReconnectDelayMs = 30_000;
 
 function projectNotification(
   input: ReturnType<typeof parseApiEvent>,
@@ -52,7 +52,7 @@ export function createHttpApiEventSource({
   const listeners = new Set<(event: DomainChangeNotification) => void>();
   let abortController: AbortController | null = null;
   let disposed = false;
-  let reconnectDelayMs = initialReconnectDelayMs;
+  let reconnectDelayMs = apiEventInitialReconnectDelayMs;
   let reconnectTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   let started = false;
 
@@ -85,10 +85,14 @@ export function createHttpApiEventSource({
       if (!response.ok || !response.body) {
         throw new Error(`CTN API event stream failed (${response.status}).`);
       }
-      reconnectDelayMs = initialReconnectDelayMs;
       for await (const data of readHttpSseData(response)) {
         if (disposed || controller.signal.aborted) break;
-        publish(projectNotification(parseApiEvent(JSON.parse(data))));
+        const notification = projectNotification(
+          parseApiEvent(JSON.parse(data)),
+        );
+
+        reconnectDelayMs = apiEventInitialReconnectDelayMs;
+        publish(notification);
       }
     } catch (error) {
       if (!controller.signal.aborted && !disposed) {
@@ -103,7 +107,7 @@ export function createHttpApiEventSource({
         const delay = reconnectDelayMs;
 
         reconnectDelayMs = Math.min(
-          maximumReconnectDelayMs,
+          apiEventMaximumReconnectDelayMs,
           reconnectDelayMs * 2,
         );
         reconnectTimer = globalThis.setTimeout(() => {
