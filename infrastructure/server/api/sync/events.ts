@@ -13,6 +13,10 @@ import type {
   ApiRevisionCheckpointDto,
 } from "../../../../contracts/api/types.ts";
 import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
+import {
+  endServerSentEventResponse,
+  writeServerSentEvent,
+} from "../http/serverSentEventResponse.ts";
 
 type EventConnection = {
   principal: ApiPrincipalDto;
@@ -94,7 +98,8 @@ function writeSseEvent(
   event: string,
   value: unknown,
 ) {
-  response.write(
+  return writeServerSentEvent(
+    response,
     `event: ${event}\ndata: ${
       serializeJsonIteratively(value, { sortObjectKeys: true })
     }\n\n`,
@@ -144,9 +149,9 @@ export class ApiEventHub {
       type: "checkpoint",
     };
 
-    writeSseEvent(response, "checkpoint", event);
-    this.#connections.add(connection);
     response.once("close", () => this.#connections.delete(connection));
+    if (!writeSseEvent(response, "checkpoint", event)) return;
+    this.#connections.add(connection);
   }
 
   publish(
@@ -176,14 +181,16 @@ export class ApiEventHub {
         ),
       };
 
-      writeSseEvent(connection.response, "change", filteredEvent);
+      if (!writeSseEvent(connection.response, "change", filteredEvent)) {
+        this.#connections.delete(connection);
+      }
     }
   }
 
   revokePrincipal(principalId: string) {
     for (const connection of this.#connections) {
       if (connection.principal.id !== principalId) continue;
-      connection.response.end();
+      endServerSentEventResponse(connection.response);
       this.#connections.delete(connection);
     }
   }
@@ -192,7 +199,7 @@ export class ApiEventHub {
     if (this.#disposed) return;
     this.#disposed = true;
     for (const connection of this.#connections) {
-      connection.response.end();
+      endServerSentEventResponse(connection.response);
     }
     this.#connections.clear();
   }

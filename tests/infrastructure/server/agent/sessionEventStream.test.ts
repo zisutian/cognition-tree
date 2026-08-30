@@ -15,13 +15,24 @@ const turnId = "00000000-0000-4000-8000-000000000002";
 class RecordingResponse {
   readonly chunks: string[] = [];
   readonly response: ServerResponse;
+  destroyed = 0;
   ended = 0;
+  failWrites = false;
   headers: OutgoingHttpHeaders | null = null;
   statusCode: number | null = null;
+  writeResult = true;
   #closeListener: (() => void) | null = null;
 
   constructor() {
+    const owner = this;
+
     this.response = {
+      destroy: () => {
+        this.destroyed += 1;
+      },
+      get destroyed() {
+        return owner.destroyed > 0;
+      },
       end: () => {
         this.ended += 1;
       },
@@ -32,8 +43,9 @@ class RecordingResponse {
         if (event === "close") this.#closeListener = () => listener();
       },
       write: (chunk: string | Uint8Array) => {
+        if (this.failWrites) throw new Error("event connection failed");
         this.chunks.push(String(chunk));
-        return true;
+        return this.writeResult;
       },
       writeHead: (statusCode: number, headers: OutgoingHttpHeaders) => {
         this.statusCode = statusCode;
@@ -158,5 +170,33 @@ describe("Agent session event stream", () => {
       headers: {},
       response: new RecordingResponse().response,
     })).toThrow("Agent session event stream is closed");
+  });
+
+  it("disconnects a backpressured stream without interrupting other clients", () => {
+    const events = new AgentSessionEventStream(sessionId);
+    const backpressured = new RecordingResponse();
+    const healthy = new RecordingResponse();
+
+    events.connect({
+      afterSequence: 0,
+      createSnapshot,
+      headers: {},
+      response: backpressured.response,
+    });
+    events.connect({
+      afterSequence: 0,
+      createSnapshot,
+      headers: {},
+      response: healthy.response,
+    });
+    backpressured.writeResult = false;
+
+    events.emit({ code: "first", message: "first", type: "problem" });
+    events.emit({ code: "second", message: "second", type: "problem" });
+
+    expect(backpressured.destroyed).toBe(1);
+    expect(backpressured.chunks).toHaveLength(1);
+    expect(healthy.chunks).toHaveLength(2);
+    expect(events.sequence).toBe(2);
   });
 });

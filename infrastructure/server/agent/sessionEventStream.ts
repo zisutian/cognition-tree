@@ -6,6 +6,10 @@ import type {
   AgentSessionSnapshotDto,
 } from "../../../contracts/agent/schemas.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
+import {
+  endServerSentEventResponse,
+  writeServerSentEvent,
+} from "../api/http/serverSentEventResponse.ts";
 
 export type AgentSessionEventInput =
   | Omit<Extract<AgentEventDto, { type: "message-delta" }>, "sequence" | "sessionId">
@@ -21,7 +25,8 @@ type AgentSessionSnapshotFactory = (
 const maximumRetainedEvents = 1_000;
 
 function writeAgentEvent(response: ServerResponse, event: AgentEventDto) {
-  response.write(
+  return writeServerSentEvent(
+    response,
     `event: ${event.type}\nid: ${event.sequence}\ndata: ${
       serializeJsonIteratively(event, { sortObjectKeys: true })
     }\n\n`,
@@ -64,20 +69,23 @@ export class AgentSessionEventStream {
     });
     const firstRetained = this.#events[0]?.sequence ?? this.#sequence;
 
+    response.once("close", () => this.#eventStreams.delete(response));
     if (afterSequence < firstRetained - 1 || afterSequence > this.#sequence) {
-      writeAgentEvent(response, {
+      if (!writeAgentEvent(response, {
         sequence: this.#sequence,
         sessionId: this.#sessionId,
         snapshot: createSnapshot(this.#sequence),
         type: "session-snapshot",
-      });
+      })) return;
     } else {
       for (const event of this.#events) {
-        if (event.sequence > afterSequence) writeAgentEvent(response, event);
+        if (
+          event.sequence > afterSequence &&
+          !writeAgentEvent(response, event)
+        ) return;
       }
     }
     this.#eventStreams.add(response);
-    response.once("close", () => this.#eventStreams.delete(response));
   }
 
   emit(value: AgentSessionEventInput) {
@@ -93,7 +101,9 @@ export class AgentSessionEventStream {
     if (this.#events.length > maximumRetainedEvents) {
       this.#events.splice(0, this.#events.length - maximumRetainedEvents);
     }
-    for (const response of this.#eventStreams) writeAgentEvent(response, event);
+    for (const response of this.#eventStreams) {
+      if (!writeAgentEvent(response, event)) this.#eventStreams.delete(response);
+    }
   }
 
   emitSnapshot(createSnapshot: AgentSessionSnapshotFactory) {
@@ -109,7 +119,9 @@ export class AgentSessionEventStream {
   close() {
     if (this.#closed) return;
     this.#closed = true;
-    for (const response of this.#eventStreams) response.end();
+    for (const response of this.#eventStreams) {
+      endServerSentEventResponse(response);
+    }
     this.#eventStreams.clear();
   }
 }

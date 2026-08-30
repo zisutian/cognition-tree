@@ -420,6 +420,8 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     request-aborted 生命周期事件，handler 不得将客户端断连伪装成 API 500；
     error mapping 与响应 envelope 仍是 handler 的权威事实，日志仅为经脱敏的
     非权威观测，logger 失败不得替换或拒绝既定 API 响应；
+    api/http 独占 SSE socket 的失败与 backpressure 隔离，单个慢连接直接断开
+    并依赖 checkpoint/replay 重同步，不得反向改变提交、Agent turn 或其他订阅者；
     serverLifecycle 将关闭拆成停止接收、结束两类长连接、等待活动请求或限时强制断连、
     最后释放请求依赖资源四个有序阶段；多项关闭失败必须全部保留，不能让资源清理与
     尚未结束的 handler 并发；
