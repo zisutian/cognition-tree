@@ -4,6 +4,11 @@ import { once } from "node:events";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import { isLoopbackAddress } from "../network/loopbackAddress.ts";
 import type { BootstrapConfigurationStore } from "./bootstrapConfigurationStore.ts";
+import {
+  readRecoveryRequestDataRoot,
+  RecoveryRequestAbortedError,
+  RecoveryRequestError,
+} from "./recoveryRequest.ts";
 
 const recoveryHtml = `<!doctype html>
 <html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -29,28 +34,6 @@ function sendJson(response: ServerResponse, status: number, body: unknown) {
     "Content-Type": "application/json; charset=utf-8",
   });
   response.end(JSON.stringify(body));
-}
-
-async function readRecoveryBody(request: IncomingMessage) {
-  const chunks: Buffer[] = [];
-  let size = 0;
-
-  for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-
-    size += buffer.byteLength;
-    if (size > 16_384) throw new Error("Recovery request is too large");
-    chunks.push(buffer);
-  }
-  const value = JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
-
-  if (!value || typeof value !== "object" || Array.isArray(value) ||
-      Object.keys(value).length !== 1 || !("dataRoot" in value) ||
-      ((value as { dataRoot: unknown }).dataRoot !== null &&
-        typeof (value as { dataRoot: unknown }).dataRoot !== "string")) {
-    throw new Error("Recovery request is invalid");
-  }
-  return (value as { dataRoot: string | null }).dataRoot;
 }
 
 export async function runBootstrapRecoveryServer({
@@ -86,14 +69,20 @@ export async function runBootstrapRecoveryServer({
       if (request.method === "POST" &&
           url.pathname === "/api/v3/recovery/system-configuration") {
         try {
-          await bootstrap.recover(await readRecoveryBody(request));
+          await bootstrap.recover(await readRecoveryRequestDataRoot(request));
           response.once("finish", () => {
             process.exitCode = 75;
             server.close();
           });
           sendJson(response, 200, { restarting: true });
         } catch (error) {
-          sendJson(response, 422, {
+          if (error instanceof RecoveryRequestAbortedError) {
+            if (!response.destroyed) response.destroy();
+            return;
+          }
+          sendJson(response, error instanceof RecoveryRequestError
+            ? error.statusCode
+            : 422, {
             message: error instanceof Error ? error.message : "Recovery failed",
           });
         }
