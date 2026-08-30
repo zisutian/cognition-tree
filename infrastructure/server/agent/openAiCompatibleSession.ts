@@ -14,6 +14,7 @@ import {
   type ChatMessage,
   classifySingleJsonToolCall,
   countChatHistoryCharacters,
+  countOpenAiChatStreamChunkCharacters,
   openAiChatEndpoint,
   type PendingToolCall,
   parseOpenAiChatStreamChunk,
@@ -138,6 +139,7 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
         let reasoningText = "";
         const messageDeltas: string[] = [];
         let finishReason: string | null = null;
+        let streamedCharacters = 0;
 
         for await (const data of readOpenAiChatSse(response)) {
           if (data === "[DONE]") break;
@@ -152,6 +154,13 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
           }
           const chunk = parseOpenAiChatStreamChunk(parsed);
           const rawFinishReason = chunk.finishReason;
+
+          streamedCharacters += countOpenAiChatStreamChunkCharacters(chunk);
+          if (streamedCharacters > this.#profile.historyBudgetCharacters) {
+            throw new AgentRuntimeProtocolError(
+              "Agent completion exceeded the configured character budget",
+            );
+          }
 
           if (rawFinishReason !== null) {
             if (finishReason !== null) {

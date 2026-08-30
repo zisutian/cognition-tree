@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   appendOpenAiToolDelta,
+  countOpenAiChatStreamChunkCharacters,
   openAiChatSseFrameCharacterLimit,
   parseOpenAiChatStreamChunk,
   readOpenAiChatSse,
@@ -133,5 +134,33 @@ describe("OpenAI-compatible stream chunks", () => {
       index: 0,
       name: null,
     }])).toThrow(/changed a tool-call id/i);
+  });
+
+  it("charges text and structural tool deltas to the completion budget", () => {
+    expect(countOpenAiChatStreamChunkCharacters({
+      content: "answer",
+      finishReason: "tool_calls",
+      reasoning: "private",
+      toolCalls: [{
+        arguments: "{}",
+        callId: "call-1",
+        index: 0,
+        name: "lookup",
+      }],
+    })).toBe(
+      "answer".length + "tool_calls".length + "private".length +
+        1 + "{}".length + "call-1".length + "lookup".length,
+    );
+    expect(countOpenAiChatStreamChunkCharacters({
+      content: null,
+      finishReason: null,
+      reasoning: null,
+      toolCalls: [{
+        arguments: null,
+        callId: null,
+        index: 999,
+        name: null,
+      }],
+    })).toBe(1);
   });
 });

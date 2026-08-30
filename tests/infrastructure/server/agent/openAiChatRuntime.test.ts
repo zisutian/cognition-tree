@@ -320,6 +320,49 @@ describe("OpenAI-compatible Agent runtime", () => {
     }
   });
 
+  it("rejects streamed state that exceeds the completion character budget", async () => {
+    const server = createServer((_request, response) => {
+      writeSse(response, [{
+        choices: [{ delta: { content: "x".repeat(513) } }],
+      }]);
+    });
+
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+
+    if (!address || typeof address === "string") throw new Error("Missing port");
+    const session = await new OpenAiChatRuntime(
+      {
+        ...profile(`http://127.0.0.1:${address.port}/v1`),
+        historyBudgetCharacters: 512,
+      },
+      "server-secret",
+    ).openSession({
+      instructions: "shared instructions",
+      profileId: "openai-test",
+      scope: { domain: "journal", entryIds: null },
+      sessionId: "00000000-0000-4000-8000-000000000001",
+    });
+    const onEvent = vi.fn();
+
+    try {
+      await expect(session.runTurn({
+        executeTool: vi.fn(),
+        messages: [{ content: "respond", role: "user" }],
+        onEvent,
+        scope: { domain: "journal", entryIds: null },
+        signal: new AbortController().signal,
+        tools: [],
+      })).rejects.toThrow(/completion exceeded.*character budget/i);
+      expect(onEvent).not.toHaveBeenCalled();
+    } finally {
+      await session.dispose();
+      server.close();
+      await once(server, "close");
+    }
+  });
+
   it("streams text and executes sequential tool calls through the supplied port", async () => {
     const requests: Record<string, unknown>[] = [];
     const server = createServer(async (request, response) => {

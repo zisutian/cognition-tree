@@ -167,6 +167,20 @@ export function parseOpenAiChatStreamChunk(
   };
 }
 
+export function countOpenAiChatStreamChunkCharacters(
+  chunk: OpenAiChatStreamChunk,
+) {
+  return (chunk.content?.length ?? 0) +
+    (chunk.reasoning?.length ?? 0) +
+    (chunk.finishReason?.length ?? 0) +
+    chunk.toolCalls.reduce(
+      (total, delta) =>
+        total + 1 + (delta.arguments?.length ?? 0) +
+        (delta.callId?.length ?? 0) + (delta.name?.length ?? 0),
+      0,
+    );
+}
+
 export async function* readOpenAiChatSse(response: Response) {
   if (!response.body) {
     throw new AgentRuntimeProtocolError(
