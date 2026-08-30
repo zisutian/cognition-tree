@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CliCredentialStore } from "../../../tooling/cli/credentialStore.ts";
 import { runCtnCli } from "../../../tooling/cli/ctnCli.ts";
 import {
+  cliMaximumJsonResponseBytes,
   CliApiError,
   CliHttpClient,
   normalizeCliOrigin,
@@ -106,6 +107,22 @@ describe("trusted-client CLI security", () => {
       "cannot escape /api/v3",
     );
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an oversized CLI API response declaration", async () => {
+    const client = new CliHttpClient({
+      fetch: async () => new Response("{}", {
+        headers: {
+          "Content-Length": String(cliMaximumJsonResponseBytes + 1),
+          "Content-Type": "application/json",
+        },
+      }),
+      origin: "https://tree.example.test",
+      secret: "ctt_secret",
+    });
+
+    await expect(client.request("GET", "/api/v3/capabilities"))
+      .rejects.toThrow(/exceeds the size limit/i);
   });
 
   it("persists credentials with private permissions and rejects symlinks", async () => {
