@@ -37,7 +37,7 @@ infrastructure/
 
 presentation/
 
-    React bindings、AppRoot、Activity Controller/View、CodeMirror 与共享 UI。React hooks 只存在于这一层。Syntax 编辑视图只消费 application/syntax 的 draft projection 并映射 React 交互，不重新定义选项、约束、field ID、focus target 或诊断位置；core/ctn/syntax 仍只提供 syntax schema/compiler，不制造 React/view contract。非视图 draft persistence 或分析 adapter 可为实际领域行为依赖 core syntax 接口，但不得成为第二个展示投影 owner。
+    React bindings、认证门与工作台组合根、Activity Controller/View、CodeMirror 与共享 UI。React hooks 只存在于这一层。Syntax 编辑视图只消费 application/syntax 的 draft projection 并映射 React 交互，不重新定义选项、约束、field ID、focus target 或诊断位置；core/ctn/syntax 仍只提供 syntax schema/compiler，不制造 React/view contract。非视图 draft persistence 或分析 adapter 可为实际领域行为依赖 core syntax 接口，但不得成为第二个展示投影 owner。
 
 contracts/
 
@@ -386,8 +386,9 @@ staging 与 proposal state machine。它只依赖三个领域公开的 Agent pre
 和通用 persistence 端口，不依赖 contracts、infrastructure、presentation 或
 application/workbench；AgentRuntimePort 同时定义与 provider 无关的上下文预算耗尽
 语义。浏览器的 AgentClientController 只消费 wire-neutral port；
-发送、批准和 destructive confirmation 前所需的已加载 draft 同步由 AppRoot 在
-presentation composition root 注入，避免任一应用协调根反向调用另一个。
+发送、批准和 destructive confirmation 前所需的已加载 draft 同步由
+`AuthenticatedWorkbenchRoot` 在 presentation composition root 注入，避免任一应用协调根
+反向调用另一个。
 
 一份 proposal 只允许一个 Workspace repository、Journal store 或 Todo store；跨
 store 意图必须顺序生成多份 proposal。proposal 是带 UUID、version、SHA-256
@@ -608,9 +609,12 @@ Ollama Provider 的显式 probe 复用 SSRF、超时、重定向和响应体限�
 本节只说明 Presentation 所有权与跨层边界；精确布局、交互、尺度和颜色由
 [界面规范](ui-guidelines.md) 独占。
 
-AppRoot 只创建 runtime/controller、订阅快照并维护当前 Activity。领域 session 到
-view application 的组合位于 `presentation/shell/application`；Activity descriptor
-catalog 是 ID、标签、图标、分组、可用条件与懒加载元数据的唯一 owner。
+`AppRoot` 只拥有 API origin 与 OwnerAuthenticationController，并以认证状态挂载或卸载
+`AuthenticatedWorkbenchRoot`。后者为每个认证生命周期创建 Workbench、Agent、System
+configuration 与 ProblemCenter，订阅快照并维护当前 Activity；退出登录会终结整组
+controller，重新登录不得复用终态实例。领域 session 到 view application 的组合位于
+`presentation/shell/application`；Activity descriptor catalog 是 ID、标签、图标、分组与
+懒加载元数据的唯一 owner。
 
 每个 Activity 采用纵向切片：controller、context、view、局部 hook 和样式位于
 `presentation/activities/<activity>/`。跨 Activity 的组合只存在于 shell，共享交互
@@ -631,13 +635,15 @@ core 中用全局计数器制造展示缓存 revision。
 
 Agent Presentation 只消费 AgentClientController 的会话快照、连续事件和冻结 proposal
 review，不解析正文或生成审批摘要。发送、批准与 destructive confirmation 前的 scope
-同步由 AppRoot 作为组合根注入；事件序列出现缺口时重读 session snapshot。Provider、
-Profile、凭据与符合性状态只经 Settings application facade 管理。
+同步由 `AuthenticatedWorkbenchRoot` 作为组合根注入；事件序列出现缺口时重读 session
+snapshot。Provider、Profile、凭据与符合性状态只经 Settings application facade 管理。
 
 Settings 的页内选择和未提交表单、Search 的查询草稿、Notes 的模式/图谱筛选/图谱设置
 以及工作台布局都属于 Presentation 页面会话状态；需要跨仓库保留的状态由显式
-repository session store 分区，React hook 只订阅当前仓库；不得用模块级 Map 建立第二个
-页面会话 owner，也不得进入领域 content 或服务端配置。write-only secret 随对应表单卸载
+repository session store registry 以带值类型的 slot key 分区，React hook 只订阅当前仓库。
+registry 位于按仓库重挂载的工作台边界之上、认证边界之内，因此仓库切换保留分区，退出
+登录销毁整个页面会话；不得用模块级 Map 建立第二个页面会话 owner，也不得进入领域
+content 或服务端配置。write-only secret 随对应表单卸载
 而清除；服务端 pending 操作具有独立生命周期，不由页面卸载取消。API access settings 的
 列表 authority、load generation、mutation version 与在途计数由独立页面 session controller
 持有，React hook 只订阅，旧 load 不得覆盖 create/revoke，单个完成不得提前清除 loading。
