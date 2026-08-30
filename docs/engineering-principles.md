@@ -87,6 +87,7 @@ contracts、presentation；跨层流程进入 integration，通用 fixture 进�
 
 所有可重建的构建、测试与缓存产物归 .artifacts，并可由 pnpm clean 统一删除。.cognition-tree 是本地内容和服务状态，不得作为缓存或清理目标。
 
-运行时只接受每个领域声明的当前格式。版本迁移、字段别名、自动清空和旧格式
-fallback 不进入生产源码；不支持的数据由明确重置操作处理，存储适配器必须
-fail closed 并保留原始内容。
+Workspace、Journal 与 Todo 内容运行时只接受各领域声明的当前格式。内容版本迁移、
+字段别名、自动清空和旧格式 fallback 不进入生产源码；不支持的内容由明确重置操作
+处理，存储适配器必须 fail closed 并保留原始内容。bootstrap、服务配置和凭据控制格式
+若必须升级，只能由各自 codec 独占显式、原子、fail-closed 的迁移，并在使用文档说明。

@@ -327,10 +327,10 @@ pending rotation；配置使用 exact CAS，v1 摘要/version 无损迁入 v2 �
 迁移用例和 infrastructure/system 的迁移状态协调器共同完成。状态协调器只编排维护
 租约、copy/verify/bootstrap CAS 与重启；独立文件事务是目标路径校验、权威分区清单、
 复制、指纹校验和失败清理的唯一 owner。maintenance gate 阻止新 mutation 并等待已有
-请求结束；文件事务只复制 repositories、access-v1、agent-auth-v1、agent-config-v1 和
-operations-v1，拒绝符号链接与路径重叠，逐文件校验数量、大小和 SHA-256，最后才 CAS
-更新 bootstrap 指针。失败不切换指针；目标清理失败会附加到失败状态，但不能阻止维护
-租约释放和 active 状态归零。成功通过专用退出状态由根 supervisor 重启。
+请求结束；文件事务只复制[使用与部署](getting-started.md#4-数据控制区与迁移)列出的当前
+权威分区，拒绝符号链接与路径重叠，逐文件校验数量、大小和 SHA-256，最后才 CAS 更新
+bootstrap 指针。失败不切换指针；目标清理失败会附加到失败状态，但不能阻止维护租约
+释放和 active 状态归零。成功通过专用退出状态由根 supervisor 重启。
 旧数据根不删除。
 
 Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前
@@ -460,8 +460,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 这些模块只拆职责，不改变本地 WAL 提交点或仓库内容 schema。普通仓库没有第二种
 存储实现、组合 catalog、连接 registry 或存储回退路径。
 
-Agent 配置由 application/agent 端口协调、设置界面操作并写入独立的 versioned 服务端状态；固定 1 小时 idle TTL、
-24 小时 absolute TTL，审计容量来自 bootstrap 服务设置。每个 profile 显式声明
+Agent 配置由 application/agent 端口协调、设置界面操作并写入独立的 versioned 服务端状态；
+session lifecycle policy 独占[产品需求](product-requirements.md#8-agent)定义的
+idle/absolute TTL 实现，审计容量来自 bootstrap 服务设置。每个 profile 显式声明
 maxResidentSessions、model、timeout 与 tool/request limit；chat profile 的
 `historyBudgetCharacters` 只是服务端内存会话历史的字符预算，不是模型 token 上限，
 也不会设置 Ollama `num_ctx`。凭据只写入不回读；Provider 只激活 `none`、API Key 或

@@ -38,7 +38,8 @@
 - Server 拥有内容与持久配置；浏览器只持有当前页面会话状态和少量明确的本地偏好。
 - Workspace、Journal 与 Todo 各有独立 contract、session 和存储边界，但共享同步基础设施。
 - 官方浏览器和 trusted-client 使用 merge-aware sync；Agent Proposal 经 owner 审批后执行 exact CAS。
-- Ollama、Codex 等模型运行时独立管理，认知树不接管其下载、进程或存储生命周期。
+- Ollama 与远程模型服务保持外部；Codex 使用项目锁定的隔离 app-server 子进程和应用
+  管理的专用认证目录，不读取个人 Codex 配置或会话。
 - UI 只通过 application 用例进入领域；wire 形态由 `contracts/` 统一拥有。
 
 精确的数据流、保存语义、权限边界与运行时所有权见[架构边界](docs/architecture.md)。
