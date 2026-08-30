@@ -487,7 +487,9 @@ app-server，使用空临时 cwd、隔离 HOME/CODEX_HOME、`ephemeral: true`、
 filesystem、network disabled、approval never，并验证 instructionSources 为空；不
 读取个人 `.codex`、AGENTS、skills、hooks、plugins、sessions 或 MCP。进程环境是
 allowlist，API key 不进入 shell/MCP environment。缺少 sandbox、binary/version
-不匹配或协议结果不满足这些断言时 profile fail closed。会话结束、过期或取消后
+不匹配或协议结果不满足这些断言时 profile fail closed。Codex app-server notification
+按到达顺序交付 runtime event，`turn/completed` 必须等待此前异步 event handler 完成；
+handler 失败直接使 turn 失败。会话结束、过期或取消后
 撤销 capability、停止进程，并只清理服务为该 session 建立的临时目录。
 
 Codex 的会话专属 STDIO MCP 只定义 scope 内 list/read/search、describe_syntax、

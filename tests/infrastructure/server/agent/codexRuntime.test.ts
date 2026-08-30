@@ -212,6 +212,86 @@ describe("Codex app-server Agent runtime", () => {
     }
   });
 
+  it("settles a turn only after ordered event delivery", async () => {
+    const projectRoot = await createFakeProject();
+    const runtime = new CodexRuntime({
+      authentication: { apiKey: "server-api-key", type: "api-key" },
+      profile: profile(),
+      projectRoot,
+    });
+
+    try {
+      const session = await runtime.openSession({
+        instructions: "shared instructions",
+        privateToolProcess: {
+          arguments: ["session-mcp.js"],
+          command: process.execPath,
+          environment: {
+            CTN_AGENT_IPC_ENDPOINT: "/private/agent.sock",
+            CTN_AGENT_SESSION_CAPABILITY: "capability",
+            CTN_AGENT_SESSION_ID: "00000000-0000-4000-8000-000000000003",
+          },
+        },
+        profileId: "codex-test",
+        scope: { domain: "journal", entryIds: null },
+        sessionId: "00000000-0000-4000-8000-000000000003",
+      });
+
+      try {
+        let releaseEvent!: () => void;
+        let markEventStarted!: () => void;
+        const eventStarted = new Promise<void>((resolve) => {
+          markEventStarted = resolve;
+        });
+        const eventGate = new Promise<void>((resolve) => {
+          releaseEvent = resolve;
+        });
+        let eventDelivered = false;
+        let turnSettled = false;
+        const turn = session.runTurn({
+          executeTool: async () => undefined,
+          messages: [{ content: "deliver events in order", role: "user" }],
+          onEvent: async () => {
+            markEventStarted();
+            await eventGate;
+            eventDelivered = true;
+          },
+          scope: { domain: "journal", entryIds: null },
+          signal: new AbortController().signal,
+          tools: [],
+        });
+
+        void turn.then(
+          () => {
+            turnSettled = true;
+          },
+          () => undefined,
+        );
+        await eventStarted;
+        await Promise.resolve();
+        expect(turnSettled).toBe(false);
+        releaseEvent();
+        await expect(turn).resolves.toMatchObject({ toolCalls: 0 });
+        expect(eventDelivered).toBe(true);
+
+        await expect(session.runTurn({
+          executeTool: async () => undefined,
+          messages: [{ content: "surface event failure", role: "user" }],
+          onEvent: async () => {
+            throw new Error("event delivery rejected");
+          },
+          scope: { domain: "journal", entryIds: null },
+          signal: new AbortController().signal,
+          tools: [],
+        })).rejects.toThrow("event delivery rejected");
+      } finally {
+        await session.dispose();
+      }
+    } finally {
+      await rm(projectRoot, { force: true, recursive: true });
+    }
+  });
+
   it("rejects a binary whose package version is not pinned", async () => {
     const projectRoot = await createFakeProject();
 

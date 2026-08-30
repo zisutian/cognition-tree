@@ -164,6 +164,40 @@ class CodexRuntimeSession implements AgentRuntimeSession {
       resolveCompletion = resolve;
       rejectCompletion = reject;
     });
+    let eventFailure: Error | null = null;
+    let eventTail = Promise.resolve();
+    const asError = (error: unknown) =>
+      error instanceof Error
+        ? error
+        : new Error("Codex event delivery failed");
+    const enqueueEvent = (
+      event: Parameters<AgentRuntimeTurnRequest["onEvent"]>[0],
+    ) => {
+      if (settled) return;
+      eventTail = eventTail.then(() => request.onEvent(event)).then(
+        () => undefined,
+        (error: unknown) => {
+          eventFailure ??= asError(error);
+          if (!settled) {
+            settled = true;
+            rejectCompletion(eventFailure);
+          }
+        },
+      );
+    };
+    const settleCompletion = (status: string) => {
+      if (settled) return;
+      settled = true;
+      void eventTail.then(() => {
+        if (eventFailure) rejectCompletion(eventFailure);
+        else resolveCompletion(status);
+      });
+    };
+    const failCompletion = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      void eventTail.then(() => rejectCompletion(eventFailure ?? error));
+    };
     const unsubscribe = this.#client.subscribe((message) => {
       const params = record(message.params);
 
@@ -173,17 +207,19 @@ class CodexRuntimeSession implements AgentRuntimeSession {
         if (delta) {
           finalText += delta;
           if (finalText.length > this.#profile.maxOutputCharacters) {
-            rejectCompletion(new Error("Codex output exceeds maxOutputCharacters"));
+            failCompletion(
+              new Error("Codex output exceeds maxOutputCharacters"),
+            );
             return;
           }
-          void request.onEvent({ textDelta: delta, type: "text-delta" });
+          enqueueEvent({ textDelta: delta, type: "text-delta" });
         }
       }
       if (message.method === "item/completed") {
         const item = record(params?.item);
 
         if (item?.type === "contextCompaction") {
-          void request.onEvent({
+          enqueueEvent({
             reason: "Codex compacted the in-memory thread",
             type: "compaction-required",
           });
@@ -199,16 +235,14 @@ class CodexRuntimeSession implements AgentRuntimeSession {
         if (completedTurnId && completedTurnId !== this.#activeTurnId) {
           completedBeforeStart.set(completedTurnId, completedStatus);
         } else if (completedTurnId && !settled) {
-          settled = true;
-          resolveCompletion(completedStatus);
+          settleCompletion(completedStatus);
         }
       }
       if (message.method === "error") {
         const detail = record(params?.error);
 
         if (!settled) {
-          settled = true;
-          rejectCompletion(new AgentRuntimeProtocolError(
+          failCompletion(new AgentRuntimeProtocolError(
             typeof detail?.message === "string" ? detail.message : "Codex turn failed",
           ));
         }
@@ -220,8 +254,7 @@ class CodexRuntimeSession implements AgentRuntimeSession {
     const timeout = setTimeout(() => {
       void this.cancel().catch(() => undefined);
       if (!settled) {
-        settled = true;
-        rejectCompletion(new Error("Codex turn timed out"));
+        failCompletion(new Error("Codex turn timed out"));
       }
     }, this.#profile.timeoutMilliseconds);
 
@@ -247,8 +280,7 @@ class CodexRuntimeSession implements AgentRuntimeSession {
       const earlyStatus = completedBeforeStart.get(turn.id);
 
       if (earlyStatus && !settled) {
-        settled = true;
-        resolveCompletion(earlyStatus);
+        settleCompletion(earlyStatus);
       }
       const status = await completion;
 
