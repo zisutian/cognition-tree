@@ -13,7 +13,11 @@ import { AgentService } from "./agent/service.ts";
 import { agentServicePolicy } from "./agent/servicePolicy.ts";
 import { createApiServer } from "./api/http/server.ts";
 import { ApiMaintenanceGate } from "./api/http/maintenanceGate.ts";
-import { closeApiServer } from "./api/http/serverLifecycle.ts";
+import {
+  closeApiServer,
+  settleApiServerLifecycleOperations,
+  settleApiServerLifecyclePhases,
+} from "./api/http/serverLifecycle.ts";
 import { systemApiRuntime } from "./api/http/runtime.ts";
 import { createApiSecurityPolicy } from "./api/http/security.ts";
 import { ApiSearchService } from "./api/search.ts";
@@ -214,23 +218,21 @@ try {
 const agentStatus = await agentService.status();
 let shutdownPromise: Promise<void> | null = null;
 shutdown = () => {
-  shutdownPromise ??= (async () => {
-    try {
-      await closeApiServer({
-        closeOwnedResources: async () => {
-          eventHub.dispose();
-          await Promise.all([
-            agentProviderOperations.dispose(),
-            agentService.dispose(),
-            clientRuntime?.dispose() ?? Promise.resolve(),
-          ]);
-        },
-        server,
-      });
-    } finally {
-      await catalog.dispose();
-    }
-  })();
+  shutdownPromise ??= settleApiServerLifecyclePhases([
+    [() => closeApiServer({
+      closeLongLivedConnections: () => {
+        eventHub.dispose();
+        agentService.closeEventStreams();
+      },
+      closeOwnedResources: () => settleApiServerLifecycleOperations([
+        () => agentProviderOperations.dispose(),
+        () => agentService.dispose(),
+        () => clientRuntime?.dispose() ?? Promise.resolve(),
+      ]),
+      server,
+    })],
+    [() => catalog.dispose()],
+  ]);
   return shutdownPromise;
 };
 let shutdownRequested = false;

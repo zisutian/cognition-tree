@@ -22,8 +22,9 @@
 
 `start.sh` 只管理认知树。它不启动、停止、下载或探测 Ollama，也不依赖 Docker 或
 相邻仓库。只有服务设置或数据迁移产生的专用退出状态 75 会触发自动重启；其他退出
-状态原样传播。按 Ctrl+C 会先关闭 Content SSE、Agent SSE 与 Vite，最多等待 5 秒，
-随后才强制中断不合作连接。
+状态原样传播。按 Ctrl+C 会先停止接收新连接并结束 Content SSE 与 Agent SSE；普通
+活动请求最多有 5 秒完成，超时才强制断连。HTTP Server 关闭后才释放 Agent、Provider、
+Vite 与仓库资源，不能在请求仍使用依赖时并发销毁它们。
 
 ## 2. 全内置设置
 

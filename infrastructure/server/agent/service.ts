@@ -275,6 +275,10 @@ export class AgentService {
     });
   }
 
+  closeEventStreams() {
+    this.#sessionPool.closeEventStreams();
+  }
+
   async decideProposal({
     decision,
     ownerId,

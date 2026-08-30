@@ -415,6 +415,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     localRepositoryDeletion 独占普通仓库删除的 managed-data 校验、durable tombstone
     rename 提交点、失败回滚与可恢复物理 cleanup；catalog 只先排空驻留 store 并委托。
     API server 的 api/http 拥有 request lifecycle、认证、限制和 registry 分派；
+    serverLifecycle 将关闭拆成停止接收、结束两类长连接、等待活动请求或限时强制断连、
+    最后释放请求依赖资源四个有序阶段；多项关闭失败必须全部保留，不能让资源清理与
+    尚未结束的 handler 并发；
     api/resources、api/sync 分别拥有只读资源投影与 merge-aware snapshot 同步，search
     保持独立查询入口。server/access 独占 automation 与 trusted-client token；
     server/operations 独占统一账本、审计状态和 Agent receipt；其中

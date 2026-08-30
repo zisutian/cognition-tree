@@ -139,6 +139,10 @@ export class AgentSessionPool {
       this.#sessions.size > 0;
   }
 
+  closeEventStreams() {
+    for (const record of this.#sessions.values()) record.events.close();
+  }
+
   disposeRecord(record: AgentSessionRecord) {
     if (record.disposePromise) return record.disposePromise;
     const execution = (async () => {
