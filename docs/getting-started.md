@@ -46,9 +46,12 @@
     maxAuditEntries    1000
     owner credential   未创建
 
-监听地址、端口、数据根和宿主机显示路径修改后受控重启生效。审计容量立即生效；缩小
-时立即裁剪最旧记录。局域网模式固定绑定 `0.0.0.0`，必须先创建 owner credential，
-并填写无凭据、query、fragment 的 HTTPS origin。TLS 证书仍由外部反向代理管理。
+监听地址、端口、数据根和宿主机显示路径修改后受控重启生效。审计容量通常立即生效；
+缩小时立即裁剪最旧记录。若配置已经持久化但账本裁剪失败，服务返回已提交配置，保留旧
+`effectiveConfiguration.maxAuditEntries`，以 `runtimeApplyErrorMessage` 和“部分生效”
+显式提示并要求重启，不把已提交的 CAS 误报为整体失败。局域网模式固定绑定
+`0.0.0.0`，必须先创建 owner credential，并填写无凭据、query、fragment 的 HTTPS
+origin。TLS 证书仍由外部反向代理管理。
 
 浏览器不读取独立 JSON 配置，也不保存 owner token。官方客户端只调用相对
 `/api/v3`，请求携带同源 Cookie。仅 CI、E2E、测试进程变量，以及 Codex 私有 MCP

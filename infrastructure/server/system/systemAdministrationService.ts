@@ -23,7 +23,12 @@ function sameConfiguration(
   left: SystemConfiguration,
   right: SystemConfiguration,
 ) {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return left.dataRoot === right.dataRoot &&
+    left.listenMode === right.listenMode &&
+    left.maxAuditEntries === right.maxAuditEntries &&
+    left.port === right.port &&
+    left.publicOrigin === right.publicOrigin &&
+    left.repositoryHostRoot === right.repositoryHostRoot;
 }
 
 export class SystemAdministrationService implements SystemAdministrationServerPort {
@@ -31,6 +36,8 @@ export class SystemAdministrationService implements SystemAdministrationServerPo
   #effectiveConfiguration: SystemConfiguration;
   readonly #ledger: AgentAuditCapacityPort;
   readonly #migrations: DataRootMigrationCoordinator;
+  #runtimeApplyErrorMessage: string | null = null;
+  #updateQueue: Promise<void> = Promise.resolve();
 
   constructor({
     bootstrap,
@@ -91,7 +98,19 @@ export class SystemAdministrationService implements SystemAdministrationServerPo
     };
   }
 
-  async update(
+  update(
+    baseRevision: string,
+    configuration: SystemConfigurationInput,
+  ) {
+    const pending = this.#updateQueue.then(() =>
+      this.#update(baseRevision, configuration)
+    );
+
+    this.#updateQueue = pending.then(() => undefined, () => undefined);
+    return pending;
+  }
+
+  async #update(
     baseRevision: string,
     configuration: SystemConfigurationInput,
   ) {
@@ -101,13 +120,22 @@ export class SystemAdministrationService implements SystemAdministrationServerPo
       snapshot.configuration.maxAuditEntries !==
         this.#effectiveConfiguration.maxAuditEntries
     ) {
-      await this.#ledger.updateMaximumEntries(
-        snapshot.configuration.maxAuditEntries,
-      );
-      this.#effectiveConfiguration = {
-        ...this.#effectiveConfiguration,
-        maxAuditEntries: snapshot.configuration.maxAuditEntries,
-      };
+      try {
+        await this.#ledger.updateMaximumEntries(
+          snapshot.configuration.maxAuditEntries,
+        );
+        this.#effectiveConfiguration = {
+          ...this.#effectiveConfiguration,
+          maxAuditEntries: snapshot.configuration.maxAuditEntries,
+        };
+        this.#runtimeApplyErrorMessage = null;
+      } catch (error) {
+        this.#runtimeApplyErrorMessage = error instanceof Error
+          ? error.message
+          : "Operation audit capacity could not be applied";
+      }
+    } else {
+      this.#runtimeApplyErrorMessage = null;
     }
     return this.#project(snapshot);
   }
@@ -122,6 +150,7 @@ export class SystemAdministrationService implements SystemAdministrationServerPo
         snapshot.configuration,
         this.#effectiveConfiguration,
       ),
+      runtimeApplyErrorMessage: this.#runtimeApplyErrorMessage,
     };
   }
 

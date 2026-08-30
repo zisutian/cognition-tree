@@ -80,6 +80,7 @@ const systemConfiguration = {
   ownerCredentialRotationPending: true,
   restartRequired: false,
   revision: `sha256:${"4".repeat(64)}` as const,
+  runtimeApplyErrorMessage: null,
   version: 1,
 };
 const authenticationState = {
@@ -382,6 +383,24 @@ describe("settings activity", () => {
         section="system"
       />,
     );
+    const runtimeApplyFailureStatusMarkup = renderToStaticMarkup(
+      <SettingsStatusPanel
+        {...statusProps}
+        section="system"
+        systemConfigurationState={{
+          ...configurationState,
+          configuration: {
+            ...systemConfiguration,
+            configuration: {
+              ...systemConfiguration.configuration,
+              maxAuditEntries: 25,
+            },
+            restartRequired: true,
+            runtimeApplyErrorMessage: "audit capacity update failed",
+          },
+        }}
+      />,
+    );
     const auditMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
@@ -483,6 +502,7 @@ describe("settings activity", () => {
       has: [
         'aria-label="服务设置"',
         "当前数据根",
+        "当前审计上限",
         "/srv/cognition-tree",
         "已生效",
         'aria-label="服务状态"',
@@ -495,6 +515,15 @@ describe("settings activity", () => {
         "关闭显示",
       ],
       lacks: ["CTN_", "owner token", "重新准备新密钥"],
+    });
+    expectMarkupSemantics(runtimeApplyFailureStatusMarkup, {
+      has: [
+        "部分生效",
+        "当前审计上限",
+        "应用错误",
+        "audit capacity update failed",
+      ],
+      lacks: ["已生效"],
     });
     for (const markup of [
       panelMarkup,

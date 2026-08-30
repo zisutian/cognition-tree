@@ -22,6 +22,7 @@ const snapshot = (revision: string, pending: boolean) => ({
   ownerCredentialRotationPending: pending,
   restartRequired: false,
   revision,
+  runtimeApplyErrorMessage: null,
   version: pending ? 2 : 3,
 });
 

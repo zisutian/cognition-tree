@@ -63,6 +63,7 @@ export type SystemConfigurationSnapshot = Readonly<{
   ownerCredentialRotationPending: boolean;
   restartRequired: boolean;
   revision: `sha256:${string}`;
+  runtimeApplyErrorMessage: string | null;
   version: number;
 }>;
 

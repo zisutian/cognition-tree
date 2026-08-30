@@ -178,6 +178,7 @@ describe("system configuration API", () => {
         configuration: { listenMode: "lan", maxAuditEntries: 25, port: 4_001 },
         effectiveConfiguration: { listenMode: "loopback", maxAuditEntries: 25, port: 3_001 },
         restartRequired: true,
+        runtimeApplyErrorMessage: null,
       });
       const stale = await dispatch<{ code: string }>(handler, {
         body: {

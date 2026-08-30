@@ -190,14 +190,16 @@ function systemStatus({
           <ToolPropertyRow
             label="状态"
             value={(
-              <StatusBadge tone={snapshot.restartRequired ? "warning" : "success"}>
-                {snapshot.restartRequired ? "等待重启" : "已生效"}
+              <StatusBadge tone={snapshot.runtimeApplyErrorMessage ? "danger" : snapshot.restartRequired ? "warning" : "success"}>
+                {snapshot.runtimeApplyErrorMessage ? "部分生效" : snapshot.restartRequired ? "等待重启" : "已生效"}
               </StatusBadge>
             )}
           />
           <ToolPropertyRow label="当前监听" value={`${snapshot.effectiveConfiguration.listenMode === "loopback" ? "仅本机" : "局域网"} · ${snapshot.effectiveConfiguration.port}`} />
           <ToolPropertyRow label="当前数据根" value={<code>{snapshot.effectiveConfiguration.dataRoot}</code>} />
+          <ToolPropertyRow label="当前审计上限" value={snapshot.effectiveConfiguration.maxAuditEntries} />
           <ToolPropertyRow label="访问地址" value={<code>{nextAddress}</code>} />
+          {snapshot.runtimeApplyErrorMessage ? <ToolPropertyRow label="应用错误" value={snapshot.runtimeApplyErrorMessage} /> : null}
         </ToolPropertyList>
       </ToolSection>
       <ToolSection title="所有者凭据">

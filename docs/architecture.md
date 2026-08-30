@@ -321,7 +321,10 @@ bootstrap 固定在项目根，独占监听、端口、数据根指针、public 
 审计容量，以及唯一 owner credential 聚合中的 active digest、active version 和至多一个
 pending rotation；配置使用 exact CAS，v1 摘要/version 无损迁入 v2 聚合，损坏时只启动
 本机 recovery registry。LAN 前置条件、secret 认证与 session 校验只读取 active，clear
-同时清除 active 与 pending。
+同时清除 active 与 pending。SystemAdministrationService 串行化配置更新；bootstrap
+提交是唯一持久权威，审计容量是可即时应用的运行时投影。投影失败不得回滚或隐藏已经
+提交的配置，而应保留旧 effective 值，并通过快照的 `runtimeApplyErrorMessage` 与
+`restartRequired` 显式暴露。
 
 数据根迁移由 application/workbench 的 loaded-content flush、application/system 的
 迁移用例和 infrastructure/system 的迁移状态协调器共同完成。状态协调器只编排维护

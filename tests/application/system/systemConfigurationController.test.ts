@@ -31,6 +31,7 @@ const configuration: SystemConfigurationSnapshot = {
   ownerCredentialRotationPending: false,
   restartRequired: false,
   revision,
+  runtimeApplyErrorMessage: null,
   version: 1,
 };
 const preparedConfiguration: SystemConfigurationSnapshot = {

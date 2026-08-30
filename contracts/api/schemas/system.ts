@@ -43,6 +43,7 @@ export const ApiSystemConfigurationSnapshotSchema = strictObject({
   ownerCredentialRotationPending: Type.Boolean(),
   restartRequired: Type.Boolean(),
   revision: ApiResourceVersionSchema,
+  runtimeApplyErrorMessage: nullable(Type.String()),
   version: Type.Integer({ minimum: 1 }),
 });
 export type ApiSystemConfigurationSnapshotDto = Static<
