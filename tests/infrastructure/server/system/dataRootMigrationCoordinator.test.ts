@@ -17,6 +17,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   SystemMigrationConflictError,
+  SystemMigrationNotFoundError,
   SystemMigrationValidationError,
 } from "../../../../application/system/systemConfiguration.ts";
 import { BootstrapConfigurationStore } from "../../../../infrastructure/server/system/bootstrapConfigurationStore.ts";
@@ -247,6 +248,33 @@ describe("data-root migration coordinator", () => {
 
     expect(prepareDestination).toHaveBeenCalledTimes(2);
     await waitForTerminal(fixtureValue.coordinator, started.id);
+  });
+
+  it("retains only the currently observable migration", async () => {
+    const fixtureValue = await fixture(false, false, {
+      cleanup: vi.fn(async () => undefined),
+      copy: vi.fn(async () => {
+        throw new Error("injected copy failure");
+      }),
+      prepareDestination: vi.fn(async (destination) => destination),
+      verify: vi.fn(async () => undefined),
+    });
+    const first = await fixtureValue.coordinator.start(
+      fixtureValue.initial.revision,
+      fixtureValue.target,
+    );
+
+    await waitForTerminal(fixtureValue.coordinator, first.id);
+    const second = await fixtureValue.coordinator.start(
+      fixtureValue.initial.revision,
+      `${fixtureValue.target}-second`,
+    );
+
+    await expect(fixtureValue.coordinator.get(first.id)).rejects
+      .toBeInstanceOf(SystemMigrationNotFoundError);
+    await expect(fixtureValue.coordinator.get(second.id)).resolves
+      .toMatchObject({ id: second.id });
+    await waitForTerminal(fixtureValue.coordinator, second.id);
   });
 
   it("rolls back a failed copy without changing the bootstrap pointer", async () => {

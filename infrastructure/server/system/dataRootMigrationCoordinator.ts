@@ -35,8 +35,8 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
   readonly #maintenance: SystemMaintenancePort;
   readonly #requestRestart: () => Promise<void>;
   readonly #restartDelayMilliseconds: number;
-  readonly #statuses = new Map<string, DataRootMigrationStatus>();
   #reservation: DataRootMigrationReservation | null = null;
+  #status: DataRootMigrationStatus | null = null;
 
   constructor({
     agentProviderOperations = { hasPendingCodexLogin: () => false },
@@ -68,9 +68,11 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
   }
 
   async get(migrationId: string) {
-    const status = this.#statuses.get(migrationId);
+    const status = this.#status;
 
-    if (!status) throw new SystemMigrationNotFoundError();
+    if (!status || status.id !== migrationId) {
+      throw new SystemMigrationNotFoundError();
+    }
     return status;
   }
 
@@ -110,7 +112,7 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
       };
 
       this.#reservation = { id, kind: "active" };
-      this.#statuses.set(id, status);
+      this.#status = status;
       queueMicrotask(() => void this.#execute(id, baseRevision));
       return status;
     } finally {
@@ -121,7 +123,7 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
   }
 
   async #execute(id: string, baseRevision: string) {
-    const initial = this.#statuses.get(id);
+    const initial = this.#status?.id === id ? this.#status : null;
 
     if (!initial) return;
     let lease: SystemMaintenanceLease | undefined;
@@ -130,24 +132,24 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
     try {
       lease = await this.#maintenance.begin();
       await this.#files.copy(initial.source, initial.destination);
-      this.#statuses.set(id, { ...initial, status: "verifying" });
+      this.#status = { ...initial, status: "verifying" };
       await this.#files.verify(initial.source, initial.destination);
       await this.#bootstrap.setDataRoot(baseRevision, initial.destination);
       pointerSwitched = true;
-      this.#statuses.set(id, { ...initial, status: "restarting" });
+      this.#status = { ...initial, status: "restarting" };
       await new Promise((resolve) =>
         setTimeout(resolve, this.#restartDelayMilliseconds)
       );
       try {
         await this.#requestRestart();
       } catch (error) {
-        this.#statuses.set(id, {
+        this.#status = {
           ...initial,
           errorMessage: error instanceof Error
             ? `Automatic restart failed: ${error.message}`
             : "Automatic restart failed",
           status: "restarting",
-        });
+        };
       }
     } catch (error) {
       if (pointerSwitched) return;
@@ -176,11 +178,11 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
         `Maintenance release failed: ${errorMessage(maintenanceError, "unknown error")}`,
       );
     }
-    this.#statuses.set(initial.id, {
+    this.#status = {
       ...initial,
       errorMessage: messages.join("; "),
       status: "failed",
-    });
+    };
     if (
       this.#reservation?.kind === "active" &&
       this.#reservation.id === initial.id
