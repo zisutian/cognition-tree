@@ -350,7 +350,9 @@ describe("ConfiguredAgentRuntimeFactory", () => {
 
       expect(assertRequestTarget).toHaveBeenCalledTimes(2);
       for (const [target, permittedOrigin] of assertRequestTarget.mock.calls) {
-        expect(target.toString()).toBe(configuration.provider.baseUrl);
+        expect(target.toString()).toBe(
+          new URL(configuration.provider.baseUrl ?? "").toString(),
+        );
         expect(permittedOrigin).toBe(privateNetworkOrigin);
       }
       expect(fetchMock).toHaveBeenCalledTimes(2);

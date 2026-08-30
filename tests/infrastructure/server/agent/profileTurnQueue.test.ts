@@ -9,6 +9,14 @@ describe("Agent Profile turn queue", () => {
   it("serializes each Profile and waits for work appended during a turn", async () => {
     const queue = new AgentProfileTurnQueue();
     const order: string[] = [];
+    let markFirstStarted!: () => void;
+    const firstStarted = new Promise<void>((resolve) => {
+      markFirstStarted = resolve;
+    });
+    let markOtherStarted!: () => void;
+    const otherStarted = new Promise<void>((resolve) => {
+      markOtherStarted = resolve;
+    });
     let releaseFirst!: () => void;
     const firstGate = new Promise<void>((resolve) => {
       releaseFirst = resolve;
@@ -16,6 +24,7 @@ describe("Agent Profile turn queue", () => {
 
     queue.enqueue("profile-a", async () => {
       order.push("a1");
+      markFirstStarted();
       await firstGate;
       queue.enqueue("profile-a", async () => {
         order.push("a3");
@@ -26,9 +35,10 @@ describe("Agent Profile turn queue", () => {
     });
     queue.enqueue("profile-b", async () => {
       order.push("b1");
+      markOtherStarted();
     });
 
-    await Promise.resolve();
+    await Promise.all([firstStarted, otherStarted]);
     expect(order).toEqual(["a1", "b1"]);
     expect(queue.has("profile-a")).toBe(true);
     releaseFirst();

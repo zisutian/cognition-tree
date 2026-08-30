@@ -247,13 +247,14 @@ describe("Agent configuration controller", () => {
   it("returns a pending device login immediately and refreshes after completion", async () => {
     const adapter = port();
     const changed = vi.fn();
+    const polling = createDeferred<void>();
 
     vi.mocked(adapter.load)
       .mockResolvedValueOnce(snapshot("1"))
       .mockResolvedValueOnce(snapshot("3"));
     const controller = createAgentConfigurationController({
       onConfigurationChanged: changed,
-      pollConformance: async () => undefined,
+      pollConformance: () => polling.promise,
       pollConformanceIntervalMilliseconds: 1,
       port: adapter,
     });
@@ -269,6 +270,7 @@ describe("Agent configuration controller", () => {
       codexDeviceLogins: { "provider-1": { status: "pending" } },
       operationStatus: "idle",
     });
+    polling.resolve();
     await vi.waitFor(() => {
       expect(controller.getSnapshot()).toMatchObject({
         codexDeviceLogins: { "provider-1": { status: "succeeded" } },

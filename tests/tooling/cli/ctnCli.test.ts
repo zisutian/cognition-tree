@@ -244,7 +244,7 @@ describe("trusted-client CLI security", () => {
       },
     })).toBe(2);
     expect((await store.read()).profiles).toEqual([]);
-    expect(errors.join("\n")).toContain("trusted-client secret is invalid");
+    expect(errors.join("\n")).toContain("Trusted-client secret is invalid");
   });
 
   it("reconciles a committed write without replaying PUT", async () => {
