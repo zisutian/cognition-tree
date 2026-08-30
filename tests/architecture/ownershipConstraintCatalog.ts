@@ -202,6 +202,18 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/repository\/workspace\/local\/localRepositoryRootLease\.ts$/,
     ],
     [
+      "data-root migration authoritative partitions",
+      infrastructureModules,
+      /\bconst authoritativePartitions\b/,
+      /^infrastructure\/server\/system\/dataRootMigrationFiles\.ts$/,
+    ],
+    [
+      "data-root migration state coordinator",
+      infrastructureModules,
+      /\bclass FileDataRootMigrationCoordinator\b/,
+      /^infrastructure\/server\/system\/dataRootMigrationCoordinator\.ts$/,
+    ],
+    [
       "Agent Profile turn queue",
       infrastructureModules,
       /\bnew AgentProfileTurnQueue\s*\(/,
