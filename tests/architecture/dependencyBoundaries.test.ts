@@ -335,6 +335,29 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps Profile configuration commands behind their store", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath: "../../infrastructure/server/agent/configurationStore.ts",
+        importPath: "./profileConfiguration",
+        targetPath:
+          "../../infrastructure/server/agent/profileConfiguration.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/agent/sessionTools.ts",
+        importPath: "./profileConfiguration",
+        targetPath:
+          "../../infrastructure/server/agent/profileConfiguration.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "Agent Profile configuration composition boundary: ../../infrastructure/server/agent/sessionTools.ts imports ./profileConfiguration",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

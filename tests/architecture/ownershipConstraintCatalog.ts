@@ -154,6 +154,18 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/agent\/configurationViews\.ts$/,
     ],
     [
+      "Agent configuration revision assertion",
+      infrastructureModules,
+      /\bexport function assertAgentConfigurationRevision\s*\(/,
+      /^infrastructure\/server\/agent\/configurationRevision\.ts$/,
+    ],
+    [
+      "Agent Profile configuration coordinator",
+      infrastructureModules,
+      /\bnew AgentProfileConfiguration\s*\(/,
+      /^infrastructure\/server\/agent\/configurationStore\.ts$/,
+    ],
+    [
       "CTN tone class projection",
       presentationModules,
       /`ctn-tone-\$\{tone\}`/,
