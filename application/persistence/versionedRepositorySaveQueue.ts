@@ -7,6 +7,9 @@ import type {
   VersionedRepositorySnapshotTransition,
 } from "./versionedRepository";
 import { finalVersionedRepositoryTransition } from "./versionedRepository";
+import {
+  createVersionedRepositoryTransitionAuthority,
+} from "./versionedRepositoryTransitionAuthority";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 
 export type VersionedRepositoryPersistenceState<Revision extends string> =
@@ -141,22 +144,15 @@ export function createVersionedRepositorySaveQueue<
     initialPersistenceState?.status === "conflict"
       ? initialPersistenceState.remoteRevision
       : initialSnapshot.conflictRevision;
-  let authoritySnapshot = initialSnapshot;
-  const acceptedLocalRevisions = new Set<LocalRevision>([
-    initialSnapshot.localRevision,
-  ]);
+  const transitionAuthority = createVersionedRepositoryTransitionAuthority(
+    initialSnapshot,
+  );
   let desired: DesiredContentChange<
     Content,
     Projection,
     LocalRevision
   > | null = null;
   let disposed = false;
-  let pendingAuthorityTransitions: VersionedRepositorySnapshotTransition<
-    Content,
-    Projection,
-    Revision,
-    LocalRevision
-  >[] = [];
   let localStageBlocked = false;
   let localStageMessage: string | null = null;
   let localWaiters: LocalWaiter[] = [];
@@ -214,41 +210,17 @@ export function createVersionedRepositorySaveQueue<
       LocalRevision
     >[],
   ) => {
-    pendingAuthorityTransitions.push(...transitions);
-    let authorityChanged = false;
-
-    while (true) {
-      pendingAuthorityTransitions = pendingAuthorityTransitions.filter(
-        (transition) =>
-          transition.previousLocalRevision ===
-              authoritySnapshot.localRevision ||
-          !acceptedLocalRevisions.has(transition.previousLocalRevision),
-      );
-      const nextIndex = pendingAuthorityTransitions.findIndex(
-        (transition) =>
-          transition.previousLocalRevision === authoritySnapshot.localRevision,
-      );
-
-      if (nextIndex < 0) break;
-      const next = pendingAuthorityTransitions[nextIndex];
-
-      if (!next) {
-        throw new Error("Repository authority transition disappeared.");
-      }
-      pendingAuthorityTransitions.splice(nextIndex, 1);
-      authoritySnapshot = next.snapshot;
-      acceptedLocalRevisions.add(authoritySnapshot.localRevision);
-      authorityChanged = true;
-    }
-    if (authorityChanged && !desired && stagedVersion === version) {
-      onSnapshotChanged(authoritySnapshot);
+    if (
+      transitionAuthority.accept(transitions) &&
+      !desired &&
+      stagedVersion === version
+    ) {
+      onSnapshotChanged(transitionAuthority.getSnapshot());
     }
   };
   const compactAuthorityTransitionHistory = () => {
     if (activeStage || activeSync) return;
-    if (pendingAuthorityTransitions.length > 0) return;
-    acceptedLocalRevisions.clear();
-    acceptedLocalRevisions.add(authoritySnapshot.localRevision);
+    transitionAuthority.compact();
   };
   const scheduleRetry = () => {
     if (disposed || conflictRevision || cancelRemoteRetry) {
@@ -389,7 +361,7 @@ export function createVersionedRepositorySaveQueue<
         syncTerminalBlocked = false;
         syncTerminalMessage = null;
         clearRetryTimer();
-        if (desired || authoritySnapshot.pendingChanges) {
+        if (desired || transitionAuthority.getSnapshot().pendingChanges) {
           syncDue = true;
           onPersistenceChange({ status: "pending-sync" });
         } else {
@@ -399,7 +371,8 @@ export function createVersionedRepositorySaveQueue<
       case "offline": {
         offline = true;
         const hasOfflinePendingChanges = desired !== null ||
-          authoritySnapshot.pendingChanges || reportedSnapshot.pendingChanges;
+          transitionAuthority.getSnapshot().pendingChanges ||
+          reportedSnapshot.pendingChanges;
         onPersistenceChange({
           pendingChanges: hasOfflinePendingChanges,
           status: "offline",
@@ -411,7 +384,7 @@ export function createVersionedRepositorySaveQueue<
       }
       case "conflict": {
         const reportedConflictRevision =
-          authoritySnapshot.conflictRevision ??
+          transitionAuthority.getSnapshot().conflictRevision ??
           reportedSnapshot.conflictRevision;
 
         if (!reportedConflictRevision) {
@@ -548,7 +521,7 @@ export function createVersionedRepositorySaveQueue<
       return activeSync !== null;
     },
     getLocalRevision() {
-      return authoritySnapshot.localRevision;
+      return transitionAuthority.getSnapshot().localRevision;
     },
     async prepareForDiscard() {
       clearSyncTimer();

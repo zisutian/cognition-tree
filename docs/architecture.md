@@ -357,10 +357,12 @@ currentOccurrenceDate。
 ## 7. Application 协调
 
 每个内容领域拥有独立 session 和状态，但统一复用 application/persistence 的
-VersionedSessionController 与保存队列。该控制器负责页面内 ready 内容保持、
-并发 reload、discard 失败恢复、乐观 draft、CAS、冲突、断线重试、dispose 和
-删除前冻结/恢复；冲突详情读取失败与整仓冲突是不同状态，解决动作只消费完整冲突
-快照。Workspace、Journal、Todo wrapper 只注入 preparation policy 与领域命令。
+VersionedSessionController 与保存队列。Session controller 负责页面内 ready 内容、
+并发 reload、discard 失败恢复、乐观 draft、dispose 和删除前冻结/恢复；保存队列负责
+debounce、本地 stage、远端 sync/retry 与 persistence state。独立 transition authority
+按 local revision 拼接并发返回的 transition chain、丢弃过期分支并在空闲时压缩历史，
+保存队列只决定何时接受和发布。冲突详情读取失败与整仓冲突是不同状态，解决动作只消费
+完整冲突快照。Workspace、Journal、Todo wrapper 只注入 preparation policy 与领域命令。
 普通仓与内置仓 catalog controller 各自拥有 reload generation；并发刷新只允许最新
 结果发布，dispose 是不可重启的终态，会使在途刷新和 mutation 的本地安装失效并清除
 订阅者；后台启动错误必须已投影到状态且不能逃逸。普通仓 operation 只由公开 snapshot
