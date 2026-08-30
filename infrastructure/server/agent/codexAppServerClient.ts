@@ -3,8 +3,8 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import readline from "node:readline";
 import { AgentRuntimeProtocolError } from "../../../application/agent/agentRuntimePort.ts";
+import { listenToAgentJsonLines } from "./jsonLineTransport.ts";
 
 export const pinnedCodexVersion = "0.148.0";
 
@@ -111,13 +111,17 @@ export class CodexAppServerClient {
     reject(error: Error): void;
     resolve(value: unknown): void;
   }>();
+  #stopReading: () => void = () => undefined;
 
   constructor(child: ChildProcessWithoutNullStreams) {
     this.#child = child;
     child.stderr.resume();
-    const lines = readline.createInterface({ input: child.stdout });
-
-    lines.on("line", (line) => this.#receive(line));
+    this.#stopReading = listenToAgentJsonLines(child.stdout, {
+      onFailure: () => this.#close(new AgentRuntimeProtocolError(
+        "Codex emitted invalid JSON-RPC framing",
+      )),
+      onLine: (line) => this.#receive(line),
+    });
     child.once("exit", (code, signal) => {
       this.#close(new AgentRuntimeProtocolError(
         `Codex app-server exited (${code ?? signal ?? "unknown"})`,
@@ -159,6 +163,7 @@ export class CodexAppServerClient {
   #close(error: AgentRuntimeProtocolError) {
     if (this.#closedError) return;
     this.#closedError = error;
+    this.#stopReading();
     for (const pending of this.#pending.values()) pending.reject(error);
     this.#pending.clear();
     this.#listeners.clear();
@@ -170,7 +175,7 @@ export class CodexAppServerClient {
   }
 
   #receive(line: string) {
-    if (this.#closedError) return;
+    if (this.#closedError) return false;
     let message: CodexJsonRpcMessage;
 
     try {
@@ -179,16 +184,16 @@ export class CodexAppServerClient {
       this.#close(
         error instanceof AgentRuntimeProtocolError ? error : protocolError(),
       );
-      return;
+      return false;
     }
     if (message.kind === "server-request") {
       this.#resolveServerRequest(message);
-      return;
+      return true;
     }
     if (message.kind === "response") {
       const pending = this.#pending.get(message.id);
 
-      if (!pending) return;
+      if (!pending) return true;
       this.#pending.delete(message.id);
       if ("error" in message) {
         pending.reject(new AgentRuntimeProtocolError(
@@ -197,9 +202,10 @@ export class CodexAppServerClient {
       } else {
         pending.resolve(message.result);
       }
-      return;
+      return true;
     }
     for (const listener of this.#listeners) listener(message);
+    return true;
   }
 
   #resolveServerRequest(

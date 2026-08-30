@@ -8,6 +8,9 @@ import {
   CodexAppServerClient,
   parseCodexJsonRpcMessage,
 } from "../../../../infrastructure/server/agent/codexAppServerClient.ts";
+import {
+  maximumAgentJsonLineBytes,
+} from "../../../../infrastructure/server/agent/jsonLineTransport.ts";
 
 function createChild() {
   return Object.assign(new EventEmitter(), {
@@ -85,5 +88,43 @@ describe("Codex app-server client", () => {
     await expect(client.request("thread/start", {})).rejects.toThrow(
       "invalid JSON-RPC",
     );
+  });
+
+  it("assembles fragmented JSON lines before parsing them", async () => {
+    const child = createChild();
+    const client = new CodexAppServerClient(child);
+    const pending = client.request("thread/start", {});
+
+    child.stdout.push('{"id":');
+    child.stdout.push('1,"result":{"thread":"ready"}}\r\n');
+
+    await expect(pending).resolves.toEqual({ thread: "ready" });
+  });
+
+  it("closes after oversized, invalid UTF-8, or unterminated lines", async () => {
+    const cases = [
+      (child: ReturnType<typeof createChild>) => {
+        child.stdout.push(Buffer.alloc(maximumAgentJsonLineBytes + 1, 0x20));
+      },
+      (child: ReturnType<typeof createChild>) => {
+        child.stdout.push(Buffer.from([0x7b, 0xff, 0x7d, 0x0a]));
+      },
+      (child: ReturnType<typeof createChild>) => {
+        child.stdout.push('{"id":1');
+        child.stdout.push(null);
+      },
+    ];
+
+    for (const writeInvalidLine of cases) {
+      const child = createChild();
+      const client = new CodexAppServerClient(child);
+      const pending = client.request("thread/start", {});
+
+      writeInvalidLine(child);
+      await expect(pending).rejects.toThrow("invalid JSON-RPC framing");
+      await expect(client.request("thread/start", {})).rejects.toThrow(
+        "invalid JSON-RPC framing",
+      );
+    }
   });
 });
