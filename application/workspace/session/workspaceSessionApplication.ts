@@ -10,6 +10,7 @@ import type {
 type WorkspaceSessionOperations = Pick<
   WorkspaceSessionController,
   | "activateSyntaxFile"
+  | "canMutate"
   | "commands"
   | "createSyntaxFile"
   | "deleteSyntaxFile"
@@ -23,6 +24,7 @@ type WorkspaceSessionOperations = Pick<
 
 export type ActiveWorkspaceSession = WorkspaceSessionReadyState & {
   activateSyntaxFile: WorkspaceSessionOperations["activateSyntaxFile"];
+  canMutate: WorkspaceSessionOperations["canMutate"];
   commands: SessionCommands;
   createSyntaxFile: WorkspaceSessionOperations["createSyntaxFile"];
   deleteSyntaxFile: WorkspaceSessionOperations["deleteSyntaxFile"];
@@ -61,6 +63,7 @@ export function projectWorkspaceSessionApplication(
   return {
     ...state,
     activateSyntaxFile: controller.activateSyntaxFile,
+    canMutate: controller.canMutate,
     commands: controller.commands,
     createSyntaxFile: controller.createSyntaxFile,
     deleteSyntaxFile: controller.deleteSyntaxFile,

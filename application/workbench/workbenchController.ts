@@ -105,6 +105,7 @@ export type WorkbenchControllerSnapshot = {
 export type WorkbenchWorkspaceFacade = Pick<
   WorkspaceSessionController,
   | "activateSyntaxFile"
+  | "canMutate"
   | "commands"
   | "createSyntaxFile"
   | "deleteSyntaxFile"
@@ -381,6 +382,7 @@ export function createWorkbenchController({
   const workspaceFacade: WorkbenchWorkspaceFacade = {
     activateSyntaxFile: (...args) =>
       requireWorkspaceController().activateSyntaxFile(...args),
+    canMutate: () => requireWorkspaceController().canMutate(),
     get commands() {
       return requireWorkspaceController().commands;
     },

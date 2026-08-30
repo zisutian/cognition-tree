@@ -443,7 +443,7 @@ describe("versioned session controller", () => {
     });
     const controller = await startController(harness);
 
-    expect(controller.canMutate()).toBe(false);
+    expect(controller.canMutate()).toBe(true);
     await expect(controller.loadConflictDetails()).resolves.toEqual({
       remoteRevision: remoteRevision(2),
       unitIds: ["value:1"],
@@ -474,11 +474,11 @@ describe("versioned session controller", () => {
     controller.dispose();
   });
 
-  it("restores the exact read-only conflict session when resolution fails before commit", async () => {
+  it("restores a writable conflict session when resolution fails before commit", async () => {
     const conflictSnapshot = createSnapshot({
       conflictRevision: remoteRevision(2),
       content: { values: [1] },
-      localRevision: localRevision(1),
+      localRevision: localRevision(0),
       pendingChanges: true,
       projection: { count: 1 },
       remoteRevision: remoteRevision(2),
@@ -488,7 +488,7 @@ describe("versioned session controller", () => {
     harness.setConflict({
       base: { values: [] },
       local: { values: [1] },
-      localRevision: localRevision(1),
+      localRevision: localRevision(0),
       remote: { values: [2] },
       remoteRevision: remoteRevision(2),
       unitIds: ["value:1"],
@@ -500,17 +500,22 @@ describe("versioned session controller", () => {
 
     await expect(controller.useRemoteConflictAndSynchronize())
       .rejects.toThrow("conflict proof changed");
-    expect(controller.canMutate()).toBe(false);
-    expect(() => controller.mutate(append(2))).toThrow(
-      VersionedSessionUnavailableError,
-    );
+    expect(controller.canMutate()).toBe(true);
+    controller.mutate(append(2));
+    await controller.flushPendingChanges();
     expect(controller.getState()).toMatchObject({
-      content: { values: [1] },
+      content: { values: [1, 2] },
       persistence: {
         remoteRevision: remoteRevision(2),
         status: "conflict",
       },
-      snapshot: conflictSnapshot,
+      snapshot: {
+        conflictRevision: remoteRevision(2),
+        content: { values: [1, 2] },
+        localRevision: localRevision(1),
+        pendingChanges: true,
+        remoteRevision: remoteRevision(2),
+      },
       status: "ready",
     });
     controller.dispose();

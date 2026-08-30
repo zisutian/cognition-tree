@@ -88,7 +88,7 @@ export function useWorkspaceApplication(
     commands,
     effectiveNotes,
     effectiveWorkspace,
-    readOnly: session.persistence.status === "conflict",
+    readOnly: !session.canMutate(),
     workspace,
   };
 

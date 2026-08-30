@@ -73,6 +73,7 @@ export type WorkspaceSessionControllerState =
 
 export type WorkspaceSessionController = {
   activateSyntaxFile: (fileId: string) => Promise<void>;
+  canMutate: () => boolean;
   commands: SessionCommands;
   createSyntaxFile: (templateFileId: string | null) => Promise<string>;
   deleteSyntaxFile: (fileId: string) => Promise<void>;
@@ -227,6 +228,7 @@ export function createWorkspaceSessionController({
 
       return mutation ? commitSyntaxMutation(mutation) : Promise.resolve();
     },
+    canMutate: base.canMutate,
     commands,
     createSyntaxFile(templateFileId) {
       const current = requireReady();

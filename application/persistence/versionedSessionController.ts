@@ -217,7 +217,6 @@ export function createVersionedSessionController<
     !quiesced &&
     active !== null &&
     active.queue !== null &&
-    active.persistence.status !== "conflict" &&
     state.status === "ready";
   const requireOpen = () => {
     if (disposed) {

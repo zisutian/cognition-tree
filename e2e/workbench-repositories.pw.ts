@@ -520,7 +520,8 @@ test.describe("repository and capacity flows", () => {
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "conflict-local-first conflict-local-latest",
     );
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true })
+      .click();
     await expect(page.getByLabel("笔记编辑")).toContainText("remote-conflict");
     await expect(page.getByLabel("笔记编辑"))
       .not.toContainText("conflict-local-first");

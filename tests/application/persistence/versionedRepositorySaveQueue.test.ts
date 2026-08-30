@@ -450,7 +450,7 @@ describe("workspace session save queue", () => {
     harness.queue.dispose();
   });
 
-  it("rejects new queue entries after publishing a conflict", async () => {
+  it("keeps staging local content after publishing a conflict", async () => {
     vi.useFakeTimers();
     const conflictRevision = remoteRevision("c");
     const synchronize = vi.fn(async () => createSyncResult({
@@ -470,12 +470,10 @@ describe("workspace session save queue", () => {
       status: "conflict",
     });
 
-    expect(() =>
-      harness.queue.enqueue(prepareContent("after conflict"))
-    ).toThrow(
-      "Repository conflict must be resolved before editing.",
-    );
-    expect(harness.localContents.at(-1)?.workspace.name).toBe("before conflict");
+    harness.queue.enqueue(prepareContent("after conflict"));
+    await harness.queue.flushLocal();
+
+    expect(harness.localContents.at(-1)?.workspace.name).toBe("after conflict");
     expect(synchronize).toHaveBeenCalledTimes(1);
     expect(harness.persistence.at(-1)).toEqual({
       remoteRevision: conflictRevision,

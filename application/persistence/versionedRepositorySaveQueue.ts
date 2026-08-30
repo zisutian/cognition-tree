@@ -517,11 +517,6 @@ export function createVersionedRepositorySaveQueue<
           "Repository session is unavailable.",
         );
       }
-      if (conflictRevision) {
-        throw new VersionedRepositorySynchronizationBlockedError(
-          "Repository conflict must be resolved before editing.",
-        );
-      }
       version += 1;
       desired = {
         change: {
