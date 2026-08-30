@@ -31,6 +31,20 @@ export type PendingToolCall = {
   name: string;
 };
 
+export type OpenAiChatToolCallDelta = Readonly<{
+  arguments: string | null;
+  callId: string | null;
+  index: number;
+  name: string | null;
+}>;
+
+export type OpenAiChatStreamChunk = Readonly<{
+  content: string | null;
+  finishReason: string | null;
+  reasoning: string | null;
+  toolCalls: readonly OpenAiChatToolCallDelta[];
+}>;
+
 export type ToolCorrection = Readonly<{
   code: string;
   message: string;
@@ -56,13 +70,101 @@ export function countChatHistoryCharacters(
   );
 }
 
-export function parseOpenAiChatChunk(value: unknown) {
+function streamRecord(value: unknown, label: string) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new AgentRuntimeProtocolError(
-      "OpenAI-compatible stream chunk is invalid",
+      `OpenAI-compatible runtime emitted an invalid ${label}`,
     );
   }
   return value as Record<string, unknown>;
+}
+
+function optionalStreamString(
+  record: Readonly<Record<string, unknown>>,
+  field: string,
+) {
+  const value = record[field];
+
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") {
+    throw new AgentRuntimeProtocolError(
+      `OpenAI-compatible runtime emitted an invalid ${field}`,
+    );
+  }
+  return value;
+}
+
+function parseToolCallDeltas(value: unknown) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new AgentRuntimeProtocolError(
+      "OpenAI-compatible runtime emitted invalid tool-call deltas",
+    );
+  }
+  const indexes = new Set<number>();
+
+  return value.map((raw): OpenAiChatToolCallDelta => {
+    const delta = streamRecord(raw, "tool-call delta");
+
+    if (
+      typeof delta.index !== "number" ||
+      !Number.isSafeInteger(delta.index) || delta.index < 0
+    ) {
+      throw new AgentRuntimeProtocolError(
+        "OpenAI-compatible runtime emitted an invalid tool-call index",
+      );
+    }
+    const index = delta.index;
+
+    if (indexes.has(index)) {
+      throw new AgentRuntimeProtocolError(
+        "OpenAI-compatible runtime emitted a duplicate tool-call index",
+      );
+    }
+    indexes.add(index);
+    if (delta.type !== undefined && delta.type !== "function") {
+      throw new AgentRuntimeProtocolError(
+        "OpenAI-compatible runtime emitted an unsupported tool-call type",
+      );
+    }
+    const fn = delta.function === undefined
+      ? null
+      : streamRecord(delta.function, "tool-call function delta");
+
+    return {
+      arguments: fn ? optionalStreamString(fn, "arguments") : null,
+      callId: optionalStreamString(delta, "id"),
+      index,
+      name: fn ? optionalStreamString(fn, "name") : null,
+    };
+  });
+}
+
+export function parseOpenAiChatStreamChunk(
+  value: unknown,
+): OpenAiChatStreamChunk {
+  const chunk = streamRecord(value, "stream chunk");
+
+  if (!Array.isArray(chunk.choices) || chunk.choices.length !== 1) {
+    throw new AgentRuntimeProtocolError(
+      "OpenAI-compatible runtime emitted an invalid choices collection",
+    );
+  }
+  const choice = streamRecord(chunk.choices[0], "stream choice");
+
+  if (choice.index !== undefined && choice.index !== 0) {
+    throw new AgentRuntimeProtocolError(
+      "OpenAI-compatible runtime emitted an unexpected choice index",
+    );
+  }
+  const delta = streamRecord(choice.delta, "stream delta");
+
+  return {
+    content: optionalStreamString(delta, "content"),
+    finishReason: optionalStreamString(choice, "finish_reason"),
+    reasoning: optionalStreamString(delta, "reasoning"),
+    toolCalls: parseToolCallDeltas(delta.tool_calls),
+  };
 }
 
 export async function* readOpenAiChatSse(response: Response) {
@@ -152,27 +254,26 @@ export async function* readOpenAiChatSse(response: Response) {
 
 export function appendOpenAiToolDelta(
   pending: Map<number, PendingToolCall>,
-  value: unknown,
+  deltas: readonly OpenAiChatToolCallDelta[],
 ) {
-  if (!Array.isArray(value)) return;
-  for (const raw of value) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
-    const delta = raw as Record<string, unknown>;
-    const index = typeof delta.index === "number" ? delta.index : 0;
-    const current = pending.get(index) ?? {
+  for (const delta of deltas) {
+    const current = pending.get(delta.index) ?? {
       arguments: "",
       callId: "",
       name: "",
     };
-    const fn = delta.function && typeof delta.function === "object" &&
-        !Array.isArray(delta.function)
-      ? delta.function as Record<string, unknown>
-      : {};
 
-    if (typeof delta.id === "string") current.callId = delta.id;
-    if (typeof fn.name === "string") current.name += fn.name;
-    if (typeof fn.arguments === "string") current.arguments += fn.arguments;
-    pending.set(index, current);
+    if (delta.callId !== null) {
+      if (current.callId && current.callId !== delta.callId) {
+        throw new AgentRuntimeProtocolError(
+          "OpenAI-compatible runtime changed a tool-call id",
+        );
+      }
+      current.callId = delta.callId;
+    }
+    if (delta.name !== null) current.name += delta.name;
+    if (delta.arguments !== null) current.arguments += delta.arguments;
+    pending.set(delta.index, current);
   }
 }
 

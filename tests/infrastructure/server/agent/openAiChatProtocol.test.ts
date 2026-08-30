@@ -2,7 +2,9 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  appendOpenAiToolDelta,
   openAiChatSseFrameCharacterLimit,
+  parseOpenAiChatStreamChunk,
   readOpenAiChatSse,
 } from "../../../../infrastructure/server/agent/openAiChatProtocol.ts";
 
@@ -68,5 +70,68 @@ describe("OpenAI-compatible SSE protocol", () => {
       break;
     }
     expect(cancelled).toBe(true);
+  });
+});
+
+describe("OpenAI-compatible stream chunks", () => {
+  it("parses one typed choice and its tool-call deltas", () => {
+    expect(parseOpenAiChatStreamChunk({
+      choices: [{
+        delta: {
+          content: null,
+          reasoning: "working",
+          tool_calls: [{
+            function: { arguments: "{", name: "stage_" },
+            id: "call-1",
+            index: 0,
+            type: "function",
+          }],
+        },
+        finish_reason: null,
+        index: 0,
+      }],
+    })).toEqual({
+      content: null,
+      finishReason: null,
+      reasoning: "working",
+      toolCalls: [{
+        arguments: "{",
+        callId: "call-1",
+        index: 0,
+        name: "stage_",
+      }],
+    });
+  });
+
+  it("rejects malformed choices and consumed delta fields", () => {
+    for (const value of [
+      {},
+      { choices: [] },
+      { choices: [{ delta: null }] },
+      { choices: [{ delta: { content: 1 } }] },
+      { choices: [{ delta: { tool_calls: {} } }] },
+      { choices: [{ delta: { tool_calls: [{ index: -1 }] } }] },
+    ]) {
+      expect(() => parseOpenAiChatStreamChunk(value)).toThrow(
+        /OpenAI-compatible runtime emitted/i,
+      );
+    }
+  });
+
+  it("rejects a tool-call id that changes between deltas", () => {
+    const pending = new Map();
+
+    appendOpenAiToolDelta(pending, [{
+      arguments: null,
+      callId: "call-1",
+      index: 0,
+      name: null,
+    }]);
+    expect(() => appendOpenAiToolDelta(pending, [{
+      arguments: null,
+      callId: "call-2",
+      index: 0,
+      name: null,
+    }])).toThrow(/changed a tool-call id/i);
   });
 });

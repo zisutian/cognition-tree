@@ -16,7 +16,7 @@ import {
   countChatHistoryCharacters,
   openAiChatEndpoint,
   type PendingToolCall,
-  parseOpenAiChatChunk,
+  parseOpenAiChatStreamChunk,
   readOpenAiChatSse,
   validateRuntimeToolCall,
 } from "./openAiChatProtocol.ts";
@@ -150,23 +150,10 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
               "OpenAI-compatible runtime emitted invalid JSON",
             );
           }
-          const chunk = parseOpenAiChatChunk(parsed);
-          const choice = Array.isArray(chunk.choices) && chunk.choices[0] &&
-              typeof chunk.choices[0] === "object"
-            ? chunk.choices[0] as Record<string, unknown>
-            : null;
-          const delta = choice?.delta && typeof choice.delta === "object" &&
-              !Array.isArray(choice.delta)
-            ? choice.delta as Record<string, unknown>
-            : null;
-          const rawFinishReason = choice?.finish_reason;
+          const chunk = parseOpenAiChatStreamChunk(parsed);
+          const rawFinishReason = chunk.finishReason;
 
-          if (rawFinishReason !== null && rawFinishReason !== undefined) {
-            if (typeof rawFinishReason !== "string") {
-              throw new AgentRuntimeProtocolError(
-                "OpenAI-compatible runtime emitted an invalid finish reason",
-              );
-            }
+          if (rawFinishReason !== null) {
             if (finishReason !== null) {
               throw new AgentRuntimeProtocolError(
                 "OpenAI-compatible runtime emitted multiple finish reasons",
@@ -175,15 +162,14 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
             finishReason = rawFinishReason;
           }
 
-          if (!delta) continue;
-          if (typeof delta.content === "string" && delta.content.length > 0) {
-            messageText += delta.content;
-            messageDeltas.push(delta.content);
+          if (chunk.content) {
+            messageText += chunk.content;
+            messageDeltas.push(chunk.content);
           }
-          if (typeof delta.reasoning === "string" && delta.reasoning.length > 0) {
-            reasoningText += delta.reasoning;
+          if (chunk.reasoning) {
+            reasoningText += chunk.reasoning;
           }
-          appendOpenAiToolDelta(pending, delta.tool_calls);
+          appendOpenAiToolDelta(pending, chunk.toolCalls);
         }
         if (finishReason === null) {
           throw new AgentRuntimeProtocolError(
