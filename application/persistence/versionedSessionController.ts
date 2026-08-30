@@ -13,6 +13,7 @@ import type {
   VersionedRepositorySnapshot,
   VersionedRepositorySyncResult,
 } from "./versionedRepository";
+import { finalVersionedRepositoryTransition } from "./versionedRepository";
 import {
   createVersionedRepositorySaveQueue,
   type VersionedRepositoryPersistenceState,
@@ -223,18 +224,26 @@ export function createVersionedSessionController<
       throw new VersionedSessionUnavailableError(label);
     }
   };
+  const requireRepository = () => {
+    if (!repository) {
+      throw new VersionedSessionUnavailableError(label);
+    }
+    return repository;
+  };
   const requireActive = () => {
+    const session = active;
+    const queue = session?.queue;
+
     if (
       disposed ||
       quiesced ||
-      !active?.queue ||
+      !session ||
+      !queue ||
       state.status !== "ready"
     ) {
       throw new VersionedSessionUnavailableError(label);
     }
-    return active as Session & {
-      queue: VersionedRepositorySaveQueue<Content, Projection, LocalRevision>;
-    };
+    return { queue, session };
   };
   const requireMutable = () => {
     if (!canMutate()) {
@@ -358,16 +367,15 @@ export function createVersionedSessionController<
     }
   };
   const commitMutation = (
-    session: Session & {
-      queue: VersionedRepositorySaveQueue<Content, Projection, LocalRevision>;
-    },
+    session: Session,
+    queue: VersionedRepositorySaveQueue<Content, Projection, LocalRevision>,
     change: PreparedVersionedContentChange<
       Content,
       Projection,
       LocalRevision
     >,
   ) => {
-    session.queue.enqueue(change);
+    queue.enqueue(change);
     session.optimisticHead = change.after;
     publishReady(session);
   };
@@ -376,7 +384,7 @@ export function createVersionedSessionController<
       current: PreparedVersionedContent<Content, Projection>,
     ) => PreparedVersionedContent<Content, Projection>,
   ) => {
-    const session = requireMutable();
+    const { queue, session } = requireMutable();
     const current = session.optimisticHead ?? {
       content: session.persistedSnapshot.content,
       projection: session.persistedSnapshot.projection,
@@ -387,7 +395,7 @@ export function createVersionedSessionController<
     };
     const after = update(current);
 
-    commitMutation(session, {
+    commitMutation(session, queue, {
       after,
       baseLocalRevision: session.persistedSnapshot.localRevision,
       before,
@@ -435,21 +443,20 @@ export function createVersionedSessionController<
       sources: PreparedVersionedConflictSources<Content, Projection>,
     ) => PreparedVersionedConflictRecovery<Content, Projection>,
   ) => {
-    const activeSession = requireActive();
-    const session: Session = activeSession;
-    const queue = activeSession.queue;
+    const { queue, session } = requireActive();
+    const activeRepository = requireRepository();
     const expectedTransition = ++transitionVersion;
 
     quiesced = true;
     try {
       await queue.prepareForReload();
       session.queue = null;
-      const conflict = await repository!.loadConflict();
+      const conflict = await activeRepository.loadConflict();
 
       if (!conflict) {
         throw new Error("Repository does not have a persisted conflict.");
       }
-      const result = await repository!.resolveConflictAndSynchronize(
+      const result = await activeRepository.resolveConflictAndSynchronize(
         {
           localRevision: conflict.localRevision,
           remoteRevision: conflict.remoteRevision,
@@ -457,7 +464,7 @@ export function createVersionedSessionController<
         preference,
         transform,
       );
-      const snapshot = result.transitions.at(-1)!.snapshot;
+      const snapshot = finalVersionedRepositoryTransition(result).snapshot;
 
       installSnapshot(
         snapshot,
@@ -475,15 +482,16 @@ export function createVersionedSessionController<
   return {
     canMutate,
     async discardPendingChangesAndReload() {
-      const session: Session = requireActive();
-      const queue = session.queue!;
+      const { queue, session } = requireActive();
+      const activeRepository = requireRepository();
       const expectedTransition = ++transitionVersion;
 
       quiesced = true;
       try {
         await queue.prepareForDiscard();
         session.queue = null;
-        const snapshot = await repository!.discardPendingSnapshotAndReload();
+        const snapshot = await activeRepository
+          .discardPendingSnapshotAndReload();
 
         installSnapshot(snapshot, expectedTransition);
       } catch (error) {
@@ -537,8 +545,7 @@ export function createVersionedSessionController<
     },
     mutate,
     async prepareForRemoval() {
-      const session: Session = requireActive();
-      const queue = session.queue!;
+      const { queue, session } = requireActive();
 
       quiesced = true;
       try {
@@ -564,8 +571,8 @@ export function createVersionedSessionController<
         await loadInitial();
         return;
       }
-      const session: Session = requireActive();
-      const queue = session.queue!;
+      const { queue, session } = requireActive();
+      const activeRepository = requireRepository();
       const expectedTransition = ++transitionVersion;
 
       try {
@@ -574,13 +581,13 @@ export function createVersionedSessionController<
           quiesced = true;
           await queue.prepareForReload();
           session.queue = null;
-          const snapshot = await repository!.loadSnapshot();
+          const snapshot = await activeRepository.loadSnapshot();
 
           installSnapshot(snapshot, expectedTransition);
           return;
         }
         let observedRevision = queue.getLocalRevision();
-        let snapshot = await repository!.loadSnapshot();
+        let snapshot = await activeRepository.loadSnapshot();
 
         while (
           !disposed &&
@@ -592,7 +599,7 @@ export function createVersionedSessionController<
 
           if (nextRevision === observedRevision) break;
           observedRevision = nextRevision;
-          snapshot = await repository!.loadSnapshot();
+          snapshot = await activeRepository.loadSnapshot();
         }
         if (
           disposed ||
@@ -607,7 +614,7 @@ export function createVersionedSessionController<
         await queue.prepareForReload();
         session.queue = null;
         if (syncStartedDuringLoad) {
-          snapshot = await repository!.loadSnapshot();
+          snapshot = await activeRepository.loadSnapshot();
         }
         installSnapshot(snapshot, expectedTransition);
       } catch (error) {

@@ -6,6 +6,7 @@ import type {
   VersionedRepositorySnapshot,
   VersionedRepositorySnapshotTransition,
 } from "./versionedRepository";
+import { finalVersionedRepositoryTransition } from "./versionedRepository";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 
 export type VersionedRepositoryPersistenceState<Revision extends string> =
@@ -229,9 +230,13 @@ export function createVersionedRepositorySaveQueue<
       );
 
       if (nextIndex < 0) break;
-      const [next] = pendingAuthorityTransitions.splice(nextIndex, 1);
+      const next = pendingAuthorityTransitions[nextIndex];
 
-      authoritySnapshot = next!.snapshot;
+      if (!next) {
+        throw new Error("Repository authority transition disappeared.");
+      }
+      pendingAuthorityTransitions.splice(nextIndex, 1);
+      authoritySnapshot = next.snapshot;
       acceptedLocalRevisions.add(authoritySnapshot.localRevision);
       authorityChanged = true;
     }
@@ -375,7 +380,7 @@ export function createVersionedRepositorySaveQueue<
     }
 
     acceptAuthorityTransitions(result.transitions);
-    const reportedSnapshot = result.transitions.at(-1)!.snapshot;
+    const reportedSnapshot = finalVersionedRepositoryTransition(result).snapshot;
 
     switch (result.status) {
       case "synced":

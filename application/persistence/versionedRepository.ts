@@ -229,6 +229,22 @@ export type VersionedRepositorySyncResult<
       status: "sync-error";
     });
 
+export function finalVersionedRepositoryTransition<
+  Content,
+  Projection,
+  Revision extends string,
+  LocalRevision extends string,
+>(result: VersionedRepositorySyncResult<
+  Content,
+  Projection,
+  Revision,
+  LocalRevision
+>) {
+  const [first, ...remaining] = result.transitions;
+
+  return remaining.at(-1) ?? first;
+}
+
 export type VersionedRepository<
   Content,
   Revision extends string,
