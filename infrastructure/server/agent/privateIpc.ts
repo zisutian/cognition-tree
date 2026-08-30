@@ -52,6 +52,7 @@ export class AgentPrivateIpcServer {
   #disposed = false;
   #disposePromise: Promise<void> | null = null;
   #endpoint: string | null = null;
+  readonly #requests = new Set<Promise<void>>();
   #server: net.Server | null = null;
   #startPromise: Promise<string> | null = null;
 
@@ -161,8 +162,20 @@ export class AgentPrivateIpcServer {
     this.#server = null;
     this.#endpoint = null;
     this.#directory = null;
-    if (server) await closeServer(server);
-    if (directory) await cleanupDirectory(directory);
+    const failures: unknown[] = [];
+
+    if (server) {
+      await closeServer(server).catch((error: unknown) => {
+        failures.push(error);
+      });
+    }
+    await Promise.allSettled(this.#requests);
+    if (directory) {
+      await cleanupDirectory(directory).catch((error: unknown) => {
+        failures.push(error);
+      });
+    }
+    if (failures.length > 0) throw failures[0];
   }
 
   #assertOpen() {
@@ -176,6 +189,7 @@ export class AgentPrivateIpcServer {
 
   #accept(socket: net.Socket) {
     socket.setEncoding("utf8");
+    socket.once("error", () => socket.destroy());
     let source = "";
     let handled = false;
 
@@ -189,7 +203,11 @@ export class AgentPrivateIpcServer {
         return;
       }
       handled = true;
-      void this.#handle(socket, source.slice(0, boundary));
+      const execution = this.#handle(socket, source.slice(0, boundary));
+
+      this.#requests.add(execution);
+      void execution.finally(() => this.#requests.delete(execution))
+        .catch(() => socket.destroy());
     });
   }
 

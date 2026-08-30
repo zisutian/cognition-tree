@@ -158,4 +158,51 @@ describe("private Agent IPC capability", () => {
       await ipc.dispose();
     }
   });
+
+  it("waits for a tool request after its client disconnects", async () => {
+    const ipc = new AgentPrivateIpcServer();
+    const endpoint = await ipc.start();
+    let resolveHandle!: (value: unknown) => void;
+    const handle = vi.fn(() => new Promise<unknown>((resolve) => {
+      resolveHandle = resolve;
+    }));
+    const capability = ipc.register({
+      expiresAt: Date.now() + 60_000,
+      handle,
+      listTools: () => [],
+      sessionId,
+    });
+    const socket = net.createConnection(endpoint);
+
+    await new Promise<void>((resolve, reject) => {
+      socket.once("connect", resolve);
+      socket.once("error", reject);
+    });
+    socket.write(`${JSON.stringify({
+      capability,
+      id: requestId,
+      kind: "call-tool",
+      sessionId,
+      tool: { input: {}, name: "list" },
+    } satisfies AgentIpcRequestDto)}\n`);
+    await vi.waitFor(() => expect(handle).toHaveBeenCalledOnce());
+    socket.destroy();
+    const disposal = ipc.dispose();
+    let disposed = false;
+
+    void disposal.then(
+      () => {
+        disposed = true;
+      },
+      () => undefined,
+    );
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(disposed).toBe(false);
+    } finally {
+      resolveHandle({ resources: [] });
+      await disposal;
+    }
+    expect(disposed).toBe(true);
+  });
 });

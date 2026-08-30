@@ -507,7 +507,9 @@ tools/list 必须用会话 capability 从父服务取得这个范围化 catalog�
 静态工具表。MCP 进程不导入 repository/store，只通过
 Unix domain socket 或 Windows named pipe 连接父服务私有 IPC，并携带单会话短期
 capability。list 不接收参数，read 只接收 resourceId；领域、仓库和细粒度范围始终
-从不可变 session scope 派生，模型不能重复提交或覆盖范围事实。OpenAI-compatible
+从不可变 session scope 派生，模型不能重复提交或覆盖范围事实。私有 IPC 持有每个
+request task；即使客户端提前断开，关闭 listener 后仍等待 handler 终结，再清理 socket
+目录。OpenAI-compatible
 adapter 直接消费同一 contracts/agent tool schema，
 使用 `/chat/completions` SSE。Ollama adapter 直接连接模型服务的 `/v1/chat/completions`，
 不调用本地代码 Agent 的 task API、MCP、Git、shell、ChangeSet 或审批层。native 与
