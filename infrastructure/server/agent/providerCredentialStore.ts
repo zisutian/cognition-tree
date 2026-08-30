@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  chmod,
   lstat,
-  opendir,
   readdir,
-  rm,
   rmdir,
   unlink,
 } from "node:fs/promises";
@@ -17,6 +14,7 @@ import {
   hasFileSystemErrorCode,
   isSecureRegularFile,
   readSecureFileUtf8,
+  secureStateDirectoryExists,
   writeFileDurably,
 } from "../state/secureStateFileSystem.ts";
 import {
@@ -39,6 +37,10 @@ import {
   type ApiKeyCredentialManifest,
   type CodexManagedCredentialManifest,
 } from "./credentialManifest.ts";
+import {
+  CodexManagedHomeStore,
+  type CodexManagedHomeIdentity,
+} from "./codexManagedHomeStore.ts";
 
 async function readCredentialManifest(file: string) {
   return parseAgentCredentialManifestJson(await readSecureFileUtf8(
@@ -49,6 +51,7 @@ async function readCredentialManifest(file: string) {
 }
 
 export class AgentProviderCredentialStore {
+  readonly #managedHomes: CodexManagedHomeStore;
   readonly #root: string;
 
   constructor(stateDirectory: string) {
@@ -56,6 +59,7 @@ export class AgentProviderCredentialStore {
       path.resolve(stateDirectory),
       "agent-auth-v1",
     );
+    this.#managedHomes = new CodexManagedHomeStore(this.#root);
   }
 
   async writeApiKey(
@@ -70,8 +74,6 @@ export class AgentProviderCredentialStore {
       throw new Error("Agent API key credential input is invalid.");
     }
     const reference = agentApiKeyCredentialReference(providerId, version);
-    const providersDirectory = path.join(this.#root, "providers");
-    const providerDirectory = path.join(providersDirectory, providerId);
     const credential: ApiKeyCredentialManifest = {
       apiKey,
       formatVersion: agentCredentialFormatVersion,
@@ -86,10 +88,8 @@ export class AgentProviderCredentialStore {
       reference,
       version,
     } as const;
+    const providerDirectory = await this.#ensureProviderPartition(providerId);
 
-    await ensureSecureStateDirectory(this.#root);
-    await ensureSecureStateDirectory(providersDirectory);
-    await ensureSecureStateDirectory(providerDirectory);
     try {
       const existing = await this.#read(result);
 
@@ -118,26 +118,8 @@ export class AgentProviderCredentialStore {
     loginId: string,
   ) {
     assertAgentManagedCredentialIdentity(providerId, version, loginId);
-    const providersDirectory = path.join(this.#root, "providers");
-    const providerDirectory = path.join(providersDirectory, providerId);
-    const homeReference = agentCodexManagedHomeReference(
-      providerId,
-      version,
-      loginId,
-    );
-    const home = path.join(this.#root, homeReference);
-
-    await ensureSecureStateDirectory(this.#root);
-    await ensureSecureStateDirectory(providersDirectory);
-    await ensureSecureStateDirectory(providerDirectory);
-    try {
-      await lstat(home);
-      throw new Error("Codex managed credential staging home already exists.");
-    } catch (error) {
-      if (!hasFileSystemErrorCode(error, "ENOENT")) throw error;
-    }
-    await ensureSecureStateDirectory(home);
-    return { home, homeReference };
+    await this.#ensureProviderPartition(providerId);
+    return this.#managedHomes.prepare({ loginId, providerId, version });
   }
 
   async activateCodexManagedHome(
@@ -145,20 +127,11 @@ export class AgentProviderCredentialStore {
     version: number,
     loginId: string,
   ): Promise<AgentCredentialReference> {
-    assertAgentManagedCredentialIdentity(providerId, version, loginId);
-    const homeReference = agentCodexManagedHomeReference(
+    const { homeReference } = await this.#managedHomes.activate({
+      loginId,
       providerId,
       version,
-      loginId,
-    );
-    const home = path.join(this.#root, homeReference);
-
-    await this.#sealManagedHome(home);
-    const authFile = path.join(home, "auth.json");
-
-    if (!isSecureRegularFile(await lstat(authFile))) {
-      throw new Error("Codex device login did not create a secure auth file.");
-    }
+    });
     const credential: CodexManagedCredentialManifest = {
       formatVersion: agentCredentialFormatVersion,
       homeReference,
@@ -217,13 +190,11 @@ export class AgentProviderCredentialStore {
     if (credential.homeReference !== expectedHomeReference) {
       throw new Error("Codex managed credential home reference is invalid.");
     }
-    const home = path.join(this.#root, credential.homeReference);
-
-    await assertSecureStateDirectory(home);
-    if (!isSecureRegularFile(await lstat(path.join(home, "auth.json")))) {
-      throw new Error("Codex managed authentication is unavailable.");
-    }
-    return home;
+    return this.#managedHomes.resolveActive({
+      loginId: parsed.loginId,
+      providerId: parsed.providerId,
+      version: parsed.version,
+    });
   }
 
   async removeCodexStagingHome(
@@ -231,18 +202,13 @@ export class AgentProviderCredentialStore {
     version: number,
     loginId: string,
   ) {
-    assertAgentManagedCredentialIdentity(providerId, version, loginId);
     const providerDirectory = path.join(
       this.#root,
       "providers",
       providerId,
     );
-    const home = path.join(
-      this.#root,
-      agentCodexManagedHomeReference(providerId, version, loginId),
-    );
 
-    await this.#removeManagedTree(home);
+    await this.#managedHomes.remove({ loginId, providerId, version });
     if ((await readdir(providerDirectory)).length === 0) {
       await rmdir(providerDirectory);
       await fsyncDirectory(path.dirname(providerDirectory));
@@ -264,10 +230,7 @@ export class AgentProviderCredentialStore {
       throw new Error("Agent credential file permissions or type are invalid.");
     }
     if (kind === "chatgpt-device-code") {
-      await this.#removeManagedTree(path.join(
-        this.#root,
-        agentCodexManagedHomeReference(providerId, version, loginId),
-      ));
+      await this.#managedHomes.remove({ loginId, providerId, version });
     }
     await unlink(file);
     await fsyncDirectory(providerDirectory);
@@ -284,13 +247,13 @@ export class AgentProviderCredentialStore {
     }));
     const providersDirectory = path.join(this.#root, "providers");
 
-    if (!await this.#secureDirectoryExists(this.#root)) {
+    if (!await secureStateDirectoryExists(this.#root)) {
       if (referenced.size > 0) {
         throw new Error("Agent credential partition is missing.");
       }
       return;
     }
-    if (!await this.#secureDirectoryExists(providersDirectory)) {
+    if (!await secureStateDirectoryExists(providersDirectory)) {
       if (referenced.size > 0) {
         throw new Error("Agent credential providers partition is missing.");
       }
@@ -304,10 +267,10 @@ export class AgentProviderCredentialStore {
     }
     const manifests: Array<{
       file: string;
-      home: string | null;
+      home: CodexManagedHomeIdentity | null;
       reference: AgentCredentialReference;
     }> = [];
-    const homes = new Map<string, string>();
+    const homes = new Map<string, CodexManagedHomeIdentity>();
     const providerDirectories: string[] = [];
     const providerEntries = await readdir(providersDirectory, {
       withFileTypes: true,
@@ -371,7 +334,7 @@ export class AgentProviderCredentialStore {
           }
           manifests.push({
             file: entryPath,
-            home: path.join(this.#root, homeReference),
+            home: { loginId, providerId, version },
             reference: {
               digest: agentCredentialDigest(credential),
               reference: agentCredentialEntryReference(
@@ -384,14 +347,20 @@ export class AgentProviderCredentialStore {
           continue;
         }
         if (entry.isDirectory() && parsedEntry?.kind === "managed-home") {
-          await assertSecureStateDirectory(entryPath);
+          const identity = {
+            loginId: parsedEntry.loginId,
+            providerId,
+            version: parsedEntry.version,
+          } as const;
+
+          await this.#managedHomes.assertDirectory(identity);
           homes.set(
             agentCodexManagedHomeReference(
               providerId,
               parsedEntry.version,
               parsedEntry.loginId,
             ),
-            entryPath,
+            identity,
           );
           continue;
         }
@@ -410,7 +379,7 @@ export class AgentProviderCredentialStore {
         throw new Error("Agent credential authority does not match its manifest.");
       }
     }
-    for (const home of homes.values()) await this.#sealManagedHome(home);
+    for (const home of homes.values()) await this.#managedHomes.seal(home);
     const referencedHomes = new Set([...referenced.values()].flatMap(
       (reference) => {
         const identity = parseAgentCredentialReference(reference);
@@ -427,13 +396,13 @@ export class AgentProviderCredentialStore {
 
     for (const manifest of manifests) {
       if (referenced.has(manifest.reference.reference)) continue;
-      if (manifest.home) await this.#removeManagedTree(manifest.home);
+      if (manifest.home) await this.#managedHomes.remove(manifest.home);
       await unlink(manifest.file);
       await fsyncDirectory(path.dirname(manifest.file));
     }
     for (const [homeReference, home] of homes) {
       if (!referencedHomes.has(homeReference)) {
-        await this.#removeManagedTree(home);
+        await this.#managedHomes.remove(home);
       }
     }
     for (const providerDirectory of providerDirectories) {
@@ -465,50 +434,16 @@ export class AgentProviderCredentialStore {
     return credential;
   }
 
-  async #sealManagedHome(directory: string): Promise<void> {
-    const stats = await lstat(directory);
-
-    if (!stats.isDirectory() || stats.isSymbolicLink()) {
-      throw new Error("Codex managed home is not a regular directory.");
+  async #ensureProviderPartition(providerId: string) {
+    if (!isAgentCredentialProviderId(providerId)) {
+      throw new Error("Agent credential provider id is invalid.");
     }
-    const entries = await opendir(directory);
+    const providersDirectory = path.join(this.#root, "providers");
+    const providerDirectory = path.join(providersDirectory, providerId);
 
-    for await (const entry of entries) {
-      const entryPath = path.join(directory, entry.name);
-      const entryStats = await lstat(entryPath);
-
-      if (entryStats.isSymbolicLink()) {
-        throw new Error("Codex managed home cannot contain symbolic links.");
-      }
-      if (entryStats.isDirectory()) {
-        await this.#sealManagedHome(entryPath);
-      } else if (entryStats.isFile()) {
-        await chmod(entryPath, 0o600);
-      } else {
-        throw new Error("Codex managed home contains an unsupported entry.");
-      }
-    }
-    await chmod(directory, 0o700);
-  }
-
-  async #secureDirectoryExists(directory: string) {
-    try {
-      await assertSecureStateDirectory(directory);
-      return true;
-    } catch (error) {
-      if (hasFileSystemErrorCode(error, "ENOENT")) return false;
-      throw error;
-    }
-  }
-
-  async #removeManagedTree(directory: string) {
-    try {
-      await this.#sealManagedHome(directory);
-    } catch (error) {
-      if (hasFileSystemErrorCode(error, "ENOENT")) return;
-      throw error;
-    }
-    await rm(directory, { recursive: true });
-    await fsyncDirectory(path.dirname(directory));
+    await ensureSecureStateDirectory(this.#root);
+    await ensureSecureStateDirectory(providersDirectory);
+    await ensureSecureStateDirectory(providerDirectory);
+    return providerDirectory;
   }
 }

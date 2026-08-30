@@ -92,6 +92,16 @@ export async function assertSecureStateDirectory(directory: string) {
   }
 }
 
+export async function secureStateDirectoryExists(directory: string) {
+  try {
+    await assertSecureStateDirectory(directory);
+    return true;
+  } catch (error) {
+    if (hasFileSystemErrorCode(error, "ENOENT")) return false;
+    throw error;
+  }
+}
+
 export {
   fsyncDirectory,
   hasFileSystemErrorCode,
