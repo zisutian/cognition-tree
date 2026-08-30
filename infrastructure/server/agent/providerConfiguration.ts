@@ -1,0 +1,471 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type {
+  AgentProviderInput,
+} from "../../../application/agent/agentConfiguration.ts";
+import { SecureStateCommitOutcomeUnknownError } from "../state/secureJsonPartition.ts";
+import type {
+  AgentConfigurationAccess,
+  AgentConfigurationProviderChange,
+} from "./configurationAccess.ts";
+import { AgentConfigurationValidationError } from "./configurationErrors.ts";
+import { normalizeProviderInput } from "./configurationInput.ts";
+import { assertAgentConfigurationRevision } from "./configurationRevision.ts";
+import type {
+  AgentConfigurationState,
+  StoredAuthentication,
+  StoredProvider,
+} from "./configurationStateCodec.ts";
+import type { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
+import type {
+  AgentCredentialReference,
+  AgentProviderCredentialStore,
+} from "./providerCredentialStore.ts";
+import {
+  configurationSnapshot,
+  providerView,
+} from "./configurationViews.ts";
+
+type MutateAgentConfiguration = <Result>(
+  operation: (
+    state: AgentConfigurationState,
+  ) => { changed: boolean; result: Result } | Promise<{
+    changed: boolean;
+    result: Result;
+  }>,
+) => Promise<Result>;
+
+type ReadAgentConfiguration = <Result>(
+  project: (state: AgentConfigurationState) => Result,
+) => Promise<Result>;
+
+function invalidateProviderConformance(
+  state: AgentConfigurationState,
+  providerId: string,
+) {
+  for (const profile of state.profiles) {
+    if (profile.providerId === providerId) profile.conformance = null;
+  }
+}
+
+export class AgentProviderConfiguration {
+  readonly #access: AgentConfigurationAccess;
+  readonly #createId: () => string;
+  readonly #credentialStore: AgentProviderCredentialStore;
+  readonly #mutate: MutateAgentConfiguration;
+  readonly #read: ReadAgentConfiguration;
+  readonly #targetPolicy: AgentProviderTargetPolicy;
+
+  constructor({
+    access,
+    createId,
+    credentialStore,
+    mutate,
+    read,
+    targetPolicy,
+  }: {
+    access: AgentConfigurationAccess;
+    createId: () => string;
+    credentialStore: AgentProviderCredentialStore;
+    mutate: MutateAgentConfiguration;
+    read: ReadAgentConfiguration;
+    targetPolicy: AgentProviderTargetPolicy;
+  }) {
+    this.#access = access;
+    this.#createId = createId;
+    this.#credentialStore = credentialStore;
+    this.#mutate = mutate;
+    this.#read = read;
+    this.#targetPolicy = targetPolicy;
+  }
+
+  async create(baseRevision: string, input: AgentProviderInput) {
+    let candidate: AgentCredentialReference | null = null;
+    let candidateMayBeAuthoritative = false;
+
+    try {
+      return await this.#mutate(async (state) => {
+        assertAgentConfigurationRevision(state, baseRevision);
+        const id = `agent-provider-${this.#createId()}`;
+        const normalized = normalizeProviderInput(input, this.#targetPolicy);
+        const prepared = await this.#authenticationForInput(id, input);
+        const provider: StoredProvider = {
+          ...normalized,
+          authentication: prepared.authentication,
+          id,
+          version: 1,
+        };
+
+        candidate = prepared.candidate;
+        state.providers.push(provider);
+        candidateMayBeAuthoritative = candidate !== null;
+        return {
+          changed: true,
+          result: {
+            configuration: configurationSnapshot(state),
+            provider: providerView(provider),
+          },
+        };
+      });
+    } catch (error) {
+      await this.#removeRejectedCredentialCandidate(
+        candidate,
+        candidateMayBeAuthoritative,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async update(
+    baseRevision: string,
+    providerId: string,
+    input: AgentProviderInput,
+  ) {
+    let candidate: AgentCredentialReference | null = null;
+    let candidateMayBeAuthoritative = false;
+    const lifecycle: { change: AgentConfigurationProviderChange | null } = {
+      change: null,
+    };
+
+    try {
+      const outcome = await this.#mutate(async (state) => {
+        assertAgentConfigurationRevision(state, baseRevision);
+        const index = state.providers.findIndex(({ id }) => id === providerId);
+
+        if (index < 0) {
+          throw new AgentConfigurationValidationError(
+            "Agent provider does not exist",
+          );
+        }
+        lifecycle.change = this.#beginProviderChange(state, providerId);
+        const previous = state.providers[index]!;
+        const normalized = normalizeProviderInput(input, this.#targetPolicy);
+        const prepared = await this.#authenticationForInput(
+          previous.id,
+          input,
+          previous.authentication,
+        );
+        const provider: StoredProvider = {
+          ...normalized,
+          authentication: prepared.authentication,
+          id: previous.id,
+          version: previous.version + 1,
+        };
+
+        candidate = prepared.candidate;
+        invalidateProviderConformance(state, providerId);
+        state.providers[index] = provider;
+        candidateMayBeAuthoritative = candidate !== null;
+        const previousCredential = previous.authentication.type !== "none"
+          ? previous.authentication.credential
+          : null;
+        const nextCredential = provider.authentication.type !== "none"
+          ? provider.authentication.credential
+          : null;
+        return {
+          changed: true,
+          result: {
+            credentialToRemove: previousCredential &&
+                previousCredential.reference !== nextCredential?.reference
+              ? previousCredential
+              : null,
+            value: {
+              configuration: configurationSnapshot(state),
+              provider: providerView(provider),
+            },
+          },
+        };
+      });
+
+      if (outcome.credentialToRemove) {
+        await this.#credentialStore.remove(outcome.credentialToRemove)
+          .catch(() => undefined);
+      }
+      return outcome.value;
+    } catch (error) {
+      await this.#removeRejectedCredentialCandidate(
+        candidate,
+        candidateMayBeAuthoritative,
+        error,
+      );
+      throw error;
+    } finally {
+      lifecycle.change?.release();
+    }
+  }
+
+  async delete(baseRevision: string, providerId: string) {
+    const lifecycle: { change: AgentConfigurationProviderChange | null } = {
+      change: null,
+    };
+
+    try {
+      const outcome = await this.#mutate((state) => {
+        assertAgentConfigurationRevision(state, baseRevision);
+        if (state.profiles.some(({ providerId: candidate }) =>
+          candidate === providerId
+        )) {
+          throw new AgentConfigurationValidationError(
+            "Delete profiles that reference this provider first",
+          );
+        }
+        const index = state.providers.findIndex(({ id }) => id === providerId);
+
+        if (index < 0) {
+          throw new AgentConfigurationValidationError(
+            "Agent provider does not exist",
+          );
+        }
+        lifecycle.change = this.#beginProviderChange(state, providerId);
+        const [provider] = state.providers.splice(index, 1);
+
+        return {
+          changed: true,
+          result: {
+            configuration: configurationSnapshot(state),
+            credential: provider!.authentication.type !== "none"
+              ? provider!.authentication.credential
+              : null,
+          },
+        };
+      });
+
+      if (outcome.credential) {
+        await this.#credentialStore.remove(outcome.credential)
+          .catch(() => undefined);
+      }
+      return outcome.configuration;
+    } finally {
+      lifecycle.change?.release();
+    }
+  }
+
+  reserveChange(
+    baseRevision: string,
+    providerId: string,
+  ): Promise<AgentConfigurationProviderChange> {
+    return this.#read((state) => {
+      assertAgentConfigurationRevision(state, baseRevision);
+      if (!state.providers.some(({ id }) => id === providerId)) {
+        throw new AgentConfigurationValidationError(
+          "Agent provider does not exist",
+        );
+      }
+      return this.#beginProviderChange(state, providerId);
+    });
+  }
+
+  async prepareCodexDeviceLogin(
+    baseRevision: string,
+    providerId: string,
+    loginId: string,
+    change: AgentConfigurationProviderChange | null = null,
+  ) {
+    const credentialVersion = await this.#read((state) => {
+      assertAgentConfigurationRevision(state, baseRevision);
+      const provider = state.providers.find(({ id }) => id === providerId);
+
+      if (!provider || provider.kind !== "codex" ||
+          provider.authentication.type !== "chatgpt-device-code") {
+        throw new AgentConfigurationValidationError(
+          "Codex device login requires a device-code provider",
+        );
+      }
+      if (change) this.#access.assertProviderChange(change, providerId);
+      return (provider.authentication.credential?.version ?? 0) + 1;
+    });
+    const { home } = await this.#credentialStore.prepareCodexManagedHome(
+      providerId,
+      credentialVersion,
+      loginId,
+    );
+
+    return { credentialVersion, home };
+  }
+
+  removeCodexDeviceLoginStaging(
+    providerId: string,
+    credentialVersion: number,
+    loginId: string,
+  ) {
+    return this.#credentialStore.removeCodexStagingHome(
+      providerId,
+      credentialVersion,
+      loginId,
+    );
+  }
+
+  async completeCodexDeviceLogin(
+    baseRevision: string,
+    providerId: string,
+    credentialVersion: number,
+    loginId: string,
+    reservedChange: AgentConfigurationProviderChange | null = null,
+  ) {
+    const change = reservedChange ?? await this.reserveChange(
+      baseRevision,
+      providerId,
+    );
+    const ownsChange = reservedChange === null;
+    let credential: AgentCredentialReference | null = null;
+    let candidateMayBeAuthoritative = false;
+
+    try {
+      this.#access.assertProviderChange(change, providerId);
+      credential = await this.#credentialStore.activateCodexManagedHome(
+        providerId,
+        credentialVersion,
+        loginId,
+      );
+      const outcome = await this.#mutate((state) => {
+        assertAgentConfigurationRevision(state, baseRevision);
+        this.#access.assertProviderChange(change, providerId);
+        const provider = state.providers.find(({ id }) => id === providerId);
+
+        if (!provider || provider.kind !== "codex" ||
+            provider.authentication.type !== "chatgpt-device-code") {
+          throw new AgentConfigurationValidationError(
+            "Codex device login provider changed",
+          );
+        }
+        const previousCredential = provider.authentication.credential;
+
+        provider.authentication = {
+          credential: credential!,
+          type: "chatgpt-device-code",
+        };
+        candidateMayBeAuthoritative = true;
+        provider.version += 1;
+        invalidateProviderConformance(state, providerId);
+        return {
+          changed: true,
+          result: {
+            configuration: configurationSnapshot(state),
+            previousCredential,
+          },
+        };
+      });
+
+      if (outcome.previousCredential) {
+        await this.#credentialStore.remove(outcome.previousCredential)
+          .catch(() => undefined);
+      }
+      return outcome.configuration;
+    } catch (error) {
+      await this.#removeRejectedCredentialCandidate(
+        credential,
+        candidateMayBeAuthoritative,
+        error,
+      );
+      throw error;
+    } finally {
+      if (ownsChange) change.release();
+    }
+  }
+
+  async clearAuthentication(baseRevision: string, providerId: string) {
+    const lifecycle: { change: AgentConfigurationProviderChange | null } = {
+      change: null,
+    };
+
+    try {
+      const outcome = await this.#mutate((state) => {
+        assertAgentConfigurationRevision(state, baseRevision);
+        const provider = state.providers.find(({ id }) => id === providerId);
+
+        if (!provider || provider.authentication.type === "none") {
+          throw new AgentConfigurationValidationError(
+            "Agent provider authentication cannot be cleared",
+          );
+        }
+        lifecycle.change = this.#beginProviderChange(state, providerId);
+        const credential = provider.authentication.credential;
+
+        provider.authentication = {
+          credential: null,
+          type: provider.authentication.type,
+        };
+        provider.version += 1;
+        invalidateProviderConformance(state, providerId);
+        return {
+          changed: true,
+          result: { configuration: configurationSnapshot(state), credential },
+        };
+      });
+
+      if (outcome.credential) {
+        await this.#credentialStore.remove(outcome.credential)
+          .catch(() => undefined);
+      }
+      return outcome.configuration;
+    } finally {
+      lifecycle.change?.release();
+    }
+  }
+
+  async #authenticationForInput(
+    providerId: string,
+    input: AgentProviderInput,
+    previous: StoredAuthentication | null = null,
+  ): Promise<{
+    authentication: StoredAuthentication;
+    candidate: AgentCredentialReference | null;
+  }> {
+    if (input.authenticationType === "none") {
+      return { authentication: { type: "none" }, candidate: null };
+    }
+    if (input.authenticationType === "chatgpt-device-code") {
+      return {
+        authentication: previous?.type === "chatgpt-device-code"
+          ? previous
+          : { credential: null, type: "chatgpt-device-code" },
+        candidate: null,
+      };
+    }
+    if (input.apiKey === undefined) {
+      return {
+        authentication: previous?.type === "api-key"
+          ? previous
+          : { credential: null, type: "api-key" },
+        candidate: null,
+      };
+    }
+    const previousVersion = previous?.type === "api-key"
+      ? previous.credential?.version ?? 0
+      : 0;
+    const credential = await this.#credentialStore.writeApiKey(
+      providerId,
+      input.apiKey,
+      previousVersion + 1,
+    );
+
+    return {
+      authentication: { credential, type: "api-key" },
+      candidate: credential,
+    };
+  }
+
+  #beginProviderChange(
+    state: AgentConfigurationState,
+    providerId: string,
+  ) {
+    return this.#access.beginProviderChange(
+      providerId,
+      state.profiles
+        .filter(({ providerId: candidate }) => candidate === providerId)
+        .map(({ id }) => id),
+    );
+  }
+
+  async #removeRejectedCredentialCandidate(
+    candidate: AgentCredentialReference | null,
+    candidateMayBeAuthoritative: boolean,
+    error: unknown,
+  ) {
+    if (!candidate ||
+        (candidateMayBeAuthoritative &&
+          error instanceof SecureStateCommitOutcomeUnknownError)) return;
+    await this.#credentialStore.remove(candidate).catch(() => undefined);
+  }
+}
