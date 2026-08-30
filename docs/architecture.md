@@ -619,7 +619,9 @@ Settings 的页内选择和未提交表单、Search 的查询草稿、Notes 的�
 以及工作台布局都属于 Presentation 页面会话状态；需要跨仓库保留的状态由显式
 repository session store 分区，React hook 只订阅当前仓库；不得用模块级 Map 建立第二个
 页面会话 owner，也不得进入领域 content 或服务端配置。write-only secret 随对应表单卸载
-而清除；服务端 pending 操作具有独立生命周期，不由页面卸载取消。
+而清除；服务端 pending 操作具有独立生命周期，不由页面卸载取消。API access settings 的
+列表 authority、load generation、mutation version 与在途计数由独立页面 session controller
+持有，React hook 只订阅，旧 load 不得覆盖 create/revoke，单个完成不得提前清除 loading。
 
 `application/problems` 的 ProblemCenter 是运行期 operational incident 的唯一 owner。
 API、Agent、同步、Settings 与 UI action 只通过 `ProblemReporter` 上报结构化安全信息；
