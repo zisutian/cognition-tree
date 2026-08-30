@@ -408,7 +408,9 @@ AgentSessionController 的 turn 完成、取消和失败都从未决 proposal �
 AgentConfigurationController 独占客户端配置快照 authority；load、设备登录和一致性检查的
 回读只可安装到未变化的 authority，mutation 响应只可替换其 base revision 或相同 revision，
 陈旧读取与延迟响应不得回退已观察到的更新配置。operationStatus 从在途前台操作计数投影，
-单个请求结束不得把其他仍在执行的操作误报为 idle。
+单个请求结束不得把其他仍在执行的操作误报为 idle。设备登录与一致性检查还分别按
+provider/profile 持有 generation；取消或新操作会废弃旧轮询，旧 pending/running 回包不得
+覆盖更新的终态。
 SystemConfigurationController 同样独占系统配置快照 authority；显式 load 采用最后请求优先，
 管理操作响应只能安装到其启动时的 authority 或相同 revision，旧响应不得回退新的服务配置；
 operationStatus 从所有在途管理操作计数投影。

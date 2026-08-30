@@ -104,6 +104,8 @@ export function createAgentConfigurationController({
   port: AgentConfigurationPort;
 }): AgentConfigurationController {
   const listeners = new Set<() => void>();
+  const codexDeviceLoginGenerations = new Map<string, number>();
+  const conformanceGenerations = new Map<string, number>();
   let configurationAuthorityVersion = 0;
   let loadRequestVersion = 0;
   let operationCount = 0;
@@ -125,6 +127,20 @@ export function createAgentConfigurationController({
     if (!state.configuration) throw new Error("Agent configuration is not loaded.");
     return state.configuration.revision;
   };
+  const beginResourceOperation = (
+    generations: Map<string, number>,
+    resourceId: string,
+  ) => {
+    const generation = (generations.get(resourceId) ?? 0) + 1;
+
+    generations.set(resourceId, generation);
+    return generation;
+  };
+  const resourceOperationIsCurrent = (
+    generations: Map<string, number>,
+    resourceId: string,
+    generation: number,
+  ) => generations.get(resourceId) === generation;
   const installConfiguration = (configuration: AgentConfigurationSnapshot) => {
     configurationAuthorityVersion += 1;
     publish({
@@ -132,11 +148,14 @@ export function createAgentConfigurationController({
       loadStatus: "ready",
     });
   };
-  const refreshConfiguration = async () => {
+  const refreshConfiguration = async (isCurrent = () => true) => {
     const expectedAuthorityVersion = configurationAuthorityVersion;
     const configuration = await port.load();
 
-    if (configurationAuthorityVersion !== expectedAuthorityVersion) {
+    if (
+      configurationAuthorityVersion !== expectedAuthorityVersion ||
+      !isCurrent()
+    ) {
       return false;
     }
     installConfiguration(configuration);
@@ -194,7 +213,19 @@ export function createAgentConfigurationController({
 
       if (!login || login.status !== "pending") return;
       await runOperation(async () => {
-        publishCodexDeviceLogin(await port.cancelCodexDeviceLogin(login.id));
+        const generation = beginResourceOperation(
+          codexDeviceLoginGenerations,
+          providerId,
+        );
+        const cancelled = await port.cancelCodexDeviceLogin(login.id);
+
+        if (resourceOperationIsCurrent(
+          codexDeviceLoginGenerations,
+          providerId,
+          generation,
+        )) {
+          publishCodexDeviceLogin(cancelled);
+        }
       });
     },
     async cancelConformance(profileId) {
@@ -202,21 +233,54 @@ export function createAgentConfigurationController({
 
       if (!check || check.status !== "running") return;
       await runOperation(async () => {
-        publishConformance(await port.cancelConformance(check.id));
+        const generation = beginResourceOperation(
+          conformanceGenerations,
+          profileId,
+        );
+        const cancelled = await port.cancelConformance(check.id);
+
+        if (resourceOperationIsCurrent(
+          conformanceGenerations,
+          profileId,
+          generation,
+        )) {
+          publishConformance(cancelled);
+        }
       });
     },
     async checkConformance(profileId) {
       await runOperation(async () => {
-        let check = await port.startConformance(
-          requireRevision(),
+        const generation = beginResourceOperation(
+          conformanceGenerations,
           profileId,
         );
+        const isCurrent = () => resourceOperationIsCurrent(
+          conformanceGenerations,
+          profileId,
+          generation,
+        );
+        let check: AgentConformanceCheckStatus;
 
-        publishConformance(check);
-        while (check.status === "running") {
-          await pollConformance(pollConformanceIntervalMilliseconds);
-          check = await port.getConformance(check.id);
+        try {
+          check = await port.startConformance(
+            requireRevision(),
+            profileId,
+          );
+          if (!isCurrent()) return;
+
           publishConformance(check);
+          while (check.status === "running") {
+            await pollConformance(pollConformanceIntervalMilliseconds);
+            if (!isCurrent()) return;
+            const polled = await port.getConformance(check.id);
+
+            if (!isCurrent()) return;
+            check = polled;
+            publishConformance(check);
+          }
+        } catch (error) {
+          if (!isCurrent()) return;
+          throw error;
         }
         if (check.status === "failed") {
           throw new Error(check.errorMessage ?? "Agent conformance check failed.");
@@ -224,8 +288,8 @@ export function createAgentConfigurationController({
         if (check.status === "cancelled") {
           return;
         }
-        await refreshConfiguration();
-        await onConfigurationChanged();
+        await refreshConfiguration(isCurrent);
+        if (isCurrent()) await onConfigurationChanged();
       });
     },
     clearProviderAuthentication: (providerId) => mutate((revision) =>
@@ -287,11 +351,21 @@ export function createAgentConfigurationController({
     },
     async startCodexDeviceLogin(providerId) {
       await runOperation(async () => {
+        const generation = beginResourceOperation(
+          codexDeviceLoginGenerations,
+          providerId,
+        );
+        const isCurrent = () => resourceOperationIsCurrent(
+          codexDeviceLoginGenerations,
+          providerId,
+          generation,
+        );
         const login = await port.startCodexDeviceLogin(
           requireRevision(),
           providerId,
         );
 
+        if (!isCurrent()) return;
         publishCodexDeviceLogin(login);
         void (async () => {
           try {
@@ -299,19 +373,23 @@ export function createAgentConfigurationController({
 
             while (current.status === "pending") {
               await pollConformance(pollConformanceIntervalMilliseconds);
-              current = await port.getCodexDeviceLogin(current.id);
+              if (!isCurrent()) return;
+              const polled = await port.getCodexDeviceLogin(current.id);
+
+              if (!isCurrent()) return;
+              current = polled;
               publishCodexDeviceLogin(current);
             }
             if (current.status === "succeeded") {
-              await refreshConfiguration();
-              await onConfigurationChanged();
+              await refreshConfiguration(isCurrent);
+              if (isCurrent()) await onConfigurationChanged();
             } else if (current.status === "failed") {
               publish({
                 errorMessage: current.errorMessage ?? "Codex device login failed.",
               });
             }
           } catch (error) {
-            publish({ errorMessage: message(error) });
+            if (isCurrent()) publish({ errorMessage: message(error) });
           }
         })();
       });
