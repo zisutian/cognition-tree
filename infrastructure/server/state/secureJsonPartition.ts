@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { lock } from "proper-lockfile";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import {
-  isSecureRegularFile,
+  readSecureFileUtf8,
   replaceFileDurably,
 } from "../persistence/fileSystemPersistence.ts";
 import { ensureSecureStateDirectory } from "./secureStateFileSystem.ts";
@@ -85,6 +84,8 @@ export type SecureStateFileReplacer = (
 
 export type SecureStateLockAcquirer = () => Promise<() => Promise<void>>;
 
+export const defaultMaximumSecureStateBytes = 64 * 1024 * 1024;
+
 // Persisted values are JSON-like, but parsers may attach non-enumerable symbol
 // metadata while migrating. Descriptor cloning preserves that transient state.
 function clonePartitionValue<Value>(source: Value): Value {
@@ -142,6 +143,7 @@ export class SecureJsonPartition<Value> {
   readonly #file: string;
   #initializePromise: Promise<void> | null = null;
   readonly #name: string;
+  readonly #maximumBytes: number;
   #operationQueue: Promise<void> = Promise.resolve();
   readonly #parse: (value: unknown) => Value;
   #persistedSource: string | null = null;
@@ -156,20 +158,26 @@ export class SecureJsonPartition<Value> {
     name,
     parse,
     acquireLock,
+    maximumBytes = defaultMaximumSecureStateBytes,
     replaceFile = replaceFileDurably,
   }: {
     acquireLock?: SecureStateLockAcquirer;
     createInitial(): Value;
     directory: string;
     fileName: string;
+    maximumBytes?: number;
     name: string;
     parse(value: unknown): Value;
     replaceFile?: SecureStateFileReplacer;
   }) {
+    if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
+      throw new Error("Secure state limit must be a positive integer");
+    }
     this.#createInitial = createInitial;
     this.#directory = path.resolve(directory);
     this.#file = path.join(this.#directory, fileName);
     this.#name = name;
+    this.#maximumBytes = maximumBytes;
     this.#parse = parse;
     this.#acquireLock = acquireLock ?? (() => lock(this.#directory, {
       lockfilePath: path.join(this.#directory, `.${fileName}.lock`),
@@ -209,12 +217,7 @@ export class SecureJsonPartition<Value> {
     let source: string;
 
     try {
-      const stats = await lstat(this.#file);
-
-      if (!isSecureRegularFile(stats)) {
-        throw new Error("state file permissions or type are invalid");
-      }
-      source = await readFile(this.#file, "utf8");
+      source = await readSecureFileUtf8(this.#file, this.#maximumBytes);
     } catch (error) {
       if (!isMissing(error)) {
         throw new SecureStatePartitionError(
@@ -386,10 +389,10 @@ export class SecureJsonPartition<Value> {
 
   async #observePersistedSource(): Promise<PersistedSourceObservation> {
     try {
-      const stats = await lstat(this.#file);
-
-      if (!isSecureRegularFile(stats)) return { kind: "unavailable" };
-      return { kind: "source", source: await readFile(this.#file, "utf8") };
+      return {
+        kind: "source",
+        source: await readSecureFileUtf8(this.#file, this.#maximumBytes),
+      };
     } catch (error) {
       return isMissing(error) ? { kind: "missing" } : { kind: "unavailable" };
     }
@@ -404,9 +407,17 @@ export class SecureJsonPartition<Value> {
   }
 
   #serialize(value: Value) {
-    return `${serializeJsonIteratively(value, {
+    const source = `${serializeJsonIteratively(value, {
       indent: 2,
       sortObjectKeys: true,
     })}\n`;
+
+    if (Buffer.byteLength(source) > this.#maximumBytes) {
+      throw new SecureStatePartitionError(
+        this.#name,
+        "serialized state exceeds the size limit",
+      );
+    }
+    return source;
   }
 }

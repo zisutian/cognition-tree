@@ -123,6 +123,38 @@ describe("Secure JSON partition", () => {
     expect((await stat(directory)).mode & 0o777).toBe(0o700);
   });
 
+  it("rejects persisted and candidate state beyond its byte limit", async () => {
+    const { directory, file } = await createPartition();
+    const partition = new SecureJsonPartition<TestState>({
+      createInitial: () => ({ records: [{ value: "initial" }], revision: 0 }),
+      directory,
+      fileName: "state.json",
+      maximumBytes: 128,
+      name: "test",
+      parse: parseTestState,
+    });
+
+    await writeFile(file, " ".repeat(129), { mode: 0o600 });
+    await expect(partition.read((state) => state.revision)).rejects.toThrow(
+      /size limit/i,
+    );
+
+    const writable = new SecureJsonPartition<TestState>({
+      createInitial: () => ({ records: [{ value: "initial" }], revision: 0 }),
+      directory,
+      fileName: "writable.json",
+      maximumBytes: 128,
+      name: "test write",
+      parse: parseTestState,
+    });
+
+    await writable.read(() => undefined);
+    await expect(writable.mutate((state) => {
+      state.records[0]!.value = "x".repeat(128);
+      return { changed: true, result: undefined };
+    })).rejects.toThrow(/size limit/i);
+  });
+
   it("refreshes disk authority while serializing multiple partition instances", async () => {
     const root = await mkdtemp(
       path.join(os.tmpdir(), "ctn-secure-partition-shared-"),

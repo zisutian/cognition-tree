@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomUUID } from "node:crypto";
-import type { Dirent, Stats } from "node:fs";
+import { constants, type Dirent, type Stats } from "node:fs";
 import { open, readdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
@@ -18,6 +18,54 @@ export function isSecureRegularFile(stats: Stats, mode = 0o600) {
 export function isSecureDirectory(stats: Stats, mode = 0o700) {
   return stats.isDirectory() && !stats.isSymbolicLink() &&
     (stats.mode & 0o777) === mode;
+}
+
+export async function readSecureFileUtf8(
+  filePath: string,
+  maximumBytes: number,
+) {
+  if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
+    throw new Error("Secure file limit must be a positive integer");
+  }
+  const handle = await open(
+    filePath,
+    constants.O_RDONLY | constants.O_NOFOLLOW,
+  );
+
+  try {
+    const stats = await handle.stat();
+
+    if (!isSecureRegularFile(stats)) {
+      throw new Error("state file permissions or type are invalid");
+    }
+    if (stats.size > maximumBytes) {
+      throw new Error("state file exceeds the size limit");
+    }
+    const chunks: Buffer[] = [];
+    let size = 0;
+
+    while (true) {
+      const buffer = Buffer.allocUnsafe(
+        Math.min(64 * 1024, maximumBytes - size + 1),
+      );
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, null);
+
+      if (bytesRead === 0) break;
+      size += bytesRead;
+      if (size > maximumBytes) {
+        throw new Error("state file exceeds the size limit");
+      }
+      chunks.push(Buffer.from(buffer.subarray(0, bytesRead)));
+    }
+    try {
+      return new TextDecoder("utf-8", { fatal: true })
+        .decode(Buffer.concat(chunks, size));
+    } catch {
+      throw new Error("state file is invalid UTF-8");
+    }
+  } finally {
+    await handle.close();
+  }
 }
 
 export async function fsyncDirectory(directory: string) {
