@@ -142,7 +142,7 @@ Todo 的读取和 merge-aware snapshot sync。它不能访问 Agent、admin、au
 同一挂载卷内，持久化整个项目 `.cognition-tree` 即可；如果在不同卷中，两者都必须
 独立挂载。迁移需要目标磁盘容纳完整权威数据的第二份副本。
 
-## 5. Agent Provider 网络边界
+## 5. Agent Provider 配置与认证
 
 Provider、Profile 和凭据只在“设置 → 智能体”管理。secret 以 0600 服务状态保存，
 响应永不回传；这依赖操作系统文件权限，不承诺静态加密。
@@ -152,7 +152,8 @@ loopback Provider 自动允许。非 loopback 私网 origin 必须在创建或�
 许可和旧符合性结果失效。metadata、link-local、unspecified、multicast，以及 DNS
 同时解析到不同安全类别的目标始终拒绝。带凭据的远程 Provider 必须使用 HTTPS。
 
-服务当前使用 agent-config 内部 format 5。首次读取旧格式时会原子迁移：format 1/2
+服务当前使用 agent-config 内部 format 5；该数字是磁盘迁移标识，不是用户可选配置，
+也不应手工修改。首次读取旧格式时会原子迁移：format 1/2
 的 context 估算值乘以四后保存为“会话历史预算（字符）”，例如 16384 迁移为 65536、
 32768 迁移为 131072；format 1–3 的 chat Profile 补入 `model-default` 推理强度；
 format 1–4 的内联 API Key 先写入 `agent-auth-v1`，再切换配置引用。受影响的 chat
@@ -198,7 +199,7 @@ Ollama chat Profile 的推理强度可选“模型默认、关闭、低、中、
 - API Key：在设置中一次性写入。新会话通过 app-server 登录协议注入临时认证，不把
   key 放入 shell、MCP 或子进程环境。
 - ChatGPT 设备码：创建 Provider 后点击“使用 ChatGPT 登录”，打开设置显示的 HTTPS
-  地址并输入设备码。登录可取消，15 分钟后自动过期；成功后只显示“认证已配置”。
+  地址并输入设备码。登录可取消，默认 15 分钟后自动过期；成功后只显示“认证已配置”。
 
 “退出认证”是唯一清除入口。会话正在创建、已经 resident 或设备码正在登录时，切换
 对应 Provider、退出认证、删除 Provider 和数据根迁移都会被拒绝。若登录的配置提交
@@ -208,40 +209,21 @@ Ollama chat Profile 的推理强度可选“模型默认、关闭、低、中、
 
 ## 6. API v3
 
-无需已有 owner session 的操作：
+`GET /api/v3/openapi.json` 是 operation method、path、schema 和访问策略的机器可读
+权威；根 CLI 的 `./ctn openapi` 输出同一份契约。健康、能力发现和 owner 登录无需已有
+owner session，其余操作按 registry 声明的 owner、automation 或 trusted-client policy
+授权。文档不手工维护 endpoint 清单。
 
-    GET /api/v3/health
-    GET /api/v3/capabilities
-    GET /api/v3/openapi.json
-    GET、POST /api/v3/auth/session
-
-owner-only 服务管理操作：
-
-    DELETE /api/v3/auth/session
-    GET、PATCH /api/v3/admin/system-configuration
-    POST /api/v3/admin/system-configuration/owner-credential/rotations
-    POST /api/v3/admin/system-configuration/owner-credential/activations
-    DELETE /api/v3/admin/system-configuration/owner-credential
-    POST /api/v3/admin/data-root-migrations
-    GET  /api/v3/admin/data-root-migrations/<migration-id>
-    GET、POST /api/v3/admin/trusted-client-tokens
-    DELETE /api/v3/admin/trusted-client-tokens/<token-id>
-    GET /api/v3/admin/operations/status
-    GET /api/v3/admin/operations
-
-内容只读、snapshot sync、Agent 会话、Provider/Profile 管理、仓库管理、两类外部
-token 与操作审计均属于唯一 `/api/v3` registry。浏览器与 trusted-client 使用同一
-snapshot sync 并接收服务端最终 snapshot；Agent proposal 不使用此合并路径。不存在
-`/api/v2`、公开 command API、
-preview/commit、写入 automation scope 或兼容 parser。
+浏览器与 trusted-client 使用同一 snapshot sync 并接收服务端最终 snapshot；Agent
+proposal 不使用此合并路径。不存在 `/api/v2`、公开 command API、preview/commit、
+写入 automation scope 或兼容 parser。精确能力与不支持范围见
+[产品需求](product-requirements.md#10-当前边界)，数据流和授权模型见
+[架构边界](architecture.md#6-存储与-api)。
 
 错误响应是带 `code`、`message`、`requestId`、服务端 `retryable` 与严格 `details` 的
 判别联合。客户端不得仅凭 HTTP status 猜测能否重试。尤其
 `operation_audit_finalize_failed` 表示正文已提交，只能根据 `afterRevision` 重新 GET
 对账，不能重放 PUT。
-
-完整 method、path、schema 和访问策略从 `GET /api/v3/openapi.json` 读取；本节只列出
-服务配置与登录所需的主要入口，不维护第二份 operation catalog。
 
 ## 7. 外部可信客户端 CLI
 
