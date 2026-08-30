@@ -5,9 +5,13 @@ import type {
   OutgoingHttpHeaders,
   ServerResponse,
 } from "node:http";
-import { TextDecoder } from "node:util";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import { apiAllowedMethods } from "../../../../contracts/api/registry.ts";
+import {
+  JsonRequestBodyError,
+  readJsonRequestBody,
+  readSingleHttpHeader,
+} from "../../network/jsonRequestBody.ts";
 import { ApiRequestError } from "./errors.ts";
 
 export const defaultMaximumBodyBytes = 20 * 1024 * 1024;
@@ -20,12 +24,6 @@ export class ApiRequestAbortedError extends Error {
     this.name = "ApiRequestAbortedError";
     this.cause = cause;
   }
-}
-
-function getRequestHeader(request: IncomingMessage, name: string) {
-  const value = request.headers[name.toLowerCase()];
-
-  return Array.isArray(value) ? value[0] : value;
 }
 
 export function createApiResponseHeaders(
@@ -64,8 +62,8 @@ export function sendApiNoContent(
 }
 
 export function assertApiRequestHasNoBody(request: IncomingMessage) {
-  const contentLength = getRequestHeader(request, "content-length");
-  const transferEncoding = getRequestHeader(request, "transfer-encoding");
+  const contentLength = readSingleHttpHeader(request, "content-length");
+  const transferEncoding = readSingleHttpHeader(request, "transfer-encoding");
 
   if ((contentLength && contentLength !== "0") || transferEncoding) {
     throw new ApiRequestError(
@@ -79,79 +77,26 @@ export async function readApiJsonBody(
   request: IncomingMessage,
   maximumBodyBytes = defaultMaximumBodyBytes,
 ): Promise<unknown> {
-  if (!Number.isSafeInteger(maximumBodyBytes) || maximumBodyBytes < 1) {
-    throw new Error("API operation body limit must be a positive integer");
-  }
-  const contentType = getRequestHeader(request, "content-type")
-    ?.split(";", 1)[0]?.trim().toLowerCase();
-
-  if (contentType !== "application/json") {
-    throw new ApiRequestError(
-      "invalid_request",
-      "Content-Type must be application/json",
-      { statusCode: 415 },
-    );
-  }
-  const contentLength = getRequestHeader(request, "content-length");
-
-  if (contentLength && !/^\d+$/.test(contentLength)) {
-    throw new ApiRequestError(
-      "invalid_request",
-      "Content-Length is invalid",
-    );
-  }
-  if (contentLength && Number(contentLength) > maximumBodyBytes) {
-    throw new ApiRequestError(
-      "invalid_request",
-      "Request body is too large",
-      { statusCode: 413 },
-    );
-  }
-  const chunks: Buffer[] = [];
-  let size = 0;
-
   try {
-    for await (const chunk of request) {
-      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-
-      size += buffer.length;
-      if (size > maximumBodyBytes) {
-        throw new ApiRequestError(
-          "invalid_request",
-          "Request body is too large",
-          { statusCode: 413 },
-        );
-      }
-      chunks.push(buffer);
-    }
+    return await readJsonRequestBody(request, maximumBodyBytes);
   } catch (error) {
-    if (!request.aborted) throw error;
-    throw new ApiRequestAbortedError(error);
-  }
-  let source: string;
+    if (!(error instanceof JsonRequestBodyError)) throw error;
+    if (error.failure === "aborted") {
+      throw new ApiRequestAbortedError(error.cause);
+    }
+    const mapped = {
+      empty: ["Request body is empty", 400],
+      "invalid-content-length": ["Content-Length is invalid", 400],
+      "invalid-json": ["Request body is invalid JSON", 400],
+      "invalid-utf8": ["Request body is invalid UTF-8", 400],
+      "too-large": ["Request body is too large", 413],
+      "unsupported-media-type": [
+        "Content-Type must be application/json",
+        415,
+      ],
+    } as const;
+    const [message, statusCode] = mapped[error.failure];
 
-  try {
-    source = new TextDecoder("utf-8", { fatal: true })
-      .decode(Buffer.concat(chunks)).trim();
-  } catch {
-    throw new ApiRequestError(
-      "invalid_request",
-      "Request body is invalid UTF-8",
-    );
-  }
-
-  if (!source) {
-    throw new ApiRequestError(
-      "invalid_request",
-      "Request body is empty",
-    );
-  }
-  try {
-    return JSON.parse(source) as unknown;
-  } catch {
-    throw new ApiRequestError(
-      "invalid_request",
-      "Request body is invalid JSON",
-    );
+    throw new ApiRequestError("invalid_request", message, { statusCode });
   }
 }
