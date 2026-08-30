@@ -627,6 +627,8 @@ repository session store 分区，React hook 只订阅当前仓库；不得用�
 而清除；服务端 pending 操作具有独立生命周期，不由页面卸载取消。API access settings 的
 列表 authority、load generation、mutation version 与在途计数由独立页面 session controller
 持有，React hook 只订阅，旧 load 不得覆盖 create/revoke，单个完成不得提前清除 loading。
+SettingsStatusPanel 只组合统一 detail shell 与 section 路由；Agent、System、API access、
+Audit 的状态投影分别由各自领域 status view 文件持有，不在路由文件内混合实现。
 
 `application/problems` 的 ProblemCenter 是运行期 operational incident 的唯一 owner。
 API、Agent、同步、Settings 与 UI action 只通过 `ProblemReporter` 上报结构化安全信息；
