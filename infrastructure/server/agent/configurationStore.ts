@@ -3,22 +3,17 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type {
-  AgentConfigurationSnapshot,
   AgentProfileInput,
   AgentProfileView,
   AgentProviderInput,
   AgentProviderView,
   AgentToolCallMode,
 } from "../../../application/agent/agentConfiguration.ts";
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
-import { agentConformanceContractVersion } from "../../../contracts/agent/conformance.ts";
-import { agentToolContractVersion } from "../../../contracts/agent/tools.ts";
 import {
   SecureJsonPartition,
   SecureStateCommitOutcomeUnknownError,
   type SecureStateFileReplacer,
 } from "../state/secureJsonPartition.ts";
-import { createStateDigest } from "../state/stateDigest.ts";
 import {
   AgentConfigurationAccess,
   type AgentConfigurationProfileUse,
@@ -33,16 +28,33 @@ import {
 import {
   createInitialAgentConfigurationState,
   materializeLegacyAgentConfigurationState,
-  nonEmptyString,
-  parseBaseUrl,
   parseAgentConfigurationState,
-  parseCurrentStoredAgentProfileParameters,
-  positiveInteger,
   type AgentConfigurationState,
   type StoredAuthentication,
   type StoredProfile,
   type StoredProvider,
 } from "./configurationStateCodec.ts";
+import {
+  AgentConfigurationConflictError,
+  AgentConfigurationValidationError,
+} from "./configurationErrors.ts";
+import {
+  normalizeProfileInput,
+  normalizeProviderInput,
+} from "./configurationInput.ts";
+import {
+  configurationSnapshot,
+  profileDigest,
+  profileView,
+  providerDigest,
+  providerView,
+  stateRevision,
+} from "./configurationViews.ts";
+
+export {
+  AgentConfigurationConflictError,
+  AgentConfigurationValidationError,
+} from "./configurationErrors.ts";
 
 export type ResolvedAgentConfiguration = Readonly<{
   apiKey: string | null;
@@ -59,122 +71,6 @@ export type ResolvedAgentProvider = Readonly<{
   provider: AgentProviderView;
 }>;
 
-export class AgentConfigurationConflictError extends Error {
-  readonly currentRevision: `sha256:${string}`;
-
-  constructor(currentRevision: `sha256:${string}`) {
-    super("Agent configuration revision changed");
-    this.name = "AgentConfigurationConflictError";
-    this.currentRevision = currentRevision;
-  }
-}
-
-export class AgentConfigurationValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AgentConfigurationValidationError";
-  }
-}
-
-function digest(value: unknown): `sha256:${string}` {
-  return `sha256:${createStateDigest(serializeJsonIteratively(value, {
-    sortObjectKeys: true,
-  }))}`;
-}
-
-function stateRevision(state: AgentConfigurationState) {
-  return digest(state);
-}
-
-function providerDigest(provider: StoredProvider) {
-  return digest(provider);
-}
-
-function profileDigest(profile: StoredProfile) {
-  const { conformance: _conformance, ...configuration } = profile;
-
-  return digest({
-    agentConformanceContractVersion,
-    agentToolContractVersion,
-    configuration,
-  });
-}
-
-function providerView(provider: StoredProvider): AgentProviderView {
-  return {
-    authenticationStatus: provider.authentication.type === "none"
-      ? "not-required"
-      : provider.authentication.credential
-        ? "configured"
-        : "missing",
-    authenticationType: provider.authentication.type,
-    baseUrl: provider.baseUrl,
-    digest: providerDigest(provider),
-    id: provider.id,
-    kind: provider.kind,
-    label: provider.label,
-    privateNetworkAccess: provider.privateNetworkOrigin
-      ? "confirmed"
-      : "not-required",
-    version: provider.version,
-  };
-}
-
-function profileView(
-  profile: StoredProfile,
-  provider: StoredProvider,
-): AgentProfileView {
-  const currentProfileDigest = profileDigest(profile);
-  const currentProviderDigest = providerDigest(provider);
-  const authenticationMissing = provider.authentication.type !== "none" &&
-    !provider.authentication.credential;
-  const requiresConformance = provider.kind !== "codex";
-  const conformanceCurrent = profile.conformance !== null &&
-    profile.conformance.profileDigest === currentProfileDigest &&
-    profile.conformance.providerDigest === currentProviderDigest &&
-    profile.parameters.kind === "chat" &&
-    profile.conformance.toolCallMode === profile.parameters.toolCallMode;
-  const toolStepLimitTooSmall = profile.parameters.kind === "chat" &&
-    profile.parameters.maxToolSteps < 3;
-  const unavailableReason = authenticationMissing
-    ? "Provider authentication is missing"
-    : toolStepLimitTooSmall
-      ? "Chat profiles require at least 3 tool steps"
-      : requiresConformance && !conformanceCurrent
-        ? "Tool-call conformance has not been verified"
-        : null;
-
-  return {
-    availability: unavailableReason === null ? "available" : "unavailable",
-    conformance: profile.conformance,
-    digest: currentProfileDigest,
-    id: profile.id,
-    label: profile.label,
-    maxResidentSessions: profile.maxResidentSessions,
-    model: profile.model,
-    parameters: structuredClone(profile.parameters),
-    providerId: profile.providerId,
-    timeoutMilliseconds: profile.timeoutMilliseconds,
-    unavailableReason,
-    version: profile.version,
-  };
-}
-
-function configurationSnapshot(
-  state: AgentConfigurationState,
-): AgentConfigurationSnapshot {
-  return {
-    profiles: state.profiles.map((profile) =>
-      profileView(
-        profile,
-        state.providers.find(({ id }) => id === profile.providerId)!,
-      )
-    ),
-    providers: state.providers.map(providerView),
-    revision: stateRevision(state),
-  };
-}
-
 function assertBaseRevision(
   state: AgentConfigurationState,
   baseRevision: string,
@@ -182,106 +78,6 @@ function assertBaseRevision(
   const current = stateRevision(state);
 
   if (baseRevision !== current) throw new AgentConfigurationConflictError(current);
-}
-
-function normalizeProviderInput(
-  input: AgentProviderInput,
-  targetPolicy: AgentProviderTargetPolicy,
-): Omit<StoredProvider, "authentication" | "id" | "version"> {
-  const label = nonEmptyString(
-    input.label,
-    "Provider label",
-  );
-  const baseUrl = input.kind === "codex"
-    ? input.baseUrl === null
-      ? null
-      : (() => {
-          throw new AgentConfigurationValidationError("Codex baseUrl must be null");
-        })()
-    : parseBaseUrl(input.baseUrl, "Provider baseUrl");
-
-  if (input.kind === "codex" && input.authenticationType === "none") {
-    throw new AgentConfigurationValidationError("Codex authentication cannot be none");
-  }
-  if (input.kind !== "codex" &&
-      input.authenticationType === "chatgpt-device-code") {
-    throw new AgentConfigurationValidationError(
-      "Device-code authentication requires a Codex provider",
-    );
-  }
-  if (input.authenticationType !== "api-key" && input.apiKey !== undefined) {
-    throw new AgentConfigurationValidationError(
-      "Only api-key authentication can include an API key",
-    );
-  }
-  if (input.authenticationType === "api-key" && input.apiKey === "") {
-    throw new AgentConfigurationValidationError("API key cannot be empty");
-  }
-  const privateNetworkOrigin = baseUrl === null
-    ? null
-    : targetPolicy.configurationPermission(
-        new URL(baseUrl),
-        input.authenticationType,
-        input.privateNetworkAccessConfirmed,
-      );
-
-  return {
-    baseUrl,
-    kind: input.kind,
-    label,
-    privateNetworkOrigin,
-  };
-}
-
-function normalizeProfileInput(
-  input: AgentProfileInput,
-  provider: StoredProvider,
-): Omit<StoredProfile, "conformance" | "id" | "version"> {
-  const parameters = parseCurrentStoredAgentProfileParameters(
-    input.parameters,
-    "Profile parameters",
-  );
-
-  if ((provider.kind === "codex") !== (parameters.kind === "codex")) {
-    throw new AgentConfigurationValidationError(
-      "Profile parameters do not match provider kind",
-    );
-  }
-  if (
-    provider.kind !== "ollama" && parameters.kind === "chat" &&
-    parameters.toolCallMode === "single-json"
-  ) {
-    throw new AgentConfigurationValidationError(
-      "single-json is only valid for Ollama profiles",
-    );
-  }
-  if (
-    provider.kind !== "ollama" && parameters.kind === "chat" &&
-    parameters.reasoningEffort !== "model-default"
-  ) {
-    throw new AgentConfigurationValidationError(
-      "Explicit chat reasoning effort is only valid for Ollama profiles",
-    );
-  }
-  if (parameters.kind === "chat" && parameters.maxToolSteps < 3) {
-    throw new AgentConfigurationValidationError(
-      "Chat profiles require at least 3 tool steps",
-    );
-  }
-  return {
-    label: nonEmptyString(input.label, "Profile label"),
-    maxResidentSessions: positiveInteger(
-      input.maxResidentSessions,
-      "Profile maxResidentSessions",
-    ),
-    model: nonEmptyString(input.model, "Profile model"),
-    parameters,
-    providerId: provider.id,
-    timeoutMilliseconds: positiveInteger(
-      input.timeoutMilliseconds,
-      "Profile timeoutMilliseconds",
-    ),
-  };
 }
 
 export class AgentConfigurationStore {

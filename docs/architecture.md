@@ -407,6 +407,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     providerOperations 只显式组合无状态 providerProbe、Codex 设备码登录状态机和
     conformance 状态机，并统一拒绝关闭后启动的新操作；后两者分别独占自身记录、
     启动预留、执行任务与幂等释放；
+    configurationErrors、configurationInput 与 configurationViews 分别独占配置错误、
+    stored input 归一化和 digest/read-model 投影，configurationStore 只组合事务、
+    credential/access 生命周期与这些纯策略；
     privateIpc 独占 capability 与本地监听器，并线性化并发启动和幂等关闭；
     Agent service 关闭门统一阻止新 session 与 owner mutation，并协调 owner 操作、
     session pool、turn queue 与 IPC 的关闭顺序；sessionOpener 独占配置租约、启动校验、
