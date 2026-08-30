@@ -18,6 +18,15 @@ function requestWithLength(length: number) {
   }) as IncomingMessage;
 }
 
+function requestWithBody(body: Buffer) {
+  return Object.assign(Readable.from([body]), {
+    headers: {
+      "content-length": String(body.length),
+      "content-type": "application/json",
+    },
+  }) as IncomingMessage;
+}
+
 describe("operation-specific API body limits", () => {
   it("expands only the three sync PUT operations", () => {
     const expanded = apiOperations.filter(({ maximumBodyBytes }) =>
@@ -58,5 +67,28 @@ describe("operation-specific API body limits", () => {
         message: "Request body is empty",
         statusCode: 400,
       });
+  });
+
+  it("rejects invalid UTF-8 instead of replacing bytes inside valid JSON", async () => {
+    const body = Buffer.from([
+      0x7b,
+      0x22,
+      0x76,
+      0x61,
+      0x6c,
+      0x75,
+      0x65,
+      0x22,
+      0x3a,
+      0x22,
+      0xff,
+      0x22,
+      0x7d,
+    ]);
+
+    await expect(readApiJsonBody(requestWithBody(body))).rejects.toMatchObject({
+      message: "Request body is invalid UTF-8",
+      statusCode: 400,
+    });
   });
 });

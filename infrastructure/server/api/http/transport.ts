@@ -5,6 +5,7 @@ import type {
   OutgoingHttpHeaders,
   ServerResponse,
 } from "node:http";
+import { TextDecoder } from "node:util";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import { apiAllowedMethods } from "../../../../contracts/api/registry.ts";
 import { ApiRequestError } from "./errors.ts";
@@ -112,7 +113,17 @@ export async function readApiJsonBody(
     }
     chunks.push(buffer);
   }
-  const source = Buffer.concat(chunks).toString("utf8").trim();
+  let source: string;
+
+  try {
+    source = new TextDecoder("utf-8", { fatal: true })
+      .decode(Buffer.concat(chunks)).trim();
+  } catch {
+    throw new ApiRequestError(
+      "invalid_request",
+      "Request body is invalid UTF-8",
+    );
+  }
 
   if (!source) {
     throw new ApiRequestError(
