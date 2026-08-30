@@ -143,9 +143,20 @@ describe("Agent session event stream", () => {
     expect(ahead.chunks).toEqual([resynchronization]);
 
     events.close();
+    events.close();
+    events.emit({ code: "after_close", message: "ignored", type: "problem" });
+    events.emitSnapshot(snapshot);
 
     expect(stale.ended).toBe(1);
     expect(retainedBoundary.ended).toBe(1);
     expect(ahead.ended).toBe(1);
+    expect(events.sequence).toBe(1_001);
+    expect(snapshotSequences).toEqual([1_001, 1_001]);
+    expect(() => events.connect({
+      afterSequence: 1_001,
+      createSnapshot,
+      headers: {},
+      response: new RecordingResponse().response,
+    })).toThrow("Agent session event stream is closed");
   });
 });

@@ -412,6 +412,8 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     Profile FIFO、排队判定与直到真正空闲的关闭等待；
     proposalCommitter 独占 Agent exact-CAS、幂等账本、审计 receipt 与提交后的
     revision/event 发布，service 只把终态投影回 session 并调度回执摘要；
+    sessionEventStream 独占 session SSE sequence、重放窗口和终态关闭，关闭后不再接收
+    事件或连接；
     sessionToolProtocol、sessionToolState 与 proposalCodec 分别独占模型工具映射、会话
     staging 形态和 Proposal wire/digest，Workspace/Journal/Todo session tool adapter
     分别独占本领域资源读取、scope 校验、staging 与 review 投影；sessionTools 只负责

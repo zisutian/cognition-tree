@@ -32,6 +32,7 @@ export class AgentSessionEventStream {
   readonly #eventStreams = new Set<ServerResponse>();
   readonly #events: AgentEventDto[] = [];
   readonly #sessionId: string;
+  #closed = false;
   #sequence = 0;
 
   constructor(sessionId: string) {
@@ -53,6 +54,7 @@ export class AgentSessionEventStream {
     headers: OutgoingHttpHeaders;
     response: ServerResponse;
   }) {
+    if (this.#closed) throw new Error("Agent session event stream is closed");
     response.writeHead(200, {
       ...headers,
       "Cache-Control": "no-store",
@@ -79,6 +81,7 @@ export class AgentSessionEventStream {
   }
 
   emit(value: AgentSessionEventInput) {
+    if (this.#closed) return;
     this.#sequence += 1;
     const event = {
       ...value,
@@ -94,6 +97,7 @@ export class AgentSessionEventStream {
   }
 
   emitSnapshot(createSnapshot: AgentSessionSnapshotFactory) {
+    if (this.#closed) return;
     const sequence = this.#sequence + 1;
 
     this.emit({
@@ -103,6 +107,8 @@ export class AgentSessionEventStream {
   }
 
   close() {
+    if (this.#closed) return;
+    this.#closed = true;
     for (const response of this.#eventStreams) response.end();
     this.#eventStreams.clear();
   }
