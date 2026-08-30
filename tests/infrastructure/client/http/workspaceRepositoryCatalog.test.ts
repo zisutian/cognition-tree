@@ -9,6 +9,15 @@ import {
 } from "../../../support/workspaceRepositoryFixtures";
 import type { WorkspaceRepositoryPreparation } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation";
 
+function deferred<Value>() {
+  let resolve!: (value: Value | PromiseLike<Value>) => void;
+  const promise = new Promise<Value>((nextResolve) => {
+    resolve = nextResolve;
+  });
+
+  return { promise, resolve };
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     headers: { "Content-Type": "application/json" },
@@ -364,5 +373,56 @@ describe("HTTP workspace repository catalog", () => {
       repositories: [],
     });
     await expect(cache.snapshots.load(repositoryIdentity)).resolves.toBeNull();
+  });
+
+  it("does not let an older list response replace a newer cache projection", async () => {
+    const cache = createMemoryRepositoryClientCache();
+    const firstResponse = deferred<Response>();
+    const secondResponse = deferred<Response>();
+    const renamed = { ...descriptor, label: "Newest" };
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockReturnValueOnce(firstResponse.promise)
+      .mockReturnValueOnce(secondResponse.promise);
+    const catalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: "http://api.test",
+      cache,
+      fetch: fetchMock,
+      preparation,
+    });
+    const first = catalog.listRepositories();
+    const second = catalog.listRepositories();
+
+    secondResponse.resolve(jsonResponse({
+      issues: [],
+      repositories: [renamed],
+    }));
+    await expect(second).resolves.toMatchObject({ repositories: [renamed] });
+    firstResponse.resolve(jsonResponse(serverCatalog));
+    await expect(first).resolves.toEqual(serverCatalog);
+    const catalogIdentity = await createHttpRepositoryCacheIdentity({
+      baseUrl: "http://api.test",
+      repositoryId: "__catalog__",
+    });
+
+    await expect(cache.catalogs.load(catalogIdentity)).resolves.toMatchObject({
+      repositories: [renamed],
+    });
+  });
+
+  it("does not hide a completed remote deletion behind cache cleanup failure", async () => {
+    const cache = createMemoryRepositoryClientCache();
+
+    cache.deleteRepositoryAtomically = vi.fn(async () => {
+      throw new Error("cache unavailable");
+    });
+    const catalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: "http://api.test",
+      cache,
+      fetch: async () => new Response(null, { status: 204 }),
+      preparation,
+    });
+
+    await expect(catalog.deleteRepository({ id: descriptor.id }))
+      .resolves.toBeUndefined();
   });
 });

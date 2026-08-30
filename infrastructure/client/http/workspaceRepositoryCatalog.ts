@@ -58,20 +58,35 @@ export function createHttpWorkspaceRepositoryCatalog({
     repositoryId: "__catalog__",
     token,
   });
+  let cacheProjectionQueue: Promise<void> = Promise.resolve();
+  let catalogAuthorityEpoch = 0;
+  let latestAppliedListGeneration = 0;
+  let nextListGeneration = 1;
+  const enqueueCacheProjection = <Result>(
+    operation: () => Promise<Result>,
+  ) => {
+    const pending = cacheProjectionQueue.then(operation);
+
+    cacheProjectionQueue = pending.then(() => undefined, () => undefined);
+    return pending;
+  };
   const saveCatalogBestEffort = async (
     catalog: Awaited<ReturnType<WorkspaceRepositoryCatalog["listRepositories"]>>,
   ) => {
-    try {
-      await cache.catalogs.save(await catalogIdentity, {
-        ...catalog,
-        version: 5,
-      });
-    } catch {
-      // The remote catalog is authoritative; cache failure is reported only
-      // when no remote response is available.
-    }
+    await enqueueCacheProjection(async () => {
+      try {
+        await cache.catalogs.save(await catalogIdentity, {
+          ...catalog,
+          version: 5,
+        });
+      } catch {
+        // The remote catalog is authoritative; cache failure is reported only
+        // when no remote response is available.
+      }
+    });
   };
   const loadCatalogBestEffort = async () => {
+    await cacheProjectionQueue;
     try {
       return await cache.catalogs.load(await catalogIdentity);
     } catch {
@@ -88,6 +103,7 @@ export function createHttpWorkspaceRepositoryCatalog({
       };
 
       preparation.prepare(outbound.content);
+      catalogAuthorityEpoch += 1;
       const descriptor = parseRepositoryDescriptor(
         await requestWorkspaceApiJson(
           fetchFn,
@@ -101,6 +117,7 @@ export function createHttpWorkspaceRepositoryCatalog({
           token,
         ),
       );
+      catalogAuthorityEpoch += 1;
       const cached = await loadCatalogBestEffort();
       const repositories = [
         ...(cached?.repositories.filter(({ id }) => id !== descriptor.id) ?? []),
@@ -117,6 +134,7 @@ export function createHttpWorkspaceRepositoryCatalog({
       if (!isRepositoryId(id)) {
         throw new Error(`Invalid repository id: ${id}`);
       }
+      catalogAuthorityEpoch += 1;
       await requestWorkspaceApiNoContent(
         fetchFn,
         baseUrl,
@@ -124,19 +142,29 @@ export function createHttpWorkspaceRepositoryCatalog({
         { method: "DELETE" },
         token,
       );
+      catalogAuthorityEpoch += 1;
 
-      await cache.deleteRepositoryAtomically({
-        catalogIdentity: await catalogIdentity,
-        repositoryId: id,
-        repositoryIdentity: await createHttpRepositoryCacheIdentity({
-          baseUrl,
-          repositoryId: id,
-          token,
-        }),
+      await enqueueCacheProjection(async () => {
+        try {
+          await cache.deleteRepositoryAtomically({
+            catalogIdentity: await catalogIdentity,
+            repositoryId: id,
+            repositoryIdentity: await createHttpRepositoryCacheIdentity({
+              baseUrl,
+              repositoryId: id,
+              token,
+            }),
+          });
+        } catch {
+          // A cache cleanup failure cannot hide a completed remote deletion.
+        }
       });
     },
     label: "HTTP 后端",
     async listRepositories() {
+      const authorityEpoch = catalogAuthorityEpoch;
+      const listGeneration = nextListGeneration++;
+
       try {
         const previous = await loadCatalogBestEffort();
         const catalog = parseRepositoryCatalog(
@@ -149,31 +177,39 @@ export function createHttpWorkspaceRepositoryCatalog({
           ),
         );
 
-        await saveCatalogBestEffort(catalog);
-        const currentIds = new Set([
-          ...catalog.repositories.map(({ id }) => id),
-          ...catalog.issues.map(({ id }) => id),
-        ]);
-        const removedIds = new Set([
-          ...(previous?.repositories ?? []).map(({ id }) => id),
-          ...(previous?.issues ?? []).map(({ id }) => id),
-        ].filter((id) => !currentIds.has(id)));
+        if (
+          authorityEpoch === catalogAuthorityEpoch &&
+          listGeneration > latestAppliedListGeneration
+        ) {
+          latestAppliedListGeneration = listGeneration;
+          await saveCatalogBestEffort(catalog);
+          const currentIds = new Set([
+            ...catalog.repositories.map(({ id }) => id),
+            ...catalog.issues.map(({ id }) => id),
+          ]);
+          const removedIds = new Set([
+            ...(previous?.repositories ?? []).map(({ id }) => id),
+            ...(previous?.issues ?? []).map(({ id }) => id),
+          ].filter((id) => !currentIds.has(id)));
 
-        await Promise.all(
-          [...removedIds].map(async (repositoryId) => {
-            try {
-              await cache.snapshots.remove(
-                await createHttpRepositoryCacheIdentity({
-                  baseUrl,
-                  repositoryId,
-                  token,
-                }),
-              );
-            } catch {
-              // Catalog authority must not be hidden by orphan-cache cleanup.
-            }
-          }),
-        );
+          await enqueueCacheProjection(async () => {
+            await Promise.all(
+              [...removedIds].map(async (repositoryId) => {
+                try {
+                  await cache.snapshots.remove(
+                    await createHttpRepositoryCacheIdentity({
+                      baseUrl,
+                      repositoryId,
+                      token,
+                    }),
+                  );
+                } catch {
+                  // Catalog authority must not be hidden by orphan cleanup.
+                }
+              }),
+            );
+          });
+        }
         return catalog;
       } catch (error) {
         if (!isOfflineError(error)) {
@@ -222,6 +258,7 @@ export function createHttpWorkspaceRepositoryCatalog({
       const outbound = {
         label: parsePortableName(decoded.label, "Repository label"),
       };
+      catalogAuthorityEpoch += 1;
       const descriptor = parseRepositoryDescriptor(
         await requestWorkspaceApiJson(
           fetchFn,
@@ -235,17 +272,20 @@ export function createHttpWorkspaceRepositoryCatalog({
           token,
         ),
       );
+      catalogAuthorityEpoch += 1;
 
-      try {
-        await cache.renameRepositoryAtomically({
-          catalogIdentity: await catalogIdentity,
-          label: descriptor.label,
-          repositoryId: id,
-        });
-      } catch {
-        // The remote catalog is authoritative; an absent or unavailable local
-        // projection must not turn a successful rename into a client failure.
-      }
+      await enqueueCacheProjection(async () => {
+        try {
+          await cache.renameRepositoryAtomically({
+            catalogIdentity: await catalogIdentity,
+            label: descriptor.label,
+            repositoryId: id,
+          });
+        } catch {
+          // The remote catalog is authoritative; an unavailable local
+          // projection cannot turn a successful rename into a client failure.
+        }
+      });
       return descriptor;
     },
   };
