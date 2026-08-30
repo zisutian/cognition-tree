@@ -249,6 +249,29 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps conversation turn orchestration behind Agent service", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath: "../../infrastructure/server/agent/service.ts",
+        importPath: "./conversationRunner",
+        targetPath:
+          "../../infrastructure/server/agent/conversationRunner.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/agent/privateIpc.ts",
+        importPath: "./conversationRunner",
+        targetPath:
+          "../../infrastructure/server/agent/conversationRunner.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "Agent conversation composition boundary: ../../infrastructure/server/agent/privateIpc.ts imports ./conversationRunner",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

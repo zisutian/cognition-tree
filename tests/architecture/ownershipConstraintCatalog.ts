@@ -76,6 +76,18 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/agent\/proposalCommitter\.ts$/,
     ],
     [
+      "Agent context limit signal",
+      sourceModules,
+      /\bclass AgentContextLimitError\b/,
+      /^application\/agent\/agentRuntimePort\.ts$/,
+    ],
+    [
+      "Agent Profile turn queue",
+      infrastructureModules,
+      /\bnew AgentProfileTurnQueue\s*\(/,
+      /^infrastructure\/server\/agent\/conversationRunner\.ts$/,
+    ],
+    [
       "CTN tone class projection",
       presentationModules,
       /`ctn-tone-\$\{tone\}`/,
