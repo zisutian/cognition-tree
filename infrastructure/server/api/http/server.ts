@@ -35,6 +35,7 @@ import {
   type ApiSecurityPolicy,
 } from "./security.ts";
 import {
+  ApiRequestAbortedError,
   assertApiRequestHasNoBody,
   createApiResponseHeaders,
   readApiJsonBody,
@@ -242,8 +243,8 @@ export function createApiRequestHandler({
         }
       }
     } catch (error) {
-      if (response.headersSent) {
-        response.destroy();
+      if (error instanceof ApiRequestAbortedError) {
+        if (!response.destroyed) response.destroy();
         return;
       }
       if (error instanceof ApiSecurityError && error.allowedOrigin) {
@@ -261,6 +262,14 @@ export function createApiRequestHandler({
           `[${requestId}] CTN API v3 request failed`,
           createSafeApiLogError(error),
         );
+      }
+      if (
+        response.headersSent ||
+        response.destroyed ||
+        response.writableEnded
+      ) {
+        if (!response.destroyed) response.destroy();
+        return;
       }
       if (mapped.statusCode === 405) {
         responseHeaders = {

@@ -416,7 +416,8 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     rename 提交点、失败回滚与可恢复物理 cleanup；catalog 只先排空驻留 store 并委托。
     API server 的 api/http 拥有 request lifecycle、认证、限制和 registry 分派；
     transport 在 wire schema 前执行 operation-specific 字节上限与 fatal UTF-8 解码，
-    非法字节不得以替换字符进入 JSON 或内容摘要；
+    非法字节不得以替换字符进入 JSON 或内容摘要；未完成的上传由 transport 投影为
+    request-aborted 生命周期事件，handler 不得将客户端断连伪装成 API 500；
     serverLifecycle 将关闭拆成停止接收、结束两类长连接、等待活动请求或限时强制断连、
     最后释放请求依赖资源四个有序阶段；多项关闭失败必须全部保留，不能让资源清理与
     尚未结束的 handler 并发；

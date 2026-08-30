@@ -12,6 +12,16 @@ import { ApiRequestError } from "./errors.ts";
 
 export const defaultMaximumBodyBytes = 20 * 1024 * 1024;
 
+export class ApiRequestAbortedError extends Error {
+  readonly cause: unknown;
+
+  constructor(cause: unknown) {
+    super("API request body was aborted");
+    this.name = "ApiRequestAbortedError";
+    this.cause = cause;
+  }
+}
+
 function getRequestHeader(request: IncomingMessage, name: string) {
   const value = request.headers[name.toLowerCase()];
 
@@ -100,18 +110,23 @@ export async function readApiJsonBody(
   const chunks: Buffer[] = [];
   let size = 0;
 
-  for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+  try {
+    for await (const chunk of request) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
 
-    size += buffer.length;
-    if (size > maximumBodyBytes) {
-      throw new ApiRequestError(
-        "invalid_request",
-        "Request body is too large",
-        { statusCode: 413 },
-      );
+      size += buffer.length;
+      if (size > maximumBodyBytes) {
+        throw new ApiRequestError(
+          "invalid_request",
+          "Request body is too large",
+          { statusCode: 413 },
+        );
+      }
+      chunks.push(buffer);
     }
-    chunks.push(buffer);
+  } catch (error) {
+    if (!request.aborted) throw error;
+    throw new ApiRequestAbortedError(error);
   }
   let source: string;
 

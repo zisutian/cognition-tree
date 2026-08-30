@@ -8,6 +8,9 @@ import {
   defaultMaximumBodyBytes,
   readApiJsonBody,
 } from "../../../../infrastructure/server/api/http/transport.ts";
+import type {
+  ApiRequestAbortedError,
+} from "../../../../infrastructure/server/api/http/transport.ts";
 
 function requestWithLength(length: number) {
   return Object.assign(Readable.from([]), {
@@ -90,5 +93,20 @@ describe("operation-specific API body limits", () => {
       message: "Request body is invalid UTF-8",
       statusCode: 400,
     });
+  });
+
+  it("classifies an aborted upload separately from API response errors", async () => {
+    const streamFailure = new Error("socket closed while uploading");
+    const request = Object.assign(Readable.from((async function* () {
+      throw streamFailure;
+    })()), {
+      aborted: true,
+      headers: { "content-type": "application/json" },
+    }) as IncomingMessage;
+
+    await expect(readApiJsonBody(request)).rejects.toMatchObject({
+      cause: streamFailure,
+      name: "ApiRequestAbortedError",
+    } satisfies Partial<ApiRequestAbortedError>);
   });
 });

@@ -9,6 +9,7 @@ import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
 import type { WorkspaceRepositoryCatalog } from "../../../../infrastructure/server/repository/catalog.ts";
 import {
+  createApiRequestHandler,
   createApiServer,
 } from "../../../../infrastructure/server/api/http/server.ts";
 
@@ -25,6 +26,62 @@ const catalog = {
 } satisfies WorkspaceRepositoryCatalog;
 
 describe("API server", () => {
+  it("ends an aborted upload without logging or writing an API error", async () => {
+    const streamFailure = new Error("socket closed while uploading");
+    const request = Object.assign(Readable.from((async function* () {
+      throw streamFailure;
+    })()), {
+      aborted: true,
+      headers: {
+        "content-type": "application/json",
+        host: "127.0.0.1",
+      },
+      method: "POST",
+      socket: { remoteAddress: "127.0.0.1" },
+      url: "/api/v3/auth/session",
+    }) as IncomingMessage;
+    let destroyed = false;
+    let logged = false;
+    const response = {
+      destroy() {
+        destroyed = true;
+      },
+      get destroyed() {
+        return destroyed;
+      },
+      headersSent: false,
+      writableEnded: false,
+      writeHead() {
+        throw new Error("Aborted request must not write response headers");
+      },
+      end() {
+        throw new Error("Aborted request must not write a response body");
+      },
+    } as unknown as ServerResponse;
+    const handler = createApiRequestHandler({
+      catalog,
+      logger: {
+        error: () => {
+          logged = true;
+        },
+      },
+      security: {
+        allowedHosts: ["127.0.0.1"],
+        allowedOrigins: [],
+        ownerSessions: {
+          createOwnerSessionForSecret: async () => null,
+          verifyOwnerSession: async () => false,
+        },
+        publicOrigin: null,
+      },
+    });
+
+    await handler(request, response);
+
+    expect(destroyed).toBe(true);
+    expect(logged).toBe(false);
+  });
+
   it("contains a rejected API handler for an invalid request target", async () => {
     const server = createApiServer({
       catalog,
