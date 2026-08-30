@@ -7,54 +7,12 @@ import {
   type PreparedVersionedContentChange,
   type VersionedContentMergePolicy,
   type VersionedContentPreparationPolicy,
-  type VersionedRepositorySnapshotTransition,
 } from "../../../application/persistence/versionedRepository";
+import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
 import type {
-  VersionedRepositoryCache,
-  VersionedRepositoryLocalState,
-} from "./versionedRepositoryCache";
+  LocalFirstRepositoryProjectionPort,
+} from "./localFirstRepositoryProjectionPort.ts";
 import { versionedContentEqual } from "./resilientVersionedRepositoryPolicy.ts";
-
-type LocalFirstRepositoryStagingProjection<
-  Content,
-  Revision extends string,
-  LocalRevision extends string,
-  Projection,
-> = {
-  prepareLocalState(
-    state: VersionedRepositoryLocalState<Content, Revision, LocalRevision>,
-    previous?: Projection | null,
-  ): PreparedVersionedContent<Content, Projection>;
-  prepareMergeBase(
-    content: Content,
-    current: VersionedRepositoryLocalState<Content, Revision, LocalRevision>,
-    currentPrepared: PreparedVersionedContent<Content, Projection>,
-    contentEqual: (left: Content, right: Content) => boolean,
-  ): PreparedVersionedContent<Content, Projection>;
-  prepareRemote(
-    content: Content,
-    revision: Revision,
-    previous?: Projection | null,
-  ): PreparedVersionedContent<Content, Projection>;
-  rememberLocal(
-    state: VersionedRepositoryLocalState<Content, Revision, LocalRevision>,
-    value: PreparedVersionedContent<Content, Projection>,
-  ): void;
-  rememberRemote(
-    revision: Revision,
-    value: PreparedVersionedContent<Content, Projection>,
-  ): void;
-  toTransition(
-    previousLocalRevision: LocalRevision,
-    state: VersionedRepositoryLocalState<Content, Revision, LocalRevision>,
-    prepared?: PreparedVersionedContent<Content, Projection>,
-  ): VersionedRepositorySnapshotTransition<
-    Content,
-    Projection,
-    Revision,
-    LocalRevision
-  >;
-};
 
 type LocalFirstRepositoryStagingOptions<
   Content,
@@ -66,11 +24,18 @@ type LocalFirstRepositoryStagingOptions<
   createLocalRevision: () => LocalRevision;
   mergeContent?: VersionedContentMergePolicy<Content, Projection>;
   preparation: VersionedContentPreparationPolicy<Content, Projection>;
-  projections: LocalFirstRepositoryStagingProjection<
+  projections: Pick<LocalFirstRepositoryProjectionPort<
     Content,
     Revision,
     LocalRevision,
     Projection
+  >,
+    | "prepareLocalState"
+    | "prepareMergeBase"
+    | "prepareRemote"
+    | "rememberLocal"
+    | "rememberRemote"
+    | "toTransition"
   >;
 }>;
 
@@ -88,11 +53,18 @@ export class LocalFirstRepositoryStaging<
   readonly #createLocalRevision: () => LocalRevision;
   readonly #mergeContent?: VersionedContentMergePolicy<Content, Projection>;
   readonly #preparation: VersionedContentPreparationPolicy<Content, Projection>;
-  readonly #projections: LocalFirstRepositoryStagingProjection<
+  readonly #projections: Pick<LocalFirstRepositoryProjectionPort<
     Content,
     Revision,
     LocalRevision,
     Projection
+  >,
+    | "prepareLocalState"
+    | "prepareMergeBase"
+    | "prepareRemote"
+    | "rememberLocal"
+    | "rememberRemote"
+    | "toTransition"
   >;
 
   constructor({

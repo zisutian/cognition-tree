@@ -9,7 +9,6 @@ import {
   type VersionedRepositoryBackend,
   type VersionedContentConflictPreference,
   type VersionedContentMergePolicy,
-  type PreparedVersionedContent,
   type VersionedContentPreparationPolicy,
   type VersionedRepositoryConflictProof,
   type VersionedRepositorySnapshot,
@@ -18,6 +17,9 @@ import {
 } from "../../../application/persistence/versionedRepository";
 import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
 import { LocalFirstRepositoryProjectionState } from "./resilientVersionedRepositoryProjection.ts";
+import {
+  LocalFirstRepositoryRemoteReconciliation,
+} from "./resilientVersionedRepositoryRemoteReconciliation.ts";
 import { LocalFirstRepositoryStaging } from "./resilientVersionedRepositoryStaging.ts";
 import {
   canUseVersionedRepositoryCachedSnapshot,
@@ -82,7 +84,6 @@ export function createLocalFirstVersionedRepository<
   Location,
   Projection
 >): VersionedRepository<Content, Revision, LocalRevision, Location, Projection> {
-  type Prepared = PreparedVersionedContent<Content, Projection>;
   type Snapshot = VersionedRepositorySnapshot<
     Content,
     Revision,
@@ -117,221 +118,15 @@ export function createLocalFirstVersionedRepository<
     preparation,
     projections,
   });
+  const remoteReconciliation = new LocalFirstRepositoryRemoteReconciliation({
+    cache,
+    createBusyError,
+    createLocalRevision,
+    mergeContent,
+    preparation,
+    projections,
+  });
   const resolveIdentity = () => Promise.resolve(repositoryIdentity);
-  const reconcilePendingRemoteSnapshot = async (
-    identity: string,
-    current: NonNullable<Awaited<ReturnType<typeof cache.load>>>,
-    currentPrepared: Prepared,
-    remote: Awaited<ReturnType<typeof backend.loadRemoteSnapshot>>,
-    remotePrepared: Prepared,
-  ) => {
-    const syncContext = await cache.loadSyncContext(identity);
-    const baseContent = syncContext?.baseContent;
-    if (!baseContent) {
-      throw new Error("Repository synchronization base is unavailable.");
-    }
-    const basePrepared = baseContent && mergeContent
-      ? projections.prepareMergeBase(
-        baseContent,
-        current,
-        currentPrepared,
-        versionedContentEqual,
-      )
-      : null;
-    const merged = basePrepared && mergeContent
-      ? mergeContent(basePrepared, currentPrepared, remotePrepared)
-      : {
-          status: "conflict" as const,
-          unitIds: ["repository"],
-        };
-
-    if (merged.status === "conflict") {
-      const state = await cache.recordConflict({
-        baseContent,
-        currentRemoteRevision: remote.revision,
-        expectedLocalRevision: current.localRevision,
-        identity,
-        localRevision: createLocalRevision(),
-        localContent: current.content,
-        remoteContent: remote.content,
-        unitIds: merged.unitIds,
-      });
-      projections.rememberLocal(state, currentPrepared);
-      projections.rememberRemote(remote.revision, remotePrepared);
-      return projections.toTransition(
-        current.localRevision,
-        state,
-        currentPrepared,
-      );
-    }
-    const mergedPrepared = merged;
-
-    preparation.validateTransition?.(remotePrepared, mergedPrepared);
-    const state = await cache.rebaseFromRemote({
-      content: merged.content,
-      expectedLocalRevision: current.localRevision,
-      identity,
-      localRevision: createLocalRevision(),
-      pendingChanges: !versionedContentEqual(merged.content, remote.content),
-      snapshot: remote,
-    });
-    projections.rememberLocal(state, mergedPrepared);
-    projections.rememberRemote(remote.revision, remotePrepared);
-    return projections.toTransition(
-      current.localRevision,
-      state,
-      mergedPrepared,
-    );
-  };
-
-  const installSynchronizedSnapshot = async (
-    identity: string,
-    submitted: NonNullable<Awaited<ReturnType<typeof cache.load>>>,
-    submittedPrepared: Prepared,
-    remote: Awaited<ReturnType<
-      typeof backend.synchronizeRemoteSnapshot
-    >>["snapshot"],
-  ) => {
-    const remotePrepared = projections.prepareRemote(
-      remote.content,
-      remote.revision,
-      submittedPrepared.projection,
-    );
-
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const current = await cache.load(identity);
-
-      if (!current) {
-        throw new Error(
-          "Local repository state disappeared during synchronization.",
-        );
-      }
-      const currentPrepared = current.localRevision === submitted.localRevision
-        ? submittedPrepared
-        : projections.prepareLocalState(
-          current,
-          submittedPrepared.projection,
-        );
-      const merged = current.localRevision === submitted.localRevision
-        ? { ...remotePrepared, status: "merged" as const }
-        : mergeContent
-          ? mergeContent(submittedPrepared, currentPrepared, remotePrepared)
-          : { status: "conflict" as const, unitIds: ["repository"] };
-
-      try {
-        if (merged.status === "conflict") {
-          const conflicted = await cache.recordConflict({
-            baseContent: submitted.content,
-            currentRemoteRevision: remote.revision,
-            expectedLocalRevision: current.localRevision,
-            identity,
-            localRevision: createLocalRevision(),
-            localContent: current.content,
-            remoteContent: remote.content,
-            unitIds: merged.unitIds,
-          });
-
-          projections.rememberLocal(conflicted, currentPrepared);
-          projections.rememberRemote(remote.revision, remotePrepared);
-          return projections.toTransition(
-            current.localRevision,
-            conflicted,
-            currentPrepared,
-          );
-        }
-        preparation.validateTransition?.(remotePrepared, merged);
-        const rebased = await cache.rebaseFromRemote({
-          content: merged.content,
-          expectedLocalRevision: current.localRevision,
-          identity,
-          localRevision: current.localRevision === submitted.localRevision &&
-              versionedContentEqual(merged.content, submitted.content)
-            ? current.localRevision
-            : createLocalRevision(),
-          pendingChanges: !versionedContentEqual(
-            merged.content,
-            remote.content,
-          ),
-          snapshot: remote,
-        });
-
-        projections.rememberLocal(rebased, merged);
-        projections.rememberRemote(remote.revision, remotePrepared);
-        return projections.toTransition(
-          current.localRevision,
-          rebased,
-          merged,
-        );
-      } catch (error) {
-        if (
-          error instanceof VersionedRepositoryLocalConflictError &&
-          attempt + 1 < 3
-        ) {
-          continue;
-        }
-        throw error;
-      }
-    }
-    throw createBusyError();
-  };
-
-  const reconcileRemoteSnapshot = async (
-    identity: string,
-    remote: Awaited<ReturnType<typeof backend.loadRemoteSnapshot>>,
-    remotePrepared: Prepared,
-  ) => {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const current = await cache.load(identity);
-
-      if (!current) {
-        throw new Error(
-          "Local repository state disappeared during remote refresh.",
-        );
-      }
-      const currentPrepared = projections.prepareLocalState(current);
-      if (current.pendingBaseRevision) {
-        if (current.remoteRevision === remote.revision) {
-          return projections.toSnapshot(current, currentPrepared);
-        }
-        try {
-          return (await reconcilePendingRemoteSnapshot(
-            identity,
-            current,
-            currentPrepared,
-            remote,
-            remotePrepared,
-          )).snapshot;
-        } catch (error) {
-          if (!(error instanceof VersionedRepositoryLocalConflictError)) {
-            throw error;
-          }
-          continue;
-        }
-      }
-      if (current.remoteRevision === remote.revision) {
-        projections.rememberRemote(remote.revision, remotePrepared);
-        return projections.toSnapshot(current, currentPrepared);
-      }
-      try {
-        preparation.validateTransition?.(currentPrepared, remotePrepared);
-        const state = await cache.replaceFromRemote({
-          expectedLocalRevision: current.localRevision,
-          identity,
-          localRevision: createLocalRevision(),
-          snapshot: remote,
-        });
-
-        projections.rememberLocal(state, remotePrepared);
-        projections.rememberRemote(remote.revision, remotePrepared);
-        return projections.toSnapshot(state, remotePrepared);
-      } catch (error) {
-        if (!(error instanceof VersionedRepositoryLocalConflictError)) {
-          throw error;
-        }
-      }
-    }
-    throw createBusyError();
-  };
 
   const runExplicitLoad = async () => {
     const identity = await resolveIdentity();
@@ -367,7 +162,11 @@ export function createLocalFirstVersionedRepository<
             localPrepared.projection,
           );
 
-      return reconcileRemoteSnapshot(identity, remote, remotePrepared);
+      return remoteReconciliation.reconcileRemoteSnapshot(
+        identity,
+        remote,
+        remotePrepared,
+      );
     }
 
     const remote = await backend.loadRemoteSnapshot();
@@ -491,7 +290,7 @@ export function createLocalFirstVersionedRepository<
           },
           content: local.content,
         });
-        const transition = await installSynchronizedSnapshot(
+        const transition = await remoteReconciliation.installSynchronizedSnapshot(
           identity,
           local,
           localPrepared,
@@ -613,7 +412,7 @@ export function createLocalFirstVersionedRepository<
           );
           let transition;
           try {
-            transition = await reconcilePendingRemoteSnapshot(
+            transition = await remoteReconciliation.reconcilePendingSnapshot(
               identity,
               local,
               localPrepared,

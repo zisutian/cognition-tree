@@ -7,12 +7,20 @@ import type {
   VersionedRepositorySnapshotTransition,
 } from "../../../application/persistence/versionedRepository.ts";
 import type { VersionedRepositoryLocalState } from "./versionedRepositoryCache.ts";
+import type {
+  LocalFirstRepositoryProjectionPort,
+} from "./localFirstRepositoryProjectionPort.ts";
 
 export class LocalFirstRepositoryProjectionState<
   Content,
   Revision extends string,
   LocalRevision extends string,
   Projection,
+> implements LocalFirstRepositoryProjectionPort<
+  Content,
+  Revision,
+  LocalRevision,
+  Projection
 > {
   #local: {
     localRevision: LocalRevision;
