@@ -329,7 +329,8 @@ pending rotation；配置使用 exact CAS，v1 摘要/version 无损迁入 v2 �
 复制、指纹校验和失败清理的唯一 owner。maintenance gate 阻止新 mutation 并等待已有
 请求结束；文件事务只复制 repositories、access-v1、agent-auth-v1、agent-config-v1 和
 operations-v1，拒绝符号链接与路径重叠，逐文件校验数量、大小和 SHA-256，最后才 CAS
-更新 bootstrap 指针。失败不切换指针；成功通过专用退出状态由根 supervisor 重启。
+更新 bootstrap 指针。失败不切换指针；目标清理失败会附加到失败状态，但不能阻止维护
+租约释放和 active 状态归零。成功通过专用退出状态由根 supervisor 重启。
 旧数据根不删除。
 
 Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前

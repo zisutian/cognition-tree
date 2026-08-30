@@ -21,12 +21,18 @@ import {
 } from "../../../../application/system/systemConfiguration.ts";
 import { BootstrapConfigurationStore } from "../../../../infrastructure/server/system/bootstrapConfigurationStore.ts";
 import { FileDataRootMigrationCoordinator } from "../../../../infrastructure/server/system/dataRootMigrationCoordinator.ts";
+import {
+  dataRootMigrationFileOperations,
+  type DataRootMigrationFileOperations,
+} from "../../../../infrastructure/server/system/dataRootMigrationFiles.ts";
 
 const roots: string[] = [];
 
 async function fixture(
   hasResidentSessions = false,
   hasPendingCodexLogin = false,
+  fileOperations: DataRootMigrationFileOperations =
+    dataRootMigrationFileOperations,
 ) {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), "ctn-migration-project-"));
   const targetParent = await mkdtemp(path.join(os.tmpdir(), "ctn-migration-target-"));
@@ -57,6 +63,7 @@ async function fixture(
     agentService: { hasResidentSessions: () => hasResidentSessions },
     bootstrap,
     controlRoot: path.join(projectRoot, ".cognition-tree", "bootstrap-v1"),
+    fileOperations,
     maintenance: { begin: async () => ({ finish }) },
     requestRestart,
     restartDelayMilliseconds: 0,
@@ -190,5 +197,37 @@ describe("data-root migration coordinator", () => {
     await expect(access(fixtureValue.target)).rejects.toMatchObject({ code: "ENOENT" });
     expect(fixtureValue.finish).toHaveBeenCalledOnce();
     expect(fixtureValue.requestRestart).not.toHaveBeenCalled();
+  });
+
+  it("records cleanup failure and releases maintenance after a failed copy", async () => {
+    const cleanup = vi.fn(async () => {
+      throw new Error("injected cleanup failure");
+    });
+    const fixtureValue = await fixture(false, false, {
+      ...dataRootMigrationFileOperations,
+      cleanup,
+    });
+
+    await symlink(
+      "note.ctn",
+      path.join(fixtureValue.source, "repositories/primary/link.ctn"),
+    );
+    const started = await fixtureValue.coordinator.start(
+      fixtureValue.initial.revision,
+      fixtureValue.target,
+    );
+    const terminal = await waitForTerminal(fixtureValue.coordinator, started.id);
+
+    expect(terminal).toMatchObject({
+      errorMessage: expect.stringContaining(
+        "Destination cleanup failed: injected cleanup failure",
+      ),
+      status: "failed",
+    });
+    expect(terminal.errorMessage).toContain("Symbolic link is not allowed");
+    expect(cleanup).toHaveBeenCalledWith(fixtureValue.target);
+    expect(fixtureValue.finish).toHaveBeenCalledOnce();
+    expect((await fixtureValue.bootstrap.readSnapshot()).configuration.dataRoot)
+      .toBe(fixtureValue.source);
   });
 });

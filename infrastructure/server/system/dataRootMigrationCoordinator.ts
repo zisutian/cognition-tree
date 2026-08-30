@@ -8,6 +8,7 @@ import {
 } from "../../../application/system/systemConfiguration.ts";
 import type {
   DataRootMigrationStatus,
+  SystemMaintenanceLease,
   SystemMaintenancePort,
 } from "../../../application/system/systemConfiguration.ts";
 import type { BootstrapConfigurationStore } from "./bootstrapConfigurationStore.ts";
@@ -16,6 +17,10 @@ import {
   dataRootMigrationFileOperations,
   type DataRootMigrationFileOperations,
 } from "./dataRootMigrationFiles.ts";
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordinator {
   readonly #agentProviderOperations: { hasPendingCodexLogin(): boolean };
@@ -108,7 +113,7 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
     const initial = this.#statuses.get(id);
 
     if (!initial) return;
-    let lease;
+    let lease: SystemMaintenanceLease | undefined;
     let pointerSwitched = false;
 
     try {
@@ -135,14 +140,36 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
       }
     } catch (error) {
       if (pointerSwitched) return;
-      await this.#files.cleanup(initial.destination);
-      this.#statuses.set(id, {
-        ...initial,
-        errorMessage: error instanceof Error ? error.message : "Data-root migration failed",
-        status: "failed",
-      });
-      lease?.finish();
-      this.#activeId = null;
+      await this.#recordFailure(initial, error, lease);
     }
+  }
+
+  async #recordFailure(
+    initial: DataRootMigrationStatus,
+    error: unknown,
+    lease: SystemMaintenanceLease | undefined,
+  ) {
+    const messages = [errorMessage(error, "Data-root migration failed")];
+
+    try {
+      await this.#files.cleanup(initial.destination);
+    } catch (cleanupError) {
+      messages.push(
+        `Destination cleanup failed: ${errorMessage(cleanupError, "unknown error")}`,
+      );
+    }
+    try {
+      lease?.finish();
+    } catch (maintenanceError) {
+      messages.push(
+        `Maintenance release failed: ${errorMessage(maintenanceError, "unknown error")}`,
+      );
+    }
+    this.#statuses.set(initial.id, {
+      ...initial,
+      errorMessage: messages.join("; "),
+      status: "failed",
+    });
+    this.#activeId = null;
   }
 }
