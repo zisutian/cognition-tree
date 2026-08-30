@@ -179,9 +179,9 @@ export class SecureJsonPartition<Value> {
     this.#name = name;
     this.#maximumBytes = maximumBytes;
     this.#parse = parse;
-    this.#acquireLock = acquireLock ?? (() => lock(this.#directory, {
+    this.#acquireLock = acquireLock ?? (() => lock(this.#file, {
       lockfilePath: path.join(this.#directory, `.${fileName}.lock`),
-      realpath: true,
+      realpath: false,
       retries: { retries: 20, factor: 1, minTimeout: 5, maxTimeout: 20 },
       stale: 30_000,
       update: 10_000,

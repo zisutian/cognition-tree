@@ -185,6 +185,35 @@ describe("Secure JSON partition", () => {
     await expect(first.read((state) => state.revision)).resolves.toBe(2);
   });
 
+  it("owns independent locks for partitions that share a directory", async () => {
+    const root = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-secure-partition-siblings-"),
+    );
+    const directory = path.join(root, "state-v1");
+    const createSibling = (fileName: string) =>
+      new SecureJsonPartition<TestState>({
+        createInitial: () => ({
+          records: [{ value: fileName }],
+          revision: 0,
+        }),
+        directory,
+        fileName,
+        name: fileName,
+        parse: parseTestState,
+      });
+    const first = createSibling("first.json");
+    const second = createSibling("second.json");
+
+    roots.push(root);
+    await Promise.all([
+      first.read((state) => state.records[0]!.value),
+      second.read((state) => state.records[0]!.value),
+    ]);
+
+    await expect(first.read((state) => state.revision)).resolves.toBe(0);
+    await expect(second.read((state) => state.revision)).resolves.toBe(0);
+  });
+
   it("keeps a known result but closes after state lock release fails", async () => {
     const { directory } = await createPartition();
     const releaseFailure = new Error("lock release failed");
