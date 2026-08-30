@@ -61,7 +61,7 @@ export function useApiAccessSettingsSession(
   );
 
   useEffect(
-    () => () => controller.dispose(),
+    () => () => controller.reset(),
     [controller],
   );
 

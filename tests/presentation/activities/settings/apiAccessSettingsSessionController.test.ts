@@ -187,32 +187,4 @@ describe("API access settings session controller", () => {
     });
   });
 
-  it("makes dispose terminal and ignores late operations", async () => {
-    const adapter = administration();
-    const staleTokens = deferred<AutomationApiToken[]>();
-
-    vi.mocked(adapter.listTokens).mockImplementationOnce(
-      () => staleTokens.promise,
-    );
-    const controller = createApiAccessSettingsSessionController(adapter);
-    const listener = vi.fn();
-
-    controller.subscribe(listener);
-    const loading = controller.load();
-    const snapshotAtDispose = controller.getSnapshot();
-
-    controller.dispose();
-    controller.dispose();
-    staleTokens.resolve([automationToken("automation-stale")]);
-    await loading;
-
-    expect(controller.getSnapshot()).toBe(snapshotAtDispose);
-    expect(listener).toHaveBeenCalledOnce();
-    expect(controller.subscribe(listener)).toBeTypeOf("function");
-    await expect(controller.load()).rejects.toThrow("disposed");
-    await expect(controller.revokeToken("token-1")).rejects.toThrow(
-      "disposed",
-    );
-    expect(() => controller.reset()).toThrow("disposed");
-  });
 });

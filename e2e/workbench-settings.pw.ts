@@ -98,7 +98,7 @@ test.describe("settings activity flows", () => {
     await expect(page.getByText(secret, { exact: true })).toHaveCount(0);
     expect(await stopTextReappearanceObservation(secretObservation)).toBe(false);
     const ownerCredentialEndpoint =
-      "**/api/v3/admin/system-configuration/owner-credential";
+      "**/api/v3/admin/system-configuration/owner-credential/rotations";
     let markRotationResponseHeld!: () => void;
     let releaseRotationResponse!: () => void;
     const rotationResponseHeld = new Promise<void>((resolve) => {
@@ -122,7 +122,7 @@ test.describe("settings activity flows", () => {
       await rotationResponseRelease;
       await route.fulfill({ response });
     });
-    await panel.getByRole("button", { name: "轮换密钥" }).click();
+    await panel.getByRole("button", { name: "重新准备新密钥" }).click();
     await rotationResponseHeld;
     expect(lateSecret).toMatch(/^ctn_owner_[A-Za-z0-9_-]{43}$/);
     await settingsContext.getByRole("button", {
@@ -134,7 +134,7 @@ test.describe("settings activity flows", () => {
       name: "服务",
       exact: true,
     }).click();
-    await expect(panel.getByRole("button", { name: "轮换密钥" }))
+    await expect(panel.getByRole("button", { name: "重新准备新密钥" }))
       .toBeEnabled();
     await page.unroute(ownerCredentialEndpoint);
     await expect(oneTimeSecret.locator("code")).toHaveCount(0);
@@ -472,6 +472,8 @@ test.describe("settings activity flows", () => {
     selection = panel.getByRole("combobox", { name: "默认 Profile" });
     await selection.selectOption(e2eAgentProfileId);
     await expect(selection).toHaveValue(e2eAgentProfileId);
+    await expect(page.getByLabel("智能体状态").locator("dd").last())
+      .toHaveText("E2E Agent");
 
     await page.reload();
     await expect(page.getByRole("navigation", { name: "工作区功能" }))

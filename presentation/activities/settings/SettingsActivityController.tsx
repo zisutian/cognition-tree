@@ -99,11 +99,13 @@ export function SettingsActivityController({
     if (!active) {
       apiAccessSession.reset();
       operationsSession.reset();
+      systemOwnerCredentialSession.dismissSecret();
     }
   }, [
     active,
     apiAccessSession.reset,
     operationsSession.reset,
+    systemOwnerCredentialSession.dismissSecret,
   ]);
 
   useEffect(() => {
@@ -136,6 +138,9 @@ export function SettingsActivityController({
     }
     if (section === "audit" && nextSection !== "audit") {
       operationsSession.reset();
+    }
+    if (section === "system" && nextSection !== "system") {
+      systemOwnerCredentialSession.dismissSecret();
     }
     setSection(nextSection);
   };

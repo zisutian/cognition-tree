@@ -642,7 +642,7 @@ describe("settings activity", () => {
   });
 
   it("keeps recovery guidance beside the secret when activation fails", () => {
-    const markup = renderToStaticMarkup(
+    const panelMarkup = renderToStaticMarkup(
       <SettingsPanel
         agent={agent}
         agentRoute={overviewAgentRoute}
@@ -664,8 +664,24 @@ describe("settings activity", () => {
         }}
       />,
     );
+    const statusMarkup = renderToStaticMarkup(
+      <SettingsStatusPanel
+        agent={agent}
+        agentRoute={overviewAgentRoute}
+        apiAccessSelection={{ kind: "overview" }}
+        apiAccessSession={apiAccessSession}
+        onCollapseDetail={() => undefined}
+        operationsSession={operationsSession}
+        section="system"
+        systemConfigurationState={{
+          ...configurationState,
+          errorMessage: "durable write outcome could not be verified",
+        }}
+        systemOwnerCredentialSession={systemOwnerCredentialSession}
+      />,
+    );
 
-    expectMarkupSemantics(markup, {
+    expectMarkupSemantics(panelMarkup + statusMarkup, {
       has: [
         "ctn_owner_once",
         "激活结果可能未知",

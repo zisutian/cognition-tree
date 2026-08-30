@@ -150,6 +150,9 @@ export function AgentSettingsStatus({ agent, route }: {
   const selectedProfile = route.page === "profiles"
     ? profiles.find(({ id }) => id === route.selectedProfileId) ?? null
     : null;
+  const preferredProfile = profiles.find(
+    ({ id }) => id === agent.state.preferredProfileId,
+  );
 
   if (selectedProvider) {
     return <ProviderStatus agent={agent} provider={selectedProvider} />;
@@ -170,7 +173,12 @@ export function AgentSettingsStatus({ agent, route }: {
         />
         <ToolPropertyRow label="Provider" value={providers.length} />
         <ToolPropertyRow label="Profile" value={profiles.length} />
-        <ToolPropertyRow label="默认 Profile" value={agent.state.preferredProfileId ?? "未选择"} />
+        <ToolPropertyRow
+          label="默认 Profile"
+          value={agent.state.preferredProfileId === null
+            ? "未选择"
+            : preferredProfile?.label ?? "不可用"}
+        />
       </ToolPropertyList>
     </ToolSection>
   );
