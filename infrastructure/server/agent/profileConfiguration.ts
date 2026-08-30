@@ -12,6 +12,7 @@ import type {
   AgentConfigurationState,
   StoredProfile,
 } from "./configurationStateCodec.ts";
+import { requireAgentConfigurationProvider } from "./configurationStateLookup.ts";
 import {
   configurationSnapshot,
   profileDigest,
@@ -87,7 +88,13 @@ export class AgentProfileConfiguration {
       if (!provider) {
         throw new AgentConfigurationValidationError("Agent provider does not exist");
       }
-      const previous = state.profiles[index]!;
+      const previous = state.profiles[index];
+
+      if (!previous) {
+        throw new AgentConfigurationValidationError(
+          "Agent profile does not exist",
+        );
+      }
       const profile: StoredProfile = {
         ...normalizeProfileInput(input, provider),
         conformance: null,
@@ -132,7 +139,10 @@ export class AgentProfileConfiguration {
       if (!profile) {
         throw new AgentConfigurationValidationError("Agent profile does not exist");
       }
-      const provider = state.providers.find(({ id }) => id === profile.providerId)!;
+      const provider = requireAgentConfigurationProvider(
+        state,
+        profile.providerId,
+      );
 
       if (profile.parameters.kind !== "chat") {
         throw new AgentConfigurationValidationError(

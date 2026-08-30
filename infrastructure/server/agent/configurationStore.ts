@@ -34,6 +34,7 @@ import {
   profileView,
   providerView,
 } from "./configurationViews.ts";
+import { requireAgentConfigurationProvider } from "./configurationStateLookup.ts";
 import { AgentProfileConfiguration } from "./profileConfiguration.ts";
 import { AgentProviderConfiguration } from "./providerConfiguration.ts";
 
@@ -118,9 +119,10 @@ export class AgentConfigurationStore {
         const storedProfile = state.profiles.find(({ id }) => id === profileId);
 
         if (!storedProfile) return null;
-        const storedProvider = state.providers.find(({ id }) =>
-          id === storedProfile.providerId
-        )!;
+        const storedProvider = requireAgentConfigurationProvider(
+          state,
+          storedProfile.providerId,
+        );
 
         activeUse.bindProvider(storedProvider.id);
         return {

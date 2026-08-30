@@ -14,6 +14,7 @@ import type {
   StoredProfile,
   StoredProvider,
 } from "./configurationStateCodec.ts";
+import { requireAgentConfigurationProvider } from "./configurationStateLookup.ts";
 
 function digest(value: unknown): `sha256:${string}` {
   return `sha256:${createStateDigest(serializeJsonIteratively(value, {
@@ -106,7 +107,7 @@ export function configurationSnapshot(
     profiles: state.profiles.map((profile) =>
       profileView(
         profile,
-        state.providers.find(({ id }) => id === profile.providerId)!,
+        requireAgentConfigurationProvider(state, profile.providerId),
       )
     ),
     providers: state.providers.map(providerView),

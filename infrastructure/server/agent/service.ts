@@ -154,7 +154,13 @@ export class AgentService {
       ]));
       const profiles: AgentProfileSummaryDto[] = configuration.profiles.map(
         (profile) => {
-          const provider = providers.get(profile.providerId)!;
+          const provider = providers.get(profile.providerId);
+
+          if (!provider) {
+            throw new Error(
+              `Agent profile provider does not exist: ${profile.providerId}`,
+            );
+          }
 
           return {
             authenticationStatus: provider.authenticationStatus,
