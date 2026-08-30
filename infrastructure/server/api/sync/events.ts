@@ -76,17 +76,24 @@ export function filterApiChangeSet(
   changes: DomainChangeSetDto,
   principal: ApiPrincipalDto,
 ): DomainChangeSetDto {
-  const resources = changes.resources.filter(({ domain, repositoryId }) =>
-    canRead(principal, domain) &&
-    repositoryAllowed(principal, repositoryId)
-  );
-  const visibleResourceIds = new Set(
-    resources.map(({ resourceId }) => resourceId),
-  );
+  const visibilityByResourceId = new Map<string, boolean>();
+  const ambiguousResourceIds = new Set<string>();
+  const resources = changes.resources.filter((resource) => {
+    const visible = canRead(principal, resource.domain) &&
+      repositoryAllowed(principal, resource.repositoryId);
+    const previous = visibilityByResourceId.get(resource.resourceId);
+
+    if (previous !== undefined && previous !== visible) {
+      ambiguousResourceIds.add(resource.resourceId);
+    }
+    visibilityByResourceId.set(resource.resourceId, visible);
+    return visible;
+  });
 
   return {
     blocks: changes.blocks.filter(({ resourceId }) =>
-      visibleResourceIds.has(resourceId)
+      visibilityByResourceId.get(resourceId) === true &&
+      !ambiguousResourceIds.has(resourceId)
     ),
     occurredAt: changes.occurredAt,
     resources,
@@ -158,6 +165,7 @@ export class ApiEventHub {
     checkpoint: ApiRevisionCheckpointDto,
     changes: DomainChangeSetDto,
   ) {
+    if (this.#disposed) return;
     this.#sequence += 1;
     const event: ApiChangeEventDto = {
       changes,

@@ -7,7 +7,10 @@ import type {
   ApiRevisionCheckpointDto,
 } from "../../../../contracts/api/types.ts";
 import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
-import { ApiEventHub } from "../../../../infrastructure/server/api/sync/events.ts";
+import {
+  ApiEventHub,
+  filterApiChangeSet,
+} from "../../../../infrastructure/server/api/sync/events.ts";
 
 class EventResponse {
   readonly chunks: string[] = [];
@@ -91,5 +94,51 @@ describe("API event hub", () => {
     expect(failed.writeCalls).toBe(2);
     expect(healthy.chunks).toHaveLength(3);
     expect(hub.sequence).toBe(2);
+  });
+
+  it("drops block changes whose resource id has mixed visibility", () => {
+    const automation: ApiPrincipalDto = {
+      id: "automation",
+      kind: "automation",
+      name: "Workspace reader",
+      repositoryIds: ["repository-a"],
+      scopes: ["workspace:read"],
+    };
+    const filtered = filterApiChangeSet({
+      blocks: [{
+        blockId: "block-shared",
+        kind: "updated",
+        resourceId: "resource-shared",
+        updatedAt: "2026-08-30T00:00:00.000Z",
+      }],
+      occurredAt: "2026-08-30T00:00:00.000Z",
+      resources: [
+        {
+          domain: "workspace",
+          kind: "updated",
+          repositoryId: "repository-a",
+          resourceId: "resource-shared",
+        },
+        {
+          domain: "journal",
+          kind: "updated",
+          resourceId: "resource-shared",
+        },
+      ],
+    }, automation);
+
+    expect(filtered.resources).toEqual([
+      expect.objectContaining({ domain: "workspace" }),
+    ]);
+    expect(filtered.blocks).toEqual([]);
+  });
+
+  it("does not advance a disposed event stream", () => {
+    const hub = new ApiEventHub(streamId);
+
+    hub.dispose();
+    hub.publish(checkpoint, changes);
+
+    expect(hub.sequence).toBe(0);
   });
 });

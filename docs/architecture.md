@@ -224,6 +224,8 @@ secret。Cookie 写请求还必须精确匹配设置中的 HTTPS Origin。Bearer
 `/api/v3/content/*` 的已授权只读资源、搜索与无正文 change event；trusted-client
 拥有全部内容读取与三个 sync operation，但不能取得 Agent、仓库管理、Provider、
 系统设置或 owner-session 能力。
+change event 的 resource 逐项鉴权；block 只在其 resourceId 的全部同名资源均可见时
+投影，跨域或跨仓同名且可见性混合时必须丢弃，不能凭 ID 集合扩大授权。
 
 内容写入只有三个授权来源：owner 官方浏览器 sync、trusted-client 同步，以及已批准
 Agent proposal。前两者共用服务端 merge-aware sync；Agent 始终使用冻结 proposal 的
