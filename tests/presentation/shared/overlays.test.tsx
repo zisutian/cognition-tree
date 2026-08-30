@@ -54,13 +54,17 @@ describe("shared overlays", () => {
   });
 
   it("provides feedback without rendering an overlay", () => {
+    const controller = createProblemCenter<"notes">({
+      scheduler: { schedule: () => () => undefined },
+    });
     const markup = renderToStaticMarkup(
-      <FeedbackProvider>
+      <FeedbackProvider controller={controller}>
         <span>工作台</span>
       </FeedbackProvider>,
     );
 
     expect(markup).toContain("工作台");
+    controller.dispose();
   });
 
   it("reports both synchronous throws and asynchronous rejections", async () => {

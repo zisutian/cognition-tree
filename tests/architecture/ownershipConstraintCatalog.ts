@@ -64,6 +64,12 @@ export function createOwnershipTextPolicies({
       /^presentation\/activities\/activityCatalog\.ts$/,
     ],
     [
+      "authenticated workbench ProblemCenter",
+      presentationModules,
+      /\bcreateProblemCenter(?:<[^>]+>)?\s*\(/,
+      /^presentation\/shell\/AuthenticatedWorkbenchRoot\.tsx$/,
+    ],
+    [
       "filesystem persistence primitives",
       infrastructureModules,
       /function (?:fsyncDirectory|writeFileDurably)\s*\(/,

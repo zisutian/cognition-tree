@@ -6,7 +6,8 @@ import { TodoContext } from "../../../../presentation/activities/todo/TodoContex
 import { TodoDetailPanel } from "../../../../presentation/activities/todo/TodoDetailPanel";
 import { TodoEditorPanel } from "../../../../presentation/activities/todo/TodoEditorPanel";
 import { TodoRecurrenceEditor } from "../../../../presentation/activities/todo/TodoRecurrenceEditor";
-import { FeedbackProvider } from "../../../../presentation/ui/shared/FeedbackProvider";
+import { TestFeedbackProvider as FeedbackProvider } from
+  "../../fixtures/TestFeedbackProvider";
 import { createTodoView } from "../../fixtures/todoViewFixture";
 import { expectMarkupSemantics } from "../../markupSemantics";
 

@@ -10,10 +10,10 @@ import {
   NoteEditorPanel,
   submitNotesEditorChange,
 } from "../../../../../presentation/activities/notes/edit/NoteEditorPanel";
-import {
-  FeedbackProvider,
-  runFeedbackAction,
-} from "../../../../../presentation/ui/shared/FeedbackProvider";
+import { runFeedbackAction } from
+  "../../../../../presentation/ui/shared/FeedbackProvider";
+import { TestFeedbackProvider as FeedbackProvider } from
+  "../../../fixtures/TestFeedbackProvider";
 import { createNotesView } from "../../../fixtures/notesViewFixture";
 import { defaultCtnSyntax } from "../../../../../core/ctn/syntax/defaultSyntax";
 import { expectMarkupSemantics } from "../../../markupSemantics";

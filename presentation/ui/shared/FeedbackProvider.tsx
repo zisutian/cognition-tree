@@ -2,19 +2,14 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
-  useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import {
-  createProblemCenter,
-  type ProblemCenterController,
-} from "../../../application/problems/problemCenter";
+import type { ProblemCenterController } from
+  "../../../application/problems/problemCenter";
 import type { ActivityId } from "../activityTypes";
-import { clientApplicationScheduler } from "../../../infrastructure/client/platform/applicationServices";
 
 type FeedbackActions = {
   notify: (message: string) => void;
@@ -124,37 +119,26 @@ export function FeedbackProvider({
 }: {
   activeActivityId?: ActivityId;
   children: ReactNode;
-  controller?: WorkbenchActivityFeedbackController;
+  controller: WorkbenchActivityFeedbackController;
 }) {
-  const [fallbackController] = useState(
-    () => createProblemCenter<ActivityId>({
-      scheduler: clientApplicationScheduler,
-    }),
-  );
-  const resolvedController = controller ?? fallbackController;
   const activeActivityIdRef = useRef(activeActivityId);
 
   activeActivityIdRef.current = activeActivityId;
 
-  useEffect(() => {
-    if (controller) return undefined;
-    return () => fallbackController.dispose();
-  }, [controller, fallbackController]);
-
   const notify = useCallback(
-    (message: string) => resolvedController.reportInfo(
+    (message: string) => controller.reportInfo(
       activeActivityIdRef.current,
       message,
     ),
-    [resolvedController],
+    [controller],
   );
   const notifyError = useCallback(
     (error: unknown) => reportActivityFeedbackError(
-      resolvedController,
+      controller,
       activeActivityIdRef.current,
       error,
     ),
-    [resolvedController],
+    [controller],
   );
   const actions = useMemo<FeedbackActions>(
     () => ({
@@ -164,17 +148,17 @@ export function FeedbackProvider({
         const sourceActivityId = activeActivityIdRef.current;
 
         return runActivityFeedbackAction(
-          resolvedController,
+          controller,
           sourceActivityId,
           action,
         );
       }) as RunFeedbackAction,
     }),
-    [notify, notifyError, resolvedController],
+    [controller, notify, notifyError],
   );
 
   return (
-    <FeedbackControllerContext.Provider value={resolvedController}>
+    <FeedbackControllerContext.Provider value={controller}>
       <FeedbackContext.Provider value={actions}>
         {children}
       </FeedbackContext.Provider>

@@ -16,7 +16,8 @@ import {
 import { RepositoryPanel } from "../../../../presentation/activities/repository/RepositoryPanel";
 import { RepositoryStatusPanel } from "../../../../presentation/activities/repository/RepositoryStatusPanel";
 import { copyRepositoryLocation } from "../../../../presentation/activities/repository/repositoryViewHelpers";
-import { FeedbackProvider } from "../../../../presentation/ui/shared/FeedbackProvider";
+import { TestFeedbackProvider as FeedbackProvider } from
+  "../../fixtures/TestFeedbackProvider";
 import {
   projectRepositoryIssues,
   type RepositoryOption,
