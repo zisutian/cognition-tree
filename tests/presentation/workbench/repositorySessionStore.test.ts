@@ -52,4 +52,21 @@ describe("repository session store", () => {
       .toBe(280);
     expect(registry.get(notesKey, () => "edit")).not.toBe(layout);
   });
+
+  it("removes values for repositories that leave the catalog", () => {
+    const registry = new RepositorySessionStoreRegistry();
+    const layoutKey = createRepositorySessionKey<number>("layout");
+    const notesKey = createRepositorySessionKey<string>("notes");
+    const layout = registry.get(layoutKey, () => 0);
+    const notes = registry.get(notesKey, () => "edit");
+
+    layout.update("repository-alpha", 280);
+    layout.update("repository-beta", 360);
+    notes.update("repository-beta", "graph");
+    registry.retainRepositoryIds(new Set(["repository-alpha"]));
+
+    expect(layout.read("repository-alpha")).toBe(280);
+    expect(layout.read("repository-beta")).toBe(0);
+    expect(notes.read("repository-beta")).toBe("edit");
+  });
 });

@@ -113,6 +113,12 @@ export function AuthenticatedWorkbenchRoot({
     systemConfigurationController,
     systemConfigurationState: systemConfigurationSnapshot,
   });
+  const repositorySessionIds = useMemo(
+    () => snapshot.catalog.state.status === "ready"
+      ? snapshot.catalog.state.repositories.map(({ id }) => id)
+      : null,
+    [snapshot.catalog.state],
+  );
 
   useEffect(() => {
     const lifecycleEpoch = lifecycleEpochRef.current + 1;
@@ -184,7 +190,7 @@ export function AuthenticatedWorkbenchRoot({
   }
 
   return (
-    <RepositorySessionStateProvider>
+    <RepositorySessionStateProvider repositoryIds={repositorySessionIds}>
       {workbench}
     </RepositorySessionStateProvider>
   );

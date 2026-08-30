@@ -12,6 +12,12 @@ export function createRepositorySessionKey<Value>(description: string) {
   return Symbol(description) as RepositorySessionKey<Value>;
 }
 
+export const globalWorkbenchSessionId = "workbench-global";
+
+type RepositorySessionStoreOwner = {
+  retainRepositoryIds(repositoryIds: ReadonlySet<string>): void;
+};
+
 export class RepositorySessionStore<Value> {
   readonly #createInitial: () => Value;
   readonly #listeners = new Map<string, Set<() => void>>();
@@ -26,6 +32,12 @@ export class RepositorySessionStore<Value> {
       this.#values.set(repositoryId, this.#createInitial());
     }
     return this.#values.get(repositoryId) as Value;
+  }
+
+  retainRepositoryIds(repositoryIds: ReadonlySet<string>) {
+    for (const repositoryId of this.#values.keys()) {
+      if (!repositoryIds.has(repositoryId)) this.#values.delete(repositoryId);
+    }
   }
 
   subscribe(repositoryId: string, listener: () => void): () => void {
@@ -56,7 +68,7 @@ export class RepositorySessionStore<Value> {
 }
 
 export class RepositorySessionStoreRegistry {
-  readonly #stores = new Map<symbol, object>();
+  readonly #stores = new Map<symbol, RepositorySessionStoreOwner>();
 
   get<Value>(
     key: RepositorySessionKey<Value>,
@@ -71,5 +83,11 @@ export class RepositorySessionStoreRegistry {
 
     this.#stores.set(key, store);
     return store;
+  }
+
+  retainRepositoryIds(repositoryIds: ReadonlySet<string>) {
+    for (const store of this.#stores.values()) {
+      store.retainRepositoryIds(repositoryIds);
+    }
   }
 }

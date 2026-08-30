@@ -3,6 +3,7 @@ import {
   createElement,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useSyncExternalStore,
   type Dispatch,
@@ -10,6 +11,7 @@ import {
   type SetStateAction,
 } from "react";
 import {
+  globalWorkbenchSessionId,
   type RepositorySessionKey,
   RepositorySessionStoreRegistry,
 } from "./repositorySessionStore";
@@ -19,12 +21,21 @@ const RepositorySessionStoreContext =
 
 export function RepositorySessionStateProvider({
   children,
+  repositoryIds,
 }: {
   children: ReactNode;
+  repositoryIds: readonly string[] | null;
 }) {
   const registryRef = useRef<RepositorySessionStoreRegistry | null>(null);
 
   registryRef.current ??= new RepositorySessionStoreRegistry();
+  useEffect(() => {
+    if (repositoryIds === null) return;
+    registryRef.current?.retainRepositoryIds(new Set([
+      globalWorkbenchSessionId,
+      ...repositoryIds,
+    ]));
+  }, [repositoryIds]);
   return createElement(
     RepositorySessionStoreContext.Provider,
     { value: registryRef.current },

@@ -6,15 +6,16 @@ import {
   activityDescriptors,
   getActivityLabel,
 } from "../../activities/activityCatalog";
+import type { RenderActivity } from "../../activities/activityController";
 import AppView from "../../ui/AppView";
-import { PlaceholderPanel } from "./PlaceholderPanel";
 import type { ActivityId } from "../../ui/activityTypes";
 import {
   FeedbackProvider,
   type WorkbenchActivityFeedbackController,
 } from "../../ui/shared/FeedbackProvider";
+import { globalWorkbenchSessionId } from "../../ui/workbench/repositorySessionStore";
 import { useWorkbenchLayout } from "../../ui/workbench/useWorkbenchLayout";
-import type { RenderActivity } from "../../activities/activityController";
+import { PlaceholderPanel } from "./PlaceholderPanel";
 import { WorkbenchProblemsController } from "./WorkbenchProblemsController";
 import { canChangeActivityWithSyntaxDraft } from "./syntaxNavigationGuard";
 
@@ -51,7 +52,7 @@ export function WorkspaceWorkbench({
   onActiveActivityChange: (activityId: ActivityId) => void;
 }) {
   const workbench = useWorkbenchLayout(
-    application.repository.activeDescriptor?.id ?? "workbench-global",
+    application.repository.activeDescriptor?.id ?? globalWorkbenchSessionId,
   );
   const [retainedActivityIds, setRetainedActivityIds] = useState(
     () =>
