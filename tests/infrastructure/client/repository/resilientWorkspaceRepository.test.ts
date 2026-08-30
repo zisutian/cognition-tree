@@ -35,7 +35,6 @@ function createRemoteBackend() {
   let content = createWorkspaceRepositoryContent("Remote");
   let revision = revisionA;
   let unavailable = false;
-  let conflictRevision: typeof revision | null = null;
   let remoteError: WorkspaceRepositoryRemoteError | null = null;
   const commits: RemoteWorkspaceSyncRequest[] = [];
   const backend: WorkspaceRepositoryBackend = {
@@ -45,9 +44,6 @@ function createRemoteBackend() {
       }
       if (remoteError) {
         throw remoteError;
-      }
-      if (conflictRevision) {
-        throw new WorkspaceRepositoryBackendConflictError(conflictRevision);
       }
       if (commit.base.revision !== revision) {
         throw new WorkspaceRepositoryBackendConflictError(revision);
@@ -73,9 +69,6 @@ function createRemoteBackend() {
   return {
     backend,
     commits,
-    setConflict(nextRevision: typeof revision | null) {
-      conflictRevision = nextRevision;
-    },
     setRemote(nextContent: typeof content, nextRevision: typeof revision) {
       content = structuredClone(nextContent);
       revision = nextRevision;
@@ -217,10 +210,10 @@ describe("local-first workspace repository", () => {
     expect(refreshed).toMatchObject({
       conflictRevision: revisionC,
       content: { workspace: { name: "Local draft" } },
-      localRevision: staged.snapshot.localRevision,
       pendingChanges: true,
       remoteRevision: revisionC,
     });
+    expect(refreshed.localRevision).not.toBe(staged.snapshot.localRevision);
   });
 
   it("does not rescan a Local working tree as an internal precondition of stage", async () => {
@@ -249,11 +242,18 @@ describe("local-first workspace repository", () => {
     const conflicted = await repository.synchronizePendingSnapshot();
 
     expect(conflicted.status).toBe("conflict");
-    expect(conflicted.transitions.at(-1)?.snapshot).toMatchObject({
-      conflictRevision: revisionC,
-      localRevision: staged.snapshot.localRevision,
-      remoteRevision: revisionC,
+    const conflictTransition = conflicted.transitions.at(-1);
+
+    expect(conflictTransition).toMatchObject({
+      previousLocalRevision: staged.snapshot.localRevision,
+      snapshot: {
+        conflictRevision: revisionC,
+        remoteRevision: revisionC,
+      },
     });
+    expect(conflictTransition?.snapshot.localRevision).not.toBe(
+      staged.snapshot.localRevision,
+    );
   });
 
   it("opens the durable Local draft while the server is offline", async () => {
@@ -515,21 +515,31 @@ describe("local-first workspace repository", () => {
       createWorkspaceRepositoryContent("Local pending"),
       initial,
     );
-    remote.setConflict(revisionC);
+    remote.setRemote(
+      createWorkspaceRepositoryContent("Remote after conflict"),
+      revisionC,
+    );
 
     const conflicted = await repository.synchronizePendingSnapshot();
 
     expect(conflicted.status).toBe("conflict");
     expect(conflicted.transitions.at(-1)?.snapshot).toMatchObject({
       conflictRevision: revisionC,
-      localRevision: pending.snapshot.localRevision,
       remoteRevision: revisionC,
     });
+    const conflictSnapshot = conflicted.transitions.at(-1)?.snapshot;
+
+    if (!conflictSnapshot) {
+      throw new Error("Conflict synchronization did not publish a snapshot.");
+    }
+    expect(conflictSnapshot.localRevision).not.toBe(
+      pending.snapshot.localRevision,
+    );
 
     const latest = await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("Local after conflict"),
-      pending.snapshot,
+      conflictSnapshot,
     );
     await expect(repository.loadSnapshot()).resolves.toMatchObject({
       content: { workspace: { name: "Local after conflict" } },

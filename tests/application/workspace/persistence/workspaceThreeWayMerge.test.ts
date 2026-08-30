@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { defaultCtnSyntaxSource } from "../../../../core/ctn/syntax/defaultSyntax";
-import { createCanonicalNoteSource } from "../../../../core/workspace/model/workspaceData";
 import { recoverWorkspaceLocalConflictCopies } from "../../../../application/workspace/persistence/workspaceConflictRecovery";
 import { prepareWorkspaceRepositoryContent } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation";
 import { mergeWorkspaceContent } from "../../../../application/workspace/persistence/workspaceThreeWayMerge";
@@ -89,26 +88,20 @@ describe("Workspace three-way persistence", () => {
 
   it("creates a recovery note and rejects mixed unsupported units", () => {
     let nextId = 500;
-    const timestamp = "2026-07-18T00:00:00.000Z";
-    const remote = createWorkspaceRepositoryContent(
+    const remote = createPreparedWorkspaceContent(
       "Workspace",
-      createCanonicalNoteSource({
-        blockId: "00000000-0000-4000-8000-000000000001",
-        timestamp,
-        title: "远端笔记",
-      }) + "\n: 远端正文",
+      "远端笔记\n\t: 远端正文",
     );
-    const local = structuredClone(remote);
-
-    local.workspace.notes[0]!.source = createCanonicalNoteSource({
-      blockId: "00000000-0000-4000-8000-000000000001",
-      timestamp,
-      title: "本地笔记",
-    }) + "\n: 本地正文";
+    const local = createPreparedWorkspaceContent(
+      "Workspace",
+      "本地笔记\n\t: 本地正文",
+    );
+    const sourceNoteId = remote.workspace.notes[0]!.id;
+    const conflictUnitId = `workspace:note:${sourceNoteId}`;
     const remoteProjection = prepareWorkspaceRepositoryContent(remote);
     const recovered = recoverWorkspaceLocalConflictCopies(
       { content: remote, projection: remoteProjection },
-      { unitIds: ["workspace:note:note-a"] },
+      { unitIds: [conflictUnitId] },
       {
         createBlockId: () =>
           `00000000-0000-4000-8000-${String(nextId++).padStart(12, "0")}`,
@@ -137,7 +130,7 @@ describe("Workspace three-way persistence", () => {
     });
     expect(() => recoverWorkspaceLocalConflictCopies(
       { content: remote, projection: remoteProjection },
-      { unitIds: ["workspace:note:note-a", "workspace:tree"] },
+      { unitIds: [conflictUnitId, "workspace:tree"] },
       {
         createBlockId: () =>
           `00000000-0000-4000-8000-${String(nextId++).padStart(12, "0")}`,
