@@ -29,6 +29,15 @@ function catalogData(
   };
 }
 
+function deferred<Value>() {
+  let resolve!: (value: Value) => void;
+  const promise = new Promise<Value>((next) => {
+    resolve = next;
+  });
+
+  return { promise, resolve };
+}
+
 function createHarness(initial = catalogData()) {
   let activeId: string | null = descriptor.id;
   const catalog: WorkspaceRepositoryCatalog = {
@@ -121,6 +130,9 @@ describe("repository catalog controller", () => {
     expect(harness.controller.getSnapshot().activeDescriptor?.label).toBe(
       "Renamed",
     );
+    expect(harness.controller.getSnapshot().state).toMatchObject({
+      operation: "idle",
+    });
   });
 
   it("persists selection and publishes the replacement descriptor", async () => {
@@ -150,5 +162,63 @@ describe("repository catalog controller", () => {
       activeDescriptor: null,
       state: { activeRepositoryId: null, repositories: [] },
     });
+  });
+
+  it("publishes only the latest concurrent catalog reload", async () => {
+    const harness = createHarness();
+    const first = deferred<WorkspaceRepositoryCatalogData>();
+    const second = deferred<WorkspaceRepositoryCatalogData>();
+    const secondary = { ...descriptor, id: "secondary", label: "Secondary" };
+
+    vi.mocked(harness.catalog.listRepositories)
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    const firstReload = harness.controller.reload();
+    const secondReload = harness.controller.reload();
+
+    second.resolve(catalogData([secondary]));
+    await secondReload;
+    first.resolve(catalogData([descriptor]));
+    await firstReload;
+
+    expect(harness.controller.getSnapshot().activeDescriptor).toBe(secondary);
+  });
+
+  it("invalidates an in-flight startup reload when stopped", async () => {
+    const harness = createHarness();
+    const pending = deferred<WorkspaceRepositoryCatalogData>();
+
+    vi.mocked(harness.catalog.listRepositories).mockReturnValueOnce(
+      pending.promise,
+    );
+    harness.controller.start();
+    harness.controller.stop();
+    pending.resolve(catalogData());
+    await pending.promise;
+    await Promise.resolve();
+
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      activeDescriptor: null,
+      state: { status: "loading" },
+    });
+  });
+
+  it("does not let an older reload overwrite a completed catalog operation", async () => {
+    const harness = createHarness();
+    const pending = deferred<WorkspaceRepositoryCatalogData>();
+    const created = { ...descriptor, id: "created", label: "Created" };
+
+    await harness.controller.reload();
+    vi.mocked(harness.catalog.listRepositories).mockReturnValueOnce(
+      pending.promise,
+    );
+    const reload = harness.controller.reload();
+
+    harness.provisionRepository.mockResolvedValueOnce(created);
+    await harness.controller.createRepository({ name: "Created" });
+    pending.resolve(catalogData());
+    await reload;
+
+    expect(harness.controller.getSnapshot().activeDescriptor).toBe(created);
   });
 });

@@ -25,11 +25,13 @@ export function createBuiltInCatalogController(catalog: BuiltInCatalog) {
   const listeners = new Set<() => void>();
   let state: BuiltInCatalogState = { status: "loading" };
   let generation = 0;
+  let started = false;
   const publish = (next: BuiltInCatalogState) => {
     state = next;
     listeners.forEach((listener) => listener());
   };
   const reload = async () => {
+    if (state.status === "ready" && state.retryingId !== null) return;
     const operationGeneration = ++generation;
     const previous = state;
 
@@ -68,21 +70,31 @@ export function createBuiltInCatalogController(catalog: BuiltInCatalog) {
       if (previous.retryingId !== null) {
         throw new Error("Another built-in retry is already running.");
       }
+      const operationGeneration = ++generation;
+
       publish({ ...previous, retryingId: id });
       try {
         await catalog.retry(id);
         const catalogData = await catalog.listBuiltIns();
 
-        publish({ ...catalogData, retryingId: null, status: "ready" });
+        if (operationGeneration === generation) {
+          publish({ ...catalogData, retryingId: null, status: "ready" });
+        }
       } catch (error) {
-        publish({ ...previous, retryingId: null });
+        if (operationGeneration === generation) {
+          publish({ ...previous, retryingId: null });
+        }
         throw error;
       }
     },
     start() {
-      void reload();
+      if (started) return;
+      started = true;
+      void reload().catch(() => undefined);
     },
     stop() {
+      if (!started) return;
+      started = false;
       generation += 1;
     },
     subscribe(listener: () => void) {

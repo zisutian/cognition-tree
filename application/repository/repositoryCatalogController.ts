@@ -52,6 +52,7 @@ export function createRepositoryCatalogController({
   ): Promise<WorkspaceRepositoryDescriptor>;
 }): RepositoryCatalogController {
   const listeners = new Set<() => void>();
+  let generation = 0;
   let operation: RepositoryCatalogOperation = "idle";
   let started = false;
   let snapshot: RepositoryCatalogControllerSnapshot = {
@@ -112,12 +113,17 @@ export function createRepositoryCatalogController({
     });
   };
   const reload = async () => {
+    if (operation !== "idle") return;
+    const operationGeneration = ++generation;
     const previous = snapshot.state;
 
     if (previous.status !== "ready") publish({ status: "loading" });
     try {
-      publishCatalog(await catalog.listRepositories());
+      const catalogData = await catalog.listRepositories();
+
+      if (operationGeneration === generation) publishCatalog(catalogData);
     } catch (error) {
+      if (operationGeneration !== generation) return;
       if (previous.status === "ready") {
         publish({ ...previous });
         throw error;
@@ -136,6 +142,7 @@ export function createRepositoryCatalogController({
     if (operation !== "idle") {
       throw new Error("Another repository operation is already running.");
     }
+    generation += 1;
     publish({ ...current, operation: nextOperation });
     return current;
   };
@@ -223,6 +230,7 @@ export function createRepositoryCatalogController({
           await catalog.listRepositories(),
           previous.activeRepositoryId,
         );
+        finishOperation();
       } catch (error) {
         publish({ ...previous, operation: "idle" });
         throw error;
@@ -249,11 +257,12 @@ export function createRepositoryCatalogController({
     start() {
       if (started) return;
       started = true;
-      void reload();
+      void reload().catch(() => undefined);
     },
     stop() {
       if (!started) return;
       started = false;
+      generation += 1;
     },
     subscribe(listener) {
       listeners.add(listener);
