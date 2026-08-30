@@ -106,6 +106,7 @@ export function createAgentConfigurationController({
   const listeners = new Set<() => void>();
   let configurationAuthorityVersion = 0;
   let loadRequestVersion = 0;
+  let operationCount = 0;
   let state: AgentConfigurationState = {
     codexDeviceLogins: {},
     conformanceChecks: {},
@@ -124,13 +125,9 @@ export function createAgentConfigurationController({
     if (!state.configuration) throw new Error("Agent configuration is not loaded.");
     return state.configuration.revision;
   };
-  const installConfiguration = (
-    configuration: AgentConfigurationSnapshot,
-    patch: Partial<AgentConfigurationState> = {},
-  ) => {
+  const installConfiguration = (configuration: AgentConfigurationSnapshot) => {
     configurationAuthorityVersion += 1;
     publish({
-      ...patch,
       configuration,
       loadStatus: "ready",
     });
@@ -161,11 +158,23 @@ export function createAgentConfigurationController({
       },
     });
   };
-  const mutate = async (
-    operation: (revision: string) => Promise<AgentConfigurationSnapshot>,
-  ) => {
+  const runOperation = async <Result>(operation: () => Promise<Result>) => {
+    operationCount += 1;
     publish({ errorMessage: null, operationStatus: "working" });
     try {
+      return await operation();
+    } catch (error) {
+      publish({ errorMessage: message(error) });
+      throw error;
+    } finally {
+      operationCount -= 1;
+      publish({ operationStatus: operationCount > 0 ? "working" : "idle" });
+    }
+  };
+  const mutate = (
+    operation: (revision: string) => Promise<AgentConfigurationSnapshot>,
+  ) =>
+    runOperation(async () => {
       const baseRevision = requireRevision();
       const configuration = await operation(baseRevision);
       const currentRevision = state.configuration?.revision ?? null;
@@ -174,33 +183,30 @@ export function createAgentConfigurationController({
         currentRevision === baseRevision ||
         currentRevision === configuration.revision
       ) {
-        installConfiguration(configuration, { operationStatus: "idle" });
-      } else {
-        publish({ operationStatus: "idle" });
+        installConfiguration(configuration);
       }
       await onConfigurationChanged();
-    } catch (error) {
-      publish({ errorMessage: message(error), operationStatus: "idle" });
-      throw error;
-    }
-  };
+    });
 
   return {
     async cancelCodexDeviceLogin(providerId) {
       const login = state.codexDeviceLogins[providerId];
 
       if (!login || login.status !== "pending") return;
-      publishCodexDeviceLogin(await port.cancelCodexDeviceLogin(login.id));
+      await runOperation(async () => {
+        publishCodexDeviceLogin(await port.cancelCodexDeviceLogin(login.id));
+      });
     },
     async cancelConformance(profileId) {
       const check = state.conformanceChecks[profileId];
 
       if (!check || check.status !== "running") return;
-      publishConformance(await port.cancelConformance(check.id));
+      await runOperation(async () => {
+        publishConformance(await port.cancelConformance(check.id));
+      });
     },
     async checkConformance(profileId) {
-      publish({ errorMessage: null, operationStatus: "working" });
-      try {
+      await runOperation(async () => {
         let check = await port.startConformance(
           requireRevision(),
           profileId,
@@ -216,16 +222,11 @@ export function createAgentConfigurationController({
           throw new Error(check.errorMessage ?? "Agent conformance check failed.");
         }
         if (check.status === "cancelled") {
-          publish({ operationStatus: "idle" });
           return;
         }
         await refreshConfiguration();
-        publish({ operationStatus: "idle" });
         await onConfigurationChanged();
-      } catch (error) {
-        publish({ errorMessage: message(error), operationStatus: "idle" });
-        throw error;
-      }
+      });
     },
     clearProviderAuthentication: (providerId) => mutate((revision) =>
       port.clearProviderAuthentication(revision, providerId)
@@ -243,15 +244,11 @@ export function createAgentConfigurationController({
       port.deleteProvider(revision, providerId)
     ),
     async discoverOllama(endpoint) {
-      publish({ errorMessage: null, operationStatus: "working" });
-      try {
+      await runOperation(async () => {
         const discovery = await port.discoverOllama(endpoint);
 
-        publish({ discovery, operationStatus: "idle" });
-      } catch (error) {
-        publish({ errorMessage: message(error), operationStatus: "idle" });
-        throw error;
-      }
+        publish({ discovery });
+      });
     },
     getSnapshot: () => state,
     async load() {
@@ -276,33 +273,26 @@ export function createAgentConfigurationController({
       }
     },
     async probeProvider(providerId) {
-      publish({ errorMessage: null, operationStatus: "working" });
-      try {
+      await runOperation(async () => {
         const probe = await port.probeProvider(providerId);
 
         publish({
-          operationStatus: "idle",
           probes: { ...state.probes, [providerId]: probe },
         });
-      } catch (error) {
-        publish({ errorMessage: message(error), operationStatus: "idle" });
-        throw error;
-      }
+      });
     },
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
     async startCodexDeviceLogin(providerId) {
-      publish({ errorMessage: null, operationStatus: "working" });
-      try {
+      await runOperation(async () => {
         const login = await port.startCodexDeviceLogin(
           requireRevision(),
           providerId,
         );
 
         publishCodexDeviceLogin(login);
-        publish({ operationStatus: "idle" });
         void (async () => {
           try {
             let current = login;
@@ -324,10 +314,7 @@ export function createAgentConfigurationController({
             publish({ errorMessage: message(error) });
           }
         })();
-      } catch (error) {
-        publish({ errorMessage: message(error), operationStatus: "idle" });
-        throw error;
-      }
+      });
     },
     updateProfile: (profileId, profile) => mutate((revision) =>
       port.updateProfile(revision, profileId, profile)

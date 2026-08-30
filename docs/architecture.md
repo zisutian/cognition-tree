@@ -401,7 +401,8 @@ application/agent/AgentClientController 独占客户端 session/status authority
 会废弃在途旧列表并要求最后再读一轮，陈旧响应不得覆盖较新 sequence。
 AgentConfigurationController 独占客户端配置快照 authority；load、设备登录和一致性检查的
 回读只可安装到未变化的 authority，mutation 响应只可替换其 base revision 或相同 revision，
-陈旧读取与延迟响应不得回退已观察到的更新配置。
+陈旧读取与延迟响应不得回退已观察到的更新配置。operationStatus 从在途前台操作计数投影，
+单个请求结束不得把其他仍在执行的操作误报为 idle。
 
 Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 UUID、时间、页面事件和定时器实现由 infrastructure 注入。Problems 的选择与合并留在 application，Activity 切换和 DOM 聚焦只由 presentation 执行。
 

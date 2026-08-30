@@ -6,7 +6,9 @@ import {
   type AgentConformanceCheckStatus,
   type AgentConfigurationPort,
   type AgentConfigurationSnapshot,
+  type AgentOllamaDiscovery,
   type AgentProviderInput,
+  type AgentProviderProbe,
 } from "../../../application/agent";
 
 const revision = (value: string) =>
@@ -28,11 +30,13 @@ function providerInput(): AgentProviderInput {
 
 function createDeferred<Value>() {
   let resolve!: (value: Value) => void;
-  const promise = new Promise<Value>((resolvePromise) => {
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<Value>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
 
-  return { promise, resolve };
+  return { promise, reject, resolve };
 }
 
 function check(
@@ -281,6 +285,46 @@ describe("Agent configuration controller", () => {
     expect(controller.getSnapshot()).toMatchObject({
       configuration: { revision: revision("3") },
       loadStatus: "ready",
+    });
+  });
+
+  it("stays working until every concurrent operation has settled", async () => {
+    const adapter = port();
+    const controller = createAgentConfigurationController({
+      onConfigurationChanged: vi.fn(),
+      pollConformance: async () => undefined,
+      pollConformanceIntervalMilliseconds: 1,
+      port: adapter,
+    });
+    const discovery = createDeferred<AgentOllamaDiscovery>();
+    const probe = createDeferred<AgentProviderProbe>();
+
+    vi.mocked(adapter.discoverOllama).mockImplementationOnce(
+      () => discovery.promise,
+    );
+    vi.mocked(adapter.probeProvider).mockImplementationOnce(() => probe.promise);
+    const failedDiscovery = expect(
+      controller.discoverOllama("http://127.0.0.1:11434"),
+    ).rejects.toThrow("Ollama is unreachable");
+    const probing = controller.probeProvider("provider-1");
+
+    discovery.reject(new Error("Ollama is unreachable"));
+    await failedDiscovery;
+    expect(controller.getSnapshot()).toMatchObject({
+      errorMessage: "Ollama is unreachable",
+      operationStatus: "working",
+    });
+
+    probe.resolve({
+      modelContexts: [],
+      models: [],
+      probedAt: "2026-08-25T00:00:00.000Z",
+      reachable: true,
+    });
+    await probing;
+    expect(controller.getSnapshot()).toMatchObject({
+      errorMessage: "Ollama is unreachable",
+      operationStatus: "idle",
     });
   });
 });
