@@ -350,10 +350,12 @@ describe("workspace session save queue", () => {
     const firstStage = createDeferred<Awaited<
       ReturnType<WorkspaceRepository["stageSnapshot"]>
     >>();
+    const stagedChanges: Parameters<WorkspaceRepository["stageSnapshot"]>[0][] = [];
     const stagedNames: string[] = [];
     let stageCount = 0;
     const stage: WorkspaceRepository["stageSnapshot"] = async (change) => {
       stageCount += 1;
+      stagedChanges.push(change);
       stagedNames.push(change.after.content.workspace.name);
 
       if (stageCount === 1) {
@@ -381,6 +383,11 @@ describe("workspace session save queue", () => {
     await flush;
 
     expect(stagedNames).toEqual(["first", "latest"]);
+    expect(stagedChanges[1]).toMatchObject({
+      after: { content: { workspace: { name: "latest" } } },
+      baseLocalRevision: draftRevision("stage-1"),
+      before: { content: { workspace: { name: "first" } } },
+    });
     expect(harness.queue.getLocalRevision()).toBe(draftRevision("stage-2"));
     harness.queue.dispose();
   });

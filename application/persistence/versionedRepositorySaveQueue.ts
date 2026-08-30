@@ -11,6 +11,7 @@ import {
   createVersionedRepositoryTransitionAuthority,
 } from "./versionedRepositoryTransitionAuthority";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
+import { areMergeValuesEqual } from "./threeWayMerge";
 
 export type VersionedRepositoryPersistenceState<Revision extends string> =
   | { status: "saved" }
@@ -264,6 +265,26 @@ export function createVersionedRepositorySaveQueue<
         stagedVersion = Math.max(stagedVersion, target.version);
         settleLocalWaiters(target.version, (waiter) => waiter.resolve());
 
+        if (
+          desired &&
+          desired.version !== target.version &&
+          areMergeValuesEqual(
+            transition.snapshot.content,
+            target.change.after.content,
+          )
+        ) {
+          desired = {
+            ...desired,
+            change: {
+              ...desired.change,
+              baseLocalRevision: transition.snapshot.localRevision,
+              before: {
+                content: transition.snapshot.content,
+                projection: transition.snapshot.projection,
+              },
+            },
+          };
+        }
         if (desired?.version === target.version) {
           desired = null;
         }
