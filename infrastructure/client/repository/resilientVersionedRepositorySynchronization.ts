@@ -66,11 +66,30 @@ type LocalFirstRepositorySynchronizationOptions<
   >;
 }>;
 
+export interface LocalFirstRepositorySynchronizationPort<
+  Content,
+  Revision extends string,
+  LocalRevision extends string,
+  Projection,
+> {
+  synchronize(identity: string): Promise<VersionedRepositorySyncResult<
+    Content,
+    Projection,
+    Revision,
+    LocalRevision
+  >>;
+}
+
 export class LocalFirstRepositorySynchronization<
   Content,
   Revision extends string,
   LocalRevision extends string,
   Projection,
+> implements LocalFirstRepositorySynchronizationPort<
+  Content,
+  Revision,
+  LocalRevision,
+  Projection
 > {
   readonly #backend: VersionedRepositoryBackend<Content, Revision>;
   readonly #cache: VersionedRepositoryCache<

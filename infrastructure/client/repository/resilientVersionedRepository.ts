@@ -1,30 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  VersionedRepositoryLocalConflictError,
   VersionedRepositoryRemoteError,
   type VersionedRepository,
   type VersionedRepositoryBackend,
-  type VersionedContentConflictPreference,
   type VersionedContentMergePolicy,
   type VersionedContentPreparationPolicy,
-  type VersionedRepositoryConflictProof,
   type VersionedRepositorySnapshot,
   type VersionedRepositorySyncResult,
 } from "../../../application/persistence/versionedRepository";
 import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
+import {
+  LocalFirstRepositoryConflictResolution,
+} from "./resilientVersionedRepositoryConflictResolution.ts";
 import { LocalFirstRepositoryProjectionState } from "./resilientVersionedRepositoryProjection.ts";
 import {
   LocalFirstRepositoryRemoteReconciliation,
 } from "./resilientVersionedRepositoryRemoteReconciliation.ts";
 import { LocalFirstRepositoryStaging } from "./resilientVersionedRepositoryStaging.ts";
 import { LocalFirstRepositorySynchronization } from "./resilientVersionedRepositorySynchronization.ts";
-import {
-  canUseVersionedRepositoryCachedSnapshot,
-  normalizeVersionedConflictUnitIds,
-  versionedContentEqual,
-  versionedRepositoryErrorMessage,
-} from "./resilientVersionedRepositoryPolicy.ts";
+import { canUseVersionedRepositoryCachedSnapshot } from "./resilientVersionedRepositoryPolicy.ts";
 
 export type VersionedRepositoryLoadPolicy =
   | Readonly<{ mode: "cache-first" }>
@@ -126,6 +121,14 @@ export function createLocalFirstVersionedRepository<
     projections,
     remoteReconciliation,
   });
+  const conflictResolution = new LocalFirstRepositoryConflictResolution({
+    cache,
+    createLocalRevision,
+    mergeContent,
+    preparation,
+    projections,
+    synchronization,
+  });
   const resolveIdentity = () => Promise.resolve(repositoryIdentity);
 
   const runExplicitLoad = async () => {
@@ -221,179 +224,28 @@ export function createLocalFirstVersionedRepository<
     const identity = await resolveIdentity();
 
     await ensureInitialized();
-    const [current, context] = await Promise.all([
-      cache.load(identity),
-      cache.loadSyncContext(identity),
-    ]);
-
-    if (!current) {
-      throw new Error(
-        "Local repository state disappeared while loading conflict details.",
-      );
-    }
-    return context?.conflict
-      ? {
-          ...context.conflict,
-          local: current.content,
-          localRevision: current.localRevision,
-        }
-      : null;
+    return conflictResolution.load(identity);
   };
-  const resolveConflictAndSynchronize = async (
-    proof: VersionedRepositoryConflictProof<Revision, LocalRevision>,
-    preference: VersionedContentConflictPreference,
-    transform?: Parameters<
-      NonNullable<
-        VersionedRepository<
-          Content,
-          Revision,
-          LocalRevision,
-          Location,
-          Projection
-        >["resolveConflictAndSynchronize"]
-      >
-    >[2],
+  const resolveConflictAndSynchronize: VersionedRepository<
+    Content,
+    Revision,
+    LocalRevision,
+    Location,
+    Projection
+  >["resolveConflictAndSynchronize"] = async (
+    proof,
+    preference,
+    transform,
   ) => {
     const identity = await resolveIdentity();
 
     await ensureInitialized();
-    const [current, context] = await Promise.all([
-      cache.load(identity),
-      cache.loadSyncContext(identity),
-    ]);
-    const conflict = context?.conflict;
-
-    if (!current || !conflict) {
-      throw new Error("Repository does not have a persisted conflict.");
-    }
-    if (current.localRevision !== proof.localRevision) {
-      throw new VersionedRepositoryLocalConflictError(current.localRevision);
-    }
-    if (
-      current.remoteRevision !== proof.remoteRevision ||
-      conflict.remoteRevision !== proof.remoteRevision
-    ) {
-      throw new Error("Repository conflict proof is no longer current.");
-    }
-    const currentPrepared = projections.prepareLocalState(current);
-    const remotePrepared = projections.prepareRemote(
-      conflict.remote,
-      conflict.remoteRevision,
-      currentPrepared.projection,
-    );
-    const basePrepared = mergeContent
-      ? projections.prepareMergeBase(
-        conflict.base,
-        current,
-        currentPrepared,
-        versionedContentEqual,
-      )
-      : null;
-    const unresolved = basePrepared && mergeContent
-      ? mergeContent(basePrepared, currentPrepared, remotePrepared)
-      : { status: "conflict" as const, unitIds: ["repository"] };
-    const liveUnitIds = unresolved.status === "conflict"
-      ? normalizeVersionedConflictUnitIds(unresolved.unitIds)
-      : [];
-    const merged = unresolved.status === "merged"
-      ? unresolved
-      : basePrepared && mergeContent
-        ? mergeContent(
-            basePrepared,
-            currentPrepared,
-            remotePrepared,
-            preference,
-          )
-        : {
-            ...(preference === "local" ? currentPrepared : remotePrepared),
-            status: "merged" as const,
-          };
-
-    if (merged.status !== "merged") {
-      throw new Error("Repository conflict could not be resolved.");
-    }
-    const liveConflict = {
-      ...conflict,
-      local: current.content,
-      unitIds: liveUnitIds,
-    };
-    const mergedPrepared = merged;
-    const recovery = transform && liveUnitIds.length > 0
-      ? transform(mergedPrepared, liveConflict, {
-          local: currentPrepared,
-          remote: remotePrepared,
-        })
-      : null;
-    if (
-      recovery &&
-      JSON.stringify(
-        normalizeVersionedConflictUnitIds(recovery.coveredUnitIds),
-      ) !==
-        JSON.stringify(liveUnitIds)
-    ) {
-      throw new Error(
-        "Repository conflict recovery did not cover every discarded unit.",
-      );
-    }
-    const contentPrepared = recovery?.prepared ?? mergedPrepared;
-    const content = contentPrepared.content;
-
-    preparation.validateTransition?.(remotePrepared, contentPrepared);
-    const rebased = await cache.rebaseFromRemote({
-      content,
-      expectedLocalRevision: current.localRevision,
+    return conflictResolution.resolve(
       identity,
-      localRevision: createLocalRevision(),
-      pendingChanges: !versionedContentEqual(content, conflict.remote),
-      snapshot: {
-        content: conflict.remote,
-        revision: conflict.remoteRevision,
-      },
-    });
-    projections.rememberLocal(rebased, contentPrepared);
-    projections.rememberRemote(conflict.remoteRevision, remotePrepared);
-    const resolvedTransition = projections.toTransition(
-      current.localRevision,
-      rebased,
-      contentPrepared,
+      proof,
+      preference,
+      transform,
     );
-    let synchronized: SyncResult;
-
-    try {
-      synchronized = await synchronize();
-    } catch (error) {
-      const latest = await cache.load(identity);
-
-      if (!latest) throw error;
-      const latestTransition = latest.localRevision === rebased.localRevision
-        ? null
-        : projections.toTransition(
-            rebased.localRevision,
-            latest,
-            projections.prepareLocalState(
-              latest,
-              contentPrepared.projection,
-            ),
-          );
-      const recoveryTransitions: SyncResult["transitions"] = latestTransition
-        ? [resolvedTransition, latestTransition]
-        : [resolvedTransition];
-
-      return {
-        message: versionedRepositoryErrorMessage(error),
-        status: "sync-error" as const,
-        transitions: recoveryTransitions,
-      };
-    }
-    const transitions: SyncResult["transitions"] = [
-      resolvedTransition,
-      ...synchronized.transitions,
-    ];
-
-    return {
-      ...synchronized,
-      transitions,
-    };
   };
 
   return {
