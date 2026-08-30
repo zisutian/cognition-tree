@@ -1,7 +1,7 @@
 import { Search } from "lucide-react";
 import {
   searchDraftsEqual,
-  type SearchControllerActions,
+  type SearchControllerView,
   type SearchControllerState,
 } from "../../../application/search/searchController";
 import {
@@ -24,7 +24,7 @@ export function SearchContext({
   controller,
   state,
 }: {
-  controller: SearchControllerActions;
+  controller: SearchControllerView;
   state: SearchControllerState;
 }) {
   const draftChanged = state.submitted !== null &&

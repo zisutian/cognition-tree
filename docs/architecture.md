@@ -394,7 +394,9 @@ application/search/SearchIndex 是三领域资源投影、Unicode 归一化、gr
 源码偏移、片段、过滤、排序、fault 与 cursor 的唯一 owner。过滤在命中折叠前
 执行；缓存按来源 revision 和 corpus key 失效，查询 LRU 有界。presentation
 只提交 SearchQuery 和打开 ContentDestination，不解析 CTN、扫描仓库或换算
-行号。
+行号。SearchController 的响应式 state 只保存会影响渲染的查询事实；高频 scrollTop
+由独立 viewport cell 持有，切换 Activity 时显式读取，不通过静默替换 state 或每次滚动
+发布整个 Workbench snapshot。
 
 Journal 只理解日记内容、仓内引用和外部引用 token；Todo 只理解 CTN collection、任务结构和 completion。跨仓边不进入普通引用图谱，重命名也不跨独立 CAS 改写 Journal。
 

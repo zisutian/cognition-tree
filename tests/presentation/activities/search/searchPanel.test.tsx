@@ -3,12 +3,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type {
-  SearchControllerActions,
+  SearchControllerView,
   SearchControllerState,
 } from "../../../../application/search/searchController";
 import { SearchPanel } from "../../../../presentation/activities/search/SearchPanel";
 
-const controller: SearchControllerActions = {
+const controller: SearchControllerView = {
+  getScrollTop: () => 24,
   loadMore: async () => undefined,
   search: async () => undefined,
   updateDraft: () => undefined,
@@ -34,7 +35,6 @@ const state: SearchControllerState = {
     updatedAt: "2026-08-26T00:00:00.000Z",
     version: "sha256:search-test",
   }],
-  scrollTop: 24,
   status: "ready",
   submitted: {
     domains: ["workspace"],

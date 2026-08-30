@@ -285,8 +285,14 @@ describe("cross-domain search query", () => {
     });
 
     controller.updateDraft({ query: "原条件" });
+    const stateBeforeScroll = controller.getState();
+
+    controller.updateScrollTop(48);
+    expect(controller.getScrollTop()).toBe(48);
+    expect(controller.getState()).toBe(stateBeforeScroll);
     expect(query.search).not.toHaveBeenCalled();
     await controller.search();
+    expect(controller.getScrollTop()).toBe(0);
     controller.updateDraft({ query: "新条件" });
     expect(
       searchDraftsEqual(

@@ -49,7 +49,7 @@ import type {
 import {
   createSearchController,
   type SearchController,
-  type SearchControllerActions,
+  type SearchControllerView,
   type SearchControllerState,
 } from "../search/searchController";
 import type { SearchResourceVersion } from "../search/searchTypes";
@@ -139,7 +139,7 @@ export type WorkbenchBuiltInFacade<
   | "useRemoteConflictAndSynchronize"
 >;
 
-export type WorkbenchSearchFacade = SearchControllerActions;
+export type WorkbenchSearchFacade = SearchControllerView;
 
 export type WorkbenchController = {
   apiAccessAdministration: ApiAccessAdministration;
@@ -439,6 +439,7 @@ export function createWorkbenchController({
       todoSlot.getController().useRemoteConflictAndSynchronize(...args),
   };
   const searchFacade: WorkbenchSearchFacade = {
+    getScrollTop: searchController.getScrollTop,
     loadMore: searchController.loadMore,
     search: searchController.search,
     updateDraft: searchController.updateDraft,

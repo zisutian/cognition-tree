@@ -1,5 +1,5 @@
 import type {
-  SearchControllerActions,
+  SearchControllerView,
   SearchControllerState,
 } from "../../../application/search/searchController";
 import type { SearchResult } from "../../../application/search/searchTypes";
@@ -17,7 +17,7 @@ export function createSearchActivitySlots({
   repositories,
   state,
 }: {
-  controller: SearchControllerActions;
+  controller: SearchControllerView;
   onCollapseDetail: () => void;
   onOpenResult(result: SearchResult): void;
   repositories: SearchRepositoryOption[];

@@ -20,13 +20,13 @@ export type SearchControllerState = {
   faults: SearchFault[];
   loadingMore: boolean;
   results: SearchResult[];
-  scrollTop: number;
   status: "idle" | "loading" | "ready";
   submitted: SearchDraft | null;
 };
 
 export type SearchController = {
   dispose(): void;
+  getScrollTop(): number;
   getState(): SearchControllerState;
   loadMore(): Promise<void>;
   search(): Promise<void>;
@@ -34,9 +34,13 @@ export type SearchController = {
   updateScrollTop(scrollTop: number): void;
 };
 
-export type SearchControllerActions = Pick<
+export type SearchControllerView = Pick<
   SearchController,
-  "loadMore" | "search" | "updateDraft" | "updateScrollTop"
+  | "getScrollTop"
+  | "loadMore"
+  | "search"
+  | "updateDraft"
+  | "updateScrollTop"
 >;
 
 function copyDraft(draft: SearchDraft): SearchDraft {
@@ -80,6 +84,7 @@ export function createSearchController({
 }): SearchController {
   let disposed = false;
   let requestSequence = 0;
+  let viewportScrollTop = 0;
   let state: SearchControllerState = {
     cursor: null,
     draft: {
@@ -90,7 +95,6 @@ export function createSearchController({
     faults: [],
     loadingMore: false,
     results: [],
-    scrollTop: 0,
     status: "idle",
     submitted: null,
   };
@@ -105,6 +109,7 @@ export function createSearchController({
       disposed = true;
       requestSequence += 1;
     },
+    getScrollTop: () => viewportScrollTop,
     getState: () => state,
     async loadMore() {
       if (
@@ -182,13 +187,13 @@ export function createSearchController({
       const sequence = ++requestSequence;
       const submitted = copyDraft(state.draft);
 
+      viewportScrollTop = 0;
       publish({
         ...state,
         cursor: null,
         errorMessage: null,
         faults: [],
         loadingMore: false,
-        scrollTop: 0,
         status: "loading",
         submitted,
       });
@@ -233,10 +238,7 @@ export function createSearchController({
     },
     updateScrollTop(scrollTop) {
       if (disposed || !Number.isFinite(scrollTop)) return;
-      state = {
-        ...state,
-        scrollTop: Math.max(0, scrollTop),
-      };
+      viewportScrollTop = Math.max(0, scrollTop);
     },
   };
 }
