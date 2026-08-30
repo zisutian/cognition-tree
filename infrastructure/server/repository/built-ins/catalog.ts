@@ -34,6 +34,7 @@ import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   isSecureDirectory,
   isSecureRegularFile,
+  readFileHandleUtf8,
   replaceFileDurably,
 } from "../../persistence/fileSystemPersistence.ts";
 import {
@@ -371,7 +372,11 @@ export class BuiltInCatalog {
       if (!isSecureRegularFile(stats)) {
         throw new RepositoryCorruptError("Built-in storage epoch file is invalid");
       }
-      const source = await handle.readFile("utf8");
+      const source = await readFileHandleUtf8(
+        handle,
+        32,
+        "Built-in storage epoch file",
+      );
       if (!/^[1-9][0-9]*\n$/.test(source)) {
         throw new RepositoryCorruptError("Built-in storage epoch is invalid");
       }
