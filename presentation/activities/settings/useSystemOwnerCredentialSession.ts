@@ -10,20 +10,31 @@ import {
 import type {
   SystemConfigurationController,
 } from "../../../application/system";
+import {
+  activateSystemOwnerCredentialRotation,
+  createInitialSystemOwnerCredentialSnapshot,
+  prepareSystemOwnerCredentialRotation,
+  type SystemOwnerCredentialSnapshot,
+} from "./systemOwnerCredentialSession";
 
 type SystemOwnerCredentialController = Pick<
   SystemConfigurationController,
-  "clearOwnerCredential" | "rotateOwnerCredential"
+  | "activateOwnerCredentialRotation"
+  | "clearOwnerCredential"
+  | "prepareOwnerCredentialRotation"
 >;
 
-export type SystemOwnerCredentialSnapshot = Readonly<{
-  secret: string | null;
-}>;
+export type {
+  SystemOwnerCredentialPreparation,
+  SystemOwnerCredentialSnapshot,
+} from "./systemOwnerCredentialSession";
 
-export type SystemOwnerCredentialPanelActions = Readonly<{
+export type SystemOwnerCredentialPanelView = Readonly<{
+  activatePreparedOwnerCredential(): Promise<void>;
   clearOwnerCredential(): Promise<void>;
   dismissSecret(): void;
-  rotateOwnerCredential(): Promise<void>;
+  prepareOwnerCredentialRotation(): Promise<void>;
+  snapshot: SystemOwnerCredentialSnapshot;
 }>;
 
 export type SystemOwnerCredentialStatusView = Readonly<{
@@ -31,37 +42,48 @@ export type SystemOwnerCredentialStatusView = Readonly<{
   snapshot: SystemOwnerCredentialSnapshot;
 }>;
 
-export type SystemOwnerCredentialView = SystemOwnerCredentialPanelActions &
+export type SystemOwnerCredentialView = SystemOwnerCredentialPanelView &
   SystemOwnerCredentialStatusView;
 
-export type SystemOwnerCredentialSession = SystemOwnerCredentialView & Readonly<{
-  reset(): void;
-}>;
-
-const initialSnapshot: SystemOwnerCredentialSnapshot = { secret: null };
+export type SystemOwnerCredentialSession = SystemOwnerCredentialView;
 
 export function useSystemOwnerCredentialSession(
   configurationController: SystemOwnerCredentialController,
 ): SystemOwnerCredentialSession {
   const lifecycleEpochRef = useRef(0);
-  const [snapshot, setSnapshot] = useState(initialSnapshot);
+  const [snapshot, setSnapshot] = useState(
+    createInitialSystemOwnerCredentialSnapshot,
+  );
   const reset = useCallback(() => {
     lifecycleEpochRef.current += 1;
-    setSnapshot(initialSnapshot);
+    setSnapshot(createInitialSystemOwnerCredentialSnapshot());
   }, []);
-  const rotateOwnerCredential = useCallback(async () => {
+  const prepareOwnerCredentialRotation = useCallback(async () => {
     const epoch = lifecycleEpochRef.current + 1;
 
     lifecycleEpochRef.current = epoch;
-    setSnapshot(initialSnapshot);
-    const secret = await configurationController.rotateOwnerCredential();
+    const preparedSnapshot = await prepareSystemOwnerCredentialRotation(
+      configurationController,
+    );
 
     if (lifecycleEpochRef.current !== epoch) return;
-    setSnapshot({ secret });
+    setSnapshot(preparedSnapshot);
   }, [configurationController]);
+  const activatePreparedOwnerCredential = useCallback(async () => {
+    const epoch = lifecycleEpochRef.current;
+    const activatedSnapshot = await activateSystemOwnerCredentialRotation(
+      snapshot,
+      configurationController,
+    );
+
+    if (lifecycleEpochRef.current !== epoch) return;
+    setSnapshot((current) =>
+      current === snapshot ? activatedSnapshot : current
+    );
+  }, [configurationController, snapshot]);
   const clearOwnerCredential = useCallback(async () => {
-    reset();
     await configurationController.clearOwnerCredential();
+    reset();
   }, [configurationController, reset]);
 
   useLayoutEffect(() => () => {
@@ -69,15 +91,16 @@ export function useSystemOwnerCredentialSession(
   }, []);
 
   return useMemo(() => ({
+    activatePreparedOwnerCredential,
     clearOwnerCredential,
     dismissSecret: reset,
-    reset,
-    rotateOwnerCredential,
+    prepareOwnerCredentialRotation,
     snapshot,
   }), [
+    activatePreparedOwnerCredential,
     clearOwnerCredential,
+    prepareOwnerCredentialRotation,
     reset,
-    rotateOwnerCredential,
     snapshot,
   ]);
 }

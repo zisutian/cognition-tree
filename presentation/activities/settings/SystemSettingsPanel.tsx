@@ -28,7 +28,7 @@ import {
   ToolSectionStack,
 } from "../../ui/shared/ToolSurface";
 import type {
-  SystemOwnerCredentialPanelActions,
+  SystemOwnerCredentialPanelView,
 } from "./useSystemOwnerCredentialSession";
 import {
   useSystemConfigurationDraft,
@@ -63,7 +63,7 @@ export function SystemSettingsPanel({
   ownerCredentialSession,
   system,
 }: {
-  ownerCredentialSession: SystemOwnerCredentialPanelActions;
+  ownerCredentialSession: SystemOwnerCredentialPanelView;
   system: SystemSettingsPanelApplication;
 }) {
   const feedback = useFeedback();
@@ -80,6 +80,11 @@ export function SystemSettingsPanel({
   );
   const busy = configurationState.operationStatus === "working" ||
     configurationState.loadStatus === "loading";
+  const ownerCredentialPreparation =
+    ownerCredentialSession.snapshot.preparation;
+  const ownerCredentialAwaitingConfirmation =
+    ownerCredentialSession.snapshot.activationStatus ===
+      "awaiting-confirmation" && ownerCredentialPreparation !== null;
   const cancelPendingReconnect = useCallback(() => {
     if (reconnectTimerRef.current === null) return;
     globalThis.clearTimeout(reconnectTimerRef.current);
@@ -109,7 +114,6 @@ export function SystemSettingsPanel({
   }
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    ownerCredentialSession.dismissSecret();
     void feedback.runAction(async () => {
       const result = await configurationDraft.submit();
 
@@ -178,7 +182,7 @@ export function SystemSettingsPanel({
                   )}
                 </FieldRow>
                 <FormActions>
-                  <Button disabled={busy || configurationDraft.stale || configurationDraft.submitting} type="submit" variant="primary">保存服务设置</Button>
+                  <Button disabled={busy || configurationDraft.stale || configurationDraft.submitting || ownerCredentialAwaitingConfirmation} type="submit" variant="primary">保存服务设置</Button>
                   {configurationState.errorMessage ? <Button disabled={busy || configurationDraft.submitting} onClick={() => void configurationController.load()} type="button">重新读取服务设置</Button> : null}
                   {configurationDraft.stale ? <Button disabled={busy || configurationDraft.submitting} onClick={discardChanges} type="button">载入最新设置</Button> : null}
                 </FormActions>
@@ -187,10 +191,14 @@ export function SystemSettingsPanel({
           </ToolSection>
 
           <ToolSection title="所有者凭据">
+            {ownerCredentialAwaitingConfirmation ? <p>请先保存右侧显示的新密钥，再明确激活；激活失败时密钥会继续保留。</p> : null}
+            {ownerCredentialAwaitingConfirmation && configurationState.errorMessage ? <p>激活结果可能未知。请继续保存新密钥并重新读取状态；若旧会话已失效，请用该密钥重新登录。</p> : null}
+            {snapshot.ownerCredentialRotationPending && !ownerCredentialPreparation ? <p>服务中存在待激活轮换，但当前页面没有对应明文密钥；请重新准备以替换它。</p> : null}
             <div className="ui-actions">
-              <Button disabled={busy} onClick={() => void feedback.runAction(() => ownerCredentialSession.rotateOwnerCredential())} type="button">{snapshot.ownerCredentialConfigured ? "轮换密钥" : "创建密钥"}</Button>
-              <Button disabled={busy || !snapshot.ownerCredentialConfigured || snapshot.configuration.listenMode === "lan"} onClick={() => void feedback.runAction(() => ownerCredentialSession.clearOwnerCredential())} type="button" variant="danger">清除凭据</Button>
-              <Button onClick={() => {
+              {!ownerCredentialPreparation ? <Button disabled={busy} onClick={() => void feedback.runAction(() => ownerCredentialSession.prepareOwnerCredentialRotation())} type="button">{snapshot.ownerCredentialRotationPending ? "重新准备新密钥" : snapshot.ownerCredentialConfigured ? "准备轮换密钥" : "准备创建密钥"}</Button> : null}
+              {ownerCredentialAwaitingConfirmation ? <Button disabled={busy} onClick={() => void feedback.runAction(() => ownerCredentialSession.activatePreparedOwnerCredential())} type="button" variant="primary">我已保存，激活新密钥</Button> : null}
+              <Button disabled={busy || ownerCredentialPreparation !== null || (!snapshot.ownerCredentialConfigured && !snapshot.ownerCredentialRotationPending) || snapshot.configuration.listenMode === "lan"} onClick={() => void feedback.runAction(() => ownerCredentialSession.clearOwnerCredential())} type="button" variant="danger">清除凭据</Button>
+              <Button disabled={busy} onClick={() => {
                 ownerCredentialSession.dismissSecret();
                 void feedback.runAction(async () => {
                   await authenticationController.logout();
@@ -208,8 +216,7 @@ export function SystemSettingsPanel({
                 )}
               </FieldRow>
               <FormActions>
-                <Button disabled={busy || !migrationDestination} onClick={() => {
-                  ownerCredentialSession.dismissSecret();
+                <Button disabled={busy || !migrationDestination || ownerCredentialAwaitingConfirmation} onClick={() => {
                   void feedback.runAction(async () => {
                     await configurationController.migrateDataRoot(migrationDestination);
                     reconnectAfterRestart(globalThis.location.origin);

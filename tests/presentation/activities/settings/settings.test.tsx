@@ -49,7 +49,14 @@ const operationsSession = createOperationsSettingsSessionFixture({
   },
 });
 const systemOwnerCredentialSession = createSystemOwnerCredentialSessionFixture({
-  snapshot: { secret: "ctn_owner_once" },
+  snapshot: {
+    activationStatus: "awaiting-confirmation",
+    preparation: {
+      baseRevision: `sha256:${"4".repeat(64)}`,
+      rotationId: "rotation-1",
+      secret: "ctn_owner_once",
+    },
+  },
 });
 const baseAgent = createAgentApplicationFixture();
 const systemConfiguration = {
@@ -70,6 +77,7 @@ const systemConfiguration = {
     repositoryHostRoot: null,
   },
   ownerCredentialConfigured: false,
+  ownerCredentialRotationPending: true,
   restartRequired: false,
   revision: `sha256:${"4".repeat(64)}` as const,
   version: 1,
@@ -96,11 +104,16 @@ const system = {
   },
   authenticationState,
   configurationController: {
+    activateOwnerCredentialRotation: async () => undefined,
     clearOwnerCredential: async () => undefined,
     getSnapshot: () => configurationState,
     load: async () => undefined,
     migrateDataRoot: async () => undefined,
-    rotateOwnerCredential: async () => "secret",
+    prepareOwnerCredentialRotation: async () => ({
+      configuration: systemConfiguration,
+      rotationId: "rotation-1",
+      secret: "secret",
+    }),
     subscribe: () => () => undefined,
     update: async () => systemConfiguration,
   },
@@ -477,9 +490,11 @@ describe("settings activity", () => {
         "迁移数据根",
         "操作审计保留条数",
         "ctn_owner_once",
+        "我已保存，激活新密钥",
+        "待激活新密钥",
         "关闭显示",
       ],
-      lacks: ["CTN_", "owner token"],
+      lacks: ["CTN_", "owner token", "重新准备新密钥"],
     });
     for (const markup of [
       panelMarkup,
@@ -493,5 +508,82 @@ describe("settings activity", () => {
       expect(markup).toContain("ui-tool-panel");
       expect(markup).toContain('data-tool-layout="form"');
     }
+  });
+
+  it("offers a fresh prepare when only the persisted pending marker remains", () => {
+    const reloadedSession = createSystemOwnerCredentialSessionFixture();
+    const panelMarkup = renderToStaticMarkup(
+      <SettingsPanel
+        agent={agent}
+        agentRoute={overviewAgentRoute}
+        apiAccessSession={apiAccessSession}
+        onAgentRouteChange={onAgentRouteChange}
+        operationsSession={operationsSession}
+        section="system"
+        system={system}
+        systemOwnerCredentialSession={reloadedSession}
+        workbench={{
+          contextWidth: appContextDefaultWidth,
+          onContextWidthChange: () => undefined,
+        }}
+      />,
+    );
+    const statusMarkup = renderToStaticMarkup(
+      <SettingsStatusPanel
+        agent={agent}
+        agentRoute={overviewAgentRoute}
+        apiAccessSelection={{ kind: "overview" }}
+        apiAccessSession={apiAccessSession}
+        onCollapseDetail={() => undefined}
+        operationsSession={operationsSession}
+        section="system"
+        systemConfigurationState={configurationState}
+        systemOwnerCredentialSession={reloadedSession}
+      />,
+    );
+
+    expectMarkupSemantics(panelMarkup + statusMarkup, {
+      has: [
+        "重新准备新密钥",
+        "没有对应明文密钥",
+        "待处理轮换",
+        "有",
+      ],
+      lacks: ["我已保存，激活新密钥", "待激活新密钥", "ctn_owner_once"],
+    });
+  });
+
+  it("keeps recovery guidance beside the secret when activation fails", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsPanel
+        agent={agent}
+        agentRoute={overviewAgentRoute}
+        apiAccessSession={apiAccessSession}
+        onAgentRouteChange={onAgentRouteChange}
+        operationsSession={operationsSession}
+        section="system"
+        system={{
+          ...system,
+          configurationState: {
+            ...configurationState,
+            errorMessage: "durable write outcome could not be verified",
+          },
+        }}
+        systemOwnerCredentialSession={systemOwnerCredentialSession}
+        workbench={{
+          contextWidth: appContextDefaultWidth,
+          onContextWidthChange: () => undefined,
+        }}
+      />,
+    );
+
+    expectMarkupSemantics(markup, {
+      has: [
+        "ctn_owner_once",
+        "激活结果可能未知",
+        "重新读取状态",
+        "用该密钥重新登录",
+      ],
+    });
   });
 });

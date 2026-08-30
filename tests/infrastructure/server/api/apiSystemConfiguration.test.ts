@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type {
-  ApiOwnerCredentialRotationDto,
+  ApiOwnerCredentialRotationPreparationDto,
   ApiSystemConfigurationSnapshotDto,
 } from "../../../../contracts/api/schemas/system.ts";
 import { OperationLedger } from "../../../../infrastructure/server/operations/operationLedger.ts";
@@ -17,7 +17,7 @@ import { SystemAdministrationService } from "../../../../infrastructure/server/s
 import { dispatch } from "./support/apiServerTestHarness.ts";
 
 describe("system configuration API", () => {
-  it("owns configuration CAS, one-time owner secret, and session cookies", async () => {
+  it("owns configuration CAS, two-stage owner rotation, and session cookies", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "ctn-system-api-"));
     const bootstrap = new BootstrapConfigurationStore(root);
     const initial = await bootstrap.readSnapshot();
@@ -76,18 +76,71 @@ describe("system configuration API", () => {
         method: "GET",
         url: "/api/v3/admin/system-configuration",
       });
-      const rotated = await dispatch<ApiOwnerCredentialRotationDto>(handler, {
+      const preparation = await dispatch<
+        ApiOwnerCredentialRotationPreparationDto
+      >(handler, {
         body: { baseRevision: loaded.body!.revision },
         method: "POST",
-        url: "/api/v3/admin/system-configuration/owner-credential",
+        url: "/api/v3/admin/system-configuration/owner-credential/rotations",
       });
 
-      expect(rotated.statusCode).toBe(200);
-      expect(rotated.body!.secret).toMatch(/^ctn_owner_/);
-      expect(rotated.headers["set-cookie"]).toContain("HttpOnly");
-      expect(rotated.headers["set-cookie"]).toContain("SameSite=Strict");
-      expect(rotated.headers["set-cookie"]).toContain("Secure");
-      expect(rotated.headers["set-cookie"]).toContain("Path=/api/v3");
+      expect(preparation.statusCode).toBe(201);
+      expect(preparation.body!.secret).toMatch(/^ctn_owner_/);
+      expect(preparation.body!.rotationId).toBeTruthy();
+      expect(preparation.body!.configuration).toMatchObject({
+        ownerCredentialConfigured: false,
+        ownerCredentialRotationPending: true,
+      });
+      expect(preparation.headers["set-cookie"]).toBeUndefined();
+      const pendingLogin = await dispatch<{ code: string }>(handler, {
+        body: { secret: preparation.body!.secret },
+        method: "POST",
+        url: "/api/v3/auth/session",
+      });
+
+      expect(pendingLogin).toMatchObject({
+        body: { code: "unauthorized" },
+        statusCode: 401,
+      });
+      const activationWithoutProof = await dispatch<{ code: string }>(
+        handler,
+        {
+          body: {
+            baseRevision: preparation.body!.configuration.revision,
+            rotationId: preparation.body!.rotationId,
+            secret: "not-the-prepared-secret",
+          },
+          method: "POST",
+          url: "/api/v3/admin/system-configuration/owner-credential/activations",
+        },
+      );
+
+      expect(activationWithoutProof).toMatchObject({
+        body: { code: "domain_validation_failed" },
+        statusCode: 422,
+      });
+      const activated = await dispatch<ApiSystemConfigurationSnapshotDto>(
+        handler,
+        {
+          body: {
+            baseRevision: preparation.body!.configuration.revision,
+            rotationId: preparation.body!.rotationId,
+            secret: preparation.body!.secret,
+          },
+          method: "POST",
+          url: "/api/v3/admin/system-configuration/owner-credential/activations",
+        },
+      );
+
+      expect(activated.statusCode).toBe(200);
+      expect(activated.body).toMatchObject({
+        ownerCredentialConfigured: true,
+        ownerCredentialRotationPending: false,
+      });
+      expect(activated.headers["set-cookie"]).toContain("HttpOnly");
+      expect(activated.headers["set-cookie"]).toContain("SameSite=Strict");
+      expect(activated.headers["set-cookie"]).toContain("Secure");
+      expect(activated.headers["set-cookie"]).toContain("Path=/api/v3");
       const invalidLogin = await dispatch<{ code: string }>(handler, {
         body: { secret: "wrong" },
         method: "POST",
@@ -99,16 +152,16 @@ describe("system configuration API", () => {
         statusCode: 401,
       });
       const login = await dispatch<{ authenticated: boolean }>(handler, {
-        body: { secret: rotated.body!.secret },
+        body: { secret: preparation.body!.secret },
         method: "POST",
         url: "/api/v3/auth/session",
       });
 
       expect(login).toMatchObject({ body: { authenticated: true }, statusCode: 200 });
-      expect(login.headers["set-cookie"]).not.toContain(rotated.body!.secret);
+      expect(login.headers["set-cookie"]).not.toContain(preparation.body!.secret);
       const updated = await dispatch<ApiSystemConfigurationSnapshotDto>(handler, {
         body: {
-          baseRevision: rotated.body!.configuration.revision,
+          baseRevision: activated.body!.revision,
           configuration: {
             listenMode: "lan",
             maxAuditEntries: 25,
@@ -128,7 +181,7 @@ describe("system configuration API", () => {
       });
       const stale = await dispatch<{ code: string }>(handler, {
         body: {
-          baseRevision: rotated.body!.configuration.revision,
+          baseRevision: activated.body!.revision,
           configuration: {
             listenMode: "loopback",
             maxAuditEntries: 1_000,

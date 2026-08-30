@@ -60,6 +60,7 @@ export type SystemConfigurationSnapshot = Readonly<{
   configuration: SystemConfiguration;
   effectiveConfiguration: SystemConfiguration;
   ownerCredentialConfigured: boolean;
+  ownerCredentialRotationPending: boolean;
   restartRequired: boolean;
   revision: `sha256:${string}`;
   version: number;
@@ -72,8 +73,15 @@ export type SystemConfigurationUpdateRequest = Readonly<{
   configuration: SystemConfigurationInput;
 }>;
 
-export type OwnerCredentialRotation = Readonly<{
+export type OwnerCredentialRotationPreparation = Readonly<{
   configuration: SystemConfigurationSnapshot;
+  rotationId: string;
+  secret: string;
+}>;
+
+export type OwnerCredentialRotationActivation = Readonly<{
+  baseRevision: `sha256:${string}`;
+  rotationId: string;
   secret: string;
 }>;
 
@@ -86,6 +94,11 @@ export type DataRootMigrationStatus = Readonly<{
 }>;
 
 export type SystemAdministrationPort = {
+  activateOwnerCredentialRotation(
+    baseRevision: string,
+    rotationId: string,
+    secret: string,
+  ): Promise<SystemConfigurationSnapshot>;
   clearOwnerCredential(baseRevision: string): Promise<SystemConfigurationSnapshot>;
   getMigration(migrationId: string): Promise<DataRootMigrationStatus>;
   load(): Promise<SystemConfigurationSnapshot>;
@@ -93,12 +106,30 @@ export type SystemAdministrationPort = {
     baseRevision: string,
     destination: string,
   ): Promise<DataRootMigrationStatus>;
-  rotateOwnerCredential(baseRevision: string): Promise<OwnerCredentialRotation>;
+  prepareOwnerCredentialRotation(
+    baseRevision: string,
+  ): Promise<OwnerCredentialRotationPreparation>;
   update(
     baseRevision: string,
     configuration: SystemConfigurationInput,
   ): Promise<SystemConfigurationSnapshot>;
 };
+
+export type OwnerCredentialRotationCommit = Readonly<{
+  configuration: SystemConfigurationSnapshot;
+  ownerSession: string;
+}>;
+
+export type SystemAdministrationServerPort = Omit<
+  SystemAdministrationPort,
+  "activateOwnerCredentialRotation"
+> & Readonly<{
+  activateOwnerCredentialRotation(
+    baseRevision: string,
+    rotationId: string,
+    secret: string,
+  ): Promise<OwnerCredentialRotationCommit>;
+}>;
 
 export type SystemMaintenanceLease = {
   finish(): void;
@@ -117,11 +148,14 @@ export type SystemConfigurationState = Readonly<{
 }>;
 
 export type SystemConfigurationController = {
+  activateOwnerCredentialRotation(
+    activation: OwnerCredentialRotationActivation,
+  ): Promise<void>;
   clearOwnerCredential(): Promise<void>;
   getSnapshot(): SystemConfigurationState;
   load(): Promise<void>;
   migrateDataRoot(destination: string): Promise<void>;
-  rotateOwnerCredential(): Promise<string>;
+  prepareOwnerCredentialRotation(): Promise<OwnerCredentialRotationPreparation>;
   subscribe(listener: () => void): () => void;
   update(
     request: SystemConfigurationUpdateRequest,
@@ -204,6 +238,11 @@ export function createSystemConfigurationController(
   };
 
   return {
+    async activateOwnerCredentialRotation({ baseRevision, rotationId, secret }) {
+      await mutate(() =>
+        port.activateOwnerCredentialRotation(baseRevision, rotationId, secret)
+      );
+    },
     async clearOwnerCredential() {
       await mutate(() => port.clearOwnerCredential(revision()));
     },
@@ -242,16 +281,18 @@ export function createSystemConfigurationController(
         throw error;
       }
     },
-    async rotateOwnerCredential() {
+    async prepareOwnerCredentialRotation() {
       publish({ errorMessage: null, operationStatus: "working" });
       try {
-        const rotated = await port.rotateOwnerCredential(revision());
+        const preparation = await port.prepareOwnerCredentialRotation(
+          revision(),
+        );
 
         publish({
-          configuration: rotated.configuration,
+          configuration: preparation.configuration,
           operationStatus: "idle",
         });
-        return rotated.secret;
+        return preparation;
       } catch (error) {
         publish({ errorMessage: errorMessage(error), operationStatus: "idle" });
         throw error;

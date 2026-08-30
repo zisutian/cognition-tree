@@ -210,8 +210,13 @@ API principal 是严格 union，不共享“全部 scopes”：
 
 local-owner 同时要求 socket remote address 与 Host 都是 loopback；公共 Host 经过
 loopback 反向代理不会提升权限。远程 owner 只来自签名 HttpOnly session Cookie，
-credential version 轮换立即使旧 Cookie 失效，Cookie 写请求还必须精确匹配设置中的
-HTTPS Origin。Bearer 只属于 automation 或 trusted-client，显式无效 Bearer 一律 401。
+owner credential 轮换分为 prepare 与 activate 两个 exact-CAS operation：prepare 只
+替换无认证能力的 pending 摘要；activate 才提升 pending、递增 active credential
+version、使旧 Cookie 失效；activate 必须回传 secret 作为持有证明，服务端在同一状态
+candidate 上验证 pending digest 并签发新 Cookie。普通登录同样在一次权威读取中完成
+secret 校验与 session 签发。提交结果未知时不会自动重试；调用端保留 prepare 已交付的
+secret。Cookie 写请求还必须精确匹配设置中的 HTTPS Origin。Bearer 只属于 automation
+或 trusted-client，显式无效 Bearer 一律 401。
 
 每个 operation 只声明 `public`、`owner`、`content-read(domain)` 或
 `content-sync`。授权矩阵穷举 principal 与 policy 的全部组合，未知 kind 默认拒绝；
@@ -297,8 +302,10 @@ capabilities 与 admin status 投影；不可用时 Agent 与 trusted-client fai
 与内容不删除也不读取为新账本。删除目标必须是预期目录中的普通文件并拒绝符号链接；
 删除失败使新账本 unavailable。状态目录权限为 0700、文件权限为 0600。
 bootstrap 固定在项目根，独占监听、端口、数据根指针、public origin、宿主机显示路径、
-审计容量和 owner credential 摘要；配置使用 exact CAS，损坏时只启动本机 recovery
-registry。
+审计容量，以及唯一 owner credential 聚合中的 active digest、active version 和至多一个
+pending rotation；配置使用 exact CAS，v1 摘要/version 无损迁入 v2 聚合，损坏时只启动
+本机 recovery registry。LAN 前置条件、secret 认证与 session 校验只读取 active，clear
+同时清除 active 与 pending。
 
 数据根迁移由 application/workbench 的 loaded-content flush、application/system 的
 迁移用例和 infrastructure/system 的文件协调器共同完成。maintenance gate 阻止新

@@ -32,7 +32,8 @@ import {
 import {
   ApiDataRootMigrationRequestSchema,
   ApiDataRootMigrationStatusSchema,
-  ApiOwnerCredentialRotationSchema,
+  ApiOwnerCredentialRotationActivationSchema,
+  ApiOwnerCredentialRotationPreparationSchema,
   ApiSystemConfigurationMutationSchema,
   ApiSystemConfigurationRevisionSchema,
   ApiSystemConfigurationSnapshotSchema,
@@ -55,7 +56,8 @@ const auditQuerySchema = Type.Object({
 export const adminApiOperations = [
   { access: ownerAccess(), method: "GET", operationId: "getSystemConfiguration", path: "/api/v3/admin/system-configuration", responses: { 200: ApiSystemConfigurationSnapshotSchema } },
   { access: ownerAccess(), body: apiBody(ApiSystemConfigurationMutationSchema), method: "PATCH", operationId: "updateSystemConfiguration", path: "/api/v3/admin/system-configuration", responses: { 200: ApiSystemConfigurationSnapshotSchema } },
-  { access: ownerAccess(), body: apiBody(ApiSystemConfigurationRevisionSchema), method: "POST", operationId: "rotateOwnerCredential", path: "/api/v3/admin/system-configuration/owner-credential", responses: { 200: ApiOwnerCredentialRotationSchema } },
+  { access: ownerAccess(), body: apiBody(ApiSystemConfigurationRevisionSchema), method: "POST", operationId: "prepareOwnerCredentialRotation", path: "/api/v3/admin/system-configuration/owner-credential/rotations", responses: { 201: ApiOwnerCredentialRotationPreparationSchema } },
+  { access: ownerAccess(), body: apiBody(ApiOwnerCredentialRotationActivationSchema), method: "POST", operationId: "activateOwnerCredentialRotation", path: "/api/v3/admin/system-configuration/owner-credential/activations", responses: { 200: ApiSystemConfigurationSnapshotSchema } },
   { access: ownerAccess(), body: apiBody(ApiSystemConfigurationRevisionSchema), method: "DELETE", operationId: "clearOwnerCredential", path: "/api/v3/admin/system-configuration/owner-credential", responses: { 200: ApiSystemConfigurationSnapshotSchema } },
   { access: ownerAccess(), body: apiBody(ApiDataRootMigrationRequestSchema), method: "POST", operationId: "createDataRootMigration", path: "/api/v3/admin/data-root-migrations", responses: { 202: ApiDataRootMigrationStatusSchema } },
   { access: ownerAccess(), method: "GET", operationId: "getDataRootMigration", path: "/api/v3/admin/data-root-migrations/{migrationId}", responses: { 200: ApiDataRootMigrationStatusSchema } },

@@ -22,8 +22,10 @@ type HostPattern = {
 };
 
 export type ApiOwnerSessionAuthority = {
-  authenticateOwnerSecret(secret: string): Promise<boolean>;
-  createOwnerSession(now?: Date): Promise<string>;
+  createOwnerSessionForSecret(
+    secret: string,
+    now?: Date,
+  ): Promise<string | null>;
   verifyOwnerSession(session: string, now?: Date): Promise<boolean>;
 };
 

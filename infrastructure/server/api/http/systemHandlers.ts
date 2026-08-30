@@ -2,6 +2,7 @@
 
 import type {
   ApiDataRootMigrationRequestDto,
+  ApiOwnerCredentialRotationActivationDto,
   ApiOwnerSessionRequestDto,
   ApiSystemConfigurationMutationDto,
   ApiSystemConfigurationRevisionDto,
@@ -36,11 +37,13 @@ export async function handleOwnerSession(context: ApiRouteHandlerContext) {
   }
   if (context.operation.operationId === "createOwnerSession") {
     const request = await context.readJsonBody() as ApiOwnerSessionRequestDto;
+    const session = await context.ownerSessions.createOwnerSessionForSecret(
+      request.secret,
+    );
 
-    if (!await context.ownerSessions.authenticateOwnerSecret(request.secret)) {
+    if (!session) {
       throw new ApiRequestError("unauthorized", "Owner secret is invalid");
     }
-    const session = await context.ownerSessions.createOwnerSession();
 
     context.responseHeaders["Set-Cookie"] = createOwnerSessionCookie(session);
     return { body: { authenticated: true }, statusCode: 200 };
@@ -70,16 +73,28 @@ export async function handleSystemAdministration(context: ApiHandlerContext) {
     }
     return { body: configuration, statusCode: 200 };
   }
-  if (operation.operationId === "rotateOwnerCredential") {
+  if (operation.operationId === "prepareOwnerCredentialRotation") {
     const request = await context.readJsonBody() as
       ApiSystemConfigurationRevisionDto;
-    const rotation = await administration.rotateOwnerCredential(
+    const preparation = await administration.prepareOwnerCredentialRotation(
       request.baseRevision,
     );
-    const session = await context.ownerSessions.createOwnerSession();
 
-    context.responseHeaders["Set-Cookie"] = createOwnerSessionCookie(session);
-    return { body: rotation, statusCode: 200 };
+    return { body: preparation, statusCode: 201 };
+  }
+  if (operation.operationId === "activateOwnerCredentialRotation") {
+    const request = await context.readJsonBody() as
+      ApiOwnerCredentialRotationActivationDto;
+    const activation = await administration.activateOwnerCredentialRotation(
+      request.baseRevision,
+      request.rotationId,
+      request.secret,
+    );
+
+    context.responseHeaders["Set-Cookie"] = createOwnerSessionCookie(
+      activation.ownerSession,
+    );
+    return { body: activation.configuration, statusCode: 200 };
   }
   if (operation.operationId === "clearOwnerCredential") {
     const request = await context.readJsonBody() as

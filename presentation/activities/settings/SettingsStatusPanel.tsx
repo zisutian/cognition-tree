@@ -173,7 +173,8 @@ function systemStatus({
   state: SystemConfigurationState;
 }) {
   const snapshot = state.configuration;
-  const ownerSecret = ownerCredentialSession.snapshot.secret;
+  const ownerCredentialPreparation =
+    ownerCredentialSession.snapshot.preparation;
 
   if (!snapshot) {
     return <EmptyState compact description={state.errorMessage ?? "正在读取服务状态。"} title="服务状态不可用" />;
@@ -209,11 +210,15 @@ function systemStatus({
               </StatusBadge>
             )}
           />
-          {ownerSecret ? (
+          <ToolPropertyRow
+            label="待处理轮换"
+            value={snapshot.ownerCredentialRotationPending ? "有" : "无"}
+          />
+          {ownerCredentialPreparation ? (
             <ToolPropertyRow
-              actions={<Button onClick={ownerCredentialSession.dismissSecret} type="button">关闭显示</Button>}
-              label="新密钥"
-              value={<code>{ownerSecret}</code>}
+              actions={<Button disabled={state.operationStatus === "working"} onClick={ownerCredentialSession.dismissSecret} type="button">关闭显示</Button>}
+              label={ownerCredentialSession.snapshot.activationStatus === "activated" ? "已激活新密钥" : "待激活新密钥"}
+              value={<code>{ownerCredentialPreparation.secret}</code>}
             />
           ) : null}
         </ToolPropertyList>

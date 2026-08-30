@@ -32,7 +32,7 @@ import type { OperationLedger } from "../../operations/operationLedger.ts";
 import type { AgentService } from "../../agent/service.ts";
 import type { AgentConfigurationStore } from "../../agent/configurationStore.ts";
 import type { AgentProviderOperations } from "../../agent/providerOperations.ts";
-import type { SystemAdministrationPort } from "../../../../application/system/systemConfiguration.ts";
+import type { SystemAdministrationServerPort } from "../../../../application/system/systemConfiguration.ts";
 import type { ApiOwnerSessionAuthority } from "./security.ts";
 
 export type HandlerResult = {
@@ -188,7 +188,7 @@ export type ApiHandlerContext = {
   route: ResolvedApiRoute;
   runtime: ApiRuntime;
   search: ApiSearchService | null;
-  systemAdministration: SystemAdministrationPort | null;
+  systemAdministration: SystemAdministrationServerPort | null;
   trustedClientTokenStore: TrustedClientTokenStore;
 };
 

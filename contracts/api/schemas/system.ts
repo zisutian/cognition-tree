@@ -40,6 +40,7 @@ export const ApiSystemConfigurationSnapshotSchema = strictObject({
   configuration: ApiSystemConfigurationSchema,
   effectiveConfiguration: ApiSystemConfigurationSchema,
   ownerCredentialConfigured: Type.Boolean(),
+  ownerCredentialRotationPending: Type.Boolean(),
   restartRequired: Type.Boolean(),
   revision: ApiResourceVersionSchema,
   version: Type.Integer({ minimum: 1 }),
@@ -63,12 +64,22 @@ export type ApiSystemConfigurationRevisionDto = Static<
   typeof ApiSystemConfigurationRevisionSchema
 >;
 
-export const ApiOwnerCredentialRotationSchema = strictObject({
+export const ApiOwnerCredentialRotationPreparationSchema = strictObject({
   configuration: ApiSystemConfigurationSnapshotSchema,
+  rotationId: ApiIdentifierSchema,
   secret: Type.String({ minLength: 1 }),
 });
-export type ApiOwnerCredentialRotationDto = Static<
-  typeof ApiOwnerCredentialRotationSchema
+export type ApiOwnerCredentialRotationPreparationDto = Static<
+  typeof ApiOwnerCredentialRotationPreparationSchema
+>;
+
+export const ApiOwnerCredentialRotationActivationSchema = strictObject({
+  baseRevision: ApiResourceVersionSchema,
+  rotationId: ApiIdentifierSchema,
+  secret: Type.String({ minLength: 1 }),
+});
+export type ApiOwnerCredentialRotationActivationDto = Static<
+  typeof ApiOwnerCredentialRotationActivationSchema
 >;
 
 export const ApiDataRootMigrationRequestSchema = strictObject({

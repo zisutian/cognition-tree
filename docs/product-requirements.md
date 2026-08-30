@@ -176,6 +176,12 @@ chat runtime 必须区分 reasoning、最终正文、工具调用和终止原因
 首次服务只监听 `127.0.0.1:3001`。局域网模式必须已有 owner credential 与 HTTPS
 public origin，TLS 由外部代理终止。远程浏览器通过 owner secret 建立 HttpOnly
 session；本机 owner 同时检查 socket 与 Host。显式错误 Bearer 永远 401。
+owner credential 创建和轮换必须先 prepare pending secret，再由所有者确认保存并以
+prepare 返回的 revision、rotation id 和 secret proof exact-CAS activate；prepare 不撤销
+旧凭据，activate 在同一权威 candidate 上验证 proof、递增 credential version 并签发新
+session，错误或提交结果未知时界面不得清除已交付 secret。普通登录的 secret 校验与
+session 签发也必须原子读取同一 credential state。LAN 只承认 active，clear 同时清除
+active 与 pending。
 
 数据根迁移前同步所有已加载内容，并在 resident Agent session、pending Codex 登录、
 配置冲突或另一迁移存在时拒绝。迁移只复制当前权威分区，拒绝路径重叠和符号链接，

@@ -61,14 +61,20 @@
 
 远程使用步骤：
 
-1. 从本机打开“设置 → 服务”，创建 owner credential。
-2. 立即保存只展示一次的 owner secret。
-3. 配置 HTTPS public origin 与局域网模式，等待服务重启。
-4. 远程浏览器输入 secret；服务换发最长 12 小时的 `ctn_owner_session` Cookie。
+1. 从本机打开“设置 → 服务”，准备 owner credential；此时旧凭据仍然有效，新 secret
+   尚不能认证。
+2. 保存持续显示在界面中的新 secret，并明确点击“我已保存，激活新密钥”。
+3. 激活成功后再配置 HTTPS public origin 与局域网模式，等待服务重启。
+4. 远程浏览器输入已激活的 secret；服务换发最长 12 小时的
+   `ctn_owner_session` Cookie。
 
 Cookie 使用 `HttpOnly`、`SameSite=Strict`、`Secure`、`Path=/api/v3`。Cookie 鉴权的
-写请求必须带与设置完全相同的 Origin。轮换 secret 会立即废止旧 session，并给执行
-轮换的浏览器签发新 session。清除 credential 只允许在 loopback 模式中进行。
+写请求必须带与设置完全相同的 Origin。准备轮换只以 exact CAS 替换一个 pending
+摘要；只有显式激活才提升 pending、递增 credential version、废止旧 session，并给执行
+激活的浏览器签发新 session。激活请求会把 secret 作为持有证明交回服务端；摘要验证、
+状态提升和新 session 签发属于同一权威提交，不经过可竞态的二次状态读取。激活结果未知
+时界面保留 secret，供重新载入后用旧 secret 或新 secret 恢复。清除 credential 只允许
+在 loopback 模式中进行，并同时清除 pending。
 
 automation 继续使用 Bearer token，但只能拥有 `workspace:read`、`journal:read`、
 `todo:read`；Workspace 受 repository ID allowlist 限制。任何显式但无效的 Bearer
@@ -206,7 +212,9 @@ owner-only 服务管理操作：
 
     DELETE /api/v3/auth/session
     GET、PATCH /api/v3/admin/system-configuration
-    POST、DELETE /api/v3/admin/system-configuration/owner-credential
+    POST /api/v3/admin/system-configuration/owner-credential/rotations
+    POST /api/v3/admin/system-configuration/owner-credential/activations
+    DELETE /api/v3/admin/system-configuration/owner-credential
     POST /api/v3/admin/data-root-migrations
     GET  /api/v3/admin/data-root-migrations/<migration-id>
     GET、POST /api/v3/admin/trusted-client-tokens

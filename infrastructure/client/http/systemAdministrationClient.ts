@@ -7,7 +7,7 @@ import type {
 import { parseApiSchema } from "../../../contracts/api/parse.ts";
 import {
   ApiDataRootMigrationStatusSchema,
-  ApiOwnerCredentialRotationSchema,
+  ApiOwnerCredentialRotationPreparationSchema,
   ApiOwnerSessionSchema,
   ApiSystemConfigurationSnapshotSchema,
 } from "../../../contracts/api/schemas/system.ts";
@@ -35,6 +35,12 @@ export function createHttpSystemAdministrationClient({
     parseApiSchema(ApiSystemConfigurationSnapshotSchema, value);
 
   return {
+    async activateOwnerCredentialRotation(baseRevision, rotationId, secret) {
+      return configuration(await request(
+        "/api/v3/admin/system-configuration/owner-credential/activations",
+        jsonRequest({ baseRevision, rotationId, secret }, "POST"),
+      ));
+    },
     async clearOwnerCredential(baseRevision) {
       return configuration(await request(
         "/api/v3/admin/system-configuration/owner-credential",
@@ -63,11 +69,11 @@ export function createHttpSystemAdministrationClient({
         ),
       );
     },
-    async rotateOwnerCredential(baseRevision) {
+    async prepareOwnerCredentialRotation(baseRevision) {
       return parseApiSchema(
-        ApiOwnerCredentialRotationSchema,
+        ApiOwnerCredentialRotationPreparationSchema,
         await request(
-          "/api/v3/admin/system-configuration/owner-credential",
+          "/api/v3/admin/system-configuration/owner-credential/rotations",
           jsonRequest({ baseRevision }, "POST"),
         ),
       );

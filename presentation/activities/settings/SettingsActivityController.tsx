@@ -1,4 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import type {
+  OwnerCredentialRotationActivation,
+} from "../../../application/system";
 import { createSettingsActivitySlots } from "./SettingsActivitySlots";
 import type {
   AgentSettingsRoute,
@@ -35,10 +38,14 @@ export function SettingsActivityController({
   const systemConfigurationController =
     application.system.configurationController;
   const systemOwnerCredentialController = useMemo(() => ({
+    activateOwnerCredentialRotation: (
+      activation: OwnerCredentialRotationActivation,
+    ) =>
+      systemConfigurationController.activateOwnerCredentialRotation(activation),
     clearOwnerCredential: () =>
       systemConfigurationController.clearOwnerCredential(),
-    rotateOwnerCredential: () =>
-      systemConfigurationController.rotateOwnerCredential(),
+    prepareOwnerCredentialRotation: () =>
+      systemConfigurationController.prepareOwnerCredentialRotation(),
   }), [systemConfigurationController]);
   const systemOwnerCredentialSession = useSystemOwnerCredentialSession(
     systemOwnerCredentialController,
@@ -92,13 +99,11 @@ export function SettingsActivityController({
     if (!active) {
       apiAccessSession.reset();
       operationsSession.reset();
-      systemOwnerCredentialSession.reset();
     }
   }, [
     active,
     apiAccessSession.reset,
     operationsSession.reset,
-    systemOwnerCredentialSession.reset,
   ]);
 
   useEffect(() => {
@@ -129,9 +134,6 @@ export function SettingsActivityController({
     if (section === "api-access" && nextSection !== "api-access") {
       apiAccessSession.reset();
     }
-    if (section === "system" && nextSection !== "system") {
-      systemOwnerCredentialSession.reset();
-    }
     if (section === "audit" && nextSection !== "audit") {
       operationsSession.reset();
     }
@@ -161,11 +163,13 @@ export function SettingsActivityController({
           section,
           system: application.system,
           systemOwnerCredentialSession: {
+            activatePreparedOwnerCredential:
+              systemOwnerCredentialSession.activatePreparedOwnerCredential,
             clearOwnerCredential:
               systemOwnerCredentialSession.clearOwnerCredential,
             dismissSecret: systemOwnerCredentialSession.dismissSecret,
-            rotateOwnerCredential:
-              systemOwnerCredentialSession.rotateOwnerCredential,
+            prepareOwnerCredentialRotation:
+              systemOwnerCredentialSession.prepareOwnerCredentialRotation,
             snapshot: systemOwnerCredentialSession.snapshot,
           },
           workbench: { contextWidth, onContextWidthChange },

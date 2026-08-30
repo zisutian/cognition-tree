@@ -8,11 +8,11 @@ export function createSystemOwnerCredentialSessionFixture(
   overrides: Partial<SystemOwnerCredentialSession> = {},
 ): SystemOwnerCredentialSession {
   return {
+    activatePreparedOwnerCredential: async () => undefined,
     clearOwnerCredential: async () => undefined,
     dismissSecret: () => undefined,
-    reset: () => undefined,
-    rotateOwnerCredential: async () => undefined,
-    snapshot: { secret: null },
+    prepareOwnerCredentialRotation: async () => undefined,
+    snapshot: { activationStatus: null, preparation: null },
     ...overrides,
   };
 }

@@ -200,8 +200,7 @@ export async function withHandler(
       runtime,
       security: createApiSecurityPolicy({
         ownerSessions: {
-          authenticateOwnerSecret: async () => false,
-          createOwnerSession: async () => "unused",
+          createOwnerSessionForSecret: async () => null,
           verifyOwnerSession: async () => false,
         },
         port: 3_001,

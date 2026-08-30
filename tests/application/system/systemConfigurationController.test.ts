@@ -28,15 +28,23 @@ const configuration: SystemConfigurationSnapshot = {
     repositoryHostRoot: null,
   },
   ownerCredentialConfigured: false,
+  ownerCredentialRotationPending: false,
   restartRequired: false,
   revision,
   version: 1,
 };
-const rotatedConfiguration: SystemConfigurationSnapshot = {
+const preparedConfiguration: SystemConfigurationSnapshot = {
   ...configuration,
-  ownerCredentialConfigured: true,
+  ownerCredentialRotationPending: true,
   revision: `sha256:${"b".repeat(64)}`,
   version: 2,
+};
+const activatedConfiguration: SystemConfigurationSnapshot = {
+  ...preparedConfiguration,
+  ownerCredentialConfigured: true,
+  ownerCredentialRotationPending: false,
+  revision: `sha256:${"e".repeat(64)}`,
+  version: 3,
 };
 const updateRevision = `sha256:${"c".repeat(64)}` as const;
 const updateInput: SystemConfigurationInput = {
@@ -77,12 +85,14 @@ function port(statuses: DataRootMigrationStatus[]): SystemAdministrationPort {
   let nextStatus = 1;
 
   return {
+    activateOwnerCredentialRotation: vi.fn(async () => activatedConfiguration),
     clearOwnerCredential: vi.fn(async () => configuration),
     getMigration: vi.fn(async () => statuses[nextStatus++]!),
     load: vi.fn(async () => configuration),
     migrateDataRoot: vi.fn(async () => statuses[0]!),
-    rotateOwnerCredential: vi.fn(async () => ({
-      configuration: rotatedConfiguration,
+    prepareOwnerCredentialRotation: vi.fn(async () => ({
+      configuration: preparedConfiguration,
+      rotationId: "rotation-1",
       secret: "secret",
     })),
     update: vi.fn(async () => configuration),
@@ -117,7 +127,7 @@ describe("system configuration controller", () => {
     });
   });
 
-  it("returns a rotated owner secret without publishing it in the snapshot", async () => {
+  it("publishes a prepared rotation without retaining its secret", async () => {
     const administration = port([]);
     const controller = createSystemConfigurationController(administration, {
       pollMigration: async () => undefined,
@@ -125,18 +135,44 @@ describe("system configuration controller", () => {
     });
 
     await controller.load();
-    const secret = await controller.rotateOwnerCredential();
+    const preparation = await controller.prepareOwnerCredentialRotation();
 
-    expect(secret).toBe("secret");
-    expect(administration.rotateOwnerCredential).toHaveBeenCalledWith(revision);
+    expect(preparation).toMatchObject({
+      rotationId: "rotation-1",
+      secret: "secret",
+    });
+    expect(administration.prepareOwnerCredentialRotation)
+      .toHaveBeenCalledWith(revision);
     const snapshot = controller.getSnapshot();
 
-    expect(snapshot.configuration).toBe(rotatedConfiguration);
+    expect(snapshot.configuration).toBe(preparedConfiguration);
     expect(snapshot.operationStatus).toBe("idle");
     expect(Object.keys(snapshot).some((key) =>
       key.toLowerCase().includes("secret")
     )).toBe(false);
-    expect(JSON.stringify(snapshot)).not.toContain(secret);
+    expect(JSON.stringify(snapshot)).not.toContain(preparation.secret);
+  });
+
+  it("activates only the exact prepared revision and rotation id", async () => {
+    const administration = port([]);
+    const controller = createSystemConfigurationController(administration, {
+      pollMigration: async () => undefined,
+      pollMigrationIntervalMilliseconds: 1,
+    });
+
+    await controller.load();
+    await controller.activateOwnerCredentialRotation({
+      baseRevision: preparedConfiguration.revision,
+      rotationId: "rotation-1",
+      secret: "secret",
+    });
+
+    expect(administration.activateOwnerCredentialRotation).toHaveBeenCalledWith(
+      preparedConfiguration.revision,
+      "rotation-1",
+      "secret",
+    );
+    expect(controller.getSnapshot().configuration).toBe(activatedConfiguration);
   });
 
   it("polls a migration through verification until restart is visible", async () => {

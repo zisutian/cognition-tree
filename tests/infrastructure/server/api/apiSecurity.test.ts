@@ -9,8 +9,7 @@ import {
 } from "../../../../infrastructure/server/api/http/security.ts";
 
 const ownerSessions = {
-  authenticateOwnerSecret: async () => false,
-  createOwnerSession: async () => "session",
+  createOwnerSessionForSecret: async () => null,
   verifyOwnerSession: async (session: string) => session === "valid-session",
 };
 const noAutomationTokens = { authenticate: async () => null };

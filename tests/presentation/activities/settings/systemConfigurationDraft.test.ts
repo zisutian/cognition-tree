@@ -28,6 +28,7 @@ function snapshot(
     configuration: { ...input, dataRoot: "/data/current" },
     effectiveConfiguration: { ...input, dataRoot: "/data/current" },
     ownerCredentialConfigured: false,
+    ownerCredentialRotationPending: false,
     restartRequired: false,
     revision: `sha256:${version.toString(16).padStart(64, "0")}`,
     version,

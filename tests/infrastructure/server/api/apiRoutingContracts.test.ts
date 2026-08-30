@@ -88,6 +88,19 @@ describe("CTN API v3 registry", () => {
         paths["/api/v3/admin/agent-codex-device-logins/{codexLoginId}"]!
           .delete["x-ctn-access"],
       ).toEqual({ kind: "owner" });
+      expect(
+        paths[
+          "/api/v3/admin/system-configuration/owner-credential/rotations"
+        ]!.post.responses,
+      ).toMatchObject({ "201": expect.any(Object) });
+      expect(
+        paths[
+          "/api/v3/admin/system-configuration/owner-credential/activations"
+        ]!.post["x-ctn-access"],
+      ).toEqual({ kind: "owner" });
+      expect(
+        paths["/api/v3/admin/system-configuration/owner-credential"]!.post,
+      ).toBeUndefined();
 
       await expect(dispatch<{ code: string }>(handler, {
         method: "GET",

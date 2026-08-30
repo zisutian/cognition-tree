@@ -3,12 +3,13 @@
 import type {
   DataRootMigrationStatus,
   AgentAuditCapacityPort,
-  SystemAdministrationPort,
+  SystemAdministrationServerPort,
   SystemConfiguration,
   SystemConfigurationInput,
   SystemConfigurationSnapshot,
 } from "../../../application/system/systemConfiguration.ts";
 import type {
+  BootstrapOwnerCredentialActivation,
   BootstrapConfigurationSnapshot,
   BootstrapConfigurationStore,
 } from "./bootstrapConfigurationStore.ts";
@@ -25,7 +26,7 @@ function sameConfiguration(
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-export class SystemAdministrationService implements SystemAdministrationPort {
+export class SystemAdministrationService implements SystemAdministrationServerPort {
   readonly #bootstrap: BootstrapConfigurationStore;
   #effectiveConfiguration: SystemConfiguration;
   readonly #ledger: AgentAuditCapacityPort;
@@ -48,6 +49,18 @@ export class SystemAdministrationService implements SystemAdministrationPort {
     this.#migrations = migrations;
   }
 
+  activateOwnerCredentialRotation(
+    baseRevision: string,
+    rotationId: string,
+    secret: string,
+  ) {
+    return this.#bootstrap.activateOwnerCredentialRotation(
+      baseRevision,
+      rotationId,
+      secret,
+    ).then((activation) => this.#projectActivation(activation));
+  }
+
   clearOwnerCredential(baseRevision: string) {
     return this.#bootstrap.clearOwnerCredential(baseRevision).then((snapshot) =>
       this.#project(snapshot)
@@ -66,12 +79,15 @@ export class SystemAdministrationService implements SystemAdministrationPort {
     return this.#migrations.start(baseRevision, destination);
   }
 
-  async rotateOwnerCredential(baseRevision: string) {
-    const rotated = await this.#bootstrap.rotateOwnerCredential(baseRevision);
+  async prepareOwnerCredentialRotation(baseRevision: string) {
+    const preparation = await this.#bootstrap.prepareOwnerCredentialRotation(
+      baseRevision,
+    );
 
     return {
-      configuration: this.#project(rotated.configuration),
-      secret: rotated.secret,
+      configuration: this.#project(preparation.configuration),
+      rotationId: preparation.rotationId,
+      secret: preparation.secret,
     };
   }
 
@@ -106,6 +122,15 @@ export class SystemAdministrationService implements SystemAdministrationPort {
         snapshot.configuration,
         this.#effectiveConfiguration,
       ),
+    };
+  }
+
+  #projectActivation(
+    activation: BootstrapOwnerCredentialActivation,
+  ) {
+    return {
+      configuration: this.#project(activation.configuration),
+      ownerSession: activation.ownerSession,
     };
   }
 }

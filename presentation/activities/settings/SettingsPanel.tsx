@@ -29,7 +29,7 @@ import {
   type SettingsWorkbenchPreferences,
 } from "./InterfaceSettingsPanel";
 import type {
-  SystemOwnerCredentialPanelActions,
+  SystemOwnerCredentialPanelView,
 } from "./useSystemOwnerCredentialSession";
 
 export type { SettingsSection } from "./settingsTypes";
@@ -94,7 +94,7 @@ export function SettingsPanel({
   operationsSession: OperationsSettingsPanelView;
   section?: SettingsSection;
   system: SystemSettingsPanelApplication;
-  systemOwnerCredentialSession: SystemOwnerCredentialPanelActions;
+  systemOwnerCredentialSession: SystemOwnerCredentialPanelView;
   workbench: SettingsWorkbenchPreferences;
 }) {
   if (section === "agent") {

@@ -58,7 +58,7 @@ import type { AgentService } from "../../agent/service.ts";
 import type { OperationLedger } from "../../operations/operationLedger.ts";
 import { AgentConfigurationStore } from "../../agent/configurationStore.ts";
 import { AgentProviderOperations } from "../../agent/providerOperations.ts";
-import type { SystemAdministrationPort } from "../../../../application/system/systemConfiguration.ts";
+import type { SystemAdministrationServerPort } from "../../../../application/system/systemConfiguration.ts";
 import { ApiMaintenanceGate } from "./maintenanceGate.ts";
 
 export type ApiRequestHandler = (
@@ -82,7 +82,7 @@ export type ApiServerOptions = {
   revisionTracker?: ApiRevisionTracker;
   security: ApiSecurityPolicy;
   stateDirectory?: string;
-  systemAdministration?: SystemAdministrationPort | null;
+  systemAdministration?: SystemAdministrationServerPort | null;
   trustedClientTokenStore?: TrustedClientTokenStore;
 };
 

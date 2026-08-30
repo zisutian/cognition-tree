@@ -118,11 +118,14 @@ export function createSettingsActivitySlots({
         section={section}
         system={systemSettings}
         systemOwnerCredentialSession={{
+          activatePreparedOwnerCredential:
+            systemOwnerCredentialSession.activatePreparedOwnerCredential,
           clearOwnerCredential:
             systemOwnerCredentialSession.clearOwnerCredential,
           dismissSecret: systemOwnerCredentialSession.dismissSecret,
-          rotateOwnerCredential:
-            systemOwnerCredentialSession.rotateOwnerCredential,
+          prepareOwnerCredentialRotation:
+            systemOwnerCredentialSession.prepareOwnerCredentialRotation,
+          snapshot: systemOwnerCredentialSession.snapshot,
         }}
         workbench={workbench}
       />
