@@ -157,14 +157,17 @@ absolute TTL 或主动删除都会丢失会话。operation ledger 只记录必�
 
 Provider、Profile、模型参数与凭据只由应用内设置管理。发现、探测和符合性检查都是
 显式、可观察的操作，不自动联网、创建、选模或 fallback；符合性检查可查询、可取消，
-不以一个长 HTTP 请求维持。会话固定创建时的有效配置，resident session 会阻止危险
-删除或凭据变更。“会话历史预算（字符）”只控制内存对话压缩，不代表 token 上限，
+不以一个长 HTTP 请求维持。会话从解析配置到 runtime 释放始终固定同一 Profile 与
+Provider；opening 与 resident session 都会阻止对应的危险删除或凭据变更。
+“会话历史预算（字符）”只控制内存对话压缩，不代表 token 上限，
 也不修改 Ollama `num_ctx`；探测结果只读且不改变 Profile。具体操作见使用与部署。
 
 Provider 认证是严格 union：`none`、API Key 或 Codex 专属 ChatGPT 设备码；同一
 Provider 只激活一种。API Key 与 Codex 托管登录态属于独立凭据分区，配置只保存引用，
-公开响应永不回传 secret。认证清除只有专用 owner 操作；resident session 或 pending
-设备码登录会阻止切换、清除、删除和数据迁移。失败、取消、过期和冲突不得留下已启用凭据。
+公开响应永不回传 secret。认证清除只有专用 owner 操作；opening/resident session 或
+pending 设备码登录会阻止切换、清除、删除和数据迁移。失败、取消、过期和已确定冲突
+必须回收候选；配置提交结果未知时必须保留可能已成为权威的候选，并在重启后按权威引用
+验证、保留或回收，不能把不确定结果伪装成失败后清空。
 
 chat runtime 必须区分 reasoning、最终正文、工具调用和终止原因；原始 reasoning 只在
 当前工具循环内存中维持连续性，不进入界面、SSE、日志、持久状态或审计。无正文、非法

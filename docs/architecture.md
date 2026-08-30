@@ -417,8 +417,11 @@ maxResidentSessions、model、timeout 与 tool/request limit；chat profile 的
 也不会设置 Ollama `num_ctx`。凭据只写入不回读；Provider 只激活 `none`、API Key 或
 ChatGPT 设备码中的一种认证，清除认证只能走专用 owner operation。
 aggregate、provider 和 profile 均有 version/digest，管理 mutation 使用 exact CAS。
-会话固定创建时的有效配置；普通 profile 修改不影响旧会话，resident session 会阻止
-provider、凭据和 profile 删除。单个 profile 无效或缺少 secret 时只禁用该 profile，
+会话固定创建时的有效配置；配置访问门从 profile 解析前建立 use lease，绑定解析到的
+provider，并延续到 runtime dispose。普通 profile 修改不影响旧会话；opening/resident
+session 会阻止对应 provider、凭据和 profile 删除。Provider mutation 在配置 candidate、
+凭据切换与旧凭据回收期间持有互斥 change lease，因此管理 API 的预检查不是权威。
+单个 profile 无效或缺少 secret 时只禁用该 profile，
 不回退到其它 profile。每个 profile 同时只运行一个推理，turn FIFO；每个 session 同时
 只有一个 active turn，达到 resident 上限时拒绝新会话而不驱逐有效会话。
 
@@ -430,8 +433,10 @@ conformance 每次请求前重新解析目标；metadata、link-local、unspecif
 Codex adapter 精确锁定 `@openai/codex@0.148.0`。API Key 通过 app-server
 `account/login/start` 注入单次会话的临时 CODEX_HOME，不进入子进程环境；ChatGPT
 设备码登录使用应用管理的隔离 CODEX_HOME，成功后以配置 base revision 执行 exact
-CAS，失败、取消、过期或冲突会撤销 staging。登录进行中和 resident session 都会阻止
-Provider、认证与数据根迁移的危险变更。无论认证方式，每条会话都启动独立常驻
+CAS；登录从 prepare 到 terminal 状态持有对应 Provider 的 change lease。失败、取消、
+过期或已确定冲突会撤销 staging；durable commit 结果未知时保留可能已成为权威的
+manifest 与 HOME，重启后以权威配置引用核验并回收孤儿。登录进行中和 opening/resident
+session 都会阻止 Provider、认证与数据根迁移的危险变更。无论认证方式，每条会话都启动独立常驻
 app-server，使用空临时 cwd、隔离 HOME/CODEX_HOME、`ephemeral: true`、只读
 filesystem、network disabled、approval never，并验证 instructionSources 为空；不
 读取个人 `.codex`、AGENTS、skills、hooks、plugins、sessions 或 MCP。进程环境是

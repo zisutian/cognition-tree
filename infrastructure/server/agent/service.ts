@@ -52,6 +52,9 @@ import type {
   ResolvedAgentConfiguration,
 } from "./configurationStore.ts";
 import type {
+  AgentConfigurationProfileUse,
+} from "./configurationAccess.ts";
+import type {
   AgentOperationAttempt,
   OperationLedger,
 } from "../operations/operationLedger.ts";
@@ -85,6 +88,7 @@ type SessionRecord = {
   controller: AgentSessionController;
   events: AgentSessionEventStream;
   configuration: ResolvedAgentConfiguration;
+  configurationUse: AgentConfigurationProfileUse;
   profile: AgentRuntimeProfile;
   runtime: AgentRuntimePort;
   runtimeSession: AgentRuntimeSession;
@@ -115,6 +119,9 @@ export class AgentService {
   readonly #eventHub: ApiEventHub;
   readonly #ipc: AgentPrivateIpcServer;
   readonly #ledger: OperationLedger | null;
+  readonly #openingProfiles = new Map<string, number>();
+  #disposingSessions = 0;
+  #openingSessions = 0;
   readonly #profileQueues = new Map<string, Promise<void>>();
   readonly #revisionTracker: ApiRevisionTracker;
   readonly #runtime: ApiRuntime;
@@ -236,26 +243,35 @@ export class AgentService {
     return this.#snapshot(record);
   }
 
-  hasResidentProfileSession(profileId: string) {
-    this.#removeExpiredSessionsWithoutWaiting();
-    return [...this.#sessions.values()].some(({ configuration }) =>
-      configuration.profile.id === profileId
-    );
-  }
-
-  hasResidentProviderSession(providerId: string) {
-    this.#removeExpiredSessionsWithoutWaiting();
-    return [...this.#sessions.values()].some(({ configuration }) =>
-      configuration.provider.id === providerId
-    );
-  }
-
   hasResidentSessions() {
     this.#removeExpiredSessionsWithoutWaiting();
-    return this.#sessions.size > 0;
+    return this.#disposingSessions > 0 || this.#openingSessions > 0 ||
+      this.#sessions.size > 0;
   }
 
   async createSession(request: AgentCreateSessionRequestDto) {
+    const configurationUse = this.#configurationStore.access.beginProfileUse(
+      request.profileId,
+    );
+
+    this.#openingSessions += 1;
+    let resident = false;
+
+    try {
+      const snapshot = await this.#createSession(request, configurationUse);
+
+      resident = true;
+      return snapshot;
+    } finally {
+      this.#openingSessions -= 1;
+      if (!resident) configurationUse.release();
+    }
+  }
+
+  async #createSession(
+    request: AgentCreateSessionRequestDto,
+    configurationUse: AgentConfigurationProfileUse,
+  ) {
     this.#removeExpiredSessionsWithoutWaiting();
     if (!this.#ledger) {
       throw new AgentServiceError(
@@ -272,6 +288,7 @@ export class AgentService {
     }
     const configuration = await this.#configurationStore.resolveProfile(
       request.profileId,
+      configurationUse,
     );
 
     if (!configuration || configuration.profile.availability !== "available") {
@@ -283,68 +300,81 @@ export class AgentService {
     const resident = [...this.#sessions.values()].filter(({ profile }) =>
       profile.id === configuration.profile.id
     ).length;
+    const opening = this.#openingProfiles.get(configuration.profile.id) ?? 0;
 
-    if (resident >= configuration.profile.maxResidentSessions) {
+    if (resident + opening >= configuration.profile.maxResidentSessions) {
       throw new AgentServiceError(
         "session_capacity_reached",
         "Agent profile has reached maxResidentSessions",
       );
     }
+    this.#openingProfiles.set(configuration.profile.id, opening + 1);
     const scope = request.scope as AgentScope;
 
-    await this.#tools.assertScopeAvailable(scope);
-    const sessionId = this.#runtime.createId();
-    const profile = createAgentRuntimeProfile(configuration);
-    const controller = new AgentSessionController({
-      id: sessionId,
-      profileId: profile.id,
-      runtime: {
-        createId: () => this.#runtime.createId(),
-        now: () => readApiRuntimeNow(this.#runtime).timestamp,
-      },
-      scope,
-    });
-    const runtimePort = this.#runtimeFactory.create({
-      configuration,
-      openAiAuthentication: "require-api-key",
-      profile,
-    });
-    let capability: string | null = null;
-
     try {
-      const privateToolProcess = profile.kind === "codex"
-        ? await this.#createPrivateToolProcess(sessionId, scope)
-        : undefined;
-
-      capability = privateToolProcess?.capability ?? null;
-      const runtimeSession = await runtimePort.openSession({
-        instructions: createAgentRuntimeInstructions(scope),
-        ...(privateToolProcess
-          ? { privateToolProcess: privateToolProcess.process }
-          : {}),
+      await this.#tools.assertScopeAvailable(scope);
+      const sessionId = this.#runtime.createId();
+      const profile = createAgentRuntimeProfile(configuration);
+      const controller = new AgentSessionController({
+        id: sessionId,
         profileId: profile.id,
+        runtime: {
+          createId: () => this.#runtime.createId(),
+          now: () => readApiRuntimeNow(this.#runtime).timestamp,
+        },
         scope,
-        sessionId,
       });
-      const record: SessionRecord = {
-        abortController: null,
-        capability,
+      const runtimePort = this.#runtimeFactory.create({
         configuration,
-        controller,
-        events: new AgentSessionEventStream(sessionId),
+        openAiAuthentication: "require-api-key",
         profile,
-        runtime: runtimePort,
-        runtimeSession,
-        staging: null,
-        syntaxKnowledge: null,
-      };
+      });
+      let capability: string | null = null;
 
-      this.#sessions.set(sessionId, record);
-      this.#emitSnapshot(record);
-      return this.#snapshot(record);
-    } catch (error) {
-      if (capability) this.#ipc.revoke(capability);
-      throw error;
+      try {
+        const privateToolProcess = profile.kind === "codex"
+          ? await this.#createPrivateToolProcess(sessionId, scope)
+          : undefined;
+
+        capability = privateToolProcess?.capability ?? null;
+        const runtimeSession = await runtimePort.openSession({
+          instructions: createAgentRuntimeInstructions(scope),
+          ...(privateToolProcess
+            ? { privateToolProcess: privateToolProcess.process }
+            : {}),
+          profileId: profile.id,
+          scope,
+          sessionId,
+        });
+        const record: SessionRecord = {
+          abortController: null,
+          capability,
+          configuration,
+          configurationUse,
+          controller,
+          events: new AgentSessionEventStream(sessionId),
+          profile,
+          runtime: runtimePort,
+          runtimeSession,
+          staging: null,
+          syntaxKnowledge: null,
+        };
+
+        this.#sessions.set(sessionId, record);
+        this.#emitSnapshot(record);
+        return this.#snapshot(record);
+      } catch (error) {
+        if (capability) this.#ipc.revoke(capability);
+        throw error;
+      }
+    } finally {
+      const remaining = (this.#openingProfiles.get(configuration.profile.id) ?? 1) - 1;
+
+      if (remaining > 0) {
+        this.#openingProfiles.set(configuration.profile.id, remaining);
+      } else {
+        this.#openingProfiles.delete(configuration.profile.id);
+      }
     }
   }
 
@@ -1044,9 +1074,18 @@ export class AgentService {
   }
 
   async #disposeRecord(record: SessionRecord) {
-    record.abortController?.abort(new Error("Agent session ended"));
-    if (record.capability) this.#ipc.revoke(record.capability);
-    record.events.close();
-    await record.runtimeSession.dispose();
+    this.#disposingSessions += 1;
+    try {
+      record.abortController?.abort(new Error("Agent session ended"));
+      if (record.capability) this.#ipc.revoke(record.capability);
+      record.events.close();
+      try {
+        await record.runtimeSession.dispose();
+      } finally {
+        record.configurationUse.release();
+      }
+    } finally {
+      this.#disposingSessions -= 1;
+    }
   }
 }

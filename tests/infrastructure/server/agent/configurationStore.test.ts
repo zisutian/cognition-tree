@@ -17,6 +17,9 @@ import {
   AgentConfigurationValidationError,
 } from "../../../../infrastructure/server/agent/configurationStore.ts";
 import {
+  AgentConfigurationAccessConflictError,
+} from "../../../../infrastructure/server/agent/configurationAccess.ts";
+import {
   replaceFileDurably,
 } from "../../../../infrastructure/server/persistence/fileSystemPersistence.ts";
 import {
@@ -268,6 +271,171 @@ describe("Agent configuration store", () => {
     await expect(store.resolveProvider(created.provider.id)).resolves.toMatchObject({
       apiKey: null,
     });
+  });
+
+  it("removes rejected API-key candidates and reconciles an unknown commit", async () => {
+    let failure: "before" | "after" | null = null;
+    const { directory, store } = await createStore({
+      replaceConfigurationFile: async (file, source, options) => {
+        if (failure === "before") {
+          failure = null;
+          throw new Error("configuration replacement failed");
+        }
+        await replaceFileDurably(file, source, options);
+        if (failure === "after") {
+          failure = null;
+          throw new Error("directory sync failed after replacement");
+        }
+      },
+    });
+    const initial = await store.readSnapshot();
+    const created = await store.createProvider(initial.revision, {
+      authenticationType: "api-key",
+      baseUrl: "https://models.example.invalid/v1",
+      kind: "openai-chat",
+      label: "Provider",
+      privateNetworkAccessConfirmed: false,
+    });
+    const providerDirectory = path.join(
+      directory,
+      "agent-auth-v1",
+      "providers",
+      created.provider.id,
+    );
+
+    failure = "before";
+    await expect(store.updateProvider(
+      created.configuration.revision,
+      created.provider.id,
+      {
+        apiKey: "rejected-secret",
+        authenticationType: "api-key",
+        baseUrl: "https://models.example.invalid/v1",
+        kind: "openai-chat",
+        label: "Provider",
+        privateNetworkAccessConfirmed: false,
+      },
+    )).rejects.toThrow("configuration replacement failed");
+    await expect(access(path.join(providerDirectory, "api-key-v1.json")))
+      .rejects.toMatchObject({ code: "ENOENT" });
+
+    const accepted = await store.updateProvider(
+      created.configuration.revision,
+      created.provider.id,
+      {
+        apiKey: "first-secret",
+        authenticationType: "api-key",
+        baseUrl: "https://models.example.invalid/v1",
+        kind: "openai-chat",
+        label: "Provider",
+        privateNetworkAccessConfirmed: false,
+      },
+    );
+
+    failure = "after";
+    await expect(store.updateProvider(
+      accepted.configuration.revision,
+      created.provider.id,
+      {
+        apiKey: "second-secret",
+        authenticationType: "api-key",
+        baseUrl: "https://models.example.invalid/v1",
+        kind: "openai-chat",
+        label: "Provider",
+        privateNetworkAccessConfirmed: false,
+      },
+    )).rejects.toBeInstanceOf(SecureStateCommitOutcomeUnknownError);
+
+    const reloaded = new AgentConfigurationStore(directory);
+
+    await expect(reloaded.resolveProvider(created.provider.id)).resolves
+      .toMatchObject({ apiKey: "second-secret" });
+    await expect(access(path.join(providerDirectory, "api-key-v1.json")))
+      .rejects.toMatchObject({ code: "ENOENT" });
+    expect(await readFile(path.join(providerDirectory, "api-key-v2.json"), "utf8"))
+      .toContain("second-secret");
+  });
+
+  it("linearizes provider changes against profile use without freezing profile edits", async () => {
+    const { store } = await createStore();
+    const initial = await store.readSnapshot();
+    const provider = await store.createProvider(initial.revision, {
+      apiKey: "provider-secret",
+      authenticationType: "api-key",
+      baseUrl: "https://models.example.invalid/v1",
+      kind: "openai-chat",
+      label: "Provider",
+      privateNetworkAccessConfirmed: false,
+    });
+    const profile = await store.createProfile(provider.configuration.revision, {
+      label: "Writer",
+      maxResidentSessions: 1,
+      model: "model",
+      parameters: {
+        historyBudgetCharacters: 65_536,
+        kind: "chat",
+        maxOutputTokens: 1_024,
+        maxToolSteps: 8,
+        reasoningEffort: "model-default",
+        toolCallMode: "native",
+      },
+      providerId: provider.provider.id,
+      timeoutMilliseconds: 60_000,
+    });
+    const use = store.access.beginProfileUse(profile.profile.id);
+
+    try {
+      await expect(store.resolveProfile(profile.profile.id, use)).resolves
+        .toMatchObject({ apiKey: "provider-secret" });
+      await expect(store.updateProvider(
+        profile.configuration.revision,
+        provider.provider.id,
+        {
+          authenticationType: "api-key",
+          baseUrl: "https://models.example.invalid/v1",
+          kind: "openai-chat",
+          label: "Changed provider",
+          privateNetworkAccessConfirmed: false,
+        },
+      )).rejects.toBeInstanceOf(AgentConfigurationAccessConflictError);
+      await expect(store.deleteProfile(
+        profile.configuration.revision,
+        profile.profile.id,
+      )).rejects.toBeInstanceOf(AgentConfigurationAccessConflictError);
+      await expect(store.updateProfile(
+        profile.configuration.revision,
+        profile.profile.id,
+        {
+          label: "Changed writer",
+          maxResidentSessions: 1,
+          model: "model-2",
+          parameters: {
+            historyBudgetCharacters: 65_536,
+            kind: "chat",
+            maxOutputTokens: 1_024,
+            maxToolSteps: 8,
+            reasoningEffort: "model-default",
+            toolCallMode: "native",
+          },
+          providerId: provider.provider.id,
+          timeoutMilliseconds: 60_000,
+        },
+      )).resolves.toMatchObject({ profile: { label: "Changed writer" } });
+    } finally {
+      use.release();
+    }
+    const current = await store.readSnapshot();
+    const change = await store.reserveProviderChange(
+      current.revision,
+      provider.provider.id,
+    );
+
+    try {
+      expect(() => store.access.beginProfileUse(profile.profile.id))
+        .toThrow(AgentConfigurationAccessConflictError);
+    } finally {
+      change.release();
+    }
   });
 
   it("promotes and clears an application-managed Codex device login exactly", async () => {

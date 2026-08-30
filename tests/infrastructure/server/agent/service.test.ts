@@ -74,7 +74,16 @@ type TurnBehavior = (
   request: AgentRuntimeTurnRequest,
 ) => Promise<{ finalText: string; toolCalls: number }>;
 
-async function createFixture(behavior: TurnBehavior) {
+async function createFixture(
+  behavior: TurnBehavior,
+  {
+    beforeOpenSession = async () => undefined,
+    maxResidentSessions = 2,
+  }: {
+    beforeOpenSession?: () => Promise<void>;
+    maxResidentSessions?: number;
+  } = {},
+) {
   const root = await mkdtemp(path.join(os.tmpdir(), "ctn-agent-service-"));
   const builtInCatalog = new BuiltInCatalog(root);
 
@@ -90,6 +99,7 @@ async function createFixture(behavior: TurnBehavior) {
   const runtimePort: AgentRuntimePort = {
     kind: "openai-chat",
     async openSession() {
+      await beforeOpenSession();
       return {
         cancel: cancelRuntime,
         dispose: disposeRuntime,
@@ -121,7 +131,7 @@ async function createFixture(behavior: TurnBehavior) {
     configuration.revision,
     {
       label: "Fake OpenAI",
-      maxResidentSessions: 2,
+      maxResidentSessions,
       model: "fake",
       parameters: {
         historyBudgetCharacters: 32_768,
@@ -278,6 +288,46 @@ describe("Agent service proposal lifecycle", () => {
       expect(started).toEqual(["first", "second"]);
     } finally {
       releaseFirst();
+      await fixture.cleanup();
+    }
+  });
+
+  it("reserves capacity while a session runtime is still opening", async () => {
+    let releaseOpen!: () => void;
+    let reportOpening!: () => void;
+    const opening = new Promise<void>((resolve) => {
+      reportOpening = resolve;
+    });
+    const openGate = new Promise<void>((resolve) => {
+      releaseOpen = resolve;
+    });
+    const fixture = await createFixture(
+      async () => ({ finalText: "unused", toolCalls: 0 }),
+      {
+        beforeOpenSession: async () => {
+          reportOpening();
+          await openGate;
+        },
+        maxResidentSessions: 1,
+      },
+    );
+
+    try {
+      const first = fixture.service.createSession({
+        profileId,
+        scope: journalScope,
+      });
+
+      await opening;
+      expect(fixture.service.hasResidentSessions()).toBe(true);
+      await expect(fixture.service.createSession({
+        profileId,
+        scope: journalScope,
+      })).rejects.toMatchObject({ code: "session_capacity_reached" });
+      releaseOpen();
+      await first;
+    } finally {
+      releaseOpen();
       await fixture.cleanup();
     }
   });

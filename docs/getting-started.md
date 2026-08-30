@@ -194,8 +194,9 @@ Ollama chat Profile 的推理强度可选“模型默认、关闭、低、中、
 - ChatGPT 设备码：创建 Provider 后点击“使用 ChatGPT 登录”，打开设置显示的 HTTPS
   地址并输入设备码。登录可取消，15 分钟后自动过期；成功后只显示“认证已配置”。
 
-“退出认证”是唯一清除入口。存在 resident session 或正在登录时，切换 Provider、退出
-认证、删除 Provider 和数据根迁移都会被拒绝。ChatGPT 登录态保存在应用管理的
+“退出认证”是唯一清除入口。会话正在创建、已经 resident 或设备码正在登录时，切换
+对应 Provider、退出认证、删除 Provider 和数据根迁移都会被拒绝。若登录的配置提交
+结果未知，界面会要求重启后再确认；此时不会删除可能已经生效的登录态。ChatGPT 登录态保存在应用管理的
 `agent-auth-v1`，不读取个人 `~/.codex`。每个 Cognition Tree 会话仍创建独立 app-server
 进程和 `ephemeral` thread，不导入或继续 Codex Desktop/CLI 历史。
 

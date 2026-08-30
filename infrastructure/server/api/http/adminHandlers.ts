@@ -171,8 +171,7 @@ export async function handleTrustedClientTokenAdmin(context: ApiHandlerContext) 
 export async function handleAgentConfigurationAdmin(
   context: ApiHandlerContext,
 ) {
-  const { agentConfigurationStore: store, agentService, operation, route } =
-    context;
+  const { agentConfigurationStore: store, operation, route } = context;
 
   if (operation.operationId === "getAgentConfiguration") {
     return { body: await store.readSnapshot(), statusCode: 200 };
@@ -193,13 +192,6 @@ export async function handleAgentConfigurationAdmin(
   }
   if (operation.operationId === "startAgentCodexDeviceLogin") {
     const providerId = route.providerId ?? "";
-
-    if (agentService?.hasResidentProviderSession(providerId)) {
-      throw new ApiRequestError(
-        "resource_conflict",
-        "Agent provider is pinned by a resident session",
-      );
-    }
     const request = await context.readJsonBody() as
       AgentCodexDeviceLoginRequestDto;
 
@@ -229,14 +221,6 @@ export async function handleAgentConfigurationAdmin(
   }
   if (operation.operationId === "clearAgentProviderAuthentication") {
     const providerId = route.providerId ?? "";
-
-    if (agentService?.hasResidentProviderSession(providerId) ||
-        context.agentProviderOperations.hasPendingCodexLogin(providerId)) {
-      throw new ApiRequestError(
-        "resource_conflict",
-        "Agent provider authentication is in use",
-      );
-    }
     const request = await context.readJsonBody() as
       AgentConfigurationDeleteRequestDto;
 
@@ -298,14 +282,6 @@ export async function handleAgentConfigurationAdmin(
   }
   if (operation.operationId === "updateAgentProvider") {
     const providerId = route.providerId ?? "";
-
-    if (agentService?.hasResidentProviderSession(providerId) ||
-        context.agentProviderOperations.hasPendingCodexLogin(providerId)) {
-      throw new ApiRequestError(
-        "resource_conflict",
-        "Agent provider is pinned by a resident session",
-      );
-    }
     const request = await context.readJsonBody() as
       AgentProviderMutationRequestDto;
     const result = await store.updateProvider(
@@ -332,27 +308,12 @@ export async function handleAgentConfigurationAdmin(
 
   if (operation.operationId === "deleteAgentProvider") {
     const providerId = route.providerId ?? "";
-
-    if (agentService?.hasResidentProviderSession(providerId) ||
-        context.agentProviderOperations.hasPendingCodexLogin(providerId)) {
-      throw new ApiRequestError(
-        "resource_conflict",
-        "Agent provider is pinned by a resident session",
-      );
-    }
     return {
       body: await store.deleteProvider(request.baseRevision, providerId),
       statusCode: 200,
     };
   }
   const profileId = route.profileId ?? "";
-
-  if (agentService?.hasResidentProfileSession(profileId)) {
-    throw new ApiRequestError(
-      "resource_conflict",
-      "Agent profile is pinned by a resident session",
-    );
-  }
   return {
     body: await store.deleteProfile(request.baseRevision, profileId),
     statusCode: 200,

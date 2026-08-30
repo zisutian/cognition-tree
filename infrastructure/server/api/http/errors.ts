@@ -54,6 +54,9 @@ import {
   AgentConfigurationConflictError,
   AgentConfigurationValidationError,
 } from "../../agent/configurationStore.ts";
+import {
+  AgentConfigurationAccessConflictError,
+} from "../../agent/configurationAccess.ts";
 import { AgentProviderTargetValidationError } from "../../agent/providerTargetPolicy.ts";
 import { AgentProviderOperationConflictError } from "../../agent/providerOperations.ts";
 import {
@@ -157,6 +160,9 @@ export function mapApiError(error: unknown): ApiRequestError {
       error.message,
       { details: { currentRevision: error.currentRevision } },
     );
+  }
+  if (error instanceof AgentConfigurationAccessConflictError) {
+    return new ApiRequestError("resource_conflict", error.message);
   }
   if (error instanceof AgentProviderOperationConflictError) {
     return new ApiRequestError("resource_conflict", error.message);

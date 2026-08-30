@@ -26,6 +26,9 @@ const credentialFormatVersion = 1;
 const providerIdPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const apiKeyReferencePattern = /^providers\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})\/api-key-v([1-9][0-9]*)\.json$/;
 const managedReferencePattern = /^providers\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})\/codex-managed-v([1-9][0-9]*)-([A-Za-z0-9][A-Za-z0-9._-]{0,127})\.json$/;
+const apiKeyFileNamePattern = /^api-key-v([1-9][0-9]*)\.json$/;
+const managedFileNamePattern = /^codex-managed-v([1-9][0-9]*)-([A-Za-z0-9][A-Za-z0-9._-]{0,127})\.json$/;
+const managedHomeNamePattern = /^codex-home-v([1-9][0-9]*)-([A-Za-z0-9][A-Za-z0-9._-]{0,127})$/;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 
 type ApiKeyCredential = Readonly<{
@@ -378,6 +381,166 @@ export class AgentProviderCredentialStore {
     }
   }
 
+  async reconcile(references: readonly AgentCredentialReference[]) {
+    const referenced = new Map(references.map((reference) => {
+      parseReference(reference);
+      return [reference.reference, reference] as const;
+    }));
+    const providersDirectory = path.join(this.#root, "providers");
+
+    if (!await this.#secureDirectoryExists(this.#root)) {
+      if (referenced.size > 0) {
+        throw new Error("Agent credential partition is missing.");
+      }
+      return;
+    }
+    if (!await this.#secureDirectoryExists(providersDirectory)) {
+      if (referenced.size > 0) {
+        throw new Error("Agent credential providers partition is missing.");
+      }
+      return;
+    }
+    for (const reference of referenced.values()) {
+      const parsed = parseReference(reference);
+
+      if (parsed.kind === "api-key") await this.readApiKey(reference);
+      else await this.resolveCodexManagedHome(reference);
+    }
+    const manifests: Array<{
+      file: string;
+      home: string | null;
+      reference: AgentCredentialReference;
+    }> = [];
+    const homes = new Map<string, string>();
+    const providerDirectories: string[] = [];
+    const providerEntries = await readdir(providersDirectory, {
+      withFileTypes: true,
+    });
+
+    for (const providerEntry of providerEntries) {
+      if (!providerEntry.isDirectory() ||
+          !providerIdPattern.test(providerEntry.name)) {
+        throw new Error("Agent credential providers partition is invalid.");
+      }
+      const providerId = providerEntry.name;
+      const providerDirectory = path.join(providersDirectory, providerId);
+
+      await assertSecureStateDirectory(providerDirectory);
+      providerDirectories.push(providerDirectory);
+      for (const entry of await readdir(providerDirectory, {
+        withFileTypes: true,
+      })) {
+        const entryPath = path.join(providerDirectory, entry.name);
+        const apiKeyMatch = apiKeyFileNamePattern.exec(entry.name);
+        const managedMatch = managedFileNamePattern.exec(entry.name);
+        const homeMatch = managedHomeNamePattern.exec(entry.name);
+
+        if (entry.isFile() && apiKeyMatch) {
+          const stats = await lstat(entryPath);
+
+          if (!isSecureRegularFile(stats)) {
+            throw new Error("Agent credential file is not secure.");
+          }
+          const credential = parseCredential(
+            JSON.parse(await readFile(entryPath, "utf8")),
+          );
+          const version = Number(apiKeyMatch[1]);
+
+          if (credential.providerId !== providerId ||
+              credential.version !== version) {
+            throw new Error("Agent credential file identity is invalid.");
+          }
+          manifests.push({
+            file: entryPath,
+            home: null,
+            reference: {
+              digest: credentialDigest(credential),
+              reference: `providers/${providerId}/${entry.name}`,
+              version,
+            },
+          });
+          continue;
+        }
+        if (entry.isFile() && managedMatch) {
+          const stats = await lstat(entryPath);
+
+          if (!isSecureRegularFile(stats)) {
+            throw new Error("Codex managed credential manifest is not secure.");
+          }
+          const credential = parseManagedCredential(
+            JSON.parse(await readFile(entryPath, "utf8")),
+          );
+          const version = Number(managedMatch[1]);
+          const loginId = managedMatch[2]!;
+          const homeReference =
+            `providers/${providerId}/codex-home-v${version}-${loginId}`;
+
+          if (credential.providerId !== providerId ||
+              credential.version !== version ||
+              credential.homeReference !== homeReference) {
+            throw new Error("Codex managed credential identity is invalid.");
+          }
+          manifests.push({
+            file: entryPath,
+            home: path.join(this.#root, homeReference),
+            reference: {
+              digest: credentialDigest(credential),
+              reference: `providers/${providerId}/${entry.name}`,
+              version,
+            },
+          });
+          continue;
+        }
+        if (entry.isDirectory() && homeMatch) {
+          await assertSecureStateDirectory(entryPath);
+          homes.set(
+            `providers/${providerId}/${entry.name}`,
+            entryPath,
+          );
+          continue;
+        }
+        throw new Error("Agent credential provider partition is invalid.");
+      }
+    }
+    const discovered = new Map(manifests.map(({ reference }) =>
+      [reference.reference, reference] as const
+    ));
+
+    for (const [referencePath, reference] of referenced) {
+      const actual = discovered.get(referencePath);
+
+      if (!actual || actual.digest !== reference.digest ||
+          actual.version !== reference.version) {
+        throw new Error("Agent credential authority does not match its manifest.");
+      }
+    }
+    for (const home of homes.values()) await this.#sealManagedHome(home);
+    const referencedHomes = new Set([...referenced.values()]
+      .map(parseReference)
+      .filter(({ kind }) => kind === "chatgpt-device-code")
+      .map(({ loginId, providerId, version }) =>
+        `providers/${providerId}/codex-home-v${version}-${loginId}`
+      ));
+
+    for (const manifest of manifests) {
+      if (referenced.has(manifest.reference.reference)) continue;
+      if (manifest.home) await this.#removeManagedTree(manifest.home);
+      await unlink(manifest.file);
+      await fsyncDirectory(path.dirname(manifest.file));
+    }
+    for (const [homeReference, home] of homes) {
+      if (!referencedHomes.has(homeReference)) {
+        await this.#removeManagedTree(home);
+      }
+    }
+    for (const providerDirectory of providerDirectories) {
+      if ((await readdir(providerDirectory)).length === 0) {
+        await rmdir(providerDirectory);
+        await fsyncDirectory(providersDirectory);
+      }
+    }
+  }
+
   async #read(reference: AgentCredentialReference) {
     const { kind, providerId, version } = parseReference(reference);
 
@@ -425,6 +588,16 @@ export class AgentProviderCredentialStore {
       }
     }
     await chmod(directory, 0o700);
+  }
+
+  async #secureDirectoryExists(directory: string) {
+    try {
+      await assertSecureStateDirectory(directory);
+      return true;
+    } catch (error) {
+      if (isMissing(error)) return false;
+      throw error;
+    }
   }
 
   async #removeManagedTree(directory: string) {

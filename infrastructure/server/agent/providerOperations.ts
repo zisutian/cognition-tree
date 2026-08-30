@@ -17,6 +17,12 @@ import {
   AgentConfigurationConflictError,
   AgentConfigurationValidationError,
 } from "./configurationStore.ts";
+import type {
+  AgentConfigurationProviderChange,
+} from "./configurationAccess.ts";
+import {
+  SecureStateCommitOutcomeUnknownError,
+} from "../state/secureJsonPartition.ts";
 import { createAgentRuntimeProfile } from "./runtimeProfiles.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import { AgentProviderProbeService } from "./providerProbe.ts";
@@ -75,6 +81,7 @@ type CodexDeviceLoginRecord = {
   child: ChildProcessWithoutNullStreams;
   client: CodexAppServerClient;
   codexLoginId: string;
+  configurationChange: AgentConfigurationProviderChange;
   credentialVersion: number;
   finishing: boolean;
   processDirectory: string;
@@ -94,6 +101,7 @@ export class AgentProviderOperations {
   readonly #conformanceChecks = new Map<string, AgentConformanceCheckRecord>();
   readonly #conformanceExecutions = new Map<string, Promise<void>>();
   readonly #codexDeviceLoginChildren = new Set<ChildProcessWithoutNullStreams>();
+  readonly #codexDeviceLoginFinishes = new Map<string, Promise<void>>();
   readonly #codexDeviceLoginReservations = new Set<string>();
   readonly #codexDeviceLogins = new Map<string, CodexDeviceLoginRecord>();
   readonly #codexDeviceLoginTtlMilliseconds: number;
@@ -160,6 +168,8 @@ export class AgentProviderOperations {
     }
     this.#codexDeviceLoginReservations.add(providerId);
     let child: ChildProcessWithoutNullStreams | null = null;
+    let configurationChange: AgentConfigurationProviderChange | null = null;
+    let configurationChangeTransferred = false;
     let processDirectory: string | null = null;
     let staging: Readonly<{
       credentialVersion: number;
@@ -175,10 +185,15 @@ export class AgentProviderOperations {
         );
       }
       const id = this.#runtime.createId();
+      configurationChange = await this.#configurationStore.reserveProviderChange(
+        baseRevision,
+        providerId,
+      );
       const prepared = await this.#configurationStore.prepareCodexDeviceLogin(
         baseRevision,
         providerId,
         id,
+        configurationChange,
       );
       staging = { ...prepared, loginId: id };
       processDirectory = await mkdtemp(
@@ -235,7 +250,7 @@ export class AgentProviderOperations {
         }
         if (params.loginId !== null &&
             params.loginId !== activeRecord.codexLoginId) return;
-        void this.#finishCodexDeviceLogin(
+        this.#scheduleCodexDeviceLoginFinish(
           activeRecord.status.id,
           params.success === true,
           typeof params.error === "string" ? params.error : null,
@@ -284,6 +299,7 @@ export class AgentProviderOperations {
         child,
         client,
         codexLoginId: loginRecord.loginId,
+        configurationChange,
         credentialVersion: prepared.credentialVersion,
         finishing: false,
         processDirectory,
@@ -291,13 +307,14 @@ export class AgentProviderOperations {
         timeout,
       };
 
+      configurationChangeTransferred = true;
       this.#codexDeviceLogins.set(id, record);
       activeRecord = record;
       for (const params of completedNotifications) {
         if (params.loginId !== null && params.loginId !== record.codexLoginId) {
           continue;
         }
-        void this.#finishCodexDeviceLogin(
+        this.#scheduleCodexDeviceLoginFinish(
           id,
           params.success === true,
           typeof params.error === "string" ? params.error : null,
@@ -307,7 +324,7 @@ export class AgentProviderOperations {
         const current = this.#codexDeviceLogins.get(id);
 
         if (current?.status.status === "pending" && !current.finishing) {
-          void this.#finishCodexDeviceLogin(
+          this.#scheduleCodexDeviceLoginFinish(
             id,
             false,
             "Codex device login process ended",
@@ -333,6 +350,7 @@ export class AgentProviderOperations {
       throw error;
     } finally {
       this.#codexDeviceLoginReservations.delete(providerId);
+      if (!configurationChangeTransferred) configurationChange?.release();
     }
   }
 
@@ -347,8 +365,8 @@ export class AgentProviderOperations {
   hasPendingCodexLogin(providerId?: string) {
     return [...this.#codexDeviceLoginReservations].some((candidate) =>
       providerId === undefined || candidate === providerId
-    ) || [...this.#codexDeviceLogins.values()].some(({ status }) =>
-      status.status === "pending" &&
+    ) || [...this.#codexDeviceLogins.values()].some(({ finishing, status }) =>
+      (status.status === "pending" || finishing) &&
       (providerId === undefined || status.providerId === providerId)
     );
   }
@@ -409,6 +427,7 @@ export class AgentProviderOperations {
       .map(([id]) => this.#cancelCodexDeviceLogin(id, "cancelled")));
     await Promise.all([...this.#codexDeviceLoginChildren]
       .map((child) => this.#stopCodexLoginProcess(child)));
+    await Promise.allSettled(this.#codexDeviceLoginFinishes.values());
     await Promise.allSettled(this.#conformanceExecutions.values());
   }
 
@@ -647,27 +666,53 @@ export class AgentProviderOperations {
         record.status.providerId,
         record.credentialVersion,
         record.status.id,
+        record.configurationChange,
       );
       record.status = {
         ...record.status,
         completedAt: readApiRuntimeNow(this.#runtime).timestamp,
         status: "succeeded",
       };
-    } catch {
-      await this.#configurationStore.removeCodexDeviceLoginStaging(
-        record.status.providerId,
-        record.credentialVersion,
-        record.status.id,
-      ).catch(() => undefined);
+    } catch (error) {
+      if (!(error instanceof SecureStateCommitOutcomeUnknownError)) {
+        await this.#configurationStore.removeCodexDeviceLoginStaging(
+          record.status.providerId,
+          record.credentialVersion,
+          record.status.id,
+        ).catch(() => undefined);
+      }
       record.status = {
         ...record.status,
         completedAt: readApiRuntimeNow(this.#runtime).timestamp,
-        errorMessage: "Codex device login failed",
+        errorMessage: error instanceof SecureStateCommitOutcomeUnknownError
+          ? "Codex device login result is unknown; restart before retrying"
+          : "Codex device login failed",
         status: "failed",
       };
     } finally {
-      await this.#cleanupCodexLoginProcessDirectory(record.processDirectory);
+      record.configurationChange.release();
+      try {
+        await this.#cleanupCodexLoginProcessDirectory(record.processDirectory);
+      } finally {
+        record.finishing = false;
+      }
     }
+  }
+
+  #scheduleCodexDeviceLoginFinish(
+    loginId: string,
+    succeeded: boolean,
+    providerError: string | null,
+  ) {
+    if (this.#codexDeviceLoginFinishes.has(loginId)) return;
+    const execution = this.#finishCodexDeviceLogin(
+      loginId,
+      succeeded,
+      providerError,
+    ).finally(() => this.#codexDeviceLoginFinishes.delete(loginId));
+
+    this.#codexDeviceLoginFinishes.set(loginId, execution);
+    void execution.catch(() => undefined);
   }
 
   async #cancelCodexDeviceLogin(
@@ -688,19 +733,24 @@ export class AgentProviderOperations {
       codexAppServerRequestTimeoutMilliseconds,
       "Codex device login cancellation timed out",
     ).catch(() => undefined);
-    record.status = {
-      ...record.status,
-      completedAt: readApiRuntimeNow(this.#runtime).timestamp,
-      status: terminalStatus,
-    };
-    await this.#stopCodexLoginProcess(record.child);
-    await this.#configurationStore.removeCodexDeviceLoginStaging(
-      record.status.providerId,
-      record.credentialVersion,
-      record.status.id,
-    ).catch(() => undefined);
-    await this.#cleanupCodexLoginProcessDirectory(record.processDirectory);
-    return record.status;
+    try {
+      record.status = {
+        ...record.status,
+        completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+        status: terminalStatus,
+      };
+      await this.#stopCodexLoginProcess(record.child);
+      await this.#configurationStore.removeCodexDeviceLoginStaging(
+        record.status.providerId,
+        record.credentialVersion,
+        record.status.id,
+      ).catch(() => undefined);
+      await this.#cleanupCodexLoginProcessDirectory(record.processDirectory);
+      return record.status;
+    } finally {
+      record.configurationChange.release();
+      record.finishing = false;
+    }
   }
 
   async #stopCodexLoginProcess(child: ChildProcessWithoutNullStreams) {
@@ -736,8 +786,8 @@ export class AgentProviderOperations {
 
   #pruneCodexDeviceLogins() {
     if (this.#codexDeviceLogins.size < codexDeviceLoginResultLimit) return;
-    for (const [id, { status }] of this.#codexDeviceLogins) {
-      if (status.status === "pending") continue;
+    for (const [id, { finishing, status }] of this.#codexDeviceLogins) {
+      if (status.status === "pending" || finishing) continue;
       this.#codexDeviceLogins.delete(id);
       if (this.#codexDeviceLogins.size < codexDeviceLoginResultLimit) return;
     }

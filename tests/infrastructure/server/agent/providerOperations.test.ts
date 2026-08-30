@@ -10,6 +10,9 @@ import { AgentConfigurationStore } from "../../../../infrastructure/server/agent
 import { AgentProviderOperations } from "../../../../infrastructure/server/agent/providerOperations.ts";
 import { pinnedCodexVersion } from "../../../../infrastructure/server/agent/codexAppServerClient.ts";
 import type { ApiRuntime } from "../../../../infrastructure/server/api/http/runtime.ts";
+import {
+  replaceFileDurably,
+} from "../../../../infrastructure/server/persistence/fileSystemPersistence.ts";
 
 const runtime: ApiRuntime = {
   createId: () => "00000000-0000-4000-8000-000000000001",
@@ -258,6 +261,64 @@ describe("Agent provider operations", () => {
         rm(cancelledDirectory, { force: true, recursive: true }),
         rm(expiredDirectory, { force: true, recursive: true }),
       ]);
+    }
+  });
+
+  it("preserves possibly authoritative Codex authentication after an unknown commit", async () => {
+    const project = await createFakeCodexProject(true);
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-device-unknown-"),
+    );
+    let failAfterReplacement = false;
+    const store = new AgentConfigurationStore(directory, {
+      createId: () => "codex-unknown",
+      replaceConfigurationFile: async (file, source, options) => {
+        await replaceFileDurably(file, source, options);
+        if (failAfterReplacement) {
+          failAfterReplacement = false;
+          throw new Error("directory sync failed after replacement");
+        }
+      },
+    });
+    const operations = new AgentProviderOperations({
+      configurationStore: store,
+      projectRoot: project,
+      runtime,
+    });
+
+    try {
+      const initial = await store.readSnapshot();
+      const provider = await store.createProvider(initial.revision, {
+        authenticationType: "chatgpt-device-code",
+        baseUrl: null,
+        kind: "codex",
+        label: "Unknown Codex",
+        privateNetworkAccessConfirmed: false,
+      });
+
+      failAfterReplacement = true;
+      const started = await operations.startCodexDeviceLogin(
+        provider.configuration.revision,
+        provider.provider.id,
+      );
+
+      await vi.waitFor(() => {
+        expect(operations.getCodexDeviceLogin(started.id)).toMatchObject({
+          errorMessage: expect.stringContaining("unknown"),
+          status: "failed",
+        });
+      });
+      const reloaded = new AgentConfigurationStore(directory);
+
+      await expect(reloaded.resolveProvider(provider.provider.id)).resolves
+        .toMatchObject({
+          codexHome: expect.any(String),
+          provider: { authenticationStatus: "configured" },
+        });
+    } finally {
+      await operations.dispose();
+      await rm(project, { force: true, recursive: true });
+      await rm(directory, { force: true, recursive: true });
     }
   });
 
