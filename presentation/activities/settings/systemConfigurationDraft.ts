@@ -68,6 +68,15 @@ function inputFromSnapshot(
 }
 
 export function projectSystemConfigurationDraftSource(
+  snapshot: SystemConfigurationSnapshot,
+): SystemConfigurationDraftSource;
+export function projectSystemConfigurationDraftSource(
+  snapshot: null,
+): null;
+export function projectSystemConfigurationDraftSource(
+  snapshot: SystemConfigurationSnapshot | null,
+): SystemConfigurationDraftSource | null;
+export function projectSystemConfigurationDraftSource(
   snapshot: SystemConfigurationSnapshot | null,
 ): SystemConfigurationDraftSource | null {
   return snapshot

@@ -21,7 +21,9 @@ export function TodoEditorPanel({
 }) {
   const feedback = useFeedback();
 
-  if (!view.activeCollection) {
+  const activeCollection = view.activeCollection;
+
+  if (!activeCollection) {
     return (
       <Panel aria-label="代办编辑" className="ctn-editor-panel">
         <EmptyState
@@ -45,13 +47,13 @@ export function TodoEditorPanel({
       ariaLabel="代办编辑"
       focusMode={focusMode}
       onToggleFocusMode={onToggleFocusMode}
-      title={view.activeCollection.name}
+      title={activeCollection.name}
     >
       <CtnEditor
         checkableBlocks={view.editor.checkableBlocks}
         contentMode={view.editor.contentMode}
         focusTarget={view.editor.focusTarget}
-        key={view.activeCollection.id}
+        key={activeCollection.id}
         syntax={view.editor.syntax}
         value={view.editor.documentText}
         onActiveLineChange={view.editor.onActiveLineChange}
@@ -59,7 +61,7 @@ export function TodoEditorPanel({
           feedback.runAction(() => view.editor.updateBody(change))}
         onConsumeFocusTarget={view.editor.onConsumeFocusTarget}
         onToggleCheckableBlock={(blockId) => feedback.runAction(() =>
-          view.toggleBlock(view.activeCollection!.id, blockId)
+          view.toggleBlock(activeCollection.id, blockId)
         )}
         readOnly={view.editor.readOnly}
       />

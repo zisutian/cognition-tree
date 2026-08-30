@@ -44,6 +44,9 @@ export function RepositoryPanel({
     useState<PendingRepositoryIssueAction | null>(null);
   const currentSelection = selection ?? createDefaultRepositorySelection(view);
   const target = selectedRepositoryTarget(currentSelection, view);
+  const ordinaryRepository = target.kind === "ordinary-repository"
+    ? target.repository
+    : null;
   const busy = view.operation !== "idle";
 
   useEffect(() => {
@@ -127,24 +130,24 @@ export function RepositoryPanel({
             </ToolSection>
           ) : null}
 
-          {target.kind === "ordinary-repository" && target.repository ? (
+          {ordinaryRepository ? (
             <OrdinaryRepositoryDetail
               busy={busy}
-              confirmingDelete={deleteRepository?.id === target.repository.id}
-              repository={target.repository}
+              confirmingDelete={deleteRepository?.id === ordinaryRepository.id}
+              repository={ordinaryRepository}
               view={view}
               onCancelDelete={() => setDeleteRepository(null)}
               onDelete={async () =>
                 await feedback.runAction(async () => {
-                  await view.deleteRepository({ id: target.repository!.id });
+                  await view.deleteRepository({ id: ordinaryRepository.id });
                   return true;
                 }) === true}
               onRunAction={runAction}
-              onStartDelete={() => setDeleteRepository(target.repository)}
+              onStartDelete={() => setDeleteRepository(ordinaryRepository)}
             />
           ) : null}
 
-          {target.kind === "ordinary-repository" && !target.repository ? (
+          {target.kind === "ordinary-repository" && !ordinaryRepository ? (
             <EmptyState
               description="该仓库已不在目录中，请从左侧选择其他项目。"
               title="仓库不可用"

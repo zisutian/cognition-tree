@@ -147,7 +147,7 @@ export function useSystemConfigurationDraft({
       }
       const editedAfterSubmission =
         draftGenerationRef.current !== submission.generation;
-      const updatedSource = projectSystemConfigurationDraftSource(updated)!;
+      const updatedSource = projectSystemConfigurationDraftSource(updated);
       const superseded = (latestSourceRef.current?.version ?? -1) >
         updated.version;
 
