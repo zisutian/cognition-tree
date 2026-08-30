@@ -124,6 +124,36 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/agent\/sessionOpener\.ts$/,
     ],
     [
+      "Agent configuration conflict error",
+      infrastructureModules,
+      /\bclass AgentConfigurationConflictError\b/,
+      /^infrastructure\/server\/agent\/configurationErrors\.ts$/,
+    ],
+    [
+      "Agent configuration validation error",
+      infrastructureModules,
+      /\bclass AgentConfigurationValidationError\b/,
+      /^infrastructure\/server\/agent\/configurationErrors\.ts$/,
+    ],
+    [
+      "Agent Provider input normalization",
+      infrastructureModules,
+      /\bexport function normalizeProviderInput\s*\(/,
+      /^infrastructure\/server\/agent\/configurationInput\.ts$/,
+    ],
+    [
+      "Agent Profile input normalization",
+      infrastructureModules,
+      /\bexport function normalizeProfileInput\s*\(/,
+      /^infrastructure\/server\/agent\/configurationInput\.ts$/,
+    ],
+    [
+      "Agent configuration snapshot projection",
+      infrastructureModules,
+      /\bexport function configurationSnapshot\s*\(/,
+      /^infrastructure\/server\/agent\/configurationViews\.ts$/,
+    ],
+    [
       "CTN tone class projection",
       presentationModules,
       /`ctn-tone-\$\{tone\}`/,
