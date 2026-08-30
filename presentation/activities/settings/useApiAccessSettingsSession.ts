@@ -61,7 +61,7 @@ export function useApiAccessSettingsSession(
   );
 
   useEffect(
-    () => () => controller.invalidatePendingOperations(),
+    () => () => controller.dispose(),
     [controller],
   );
 

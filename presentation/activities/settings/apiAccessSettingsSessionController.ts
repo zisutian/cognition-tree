@@ -21,8 +21,8 @@ export type ApiAccessSettingsSessionController = Readonly<{
   ): Promise<AutomationApiToken | null>;
   createTrustedClientToken(name: string): Promise<TrustedClientToken | null>;
   dismissSecret(): void;
+  dispose(): void;
   getSnapshot(): ApiAccessSettingsSnapshot;
-  invalidatePendingOperations(): void;
   load(): Promise<void>;
   reset(): void;
   revokeToken(tokenId: string): Promise<boolean>;
@@ -57,6 +57,7 @@ export function createApiAccessSettingsSessionController(
 ): ApiAccessSettingsSessionController {
   const listeners = new Set<() => void>();
   let activeOperationCount = 0;
+  let disposed = false;
   let lifecycleEpoch = 0;
   let loadGeneration = 0;
   let snapshot = createInitialSnapshot();
@@ -66,8 +67,14 @@ export function createApiAccessSettingsSessionController(
   let trustedMutationVersion = 0;
 
   const publish = (next: ApiAccessSettingsSnapshot) => {
+    if (disposed) return;
     snapshot = next;
     listeners.forEach((listener) => listener());
+  };
+  const assertActive = () => {
+    if (disposed) {
+      throw new Error("API access settings session controller is disposed.");
+    }
   };
   const invalidatePendingOperations = () => {
     lifecycleEpoch += 1;
@@ -79,6 +86,7 @@ export function createApiAccessSettingsSessionController(
     trustedMutationVersion += 1;
   };
   const beginOperation = () => {
+    assertActive();
     const epoch = lifecycleEpoch;
 
     activeOperationCount += 1;
@@ -102,6 +110,7 @@ export function createApiAccessSettingsSessionController(
     };
   };
   const beginTokenMutation = () => {
+    assertActive();
     const epoch = lifecycleEpoch;
 
     tokenMutationCount += 1;
@@ -119,6 +128,7 @@ export function createApiAccessSettingsSessionController(
     };
   };
   const beginTrustedMutation = () => {
+    assertActive();
     const epoch = lifecycleEpoch;
 
     trustedMutationCount += 1;
@@ -195,11 +205,18 @@ export function createApiAccessSettingsSessionController(
       return installed ? created.token : null;
     },
     dismissSecret() {
+      assertActive();
       if (snapshot.secret !== null) publish({ ...snapshot, secret: null });
     },
+    dispose() {
+      if (disposed) return;
+      invalidatePendingOperations();
+      disposed = true;
+      listeners.clear();
+    },
     getSnapshot: () => snapshot,
-    invalidatePendingOperations,
     async load() {
+      assertActive();
       const generation = ++loadGeneration;
       const expectedTokenMutationVersion = tokenMutationVersion;
       const expectedTrustedMutationVersion = trustedMutationVersion;
@@ -250,6 +267,7 @@ export function createApiAccessSettingsSessionController(
       }));
     },
     reset() {
+      assertActive();
       invalidatePendingOperations();
       publish(createInitialSnapshot());
     },
@@ -293,6 +311,7 @@ export function createApiAccessSettingsSessionController(
       }));
     },
     subscribe(listener) {
+      if (disposed) return () => undefined;
       listeners.add(listener);
       return () => listeners.delete(listener);
     },

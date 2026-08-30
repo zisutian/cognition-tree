@@ -646,7 +646,8 @@ registry 位于按仓库重挂载的工作台边界之上、认证边界之内�
 content 或服务端配置。write-only secret 随对应表单卸载
 而清除；服务端 pending 操作具有独立生命周期，不由页面卸载取消。API access settings 的
 列表 authority、load generation、mutation version 与在途计数由独立页面 session controller
-持有，React hook 只订阅，旧 load 不得覆盖 create/revoke，单个完成不得提前清除 loading。
+持有，React hook 只订阅并在 Activity 卸载时终结 controller；旧 load 不得覆盖
+create/revoke，单个完成不得提前清除 loading，dispose 后的迟到结果不得发布。
 SettingsStatusPanel 只组合统一 detail shell 与 section 路由；Agent、System、API access、
 Audit 的状态投影分别由各自领域 status view 文件持有，不在路由文件内混合实现。
 
