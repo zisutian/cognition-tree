@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createSystemConfigurationController,
   type DataRootMigrationStatus,
+  type OwnerCredentialRotationPreparation,
   type SystemAdministrationPort,
   type SystemConfigurationInput,
   type SystemConfigurationSnapshot,
@@ -71,11 +72,13 @@ const updatedConfiguration: SystemConfigurationSnapshot = {
 
 function createDeferred<Value>() {
   let resolve!: (value: Value) => void;
-  const promise = new Promise<Value>((resolvePromise) => {
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<Value>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
 
-  return { promise, resolve };
+  return { promise, reject, resolve };
 }
 
 function migration(
@@ -289,6 +292,47 @@ describe("system configuration controller", () => {
     expect(controller.getSnapshot()).toMatchObject({
       configuration: { revision: activatedConfiguration.revision },
       loadStatus: "ready",
+    });
+  });
+
+  it("stays working until every concurrent operation has settled", async () => {
+    const administration = port([]);
+    const controller = createSystemConfigurationController(administration, {
+      pollMigration: async () => undefined,
+      pollMigrationIntervalMilliseconds: 1,
+    });
+
+    await controller.load();
+    const update = createDeferred<SystemConfigurationSnapshot>();
+    const preparation = createDeferred<OwnerCredentialRotationPreparation>();
+
+    vi.mocked(administration.update).mockImplementationOnce(
+      () => update.promise,
+    );
+    vi.mocked(administration.prepareOwnerCredentialRotation)
+      .mockImplementationOnce(() => preparation.promise);
+    const failedUpdate = expect(controller.update({
+      baseRevision: revision,
+      configuration: updateInput,
+    })).rejects.toThrow("update failed");
+    const preparing = controller.prepareOwnerCredentialRotation();
+
+    update.reject(new Error("update failed"));
+    await failedUpdate;
+    expect(controller.getSnapshot()).toMatchObject({
+      errorMessage: "update failed",
+      operationStatus: "working",
+    });
+
+    preparation.resolve({
+      configuration: preparedConfiguration,
+      rotationId: "rotation-1",
+      secret: "secret",
+    });
+    await preparing;
+    expect(controller.getSnapshot()).toMatchObject({
+      errorMessage: "update failed",
+      operationStatus: "idle",
     });
   });
 });

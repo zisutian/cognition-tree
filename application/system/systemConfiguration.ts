@@ -207,6 +207,7 @@ export function createSystemConfigurationController(
   const listeners = new Set<() => void>();
   let configurationAuthorityVersion = 0;
   let loadRequestVersion = 0;
+  let operationCount = 0;
   let state: SystemConfigurationState = {
     configuration: null,
     errorMessage: null,
@@ -236,22 +237,30 @@ export function createSystemConfigurationController(
     ) return;
     installConfiguration(configuration);
   };
-  const mutate = async (
+  const runOperation = async <Result>(operation: () => Promise<Result>) => {
+    operationCount += 1;
+    publish({ errorMessage: null, operationStatus: "working" });
+    try {
+      return await operation();
+    } catch (error) {
+      publish({ errorMessage: errorMessage(error) });
+      throw error;
+    } finally {
+      operationCount -= 1;
+      publish({ operationStatus: operationCount > 0 ? "working" : "idle" });
+    }
+  };
+  const mutate = (
     operation: () => Promise<SystemConfigurationSnapshot>,
   ) => {
     const expectedAuthorityVersion = configurationAuthorityVersion;
 
-    publish({ errorMessage: null, operationStatus: "working" });
-    try {
+    return runOperation(async () => {
       const configuration = await operation();
 
       installOperationConfiguration(expectedAuthorityVersion, configuration);
-      publish({ operationStatus: "idle" });
       return configuration;
-    } catch (error) {
-      publish({ errorMessage: errorMessage(error), operationStatus: "idle" });
-      throw error;
-    }
+    });
   };
 
   return {
@@ -288,12 +297,10 @@ export function createSystemConfigurationController(
       }
     },
     async migrateDataRoot(destination) {
-      publish({
-        errorMessage: null,
-        operationStatus: "working",
-      });
-      try {
-        let migration = await port.migrateDataRoot(revision(), destination);
+      const baseRevision = revision();
+
+      await runOperation(async () => {
+        let migration = await port.migrateDataRoot(baseRevision, destination);
 
         publish({ migration });
         while (migration.status === "copying" || migration.status === "verifying") {
@@ -304,18 +311,13 @@ export function createSystemConfigurationController(
         if (migration.status === "failed") {
           throw new Error(migration.errorMessage ?? "Data-root migration failed.");
         }
-        publish({ operationStatus: "idle" });
-      } catch (error) {
-        publish({ errorMessage: errorMessage(error), operationStatus: "idle" });
-        throw error;
-      }
+      });
     },
-    async prepareOwnerCredentialRotation() {
+    prepareOwnerCredentialRotation() {
       const expectedAuthorityVersion = configurationAuthorityVersion;
       const baseRevision = revision();
 
-      publish({ errorMessage: null, operationStatus: "working" });
-      try {
+      return runOperation(async () => {
         const preparation = await port.prepareOwnerCredentialRotation(
           baseRevision,
         );
@@ -324,12 +326,8 @@ export function createSystemConfigurationController(
           expectedAuthorityVersion,
           preparation.configuration,
         );
-        publish({ operationStatus: "idle" });
         return preparation;
-      } catch (error) {
-        publish({ errorMessage: errorMessage(error), operationStatus: "idle" });
-        throw error;
-      }
+      });
     },
     subscribe(listener) {
       listeners.add(listener);
