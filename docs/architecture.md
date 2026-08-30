@@ -399,6 +399,8 @@ application/repository/RepositoryCatalogController 独占 catalog 加载、活�
 application/agent/AgentClientController 独占客户端 session/status authority；完整 reload
 只能由一个循环串行执行，并发 reload、SSE event、单 session recovery 或 mutation 结果
 会废弃在途旧列表并要求最后再读一轮，陈旧响应不得覆盖较新 sequence。
+AgentSessionController 的 turn 完成、取消和失败都从未决 proposal 集合恢复 session 状态；
+运行时失败不得把待审批或待破坏性确认的 proposal 降格为 idle。
 AgentConfigurationController 独占客户端配置快照 authority；load、设备登录和一致性检查的
 回读只可安装到未变化的 authority，mutation 响应只可替换其 base revision 或相同 revision，
 陈旧读取与延迟响应不得回退已观察到的更新配置。operationStatus 从在途前台操作计数投影，

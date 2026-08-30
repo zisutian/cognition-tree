@@ -151,7 +151,7 @@ export class AgentSessionController {
     this.#assertActiveTurn(turnId);
     this.#activeTurnId = null;
     this.#problem = message;
-    this.#state = "idle";
+    this.#state = this.#pendingProposalState() ?? "idle";
     this.#touch();
   }
 
