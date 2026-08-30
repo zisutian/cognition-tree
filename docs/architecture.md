@@ -363,7 +363,8 @@ session slot、Journal/Todo built-in slot、SearchIndex、引用解析与跨仓�
 application/agent 独立提供 AgentRuntimePort、AgentSessionController、scope policy、
 staging 与 proposal state machine。它只依赖三个领域公开的 Agent preparation 入口
 和通用 persistence 端口，不依赖 contracts、infrastructure、presentation 或
-application/workbench。浏览器的 AgentClientController 只消费 wire-neutral port；
+application/workbench；AgentRuntimePort 同时定义与 provider 无关的上下文预算耗尽
+语义。浏览器的 AgentClientController 只消费 wire-neutral port；
 发送、批准和 destructive confirmation 前所需的已加载 draft 同步由 AppRoot 在
 presentation composition root 注入，避免任一应用协调根反向调用另一个。
 
@@ -408,8 +409,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     启动预留、执行任务与幂等释放；
     privateIpc 独占 capability 与本地监听器，并线性化并发启动和幂等关闭；
     Agent service 关闭门统一阻止新 session 与 owner mutation，释放会等待 session
-    启动、审批操作和幂等 session 清理全部收敛；profileTurnQueue 独占跨 session 的
-    Profile FIFO、排队判定与直到真正空闲的关闭等待；
+    启动、审批操作和幂等 session 清理全部收敛；conversationRunner 独占普通对话、
+    提交回执、工具执行、上下文压缩和取消收尾的 turn 编排，内部 profileTurnQueue
+    独占跨 session 的 Profile FIFO、排队判定与直到真正空闲的关闭等待；
     proposalCommitter 独占 Agent exact-CAS、幂等账本、审计 receipt 与提交后的
     revision/event 发布，service 只把终态投影回 session 并调度回执摘要；
     sessionEventStream 独占 session SSE sequence、重放窗口和终态关闭，关闭后不再接收

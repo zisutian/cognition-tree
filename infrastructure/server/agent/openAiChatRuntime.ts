@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type {
-  AgentRuntimePort,
-  AgentRuntimeSession,
-  AgentRuntimeTool,
-  AgentRuntimeToolCall,
-  AgentRuntimeTurnRequest,
+import {
+  AgentContextLimitError,
+  type AgentRuntimePort,
+  type AgentRuntimeSession,
+  type AgentRuntimeTool,
+  type AgentRuntimeToolCall,
+  type AgentRuntimeTurnRequest,
 } from "../../../application/agent/agentRuntimePort.ts";
 import type { AgentScope } from "../../../application/agent/agentTypes.ts";
 import { Value } from "@sinclair/typebox/value";
@@ -19,13 +20,6 @@ export class AgentRuntimeProtocolError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "AgentRuntimeProtocolError";
-  }
-}
-
-export class AgentContextLimitError extends Error {
-  constructor() {
-    super("Agent conversation history reached its character budget");
-    this.name = "AgentContextLimitError";
   }
 }
 

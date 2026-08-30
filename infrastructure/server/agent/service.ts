@@ -7,28 +7,21 @@ import {
   confirmAgentProposalDestruction,
   createAgentRuntimeInstructions,
   decideAgentProposal,
-  AgentScopeUnavailableError,
-  AgentScopeViolationError,
   AgentSessionController,
-  AgentSessionStateError,
   type AgentProposal,
   type AgentRuntimePort,
   type AgentRuntimeSession,
-  type AgentRuntimeTool,
-  type AgentRuntimeToolCall,
   type AgentScope,
   type AgentSyntaxKnowledge,
 } from "../../../application/agent/index.ts";
 import type {
   AgentCreateSessionRequestDto,
-  AgentOperationAuditEntryDto,
   AgentProfileSummaryDto,
   AgentSessionSnapshotDto,
   AgentStatusDto,
 } from "../../../contracts/agent/schemas.ts";
 import { AgentSessionSnapshotSchema } from "../../../contracts/agent/schemas.ts";
 import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
 import type { ApiBuiltInCatalog } from "../api/http/ports.ts";
 import type { ApiRuntime } from "../api/http/runtime.ts";
@@ -37,9 +30,6 @@ import type { ApiSearchService } from "../api/search.ts";
 import type { ApiEventHub } from "../api/sync/events.ts";
 import type { ApiRevisionTracker } from "../api/sync/revisionTracker.ts";
 import { AgentPrivateIpcServer } from "./privateIpc.ts";
-import {
-  AgentContextLimitError,
-} from "./openAiChatRuntime.ts";
 import type {
   AgentConfigurationStore,
   ResolvedAgentConfiguration,
@@ -63,7 +53,7 @@ import {
   type AgentProposalCommitRoute,
 } from "./proposalCommitter.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
-import { AgentProfileTurnQueue } from "./profileTurnQueue.ts";
+import { AgentConversationRunner } from "./conversationRunner.ts";
 import { AgentSessionTools } from "./sessionTools.ts";
 import { toAgentProposalDto } from "./proposalCodec.ts";
 import { agentRuntimeToolsForScope } from "./sessionToolProtocol.ts";
@@ -91,11 +81,6 @@ type SessionRecord = {
   syntaxKnowledge: AgentSyntaxKnowledge | null;
 };
 
-function isAbort(error: unknown, signal: AbortSignal) {
-  return signal.aborted ||
-    (error instanceof Error && error.name === "AbortError");
-}
-
 function sessionMcpEntrypoint() {
   const current = fileURLToPath(import.meta.url);
   const extension = path.extname(current);
@@ -105,11 +90,11 @@ function sessionMcpEntrypoint() {
 
 export class AgentService {
   readonly #configurationStore: AgentConfigurationStore;
+  readonly #conversation: AgentConversationRunner<SessionRecord>;
   readonly #ipc: AgentPrivateIpcServer;
   readonly #ledger: OperationLedger | null;
   readonly #openingProfiles = new Map<string, number>();
   readonly #operations = new Set<Promise<unknown>>();
-  readonly #profileTurns = new AgentProfileTurnQueue();
   readonly #proposalCommitter: AgentProposalCommitter;
   readonly #runtime: ApiRuntime;
   readonly #runtimeFactory: AgentRuntimeFactory;
@@ -173,6 +158,12 @@ export class AgentService {
       catalog,
       runtime,
       search,
+    });
+    this.#conversation = new AgentConversationRunner({
+      createId: () => this.#runtime.createId(),
+      emitProposal: (record, proposal) => this.#emitProposal(record, proposal),
+      emitSnapshot: (record) => this.#emitSnapshot(record),
+      tools: this.#tools,
     });
     this.#sweeper = setInterval(() => {
       void this.#expireSessions();
@@ -426,19 +417,8 @@ export class AgentService {
   sendMessage(sessionId: string, content: string) {
     this.#assertOpen();
     const record = this.#requireSession(sessionId);
-    const turnId = this.#runtime.createId();
-    const queued = this.#profileTurns.has(record.profile.id);
 
-    record.controller.beginTurn(turnId, queued);
-    record.controller.addMessage("user", content);
-    record.controller.clearProblem();
-    record.abortController = new AbortController();
-    this.#emitSnapshot(record);
-    this.#profileTurns.enqueue(
-      record.profile.id,
-      () => this.#runConversationTurn(record, turnId),
-    );
-    return { accepted: true as const, turnId };
+    return this.#conversation.sendMessage(record, content);
   }
 
   async cancel(sessionId: string) {
@@ -639,7 +619,7 @@ export class AgentService {
     disposals: readonly Promise<void>[],
   ) {
     await Promise.allSettled([...starts, ...operations, ...disposals]);
-    await this.#profileTurns.waitForIdle();
+    await this.#conversation.waitForIdle();
     await Promise.allSettled(this.#sessionDisposals.values());
     await this.#ipc.dispose();
   }
@@ -713,11 +693,14 @@ export class AgentService {
       this.#servicePolicy.absoluteTtlMilliseconds;
     const capability = this.#ipc.register({
       expiresAt,
-      handle: (request) => this.#executeTool(this.#requireSession(sessionId), {
-        arguments: request.tool.input,
-        callId: request.id,
-        name: request.tool.name,
-      }),
+      handle: (request) => this.#conversation.executeTool(
+        this.#requireSession(sessionId),
+        {
+          arguments: request.tool.input,
+          callId: request.id,
+          name: request.tool.name,
+        },
+      ),
       listTools: () => tools.map((tool) => ({
         description: tool.description,
         inputSchema: { ...tool.inputSchema },
@@ -738,160 +721,6 @@ export class AgentService {
         },
       },
     };
-  }
-
-  async #runConversationTurn(record: SessionRecord, turnId: string) {
-    const controller = record.controller;
-    const signal = record.abortController?.signal;
-
-    if (!signal) return;
-    if (signal.aborted) {
-      this.#completeCancelled(record, turnId);
-      return;
-    }
-    controller.markTurnRunning(turnId);
-    const messageId = this.#runtime.createId();
-
-    controller.startAssistantMessage(messageId);
-    this.#emitSnapshot(record);
-    try {
-      const scope = controller.snapshot().scope;
-
-      await this.#tools.assertScopeAvailable(scope);
-      await this.#runRuntimeWithCompaction(
-        record,
-        messageId,
-        signal,
-        agentRuntimeToolsForScope(scope),
-      );
-      controller.discardEmptyAssistantMessage(messageId);
-      controller.finishTurn(turnId);
-      record.abortController = null;
-      record.events.emit({ status: "completed", turnId, type: "turn-completed" });
-      this.#emitSnapshot(record);
-    } catch (error) {
-      record.abortController = null;
-      controller.discardEmptyAssistantMessage(messageId);
-      if (isAbort(error, signal)) {
-        this.#completeCancelled(record, turnId);
-        return;
-      }
-      const message = error instanceof Error ? error.message : "Agent turn failed";
-
-      if (error instanceof AgentScopeUnavailableError) {
-        controller.setUnavailable(message);
-      } else {
-        controller.failTurn(turnId, message);
-      }
-      record.events.emit({ code: "agent_turn_failed", message, type: "problem" });
-      record.events.emit({ status: "failed", turnId, type: "turn-completed" });
-      this.#emitSnapshot(record);
-    }
-  }
-
-  async #runRuntimeWithCompaction(
-    record: SessionRecord,
-    messageId: string,
-    signal: AbortSignal,
-    tools: readonly AgentRuntimeTool[],
-  ) {
-    let compacted = false;
-
-    while (true) {
-      let compactedThisAttempt = false;
-      const beforeLength = record.controller.snapshot().messages.find(({ id }) =>
-        id === messageId
-      )?.content.length ?? 0;
-
-      try {
-        const result = await record.runtimeSession.runTurn({
-          executeTool: (call) => this.#executeTool(record, call),
-          messages: record.controller.snapshot().messages.map(({ content, role }) => ({
-            content,
-            role,
-          })),
-          onEvent: async (event) => {
-            if (event.type === "text-delta") {
-              record.controller.appendAssistantMessage(messageId, event.textDelta);
-              record.events.emit({
-                messageId,
-                textDelta: event.textDelta,
-                type: "message-delta",
-              });
-            } else if (event.type === "compaction-required" && !compacted) {
-              compacted = true;
-              compactedThisAttempt = true;
-              this.#compactHistory(record, event.reason, messageId);
-              this.#emitSnapshot(record);
-            }
-          },
-          scope: record.controller.snapshot().scope,
-          signal,
-          tools,
-        });
-        const current = record.controller.snapshot().messages.find(({ id }) =>
-          id === messageId
-        );
-
-        if (current && current.content.length === beforeLength && result.finalText) {
-          record.controller.appendAssistantMessage(messageId, result.finalText);
-          record.events.emit({
-            messageId,
-            textDelta: result.finalText,
-            type: "message-delta",
-          });
-        }
-        return;
-      } catch (error) {
-        if (!(error instanceof AgentContextLimitError)) throw error;
-        if (compactedThisAttempt) continue;
-        if (compacted) throw error;
-        compacted = true;
-        this.#compactHistory(
-          record,
-          "会话历史预算已达到",
-          messageId,
-        );
-        this.#emitSnapshot(record);
-      }
-    }
-  }
-
-  #compactHistory(
-    record: SessionRecord,
-    reason: string,
-    preserveMessageId?: string,
-  ) {
-    const messages = record.controller.snapshot().messages;
-    const recent = messages.slice(-6).map(({ content, role }) =>
-      `${role}: ${content.slice(0, 1_000)}`
-    ).join("\n");
-
-    record.controller.compactHistory(
-      `${reason}\n${recent}`,
-      preserveMessageId,
-    );
-  }
-
-  #completeCancelled(record: SessionRecord, turnId: string) {
-    try {
-      record.controller.cancelTurn(turnId);
-    } catch (error) {
-      if (!(error instanceof AgentSessionStateError)) throw error;
-    }
-    record.abortController = null;
-    record.events.emit({ status: "cancelled", turnId, type: "turn-completed" });
-    this.#emitSnapshot(record);
-  }
-
-  async #executeTool(record: SessionRecord, call: AgentRuntimeToolCall) {
-    const execution = await this.#tools.execute(record, call);
-
-    if (execution.proposal) {
-      record.controller.putProposal(execution.proposal);
-      this.#emitProposal(record, execution.proposal);
-    }
-    return execution.result;
   }
 
   async #commit(
@@ -918,7 +747,7 @@ export class AgentService {
     if (!this.#disposed) this.#emitProposal(record, outcome.proposal);
     if (outcome.receipt.result === "committed") {
       if (!outcome.replayed && !this.#disposed) {
-        this.#scheduleReceiptSummary(record, outcome.receipt);
+        this.#conversation.scheduleReceiptSummary(record, outcome.receipt);
       }
       return toAgentProposalDto(outcome.proposal);
     }
@@ -929,95 +758,6 @@ export class AgentService {
       );
     }
     throw new AgentServiceError("session_unavailable", "Agent commit failed");
-  }
-
-  #scheduleReceiptSummary(
-    record: SessionRecord,
-    receipt: AgentOperationAuditEntryDto,
-  ) {
-    if (record.controller.snapshot().activeTurnId) return;
-    const turnId = this.#runtime.createId();
-    const queued = this.#profileTurns.has(record.profile.id);
-    const controller = new AbortController();
-
-    record.controller.beginTurn(turnId, queued);
-    record.abortController = controller;
-    this.#emitSnapshot(record);
-    this.#profileTurns.enqueue(record.profile.id, async () => {
-      if (controller.signal.aborted) {
-        this.#completeCancelled(record, turnId);
-        return;
-      }
-      record.controller.markTurnRunning(turnId);
-      const messageId = this.#runtime.createId();
-
-      record.controller.startAssistantMessage(messageId);
-      const receiptMessage = serializeJsonIteratively({
-        afterRevision: receipt.afterRevision,
-        beforeRevision: receipt.beforeRevision,
-        changeMetadata: receipt.changeMetadata,
-        proposalId: receipt.proposalId,
-        result: receipt.result,
-        store: receipt.store,
-      }, { sortObjectKeys: true });
-      try {
-        const result = await record.runtimeSession.runTurn({
-          executeTool: () => Promise.reject(
-            new AgentScopeViolationError("Tools are disabled for commit summary"),
-          ),
-          messages: [{
-            content: `Summarize this structured commit receipt for the owner. Do not perform any tool call: ${receiptMessage}`,
-            role: "user",
-          }],
-          onEvent: (event) => {
-            if (event.type !== "text-delta") return;
-            record.controller.appendAssistantMessage(messageId, event.textDelta);
-            record.events.emit({
-              messageId,
-              textDelta: event.textDelta,
-              type: "message-delta",
-            });
-          },
-          scope: record.controller.snapshot().scope,
-          signal: controller.signal,
-          tools: [],
-        });
-        const summary = record.controller.snapshot().messages.find(({ id }) =>
-          id === messageId
-        );
-
-        if (!summary?.content && result.finalText) {
-          record.controller.appendAssistantMessage(messageId, result.finalText);
-          record.events.emit({
-            messageId,
-            textDelta: result.finalText,
-            type: "message-delta",
-          });
-        }
-        record.controller.finishTurn(turnId);
-        record.abortController = null;
-        record.events.emit({ status: "completed", turnId, type: "turn-completed" });
-        this.#emitSnapshot(record);
-      } catch (error) {
-        record.abortController = null;
-        if (isAbort(error, controller.signal)) {
-          this.#completeCancelled(record, turnId);
-          return;
-        }
-        const message = error instanceof Error
-          ? error.message
-          : "Agent receipt summary failed";
-
-        record.controller.failTurn(turnId, message);
-        record.events.emit({
-          code: "receipt_summary_failed",
-          message,
-          type: "problem",
-        });
-        record.events.emit({ status: "failed", turnId, type: "turn-completed" });
-        this.#emitSnapshot(record);
-      }
-    });
   }
 
   #emitProposal(record: SessionRecord, proposal: AgentProposal) {

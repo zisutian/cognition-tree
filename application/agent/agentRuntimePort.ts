@@ -2,6 +2,13 @@
 
 import type { AgentRuntimeKind, AgentScope } from "./agentTypes.ts";
 
+export class AgentContextLimitError extends Error {
+  constructor() {
+    super("Agent conversation history reached its character budget");
+    this.name = "AgentContextLimitError";
+  }
+}
+
 export type AgentRuntimeTool = Readonly<{
   description: string;
   inputSchema: Readonly<Record<string, unknown>>;

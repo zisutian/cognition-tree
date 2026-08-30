@@ -4,9 +4,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type {
-  AgentRuntimePort,
-  AgentRuntimeTurnRequest,
+import {
+  AgentContextLimitError,
+  type AgentRuntimePort,
+  type AgentRuntimeTurnRequest,
 } from "../../../../application/agent/agentRuntimePort.ts";
 import {
   prepareAgentJournalCommand,
@@ -22,7 +23,6 @@ import {
   AgentService,
   AgentServiceError,
 } from "../../../../infrastructure/server/agent/service.ts";
-import { AgentContextLimitError } from "../../../../infrastructure/server/agent/openAiChatRuntime.ts";
 import { ApiEventHub } from "../../../../infrastructure/server/api/sync/events.ts";
 import { ApiRevisionTracker } from "../../../../infrastructure/server/api/sync/revisionTracker.ts";
 import { ApiSearchService } from "../../../../infrastructure/server/api/search.ts";
