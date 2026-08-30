@@ -76,23 +76,52 @@ export class AccessTokenUsageSession {
     persistedAt: string | null;
     tokenId: string;
   }): AccessTokenUsageObservation {
-    const observedMilliseconds = timestampMilliseconds(
+    let effectiveObservedAt = observedAt;
+    let effectiveObservedMilliseconds = timestampMilliseconds(
       observedAt,
       "Observed token usage",
     );
     const persistedMilliseconds = persistedAt === null
       ? -Infinity
       : timestampMilliseconds(persistedAt, "Persisted token usage");
+    const latestObservedAt = this.#latestObservations.get(tokenId) ?? null;
+    const latestObservedMilliseconds = latestObservedAt === null
+      ? -Infinity
+      : timestampMilliseconds(latestObservedAt, "Latest token usage");
+
+    if (
+      persistedAt !== null &&
+      persistedMilliseconds > effectiveObservedMilliseconds
+    ) {
+      effectiveObservedAt = persistedAt;
+      effectiveObservedMilliseconds = persistedMilliseconds;
+    }
+    if (
+      latestObservedAt !== null &&
+      latestObservedMilliseconds > effectiveObservedMilliseconds
+    ) {
+      effectiveObservedAt = latestObservedAt;
+      effectiveObservedMilliseconds = latestObservedMilliseconds;
+    }
 
     return {
-      observedAt,
-      requiresPersistence: observedMilliseconds - persistedMilliseconds >=
-        persistenceIntervalMilliseconds,
+      observedAt: effectiveObservedAt,
+      requiresPersistence:
+        effectiveObservedMilliseconds - persistedMilliseconds >=
+          persistenceIntervalMilliseconds,
       tokenId,
     };
   }
 
   resolveLastUsedAt(tokenId: string, persistedAt: string | null) {
-    return this.#latestObservations.get(tokenId) ?? persistedAt;
+    const latestObservedAt = this.#latestObservations.get(tokenId) ?? null;
+
+    if (latestObservedAt === null || persistedAt === null) {
+      return latestObservedAt ?? persistedAt;
+    }
+    return timestampMilliseconds(latestObservedAt, "Latest token usage") >=
+        timestampMilliseconds(persistedAt, "Persisted token usage")
+      ? latestObservedAt
+      : persistedAt;
   }
 }

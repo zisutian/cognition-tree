@@ -186,6 +186,28 @@ for (const factory of storeFactories) {
         .toBe(nextPersistedAt);
     });
 
+    it("does not move the observed usage time backwards when the clock regresses", async () => {
+      const { setTimestamp, store } = await createHarness(factory);
+      const created = await store.createToken();
+
+      await store.authenticate(created.secret);
+      const latestObservedAt = "2026-08-30T00:00:30.000Z";
+
+      setTimestamp(latestObservedAt);
+      await store.authenticate(created.secret);
+      setTimestamp("2026-08-29T23:59:00.000Z");
+      await store.authenticate(created.secret);
+
+      await expect(store.listTokens()).resolves.toEqual([
+        expect.objectContaining({
+          id: created.token.id,
+          lastUsedAt: latestObservedAt,
+        }),
+      ]);
+      expect(await persistedLastUsedAt(store.file, created.token.id))
+        .toBe("2026-08-30T00:00:00.000Z");
+    });
+
     it("does not advance usage after a verified pre-replacement save failure", async () => {
       const replacer = controlledReplacer();
       const { setTimestamp, store } = await createHarness(

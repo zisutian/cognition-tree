@@ -299,6 +299,8 @@ access 分区分别保存 automation 与 trusted-client token 的 SHA-256 哈希
 只读 scopes 和 Workspace allowlist，后者固定为全部内容读写。agent-auth 分区独占
 API Key 与 Codex 托管登录态，agent-config 分区只保存 provider、profile、认证模式、
 凭据引用/version/digest 与符合性结果。
+token 的 `lastUsedAt` 由 access session 串行观察并按分钟节流持久化；持久值、会话值
+与当前时钟取时间最大值，系统时钟回拨或外部刷新不得让审计时间倒退。
 
 operations-v1 在一个原子状态中分离 `auditEntries` 与 `agentReceipts`。受审计 mutation
 先以短事务持久化认证尝试，body 解码后再附加 store、base revision 与 intent digest；
