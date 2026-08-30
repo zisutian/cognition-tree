@@ -12,6 +12,7 @@ import {
   type AgentIpcResponseDto,
   type AgentIpcToolCatalogDto,
 } from "../../../contracts/agent/ipc.ts";
+import { listenToAgentJsonLines } from "./jsonLineTransport.ts";
 
 type AgentIpcToolCallRequest = Extract<
   AgentIpcRequestDto,
@@ -188,26 +189,16 @@ export class AgentPrivateIpcServer {
   }
 
   #accept(socket: net.Socket) {
-    socket.setEncoding("utf8");
-    socket.once("error", () => socket.destroy());
-    let source = "";
-    let handled = false;
+    listenToAgentJsonLines(socket, {
+      onFailure: () => socket.destroy(),
+      onLine: (line) => {
+        const execution = this.#handle(socket, line);
 
-    socket.on("data", (chunk: string) => {
-      if (handled) return;
-      source += chunk;
-      const boundary = source.indexOf("\n");
-
-      if (boundary < 0) {
-        if (source.length > 1_000_000) socket.destroy();
-        return;
-      }
-      handled = true;
-      const execution = this.#handle(socket, source.slice(0, boundary));
-
-      this.#requests.add(execution);
-      void execution.finally(() => this.#requests.delete(execution))
-        .catch(() => socket.destroy());
+        this.#requests.add(execution);
+        void execution.finally(() => this.#requests.delete(execution))
+          .catch(() => socket.destroy());
+        return false;
+      },
     });
   }
 
