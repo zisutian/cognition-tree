@@ -69,12 +69,10 @@ import {
 import type { AgentServicePolicy } from "./servicePolicy.ts";
 import { AgentServiceError } from "./errors.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
-import {
-  AgentSessionTools,
-  agentRuntimeToolsForScope,
-  toAgentProposalDto,
-  type AgentStaging,
-} from "./sessionTools.ts";
+import { AgentSessionTools } from "./sessionTools.ts";
+import { toAgentProposalDto } from "./proposalCodec.ts";
+import { agentRuntimeToolsForScope } from "./sessionToolProtocol.ts";
+import type { AgentStaging } from "./sessionToolState.ts";
 import {
   AgentSessionEventStream,
 } from "./sessionEventStream.ts";

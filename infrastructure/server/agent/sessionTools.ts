@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createHash } from "node:crypto";
 import {
   AgentScopeUnavailableError,
   AgentScopeViolationError,
-  AgentSessionController,
   agentSyntaxKnowledgeMatches,
   assertAgentResourceInScope,
   createAgentSyntaxKnowledge,
@@ -12,10 +10,8 @@ import {
   projectAgentSyntaxGuide,
   resolveWorkspaceAgentScope,
   type AgentProposal,
-  type AgentRuntimeTool,
   type AgentRuntimeToolCall,
   type AgentScope,
-  type AgentSyntaxKnowledge,
 } from "../../../application/agent/index.ts";
 import { prepareAgentJournalCommand } from "../../../application/journal/journalAgentCommandPreparation.ts";
 import {
@@ -35,29 +31,17 @@ import {
   projectWorkspaceAgentProposalReview,
   projectWorkspaceContentChanges,
 } from "../../../application/workspace/commands/workspaceContentProjection.ts";
-import type { PreparedVersionedSnapshot } from "../../../application/persistence/versionedRepository.ts";
-import type { WorkspaceRepositoryPreparation } from "../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
-import type { JournalParseIndex } from "../../../core/journal/indexes/journalParseIndex.ts";
 import { isJournalEntryId } from "../../../core/journal/model/journalIdentity.ts";
-import type { TodoParseIndex } from "../../../core/todo/indexes/todoParseIndex.ts";
 import { isTodoCollectionId } from "../../../core/todo/model/todoIdentity.ts";
-import {
-  AgentProposalSchema,
-  type AgentProposalDto,
-} from "../../../contracts/agent/schemas.ts";
 import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
 import {
   AgentSyntaxDescriptionSchema,
   agentToolDefinitions,
-  agentToolDefinitionsForDomain,
   type AgentJournalCommandIntentDto,
   type AgentTodoCommandIntentDto,
   type AgentWorkspaceCommandIntentDto,
 } from "../../../contracts/agent/tools.ts";
-import type { JournalContentDto } from "../../../contracts/journal/types.ts";
-import type { TodoContentDto } from "../../../contracts/todo/types.ts";
 import type { WorkspaceRepositoryContentDto } from "../../../contracts/workspace/types.ts";
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import type { ApiSearchResponseDto } from "../../../contracts/api/types.ts";
 import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
 import type { ApiBuiltInCatalog } from "../api/http/ports.ts";
@@ -83,212 +67,21 @@ import {
 } from "../api/resources/versions.ts";
 import type { ApiSearchService } from "../api/search.ts";
 import { AgentServiceError } from "./errors.ts";
-
-type WorkspaceSnapshot = PreparedVersionedSnapshot<
-  WorkspaceRepositoryContentDto,
-  WorkspaceRepositoryPreparation,
-  `sha256:${string}`
->;
-type JournalSnapshot = PreparedVersionedSnapshot<
-  JournalContentDto,
-  JournalParseIndex,
-  `sha256:${string}`
->;
-type TodoSnapshot = PreparedVersionedSnapshot<
-  TodoContentDto,
-  TodoParseIndex,
-  `sha256:${string}`
->;
-
-export type AgentStaging =
-  | {
-      base: WorkspaceSnapshot;
-      current: WorkspaceSnapshot;
-      destructive: boolean;
-      kind: "workspace";
-      timestamp: string;
-    }
-  | {
-      base: JournalSnapshot;
-      current: JournalSnapshot;
-      destructive: boolean;
-      kind: "journal";
-      timestamp: string;
-    }
-  | {
-      base: TodoSnapshot;
-      current: TodoSnapshot;
-      destructive: boolean;
-      kind: "todo";
-      timestamp: string;
-    };
-
-export type AgentToolSession = {
-  controller: AgentSessionController;
-  staging: AgentStaging | null;
-  syntaxKnowledge: AgentSyntaxKnowledge | null;
-};
-
-export type AgentToolExecution = {
-  proposal?: AgentProposal;
-  result: unknown;
-};
-
-function toRuntimeTool(definition: typeof agentToolDefinitions[number]) {
-  return {
-    description: definition.description,
-    inputSchema: definition.inputSchema as unknown as Readonly<Record<string, unknown>>,
-    name: definition.name,
-  } satisfies AgentRuntimeTool;
-}
-
-export function agentRuntimeToolsForScope(scope: AgentScope) {
-  return agentToolDefinitionsForDomain(scope.domain).map(toRuntimeTool);
-}
-
-function workspaceIntent(
-  name: string,
-  input: unknown,
-): AgentWorkspaceCommandIntentDto {
-  const values = input as Record<string, unknown>;
-
-  switch (name) {
-    case "stage_workspace_create_folder":
-      return { ...values, kind: "create-folder" } as AgentWorkspaceCommandIntentDto;
-    case "stage_workspace_create_note":
-      return { ...values, kind: "create-note" } as AgentWorkspaceCommandIntentDto;
-    case "stage_workspace_delete_folder":
-      return { ...values, kind: "delete-folder" } as AgentWorkspaceCommandIntentDto;
-    case "stage_workspace_delete_note":
-      return { ...values, kind: "delete-note" } as AgentWorkspaceCommandIntentDto;
-    case "stage_workspace_move_block":
-      return { ...values, kind: "move-block" } as AgentWorkspaceCommandIntentDto;
-    case "stage_workspace_move_tree_node":
-      return { ...values, kind: "move-tree-node" } as AgentWorkspaceCommandIntentDto;
-    case "stage_workspace_rename_folder":
-      return { ...values, kind: "rename-folder" } as AgentWorkspaceCommandIntentDto;
-    case "stage_workspace_rename_note":
-      return { ...values, kind: "rename-note" } as AgentWorkspaceCommandIntentDto;
-    case "stage_workspace_replace_note_source":
-      return {
-        ...values,
-        kind: "replace-note-source",
-      } as AgentWorkspaceCommandIntentDto;
-    default:
-      throw new AgentScopeViolationError("Unknown Workspace Agent tool");
-  }
-}
-
-function journalIntent(
-  name: string,
-  input: unknown,
-): AgentJournalCommandIntentDto {
-  const values = input as Record<string, unknown>;
-
-  switch (name) {
-    case "stage_journal_create_entry":
-      return { ...values, kind: "create-entry" } as AgentJournalCommandIntentDto;
-    case "stage_journal_delete_entry":
-      return { ...values, kind: "delete-entry" } as AgentJournalCommandIntentDto;
-    case "stage_journal_replace_entry_body":
-      return {
-        ...values,
-        kind: "replace-entry-body",
-      } as AgentJournalCommandIntentDto;
-    default:
-      throw new AgentScopeViolationError("Unknown Journal Agent tool");
-  }
-}
-
-function todoIntent(name: string, input: unknown): AgentTodoCommandIntentDto {
-  const values = input as Record<string, unknown>;
-
-  switch (name) {
-    case "stage_todo_create_collection":
-      return { ...values, kind: "create-collection" } as AgentTodoCommandIntentDto;
-    case "stage_todo_delete_collection":
-      return { ...values, kind: "delete-collection" } as AgentTodoCommandIntentDto;
-    case "stage_todo_set_completion":
-      return { ...values, kind: "set-completion" } as AgentTodoCommandIntentDto;
-    case "stage_todo_set_daily_recurrence":
-      return {
-        blockId: values.blockId,
-        collectionId: values.collectionId,
-        kind: "set-recurrence",
-        rule: { interval: values.interval, kind: "daily" },
-      } as AgentTodoCommandIntentDto;
-    case "stage_todo_set_weekly_recurrence":
-      return {
-        blockId: values.blockId,
-        collectionId: values.collectionId,
-        kind: "set-recurrence",
-        rule: {
-          interval: values.interval,
-          kind: "weekly",
-          weekdays: values.weekdays,
-        },
-      } as AgentTodoCommandIntentDto;
-    case "stage_todo_set_monthly_recurrence":
-      return {
-        blockId: values.blockId,
-        collectionId: values.collectionId,
-        kind: "set-recurrence",
-        rule: {
-          day: values.day,
-          interval: values.interval,
-          kind: "monthly",
-        },
-      } as AgentTodoCommandIntentDto;
-    case "stage_todo_stop_recurrence":
-      return { ...values, kind: "stop-recurrence" } as AgentTodoCommandIntentDto;
-    case "stage_todo_move_block":
-      return { ...values, kind: "move-block" } as AgentTodoCommandIntentDto;
-    case "stage_todo_move_collection":
-      return { ...values, kind: "move-collection" } as AgentTodoCommandIntentDto;
-    case "stage_todo_rename_collection":
-      return { ...values, kind: "rename-collection" } as AgentTodoCommandIntentDto;
-    case "stage_todo_replace_collection_body":
-      return {
-        ...values,
-        kind: "replace-collection-body",
-      } as AgentTodoCommandIntentDto;
-    default:
-      throw new AgentScopeViolationError("Unknown Todo Agent tool");
-  }
-}
-
-function syntaxRequiredResult(reason: string) {
-  return {
-    error: {
-      code: "syntax_read_required",
-      message: reason,
-    },
-    staged: false,
-  };
-}
-
-export function toAgentProposalDto(
-  proposal: AgentProposal,
-): AgentProposalDto {
-  return parseAgentSchema(AgentProposalSchema, {
-    baseRevision: proposal.base.revision,
-    changes: proposal.changes,
-    destructive: proposal.destructive,
-    digest: proposal.digest,
-    diff: proposal.diff,
-    id: proposal.id,
-    review: proposal.review,
-    status: proposal.status,
-    store: proposal.store,
-    version: proposal.version,
-  });
-}
-
-function digestAgentProposal(value: unknown): `sha256:${string}` {
-  return `sha256:${createHash("sha256")
-    .update(serializeJsonIteratively(value, { sortObjectKeys: true }))
-    .digest("hex")}`;
-}
+import {
+  journalToolIntent,
+  syntaxRequiredResult,
+  todoToolIntent,
+  workspaceToolIntent,
+} from "./sessionToolProtocol.ts";
+import {
+  digestAgentProposal,
+  toAgentProposalDto,
+} from "./proposalCodec.ts";
+import type {
+  AgentStaging,
+  AgentToolExecution,
+  AgentToolSession,
+} from "./sessionToolState.ts";
 
 export class AgentSessionTools {
   readonly #builtInCatalog: ApiBuiltInCatalog;
@@ -355,7 +148,7 @@ export class AgentSessionTools {
           return {
             result: await this.#stageWorkspace(
               record,
-              workspaceIntent(definition.name, input),
+              workspaceToolIntent(definition.name, input),
             ),
           };
         }
@@ -363,7 +156,7 @@ export class AgentSessionTools {
           return {
             result: await this.#stageJournal(
               record,
-              journalIntent(definition.name, input),
+              journalToolIntent(definition.name, input),
             ),
           };
         }
@@ -371,7 +164,7 @@ export class AgentSessionTools {
           return {
             result: await this.#stageTodo(
               record,
-              todoIntent(definition.name, input),
+              todoToolIntent(definition.name, input),
             ),
           };
         }

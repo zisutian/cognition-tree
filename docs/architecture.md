@@ -402,7 +402,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     api/resources、api/sync 分别拥有只读资源投影与 merge-aware snapshot 同步，search
     保持独立查询入口。server/access 独占 automation 与 trusted-client token；
     server/operations 独占统一账本、审计状态和 Agent receipt；server/agent 拥有
-    store 组合、runtime adapter、私有 IPC 与内存会话，不重写领域 command。
+    store 组合、runtime adapter、私有 IPC 与内存会话，不重写领域 command；其中
+    sessionToolProtocol、sessionToolState 与 proposalCodec 分别独占模型工具映射、会话
+    staging 形态和 Proposal wire/digest，sessionTools 只负责工具执行协调。
     repository/built-ins、repository/versioned、repository/workspace 分别拥有
     系统内容、通用版本存储和 Workspace 持久布局。只有 contracts/api registry
     定义 HTTP wire；只有 owner/trusted-client sync 与 Agent exact commit 可以写内容。
