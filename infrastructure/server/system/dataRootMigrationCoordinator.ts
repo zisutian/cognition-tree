@@ -111,7 +111,7 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
 
       this.#reservation = { id, kind: "active" };
       this.#statuses.set(id, status);
-      setTimeout(() => void this.#execute(id, baseRevision), 0);
+      queueMicrotask(() => void this.#execute(id, baseRevision));
       return status;
     } finally {
       if (this.#reservation?.kind === "starting") {

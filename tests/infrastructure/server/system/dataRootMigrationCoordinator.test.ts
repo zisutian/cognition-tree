@@ -49,6 +49,7 @@ async function fixture(
   const initial = await bootstrap.readSnapshot();
   const source = initial.configuration.dataRoot;
   const finish = vi.fn();
+  const beginMaintenance = vi.fn(async () => ({ finish }));
   const requestRestart = vi.fn(async () => undefined);
 
   roots.push(projectRoot, targetParent);
@@ -73,12 +74,13 @@ async function fixture(
     bootstrap,
     controlRoot: path.join(projectRoot, ".cognition-tree", "bootstrap-v1"),
     fileOperations,
-    maintenance: { begin: async () => ({ finish }) },
+    maintenance: { begin: beginMaintenance },
     requestRestart,
     restartDelayMilliseconds: 0,
   });
 
   return {
+    beginMaintenance,
     bootstrap,
     coordinator,
     finish,
@@ -205,6 +207,17 @@ describe("data-root migration coordinator", () => {
     const started = await first;
 
     expect(started.destination).toBe(fixtureValue.target);
+    await waitForTerminal(fixtureValue.coordinator, started.id);
+  });
+
+  it("enters maintenance before the accepted start is observed", async () => {
+    const fixtureValue = await fixture();
+    const started = await fixtureValue.coordinator.start(
+      fixtureValue.initial.revision,
+      fixtureValue.target,
+    );
+
+    expect(fixtureValue.beginMaintenance).toHaveBeenCalledOnce();
     await waitForTerminal(fixtureValue.coordinator, started.id);
   });
 
