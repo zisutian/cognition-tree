@@ -483,6 +483,14 @@ describe("Agent configuration store", () => {
     expect((await stat(prepared.home)).mode & 0o777).toBe(0o700);
     expect((await stat(path.join(prepared.home, "auth.json"))).mode & 0o777)
       .toBe(0o600);
+    await expect(store.removeCodexDeviceLoginStaging(
+      created.provider.id,
+      prepared.credentialVersion,
+      loginId,
+    )).rejects.toThrow("cannot be removed as staging");
+    await expect(store.resolveProvider(created.provider.id)).resolves.toMatchObject({
+      codexHome: prepared.home,
+    });
 
     const cleared = await store.clearProviderAuthentication(
       authenticated.revision,

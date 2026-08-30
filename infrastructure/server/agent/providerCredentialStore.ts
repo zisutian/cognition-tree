@@ -207,6 +207,17 @@ export class AgentProviderCredentialStore {
       "providers",
       providerId,
     );
+    const credentialFile = path.join(
+      this.#root,
+      agentCodexManagedCredentialReference(providerId, version, loginId),
+    );
+
+    try {
+      await lstat(credentialFile);
+      throw new Error("Activated Codex credentials cannot be removed as staging.");
+    } catch (error) {
+      if (!hasFileSystemErrorCode(error, "ENOENT")) throw error;
+    }
 
     await this.#managedHomes.remove({ loginId, providerId, version });
     if ((await readdir(providerDirectory)).length === 0) {

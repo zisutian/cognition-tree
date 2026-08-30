@@ -310,16 +310,19 @@ export class AgentProviderConfiguration {
     loginId: string,
     reservedChange: AgentConfigurationProviderChange | null = null,
   ) {
-    const change = reservedChange ?? await this.reserveChange(
-      baseRevision,
-      providerId,
-    );
     const ownsChange = reservedChange === null;
+    let change = reservedChange;
     let credential: AgentCredentialReference | null = null;
     let candidateMayBeAuthoritative = false;
 
     try {
-      this.#access.assertProviderChange(change, providerId);
+      const activeChange = change ?? await this.reserveChange(
+        baseRevision,
+        providerId,
+      );
+
+      change = activeChange;
+      this.#access.assertProviderChange(activeChange, providerId);
       const activatedCredential =
         await this.#credentialStore.activateCodexManagedHome(
           providerId,
@@ -329,7 +332,7 @@ export class AgentProviderConfiguration {
       credential = activatedCredential;
       const outcome = await this.#mutate((state) => {
         assertAgentConfigurationRevision(state, baseRevision);
-        this.#access.assertProviderChange(change, providerId);
+        this.#access.assertProviderChange(activeChange, providerId);
         const provider = state.providers.find(({ id }) => id === providerId);
 
         if (!provider || provider.kind !== "codex" ||
@@ -359,14 +362,22 @@ export class AgentProviderConfiguration {
       await this.#removeObsoleteCredential(outcome.previousCredential);
       return outcome.configuration;
     } catch (error) {
-      await this.#removeRejectedCredentialCandidate(
-        credential,
-        candidateMayBeAuthoritative,
-        error,
-      );
+      if (credential) {
+        await this.#removeRejectedCredentialCandidate(
+          credential,
+          candidateMayBeAuthoritative,
+          error,
+        );
+      } else {
+        await this.#credentialStore.removeCodexStagingHome(
+          providerId,
+          credentialVersion,
+          loginId,
+        ).catch(() => undefined);
+      }
       throw error;
     } finally {
-      if (ownsChange) change.release();
+      if (ownsChange) change?.release();
     }
   }
 
