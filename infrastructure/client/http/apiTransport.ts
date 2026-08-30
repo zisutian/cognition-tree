@@ -4,6 +4,7 @@ import { parseApiError } from "../../../contracts/api/parseError";
 import type { ApiErrorCodeDto } from "../../../contracts/api/types";
 
 export const apiRequestTimeoutMs = 30_000;
+export const apiMaximumJsonResponseBytes = 64 * 1024 * 1024;
 
 export type HttpApiTransportOptions = {
   baseUrl: string;
@@ -57,6 +58,106 @@ export class HttpApiUnavailableError extends Error {
   }
 }
 
+async function rejectResponseBody(
+  response: Response,
+  message: string,
+  retryable: boolean,
+): Promise<never> {
+  await response.body?.cancel().catch(() => undefined);
+  throw new HttpApiResponseError(message, {
+    retryable,
+    statusCode: response.status,
+  });
+}
+
+async function readBoundedResponseText(
+  response: Response,
+  retryable: boolean,
+) {
+  const contentType = response.headers.get("content-type")
+    ?.split(";", 1)[0]?.trim().toLowerCase();
+
+  if (contentType !== "application/json") {
+    return rejectResponseBody(
+      response,
+      `API returned a non-JSON content type (${response.status}).`,
+      retryable,
+    );
+  }
+  const contentLength = response.headers.get("content-length");
+
+  if (contentLength !== null && !/^\d+$/.test(contentLength)) {
+    return rejectResponseBody(
+      response,
+      `API returned an invalid Content-Length (${response.status}).`,
+      retryable,
+    );
+  }
+  if (
+    contentLength !== null &&
+    Number(contentLength) > apiMaximumJsonResponseBytes
+  ) {
+    return rejectResponseBody(
+      response,
+      `API response body exceeds the size limit (${response.status}).`,
+      retryable,
+    );
+  }
+  if (!response.body) {
+    throw new HttpApiResponseError(
+      `API returned no JSON body (${response.status}).`,
+      { retryable, statusCode: response.status },
+    );
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let reachedEnd = false;
+  let size = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        reachedEnd = true;
+        break;
+      }
+      size += value.byteLength;
+      if (size > apiMaximumJsonResponseBytes) {
+        throw new HttpApiResponseError(
+          `API response body exceeds the size limit (${response.status}).`,
+          { retryable, statusCode: response.status },
+        );
+      }
+      chunks.push(value);
+    }
+  } finally {
+    if (!reachedEnd) {
+      try {
+        await reader.cancel();
+      } catch {
+        // The original response failure remains authoritative.
+      }
+    }
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new HttpApiResponseError(
+      `API returned invalid UTF-8 (${response.status}).`,
+      { retryable, statusCode: response.status },
+    );
+  }
+}
+
 export function subscribeClientReconnect(listener: () => void) {
   if (typeof globalThis.addEventListener !== "function") {
     return () => undefined;
@@ -78,8 +179,10 @@ export function resolveApiUrl(baseUrl: string, endpoint: string) {
 }
 
 async function readResponseJson(response: Response, retryable = false) {
+  const source = await readBoundedResponseText(response, retryable);
+
   try {
-    return await response.json();
+    return JSON.parse(source) as unknown;
   } catch {
     throw new HttpApiResponseError(
       `API returned invalid JSON (${response.status}).`,

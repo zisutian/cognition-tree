@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  apiMaximumJsonResponseBytes,
   HttpApiResponseError,
   HttpApiUnavailableError,
   requestApiJson,
@@ -54,5 +55,26 @@ describe("HTTP API transport", () => {
       "https://api.test",
       "/api/v3/content/resource",
     )).rejects.toBeInstanceOf(HttpApiUnavailableError);
+  });
+
+  it("rejects oversized declarations and invalid UTF-8 before JSON parsing", async () => {
+    await expect(requestApiJson(
+      async () => new Response("{}", {
+        headers: {
+          "Content-Length": String(apiMaximumJsonResponseBytes + 1),
+          "Content-Type": "application/json",
+        },
+      }),
+      "https://api.test",
+      "/api/v3/content/resource",
+    )).rejects.toThrow(/exceeds the size limit/i);
+    await expect(requestApiJson(
+      async () => new Response(
+        new Uint8Array([0x7b, 0xff, 0x7d]),
+        { headers: { "Content-Type": "application/json" } },
+      ),
+      "https://api.test",
+      "/api/v3/content/resource",
+    )).rejects.toThrow(/invalid UTF-8/i);
   });
 });

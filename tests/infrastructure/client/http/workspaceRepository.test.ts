@@ -345,15 +345,13 @@ describe("HTTP workspace repository backend", () => {
       baseUrl: "http://api.test",
       fetch: async (_input, init) => {
         observedSignal = init?.signal ?? undefined;
-        return {
-          json: () => new Promise((_resolve, reject) => {
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
             observedSignal?.addEventListener("abort", () =>
-              reject(observedSignal?.reason),
+              controller.error(observedSignal?.reason),
             );
-          }),
-          ok: true,
-          status: 200,
-        } as Response;
+          },
+        }), { headers: { "Content-Type": "application/json" } });
       },
       repositoryId: "primary",
     });
