@@ -6,12 +6,17 @@ import readline from "node:readline";
 import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
 import type {
   AgentIpcRequestDto,
-  AgentIpcResponseDto,
 } from "../../../contracts/agent/ipc.ts";
 import {
   AgentIpcToolCatalogSchema,
   type AgentIpcToolCatalogDto,
 } from "../../../contracts/agent/ipc.ts";
+import {
+  parsePrivateIpcResult,
+  parseSessionMcpRequestLine,
+} from "./sessionMcpProtocol.ts";
+
+const maximumPrivateIpcResponseCharacters = 1_000_000;
 
 const configuredEndpoint = process.env.CTN_AGENT_IPC_ENDPOINT;
 const configuredCapability = process.env.CTN_AGENT_SESSION_CAPABILITY;
@@ -38,6 +43,12 @@ type AgentIpcRequestPayload =
 
 function callPrivateIpc(payload: AgentIpcRequestPayload) {
   return new Promise<unknown>((resolve, reject) => {
+    const request: AgentIpcRequestDto = {
+      capability,
+      id: randomUUID(),
+      ...payload,
+      sessionId,
+    };
     const socket = net.createConnection(endpoint);
     let source = "";
 
@@ -45,29 +56,26 @@ function callPrivateIpc(payload: AgentIpcRequestPayload) {
     socket.once("error", reject);
     socket.on("data", (chunk: string) => {
       source += chunk;
+      if (source.length > maximumPrivateIpcResponseCharacters) {
+        socket.destroy();
+        reject(new Error("Private Agent IPC response is too large"));
+        return;
+      }
       const boundary = source.indexOf("\n");
 
       if (boundary < 0) return;
       socket.destroy();
-      let response: AgentIpcResponseDto;
 
       try {
-        response = JSON.parse(source.slice(0, boundary)) as AgentIpcResponseDto;
-      } catch {
-        reject(new Error("Private Agent IPC returned invalid JSON"));
-        return;
+        resolve(parsePrivateIpcResult(
+          source.slice(0, boundary),
+          request.id,
+        ));
+      } catch (error) {
+        reject(error);
       }
-      if ("error" in response) reject(new Error(response.error.message));
-      else resolve(response.result);
     });
     socket.once("connect", () => {
-      const request: AgentIpcRequestDto = {
-        capability,
-        id: randomUUID(),
-        ...payload,
-        sessionId,
-      };
-
       socket.write(`${JSON.stringify(request)}\n`);
     });
   });
@@ -84,16 +92,18 @@ const input = readline.createInterface({ input: process.stdin });
 
 input.on("line", (line) => {
   void (async () => {
-    let request: Record<string, unknown>;
+    const parsed = parseSessionMcpRequestLine(line);
 
-    try {
-      request = JSON.parse(line) as Record<string, unknown>;
-    } catch {
-      write({ error: { code: -32700, message: "Parse error" }, id: null, jsonrpc: "2.0" });
+    if (parsed.kind === "error") {
+      write({
+        error: { code: parsed.code, message: parsed.message },
+        id: parsed.id,
+        jsonrpc: "2.0",
+      });
       return;
     }
-    if (!("id" in request)) return;
-    const id = request.id;
+    if (parsed.kind === "notification") return;
+    const { id, request } = parsed;
 
     if (request.method === "initialize") {
       write({
