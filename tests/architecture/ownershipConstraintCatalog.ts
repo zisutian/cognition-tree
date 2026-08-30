@@ -136,10 +136,40 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/operations\/operationLedgerState\.ts$/,
     ],
     [
-      "operation ledger transaction coordinator",
+      "operation ledger composition root",
       infrastructureModules,
       /\bclass OperationLedger\b/,
       /^infrastructure\/server\/operations\/operationLedger\.ts$/,
+    ],
+    [
+      "Agent operation ledger coordinator",
+      infrastructureModules,
+      /\bclass AgentOperationLedger\b/,
+      /^infrastructure\/server\/operations\/agentOperationLedger\.ts$/,
+    ],
+    [
+      "trusted-client operation ledger coordinator",
+      infrastructureModules,
+      /\bclass TrustedClientOperationLedger\b/,
+      /^infrastructure\/server\/operations\/trustedClientOperationLedger\.ts$/,
+    ],
+    [
+      "operation ledger store coordinator",
+      infrastructureModules,
+      /\bclass OperationLedgerStore\b/,
+      /^infrastructure\/server\/operations\/operationLedgerStore\.ts$/,
+    ],
+    [
+      "operation ledger stable key",
+      infrastructureModules,
+      /\bexport function operationLedgerKey\s*\(/,
+      /^infrastructure\/server\/operations\/operationLedgerProjection\.ts$/,
+    ],
+    [
+      "operation ledger trusted audit projection",
+      infrastructureModules,
+      /\bexport function createTrustedClientAuditEntry\s*\(/,
+      /^infrastructure\/server\/operations\/operationLedgerProjection\.ts$/,
     ],
     [
       "Agent Profile turn queue",

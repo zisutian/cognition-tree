@@ -453,6 +453,78 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps operation ledger internals behind their explicit composition root", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath:
+          "../../infrastructure/server/operations/agentOperationLedger.ts",
+        importPath: "./operationLedgerStore",
+        targetPath:
+          "../../infrastructure/server/operations/operationLedgerStore.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/api/sync/handlers.ts",
+        importPath: "../../operations/operationLedgerStore",
+        targetPath:
+          "../../infrastructure/server/operations/operationLedgerStore.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath:
+          "../../infrastructure/server/operations/trustedClientOperationLedger.ts",
+        importPath: "./operationLedgerProjection",
+        targetPath:
+          "../../infrastructure/server/operations/operationLedgerProjection.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/api/sync/handlers.ts",
+        importPath: "../../operations/operationLedgerProjection",
+        targetPath:
+          "../../infrastructure/server/operations/operationLedgerProjection.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath:
+          "../../infrastructure/server/operations/operationLedger.ts",
+        importPath: "./agentOperationLedger",
+        targetPath:
+          "../../infrastructure/server/operations/agentOperationLedger.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/api/sync/handlers.ts",
+        importPath: "../../operations/agentOperationLedger",
+        targetPath:
+          "../../infrastructure/server/operations/agentOperationLedger.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath:
+          "../../infrastructure/server/operations/operationLedger.ts",
+        importPath: "./trustedClientOperationLedger",
+        targetPath:
+          "../../infrastructure/server/operations/trustedClientOperationLedger.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/api/sync/handlers.ts",
+        importPath: "../../operations/trustedClientOperationLedger",
+        targetPath:
+          "../../infrastructure/server/operations/trustedClientOperationLedger.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "operation ledger store boundary: ../../infrastructure/server/api/sync/handlers.ts imports ../../operations/operationLedgerStore",
+      "operation ledger projection boundary: ../../infrastructure/server/api/sync/handlers.ts imports ../../operations/operationLedgerProjection",
+      "Agent operation ledger composition boundary: ../../infrastructure/server/api/sync/handlers.ts imports ../../operations/agentOperationLedger",
+      "trusted-client operation ledger composition boundary: ../../infrastructure/server/api/sync/handlers.ts imports ../../operations/trustedClientOperationLedger",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

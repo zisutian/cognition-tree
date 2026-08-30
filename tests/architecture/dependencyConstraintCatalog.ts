@@ -106,8 +106,25 @@ const operationLedgerStorePath =
   "../../infrastructure/server/operations/operationLedgerStore.ts";
 const operationLedgerStatePath =
   "../../infrastructure/server/operations/operationLedgerState.ts";
+const operationLedgerPath =
+  "../../infrastructure/server/operations/operationLedger.ts";
+const agentOperationLedgerPath =
+  "../../infrastructure/server/operations/agentOperationLedger.ts";
+const trustedClientOperationLedgerPath =
+  "../../infrastructure/server/operations/trustedClientOperationLedger.ts";
+const operationLedgerProjectionPath =
+  "../../infrastructure/server/operations/operationLedgerProjection.ts";
 const operationLedgerStateConsumers: ReadonlySet<string> = new Set([
   operationLedgerStorePath,
+]);
+const operationLedgerStoreConsumers: ReadonlySet<string> = new Set([
+  agentOperationLedgerPath,
+  operationLedgerPath,
+  trustedClientOperationLedgerPath,
+]);
+const operationLedgerProjectionConsumers: ReadonlySet<string> = new Set([
+  agentOperationLedgerPath,
+  trustedClientOperationLedgerPath,
 ]);
 
 function peerDomain(filePath: string) {
@@ -302,6 +319,28 @@ export function createDependencyImportPolicies({
       allows: ({ filePath }) => operationLedgerStateConsumers.has(filePath),
       applies: ({ targetPath }) => targetPath === operationLedgerStatePath,
       name: "operation ledger state composition boundary",
+    },
+    {
+      allows: ({ filePath }) => operationLedgerStoreConsumers.has(filePath),
+      applies: ({ targetPath }) => targetPath === operationLedgerStorePath,
+      name: "operation ledger store boundary",
+    },
+    {
+      allows: ({ filePath }) =>
+        operationLedgerProjectionConsumers.has(filePath),
+      applies: ({ targetPath }) => targetPath === operationLedgerProjectionPath,
+      name: "operation ledger projection boundary",
+    },
+    {
+      allows: ({ filePath }) => filePath === operationLedgerPath,
+      applies: ({ targetPath }) => targetPath === agentOperationLedgerPath,
+      name: "Agent operation ledger composition boundary",
+    },
+    {
+      allows: ({ filePath }) => filePath === operationLedgerPath,
+      applies: ({ targetPath }) =>
+        targetPath === trustedClientOperationLedgerPath,
+      name: "trusted-client operation ledger composition boundary",
     },
     {
       allows: () => false,
