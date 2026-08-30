@@ -102,14 +102,11 @@ const agentOpenAiCompatibleSessionConsumers: ReadonlySet<string> = new Set([
   "../../infrastructure/server/agent/openAiChatRuntime.ts",
 ]);
 const agentServicePath = "../../infrastructure/server/agent/service.ts";
-const operationLedgerPath =
-  "../../infrastructure/server/operations/operationLedger.ts";
 const operationLedgerStorePath =
   "../../infrastructure/server/operations/operationLedgerStore.ts";
 const operationLedgerStatePath =
   "../../infrastructure/server/operations/operationLedgerState.ts";
 const operationLedgerStateConsumers: ReadonlySet<string> = new Set([
-  operationLedgerPath,
   operationLedgerStorePath,
 ]);
 

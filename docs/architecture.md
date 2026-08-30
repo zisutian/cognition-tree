@@ -407,7 +407,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     operations-v1 严格解析与初始状态，operationLedgerProjection 独占 Agent/trusted
     审计 wire 投影与稳定 operation key，operationLedgerStore 独占安全分区、串行化、
     可用性、容量与旧文件清理，trustedClientOperationLedger 独占 trusted-client 的
-    begin/attach/finalize 事务，operationLedger 只保留公开 façade 与 Agent 事务；
+    begin/attach/finalize 事务，agentOperationLedger 独占 in-flight 去重、持久 receipt、
+    retention 与 terminal/indeterminate 流程，operationLedger 只作为显式组合根和公开
+    façade；
     server/agent 拥有
     store 组合、runtime adapter、私有 IPC 与内存会话，不重写领域 command；其中
     providerOperations 只显式组合无状态 providerProbe、Codex 设备码登录状态机和

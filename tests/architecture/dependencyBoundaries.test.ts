@@ -448,6 +448,7 @@ describe("dependency boundaries", () => {
     ], dependencyImportPolicies);
 
     expect(violations).toEqual([
+      "operation ledger state composition boundary: ../../infrastructure/server/operations/operationLedger.ts imports ./operationLedgerState",
       "operation ledger state composition boundary: ../../infrastructure/server/api/sync/handlers.ts imports ../../operations/operationLedgerState",
     ]);
   });
