@@ -27,13 +27,23 @@ function createRepository(
     resolveConflictAndSynchronize: async () => {
       throw new Error("Unexpected conflict resolution in snapshot test.");
     },
-    stageSnapshot: async () => ({ localRevision: snapshot.localRevision }),
+    stageSnapshot: async (change) => ({
+      previousLocalRevision: snapshot.localRevision,
+      snapshot: {
+        ...snapshot,
+        content: change.after.content,
+        localRevision: draftRevision("staged"),
+        pendingChanges: true,
+        projection: change.after.projection,
+      },
+    }),
     subscribeReconnect: () => () => undefined,
     synchronizePendingSnapshot: async () => ({
-      localRevision: snapshot.localRevision,
-      pendingChanges: snapshot.pendingChanges,
-      remoteRevision: snapshot.remoteRevision,
       status: "synced",
+      transitions: [{
+        previousLocalRevision: snapshot.localRevision,
+        snapshot,
+      }],
     }),
   };
 }

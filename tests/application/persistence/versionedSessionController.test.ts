@@ -73,7 +73,7 @@ function createSnapshot(
 }
 
 type RepositoryHarness = {
-  expectedLocalRevisions: TestLocalRevision[];
+  baseLocalRevisions: TestLocalRevision[];
   getLoadCount(): number;
   getSnapshot(): TestSnapshot;
   repository: VersionedRepository<
@@ -94,6 +94,9 @@ type RepositoryHarness = {
     discard: () => TestSnapshot | Promise<TestSnapshot>,
   ): void;
   setLoad(load: () => TestSnapshot | Promise<TestSnapshot>): void;
+  setSynchronizedSnapshot(
+    synchronize: (current: TestSnapshot) => TestSnapshot | Promise<TestSnapshot>,
+  ): void;
   stagedContents: TestContent[];
 };
 
@@ -109,10 +112,17 @@ function createRepositoryHarness(
     async () => structuredClone(snapshot);
   let load: () => TestSnapshot | Promise<TestSnapshot> =
     async () => structuredClone(snapshot);
+  let synchronizedSnapshot: (current: TestSnapshot) =>
+    TestSnapshot | Promise<TestSnapshot> = (current) => ({
+      ...current,
+      conflictRevision: null,
+      pendingChanges: false,
+      remoteRevision: remoteRevision(1),
+    });
   let loadCount = 0;
   let snapshot = structuredClone(initialSnapshot);
   let stageCount = 0;
-  const expectedLocalRevisions: TestLocalRevision[] = [];
+  const baseLocalRevisions: TestLocalRevision[] = [];
   const stagedContents: TestContent[] = [];
   const repository: RepositoryHarness["repository"] = {
     async discardPendingSnapshotAndReload() {
@@ -131,45 +141,53 @@ function createRepositoryHarness(
     async resolveConflictAndSynchronize() {
       throw new Error("Unexpected conflict resolution in session test.");
     },
-    async stageSnapshot({ content, expectedLocalRevision, projection }) {
+    async stageSnapshot(change) {
       const stageNumber = stageCount + 1;
 
-      await beforeStage(content, stageNumber);
-      if (expectedLocalRevision !== snapshot.localRevision) {
-        throw new Error("unexpected local revision");
-      }
+      await beforeStage(change.after.content, stageNumber);
+      const previousLocalRevision = snapshot.localRevision;
+      const appendedValues = change.after.content.values.filter(
+        (value) => !change.before.content.values.includes(value),
+      );
+      const content = change.baseLocalRevision === previousLocalRevision
+        ? change.after.content
+        : {
+            values: [
+              ...snapshot.content.values,
+              ...appendedValues.filter(
+                (value) => !snapshot.content.values.includes(value),
+              ),
+            ],
+          };
       stageCount = stageNumber;
-      expectedLocalRevisions.push(expectedLocalRevision);
+      baseLocalRevisions.push(change.baseLocalRevision);
       stagedContents.push(structuredClone(content));
       snapshot = {
         ...snapshot,
         content: structuredClone(content),
         localRevision: localRevision(stageNumber),
         pendingChanges: true,
-        projection: structuredClone(projection),
+        projection: { count: content.values.length },
       };
-      return { localRevision: snapshot.localRevision };
+      return { previousLocalRevision, snapshot: structuredClone(snapshot) };
     },
     subscribeReconnect: () => () => undefined,
     async synchronizePendingSnapshot() {
       await beforeSynchronize();
-      snapshot = {
-        ...snapshot,
-        conflictRevision: null,
-        pendingChanges: false,
-        remoteRevision: remoteRevision(1),
-      };
+      const previousLocalRevision = snapshot.localRevision;
+      snapshot = await synchronizedSnapshot(snapshot);
       return {
-        localRevision: snapshot.localRevision,
-        pendingChanges: false,
-        remoteRevision: snapshot.remoteRevision,
         status: "synced",
+        transitions: [{
+          previousLocalRevision,
+          snapshot: structuredClone(snapshot),
+        }],
       };
     },
   };
 
   return {
-    expectedLocalRevisions,
+    baseLocalRevisions,
     getLoadCount: () => loadCount,
     getSnapshot: () => structuredClone(snapshot),
     repository,
@@ -184,6 +202,9 @@ function createRepositoryHarness(
     },
     setLoad(nextLoad) {
       load = nextLoad;
+    },
+    setSynchronizedSnapshot(nextSynchronizedSnapshot) {
+      synchronizedSnapshot = nextSynchronizedSnapshot;
     },
     stagedContents,
   };
@@ -240,7 +261,7 @@ function append(value: number) {
 }
 
 describe("versioned session controller", () => {
-  it("keeps mutations optimistic while deferred local stages serialize", async () => {
+  it("keeps the optimistic head separate while deferred local stages serialize", async () => {
     const firstStage = deferred<void>();
     const harness = createRepositoryHarness();
 
@@ -266,10 +287,10 @@ describe("versioned session controller", () => {
       content: { values: [1, 2] },
       projection: { count: 2 },
       snapshot: {
-        content: { values: [1, 2] },
+        content: { values: [] },
         localRevision: localRevision(0),
-        pendingChanges: true,
-        projection: { count: 2 },
+        pendingChanges: false,
+        projection: { count: 0 },
       },
       status: "ready",
     });
@@ -283,9 +304,9 @@ describe("versioned session controller", () => {
       { values: [1] },
       { values: [1, 2] },
     ]);
-    expect(harness.expectedLocalRevisions).toEqual([
+    expect(harness.baseLocalRevisions).toEqual([
       localRevision(0),
-      localRevision(1),
+      localRevision(0),
     ]);
     expect(controller.getState()).toMatchObject({
       content: { values: [1, 2] },
@@ -307,6 +328,128 @@ describe("versioned session controller", () => {
 
     expect(optimisticIndex).toBeGreaterThanOrEqual(0);
     expect(visibleCounts.slice(optimisticIndex)).not.toContain(1);
+    controller.dispose();
+  });
+
+  it("installs synchronized content, projection, and local revision as one snapshot before the next mutation", async () => {
+    const harness = createRepositoryHarness();
+    const controller = await startController(harness);
+
+    controller.mutate(append(1));
+    await controller.flushPendingChanges();
+    harness.setSynchronizedSnapshot((current) => ({
+      ...current,
+      content: { values: [1, 2] },
+      localRevision: localRevision(10),
+      pendingChanges: false,
+      projection: { count: 2 },
+      remoteRevision: remoteRevision(1),
+    }));
+
+    await controller.synchronizePendingChanges();
+
+    expect(controller.getState()).toMatchObject({
+      content: { values: [1, 2] },
+      projection: { count: 2 },
+      snapshot: {
+        content: { values: [1, 2] },
+        localRevision: localRevision(10),
+        pendingChanges: false,
+        projection: { count: 2 },
+        remoteRevision: remoteRevision(1),
+      },
+      status: "ready",
+    });
+
+    controller.mutate(append(3));
+    await controller.flushPendingChanges();
+
+    expect(harness.stagedContents.at(-1)).toEqual({ values: [1, 2, 3] });
+    expect(harness.baseLocalRevisions.at(-1)).toBe(localRevision(10));
+    controller.dispose();
+  });
+
+  it("keeps a newer optimistic head separate until its stale prepared change is continued", async () => {
+    const syncStarted = deferred<void>();
+    const releaseSync = deferred<void>();
+    const secondStageStarted = deferred<void>();
+    const releaseSecondStage = deferred<void>();
+    const harness = createRepositoryHarness();
+    let synchronizationCount = 0;
+
+    harness.setBeforeSynchronize(async () => {
+      syncStarted.resolve();
+      await releaseSync.promise;
+    });
+    harness.setBeforeStage(async (_content, stageNumber) => {
+      if (stageNumber === 2) {
+        secondStageStarted.resolve();
+        await releaseSecondStage.promise;
+      }
+    });
+    const controller = await startController(harness);
+
+    controller.mutate(append(1));
+    await controller.flushPendingChanges();
+    controller.requestSync();
+    await syncStarted.promise;
+
+    controller.mutate(append(2));
+    const continuedFlush = controller.flushPendingChanges();
+
+    await secondStageStarted.promise;
+    harness.setSynchronizedSnapshot((current) => {
+      synchronizationCount += 1;
+      return synchronizationCount === 1
+        ? {
+            ...current,
+            content: { values: [1, 3] },
+            localRevision: localRevision(10),
+            pendingChanges: false,
+            projection: { count: 2 },
+            remoteRevision: remoteRevision(1),
+          }
+        : {
+            ...current,
+            pendingChanges: false,
+            remoteRevision: remoteRevision(1),
+          };
+    });
+    releaseSync.resolve();
+    await vi.waitFor(() => {
+      expect(controller.getState()).toMatchObject({
+        persistence: { status: "pending-sync" },
+      });
+    });
+
+    expect(controller.getState()).toMatchObject({
+      content: { values: [1, 2] },
+      projection: { count: 2 },
+      snapshot: {
+        content: { values: [1] },
+        localRevision: localRevision(1),
+        pendingChanges: true,
+        projection: { count: 1 },
+        remoteRevision: remoteRevision(0),
+      },
+      status: "ready",
+    });
+
+    releaseSecondStage.resolve();
+    await continuedFlush;
+    await vi.waitFor(() => {
+      expect(controller.getState()).toMatchObject({
+        content: { values: [1, 3, 2] },
+        projection: { count: 3 },
+        snapshot: {
+          content: { values: [1, 3, 2] },
+          localRevision: localRevision(2),
+          projection: { count: 3 },
+          remoteRevision: remoteRevision(1),
+        },
+      });
+    });
+    expect(harness.baseLocalRevisions.at(-1)).toBe(localRevision(1));
     controller.dispose();
   });
 
@@ -362,7 +505,7 @@ describe("versioned session controller", () => {
 
     syncController.mutate(append(3));
     await syncController.flushPendingChanges();
-    expect(syncHarness.expectedLocalRevisions).toEqual([
+    expect(syncHarness.baseLocalRevisions).toEqual([
       localRevision(0),
       localRevision(1),
       localRevision(2),

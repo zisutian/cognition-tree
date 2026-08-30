@@ -33,6 +33,69 @@ function prepareContent(name: string) {
   };
 }
 
+function createSyncResult({
+  localRevision = draftRevision("stage-1"),
+  message,
+  pendingChanges = false,
+  prepared,
+  remoteRevision: nextRemoteRevision = remoteRevision("b"),
+  status,
+}: {
+  localRevision?: ReturnType<typeof draftRevision>;
+  message?: string;
+  pendingChanges?: boolean;
+  prepared?: ReturnType<typeof prepareContent>;
+  remoteRevision?: ReturnType<typeof remoteRevision>;
+  status: WorkspaceRepositorySyncResult["status"];
+}): WorkspaceRepositorySyncResult {
+  const snapshot = createSnapshot({
+    conflictRevision: status === "conflict" ? nextRemoteRevision : null,
+    localRevision,
+    pendingChanges: status === "conflict" ? true : pendingChanges,
+    ...(prepared
+      ? { content: prepared.content, projection: prepared.projection }
+      : {}),
+    remoteRevision: nextRemoteRevision,
+  });
+  const transitions = [{
+    previousLocalRevision: localRevision,
+    snapshot,
+  }] as const;
+
+  switch (status) {
+    case "conflict":
+      return { status: "conflict", transitions };
+    case "offline":
+      return { status: "offline", transitions };
+    case "synced":
+      return { status: "synced", transitions };
+    case "sync-error":
+      return {
+        message: message ?? "sync failed",
+        status: "sync-error",
+        transitions,
+      };
+  }
+}
+
+function createStageTransition(
+  after: ReturnType<typeof prepareContent>,
+  previousLocalRevision: ReturnType<typeof draftRevision>,
+  localRevision: ReturnType<typeof draftRevision>,
+  snapshotOverrides: Partial<ReturnType<typeof createSnapshot>> = {},
+) {
+  return {
+    previousLocalRevision,
+    snapshot: createSnapshot({
+      content: after.content,
+      localRevision,
+      pendingChanges: true,
+      projection: after.projection,
+      ...snapshotOverrides,
+    }),
+  };
+}
+
 function createDeferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
   let reject!: (reason?: unknown) => void;
@@ -57,9 +120,10 @@ function createQueueHarness({
 } = {}) {
   const localContents: WorkspaceRepositoryContent[] = [];
   const persistence: WorkspacePersistenceState[] = [];
-  const remoteRevisions: Array<ReturnType<typeof remoteRevision> | null> = [];
+  const snapshots: ReturnType<typeof createSnapshot>[] = [];
   let localRevisionIndex = 0;
   let reconnectListener: () => void = () => undefined;
+  let snapshot = initialSnapshot;
   const repository: WorkspaceRepository = {
     discardPendingSnapshotAndReload: async () => createSnapshot(),
     async keepLocalConflictAndSynchronize() {
@@ -67,7 +131,7 @@ function createQueueHarness({
     },
     label: "test repository",
     loadConflict: async () => null,
-    loadSnapshot: async () => createSnapshot(),
+    loadSnapshot: async () => snapshot,
     location: {
       hostPath: null,
       serverPath: "/repositories/test",
@@ -76,13 +140,25 @@ function createQueueHarness({
       throw new Error("Unexpected conflict resolution in save queue test.");
     },
     async stageSnapshot(input) {
-      if (stage) {
-        return stage(input);
-      }
+      const transition = stage
+        ? await stage(input)
+        : (() => {
+            const previousLocalRevision = snapshot.localRevision;
 
-      localContents.push(input.content);
-      localRevisionIndex += 1;
-      return { localRevision: draftRevision(`stage-${localRevisionIndex}`) };
+            localRevisionIndex += 1;
+            snapshot = {
+              ...snapshot,
+              content: input.after.content,
+              localRevision: draftRevision(`stage-${localRevisionIndex}`),
+              pendingChanges: true,
+              projection: input.after.projection,
+            };
+            return { previousLocalRevision, snapshot };
+          })();
+
+      snapshot = transition.snapshot;
+      localContents.push(snapshot.content);
+      return transition;
     },
     subscribeReconnect(listener) {
       reconnectListener = listener;
@@ -92,44 +168,60 @@ function createQueueHarness({
     },
     async synchronizePendingSnapshot() {
       if (synchronize) {
-        return synchronize();
-      }
+        const result = await synchronize();
 
-      return {
-        localRevision: draftRevision(`stage-${localRevisionIndex}`),
+        snapshot = result.transitions.at(-1)!.snapshot;
+        return result;
+      }
+      const previousLocalRevision = snapshot.localRevision;
+
+      snapshot = {
+        ...snapshot,
+        conflictRevision: null,
         pendingChanges: false,
         remoteRevision: remoteRevision("b"),
+      };
+      return {
         status: "synced",
+        transitions: [{ previousLocalRevision, snapshot }],
       };
     },
   };
-  const queue = createWorkspaceSessionSaveQueue({
+  let persistedSnapshot = initialSnapshot;
+  const saveQueue = createWorkspaceSessionSaveQueue({
     initialPersistenceState,
     initialSnapshot,
-    onLocalStaged(prepared, revision) {
-      if (stage) {
-        localContents.push(prepared.content);
-        localRevisionIndex = Number(revision.slice("draft:stage-".length)) ||
-          localRevisionIndex + 1;
-      }
-    },
     onPersistenceChange(state) {
       persistence.push(state);
     },
-    onRemoteRevision(revision) {
-      remoteRevisions.push(revision);
+    onSnapshotChanged(nextSnapshot) {
+      snapshots.push(nextSnapshot);
+      persistedSnapshot = nextSnapshot;
     },
     repository,
     scheduler: testApplicationScheduler,
   });
+  const queue = {
+    ...saveQueue,
+    enqueue(after: ReturnType<typeof prepareContent>) {
+      saveQueue.enqueue({
+        after,
+        baseLocalRevision: persistedSnapshot.localRevision,
+        before: {
+          content: persistedSnapshot.content,
+          projection: persistedSnapshot.projection,
+        },
+      });
+    },
+  };
 
   return {
     emitReconnect: () => reconnectListener(),
     localContents,
     persistence,
     queue,
-    remoteRevisions,
     repository,
+    snapshots,
   };
 }
 
@@ -140,11 +232,11 @@ afterEach(() => {
 describe("workspace session save queue", () => {
   it("stages immediately, then debounces only the remote synchronization", async () => {
     vi.useFakeTimers();
-    const synchronize = vi.fn(async () => ({
+    const synchronize = vi.fn(async () => createSyncResult({
       localRevision: draftRevision("stage-1"),
-      pendingChanges: false,
+      prepared: prepareContent("立即本地保存"),
       remoteRevision: remoteRevision("b"),
-      status: "synced" as const,
+      status: "synced",
     }));
     const harness = createQueueHarness({ synchronize });
 
@@ -167,11 +259,11 @@ describe("workspace session save queue", () => {
   });
 
   it("forces local staging and remote synchronization before an Agent boundary", async () => {
-    const synchronize = vi.fn(async () => ({
+    const synchronize = vi.fn(async () => createSyncResult({
       localRevision: draftRevision("stage-1"),
-      pendingChanges: false,
+      prepared: prepareContent("Agent-visible edit"),
       remoteRevision: remoteRevision("b"),
-      status: "synced" as const,
+      status: "synced",
     }));
     const harness = createQueueHarness({ synchronize });
 
@@ -189,29 +281,32 @@ describe("workspace session save queue", () => {
   it.each([
     {
       message: "offline",
-      result: {
+      result: createSyncResult({
         localRevision: draftRevision("stage-1"),
         pendingChanges: true,
+        prepared: prepareContent("must not bypass sync"),
         remoteRevision: remoteRevision("a"),
-        status: "offline" as const,
-      },
+        status: "offline",
+      }),
     },
     {
       message: "conflict",
-      result: {
+      result: createSyncResult({
         localRevision: draftRevision("stage-1"),
+        prepared: prepareContent("must not bypass sync"),
         remoteRevision: remoteRevision("c"),
-        status: "conflict" as const,
-      },
+        status: "conflict",
+      }),
     },
     {
       message: "unauthorized",
-      result: {
+      result: createSyncResult({
         localRevision: draftRevision("stage-1"),
         message: "unauthorized",
+        prepared: prepareContent("must not bypass sync"),
         remoteRevision: remoteRevision("a"),
-        status: "sync-error" as const,
-      },
+        status: "sync-error",
+      }),
     },
   ])("blocks an Agent boundary on $message synchronization state", async ({
     message,
@@ -231,9 +326,9 @@ describe("workspace session save queue", () => {
   });
 
   it("flushes an already staged version while the stage promise is finalizing", async () => {
-    const stageResult = createDeferred<{
-      localRevision: ReturnType<typeof draftRevision>;
-    }>();
+    const stageResult = createDeferred<Awaited<
+      ReturnType<WorkspaceRepository["stageSnapshot"]>
+    >>();
     const harness = createQueueHarness({
       stage: () => stageResult.promise,
     });
@@ -241,7 +336,11 @@ describe("workspace session save queue", () => {
     harness.queue.enqueue(prepareContent("completion watermark"));
     const firstFlush = harness.queue.flushLocal();
 
-    stageResult.resolve({ localRevision: draftRevision("stage-1") });
+    stageResult.resolve(createStageTransition(
+      prepareContent("completion watermark"),
+      draftRevision("initial"),
+      draftRevision("stage-1"),
+    ));
     await firstFlush;
     await harness.queue.flushLocal();
 
@@ -251,18 +350,24 @@ describe("workspace session save queue", () => {
   });
 
   it("serializes local stages and replaces queued content with the latest desired snapshot", async () => {
-    const firstStage = createDeferred<{ localRevision: ReturnType<typeof draftRevision> }>();
+    const firstStage = createDeferred<Awaited<
+      ReturnType<WorkspaceRepository["stageSnapshot"]>
+    >>();
     const stagedNames: string[] = [];
     let stageCount = 0;
-    const stage: WorkspaceRepository["stageSnapshot"] = async ({ content }) => {
+    const stage: WorkspaceRepository["stageSnapshot"] = async (change) => {
       stageCount += 1;
-      stagedNames.push(content.workspace.name);
+      stagedNames.push(change.after.content.workspace.name);
 
       if (stageCount === 1) {
         return firstStage.promise;
       }
 
-      return { localRevision: draftRevision(`stage-${stageCount}`) };
+      return createStageTransition(
+        change.after,
+        draftRevision(`stage-${stageCount - 1}`),
+        draftRevision(`stage-${stageCount}`),
+      );
     };
     const harness = createQueueHarness({ stage });
 
@@ -271,7 +376,11 @@ describe("workspace session save queue", () => {
     harness.queue.enqueue(prepareContent("latest"));
     const flush = harness.queue.flushLocal();
 
-    firstStage.resolve({ localRevision: draftRevision("stage-1") });
+    firstStage.resolve(createStageTransition(
+      prepareContent("first"),
+      draftRevision("initial"),
+      draftRevision("stage-1"),
+    ));
     await flush;
 
     expect(stagedNames).toEqual(["first", "latest"]);
@@ -282,22 +391,26 @@ describe("workspace session save queue", () => {
   it("stops after a local stage failure, preserves the latest desired content, and retries explicitly", async () => {
     vi.useFakeTimers();
     const stagedNames: string[] = [];
-    const synchronize = vi.fn(async () => ({
+    const synchronize = vi.fn(async () => createSyncResult({
       localRevision: draftRevision("stage-retried"),
-      pendingChanges: false,
+      prepared: prepareContent("latest"),
       remoteRevision: remoteRevision("b"),
-      status: "synced" as const,
+      status: "synced",
     }));
     let shouldFail = true;
-    const stage: WorkspaceRepository["stageSnapshot"] = async ({ content }) => {
-      stagedNames.push(content.workspace.name);
+    const stage: WorkspaceRepository["stageSnapshot"] = async (change) => {
+      stagedNames.push(change.after.content.workspace.name);
 
       if (shouldFail) {
         shouldFail = false;
         throw new Error("Client cache transaction failed");
       }
 
-      return { localRevision: draftRevision("stage-retried") };
+      return createStageTransition(
+        change.after,
+        draftRevision("initial"),
+        draftRevision("stage-retried"),
+      );
     };
     const harness = createQueueHarness({ stage, synchronize });
 
@@ -336,10 +449,11 @@ describe("workspace session save queue", () => {
   it("continues staging after a conflict and keeps only the newest local pending snapshot", async () => {
     vi.useFakeTimers();
     const conflictRevision = remoteRevision("c");
-    const synchronize = vi.fn(async () => ({
+    const synchronize = vi.fn(async () => createSyncResult({
       localRevision: draftRevision("stage-1"),
+      prepared: prepareContent("before conflict"),
       remoteRevision: conflictRevision,
-      status: "conflict" as const,
+      status: "conflict",
     }));
     const harness = createQueueHarness({ synchronize });
 
@@ -370,18 +484,19 @@ describe("workspace session save queue", () => {
   it("retries an offline pending snapshot and reconnect triggers a real sync immediately", async () => {
     vi.useFakeTimers();
     const results: WorkspaceRepositorySyncResult[] = [
-      {
+      createSyncResult({
         localRevision: draftRevision("stage-1"),
         pendingChanges: true,
+        prepared: prepareContent("offline edit"),
         remoteRevision: remoteRevision("a"),
         status: "offline",
-      },
-      {
+      }),
+      createSyncResult({
         localRevision: draftRevision("stage-1"),
-        pendingChanges: false,
+        prepared: prepareContent("offline edit"),
         remoteRevision: remoteRevision("b"),
         status: "synced",
-      },
+      }),
     ];
     const synchronize = vi.fn(async () => results.shift()!);
     const harness = createQueueHarness({ synchronize });
@@ -406,11 +521,11 @@ describe("workspace session save queue", () => {
 
   it("resumes an explicit pending sync restored after reload", async () => {
     vi.useFakeTimers();
-    const synchronize = vi.fn(async () => ({
+    const synchronize = vi.fn(async () => createSyncResult({
       localRevision: draftRevision("initial"),
       pendingChanges: true,
       remoteRevision: remoteRevision("a"),
-      status: "offline" as const,
+      status: "offline",
     }));
     const harness = createQueueHarness({
       initialPersistenceState: { status: "pending-sync" },
@@ -428,6 +543,33 @@ describe("workspace session save queue", () => {
       pendingChanges: true,
       status: "offline",
     });
+    harness.queue.dispose();
+  });
+
+  it("derives an initial conflict directly from the repository snapshot", async () => {
+    vi.useFakeTimers();
+    const conflictRevision = remoteRevision("c");
+    const synchronize = vi.fn(async () => createSyncResult({
+      localRevision: draftRevision("initial"),
+      prepared: prepareContent("conflicted"),
+      remoteRevision: conflictRevision,
+      status: "conflict",
+    }));
+    const harness = createQueueHarness({
+      initialSnapshot: createSnapshot({
+        conflictRevision,
+        pendingChanges: true,
+        remoteRevision: conflictRevision,
+      }),
+      synchronize,
+    });
+
+    expect(harness.persistence.at(-1)).toEqual({
+      remoteRevision: conflictRevision,
+      status: "conflict",
+    });
+    await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
+    expect(synchronize).not.toHaveBeenCalled();
     harness.queue.dispose();
   });
 
@@ -459,18 +601,19 @@ describe("workspace session save queue", () => {
     vi.useFakeTimers();
     const synchronize = vi
       .fn<WorkspaceRepository["synchronizePendingSnapshot"]>()
-      .mockResolvedValueOnce({
+      .mockResolvedValueOnce(createSyncResult({
         localRevision: draftRevision("stage-1"),
         message: "unauthorized",
+        prepared: prepareContent("terminal failure"),
         remoteRevision: remoteRevision("a"),
         status: "sync-error",
-      })
-      .mockResolvedValue({
+      }))
+      .mockResolvedValue(createSyncResult({
         localRevision: draftRevision("stage-2"),
-        pendingChanges: false,
+        prepared: prepareContent("explicit new edit"),
         remoteRevision: remoteRevision("b"),
         status: "synced",
-      });
+      }));
     const harness = createQueueHarness({ synchronize });
 
     harness.queue.enqueue(prepareContent("terminal failure"));
@@ -500,12 +643,12 @@ describe("workspace session save queue", () => {
     const synchronize = vi
       .fn<WorkspaceRepository["synchronizePendingSnapshot"]>()
       .mockImplementationOnce(() => firstSync.promise)
-      .mockResolvedValue({
+      .mockResolvedValue(createSyncResult({
         localRevision: draftRevision("stage-2"),
-        pendingChanges: false,
+        prepared: prepareContent("latest"),
         remoteRevision: remoteRevision("c"),
         status: "synced",
-      });
+      }));
     const harness = createQueueHarness({ synchronize });
 
     harness.queue.enqueue(prepareContent("old"));
@@ -515,12 +658,13 @@ describe("workspace session save queue", () => {
 
     harness.queue.enqueue(prepareContent("latest"));
     await harness.queue.flushLocal();
-    firstSync.resolve({
-      localRevision: draftRevision("stage-1"),
+    firstSync.resolve(createSyncResult({
+      localRevision: draftRevision("stage-2"),
       pendingChanges: true,
+      prepared: prepareContent("latest"),
       remoteRevision: remoteRevision("a"),
       status: "offline",
-    });
+    }));
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
 
@@ -530,30 +674,179 @@ describe("workspace session save queue", () => {
     harness.queue.dispose();
   });
 
+  it("orders concurrent repository transitions before publishing one prepared snapshot authority", async () => {
+    vi.useFakeTimers();
+    const synchronized = createDeferred<WorkspaceRepositorySyncResult>();
+    const continuedStage = createDeferred<Awaited<
+      ReturnType<WorkspaceRepository["stageSnapshot"]>
+    >>();
+    let stageCount = 0;
+    const stage: WorkspaceRepository["stageSnapshot"] = async (change) => {
+      stageCount += 1;
+      return stageCount === 1
+        ? createStageTransition(
+            change.after,
+            draftRevision("initial"),
+            draftRevision("stage-1"),
+          )
+        : continuedStage.promise;
+    };
+    const synchronize = vi.fn(() => synchronized.promise);
+    const harness = createQueueHarness({ stage, synchronize });
+
+    harness.queue.enqueue(prepareContent("submitted"));
+    await harness.queue.flushLocal();
+    harness.queue.requestSync();
+    await vi.waitFor(() => expect(synchronize).toHaveBeenCalledTimes(1));
+
+    harness.queue.enqueue(prepareContent("continued optimistic"));
+    const continuedFlush = harness.queue.flushLocal();
+    const remotePrepared = prepareContent("submitted + remote");
+    const synchronizedSnapshot = createSnapshot({
+      content: remotePrepared.content,
+      localRevision: draftRevision("sync-2"),
+      pendingChanges: false,
+      projection: remotePrepared.projection,
+      remoteRevision: remoteRevision("b"),
+    });
+
+    synchronized.resolve({
+      status: "synced",
+      transitions: [{
+        previousLocalRevision: draftRevision("stage-1"),
+        snapshot: synchronizedSnapshot,
+      }],
+    });
+    await vi.waitFor(() => {
+      expect(harness.queue.getLocalRevision()).toBe(draftRevision("sync-2"));
+    });
+    expect(harness.snapshots.at(-1)?.content.workspace.name).toBe("submitted");
+
+    const continuedPrepared = prepareContent(
+      "submitted + remote + continued optimistic",
+    );
+    continuedStage.resolve(createStageTransition(
+      continuedPrepared,
+      draftRevision("sync-2"),
+      draftRevision("stage-3"),
+      { remoteRevision: remoteRevision("b") },
+    ));
+    await continuedFlush;
+
+    expect(harness.snapshots.at(-1)).toMatchObject({
+      content: {
+        workspace: {
+          name: "submitted + remote + continued optimistic",
+        },
+      },
+      localRevision: draftRevision("stage-3"),
+      pendingChanges: true,
+      remoteRevision: remoteRevision("b"),
+    });
+    expect(harness.snapshots.at(-1)?.projection).toBe(
+      continuedPrepared.projection,
+    );
+    harness.queue.dispose();
+  });
+
+  it("reaches the same prepared snapshot when the continued stage finishes before synchronization", async () => {
+    vi.useFakeTimers();
+    const synchronized = createDeferred<WorkspaceRepositorySyncResult>();
+    let stageCount = 0;
+    const stage: WorkspaceRepository["stageSnapshot"] = async (change) => {
+      stageCount += 1;
+      return createStageTransition(
+        change.after,
+        draftRevision(stageCount === 1 ? "initial" : "stage-1"),
+        draftRevision(`stage-${stageCount}`),
+      );
+    };
+    const synchronize = vi.fn(() => synchronized.promise);
+    const harness = createQueueHarness({ stage, synchronize });
+
+    harness.queue.enqueue(prepareContent("submitted"));
+    await harness.queue.flushLocal();
+    harness.queue.requestSync();
+    await vi.waitFor(() => expect(synchronize).toHaveBeenCalledTimes(1));
+
+    harness.queue.enqueue(prepareContent("submitted + continued optimistic"));
+    await harness.queue.flushLocal();
+    expect(harness.snapshots.at(-1)).toMatchObject({
+      content: {
+        workspace: { name: "submitted + continued optimistic" },
+      },
+      localRevision: draftRevision("stage-2"),
+      pendingChanges: true,
+    });
+
+    const finalPrepared = prepareContent(
+      "submitted + remote + continued optimistic",
+    );
+    synchronized.resolve({
+      status: "synced",
+      transitions: [{
+        previousLocalRevision: draftRevision("stage-2"),
+        snapshot: createSnapshot({
+          content: finalPrepared.content,
+          localRevision: draftRevision("sync-3"),
+          pendingChanges: false,
+          projection: finalPrepared.projection,
+          remoteRevision: remoteRevision("b"),
+        }),
+      }],
+    });
+    await vi.waitFor(() => {
+      expect(harness.queue.getLocalRevision()).toBe(draftRevision("sync-3"));
+    });
+
+    expect(harness.snapshots.at(-1)).toMatchObject({
+      content: {
+        workspace: {
+          name: "submitted + remote + continued optimistic",
+        },
+      },
+      localRevision: draftRevision("sync-3"),
+      pendingChanges: false,
+      remoteRevision: remoteRevision("b"),
+    });
+    expect(harness.snapshots.at(-1)?.projection).toBe(finalPrepared.projection);
+    harness.queue.dispose();
+  });
+
   it("drains an already active and queued local stage on dispose while cancelling remote work", async () => {
     vi.useFakeTimers();
-    const firstStage = createDeferred<{ localRevision: ReturnType<typeof draftRevision> }>();
+    const firstStage = createDeferred<Awaited<
+      ReturnType<WorkspaceRepository["stageSnapshot"]>
+    >>();
     const stagedNames: string[] = [];
     let stageCount = 0;
-    const stage: WorkspaceRepository["stageSnapshot"] = async ({ content }) => {
-      stagedNames.push(content.workspace.name);
+    const stage: WorkspaceRepository["stageSnapshot"] = async (change) => {
+      stagedNames.push(change.after.content.workspace.name);
       stageCount += 1;
       return stageCount === 1
         ? firstStage.promise
-        : { localRevision: draftRevision("stage-2") };
+        : createStageTransition(
+            change.after,
+            draftRevision("stage-1"),
+            draftRevision("stage-2"),
+          );
     };
-    const synchronize = vi.fn(async () => ({
+    const synchronize = vi.fn(async () => createSyncResult({
       localRevision: draftRevision("stage-2"),
-      pendingChanges: false,
+      prepared: prepareContent("latest"),
       remoteRevision: remoteRevision("b"),
-      status: "synced" as const,
+      status: "synced",
     }));
     const harness = createQueueHarness({ stage, synchronize });
 
     harness.queue.enqueue(prepareContent("active"));
     harness.queue.enqueue(prepareContent("latest"));
     harness.queue.dispose();
-    firstStage.resolve({ localRevision: draftRevision("stage-1") });
+    firstStage.resolve(createStageTransition(
+      prepareContent("active"),
+      draftRevision("initial"),
+      draftRevision("stage-1"),
+    ));
     await vi.waitFor(() => expect(stagedNames).toEqual(["active", "latest"]));
     await vi.advanceTimersByTimeAsync(
       workspaceSessionSaveDelayMs + workspaceSessionRetryDelaysMs[0],

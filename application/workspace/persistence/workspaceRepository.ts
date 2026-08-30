@@ -69,6 +69,8 @@ export type WorkspaceRepositorySnapshot = VersionedRepositorySnapshot<
   WorkspaceRepositoryPreparation
 >;
 export type WorkspaceRepositorySyncResult = VersionedRepositorySyncResult<
+  WorkspaceRepositoryContent,
+  WorkspaceRepositoryPreparation,
   RepositoryRevision,
   LocalDraftRevision
 >;

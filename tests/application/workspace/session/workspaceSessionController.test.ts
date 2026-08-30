@@ -99,21 +99,18 @@ function createRepositoryHarness({
   const stagedContents: WorkspaceRepositoryContent[] = [];
   const synchronize = vi.fn<WorkspaceRepository["synchronizePendingSnapshot"]>(
     async () => {
-      const result = {
-        localRevision: snapshot.localRevision,
-        pendingChanges: false,
-        remoteRevision: remoteRevision("b"),
-        status: "synced" as const,
-      };
+      const previousLocalRevision = snapshot.localRevision;
 
       snapshot = {
         ...snapshot,
         conflictRevision: null,
-        localRevision: result.localRevision,
-        pendingChanges: result.pendingChanges,
-        remoteRevision: result.remoteRevision,
+        pendingChanges: false,
+        remoteRevision: remoteRevision("b"),
       };
-      return result;
+      return {
+        status: "synced" as const,
+        transitions: [{ previousLocalRevision, snapshot }],
+      };
     },
   );
   const repository: WorkspaceRepository = {
@@ -131,21 +128,18 @@ function createRepositoryHarness({
     async resolveConflictAndSynchronize() {
       throw new Error("Unexpected conflict resolution in workspace session test.");
     },
-    async stageSnapshot({ content, expectedLocalRevision, projection }) {
-      if (expectedLocalRevision !== snapshot.localRevision) {
-        throw new Error("local revision mismatch");
-      }
-
+    async stageSnapshot(change) {
+      const previousLocalRevision = snapshot.localRevision;
       localRevisionIndex += 1;
       snapshot = {
         ...snapshot,
-        content,
+        content: change.after.content,
         localRevision: draftRevision(`stage-${localRevisionIndex}`),
         pendingChanges: true,
-        projection,
+        projection: change.after.projection,
       };
-      stagedContents.push(content);
-      return { localRevision: snapshot.localRevision };
+      stagedContents.push(change.after.content);
+      return { previousLocalRevision, snapshot };
     },
     subscribeReconnect: () => () => undefined,
     synchronizePendingSnapshot: synchronize,

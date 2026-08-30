@@ -190,9 +190,15 @@ describe("HTTP workspace repository catalog", () => {
     const pendingContent = createWorkspaceRepositoryContent("Unsynchronized");
 
     await firstRepository.stageSnapshot({
-      content: pendingContent,
-      expectedLocalRevision: initial.localRevision,
-      projection: preparation.prepare(),
+      after: {
+        content: pendingContent,
+        projection: preparation.prepare(),
+      },
+      baseLocalRevision: initial.localRevision,
+      before: {
+        content: initial.content,
+        projection: initial.projection,
+      },
     });
     await expect(firstRepository.loadSnapshot()).resolves.toMatchObject({
       content: { workspace: { name: "Unsynchronized" } },

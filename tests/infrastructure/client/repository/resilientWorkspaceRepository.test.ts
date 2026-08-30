@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createLocalFirstWorkspaceRepository } from "../../../../infrastructure/client/repository/resilientWorkspaceRepository";
 import type { VersionedRepositoryLoadPolicy } from "../../../../infrastructure/client/repository/resilientVersionedRepository";
+import { VersionedRepositoryLocalMergeConflictError } from "../../../../application/persistence/versionedRepository";
 import {
   WorkspaceRepositoryBackendConflictError,
   WorkspaceRepositoryLocalConflictError,
@@ -9,6 +10,7 @@ import {
   type RemoteWorkspaceSyncRequest,
   type WorkspaceRepository,
   type WorkspaceRepositoryBackend,
+  type WorkspaceRepositorySnapshot,
 } from "../../../../application/workspace/persistence/workspaceRepository";
 import type { WorkspaceRepositoryPreparation } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation";
 import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/types";
@@ -109,14 +111,15 @@ function createTestPreparation(
 function stageWorkspace(
   repository: WorkspaceRepository,
   content: WorkspaceRepositoryContentDto,
-  expectedLocalRevision: Parameters<
-    WorkspaceRepository["stageSnapshot"]
-  >[0]["expectedLocalRevision"],
+  before: Pick<
+    WorkspaceRepositorySnapshot,
+    "content" | "localRevision" | "projection"
+  >,
 ) {
   return repository.stageSnapshot({
-    content,
-    expectedLocalRevision,
-    projection: createTestProjection(content),
+    after: { content, projection: createTestProjection(content) },
+    baseLocalRevision: before.localRevision,
+    before: { content: before.content, projection: before.projection },
   });
 }
 
@@ -202,7 +205,7 @@ describe("local-first workspace repository", () => {
     const staged = await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("Local draft"),
-      initial.localRevision,
+      initial,
     );
 
     remote.setRemote(
@@ -214,7 +217,7 @@ describe("local-first workspace repository", () => {
     expect(refreshed).toMatchObject({
       conflictRevision: revisionC,
       content: { workspace: { name: "Local draft" } },
-      localRevision: staged.localRevision,
+      localRevision: staged.snapshot.localRevision,
       pendingChanges: true,
       remoteRevision: revisionC,
     });
@@ -238,15 +241,18 @@ describe("local-first workspace repository", () => {
     const staged = await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("Local draft"),
-      initial.localRevision,
+      initial,
     );
 
-    expect(staged.localRevision).not.toBe(initial.localRevision);
+    expect(staged.snapshot.localRevision).not.toBe(initial.localRevision);
     expect(load).toHaveBeenCalledTimes(1);
-    await expect(repository.synchronizePendingSnapshot()).resolves.toEqual({
-      localRevision: staged.localRevision,
+    const conflicted = await repository.synchronizePendingSnapshot();
+
+    expect(conflicted.status).toBe("conflict");
+    expect(conflicted.transitions.at(-1)?.snapshot).toMatchObject({
+      conflictRevision: revisionC,
+      localRevision: staged.snapshot.localRevision,
       remoteRevision: revisionC,
-      status: "conflict",
     });
   });
 
@@ -312,33 +318,36 @@ describe("local-first workspace repository", () => {
     ).resolves.toBeNull();
   });
 
-  it("stages only with the current draft revision and restores the latest pending content", async () => {
+  it("rejects an overlapping stale prepared change and restores the latest pending content", async () => {
     const remote = createRemoteBackend();
     const { cache, repository } = createRepository(remote);
     const initial = await repository.loadSnapshot();
     const first = await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("First pending"),
-      initial.localRevision,
+      initial,
     );
     const latest = await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("Latest pending"),
-      first.localRevision,
+      first.snapshot,
     );
 
     await expect(
       stageWorkspace(
         repository,
         createWorkspaceRepositoryContent("Stale writer"),
-        first.localRevision,
+        first.snapshot,
       ),
-    ).rejects.toBeInstanceOf(WorkspaceRepositoryLocalConflictError);
+    ).rejects.toMatchObject({
+      name: VersionedRepositoryLocalMergeConflictError.name,
+      unitIds: ["workspace:name"],
+    });
 
     const restored = createRepository(remote, cache).repository;
     await expect(restored.loadSnapshot()).resolves.toMatchObject({
       content: { workspace: { name: "Latest pending" } },
-      localRevision: latest.localRevision,
+      localRevision: latest.snapshot.localRevision,
       pendingChanges: true,
       remoteRevision: revisionA,
     });
@@ -351,20 +360,20 @@ describe("local-first workspace repository", () => {
     const first = await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("First"),
-      initial.localRevision,
+      initial,
     );
     await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("Latest"),
-      first.localRevision,
+      first.snapshot,
     );
 
     const result = await repository.synchronizePendingSnapshot();
 
-    expect(result).toMatchObject({
+    expect(result.status).toBe("synced");
+    expect(result.transitions.at(-1)?.snapshot).toMatchObject({
       pendingChanges: false,
       remoteRevision: revisionB,
-      status: "synced",
     });
     expect(remote.commits).toHaveLength(1);
     expect(remote.commits[0]).toMatchObject({
@@ -410,7 +419,7 @@ describe("local-first workspace repository", () => {
     const older = await stageWorkspace(
       repository,
       committedContent,
-      initial.localRevision,
+      initial,
     );
     const syncing = repository.synchronizePendingSnapshot();
 
@@ -418,21 +427,23 @@ describe("local-first workspace repository", () => {
     const newest = await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("Newer local stage"),
-      older.localRevision,
+      older.snapshot,
     );
     commit.resolve({
       outcome: "committed",
       snapshot: { content: committedContent, revision: revisionB },
     });
 
-    await expect(syncing).resolves.toMatchObject({
+    const synchronized = await syncing;
+
+    expect(synchronized.status).toBe("synced");
+    expect(synchronized.transitions.at(-1)?.snapshot).toMatchObject({
       pendingChanges: true,
       remoteRevision: revisionB,
-      status: "synced",
     });
     const latest = await repository.loadSnapshot();
 
-    expect(latest.localRevision).not.toBe(newest.localRevision);
+    expect(latest.localRevision).not.toBe(newest.snapshot.localRevision);
     expect(latest).toMatchObject({
       content: { workspace: { name: "Newer local stage" } },
       pendingChanges: true,
@@ -450,15 +461,17 @@ describe("local-first workspace repository", () => {
     const staged = await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("Pending"),
-      initial.localRevision,
+      initial,
     );
 
     remote.setUnavailable(true);
-    await expect(repository.synchronizePendingSnapshot()).resolves.toEqual({
-      localRevision: staged.localRevision,
+    const offline = await repository.synchronizePendingSnapshot();
+
+    expect(offline.status).toBe("offline");
+    expect(offline.transitions.at(-1)?.snapshot).toMatchObject({
+      localRevision: staged.snapshot.localRevision,
       pendingChanges: true,
       remoteRevision: revisionA,
-      status: "offline",
     });
 
     remote.setUnavailable(false);
@@ -466,19 +479,25 @@ describe("local-first workspace repository", () => {
       code: "repository_busy",
       retryable: true,
     }));
-    await expect(repository.synchronizePendingSnapshot()).resolves.toEqual({
-      localRevision: staged.localRevision,
+    const retryable = await repository.synchronizePendingSnapshot();
+
+    expect(retryable.status).toBe("offline");
+    expect(retryable.transitions.at(-1)?.snapshot).toMatchObject({
+      localRevision: staged.snapshot.localRevision,
       pendingChanges: true,
       remoteRevision: revisionA,
-      status: "offline",
     });
 
     remote.setRemoteError(new WorkspaceRepositoryRemoteError("bad request"));
-    await expect(repository.synchronizePendingSnapshot()).resolves.toEqual({
-      localRevision: staged.localRevision,
+    const terminal = await repository.synchronizePendingSnapshot();
+
+    expect(terminal).toMatchObject({
       message: "bad request",
-      remoteRevision: revisionA,
       status: "sync-error",
+    });
+    expect(terminal.transitions.at(-1)?.snapshot).toMatchObject({
+      localRevision: staged.snapshot.localRevision,
+      remoteRevision: revisionA,
     });
 
     await expect(repository.loadSnapshot()).resolves.toMatchObject({
@@ -494,24 +513,27 @@ describe("local-first workspace repository", () => {
     const pending = await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("Local pending"),
-      initial.localRevision,
+      initial,
     );
     remote.setConflict(revisionC);
 
-    await expect(repository.synchronizePendingSnapshot()).resolves.toEqual({
-      localRevision: pending.localRevision,
+    const conflicted = await repository.synchronizePendingSnapshot();
+
+    expect(conflicted.status).toBe("conflict");
+    expect(conflicted.transitions.at(-1)?.snapshot).toMatchObject({
+      conflictRevision: revisionC,
+      localRevision: pending.snapshot.localRevision,
       remoteRevision: revisionC,
-      status: "conflict",
     });
 
     const latest = await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("Local after conflict"),
-      pending.localRevision,
+      pending.snapshot,
     );
     await expect(repository.loadSnapshot()).resolves.toMatchObject({
       content: { workspace: { name: "Local after conflict" } },
-      localRevision: latest.localRevision,
+      localRevision: latest.snapshot.localRevision,
       pendingChanges: true,
       remoteRevision: revisionC,
     });
@@ -528,7 +550,7 @@ describe("local-first workspace repository", () => {
       localNoteSource,
     );
 
-    await stageWorkspace(repository, localNote, initial.localRevision);
+    await stageWorkspace(repository, localNote, initial);
     remote.setRemote(
       createWorkspaceRepositoryContent(
         "Remote renamed",
@@ -536,10 +558,12 @@ describe("local-first workspace repository", () => {
       ),
       revisionC,
     );
-    await expect(repository.synchronizePendingSnapshot()).resolves.toMatchObject({
-      pendingChanges: false,
-      status: "synced",
-    });
+    const synchronized = await repository.synchronizePendingSnapshot();
+
+    expect(synchronized.status).toBe("synced");
+    expect(synchronized.transitions.at(-1)?.snapshot.pendingChanges).toBe(
+      false,
+    );
     expect(remote.commits.at(-1)?.content).toMatchObject({
       workspace: {
         name: "Remote renamed",
@@ -562,7 +586,7 @@ describe("local-first workspace repository", () => {
         "Remote renamed",
         secondLocalNoteSource,
       ),
-      rebased.localRevision,
+      rebased,
     );
     remote.setRemote(
       createWorkspaceRepositoryContent(
@@ -571,9 +595,12 @@ describe("local-first workspace repository", () => {
       ),
       revisionC,
     );
-    await expect(repository.synchronizePendingSnapshot()).resolves.toMatchObject({
+    const conflictedResult = await repository.synchronizePendingSnapshot();
+
+    expect(conflictedResult.status).toBe("conflict");
+    expect(conflictedResult.transitions.at(-1)?.snapshot).toMatchObject({
+      conflictRevision: revisionC,
       remoteRevision: revisionC,
-      status: "conflict",
     });
     const conflicted = await repository.loadSnapshot();
     const latestLocalNoteSource = localNoteSource.replace(
@@ -587,7 +614,7 @@ describe("local-first workspace repository", () => {
         "Remote renamed",
         latestLocalNoteSource,
       ),
-      conflicted.localRevision,
+      conflicted,
     );
     await expect(repository.loadConflict()).resolves.toMatchObject({
       local: {
@@ -603,12 +630,10 @@ describe("local-first workspace repository", () => {
       },
       unitIds: ["workspace:note:note-a"],
     });
-    await expect(
-      repository.keepLocalConflictAndSynchronize(),
-    ).resolves.toMatchObject({
-      pendingChanges: false,
-      status: "synced",
-    });
+    const resolved = await repository.keepLocalConflictAndSynchronize();
+
+    expect(resolved.status).toBe("synced");
+    expect(resolved.transitions.at(-1)?.snapshot.pendingChanges).toBe(false);
     expect(remote.commits.at(-1)?.content.workspace).toMatchObject({
       name: "Second remote name",
       notes: [{ source: latestLocalNoteSource }],
@@ -622,7 +647,7 @@ describe("local-first workspace repository", () => {
     await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("Local pending"),
-      initial.localRevision,
+      initial,
     );
 
     remote.setUnavailable(true);
@@ -658,7 +683,7 @@ describe("local-first workspace repository", () => {
     const staged = await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("Local pending must survive"),
-      initial.localRevision,
+      initial,
     );
     const beforeDiscard = await repository.loadSnapshot();
 
@@ -672,7 +697,7 @@ describe("local-first workspace repository", () => {
     await expect(repository.loadSnapshot()).resolves.toEqual(beforeDiscard);
     expect(beforeDiscard).toMatchObject({
       content: { workspace: { name: "Local pending must survive" } },
-      localRevision: staged.localRevision,
+      localRevision: staged.snapshot.localRevision,
       pendingChanges: true,
       remoteRevision: revisionA,
     });
@@ -685,7 +710,7 @@ describe("local-first workspace repository", () => {
     const firstPending = await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent("Pending before discard"),
-      initial.localRevision,
+      initial,
     );
     const remoteLoad = createDeferred<{
       content: ReturnType<typeof createWorkspaceRepositoryContent>;
@@ -704,7 +729,7 @@ describe("local-first workspace repository", () => {
       createWorkspaceRepositoryContent(
         "Concurrent newest local stage",
       ),
-      firstPending.localRevision,
+      firstPending.snapshot,
     );
 
     remoteLoad.resolve({
@@ -716,7 +741,7 @@ describe("local-first workspace repository", () => {
     );
     await expect(repository.loadSnapshot()).resolves.toMatchObject({
       content: { workspace: { name: "Concurrent newest local stage" } },
-      localRevision: newest.localRevision,
+      localRevision: newest.snapshot.localRevision,
       pendingChanges: true,
     });
   });

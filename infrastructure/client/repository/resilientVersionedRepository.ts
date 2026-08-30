@@ -4,6 +4,7 @@ import {
   VersionedRepositoryBackendConflictError,
   VersionedRepositoryBackendMergeConflictError,
   VersionedRepositoryLocalConflictError,
+  VersionedRepositoryLocalMergeConflictError,
   VersionedRepositoryRemoteError,
   VersionedRepositoryUnavailableError,
   type VersionedRepository,
@@ -11,8 +12,10 @@ import {
   type VersionedContentConflictPreference,
   type VersionedContentMergePolicy,
   type PreparedVersionedContent,
+  type PreparedVersionedContentChange,
   type VersionedContentPreparationPolicy,
   type VersionedRepositorySnapshot,
+  type VersionedRepositorySnapshotTransition,
   type VersionedRepositorySyncResult,
 } from "../../../application/persistence/versionedRepository";
 import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
@@ -96,7 +99,18 @@ export function createLocalFirstVersionedRepository<
     LocalRevision,
     Projection
   >;
-  type SyncResult = VersionedRepositorySyncResult<Revision, LocalRevision>;
+  type SnapshotTransition = VersionedRepositorySnapshotTransition<
+    Content,
+    Projection,
+    Revision,
+    LocalRevision
+  >;
+  type SyncResult = VersionedRepositorySyncResult<
+    Content,
+    Projection,
+    Revision,
+    LocalRevision
+  >;
   let activeLoad: Promise<Snapshot> | null = null;
   let activeSync: Promise<SyncResult> | null = null;
   let initialized = false;
@@ -179,9 +193,41 @@ export function createLocalFirstVersionedRepository<
     projection: prepared.projection,
     remoteRevision: state.remoteRevision,
   });
+  const toSnapshotTransition = (
+    previousLocalRevision: LocalRevision,
+    state: NonNullable<Awaited<ReturnType<typeof cache.load>>>,
+    prepared = prepareState(state),
+  ): SnapshotTransition => ({
+    previousLocalRevision,
+    snapshot: toSnapshot(state, prepared),
+  });
 
   const contentEqual = (left: Content, right: Content) =>
     JSON.stringify(left) === JSON.stringify(right);
+  const continuePreparedChange = (
+    change: PreparedVersionedContentChange<
+      Content,
+      Projection,
+      LocalRevision
+    >,
+    currentLocalRevision: LocalRevision,
+    current: Prepared,
+  ): Prepared => {
+    if (change.baseLocalRevision === currentLocalRevision) {
+      if (!contentEqual(change.before.content, current.content)) {
+        throw new VersionedRepositoryLocalMergeConflictError(["repository"]);
+      }
+      return change.after;
+    }
+    const merged = mergeContent
+      ? mergeContent(change.before, change.after, current)
+      : { status: "conflict" as const, unitIds: ["repository"] };
+
+    if (merged.status === "conflict") {
+      throw new VersionedRepositoryLocalMergeConflictError(merged.unitIds);
+    }
+    return merged;
+  };
   const prepareMergeBase = (
     content: Content,
     current: NonNullable<Awaited<ReturnType<typeof cache.load>>>,
@@ -227,7 +273,11 @@ export function createLocalFirstVersionedRepository<
         revision: remote.revision,
         value: remotePrepared,
       };
-      return toSnapshot(state, currentPrepared);
+      return toSnapshotTransition(
+        current.localRevision,
+        state,
+        currentPrepared,
+      );
     }
     const mergedPrepared = merged;
 
@@ -245,7 +295,11 @@ export function createLocalFirstVersionedRepository<
       revision: remote.revision,
       value: remotePrepared,
     };
-    return toSnapshot(state, mergedPrepared);
+    return toSnapshotTransition(
+      current.localRevision,
+      state,
+      mergedPrepared,
+    );
   };
 
   const installSynchronizedSnapshot = async (
@@ -293,7 +347,11 @@ export function createLocalFirstVersionedRepository<
 
           rememberPrepared(conflicted, currentPrepared);
           preparedRemoteBase = { revision: remote.revision, value: remotePrepared };
-          return toSnapshot(conflicted, currentPrepared);
+          return toSnapshotTransition(
+            current.localRevision,
+            conflicted,
+            currentPrepared,
+          );
         }
         preparation.validateTransition?.(remotePrepared, merged);
         const rebased = await cache.rebaseFromRemote({
@@ -310,7 +368,11 @@ export function createLocalFirstVersionedRepository<
 
         rememberPrepared(rebased, merged);
         preparedRemoteBase = { revision: remote.revision, value: remotePrepared };
-        return toSnapshot(rebased, merged);
+        return toSnapshotTransition(
+          current.localRevision,
+          rebased,
+          merged,
+        );
       } catch (error) {
         if (
           error instanceof VersionedRepositoryLocalConflictError &&
@@ -343,13 +405,13 @@ export function createLocalFirstVersionedRepository<
           return toSnapshot(current, currentPrepared);
         }
         try {
-          return await reconcilePendingRemoteSnapshot(
+          return (await reconcilePendingRemoteSnapshot(
             identity,
             current,
             currentPrepared,
             remote,
             remotePrepared,
-          );
+          )).snapshot;
         } catch (error) {
           if (!(error instanceof VersionedRepositoryLocalConflictError)) {
             throw error;
@@ -466,6 +528,34 @@ export function createLocalFirstVersionedRepository<
   };
   const synchronize = async (): Promise<SyncResult> => {
     const identity = await resolveIdentity();
+    const transitions: SnapshotTransition[] = [];
+    const complete = (
+      transition: SnapshotTransition,
+      result:
+        | { status: "conflict" | "offline" | "synced" }
+        | { message: string; status: "sync-error" },
+    ): SyncResult => {
+      const completedTransitions: SyncResult["transitions"] =
+        transitions.length === 0
+          ? [transition]
+          : [transitions[0]!, ...transitions.slice(1), transition];
+
+      switch (result.status) {
+        case "conflict":
+          return { status: "conflict", transitions: completedTransitions };
+        case "offline":
+          return { status: "offline", transitions: completedTransitions };
+        case "synced":
+          return { status: "synced", transitions: completedTransitions };
+        case "sync-error":
+          return {
+            message: result.message,
+            status: "sync-error",
+            transitions: completedTransitions,
+          };
+      }
+    };
+
     await ensureInitialized();
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const local = await cache.load(identity);
@@ -476,12 +566,12 @@ export function createLocalFirstVersionedRepository<
         );
       }
       if (!local.pendingBaseRevision) {
-        return {
-          localRevision: local.localRevision,
-          pendingChanges: false,
-          remoteRevision: local.remoteRevision,
+        return complete(toSnapshotTransition(
+          local.localRevision,
+          local,
+        ), {
           status: "synced",
-        };
+        });
       }
       const localPrepared = prepareState(local);
       const syncContext = await cache.loadSyncContext(identity);
@@ -518,25 +608,20 @@ export function createLocalFirstVersionedRepository<
           },
           content: local.content,
         });
-        const current = await installSynchronizedSnapshot(
+        const transition = await installSynchronizedSnapshot(
           identity,
           local,
           localPrepared,
           synchronized.snapshot,
         );
-        if (current.conflictRevision !== null) {
-          return {
-            localRevision: current.localRevision,
-            remoteRevision: synchronized.snapshot.revision,
+        if (transition.snapshot.conflictRevision !== null) {
+          return complete(transition, {
             status: "conflict",
-          };
+          });
         }
-        return {
-          localRevision: current.localRevision,
-          pendingChanges: current.pendingChanges,
-          remoteRevision: current.remoteRevision,
+        return complete(transition, {
           status: "synced",
-        };
+        });
       } catch (error) {
         if (error instanceof VersionedRepositoryBackendMergeConflictError) {
           preparedRemoteBase = null;
@@ -546,12 +631,16 @@ export function createLocalFirstVersionedRepository<
             remote = await backend.loadRemoteSnapshot();
           } catch (loadError) {
             if (!isRetryableRemoteError(loadError)) throw loadError;
-            return {
-              localRevision: local.localRevision,
+            const current = await cache.load(identity);
+            if (!current) throw loadError;
+            return complete(toSnapshotTransition(
+              current.localRevision,
+              current,
+              prepareState(current, localPrepared.projection),
+            ), {
               message: getErrorMessage(loadError),
-              remoteRevision: error.currentRevision as Revision,
               status: "sync-error",
-            };
+            });
           }
           if (remote.revision !== error.currentRevision) {
             if (attempt + 1 < 3) continue;
@@ -579,11 +668,13 @@ export function createLocalFirstVersionedRepository<
               unitIds: error.unitIds,
             });
 
-            return {
-              localRevision: conflicted.localRevision,
-              remoteRevision: remote.revision,
+            return complete(toSnapshotTransition(
+              current.localRevision,
+              conflicted,
+              localPrepared,
+            ), {
               status: "conflict",
-            };
+            });
           } catch (recordError) {
             if (
               recordError instanceof VersionedRepositoryLocalConflictError &&
@@ -609,11 +700,13 @@ export function createLocalFirstVersionedRepository<
               identity,
             });
 
-            return {
-              localRevision: current.localRevision,
-              remoteRevision: conflictRevision,
+            return complete(toSnapshotTransition(
+              current.localRevision,
+              current,
+              prepareState(current, localPrepared.projection),
+            ), {
               status: "conflict",
-            };
+            });
           }
 
           if (remote.revision !== conflictRevision) {
@@ -622,20 +715,22 @@ export function createLocalFirstVersionedRepository<
               identity,
             });
 
-            return {
-              localRevision: current.localRevision,
-              remoteRevision: conflictRevision,
+            return complete(toSnapshotTransition(
+              current.localRevision,
+              current,
+              prepareState(current, localPrepared.projection),
+            ), {
               status: "conflict",
-            };
+            });
           }
           const remotePrepared = prepareRemoteContent(
             remote.content,
             remote.revision,
             localPrepared.projection,
           );
-          let current;
+          let transition;
           try {
-            current = await reconcilePendingRemoteSnapshot(
+            transition = await reconcilePendingRemoteSnapshot(
               identity,
               local,
               localPrepared,
@@ -652,32 +747,31 @@ export function createLocalFirstVersionedRepository<
             throw rebaseError;
           }
           if (
-            current.conflictRevision !== null
+            transition.snapshot.conflictRevision !== null
           ) {
-            return {
-              localRevision: current.localRevision,
-              remoteRevision: remote.revision,
+            return complete(transition, {
               status: "conflict",
-            };
+            });
           }
+          transitions.push(transition);
           continue;
         }
         const current = await cache.load(identity);
         if (!current) throw error;
+        const transition = toSnapshotTransition(
+          current.localRevision,
+          current,
+          prepareState(current, localPrepared.projection),
+        );
         if (isRetryableRemoteError(error)) {
-          return {
-            localRevision: current.localRevision,
-            pendingChanges: current.pendingBaseRevision !== null,
-            remoteRevision: current.remoteRevision,
+          return complete(transition, {
             status: "offline",
-          };
+          });
         }
-        return {
-          localRevision: current.localRevision,
+        return complete(transition, {
           message: getErrorMessage(error),
-          remoteRevision: current.remoteRevision,
           status: "sync-error",
-        };
+        });
       }
     }
     throw createBusyError();
@@ -759,7 +853,21 @@ export function createLocalFirstVersionedRepository<
       revision: conflict.remoteRevision,
       value: remotePrepared,
     };
-    return synchronize();
+    const resolvedTransition = toSnapshotTransition(
+      current.localRevision,
+      rebased,
+      contentPrepared,
+    );
+    const synchronized = await synchronize();
+    const transitions: SyncResult["transitions"] = [
+      resolvedTransition,
+      ...synchronized.transitions,
+    ];
+
+    return {
+      ...synchronized,
+      transitions,
+    };
   };
 
   return {
@@ -810,34 +918,62 @@ export function createLocalFirstVersionedRepository<
       resolveConflictAndSynchronize("local"),
     resolveConflictAndSynchronize: (preference, transform) =>
       resolveConflictAndSynchronize(preference, transform),
-    async stageSnapshot({ content, expectedLocalRevision, projection }) {
+    async stageSnapshot(change) {
       await ensureInitialized();
       const identity = await resolveIdentity();
-      const current = await cache.load(identity);
+      let latestConflict: VersionedRepositoryLocalConflictError<LocalRevision>
+        | null = null;
 
-      if (!current) {
-        throw new Error(
-          "Local repository state disappeared before staging.",
+      preparation.validateTransition?.(change.before, change.after);
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const current = await cache.load(identity);
+
+        if (!current) {
+          throw new Error(
+            "Local repository state disappeared before staging.",
+          );
+        }
+        const currentPrepared = prepareState(
+          current,
+          change.before.projection,
         );
-      }
-      const currentPrepared = prepareState(current);
-      const nextPrepared = { content, projection };
+        const nextPrepared = continuePreparedChange(
+          change,
+          current.localRevision,
+          currentPrepared,
+        );
 
-      preparation.validateTransition?.(currentPrepared, nextPrepared);
-      if (!current.pendingBaseRevision && current.remoteRevision) {
-        preparedRemoteBase = {
-          revision: current.remoteRevision,
-          value: currentPrepared,
-        };
+        preparation.validateTransition?.(currentPrepared, nextPrepared);
+        if (!current.pendingBaseRevision && current.remoteRevision) {
+          preparedRemoteBase = {
+            revision: current.remoteRevision,
+            value: currentPrepared,
+          };
+        }
+        try {
+          const state = await cache.stage({
+            content: nextPrepared.content,
+            expectedLocalRevision: current.localRevision,
+            identity,
+            localRevision: createLocalRevision(),
+          });
+
+          rememberPrepared(state, nextPrepared);
+          return toSnapshotTransition(
+            current.localRevision,
+            state,
+            nextPrepared,
+          );
+        } catch (error) {
+          if (!(error instanceof VersionedRepositoryLocalConflictError)) {
+            throw error;
+          }
+          latestConflict = error;
+        }
       }
-      const state = await cache.stage({
-        content,
-        expectedLocalRevision,
-        identity,
-        localRevision: createLocalRevision(),
-      });
-      rememberPrepared(state, nextPrepared);
-      return { localRevision: state.localRevision };
+      throw latestConflict ?? new Error(
+        "Local repository state kept changing during staging.",
+      );
     },
     subscribeReconnect,
     synchronizePendingSnapshot() {

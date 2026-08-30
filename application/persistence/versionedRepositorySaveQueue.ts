@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  PreparedVersionedContent,
+  PreparedVersionedContentChange,
   VersionedRepository,
   VersionedRepositorySnapshot,
+  VersionedRepositorySnapshotTransition,
 } from "./versionedRepository";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 
@@ -21,8 +22,16 @@ export type VersionedRepositoryPersistenceState<Revision extends string> =
       status: "error";
     };
 
-type DesiredContent<Content, Projection> = {
-  prepared: PreparedVersionedContent<Content, Projection>;
+type DesiredContentChange<
+  Content,
+  Projection,
+  LocalRevision extends string,
+> = {
+  change: PreparedVersionedContentChange<
+    Content,
+    Projection,
+    LocalRevision
+  >;
   version: number;
 };
 
@@ -46,14 +55,17 @@ export type VersionedRepositorySaveQueueOptions<
     LocalRevision,
     Projection
   >;
-  onLocalStaged: (
-    prepared: PreparedVersionedContent<Content, Projection>,
-    localRevision: LocalRevision,
-  ) => void;
   onPersistenceChange: (
     state: VersionedRepositoryPersistenceState<Revision>,
   ) => void;
-  onRemoteRevision: (revision: Revision | null) => void;
+  onSnapshotChanged: (
+    snapshot: VersionedRepositorySnapshot<
+      Content,
+      Revision,
+      LocalRevision,
+      Projection
+    >,
+  ) => void;
   repository: VersionedRepository<
     Content,
     Revision,
@@ -70,7 +82,13 @@ export type VersionedRepositorySaveQueue<
   LocalRevision extends string,
 > = {
   dispose: () => void;
-  enqueue: (prepared: PreparedVersionedContent<Content, Projection>) => void;
+  enqueue: (
+    change: PreparedVersionedContentChange<
+      Content,
+      Projection,
+      LocalRevision
+    >,
+  ) => void;
   flushLocal: () => Promise<void>;
   hasActiveSync: () => boolean;
   getLocalRevision: () => LocalRevision;
@@ -105,9 +123,8 @@ export function createVersionedRepositorySaveQueue<
 >({
   initialSnapshot,
   initialPersistenceState,
-  onLocalStaged,
   onPersistenceChange,
-  onRemoteRevision,
+  onSnapshotChanged,
   repository,
   scheduler,
 }: VersionedRepositorySaveQueueOptions<
@@ -122,10 +139,23 @@ export function createVersionedRepositorySaveQueue<
   let conflictRevision: Revision | null =
     initialPersistenceState?.status === "conflict"
       ? initialPersistenceState.remoteRevision
-      : null;
-  let desired: DesiredContent<Content, Projection> | null = null;
+      : initialSnapshot.conflictRevision;
+  let authoritySnapshot = initialSnapshot;
+  const acceptedLocalRevisions = new Set<LocalRevision>([
+    initialSnapshot.localRevision,
+  ]);
+  let desired: DesiredContentChange<
+    Content,
+    Projection,
+    LocalRevision
+  > | null = null;
   let disposed = false;
-  let localRevision = initialSnapshot.localRevision;
+  let pendingAuthorityTransitions: VersionedRepositorySnapshotTransition<
+    Content,
+    Projection,
+    Revision,
+    LocalRevision
+  >[] = [];
   let localStageBlocked = false;
   let localStageMessage: string | null = null;
   let localWaiters: LocalWaiter[] = [];
@@ -175,6 +205,46 @@ export function createVersionedRepositorySaveQueue<
     );
     ready.forEach(settle);
   };
+  const acceptAuthorityTransitions = (
+    transitions: readonly VersionedRepositorySnapshotTransition<
+      Content,
+      Projection,
+      Revision,
+      LocalRevision
+    >[],
+  ) => {
+    pendingAuthorityTransitions.push(...transitions);
+    let authorityChanged = false;
+
+    while (true) {
+      pendingAuthorityTransitions = pendingAuthorityTransitions.filter(
+        (transition) =>
+          transition.previousLocalRevision ===
+              authoritySnapshot.localRevision ||
+          !acceptedLocalRevisions.has(transition.previousLocalRevision),
+      );
+      const nextIndex = pendingAuthorityTransitions.findIndex(
+        (transition) =>
+          transition.previousLocalRevision === authoritySnapshot.localRevision,
+      );
+
+      if (nextIndex < 0) break;
+      const [next] = pendingAuthorityTransitions.splice(nextIndex, 1);
+
+      authoritySnapshot = next!.snapshot;
+      acceptedLocalRevisions.add(authoritySnapshot.localRevision);
+      authorityChanged = true;
+    }
+    if (authorityChanged && !desired && stagedVersion === version) {
+      onSnapshotChanged(authoritySnapshot);
+    }
+  };
+  const compactAuthorityTransitionHistory = () => {
+    if (activeStage || activeSync) return;
+    if (pendingAuthorityTransitions.length > 0) return;
+    acceptedLocalRevisions.clear();
+    acceptedLocalRevisions.add(authoritySnapshot.localRevision);
+  };
   const scheduleRetry = () => {
     if (disposed || conflictRevision || cancelRemoteRetry) {
       return;
@@ -210,22 +280,17 @@ export function createVersionedRepositorySaveQueue<
       onPersistenceChange({ status: "saving-local" });
 
       try {
-        const result = await repository.stageSnapshot({
-          content: target.prepared.content,
-          expectedLocalRevision: localRevision,
-          projection: target.prepared.projection,
-        });
+        const transition = await repository.stageSnapshot(target.change);
 
-        localRevision = result.localRevision;
         localStageBlocked = false;
         localStageMessage = null;
         stagedVersion = Math.max(stagedVersion, target.version);
-        onLocalStaged(target.prepared, result.localRevision);
         settleLocalWaiters(target.version, (waiter) => waiter.resolve());
 
         if (desired?.version === target.version) {
           desired = null;
         }
+        acceptAuthorityTransitions([transition]);
 
         if (conflictRevision) {
           onPersistenceChange({
@@ -264,6 +329,7 @@ export function createVersionedRepositorySaveQueue<
       if (desired && !localStageBlocked) {
         void startStage();
       }
+      compactAuthorityTransitionHistory();
     });
 
     return activeStage;
@@ -308,8 +374,8 @@ export function createVersionedRepositorySaveQueue<
       return;
     }
 
-    localRevision = result.localRevision;
-    onRemoteRevision(result.remoteRevision);
+    acceptAuthorityTransitions(result.transitions);
+    const reportedSnapshot = result.transitions.at(-1)!.snapshot;
 
     switch (result.status) {
       case "synced":
@@ -318,31 +384,51 @@ export function createVersionedRepositorySaveQueue<
         syncTerminalBlocked = false;
         syncTerminalMessage = null;
         clearRetryTimer();
-        if (desired || result.pendingChanges) {
+        if (desired || authoritySnapshot.pendingChanges) {
           syncDue = true;
           onPersistenceChange({ status: "pending-sync" });
         } else {
           onPersistenceChange({ status: "saved" });
         }
         break;
-      case "offline":
+      case "offline": {
         offline = true;
+        const hasOfflinePendingChanges = desired !== null ||
+          authoritySnapshot.pendingChanges || reportedSnapshot.pendingChanges;
         onPersistenceChange({
-          pendingChanges: result.pendingChanges,
+          pendingChanges: hasOfflinePendingChanges,
           status: "offline",
         });
-        if (result.pendingChanges) {
+        if (hasOfflinePendingChanges) {
           scheduleRetry();
         }
         break;
-      case "conflict":
-        conflictRevision = result.remoteRevision;
+      }
+      case "conflict": {
+        const reportedConflictRevision =
+          authoritySnapshot.conflictRevision ??
+          reportedSnapshot.conflictRevision;
+
+        if (!reportedConflictRevision) {
+          syncTerminalBlocked = true;
+          syncTerminalMessage =
+            "Repository reported a conflict without a conflict snapshot.";
+          onPersistenceChange({
+            localCopySafe: false,
+            message: syncTerminalMessage,
+            phase: "local",
+            status: "error",
+          });
+          break;
+        }
+        conflictRevision = reportedConflictRevision;
         clearRetryTimer();
         onPersistenceChange({
-          remoteRevision: result.remoteRevision,
+          remoteRevision: reportedConflictRevision,
           status: "conflict",
         });
         break;
+      }
       case "sync-error":
         clearRetryTimer();
         syncTerminalBlocked = true;
@@ -370,6 +456,7 @@ export function createVersionedRepositorySaveQueue<
       ) {
         void startSync();
       }
+      compactAuthorityTransitionHistory();
     });
 
     return activeSync;
@@ -384,6 +471,11 @@ export function createVersionedRepositorySaveQueue<
     ) {
       scheduleDebouncedSync();
     }
+  } else if (initialSnapshot.conflictRevision) {
+    onPersistenceChange({
+      remoteRevision: initialSnapshot.conflictRevision,
+      status: "conflict",
+    });
   } else if (initialSnapshot.pendingChanges) {
     onPersistenceChange({ status: "pending-sync" });
     if (!conflictRevision) {
@@ -420,9 +512,17 @@ export function createVersionedRepositorySaveQueue<
         void startStage();
       }
     },
-    enqueue(prepared) {
+    enqueue(change) {
       version += 1;
-      desired = { prepared, version };
+      desired = {
+        change: {
+          after: change.after,
+          baseLocalRevision:
+            desired?.change.baseLocalRevision ?? change.baseLocalRevision,
+          before: desired?.change.before ?? change.before,
+        },
+        version,
+      };
       localStageBlocked = false;
       syncTerminalBlocked = false;
       scheduleDebouncedSync();
@@ -433,7 +533,7 @@ export function createVersionedRepositorySaveQueue<
       return activeSync !== null;
     },
     getLocalRevision() {
-      return localRevision;
+      return authoritySnapshot.localRevision;
     },
     async prepareForDiscard() {
       clearSyncTimer();

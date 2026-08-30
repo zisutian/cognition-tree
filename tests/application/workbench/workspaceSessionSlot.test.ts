@@ -13,7 +13,8 @@ import {
 import { testApplicationScheduler } from "../../support/testApplicationScheduler";
 
 function createRepository(label: string): WorkspaceRepository {
-  const snapshot = createSnapshot({ content: createContent(label) });
+  let snapshot = createSnapshot({ content: createContent(label) });
+  let localRevisionIndex = 0;
 
   return {
     discardPendingSnapshotAndReload: async () => snapshot,
@@ -30,14 +31,32 @@ function createRepository(label: string): WorkspaceRepository {
     resolveConflictAndSynchronize: async () => {
       throw new Error("Unexpected conflict resolution in session slot test.");
     },
-    stageSnapshot: async () => ({ localRevision: draftRevision("next") }),
+    stageSnapshot: async (change) => {
+      const previousLocalRevision = snapshot.localRevision;
+
+      snapshot = {
+        ...snapshot,
+        content: change.after.content,
+        localRevision: draftRevision(`next-${localRevisionIndex += 1}`),
+        pendingChanges: true,
+        projection: change.after.projection,
+      };
+      return { previousLocalRevision, snapshot };
+    },
     subscribeReconnect: () => () => undefined,
-    synchronizePendingSnapshot: async () => ({
-      localRevision: draftRevision("next"),
-      pendingChanges: false,
-      remoteRevision: remoteRevision("b"),
-      status: "synced",
-    }),
+    synchronizePendingSnapshot: async () => {
+      const previousLocalRevision = snapshot.localRevision;
+
+      snapshot = {
+        ...snapshot,
+        pendingChanges: false,
+        remoteRevision: remoteRevision("b"),
+      };
+      return {
+        status: "synced",
+        transitions: [{ previousLocalRevision, snapshot }],
+      };
+    },
   };
 }
 

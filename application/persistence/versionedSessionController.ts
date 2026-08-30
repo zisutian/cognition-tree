@@ -5,6 +5,7 @@ import type {
   VersionedContentConflictPreference,
   PreparedVersionedConflictSources,
   PreparedVersionedContent,
+  PreparedVersionedContentChange,
   VersionedRepository,
   VersionedRepositoryConflictRecord,
   VersionedRepositorySnapshot,
@@ -114,14 +115,15 @@ type ActiveVersionedSession<
   LocalRevision extends string,
 > = {
   generation: number;
+  optimisticHead: PreparedVersionedContent<Content, Projection> | null;
   persistence: VersionedRepositoryPersistenceState<Revision>;
-  queue: VersionedRepositorySaveQueue<Content, Projection, LocalRevision> | null;
-  snapshot: VersionedRepositorySnapshot<
+  persistedSnapshot: VersionedRepositorySnapshot<
     Content,
     Revision,
     LocalRevision,
     Projection
   >;
+  queue: VersionedRepositorySaveQueue<Content, Projection, LocalRevision> | null;
 };
 
 function initialPersistenceState<Revision extends string>(
@@ -228,13 +230,14 @@ export function createVersionedSessionController<
     ) {
       return;
     }
-    const snapshot = session.snapshot;
+    const snapshot = session.persistedSnapshot;
+    const visible = session.optimisticHead ?? snapshot;
 
     publish({
-      content: snapshot.content,
+      content: visible.content,
       location: repository.location,
       persistence: session.persistence,
-      projection: snapshot.projection,
+      projection: visible.projection,
       snapshot,
       status: "ready",
       storageLabel: repository.label,
@@ -252,43 +255,17 @@ export function createVersionedSessionController<
     const expectedGeneration = session.generation;
     const queue = createVersionedRepositorySaveQueue({
       initialPersistenceState: persistence,
-      initialSnapshot: session.snapshot,
-      onLocalStaged(_prepared, localRevision) {
+      initialSnapshot: session.persistedSnapshot,
+      onSnapshotChanged(snapshot) {
         if (active !== session || generation !== expectedGeneration) return;
-        session.snapshot = {
-          ...session.snapshot,
-          localRevision,
-          pendingChanges: true,
-        };
+        session.persistedSnapshot = snapshot;
+        session.optimisticHead = null;
         publishReady(session);
       },
       onPersistenceChange(nextPersistence) {
         if (active !== session || generation !== expectedGeneration) return;
         session.persistence = nextPersistence;
-        if (nextPersistence.status === "saved") {
-          session.snapshot = {
-            ...session.snapshot,
-            conflictRevision: null,
-            pendingChanges: false,
-          };
-        } else if (nextPersistence.status === "conflict") {
-          session.snapshot = {
-            ...session.snapshot,
-            conflictRevision: nextPersistence.remoteRevision,
-            pendingChanges: true,
-          };
-        } else if (nextPersistence.status === "offline") {
-          session.snapshot = {
-            ...session.snapshot,
-            pendingChanges: nextPersistence.pendingChanges,
-          };
-        }
         publishReady(session);
-      },
-      onRemoteRevision(remoteRevision) {
-        if (active === session && generation === expectedGeneration) {
-          session.snapshot = { ...session.snapshot, remoteRevision };
-        }
       },
       repository,
       scheduler,
@@ -313,9 +290,10 @@ export function createVersionedSessionController<
     }
     const session: Session = {
       generation: ++generation,
+      optimisticHead: null,
       persistence: initialPersistenceState(snapshot),
+      persistedSnapshot: snapshot,
       queue: null,
-      snapshot,
     };
 
     active?.queue?.dispose();
@@ -361,16 +339,15 @@ export function createVersionedSessionController<
     session: Session & {
       queue: VersionedRepositorySaveQueue<Content, Projection, LocalRevision>;
     },
-    prepared: PreparedVersionedContent<Content, Projection>,
+    change: PreparedVersionedContentChange<
+      Content,
+      Projection,
+      LocalRevision
+    >,
   ) => {
-    session.snapshot = {
-      ...session.snapshot,
-      content: prepared.content,
-      pendingChanges: true,
-      projection: prepared.projection,
-    };
+    session.optimisticHead = change.after;
     publishReady(session);
-    session.queue.enqueue(prepared);
+    session.queue.enqueue(change);
   };
   const mutate = (
     update: (
@@ -378,12 +355,21 @@ export function createVersionedSessionController<
     ) => PreparedVersionedContent<Content, Projection>,
   ) => {
     const session = requireActive();
-    const prepared = update({
-      content: session.snapshot.content,
-      projection: session.snapshot.projection,
-    });
+    const current = session.optimisticHead ?? {
+      content: session.persistedSnapshot.content,
+      projection: session.persistedSnapshot.projection,
+    };
+    const before = {
+      content: session.persistedSnapshot.content,
+      projection: session.persistedSnapshot.projection,
+    };
+    const after = update(current);
 
-    commitMutation(session, prepared);
+    commitMutation(session, {
+      after,
+      baseLocalRevision: session.persistedSnapshot.localRevision,
+      before,
+    });
   };
 
   return {

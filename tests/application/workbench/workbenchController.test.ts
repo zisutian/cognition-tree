@@ -44,6 +44,9 @@ import { testApplicationScheduler } from "../../support/testApplicationScheduler
 import type {
   DomainChangeNotification,
 } from "../../../application/sync/domainChangeEvents";
+import type {
+  VersionedRepository,
+} from "../../../application/persistence/versionedRepository";
 
 function deferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
@@ -101,41 +104,73 @@ function createBuiltInRepository<Content, Projection>(
   content: Content,
   location: BuiltInDescriptor["location"],
   projection: Projection,
-) {
+): VersionedRepository<
+  Content,
+  `sha256:${string}`,
+  `draft:${string}`,
+  BuiltInDescriptor["location"],
+  Projection
+> {
+  let localRevisionIndex = 0;
+  let snapshot = {
+    conflictRevision: null,
+    content,
+    localRevision: builtInDraft("0"),
+    pendingChanges: false,
+    projection,
+    remoteRevision: builtInRevision("a"),
+  };
+
   return {
-    discardPendingSnapshotAndReload: async () => ({
-      conflictRevision: null,
-      content,
-      localRevision: builtInDraft("9"),
-      pendingChanges: false,
-      projection,
-      remoteRevision: builtInRevision("b"),
-    }),
+    discardPendingSnapshotAndReload: async () => {
+      snapshot = {
+        ...snapshot,
+        content,
+        localRevision: builtInDraft("9"),
+        pendingChanges: false,
+        projection,
+        remoteRevision: builtInRevision("b"),
+      };
+      return snapshot;
+    },
     keepLocalConflictAndSynchronize: async () => {
       throw new Error("Unexpected built-in conflict resolution in workbench test.");
     },
     label,
     loadConflict: async () => null,
-    loadSnapshot: async () => ({
-      conflictRevision: null,
-      content,
-      localRevision: builtInDraft("0"),
-      pendingChanges: false,
-      projection,
-      remoteRevision: builtInRevision("a"),
-    }),
+    loadSnapshot: async () => snapshot,
     location,
     resolveConflictAndSynchronize: async () => {
       throw new Error("Unexpected built-in conflict resolution in workbench test.");
     },
-    stageSnapshot: async () => ({ localRevision: builtInDraft("1") }),
+    stageSnapshot: async (change) => {
+      const previousLocalRevision = snapshot.localRevision;
+
+      snapshot = {
+        conflictRevision: null,
+        content: change.after.content,
+        localRevision: builtInDraft(`${localRevisionIndex += 1}`),
+        pendingChanges: true,
+        projection: change.after.projection,
+        remoteRevision: snapshot.remoteRevision,
+      };
+      return { previousLocalRevision, snapshot };
+    },
     subscribeReconnect: () => () => undefined,
-    synchronizePendingSnapshot: async () => ({
-      localRevision: builtInDraft("1"),
-      pendingChanges: false,
-      remoteRevision: builtInRevision("b"),
-      status: "synced" as const,
-    }),
+    synchronizePendingSnapshot: async () => {
+      const previousLocalRevision = snapshot.localRevision;
+
+      snapshot = {
+        ...snapshot,
+        conflictRevision: null,
+        pendingChanges: false,
+        remoteRevision: builtInRevision("b"),
+      };
+      return {
+        status: "synced" as const,
+        transitions: [{ previousLocalRevision, snapshot }],
+      };
+    },
   };
 }
 
@@ -143,26 +178,56 @@ function createWorkspaceRepository(
   descriptor: WorkspaceRepositoryDescriptor,
   loadSnapshot: () => Promise<WorkspaceRepositorySnapshot>,
 ): WorkspaceRepository {
+  let currentSnapshot: WorkspaceRepositorySnapshot | null = null;
+  let localRevisionIndex = 0;
+  const readSnapshot = async () => {
+    currentSnapshot = await loadSnapshot();
+    return currentSnapshot;
+  };
+
   return {
-    discardPendingSnapshotAndReload: loadSnapshot,
+    discardPendingSnapshotAndReload: readSnapshot,
     keepLocalConflictAndSynchronize: async () => {
       throw new Error("Unexpected workspace conflict resolution in workbench test.");
     },
     label: descriptor.label,
     loadConflict: async () => null,
-    loadSnapshot,
+    loadSnapshot: readSnapshot,
     location: descriptor.location,
     resolveConflictAndSynchronize: async () => {
       throw new Error("Unexpected workspace conflict resolution in workbench test.");
     },
-    stageSnapshot: async () => ({ localRevision: draftRevision("next") }),
+    stageSnapshot: async (change) => {
+      const before = currentSnapshot ?? await readSnapshot();
+      const snapshot = {
+        ...before,
+        content: change.after.content,
+        localRevision: draftRevision(`next-${localRevisionIndex += 1}`),
+        pendingChanges: true,
+        projection: change.after.projection,
+      };
+
+      currentSnapshot = snapshot;
+      return { previousLocalRevision: before.localRevision, snapshot };
+    },
     subscribeReconnect: () => () => undefined,
-    synchronizePendingSnapshot: async () => ({
-      localRevision: draftRevision("next"),
-      pendingChanges: false,
-      remoteRevision: remoteRevision("b"),
-      status: "synced",
-    }),
+    synchronizePendingSnapshot: async () => {
+      const before = currentSnapshot ?? await readSnapshot();
+      const snapshot = {
+        ...before,
+        pendingChanges: false,
+        remoteRevision: remoteRevision("b"),
+      };
+
+      currentSnapshot = snapshot;
+      return {
+        status: "synced",
+        transitions: [{
+          previousLocalRevision: before.localRevision,
+          snapshot,
+        }],
+      };
+    },
   };
 }
 
@@ -227,18 +292,18 @@ function createHarness({
       return repositories.get(descriptor.id)!;
     },
   };
-  const journalRepository = createBuiltInRepository(
+  const journalRepository: JournalRepository = createBuiltInRepository(
     "日记",
     createEmptyJournalContent(),
     builtInDescriptors[0].location,
     createJournalParseIndex(createEmptyJournalContent()),
-  ) as JournalRepository;
-  const todoRepository = createBuiltInRepository(
+  );
+  const todoRepository: TodoRepository = createBuiltInRepository(
     "代办",
     createEmptyTodoContent(),
     builtInDescriptors[1].location,
     createTodoParseIndex(createEmptyTodoContent()),
-  ) as TodoRepository;
+  );
   const builtInCatalog: BuiltInCatalog = {
     label: "Built-ins",
     listBuiltIns: vi.fn(async () => ({

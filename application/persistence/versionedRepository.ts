@@ -20,6 +20,16 @@ export type PreparedVersionedContent<Content, Projection> = Readonly<{
   projection: Projection;
 }>;
 
+export type PreparedVersionedContentChange<
+  Content,
+  Projection,
+  LocalRevision extends string,
+> = Readonly<{
+  after: PreparedVersionedContent<Content, Projection>;
+  baseLocalRevision: LocalRevision;
+  before: PreparedVersionedContent<Content, Projection>;
+}>;
+
 export type PreparedVersionedSnapshot<
   Content,
   Projection,
@@ -79,12 +89,12 @@ export type VersionedRepositorySnapshot<
   Revision extends string,
   LocalRevision extends string,
   Projection = unknown,
-> = PreparedVersionedContent<Content, Projection> & {
+> = PreparedVersionedContent<Content, Projection> & Readonly<{
   conflictRevision: Revision | null;
   localRevision: LocalRevision;
   pendingChanges: boolean;
   remoteRevision: Revision | null;
-};
+}>;
 
 export type VersionedContentConflictPreference = "local" | "remote";
 
@@ -116,30 +126,78 @@ export type PreparedVersionedConflictSources<Content, Projection> = Readonly<{
 }>;
 
 type VersionedRepositorySyncResultBase<
+  Content,
+  Projection,
   Revision extends string,
   LocalRevision extends string,
 > = {
-  localRevision: LocalRevision;
-  remoteRevision: Revision | null;
+  transitions: readonly [
+    VersionedRepositorySnapshotTransition<
+      Content,
+      Projection,
+      Revision,
+      LocalRevision
+    >,
+    ...VersionedRepositorySnapshotTransition<
+      Content,
+      Projection,
+      Revision,
+      LocalRevision
+    >[],
+  ];
 };
 
+export type VersionedRepositorySnapshotTransition<
+  Content,
+  Projection,
+  Revision extends string,
+  LocalRevision extends string,
+> = Readonly<{
+  previousLocalRevision: LocalRevision;
+  snapshot: VersionedRepositorySnapshot<
+    Content,
+    Revision,
+    LocalRevision,
+    Projection
+  >;
+}>;
+
 export type VersionedRepositorySyncResult<
+  Content,
+  Projection,
   Revision extends string,
   LocalRevision extends string,
 > =
-  | (VersionedRepositorySyncResultBase<Revision, LocalRevision> & {
-      pendingChanges: boolean;
+  | (VersionedRepositorySyncResultBase<
+      Content,
+      Projection,
+      Revision,
+      LocalRevision
+    > & {
       status: "synced";
     })
-  | (VersionedRepositorySyncResultBase<Revision, LocalRevision> & {
-      pendingChanges: boolean;
+  | (VersionedRepositorySyncResultBase<
+      Content,
+      Projection,
+      Revision,
+      LocalRevision
+    > & {
       status: "offline";
     })
-  | (VersionedRepositorySyncResultBase<Revision, LocalRevision> & {
-      remoteRevision: Revision;
+  | (VersionedRepositorySyncResultBase<
+      Content,
+      Projection,
+      Revision,
+      LocalRevision
+    > & {
       status: "conflict";
     })
-  | (VersionedRepositorySyncResultBase<Revision, LocalRevision> & {
+  | (VersionedRepositorySyncResultBase<
+      Content,
+      Projection,
+      Revision,
+      LocalRevision
+    > & {
       message: string;
       status: "sync-error";
     });
@@ -163,7 +221,12 @@ export type VersionedRepository<
     VersionedRepositoryConflictRecord<Content, Revision> | null
   >;
   keepLocalConflictAndSynchronize(): Promise<
-    VersionedRepositorySyncResult<Revision, LocalRevision>
+    VersionedRepositorySyncResult<
+      Content,
+      Projection,
+      Revision,
+      LocalRevision
+    >
   >;
   resolveConflictAndSynchronize(
     preference: VersionedContentConflictPreference,
@@ -172,15 +235,36 @@ export type VersionedRepository<
       conflict: VersionedRepositoryConflictRecord<Content, Revision>,
       sources: PreparedVersionedConflictSources<Content, Projection>,
     ) => PreparedVersionedContent<Content, Projection>,
-  ): Promise<VersionedRepositorySyncResult<Revision, LocalRevision>>;
-  stageSnapshot(input: {
-    content: Content;
-    expectedLocalRevision: LocalRevision;
-    projection: Projection;
-  }): Promise<{ localRevision: LocalRevision }>;
+  ): Promise<
+    VersionedRepositorySyncResult<
+      Content,
+      Projection,
+      Revision,
+      LocalRevision
+    >
+  >;
+  stageSnapshot(
+    change: PreparedVersionedContentChange<
+      Content,
+      Projection,
+      LocalRevision
+    >,
+  ): Promise<
+    VersionedRepositorySnapshotTransition<
+      Content,
+      Projection,
+      Revision,
+      LocalRevision
+    >
+  >;
   subscribeReconnect(listener: () => void): () => void;
   synchronizePendingSnapshot(): Promise<
-    VersionedRepositorySyncResult<Revision, LocalRevision>
+    VersionedRepositorySyncResult<
+      Content,
+      Projection,
+      Revision,
+      LocalRevision
+    >
   >;
 };
 
@@ -240,6 +324,16 @@ export class VersionedRepositoryLocalConflictError<
     super("Repository local draft changed outside the current operation");
     this.name = "VersionedRepositoryLocalConflictError";
     this.currentRevision = currentRevision;
+  }
+}
+
+export class VersionedRepositoryLocalMergeConflictError extends Error {
+  readonly unitIds: readonly string[];
+
+  constructor(unitIds: readonly string[]) {
+    super("Repository local changes overlap with the current draft");
+    this.name = "VersionedRepositoryLocalMergeConflictError";
+    this.unitIds = [...new Set(unitIds)].sort();
   }
 }
 
