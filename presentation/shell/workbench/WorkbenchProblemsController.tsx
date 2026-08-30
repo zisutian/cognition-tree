@@ -21,7 +21,6 @@ import { useWorkbenchProblemsShortcut } from "../../ui/problems/useProblemsShort
 import type { WorkbenchController } from "../../ui/workbench/useWorkbenchLayout";
 import { openWorkbenchProblem } from "./workbenchProblemNavigation";
 import {
-  hasWorkbenchProblemsPanel,
   selectWorkbenchPersistenceStatus,
 } from "./workbenchProblemsPanelProjection";
 
@@ -36,7 +35,7 @@ export function WorkbenchProblemsController({
 }: {
   activeActivityId: ActivityId;
   application: WorkbenchApplication;
-  children: (problemsSlot: ReactNode | null) => ReactNode;
+  children: (problemsSlot: ReactNode) => ReactNode;
   onOpenSystemSyntax: (
     owner: "journal" | "todo",
     fieldId: string,
@@ -95,7 +94,6 @@ export function WorkbenchProblemsController({
       onActiveActivityChange,
     });
 
-  const problemsEnabled = hasWorkbenchProblemsPanel(activeActivityId);
   const transient = feedback.snapshot.transient?.scope === activeActivityId
     ? feedback.snapshot.transient
     : null;
@@ -110,38 +108,35 @@ export function WorkbenchProblemsController({
     (problems.status === "collecting" ? "正在检查…" : "");
 
   useWorkbenchProblemsShortcut({
-    enabled: problemsEnabled,
     onToggle: workbench.toggleProblems,
   });
 
   return children(
-    problemsEnabled ? (
-      <ProblemsPanel
-        expanded={workbench.layout.problemsExpanded}
-        onCopyRequestId={(requestId) => {
-          void runActivityFeedbackAction(
-            feedback.controller,
-            activeActivityId,
-            async () => {
-              const clipboard = globalThis.navigator?.clipboard;
+    <ProblemsPanel
+      expanded={workbench.layout.problemsExpanded}
+      onCopyRequestId={(requestId) => {
+        void runActivityFeedbackAction(
+          feedback.controller,
+          activeActivityId,
+          async () => {
+            const clipboard = globalThis.navigator?.clipboard;
 
-              if (!clipboard) {
-                throw new Error("当前环境不支持复制请求编号。");
-              }
-              await clipboard.writeText(requestId);
-            },
-          );
-        }}
-        onDismiss={(problem) => {
-          if (problem.target.kind === "operational-error") {
-            feedback.controller.dismiss(problem.target.problemId);
-          }
-        }}
-        onOpen={openProblem}
-        onToggle={workbench.toggleProblems}
-        statusMessage={statusMessage}
-        view={problems}
-      />
-    ) : null,
+            if (!clipboard) {
+              throw new Error("当前环境不支持复制请求编号。");
+            }
+            await clipboard.writeText(requestId);
+          },
+        );
+      }}
+      onDismiss={(problem) => {
+        if (problem.target.kind === "operational-error") {
+          feedback.controller.dismiss(problem.target.problemId);
+        }
+      }}
+      onOpen={openProblem}
+      onToggle={workbench.toggleProblems}
+      statusMessage={statusMessage}
+      view={problems}
+    />,
   );
 }

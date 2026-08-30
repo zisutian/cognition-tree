@@ -2,7 +2,6 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  hasWorkbenchProblemsPanel,
   projectPersistenceStatus,
 } from "../../../../presentation/shell/workbench/workbenchProblemsPanelProjection";
 
@@ -21,13 +20,5 @@ describe("workbench Problems panel projection", () => {
       remoteRevision: "remote-revision",
       status: "conflict",
     })).toBe("笔记 · 同步冲突");
-  });
-
-  it("shows the global Problems panel in every Activity including Settings", () => {
-    expect(hasWorkbenchProblemsPanel("settings")).toBe(true);
-    expect(hasWorkbenchProblemsPanel("todo")).toBe(true);
-    expect(hasWorkbenchProblemsPanel("journal")).toBe(true);
-    expect(hasWorkbenchProblemsPanel("repository")).toBe(true);
-    expect(hasWorkbenchProblemsPanel("notes")).toBe(true);
   });
 });

@@ -73,7 +73,3 @@ export function selectWorkbenchPersistenceStatus(
   }
   return "";
 }
-
-export function hasWorkbenchProblemsPanel(activeActivityId: ActivityId) {
-  return Boolean(activeActivityId);
-}

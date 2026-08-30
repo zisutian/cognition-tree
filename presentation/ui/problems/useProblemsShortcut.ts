@@ -19,21 +19,9 @@ export function isWorkbenchProblemsShortcut({
   );
 }
 
-export function shouldHandleWorkbenchProblemsShortcut(
-  enabled: boolean,
-  event: Pick<
-    KeyboardEvent,
-    "altKey" | "ctrlKey" | "key" | "metaKey" | "shiftKey"
-  >,
-) {
-  return enabled && isWorkbenchProblemsShortcut(event);
-}
-
 export function useWorkbenchProblemsShortcut({
-  enabled,
   onToggle,
 }: {
-  enabled: boolean;
   onToggle: () => void;
 }) {
   const onToggleRef = useRef(onToggle);
@@ -42,7 +30,7 @@ export function useWorkbenchProblemsShortcut({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!shouldHandleWorkbenchProblemsShortcut(enabled, event)) {
+      if (!isWorkbenchProblemsShortcut(event)) {
         return;
       }
 
@@ -52,5 +40,5 @@ export function useWorkbenchProblemsShortcut({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [enabled]);
+  }, []);
 }

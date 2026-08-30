@@ -16,7 +16,6 @@ describe("AppFrame", () => {
     detail = false,
     detailCollapsed = false,
     focusMode = false,
-    problems = true,
     problemsExpanded = false,
   } = {}) {
     return renderToStaticMarkup(
@@ -48,7 +47,7 @@ describe("AppFrame", () => {
         }}
         mainSlot={<section>main</section>}
         onActivityChange={() => undefined}
-        problemsSlot={problems ? <div>problems</div> : null}
+        problemsSlot={<div>problems</div>}
       />,
     );
   }
@@ -105,11 +104,6 @@ describe("AppFrame", () => {
           `aria-valuenow="${appProblemsDefaultHeight}"`,
         ],
       },
-    ],
-    [
-      "omits an unavailable Problems region",
-      { problems: false },
-      { lacks: ['<aside aria-label="问题"', ">problems<"] },
     ],
   ] as const)("%s", (_name, options, semantics) => {
     expectMarkupSemantics(renderFrame(options), semantics);

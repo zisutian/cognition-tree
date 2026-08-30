@@ -12,7 +12,7 @@ type AppViewProps = {
   activeActivityId: ActivityId;
   createActivitySlots: CreateActivitySlots;
   onActiveActivityChange: (activityId: ActivityId) => void;
-  problemsSlot: ReactNode | null;
+  problemsSlot: ReactNode;
   workbench: WorkbenchController;
 };
 

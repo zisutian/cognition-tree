@@ -37,7 +37,7 @@ export function AppFrame({
   layout: WorkbenchLayout;
   mainSlot: ReactNode;
   onActivityChange: (activityId: ActivityId) => void;
-  problemsSlot: ReactNode | null;
+  problemsSlot: ReactNode;
 }) {
   const {
     contextCollapsed,
@@ -64,7 +64,7 @@ export function AppFrame({
   const hasContext = contextSlot !== null && !focusMode;
   const showContext = hasContext && !contextCollapsed;
   const hasDetail = detailSlot !== null && !focusMode;
-  const hasProblems = problemsSlot !== null && !focusMode;
+  const showProblems = !focusMode;
   const frameClassName = cx(
     "app-frame",
     focusMode && "is-focus-mode",
@@ -74,8 +74,8 @@ export function AppFrame({
     isContextResizing && "is-resizing-context",
     isDetailResizing && "is-resizing-detail",
     isProblemsResizing && "is-resizing-problems",
-    hasProblems && "has-problems",
-    hasProblems && problemsExpanded && "problems-expanded",
+    showProblems && "has-problems",
+    showProblems && problemsExpanded && "problems-expanded",
   );
   const style: AppFrameStyle = {
     ...(contextWidth === null
@@ -116,7 +116,7 @@ export function AppFrame({
       ) : null}
       <section className="app-main-region">
         <div className="app-main-content">{mainSlot}</div>
-        {hasProblems ? (
+        {showProblems ? (
           <aside
             aria-label="问题"
             className={
