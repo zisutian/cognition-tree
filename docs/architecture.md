@@ -425,6 +425,8 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     serverLifecycle 将关闭拆成停止接收、结束两类长连接、等待活动请求或限时强制断连、
     最后释放请求依赖资源四个有序阶段；多项关闭失败必须全部保留，不能让资源清理与
     尚未结束的 handler 并发；
+    server/state 独占安全状态目录的类型、权限与创建持久性；首次递归创建必须从目标
+    向上逐级 fsync 至原有祖先，不能只同步最终状态文件所在目录；
     api/resources、api/sync 分别拥有只读资源投影与 merge-aware snapshot 同步，search
     保持独立查询入口。server/access 独占 automation 与 trusted-client token；
     server/operations 独占统一账本、审计状态和 Agent receipt；其中

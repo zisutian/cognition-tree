@@ -5,6 +5,7 @@ import {
   mkdtemp,
   readFile,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import os from "node:os";
@@ -101,6 +102,27 @@ afterEach(async () => {
 });
 
 describe("Secure JSON partition", () => {
+  it("securely creates a missing nested state directory chain", async () => {
+    const root = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-secure-partition-nested-"),
+    );
+    const serverDirectory = path.join(root, "server");
+    const directory = path.join(serverDirectory, "state-v1");
+
+    roots.push(root);
+    const partition = new SecureJsonPartition<TestState>({
+      createInitial: () => ({ records: [{ value: "initial" }], revision: 0 }),
+      directory,
+      fileName: "state.json",
+      name: "test",
+      parse: parseTestState,
+    });
+
+    await expect(partition.read((state) => state.revision)).resolves.toBe(0);
+    expect((await stat(serverDirectory)).mode & 0o777).toBe(0o700);
+    expect((await stat(directory)).mode & 0o777).toBe(0o700);
+  });
+
   it("retries initial creation only when the target is still missing", async () => {
     const root = await mkdtemp(
       path.join(os.tmpdir(), "ctn-secure-partition-create-"),
