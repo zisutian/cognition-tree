@@ -158,6 +158,7 @@ export function createHttpApiEventSource({
       void connect();
     },
     subscribe(listener) {
+      if (disposed) return () => undefined;
       listeners.add(listener);
       return () => listeners.delete(listener);
     },

@@ -329,6 +329,7 @@ export function createWorkbenchController({
   };
   const journalReferenceResolver: JournalWorkspaceReferenceResolver = {
     resolve(references) {
+      requireActive();
       return createJournalWorkspaceReferenceResolver(
         workspaceCatalog,
         workspaceRepositories,
@@ -355,13 +356,27 @@ export function createWorkbenchController({
     reconcileBuiltInSessions();
     publish();
   });
+  const requireActive = () => {
+    if (disposed) {
+      throw new Error("Workbench controller is disposed.");
+    }
+  };
   const requireWorkspaceController = () => {
+    requireActive();
     const controller = workspaceSlot.getController();
 
     if (!controller) {
       throw new Error("Workspace session is unavailable.");
     }
     return controller;
+  };
+  const requireJournalController = () => {
+    requireActive();
+    return journalSlot.getController();
+  };
+  const requireTodoController = () => {
+    requireActive();
+    return todoSlot.getController();
   };
   const workspaceFacade: WorkbenchWorkspaceFacade = {
     activateSyntaxFile: (...args) =>
@@ -395,45 +410,60 @@ export function createWorkbenchController({
   };
   const journalFacade: WorkbenchBuiltInFacade<JournalSessionController> = {
     discardPendingChangesAndReload: (...args) =>
-      journalSlot.getController().discardPendingChangesAndReload(...args),
+      requireJournalController().discardPendingChangesAndReload(...args),
     keepLocalConflictAndSynchronize: (...args) =>
-      journalSlot.getController().keepLocalConflictAndSynchronize(...args),
+      requireJournalController().keepLocalConflictAndSynchronize(...args),
     loadConflictDetails: (...args) =>
-      journalSlot.getController().loadConflictDetails(...args),
-    mutate: (...args) => journalSlot.getController().mutate(...args),
+      requireJournalController().loadConflictDetails(...args),
+    mutate: (...args) => requireJournalController().mutate(...args),
     recoverLocalConflictCopy: (...args) =>
-      journalSlot.getController().recoverLocalConflictCopy(...args),
-    reload: (...args) => journalSlot.getController().reload(...args),
+      requireJournalController().recoverLocalConflictCopy(...args),
+    reload: (...args) => requireJournalController().reload(...args),
     requestSync: (...args) =>
-      journalSlot.getController().requestSync(...args),
+      requireJournalController().requestSync(...args),
     synchronizePendingChanges: (...args) =>
-      journalSlot.getController().synchronizePendingChanges(...args),
+      requireJournalController().synchronizePendingChanges(...args),
     useRemoteConflictAndSynchronize: (...args) =>
-      journalSlot.getController().useRemoteConflictAndSynchronize(...args),
+      requireJournalController().useRemoteConflictAndSynchronize(...args),
   };
   const todoFacade: WorkbenchBuiltInFacade<TodoSessionController> = {
     discardPendingChangesAndReload: (...args) =>
-      todoSlot.getController().discardPendingChangesAndReload(...args),
+      requireTodoController().discardPendingChangesAndReload(...args),
     keepLocalConflictAndSynchronize: (...args) =>
-      todoSlot.getController().keepLocalConflictAndSynchronize(...args),
+      requireTodoController().keepLocalConflictAndSynchronize(...args),
     loadConflictDetails: (...args) =>
-      todoSlot.getController().loadConflictDetails(...args),
-    mutate: (...args) => todoSlot.getController().mutate(...args),
+      requireTodoController().loadConflictDetails(...args),
+    mutate: (...args) => requireTodoController().mutate(...args),
     recoverLocalConflictCopy: (...args) =>
-      todoSlot.getController().recoverLocalConflictCopy(...args),
-    reload: (...args) => todoSlot.getController().reload(...args),
-    requestSync: (...args) => todoSlot.getController().requestSync(...args),
+      requireTodoController().recoverLocalConflictCopy(...args),
+    reload: (...args) => requireTodoController().reload(...args),
+    requestSync: (...args) => requireTodoController().requestSync(...args),
     synchronizePendingChanges: (...args) =>
-      todoSlot.getController().synchronizePendingChanges(...args),
+      requireTodoController().synchronizePendingChanges(...args),
     useRemoteConflictAndSynchronize: (...args) =>
-      todoSlot.getController().useRemoteConflictAndSynchronize(...args),
+      requireTodoController().useRemoteConflictAndSynchronize(...args),
   };
   const searchFacade: WorkbenchSearchFacade = {
-    getScrollTop: searchController.getScrollTop,
-    loadMore: searchController.loadMore,
-    search: searchController.search,
-    updateDraft: searchController.updateDraft,
-    updateScrollTop: searchController.updateScrollTop,
+    getScrollTop: () => {
+      requireActive();
+      return searchController.getScrollTop();
+    },
+    loadMore: async () => {
+      requireActive();
+      await searchController.loadMore();
+    },
+    search: async () => {
+      requireActive();
+      await searchController.search();
+    },
+    updateDraft: (update) => {
+      requireActive();
+      searchController.updateDraft(update);
+    },
+    updateScrollTop: (scrollTop) => {
+      requireActive();
+      searchController.updateScrollTop(scrollTop);
+    },
   };
 
   checkpointReloadReconciler = createCheckpointReloadReconciler({
@@ -498,12 +528,17 @@ export function createWorkbenchController({
     search: searchFacade,
     todo: todoFacade,
     workspace: workspaceFacade,
-    consumeWorkspaceNoteDestination: navigationController.consume,
+    consumeWorkspaceNoteDestination(requestId) {
+      requireActive();
+      navigationController.consume(requestId);
+    },
     async createRepository(input) {
+      requireActive();
       await workspaceSlot.flushReady();
       await repositoryCatalogController.createRepository(input);
     },
     async deleteRepository(input) {
+      requireActive();
       const catalog = repositoryCatalogController.getSnapshot();
       const workspace = workspaceSlot.getSnapshot();
 
@@ -540,6 +575,7 @@ export function createWorkbenchController({
     },
     getSnapshot: () => snapshot,
     async flushLoadedContent() {
+      requireActive();
       const current = snapshot;
       const operations: Promise<unknown>[] = [];
 
@@ -554,16 +590,33 @@ export function createWorkbenchController({
       }
       await Promise.all(operations);
     },
-    reloadBuiltIns: builtInCatalogController.reload,
+    async reloadBuiltIns() {
+      requireActive();
+      await builtInCatalogController.reload();
+    },
     async refreshRepositories() {
+      requireActive();
       await workspaceSlot.flushReady();
       await repositoryCatalogController.reload();
     },
-    renameRepository: repositoryCatalogController.renameRepository,
-    requestWorkspaceNoteDestination: navigationController.request,
-    retryBuiltIn: builtInCatalogController.retry,
-    retryWorkspaceNoteDestination: navigationController.retry,
+    async renameRepository(input) {
+      requireActive();
+      await repositoryCatalogController.renameRepository(input);
+    },
+    requestWorkspaceNoteDestination(destination) {
+      requireActive();
+      return navigationController.request(destination);
+    },
+    async retryBuiltIn(id) {
+      requireActive();
+      await builtInCatalogController.retry(id);
+    },
+    retryWorkspaceNoteDestination(requestId) {
+      requireActive();
+      navigationController.retry(requestId);
+    },
     async selectRepository(repositoryId) {
+      requireActive();
       await workspaceSlot.synchronizeReady();
       await repositoryCatalogController.selectRepository(repositoryId);
     },
@@ -581,6 +634,7 @@ export function createWorkbenchController({
       checkpointReloadReconciler?.start();
     },
     subscribe(listener) {
+      if (disposed) return () => undefined;
       listeners.add(listener);
       return () => listeners.delete(listener);
     },

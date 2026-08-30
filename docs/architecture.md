@@ -382,6 +382,10 @@ session slot、Journal/Todo built-in slot、SearchIndex、引用解析与跨仓�
     把三领域 ContentDestination 映射到 Activity、资源和稳定 block ID；目标块
     已消失时只在该边界回退到资源首行并报告结果过期。
 
+Workbench dispose 是不可恢复终态：它终结全部 session slot、搜索、导航和变更事件源，
+清空订阅者，并拒绝后续内容 facade 与协调命令；start 与终态订阅不重建内部状态。
+Versioned session 与 HTTP 变更事件源同样不得在 dispose 后重新积累 listener。
+
 application/agent 独立提供 AgentRuntimePort、AgentSessionController、scope policy、
 staging 与 proposal state machine。它只依赖三个领域公开的 Agent preparation 入口
 和通用 persistence 端口，不依赖 contracts、infrastructure、presentation 或

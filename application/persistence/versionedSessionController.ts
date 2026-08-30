@@ -626,6 +626,7 @@ export function createVersionedSessionController<
       }
     },
     subscribe(listener) {
+      if (disposed) return () => undefined;
       listeners.add(listener);
       return () => listeners.delete(listener);
     },

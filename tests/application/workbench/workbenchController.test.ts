@@ -682,4 +682,26 @@ describe("Workbench controller", () => {
     expect(resume).toHaveBeenCalledOnce();
     controller.dispose();
   });
+
+  it("rejects every public content entry after dispose", async () => {
+    const { controller } = createHarness();
+
+    controller.dispose();
+    controller.dispose();
+
+    await expect(controller.createRepository({ name: "Late repository" }))
+      .rejects.toThrow("disposed");
+    await expect(controller.reloadBuiltIns()).rejects.toThrow("disposed");
+    await expect(controller.search.search()).rejects.toThrow("disposed");
+    expect(() => controller.requestWorkspaceNoteDestination({
+      blockId: null,
+      domain: "workspace",
+      repositoryId: "repository-a",
+      resourceId: "note-1",
+    })).toThrow("disposed");
+    expect(() => controller.workspace.commands).toThrow("disposed");
+    expect(() => controller.journalReferenceResolver.resolve([]))
+      .toThrow("disposed");
+    expect(controller.subscribe(vi.fn())).toBeTypeOf("function");
+  });
 });
