@@ -406,6 +406,7 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     providerOperations 只显式组合无状态 providerProbe、Codex 设备码登录状态机和
     conformance 状态机，并统一拒绝关闭后启动的新操作；后两者分别独占自身记录、
     启动预留、执行任务与幂等释放；
+    privateIpc 独占 capability 与本地监听器，并线性化并发启动和幂等关闭；
     sessionToolProtocol、sessionToolState 与 proposalCodec 分别独占模型工具映射、会话
     staging 形态和 Proposal wire/digest，Workspace/Journal/Todo session tool adapter
     分别独占本领域资源读取、scope 校验、staging 与 review 投影；sessionTools 只负责

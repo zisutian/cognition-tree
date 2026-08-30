@@ -124,4 +124,38 @@ describe("private Agent IPC capability", () => {
       await ipc.dispose();
     }
   });
+
+  it("shares one listener across concurrent starts", async () => {
+    const ipc = new AgentPrivateIpcServer();
+
+    try {
+      const [first, second] = await Promise.all([ipc.start(), ipc.start()]);
+
+      expect(second).toBe(first);
+      expect(ipc.endpoint).toBe(first);
+    } finally {
+      await ipc.dispose();
+    }
+  });
+
+  it("does not publish a listener after disposal begins", async () => {
+    const ipc = new AgentPrivateIpcServer();
+    const starting = ipc.start();
+    const disposal = ipc.dispose();
+
+    try {
+      await expect(starting).rejects.toThrow("Agent private IPC is closing");
+      await disposal;
+      expect(() => ipc.endpoint).toThrow("Agent private IPC is not started");
+      await expect(ipc.start()).rejects.toThrow("Agent private IPC is closing");
+      expect(() => ipc.register({
+        expiresAt: Date.now() + 60_000,
+        handle: async () => ({}),
+        listTools: () => [],
+        sessionId,
+      })).toThrow("Agent private IPC is closing");
+    } finally {
+      await ipc.dispose();
+    }
+  });
 });

@@ -29,34 +29,44 @@ function send(socket: net.Socket, value: AgentIpcResponseDto) {
   socket.end(`${JSON.stringify(value)}\n`);
 }
 
+async function closeServer(server: net.Server) {
+  if (!server.listening) return;
+  await new Promise<void>((resolve, reject) =>
+    server.close((error) => error ? reject(error) : resolve())
+  );
+}
+
+async function cleanupDirectory(directory: string) {
+  const resolved = path.resolve(directory);
+  const prefix = `${path.resolve(os.tmpdir())}${path.sep}ctn-agent-ipc-`;
+
+  if (!resolved.startsWith(prefix)) {
+    throw new Error("Refusing to clean an unexpected Agent IPC directory");
+  }
+  await rm(resolved, { force: true, recursive: true });
+}
+
 export class AgentPrivateIpcServer {
   readonly #capabilities = new Map<string, Capability>();
   #directory: string | null = null;
+  #disposed = false;
+  #disposePromise: Promise<void> | null = null;
   #endpoint: string | null = null;
   #server: net.Server | null = null;
+  #startPromise: Promise<string> | null = null;
 
   async start() {
+    this.#assertOpen();
     if (this.#server) return this.endpoint;
-    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-agent-ipc-"));
+    if (this.#startPromise) return this.#startPromise;
+    const execution = this.#start();
 
-    await chmod(directory, 0o700);
-    const endpoint = process.platform === "win32"
-      ? `\\\\.\\pipe\\ctn-agent-${path.basename(directory)}`
-      : path.join(directory, "agent.sock");
-    const server = net.createServer((socket) => this.#accept(socket));
-
-    await new Promise<void>((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(endpoint, () => {
-        server.off("error", reject);
-        resolve();
-      });
-    });
-    if (process.platform !== "win32") await chmod(endpoint, 0o600);
-    this.#directory = directory;
-    this.#endpoint = endpoint;
-    this.#server = server;
-    return endpoint;
+    this.#startPromise = execution;
+    try {
+      return await execution;
+    } finally {
+      if (this.#startPromise === execution) this.#startPromise = null;
+    }
   }
 
   register({
@@ -70,6 +80,8 @@ export class AgentPrivateIpcServer {
     listTools(): AgentIpcToolCatalogDto;
     sessionId: string;
   }) {
+    this.#assertOpen();
+    if (!this.#server) throw new Error("Agent private IPC is not started");
     const capability = randomBytes(32).toString("base64url");
 
     this.#capabilities.set(capability, {
@@ -85,28 +97,76 @@ export class AgentPrivateIpcServer {
     this.#capabilities.delete(capability);
   }
 
-  async dispose() {
+  dispose() {
+    this.#disposed = true;
     this.#capabilities.clear();
+    this.#disposePromise ??= this.#dispose();
+    return this.#disposePromise;
+  }
+
+  async #start() {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-agent-ipc-"));
+    let server: net.Server | null = null;
+
+    try {
+      await chmod(directory, 0o700);
+      this.#assertOpen();
+      const endpoint = process.platform === "win32"
+        ? `\\\\.\\pipe\\ctn-agent-${path.basename(directory)}`
+        : path.join(directory, "agent.sock");
+
+      const createdServer = net.createServer((socket) => this.#accept(socket));
+
+      server = createdServer;
+      await new Promise<void>((resolve, reject) => {
+        createdServer.once("error", reject);
+        createdServer.listen(endpoint, () => {
+          createdServer.off("error", reject);
+          resolve();
+        });
+      });
+      if (process.platform !== "win32") await chmod(endpoint, 0o600);
+      this.#assertOpen();
+      this.#directory = directory;
+      this.#endpoint = endpoint;
+      this.#server = server;
+      return endpoint;
+    } catch (error) {
+      try {
+        if (server) await closeServer(server);
+        await cleanupDirectory(directory);
+      } catch (cleanupError) {
+        const initializationMessage = error instanceof Error
+          ? error.message
+          : "unknown initialization failure";
+        const cleanupMessage = cleanupError instanceof Error
+          ? cleanupError.message
+          : "unknown cleanup failure";
+
+        throw new Error(
+          `Agent private IPC initialization failed (${initializationMessage}) and cleanup failed (${cleanupMessage})`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  async #dispose() {
+    if (this.#startPromise) {
+      await Promise.allSettled([this.#startPromise]);
+    }
     const server = this.#server;
     const directory = this.#directory;
 
     this.#server = null;
     this.#endpoint = null;
     this.#directory = null;
-    if (server) {
-      await new Promise<void>((resolve, reject) =>
-        server.close((error) => error ? reject(error) : resolve())
-      );
-    }
-    if (directory) {
-      const resolved = path.resolve(directory);
-      const prefix = `${path.resolve(os.tmpdir())}${path.sep}ctn-agent-ipc-`;
+    if (server) await closeServer(server);
+    if (directory) await cleanupDirectory(directory);
+  }
 
-      if (!resolved.startsWith(prefix)) {
-        throw new Error("Refusing to clean an unexpected Agent IPC directory");
-      }
-      await rm(resolved, { force: true, recursive: true });
-    }
+  #assertOpen() {
+    if (this.#disposed) throw new Error("Agent private IPC is closing");
   }
 
   get endpoint() {
