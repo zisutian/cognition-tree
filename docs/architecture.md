@@ -331,8 +331,9 @@ pending rotation；配置使用 exact CAS，v1 摘要/version 无损迁入 v2 �
 数据根迁移由 application/workbench 的 loaded-content flush、application/system 的
 迁移用例和 infrastructure/system 的迁移状态协调器共同完成。状态协调器只编排维护
 租约、copy/verify/bootstrap CAS 与重启；独立文件事务是目标路径校验、权威分区清单、
-复制、指纹校验和失败清理的唯一 owner。maintenance gate 阻止新 mutation 并等待已有
-请求结束；文件事务只复制[使用与部署](getting-started.md#4-数据控制区与迁移)列出的当前
+复制、指纹校验和失败清理的唯一 owner。状态协调器在任何异步预检之前先取得唯一迁移
+reservation，预检失败才释放，不能让并发请求同时准备两个目标。maintenance gate
+阻止新 mutation 并等待已有请求结束；文件事务只复制[使用与部署](getting-started.md#4-数据控制区与迁移)列出的当前
 权威分区，拒绝符号链接与路径重叠，逐文件校验数量、大小和 SHA-256，最后才 CAS 更新
 bootstrap 指针。失败不切换指针；目标清理失败会附加到失败状态，但不能阻止维护租约
 释放和 active 状态归零。成功通过专用退出状态由根 supervisor 重启。

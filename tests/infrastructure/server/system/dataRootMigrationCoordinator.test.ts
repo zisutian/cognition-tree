@@ -28,6 +28,15 @@ import {
 
 const roots: string[] = [];
 
+function deferred<Value>() {
+  let resolve!: (value: Value) => void;
+  const promise = new Promise<Value>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
+}
+
 async function fixture(
   hasResidentSessions = false,
   hasPendingCodexLogin = false,
@@ -173,6 +182,58 @@ describe("data-root migration coordinator", () => {
       available.initial.revision,
       path.join(available.source, "nested"),
     )).rejects.toBeInstanceOf(SystemMigrationValidationError);
+  });
+
+  it("reserves the coordinator before asynchronous migration preparation", async () => {
+    const preparation = deferred<string>();
+    const fixtureValue = await fixture(false, false, {
+      ...dataRootMigrationFileOperations,
+      prepareDestination: vi.fn(() => preparation.promise),
+    });
+    const first = fixtureValue.coordinator.start(
+      fixtureValue.initial.revision,
+      fixtureValue.target,
+    );
+
+    await Promise.resolve();
+    await expect(fixtureValue.coordinator.start(
+      fixtureValue.initial.revision,
+      `${fixtureValue.target}-second`,
+    )).rejects.toBeInstanceOf(SystemMigrationConflictError);
+
+    preparation.resolve(fixtureValue.target);
+    const started = await first;
+
+    expect(started.destination).toBe(fixtureValue.target);
+    await waitForTerminal(fixtureValue.coordinator, started.id);
+  });
+
+  it("releases a starting reservation after preflight failure", async () => {
+    const prepareDestination = vi.fn(async () => "");
+    const fixtureValue = await fixture(false, false, {
+      cleanup: vi.fn(async () => undefined),
+      copy: vi.fn(async () => {
+        throw new Error("stop after reservation assertion");
+      }),
+      prepareDestination,
+      verify: vi.fn(async () => undefined),
+    });
+
+    prepareDestination
+      .mockRejectedValueOnce(new Error("preflight failed"))
+      .mockResolvedValueOnce(fixtureValue.target);
+
+    await expect(fixtureValue.coordinator.start(
+      fixtureValue.initial.revision,
+      fixtureValue.target,
+    )).rejects.toThrow("preflight failed");
+    const started = await fixtureValue.coordinator.start(
+      fixtureValue.initial.revision,
+      fixtureValue.target,
+    );
+
+    expect(prepareDestination).toHaveBeenCalledTimes(2);
+    await waitForTerminal(fixtureValue.coordinator, started.id);
   });
 
   it("rolls back a failed copy without changing the bootstrap pointer", async () => {

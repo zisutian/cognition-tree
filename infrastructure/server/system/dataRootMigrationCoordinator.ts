@@ -22,6 +22,10 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+type DataRootMigrationReservation =
+  | { kind: "starting" }
+  | { id: string; kind: "active" };
+
 export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordinator {
   readonly #agentProviderOperations: { hasPendingCodexLogin(): boolean };
   readonly #agentService: { hasResidentSessions(): boolean };
@@ -32,7 +36,7 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
   readonly #requestRestart: () => Promise<void>;
   readonly #restartDelayMilliseconds: number;
   readonly #statuses = new Map<string, DataRootMigrationStatus>();
-  #activeId: string | null = null;
+  #reservation: DataRootMigrationReservation | null = null;
 
   constructor({
     agentProviderOperations = { hasPendingCodexLogin: () => false },
@@ -71,42 +75,49 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
   }
 
   async start(baseRevision: string, destination: string) {
-    if (this.#activeId) {
+    if (this.#reservation) {
       throw new SystemMigrationConflictError("A data-root migration is already active");
     }
-    if (this.#agentService.hasResidentSessions() ||
-        this.#agentProviderOperations.hasPendingCodexLogin()) {
-      throw new SystemMigrationConflictError(
-        "Agent sessions and Codex logins must finish before migrating data",
-      );
-    }
-    const snapshot = await this.#bootstrap.readSnapshot();
+    this.#reservation = { kind: "starting" };
+    try {
+      if (this.#agentService.hasResidentSessions() ||
+          this.#agentProviderOperations.hasPendingCodexLogin()) {
+        throw new SystemMigrationConflictError(
+          "Agent sessions and Codex logins must finish before migrating data",
+        );
+      }
+      const snapshot = await this.#bootstrap.readSnapshot();
 
-    if (snapshot.revision !== baseRevision) {
-      throw new SystemMigrationConflictError(
-        "System configuration revision changed",
-        snapshot.revision,
+      if (snapshot.revision !== baseRevision) {
+        throw new SystemMigrationConflictError(
+          "System configuration revision changed",
+          snapshot.revision,
+        );
+      }
+      const source = path.resolve(snapshot.configuration.dataRoot);
+      const target = await this.#files.prepareDestination(
+        destination,
+        source,
+        this.#controlRoot,
       );
-    }
-    const source = path.resolve(snapshot.configuration.dataRoot);
-    const target = await this.#files.prepareDestination(
-      destination,
-      source,
-      this.#controlRoot,
-    );
-    const id = randomUUID();
-    const status: DataRootMigrationStatus = {
-      destination: target,
-      errorMessage: null,
-      id,
-      source,
-      status: "copying",
-    };
+      const id = randomUUID();
+      const status: DataRootMigrationStatus = {
+        destination: target,
+        errorMessage: null,
+        id,
+        source,
+        status: "copying",
+      };
 
-    this.#activeId = id;
-    this.#statuses.set(id, status);
-    setTimeout(() => void this.#execute(id, baseRevision), 0);
-    return status;
+      this.#reservation = { id, kind: "active" };
+      this.#statuses.set(id, status);
+      setTimeout(() => void this.#execute(id, baseRevision), 0);
+      return status;
+    } finally {
+      if (this.#reservation?.kind === "starting") {
+        this.#reservation = null;
+      }
+    }
   }
 
   async #execute(id: string, baseRevision: string) {
@@ -170,6 +181,11 @@ export class FileDataRootMigrationCoordinator implements DataRootMigrationCoordi
       errorMessage: messages.join("; "),
       status: "failed",
     });
-    this.#activeId = null;
+    if (
+      this.#reservation?.kind === "active" &&
+      this.#reservation.id === initial.id
+    ) {
+      this.#reservation = null;
+    }
   }
 }
