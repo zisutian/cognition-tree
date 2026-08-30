@@ -41,6 +41,8 @@ export type SingleJsonClassification =
   | { arguments: unknown; kind: "tool"; name: string }
   | { correction: ToolCorrection; kind: "correction" };
 
+export const openAiChatSseFrameCharacterLimit = 1_000_000;
+
 export function openAiChatEndpoint(baseUrl: string) {
   return `${baseUrl.replace(/\/$/, "")}/chat/completions`;
 }
@@ -71,26 +73,80 @@ export async function* readOpenAiChatSse(response: Response) {
   }
   const decoder = new TextDecoder();
   let buffer = "";
+  let pendingCarriageReturn = false;
   const reader = response.body.getReader();
 
-  while (true) {
-    const { done, value } = await reader.read();
+  const appendDecoded = (decoded: string, final: boolean) => {
+    let source = pendingCarriageReturn ? `\r${decoded}` : decoded;
 
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
-    while (true) {
-      const boundary = buffer.indexOf("\n\n");
-
-      if (boundary < 0) break;
-      const frame = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      const data = frame.split("\n")
-        .filter((line) => line.startsWith("data:"))
-        .map((line) => line.slice(5).trimStart())
-        .join("\n");
-
-      if (data) yield data;
+    pendingCarriageReturn = false;
+    if (!final && source.endsWith("\r")) {
+      pendingCarriageReturn = true;
+      source = source.slice(0, -1);
     }
+    buffer += source.replace(/\r\n|\r/g, "\n");
+  };
+  const takeFrame = () => {
+    const boundary = buffer.indexOf("\n\n");
+
+    if (boundary < 0) {
+      if (buffer.length > openAiChatSseFrameCharacterLimit) {
+        throw new AgentRuntimeProtocolError(
+          "OpenAI-compatible runtime emitted an oversized SSE frame",
+        );
+      }
+      return null;
+    }
+    if (boundary > openAiChatSseFrameCharacterLimit) {
+      throw new AgentRuntimeProtocolError(
+        "OpenAI-compatible runtime emitted an oversized SSE frame",
+      );
+    }
+    const frame = buffer.slice(0, boundary);
+
+    buffer = buffer.slice(boundary + 2);
+    return frame;
+  };
+  let reachedEnd = false;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        reachedEnd = true;
+        appendDecoded(decoder.decode(), true);
+      } else {
+        appendDecoded(decoder.decode(value, { stream: true }), false);
+      }
+      while (true) {
+        const frame = takeFrame();
+
+        if (frame === null) break;
+        const data = frame.split("\n")
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice(5).trimStart())
+          .join("\n");
+
+        if (data) yield data;
+      }
+      if (!done) continue;
+      if (buffer.length > 0) {
+        throw new AgentRuntimeProtocolError(
+          "OpenAI-compatible runtime ended with an incomplete SSE frame",
+        );
+      }
+      break;
+    }
+  } finally {
+    if (!reachedEnd) {
+      try {
+        await reader.cancel();
+      } catch {
+        // The original protocol or cancellation result remains authoritative.
+      }
+    }
+    reader.releaseLock();
   }
 }
 
