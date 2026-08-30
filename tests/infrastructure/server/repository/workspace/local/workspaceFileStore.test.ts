@@ -28,9 +28,11 @@ import type {
   WorkspaceRepositoryContentDto,
 } from "../../../../../../contracts/workspace/types";
 import {
-  localRepositoryDeletionPhases,
   LocalRepositoryCatalog,
 } from "../../../../../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
+import {
+  localRepositoryDeletionPhases,
+} from "../../../../../../infrastructure/server/repository/workspace/local/localRepositoryDeletion.ts";
 import {
   workspaceCommitPhases,
   type WorkspaceCommitPhase,

@@ -37,7 +37,10 @@ import {
 } from "./workspaceFileRepositoryProvisioning.ts";
 import { readLocalJson } from "./localWorkingTree.ts";
 import { parseLocalRepositoryMetadata } from "./localWorkingTreeCodec.ts";
-import { assertLocalRepositoryContainsOnlyManagedData } from "./localManagedDataGuard.ts";
+import {
+  deleteLocalRepositoryDirectory,
+  type LocalRepositoryDeletionPhase,
+} from "./localRepositoryDeletion.ts";
 import {
   localControlDirectoryName,
   localRepositoryMetadataFileName,
@@ -55,15 +58,6 @@ const reservedRepositoryLabelKeys = new Set([
   createPortableNameKey("日记"),
   createPortableNameKey("代办"),
 ]);
-
-export const localRepositoryDeletionPhases = {
-  cleanupCompleted: "cleanup-completed",
-  deletionCommitted: "deletion-committed",
-  tombstoneRenamed: "tombstone-renamed",
-} as const;
-
-export type LocalRepositoryDeletionPhase =
-  typeof localRepositoryDeletionPhases[keyof typeof localRepositoryDeletionPhases];
 
 type LocalRepositoryCatalogOptions = {
   createId?: () => string;
@@ -205,97 +199,12 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
         await store.closeForDeletion();
         this.#storesById.delete(repositoryId);
       }
-
-      const stats = await lstat(repositoryPath).catch((error: unknown) => {
-        if (hasFileSystemErrorCode(error, "ENOENT")) {
-          return null;
-        }
-        throw error;
+      await deleteLocalRepositoryDirectory({
+        onPhase: this.#onRepositoryDeletionPhase,
+        repositoryId,
+        repositoryPath,
+        rootDir: this.#rootDir,
       });
-
-      if (!stats) {
-        return;
-      }
-      if (!stats.isDirectory() || stats.isSymbolicLink()) {
-        throw new RepositoryCatalogError(
-          "invalid_request",
-          "Repository is not a real directory",
-        );
-      }
-
-      const canonicalPath = await realpath(repositoryPath).catch((error: unknown) => {
-        if (hasFileSystemErrorCode(error, "ENOENT")) {
-          return null;
-        }
-        throw error;
-      });
-
-      if (!canonicalPath) {
-        return;
-      }
-      if (path.dirname(canonicalPath) !== this.#rootDir) {
-        throw new RepositoryCatalogError(
-          "invalid_request",
-          "Repository escapes the configured root",
-        );
-      }
-
-      await assertLocalRepositoryContainsOnlyManagedData(canonicalPath);
-
-      const tombstonePath = path.join(
-        this.#rootDir,
-        `.delete-${repositoryId}-${randomUUID()}`,
-      );
-
-      try {
-        await rename(repositoryPath, tombstonePath);
-      } catch (error) {
-        if (hasFileSystemErrorCode(error, "ENOENT")) {
-          return;
-        }
-        throw error;
-      }
-
-      try {
-        await this.#onRepositoryDeletionPhase(
-          localRepositoryDeletionPhases.tombstoneRenamed,
-        );
-        await fsyncDirectory(this.#rootDir);
-      } catch (error) {
-        try {
-          await rename(tombstonePath, repositoryPath);
-          await fsyncDirectory(this.#rootDir);
-        } catch (rollbackError) {
-          const combined = new Error(
-            "Repository deletion failed and could not be rolled back",
-          ) as Error & { failures?: unknown[] };
-
-          combined.failures = [error, rollbackError];
-          throw combined;
-        }
-        throw error;
-      }
-
-      await Promise.resolve()
-        .then(() => this.#onRepositoryDeletionPhase(
-          localRepositoryDeletionPhases.deletionCommitted,
-        ))
-        .catch(() => undefined);
-
-      // The durable rename above is the deletion commit point. Physical cleanup
-      // is recoverable startup work and must not turn a committed deletion into
-      // a reported failure.
-      const cleaned = await rm(tombstonePath, { force: true, recursive: true })
-        .then(() => true, () => false);
-
-      if (cleaned) {
-        await fsyncDirectory(this.#rootDir).catch(() => undefined);
-        await Promise.resolve()
-          .then(() => this.#onRepositoryDeletionPhase(
-            localRepositoryDeletionPhases.cleanupCompleted,
-          ))
-          .catch(() => undefined);
-      }
     });
   }
 
