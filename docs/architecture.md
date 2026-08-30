@@ -395,7 +395,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     client/platform 只拥有 UUID、时间、调度，以及当前仓库和默认 Agent Profile 的
     localStorage 偏好；
     client/repository 拥有内存 catalog/content cache、revision 与 resilient
-    repository；client/http 只实现 /api/v3 transport 与两类 SSE；client/runtime 只负责把
+    repository；其中 resilientVersionedRepositoryProjection 独占 prepared local/remote
+    projection cache、merge-base 复用和 snapshot/transition 投影，resilient repository
+    状态机只通过其公开方法交接 prepared value；client/http 只实现 /api/v3 transport 与两类 SSE；client/runtime 只负责把
     这些实现注入 application 端口。源码中不存在 IndexedDB 或存储模式分支。
     server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
     repository/workspace/local 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。LocalRepositoryCatalog 独占稳定 ID 分配、名称约束、目录枚举、受控删除与 store 组合。

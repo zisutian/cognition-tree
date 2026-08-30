@@ -20,6 +20,7 @@ import {
   type VersionedRepositorySyncResult,
 } from "../../../application/persistence/versionedRepository";
 import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
+import { LocalFirstRepositoryProjectionState } from "./resilientVersionedRepositoryProjection.ts";
 
 export type VersionedRepositoryLoadPolicy =
   | Readonly<{ mode: "cache-first" }>
@@ -115,93 +116,13 @@ export function createLocalFirstVersionedRepository<
   let activeLoad: Promise<Snapshot> | null = null;
   let activeSync: Promise<SyncResult> | null = null;
   let initialized = false;
-  let preparedLocal: {
-    localRevision: LocalRevision;
-    projection: Projection;
-  } | null = null;
-  let preparedRemoteBase: {
-    revision: Revision;
-    value: Prepared;
-  } | null = null;
+  const projections = new LocalFirstRepositoryProjectionState<
+    Content,
+    Revision,
+    LocalRevision,
+    Projection
+  >(preparation);
   const resolveIdentity = () => Promise.resolve(repositoryIdentity);
-  const prepare = (
-    content: Content,
-    previous?: Projection | null,
-  ): Prepared => ({
-    content,
-    projection: preparation.prepare(content, previous),
-  });
-  const prepareRemoteContent = (
-    content: Content,
-    revision: Revision,
-    previous?: Projection | null,
-  ): Prepared => {
-    if (preparedRemoteBase?.revision === revision) {
-      return {
-        content,
-        projection: preparedRemoteBase.value.projection,
-      };
-    }
-    const value = prepare(content, previous);
-
-    preparedRemoteBase = { revision, value };
-    return value;
-  };
-  const prepareState = (
-    state: NonNullable<Awaited<ReturnType<typeof cache.load>>>,
-    previous?: Projection | null,
-  ) => {
-    if (preparedLocal?.localRevision === state.localRevision) {
-      return {
-        content: state.content,
-        projection: preparedLocal.projection,
-      };
-    }
-    const value = prepare(
-      state.content,
-      previous ?? preparedLocal?.projection,
-    );
-
-    preparedLocal = {
-      localRevision: state.localRevision,
-      projection: value.projection,
-    };
-    return value;
-  };
-  const rememberPrepared = (
-    state: NonNullable<Awaited<ReturnType<typeof cache.load>>>,
-    value: Prepared,
-  ) => {
-    preparedLocal = {
-      localRevision: state.localRevision,
-      projection: value.projection,
-    };
-    return { content: state.content, projection: value.projection };
-  };
-  const toSnapshot = (
-    state: NonNullable<Awaited<ReturnType<typeof cache.load>>>,
-    prepared = prepareState(state),
-  ): Snapshot => ({
-    conflictRevision:
-      state.pendingBaseRevision !== null &&
-        state.remoteRevision !== null &&
-        state.pendingBaseRevision !== state.remoteRevision
-        ? state.remoteRevision
-        : null,
-    content: state.content,
-    localRevision: state.localRevision,
-    pendingChanges: state.pendingBaseRevision !== null,
-    projection: prepared.projection,
-    remoteRevision: state.remoteRevision,
-  });
-  const toSnapshotTransition = (
-    previousLocalRevision: LocalRevision,
-    state: NonNullable<Awaited<ReturnType<typeof cache.load>>>,
-    prepared = prepareState(state),
-  ): SnapshotTransition => ({
-    previousLocalRevision,
-    snapshot: toSnapshot(state, prepared),
-  });
 
   const contentEqual = (left: Content, right: Content) =>
     JSON.stringify(left) === JSON.stringify(right);
@@ -231,17 +152,6 @@ export function createLocalFirstVersionedRepository<
     }
     return merged;
   };
-  const prepareMergeBase = (
-    content: Content,
-    current: NonNullable<Awaited<ReturnType<typeof cache.load>>>,
-    currentPrepared: Prepared,
-  ) =>
-    current.pendingBaseRevision !== null &&
-      preparedRemoteBase?.revision === current.pendingBaseRevision &&
-      contentEqual(preparedRemoteBase.value.content, content)
-      ? preparedRemoteBase.value
-      : prepare(content, currentPrepared.projection);
-
   const reconcilePendingRemoteSnapshot = async (
     identity: string,
     current: NonNullable<Awaited<ReturnType<typeof cache.load>>>,
@@ -255,7 +165,12 @@ export function createLocalFirstVersionedRepository<
       throw new Error("Repository synchronization base is unavailable.");
     }
     const basePrepared = baseContent && mergeContent
-      ? prepareMergeBase(baseContent, current, currentPrepared)
+      ? projections.prepareMergeBase(
+        baseContent,
+        current,
+        currentPrepared,
+        contentEqual,
+      )
       : null;
     const merged = basePrepared && mergeContent
       ? mergeContent(basePrepared, currentPrepared, remotePrepared)
@@ -275,12 +190,9 @@ export function createLocalFirstVersionedRepository<
         remoteContent: remote.content,
         unitIds: merged.unitIds,
       });
-      rememberPrepared(state, currentPrepared);
-      preparedRemoteBase = {
-        revision: remote.revision,
-        value: remotePrepared,
-      };
-      return toSnapshotTransition(
+      projections.rememberLocal(state, currentPrepared);
+      projections.rememberRemote(remote.revision, remotePrepared);
+      return projections.toTransition(
         current.localRevision,
         state,
         currentPrepared,
@@ -297,12 +209,9 @@ export function createLocalFirstVersionedRepository<
       pendingChanges: !contentEqual(merged.content, remote.content),
       snapshot: remote,
     });
-    rememberPrepared(state, mergedPrepared);
-    preparedRemoteBase = {
-      revision: remote.revision,
-      value: remotePrepared,
-    };
-    return toSnapshotTransition(
+    projections.rememberLocal(state, mergedPrepared);
+    projections.rememberRemote(remote.revision, remotePrepared);
+    return projections.toTransition(
       current.localRevision,
       state,
       mergedPrepared,
@@ -317,7 +226,7 @@ export function createLocalFirstVersionedRepository<
       typeof backend.synchronizeRemoteSnapshot
     >>["snapshot"],
   ) => {
-    const remotePrepared = prepareRemoteContent(
+    const remotePrepared = projections.prepareRemote(
       remote.content,
       remote.revision,
       submittedPrepared.projection,
@@ -333,7 +242,10 @@ export function createLocalFirstVersionedRepository<
       }
       const currentPrepared = current.localRevision === submitted.localRevision
         ? submittedPrepared
-        : prepareState(current, submittedPrepared.projection);
+        : projections.prepareLocalState(
+          current,
+          submittedPrepared.projection,
+        );
       const merged = current.localRevision === submitted.localRevision
         ? { ...remotePrepared, status: "merged" as const }
         : mergeContent
@@ -353,9 +265,9 @@ export function createLocalFirstVersionedRepository<
             unitIds: merged.unitIds,
           });
 
-          rememberPrepared(conflicted, currentPrepared);
-          preparedRemoteBase = { revision: remote.revision, value: remotePrepared };
-          return toSnapshotTransition(
+          projections.rememberLocal(conflicted, currentPrepared);
+          projections.rememberRemote(remote.revision, remotePrepared);
+          return projections.toTransition(
             current.localRevision,
             conflicted,
             currentPrepared,
@@ -374,9 +286,9 @@ export function createLocalFirstVersionedRepository<
           snapshot: remote,
         });
 
-        rememberPrepared(rebased, merged);
-        preparedRemoteBase = { revision: remote.revision, value: remotePrepared };
-        return toSnapshotTransition(
+        projections.rememberLocal(rebased, merged);
+        projections.rememberRemote(remote.revision, remotePrepared);
+        return projections.toTransition(
           current.localRevision,
           rebased,
           merged,
@@ -407,10 +319,10 @@ export function createLocalFirstVersionedRepository<
           "Local repository state disappeared during remote refresh.",
         );
       }
-      const currentPrepared = prepareState(current);
+      const currentPrepared = projections.prepareLocalState(current);
       if (current.pendingBaseRevision) {
         if (current.remoteRevision === remote.revision) {
-          return toSnapshot(current, currentPrepared);
+          return projections.toSnapshot(current, currentPrepared);
         }
         try {
           return (await reconcilePendingRemoteSnapshot(
@@ -428,11 +340,8 @@ export function createLocalFirstVersionedRepository<
         }
       }
       if (current.remoteRevision === remote.revision) {
-        preparedRemoteBase = {
-          revision: remote.revision,
-          value: remotePrepared,
-        };
-        return toSnapshot(current, currentPrepared);
+        projections.rememberRemote(remote.revision, remotePrepared);
+        return projections.toSnapshot(current, currentPrepared);
       }
       try {
         preparation.validateTransition?.(currentPrepared, remotePrepared);
@@ -443,12 +352,9 @@ export function createLocalFirstVersionedRepository<
           snapshot: remote,
         });
 
-        rememberPrepared(state, remotePrepared);
-        preparedRemoteBase = {
-          revision: remote.revision,
-          value: remotePrepared,
-        };
-        return toSnapshot(state, remotePrepared);
+        projections.rememberLocal(state, remotePrepared);
+        projections.rememberRemote(remote.revision, remotePrepared);
+        return projections.toSnapshot(state, remotePrepared);
       } catch (error) {
         if (!(error instanceof VersionedRepositoryLocalConflictError)) {
           throw error;
@@ -463,9 +369,9 @@ export function createLocalFirstVersionedRepository<
     const local = await cache.load(identity);
 
     if (local) {
-      const localPrepared = prepareState(local);
+      const localPrepared = projections.prepareLocalState(local);
       if (loadPolicy.mode === "cache-first") {
-        return toSnapshot(local, localPrepared);
+        return projections.toSnapshot(local, localPrepared);
       }
       let remote;
       try {
@@ -474,7 +380,10 @@ export function createLocalFirstVersionedRepository<
         if (canUseCachedSnapshot(error)) {
           const fallback = await cache.load(identity) ?? local;
 
-          return toSnapshot(fallback, prepareState(fallback));
+          return projections.toSnapshot(
+            fallback,
+            projections.prepareLocalState(fallback),
+          );
         }
         throw error;
       }
@@ -483,7 +392,7 @@ export function createLocalFirstVersionedRepository<
             content: remote.content,
             projection: localPrepared.projection,
           }
-        : prepareRemoteContent(
+        : projections.prepareRemote(
             remote.content,
             remote.revision,
             localPrepared.projection,
@@ -493,7 +402,7 @@ export function createLocalFirstVersionedRepository<
     }
 
     const remote = await backend.loadRemoteSnapshot();
-    const remotePrepared = prepareRemoteContent(
+    const remotePrepared = projections.prepareRemote(
       remote.content,
       remote.revision,
     );
@@ -504,19 +413,19 @@ export function createLocalFirstVersionedRepository<
         snapshot: remote,
       });
 
-      rememberPrepared(state, remotePrepared);
-      preparedRemoteBase = {
-        revision: remote.revision,
-        value: remotePrepared,
-      };
-      return toSnapshot(state, remotePrepared);
+      projections.rememberLocal(state, remotePrepared);
+      projections.rememberRemote(remote.revision, remotePrepared);
+      return projections.toSnapshot(state, remotePrepared);
     } catch (error) {
       const concurrentlyCreated = await cache.load(identity);
       if (!concurrentlyCreated) {
         throw error;
       }
-      preparedLocal = null;
-      return toSnapshot(concurrentlyCreated, prepareState(concurrentlyCreated));
+      projections.clearLocal();
+      return projections.toSnapshot(
+        concurrentlyCreated,
+        projections.prepareLocalState(concurrentlyCreated),
+      );
     }
   };
 
@@ -574,36 +483,33 @@ export function createLocalFirstVersionedRepository<
         );
       }
       if (!local.pendingBaseRevision) {
-        return complete(toSnapshotTransition(
+        return complete(projections.toTransition(
           local.localRevision,
           local,
         ), {
           status: "synced",
         });
       }
-      const localPrepared = prepareState(local);
+      const localPrepared = projections.prepareLocalState(local);
       const syncContext = await cache.loadSyncContext(identity);
+      const preparedBase = projections.readRemoteBase(
+        local.pendingBaseRevision,
+      );
 
       if (
         preparation.validateTransition &&
         syncContext?.baseContent &&
-        preparedRemoteBase?.revision !== local.pendingBaseRevision
+        !preparedBase
       ) {
-        const basePrepared = prepare(
+        const basePrepared = projections.prepare(
           syncContext.baseContent,
           localPrepared.projection,
         );
 
         preparation.validateTransition(basePrepared, localPrepared);
-        preparedRemoteBase = {
-          revision: local.pendingBaseRevision,
-          value: basePrepared,
-        };
-      } else if (
-        preparation.validateTransition &&
-        preparedRemoteBase?.revision === local.pendingBaseRevision
-      ) {
-        preparation.validateTransition(preparedRemoteBase.value, localPrepared);
+        projections.rememberRemote(local.pendingBaseRevision, basePrepared);
+      } else if (preparation.validateTransition && preparedBase) {
+        preparation.validateTransition(preparedBase, localPrepared);
       }
       try {
         if (!syncContext?.baseContent) {
@@ -632,7 +538,7 @@ export function createLocalFirstVersionedRepository<
         });
       } catch (error) {
         if (error instanceof VersionedRepositoryBackendMergeConflictError) {
-          preparedRemoteBase = null;
+          projections.clearRemoteBase();
           let remote;
 
           try {
@@ -641,10 +547,13 @@ export function createLocalFirstVersionedRepository<
             if (!isRetryableRemoteError(loadError)) throw loadError;
             const current = await cache.load(identity);
             if (!current) throw loadError;
-            return complete(toSnapshotTransition(
+            return complete(projections.toTransition(
               current.localRevision,
               current,
-              prepareState(current, localPrepared.projection),
+              projections.prepareLocalState(
+                current,
+                localPrepared.projection,
+              ),
             ), {
               message: getErrorMessage(loadError),
               status: "sync-error",
@@ -677,7 +586,7 @@ export function createLocalFirstVersionedRepository<
               unitIds: error.unitIds,
             });
 
-            return complete(toSnapshotTransition(
+            return complete(projections.toTransition(
               current.localRevision,
               conflicted,
               localPrepared,
@@ -698,7 +607,7 @@ export function createLocalFirstVersionedRepository<
           const conflictRevision = error.currentRevision as Revision;
           let remote;
 
-          preparedRemoteBase = null;
+          projections.clearRemoteBase();
 
           try {
             remote = await backend.loadRemoteSnapshot();
@@ -707,10 +616,13 @@ export function createLocalFirstVersionedRepository<
             const current = await cache.load(identity);
             if (!current) throw loadError;
 
-            return complete(toSnapshotTransition(
+            return complete(projections.toTransition(
               current.localRevision,
               current,
-              prepareState(current, localPrepared.projection),
+              projections.prepareLocalState(
+                current,
+                localPrepared.projection,
+              ),
             ), {
               message: getErrorMessage(loadError),
               status: "sync-error",
@@ -721,7 +633,7 @@ export function createLocalFirstVersionedRepository<
             if (attempt + 1 < 3) continue;
             throw createBusyError();
           }
-          const remotePrepared = prepareRemoteContent(
+          const remotePrepared = projections.prepareRemote(
             remote.content,
             remote.revision,
             localPrepared.projection,
@@ -756,10 +668,13 @@ export function createLocalFirstVersionedRepository<
         }
         const current = await cache.load(identity);
         if (!current) throw error;
-        const transition = toSnapshotTransition(
+        const transition = projections.toTransition(
           current.localRevision,
           current,
-          prepareState(current, localPrepared.projection),
+          projections.prepareLocalState(
+            current,
+            localPrepared.projection,
+          ),
         );
         if (isRetryableRemoteError(error)) {
           return complete(transition, {
@@ -832,14 +747,19 @@ export function createLocalFirstVersionedRepository<
     ) {
       throw new Error("Repository conflict proof is no longer current.");
     }
-    const currentPrepared = prepareState(current);
-    const remotePrepared = prepareRemoteContent(
+    const currentPrepared = projections.prepareLocalState(current);
+    const remotePrepared = projections.prepareRemote(
       conflict.remote,
       conflict.remoteRevision,
       currentPrepared.projection,
     );
     const basePrepared = mergeContent
-      ? prepareMergeBase(conflict.base, current, currentPrepared)
+      ? projections.prepareMergeBase(
+        conflict.base,
+        current,
+        currentPrepared,
+        contentEqual,
+      )
       : null;
     const unresolved = basePrepared && mergeContent
       ? mergeContent(basePrepared, currentPrepared, remotePrepared)
@@ -900,12 +820,9 @@ export function createLocalFirstVersionedRepository<
         revision: conflict.remoteRevision,
       },
     });
-    rememberPrepared(rebased, contentPrepared);
-    preparedRemoteBase = {
-      revision: conflict.remoteRevision,
-      value: remotePrepared,
-    };
-    const resolvedTransition = toSnapshotTransition(
+    projections.rememberLocal(rebased, contentPrepared);
+    projections.rememberRemote(conflict.remoteRevision, remotePrepared);
+    const resolvedTransition = projections.toTransition(
       current.localRevision,
       rebased,
       contentPrepared,
@@ -920,10 +837,13 @@ export function createLocalFirstVersionedRepository<
       if (!latest) throw error;
       const latestTransition = latest.localRevision === rebased.localRevision
         ? null
-        : toSnapshotTransition(
+        : projections.toTransition(
             rebased.localRevision,
             latest,
-            prepareState(latest, contentPrepared.projection),
+            projections.prepareLocalState(
+              latest,
+              contentPrepared.projection,
+            ),
           );
       const recoveryTransitions: SyncResult["transitions"] = latestTransition
         ? [resolvedTransition, latestTransition]
@@ -957,10 +877,10 @@ export function createLocalFirstVersionedRepository<
         throw new Error("Local repository state disappeared before discard.");
       }
       const remote = await backend.loadRemoteSnapshot();
-      const remotePrepared = prepareRemoteContent(
+      const remotePrepared = projections.prepareRemote(
         remote.content,
         remote.revision,
-        preparedLocal?.projection,
+        projections.localProjection(),
       );
       const state = await cache.replaceFromRemote({
         expectedLocalRevision: current.localRevision,
@@ -969,12 +889,9 @@ export function createLocalFirstVersionedRepository<
         snapshot: remote,
       });
 
-      rememberPrepared(state, remotePrepared);
-      preparedRemoteBase = {
-        revision: remote.revision,
-        value: remotePrepared,
-      };
-      return toSnapshot(state, remotePrepared);
+      projections.rememberLocal(state, remotePrepared);
+      projections.rememberRemote(remote.revision, remotePrepared);
+      return projections.toSnapshot(state, remotePrepared);
     },
     loadSnapshot,
     loadConflict: loadConflictSnapshot,
@@ -995,7 +912,7 @@ export function createLocalFirstVersionedRepository<
             "Local repository state disappeared before staging.",
           );
         }
-        const currentPrepared = prepareState(
+        const currentPrepared = projections.prepareLocalState(
           current,
           change.before.projection,
         );
@@ -1008,23 +925,24 @@ export function createLocalFirstVersionedRepository<
         preparation.validateTransition?.(currentPrepared, nextPrepared);
         const syncContext = await cache.loadSyncContext(identity);
         if (!current.pendingBaseRevision && current.remoteRevision) {
-          preparedRemoteBase = {
-            revision: current.remoteRevision,
-            value: currentPrepared,
-          };
+          projections.rememberRemote(
+            current.remoteRevision,
+            currentPrepared,
+          );
         }
         try {
           if (syncContext?.conflict) {
-            const remotePrepared = prepareRemoteContent(
+            const remotePrepared = projections.prepareRemote(
               syncContext.conflict.remote,
               syncContext.conflict.remoteRevision,
               nextPrepared.projection,
             );
             const basePrepared = mergeContent
-              ? prepareMergeBase(
+              ? projections.prepareMergeBase(
                   syncContext.conflict.base,
                   current,
                   nextPrepared,
+                  contentEqual,
                 )
               : null;
             const unresolved = basePrepared && mergeContent
@@ -1048,8 +966,8 @@ export function createLocalFirstVersionedRepository<
                 },
               });
 
-              rememberPrepared(state, unresolved);
-              return toSnapshotTransition(
+              projections.rememberLocal(state, unresolved);
+              return projections.toTransition(
                 current.localRevision,
                 state,
                 unresolved,
@@ -1063,8 +981,8 @@ export function createLocalFirstVersionedRepository<
               localRevision: createLocalRevision(),
             });
 
-            rememberPrepared(state, nextPrepared);
-            return toSnapshotTransition(
+            projections.rememberLocal(state, nextPrepared);
+            return projections.toTransition(
               current.localRevision,
               state,
               nextPrepared,
@@ -1078,8 +996,8 @@ export function createLocalFirstVersionedRepository<
             localRevision: createLocalRevision(),
           });
 
-          rememberPrepared(state, nextPrepared);
-          return toSnapshotTransition(
+          projections.rememberLocal(state, nextPrepared);
+          return projections.toTransition(
             current.localRevision,
             state,
             nextPrepared,
