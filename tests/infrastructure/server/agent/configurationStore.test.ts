@@ -16,10 +16,20 @@ import {
   AgentConfigurationStore,
   AgentConfigurationValidationError,
 } from "../../../../infrastructure/server/agent/configurationStore.ts";
+import {
+  replaceFileDurably,
+} from "../../../../infrastructure/server/persistence/fileSystemPersistence.ts";
+import {
+  SecureStateCommitOutcomeUnknownError,
+} from "../../../../infrastructure/server/state/secureJsonPartition.ts";
 
 const directories: string[] = [];
 
-async function createStore() {
+async function createStore({
+  replaceConfigurationFile,
+}: {
+  replaceConfigurationFile?: typeof replaceFileDurably;
+} = {}) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-agent-config-"));
   const ids = ["provider-1", "profile-1", "provider-2", "profile-2"];
 
@@ -28,6 +38,7 @@ async function createStore() {
     directory,
     store: new AgentConfigurationStore(directory, {
       createId: () => ids.shift() ?? "unexpected-id",
+      ...(replaceConfigurationFile ? { replaceConfigurationFile } : {}),
     }),
   };
 }
@@ -316,6 +327,117 @@ describe("Agent configuration store", () => {
       version: 3,
     });
     await expect(access(providerDirectory)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("retains activated Codex authentication when its configuration commit is unknown", async () => {
+    let failAfterReplacement = false;
+    const { directory, store } = await createStore({
+      replaceConfigurationFile: async (file, source, options) => {
+        await replaceFileDurably(file, source, options);
+        if (failAfterReplacement) {
+          failAfterReplacement = false;
+          throw new Error("directory sync failed after replacement");
+        }
+      },
+    });
+    const initial = await store.readSnapshot();
+    const created = await store.createProvider(initial.revision, {
+      authenticationType: "chatgpt-device-code",
+      baseUrl: null,
+      kind: "codex",
+      label: "ChatGPT Codex",
+      privateNetworkAccessConfirmed: false,
+    });
+    const loginId = "00000000-0000-4000-8000-000000000005";
+    const prepared = await store.prepareCodexDeviceLogin(
+      created.configuration.revision,
+      created.provider.id,
+      loginId,
+    );
+
+    await writeFile(path.join(prepared.home, "auth.json"), "{}\n", {
+      mode: 0o600,
+    });
+    failAfterReplacement = true;
+
+    await expect(store.completeCodexDeviceLogin(
+      created.configuration.revision,
+      created.provider.id,
+      prepared.credentialVersion,
+      loginId,
+    )).rejects.toBeInstanceOf(SecureStateCommitOutcomeUnknownError);
+
+    const reloaded = new AgentConfigurationStore(directory);
+
+    await expect(reloaded.resolveProvider(created.provider.id)).resolves.toMatchObject({
+      apiKey: null,
+      codexHome: prepared.home,
+      provider: {
+        authenticationStatus: "configured",
+        version: 2,
+      },
+    });
+  });
+
+  it("removes activated Codex authentication when a terminal partition blocks its candidate", async () => {
+    let failAfterReplacement = false;
+    const { directory, store } = await createStore({
+      replaceConfigurationFile: async (file, source, options) => {
+        await replaceFileDurably(file, source, options);
+        if (failAfterReplacement) {
+          failAfterReplacement = false;
+          throw new Error("directory sync failed after replacement");
+        }
+      },
+    });
+    const initial = await store.readSnapshot();
+    const created = await store.createProvider(initial.revision, {
+      authenticationType: "chatgpt-device-code",
+      baseUrl: null,
+      kind: "codex",
+      label: "ChatGPT Codex",
+      privateNetworkAccessConfirmed: false,
+    });
+    const loginId = "00000000-0000-4000-8000-000000000006";
+    const prepared = await store.prepareCodexDeviceLogin(
+      created.configuration.revision,
+      created.provider.id,
+      loginId,
+    );
+
+    await writeFile(path.join(prepared.home, "auth.json"), "{}\n", {
+      mode: 0o600,
+    });
+    failAfterReplacement = true;
+    await expect(store.createProfile(created.configuration.revision, {
+      label: "Primary Codex",
+      maxResidentSessions: 1,
+      model: "gpt-5-codex",
+      parameters: {
+        kind: "codex",
+        maxInputCharacters: 100_000,
+        maxOutputCharacters: 50_000,
+        reasoningEffort: "high",
+      },
+      providerId: created.provider.id,
+      timeoutMilliseconds: 120_000,
+    })).rejects.toBeInstanceOf(SecureStateCommitOutcomeUnknownError);
+
+    await expect(store.completeCodexDeviceLogin(
+      created.configuration.revision,
+      created.provider.id,
+      prepared.credentialVersion,
+      loginId,
+    )).rejects.toBeInstanceOf(SecureStateCommitOutcomeUnknownError);
+    await expect(access(prepared.home)).rejects.toMatchObject({ code: "ENOENT" });
+
+    const reloaded = new AgentConfigurationStore(directory);
+
+    await expect(reloaded.resolveProvider(created.provider.id)).resolves.toMatchObject({
+      apiKey: null,
+      codexHome: null,
+      provider: { authenticationStatus: "missing" },
+    });
   });
 
   it("keeps newly committed Codex authentication when old credential cleanup fails", async () => {

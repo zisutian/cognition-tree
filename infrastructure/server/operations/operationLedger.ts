@@ -18,6 +18,8 @@ import {
   assertStateFields,
   requireStateRecord,
   SecureJsonPartition,
+  SecureStatePartitionError,
+  type SecureStateFileReplacer,
 } from "../state/secureJsonPartition.ts";
 
 const formatVersion = 2;
@@ -316,6 +318,7 @@ export class OperationLedger {
   }>();
   #maxAuditEntries: number;
   readonly #now: () => string;
+  #operationQueue: Promise<void> = Promise.resolve();
   readonly #partition: SecureJsonPartition<OperationState>;
   readonly #receiptRetentionMilliseconds: number;
   readonly #runtimeId: string;
@@ -328,6 +331,7 @@ export class OperationLedger {
     options: {
       now?: () => string;
       receiptRetentionMilliseconds?: number;
+      replaceStateFile?: SecureStateFileReplacer;
       runtimeId?: string;
     } = {},
   ) {
@@ -350,50 +354,49 @@ export class OperationLedger {
       fileName: "operations.json",
       name: "operation ledger",
       parse: parseOperationState,
+      ...(options.replaceStateFile
+        ? { replaceFile: options.replaceStateFile }
+        : {}),
     });
   }
 
-  async initialize(): Promise<OperationAuditStatus> {
-    if (this.#unavailableMessage) return this.status();
-    try {
-      await this.#partition.mutate((state) => {
-        let changed = false;
+  initialize(): Promise<OperationAuditStatus> {
+    return this.#enqueue(async () => {
+      if (this.#unavailableMessage) return this.#currentStatus();
+      try {
+        await this.#partition.mutate((state) => {
+          let changed = false;
 
-        for (const stored of state.auditEntries) {
-          if (!stored.pending) continue;
-          stored.pending = false;
-          stored.entry.result = "indeterminate";
-          stored.entry.updatedAt = this.#now();
-          changed = true;
-        }
-        return { changed, result: undefined };
-      });
-      await this.#removeLegacyAuditFile("agent-v2", "operations.json");
-      await this.#removeLegacyAuditFile("api-v1", "audit.json");
-      return { status: "available" };
-    } catch (error) {
-      this.#markUnavailable(error);
-      return {
-        message: this.#unavailableMessage ?? "Operation audit is unavailable",
-        status: "unavailable",
-      };
-    }
+          for (const stored of state.auditEntries) {
+            if (!stored.pending) continue;
+            stored.pending = false;
+            stored.entry.result = "indeterminate";
+            stored.entry.updatedAt = this.#now();
+            changed = true;
+          }
+          return { changed, result: undefined };
+        });
+        await this.#removeLegacyAuditFile("agent-v2", "operations.json");
+        await this.#removeLegacyAuditFile("api-v1", "audit.json");
+        return { status: "available" };
+      } catch (error) {
+        this.#markUnavailable(error);
+        return this.#currentStatus();
+      }
+    });
   }
 
-  async status(): Promise<OperationAuditStatus> {
-    if (this.#unavailableMessage) {
-      return { message: this.#unavailableMessage, status: "unavailable" };
-    }
-    try {
-      await this.#partition.read(() => undefined);
-      return { status: "available" };
-    } catch (error) {
-      this.#markUnavailable(error);
-      return {
-        message: this.#unavailableMessage ?? "Operation audit is unavailable",
-        status: "unavailable",
-      };
-    }
+  status(): Promise<OperationAuditStatus> {
+    return this.#enqueue(async () => {
+      if (this.#unavailableMessage) return this.#currentStatus();
+      try {
+        await this.#partition.read(() => undefined);
+        return { status: "available" };
+      } catch (error) {
+        this.#markUnavailable(error);
+        return this.#currentStatus();
+      }
+    });
   }
 
   runAgentIdempotent(
@@ -529,13 +532,12 @@ export class OperationLedger {
     if (!Number.isSafeInteger(maxAuditEntries) || maxAuditEntries < 1) {
       return Promise.reject(new Error("maxAuditEntries must be a positive integer"));
     }
-    return this.#mutate((state) => {
+    return this.#enqueue(async () => {
+      await this.#mutatePartition((state) => ({
+        changed: this.#trimAudit(state, maxAuditEntries),
+        result: undefined,
+      }));
       this.#maxAuditEntries = maxAuditEntries;
-      const removeCount = Math.max(0, state.auditEntries.length - maxAuditEntries);
-
-      if (removeCount === 0) return { changed: false, result: undefined };
-      this.#trimAudit(state);
-      return { changed: true, result: undefined };
     });
   }
 
@@ -575,7 +577,7 @@ export class OperationLedger {
     attempt: AgentOperationAttempt,
   ): Promise<Exclude<BeginAgentResult, { kind: "indeterminate" }>> {
     return this.#mutate<BeginAgentResult>((state) => {
-      this.#purgeReceipts(state);
+      const purged = this.#purgeReceipts(state);
       const key = operationKey(identity);
       const existing = state.agentReceipts.find((receipt) =>
         operationKey(receipt) === key
@@ -587,7 +589,7 @@ export class OperationLedger {
         }
         if (existing.entry) {
           return {
-            changed: false,
+            changed: purged,
             result: { entry: existing.entry, kind: "replay" as const },
           };
         }
@@ -605,7 +607,7 @@ export class OperationLedger {
           };
         }
         return {
-          changed: false,
+          changed: purged,
           result: { kind: "indeterminate" as const },
         };
       }
@@ -672,21 +674,30 @@ export class OperationLedger {
     });
   }
 
-  #purgeReceipts(state: OperationState) {
+  #purgeReceipts(state: OperationState): boolean {
     const cutoff = Date.parse(this.#now()) - this.#receiptRetentionMilliseconds;
+    const receiptCount = state.agentReceipts.length;
 
     state.agentReceipts = state.agentReceipts.filter((receipt) =>
       receipt.status === "pending" || Date.parse(receipt.updatedAt) >= cutoff
     );
+    return state.agentReceipts.length !== receiptCount;
   }
 
-  #trimAudit(state: OperationState) {
-    while (state.auditEntries.length > this.#maxAuditEntries) {
+  #trimAudit(
+    state: OperationState,
+    maxAuditEntries = this.#maxAuditEntries,
+  ): boolean {
+    let changed = false;
+
+    while (state.auditEntries.length > maxAuditEntries) {
       const removable = state.auditEntries.findIndex(({ pending }) => !pending);
 
-      if (removable < 0) return;
+      if (removable < 0) return changed;
       state.auditEntries.splice(removable, 1);
+      changed = true;
     }
+    return changed;
   }
 
   #projectAgentAudit(
@@ -754,21 +765,52 @@ export class OperationLedger {
     });
   }
 
-  async #read<Result>(project: (state: OperationState) => Result) {
+  #currentStatus(): OperationAuditStatus {
+    return this.#unavailableMessage
+      ? { message: this.#unavailableMessage, status: "unavailable" }
+      : { status: "available" };
+  }
+
+  #enqueue<Result>(operation: () => Promise<Result>): Promise<Result> {
+    const pending = this.#operationQueue.then(operation);
+
+    this.#operationQueue = pending.then(() => undefined, () => undefined);
+    return pending;
+  }
+
+  #read<Result>(project: (state: OperationState) => Result) {
+    return this.#enqueue(() => this.#readPartition(project));
+  }
+
+  async #readPartition<Result>(project: (state: OperationState) => Result) {
     if (this.#unavailableMessage) {
       throw new OperationAuditUnavailableError(this.#unavailableMessage);
     }
     try {
       return await this.#partition.read(project);
     } catch (error) {
-      this.#markUnavailable(error);
-      throw new OperationAuditUnavailableError(
-        this.#unavailableMessage ?? "Operation audit is unavailable",
-      );
+      if (error instanceof SecureStatePartitionError) {
+        this.#markUnavailable(error);
+        throw new OperationAuditUnavailableError(
+          this.#unavailableMessage ?? "Operation audit is unavailable",
+        );
+      }
+      throw error;
     }
   }
 
-  async #mutate<Result>(
+  #mutate<Result>(
+    operation: (
+      state: OperationState,
+    ) => { changed: boolean; result: Result } | Promise<{
+      changed: boolean;
+      result: Result;
+    }>,
+  ) {
+    return this.#enqueue(() => this.#mutatePartition(operation));
+  }
+
+  async #mutatePartition<Result>(
     operation: (
       state: OperationState,
     ) => { changed: boolean; result: Result } | Promise<{
@@ -782,16 +824,13 @@ export class OperationLedger {
     try {
       return await this.#partition.mutate(operation);
     } catch (error) {
-      if (
-        error instanceof AgentOperationIdempotencyError ||
-        error instanceof AgentOperationIndeterminateError
-      ) {
-        throw error;
+      if (error instanceof SecureStatePartitionError) {
+        this.#markUnavailable(error);
+        throw new OperationAuditUnavailableError(
+          this.#unavailableMessage ?? "Operation audit is unavailable",
+        );
       }
-      this.#markUnavailable(error);
-      throw new OperationAuditUnavailableError(
-        this.#unavailableMessage ?? "Operation audit is unavailable",
-      );
+      throw error;
     }
   }
 

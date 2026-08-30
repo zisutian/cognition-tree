@@ -14,11 +14,15 @@ import {
   assertStateFields,
   requireStateRecord,
   SecureJsonPartition,
+  type SecureStateFileReplacer,
 } from "../state/secureJsonPartition.ts";
 import { createStateDigest, stateDigestsEqual } from "../state/stateDigest.ts";
+import {
+  AccessTokenUsageSession,
+  type AccessTokenUsageResult,
+} from "./accessTokenUsageSession.ts";
 
 const formatVersion = 1;
-const lastUsedPersistenceIntervalMilliseconds = 60_000;
 type StoredToken = ApiTrustedClientTokenDto & { digest: string };
 type TokenState = { formatVersion: typeof formatVersion; tokens: StoredToken[] };
 
@@ -55,13 +59,19 @@ function tokenDto({ digest: _digest, ...token }: StoredToken) {
 }
 
 export class TrustedClientTokenStore {
-  readonly #lastPersistedUsage = new Map<string, number>();
   readonly #now: () => Date;
   readonly #partition: SecureJsonPartition<TokenState>;
+  readonly #usage = new AccessTokenUsageSession();
 
   constructor(
     stateDirectory: string,
-    { now = () => new Date() }: { now?: () => Date } = {},
+    {
+      now = () => new Date(),
+      replaceTokenFile,
+    }: {
+      now?: () => Date;
+      replaceTokenFile?: SecureStateFileReplacer;
+    } = {},
   ) {
     this.#now = now;
     this.#partition = new SecureJsonPartition({
@@ -70,72 +80,101 @@ export class TrustedClientTokenStore {
       fileName: "trusted-client-tokens.json",
       name: "trusted client access",
       parse: parseState,
+      ...(replaceTokenFile ? { replaceFile: replaceTokenFile } : {}),
     });
   }
 
   authenticate(secret: string): Promise<ApiPrincipalDto | null> {
-    return this.#partition.mutate((state) => {
-      const digest = createStateDigest(secret);
-      const token = state.tokens.find((candidate) =>
-        stateDigestsEqual(candidate.digest, digest)
-      );
+    return this.#usage.runObservedAccess(() =>
+      this.#partition.mutate<AccessTokenUsageResult<ApiPrincipalDto | null>>(
+        (state) => {
+          const digest = createStateDigest(secret);
+          const token = state.tokens.find((candidate) =>
+            stateDigestsEqual(candidate.digest, digest)
+          );
 
-      if (!token) return { changed: false, result: null };
-      const timestamp = this.#timestamp();
-      const persistedAt = this.#lastPersistedUsage.get(token.id) ??
-        (token.lastUsedAt ? Date.parse(token.lastUsedAt) : -Infinity);
-      const current = Date.parse(timestamp);
-      const changed = current - persistedAt >= lastUsedPersistenceIntervalMilliseconds;
+          if (!token) {
+            return {
+              changed: false,
+              result: {
+                observation: null,
+                result: null,
+              },
+            };
+          }
+          const observation = this.#usage.prepareObservation({
+            observedAt: this.#timestamp(),
+            persistedAt: token.lastUsedAt,
+            tokenId: token.id,
+          });
 
-      token.lastUsedAt = timestamp;
-      if (changed) this.#lastPersistedUsage.set(token.id, current);
-      return {
-        changed,
-        result: {
-          id: token.id,
-          kind: "trusted-client" as const,
-          name: token.name,
+          if (observation.requiresPersistence) {
+            token.lastUsedAt = observation.observedAt;
+          }
+          return {
+            changed: observation.requiresPersistence,
+            result: {
+              observation,
+              result: {
+                id: token.id,
+                kind: "trusted-client" as const,
+                name: token.name,
+              },
+            },
+          };
         },
-      };
-    });
+      )
+    );
   }
 
   createToken(
     request: ApiCreateTrustedClientTokenRequestDto,
   ): Promise<ApiCreatedTrustedClientTokenDto> {
-    return this.#partition.mutate((state) => {
-      const secret = `ctt_${randomBytes(32).toString("base64url")}`;
-      const token: StoredToken = {
-        createdAt: this.#timestamp(),
-        digest: createStateDigest(secret),
-        id: `trusted-client-token-${randomUUID()}`,
-        lastUsedAt: null,
-        name: request.name,
-        prefix: secret.slice(0, 12),
-      };
+    return this.#usage.run(() =>
+      this.#partition.mutate((state) => {
+        const secret = `ctt_${randomBytes(32).toString("base64url")}`;
+        const token: StoredToken = {
+          createdAt: this.#timestamp(),
+          digest: createStateDigest(secret),
+          id: `trusted-client-token-${randomUUID()}`,
+          lastUsedAt: null,
+          name: request.name,
+          prefix: secret.slice(0, 12),
+        };
 
-      state.tokens.push(token);
-      return { changed: true, result: { secret, token: tokenDto(token) } };
-    });
+        state.tokens.push(token);
+        return { changed: true, result: { secret, token: tokenDto(token) } };
+      })
+    );
   }
 
   listTokens(): Promise<ApiTrustedClientTokenDto[]> {
-    return this.#partition.read((state) =>
-      state.tokens.map(tokenDto).sort((left, right) =>
-        right.createdAt.localeCompare(left.createdAt)
+    return this.#usage.run(() =>
+      this.#partition.read((state) =>
+        state.tokens.map((token) => ({
+          ...tokenDto(token),
+          lastUsedAt: this.#usage.resolveLastUsedAt(
+            token.id,
+            token.lastUsedAt,
+          ),
+        })).sort((left, right) =>
+          right.createdAt.localeCompare(left.createdAt)
+        )
       )
     );
   }
 
   revokeToken(tokenId: string): Promise<boolean> {
-    return this.#partition.mutate((state) => {
-      const index = state.tokens.findIndex(({ id }) => id === tokenId);
+    return this.#usage.runRevocation(
+      tokenId,
+      () => this.#partition.mutate((state) => {
+        const index = state.tokens.findIndex(({ id }) => id === tokenId);
 
-      if (index < 0) return { changed: false, result: false };
-      state.tokens.splice(index, 1);
-      this.#lastPersistedUsage.delete(tokenId);
-      return { changed: true, result: true };
-    });
+        if (index < 0) return { changed: false, result: false };
+        state.tokens.splice(index, 1);
+        return { changed: true, result: true };
+      }),
+    );
   }
 
   #timestamp() {

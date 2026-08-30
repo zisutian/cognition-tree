@@ -13,7 +13,11 @@ import type {
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import { agentConformanceContractVersion } from "../../../contracts/agent/conformance.ts";
 import { agentToolContractVersion } from "../../../contracts/agent/tools.ts";
-import { SecureJsonPartition } from "../state/secureJsonPartition.ts";
+import {
+  SecureJsonPartition,
+  SecureStateCommitOutcomeUnknownError,
+  type SecureStateFileReplacer,
+} from "../state/secureJsonPartition.ts";
 import { createStateDigest } from "../state/stateDigest.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import { AgentProviderCredentialStore } from "./providerCredentialStore.ts";
@@ -282,9 +286,11 @@ export class AgentConfigurationStore {
     stateDirectory: string,
     {
       createId = randomUUID,
+      replaceConfigurationFile,
       targetPolicy = new AgentProviderTargetPolicy(),
     }: {
       createId?: () => string;
+      replaceConfigurationFile?: SecureStateFileReplacer;
       targetPolicy?: AgentProviderTargetPolicy;
     } = {},
   ) {
@@ -297,6 +303,9 @@ export class AgentConfigurationStore {
       fileName: "configuration.json",
       name: "Agent configuration",
       parse: parseAgentConfigurationState,
+      ...(replaceConfigurationFile
+        ? { replaceFile: replaceConfigurationFile }
+        : {}),
     });
   }
 
@@ -522,6 +531,7 @@ export class AgentConfigurationStore {
       credentialVersion,
       loginId,
     );
+    let candidateReferencesActivatedCredential = false;
 
     const outcome = await this.#mutate((state) => {
       assertBaseRevision(state, baseRevision);
@@ -539,6 +549,7 @@ export class AgentConfigurationStore {
         credential,
         type: "chatgpt-device-code",
       };
+      candidateReferencesActivatedCredential = true;
       provider.version += 1;
       for (const profile of state.profiles) {
         if (profile.providerId === providerId) profile.conformance = null;
@@ -551,7 +562,13 @@ export class AgentConfigurationStore {
         },
       };
     }).catch(async (error: unknown) => {
-      await this.#credentialStore.remove(credential).catch(() => undefined);
+      const candidateMayBeAuthoritative =
+        candidateReferencesActivatedCredential &&
+        error instanceof SecureStateCommitOutcomeUnknownError;
+
+      if (!candidateMayBeAuthoritative) {
+        await this.#credentialStore.remove(credential).catch(() => undefined);
+      }
       throw error;
     });
 

@@ -19,6 +19,9 @@ import {
   type AgentOperationAttempt,
   OperationLedger,
 } from "../../../../infrastructure/server/operations/operationLedger.ts";
+import {
+  replaceFileDurably,
+} from "../../../../infrastructure/server/persistence/fileSystemPersistence.ts";
 
 function revision(character: string) {
   return `sha256:${character.repeat(64)}` as `sha256:${string}`;
@@ -176,6 +179,216 @@ describe("operation ledger", () => {
       expect(persisted).toContain('"agentReceipts"');
       expect(await readFile(path.join(legacyDirectory, "state.json"), "utf8"))
         .toContain("invalid legacy state");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("persists expired receipt cleanup when the current operation is replayed", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-operation-replay-purge-"));
+
+    try {
+      let now = "2026-08-20T00:00:00.000Z";
+      const ledger = new OperationLedger(directory, 1, {
+        now: () => now,
+        receiptRetentionMilliseconds: 1_000,
+        runtimeId: "runtime-one",
+      });
+      const expired = entry(1);
+      const replayed = entry(2);
+
+      await ledger.runAgentIdempotent(
+        identity(expired),
+        attempt(expired),
+        async () => expired,
+      );
+      now = "2026-08-20T00:00:00.500Z";
+      await ledger.runAgentIdempotent(
+        identity(replayed),
+        attempt(replayed),
+        async () => replayed,
+      );
+      now = "2026-08-20T00:00:01.200Z";
+      const executeReplay = vi.fn(async () => replayed);
+
+      await expect(ledger.runAgentIdempotent(
+        identity(replayed),
+        attempt(replayed),
+        executeReplay,
+      )).resolves.toMatchObject({ replayed: true });
+      expect(executeReplay).not.toHaveBeenCalled();
+      const persisted = JSON.parse(await readFile(
+        path.join(directory, "operations-v1", "operations.json"),
+        "utf8",
+      )) as { agentReceipts: Array<{ proposalId: string }> };
+
+      expect(persisted.agentReceipts.map(({ proposalId }) => proposalId))
+        .toEqual([replayed.proposalId]);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("keeps the runtime audit limit until the durable trim succeeds", async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-operation-limit-failure-"),
+    );
+
+    try {
+      let failNextSave = false;
+      let markTrimSaveStarted!: () => void;
+      let rejectTrimSave!: (reason: unknown) => void;
+      const trimSaveStarted = new Promise<void>((resolve) => {
+        markTrimSaveStarted = resolve;
+      });
+      const trimSaveFailure = new Promise<never>((_resolve, reject) => {
+        rejectTrimSave = reject;
+      });
+      const ledger = new OperationLedger(directory, 2, {
+        replaceStateFile: async (file, source, options) => {
+          if (failNextSave) {
+            failNextSave = false;
+            markTrimSaveStarted();
+            await trimSaveFailure;
+          }
+          await replaceFileDurably(file, source, options);
+        },
+      });
+
+      for (const index of [1, 2]) {
+        const value = entry(index);
+
+        await ledger.runAgentIdempotent(
+          identity(value),
+          attempt(value),
+          async () => value,
+        );
+      }
+      failNextSave = true;
+      const updating = ledger.updateMaximumEntries(1);
+
+      await trimSaveStarted;
+      const queuedAttempt = ledger.beginAuthenticatedAttempt({
+        occurredAt: "2026-08-20T00:00:00.000Z",
+        principalId: "trusted-client",
+        requestId: "new-operation",
+        route: "/api/v3/content/workspace",
+        store: { domain: "journal" },
+      });
+
+      rejectTrimSave(new Error("durable trim failed"));
+      await expect(updating).rejects.toThrow("durable trim failed");
+      await expect(queuedAttempt).resolves.toBe("new-operation");
+      const persisted = JSON.parse(await readFile(
+        path.join(directory, "operations-v1", "operations.json"),
+        "utf8",
+      )) as {
+        auditEntries: Array<{ entry: { id: string }; pending: boolean }>;
+      };
+
+      expect(persisted.auditEntries).toHaveLength(2);
+      expect(persisted.auditEntries.filter(({ pending }) => pending))
+        .toEqual([{
+          entry: expect.objectContaining({ id: "new-operation" }),
+          pending: true,
+        }]);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("publishes a durable audit limit before the next ledger operation", async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-operation-limit-order-"),
+    );
+
+    try {
+      let holdNextSave = false;
+      let markTrimSaveStarted!: () => void;
+      let releaseTrimSave!: () => void;
+      const trimSaveStarted = new Promise<void>((resolve) => {
+        markTrimSaveStarted = resolve;
+      });
+      const trimSaveGate = new Promise<void>((resolve) => {
+        releaseTrimSave = resolve;
+      });
+      const ledger = new OperationLedger(directory, 2, {
+        replaceStateFile: async (file, source, options) => {
+          if (holdNextSave) {
+            holdNextSave = false;
+            markTrimSaveStarted();
+            await trimSaveGate;
+          }
+          await replaceFileDurably(file, source, options);
+        },
+      });
+
+      for (const index of [1, 2]) {
+        const value = entry(index);
+
+        await ledger.runAgentIdempotent(
+          identity(value),
+          attempt(value),
+          async () => value,
+        );
+      }
+      holdNextSave = true;
+      const updating = ledger.updateMaximumEntries(1);
+
+      await trimSaveStarted;
+      const queuedAttempt = ledger.beginAuthenticatedAttempt({
+        occurredAt: "2026-08-20T00:00:00.000Z",
+        principalId: "trusted-client",
+        requestId: "new-operation",
+        route: "/api/v3/content/workspace",
+        store: { domain: "journal" },
+      });
+
+      releaseTrimSave();
+      await expect(updating).resolves.toBeUndefined();
+      await expect(queuedAttempt).resolves.toBe("new-operation");
+      const persisted = JSON.parse(await readFile(
+        path.join(directory, "operations-v1", "operations.json"),
+        "utf8",
+      )) as {
+        auditEntries: Array<{ entry: { id: string }; pending: boolean }>;
+      };
+
+      expect(persisted.auditEntries).toEqual([{
+        entry: expect.objectContaining({ id: "new-operation" }),
+        pending: true,
+      }]);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("does not turn a rejected domain mutation into ledger unavailability", async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-operation-domain-error-"),
+    );
+
+    try {
+      const ledger = new OperationLedger(directory, 10);
+      const first = {
+        occurredAt: "2026-08-20T00:00:00.000Z",
+        principalId: "trusted-client",
+        requestId: "duplicate-operation",
+        route: "/api/v3/content/workspace",
+        store: { domain: "journal" as const },
+      };
+
+      await expect(ledger.beginAuthenticatedAttempt(first)).resolves.toBe(
+        first.requestId,
+      );
+      await expect(ledger.beginAuthenticatedAttempt(first)).rejects.toThrow(
+        "requestId is already present",
+      );
+      await expect(ledger.beginAuthenticatedAttempt({
+        ...first,
+        requestId: "next-operation",
+      })).resolves.toBe("next-operation");
+      await expect(ledger.status()).resolves.toEqual({ status: "available" });
     } finally {
       await rm(directory, { force: true, recursive: true });
     }
