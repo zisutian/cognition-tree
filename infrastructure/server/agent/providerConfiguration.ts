@@ -19,6 +19,8 @@ import type {
 import type { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import type {
   AgentCredentialReference,
+} from "./credentialManifest.ts";
+import type {
   AgentProviderCredentialStore,
 } from "./providerCredentialStore.ts";
 import {

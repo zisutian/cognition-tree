@@ -5,8 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  AgentProviderCredentialStore,
   maximumAgentCredentialManifestBytes,
+} from "../../../../infrastructure/server/agent/credentialManifest.ts";
+import {
+  AgentProviderCredentialStore,
 } from "../../../../infrastructure/server/agent/providerCredentialStore.ts";
 
 describe("Agent provider credential store", () => {

@@ -10,175 +10,42 @@ import {
   unlink,
 } from "node:fs/promises";
 import path from "node:path";
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import {
   assertSecureStateDirectory,
   ensureSecureStateDirectory,
   fsyncDirectory,
+  hasFileSystemErrorCode,
   isSecureRegularFile,
   readSecureFileUtf8,
   writeFileDurably,
 } from "../state/secureStateFileSystem.ts";
-import { createStateDigest } from "../state/stateDigest.ts";
-import { assertStateFields, requireStateRecord } from "../state/secureJsonPartition.ts";
+import {
+  agentApiKeyCredentialReference,
+  agentCodexManagedCredentialReference,
+  agentCodexManagedHomeReference,
+  agentCredentialDigest,
+  agentCredentialEntryReference,
+  agentCredentialFormatVersion,
+  assertAgentManagedCredentialIdentity,
+  isAgentCredentialProviderId,
+  maximumAgentCredentialManifestBytes,
+  parseAgentCredentialEntryName,
+  parseAgentCredentialManifestJson,
+  parseAgentCredentialReference,
+  parseApiKeyCredentialManifest,
+  parseCodexManagedCredentialManifest,
+  serializeAgentCredentialManifest,
+  type AgentCredentialReference,
+  type ApiKeyCredentialManifest,
+  type CodexManagedCredentialManifest,
+} from "./credentialManifest.ts";
 
-const credentialFormatVersion = 1;
-const providerIdPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
-const apiKeyReferencePattern = /^providers\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})\/api-key-v([1-9][0-9]*)\.json$/;
-const managedReferencePattern = /^providers\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})\/codex-managed-v([1-9][0-9]*)-([A-Za-z0-9][A-Za-z0-9._-]{0,127})\.json$/;
-const apiKeyFileNamePattern = /^api-key-v([1-9][0-9]*)\.json$/;
-const managedFileNamePattern = /^codex-managed-v([1-9][0-9]*)-([A-Za-z0-9][A-Za-z0-9._-]{0,127})\.json$/;
-const managedHomeNamePattern = /^codex-home-v([1-9][0-9]*)-([A-Za-z0-9][A-Za-z0-9._-]{0,127})$/;
-const digestPattern = /^sha256:[0-9a-f]{64}$/;
-export const maximumAgentCredentialManifestBytes = 1024 * 1024;
-
-type ApiKeyCredential = Readonly<{
-  apiKey: string;
-  formatVersion: typeof credentialFormatVersion;
-  providerId: string;
-  type: "api-key";
-  version: number;
-}>;
-
-type CodexManagedCredential = Readonly<{
-  formatVersion: typeof credentialFormatVersion;
-  homeReference: string;
-  providerId: string;
-  type: "chatgpt-device-code";
-  version: number;
-}>;
-
-export type AgentCredentialReference = Readonly<{
-  digest: `sha256:${string}`;
-  reference: string;
-  version: number;
-}>;
-
-function isMissing(error: unknown) {
-  return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-
-function positiveInteger(value: unknown, pathLabel: string) {
-  if (!Number.isSafeInteger(value) || (value as number) < 1) {
-    throw new Error(`${pathLabel} must be a positive integer.`);
-  }
-  return value as number;
-}
-
-function assertManagedIdentity(
-  providerId: string,
-  version: number,
-  loginId: string,
-) {
-  if (!providerIdPattern.test(providerId) || !providerIdPattern.test(loginId)) {
-    throw new Error("Codex managed credential identity is invalid.");
-  }
-  positiveInteger(version, "Codex managed credential version");
-}
-
-function credentialDigest(
-  credential: ApiKeyCredential | CodexManagedCredential,
-): `sha256:${string}` {
-  return `sha256:${createStateDigest(serializeJsonIteratively(credential, {
-    sortObjectKeys: true,
-  }))}`;
-}
-
-function serializeCredential(
-  credential: ApiKeyCredential | CodexManagedCredential,
-) {
-  const source = `${serializeJsonIteratively(credential, {
-    indent: 2,
-    sortObjectKeys: true,
-  })}\n`;
-
-  if (Buffer.byteLength(source) > maximumAgentCredentialManifestBytes) {
-    throw new Error("Agent credential exceeds the size limit.");
-  }
-  return source;
-}
-
-async function readCredentialJson(file: string) {
-  return JSON.parse(await readSecureFileUtf8(
+async function readCredentialManifest(file: string) {
+  return parseAgentCredentialManifestJson(await readSecureFileUtf8(
     file,
     maximumAgentCredentialManifestBytes,
     "Agent credential file",
-  )) as unknown;
-}
-
-function parseCredential(value: unknown): ApiKeyCredential {
-  const record = requireStateRecord(value, "Agent provider credential");
-
-  assertStateFields(record, [
-    "apiKey", "formatVersion", "providerId", "type", "version",
-  ], "Agent provider credential");
-  if (record.formatVersion !== credentialFormatVersion || record.type !== "api-key") {
-    throw new Error("Agent provider credential has an invalid format.");
-  }
-  if (typeof record.apiKey !== "string" || record.apiKey.length === 0) {
-    throw new Error("Agent provider credential API key is invalid.");
-  }
-  if (typeof record.providerId !== "string" ||
-      !providerIdPattern.test(record.providerId)) {
-    throw new Error("Agent provider credential provider id is invalid.");
-  }
-  return {
-    apiKey: record.apiKey,
-    formatVersion: credentialFormatVersion,
-    providerId: record.providerId,
-    type: "api-key",
-    version: positiveInteger(record.version, "Agent provider credential version"),
-  };
-}
-
-function parseManagedCredential(value: unknown): CodexManagedCredential {
-  const record = requireStateRecord(value, "Codex managed credential");
-
-  assertStateFields(record, [
-    "formatVersion", "homeReference", "providerId", "type", "version",
-  ], "Codex managed credential");
-  if (record.formatVersion !== credentialFormatVersion ||
-      record.type !== "chatgpt-device-code" ||
-      typeof record.providerId !== "string" ||
-      !providerIdPattern.test(record.providerId) ||
-      typeof record.homeReference !== "string") {
-    throw new Error("Codex managed credential has an invalid format.");
-  }
-  return {
-    formatVersion: credentialFormatVersion,
-    homeReference: record.homeReference,
-    providerId: record.providerId,
-    type: "chatgpt-device-code",
-    version: positiveInteger(record.version, "Codex managed credential version"),
-  };
-}
-
-function parseReference(reference: AgentCredentialReference) {
-  const apiKeyMatch = apiKeyReferencePattern.exec(reference.reference);
-  const managedMatch = managedReferencePattern.exec(reference.reference);
-  const match = apiKeyMatch ?? managedMatch;
-
-  if (!match || !digestPattern.test(reference.digest)) {
-    throw new Error("Agent credential reference is invalid.");
-  }
-  const version = positiveInteger(reference.version, "Agent credential version");
-
-  if (Number(match[2]) !== version) {
-    throw new Error("Agent credential reference version does not match its path.");
-  }
-  return {
-    kind: apiKeyMatch ? "api-key" as const : "chatgpt-device-code" as const,
-    loginId: managedMatch?.[3] ?? null,
-    providerId: match[1]!,
-    version,
-  };
-}
-
-export function validateAgentCredentialReference(
-  reference: AgentCredentialReference,
-) {
-  parseReference(reference);
-  return reference;
+  ));
 }
 
 export class AgentProviderCredentialStore {
@@ -196,24 +63,26 @@ export class AgentProviderCredentialStore {
     apiKey: string,
     version: number,
   ): Promise<AgentCredentialReference> {
-    if (!providerIdPattern.test(providerId) || apiKey.length === 0) {
+    if (
+      !isAgentCredentialProviderId(providerId) ||
+      apiKey.length === 0
+    ) {
       throw new Error("Agent API key credential input is invalid.");
     }
-    positiveInteger(version, "Agent credential version");
+    const reference = agentApiKeyCredentialReference(providerId, version);
     const providersDirectory = path.join(this.#root, "providers");
     const providerDirectory = path.join(providersDirectory, providerId);
-    const credential: ApiKeyCredential = {
+    const credential: ApiKeyCredentialManifest = {
       apiKey,
-      formatVersion: credentialFormatVersion,
+      formatVersion: agentCredentialFormatVersion,
       providerId,
       type: "api-key",
       version,
     };
-    const credentialSource = serializeCredential(credential);
-    const reference = `providers/${providerId}/api-key-v${version}.json`;
+    const credentialSource = serializeAgentCredentialManifest(credential);
     const file = path.join(this.#root, reference);
     const result = {
-      digest: credentialDigest(credential),
+      digest: agentCredentialDigest(credential),
       reference,
       version,
     } as const;
@@ -229,7 +98,7 @@ export class AgentProviderCredentialStore {
       }
       return result;
     } catch (error) {
-      if (!isMissing(error)) throw error;
+      if (!hasFileSystemErrorCode(error, "ENOENT")) throw error;
     }
     await writeFileDurably(file, credentialSource);
     await fsyncDirectory(providerDirectory);
@@ -237,7 +106,7 @@ export class AgentProviderCredentialStore {
   }
 
   async readApiKey(reference: AgentCredentialReference) {
-    if (parseReference(reference).kind !== "api-key") {
+    if (parseAgentCredentialReference(reference).kind !== "api-key") {
       throw new Error("Agent credential is not an API key.");
     }
     return (await this.#read(reference)).apiKey;
@@ -248,11 +117,14 @@ export class AgentProviderCredentialStore {
     version: number,
     loginId: string,
   ) {
-    assertManagedIdentity(providerId, version, loginId);
+    assertAgentManagedCredentialIdentity(providerId, version, loginId);
     const providersDirectory = path.join(this.#root, "providers");
     const providerDirectory = path.join(providersDirectory, providerId);
-    const homeReference =
-      `providers/${providerId}/codex-home-v${version}-${loginId}`;
+    const homeReference = agentCodexManagedHomeReference(
+      providerId,
+      version,
+      loginId,
+    );
     const home = path.join(this.#root, homeReference);
 
     await ensureSecureStateDirectory(this.#root);
@@ -262,7 +134,7 @@ export class AgentProviderCredentialStore {
       await lstat(home);
       throw new Error("Codex managed credential staging home already exists.");
     } catch (error) {
-      if (!isMissing(error)) throw error;
+      if (!hasFileSystemErrorCode(error, "ENOENT")) throw error;
     }
     await ensureSecureStateDirectory(home);
     return { home, homeReference };
@@ -273,9 +145,12 @@ export class AgentProviderCredentialStore {
     version: number,
     loginId: string,
   ): Promise<AgentCredentialReference> {
-    assertManagedIdentity(providerId, version, loginId);
-    const homeReference =
-      `providers/${providerId}/codex-home-v${version}-${loginId}`;
+    assertAgentManagedCredentialIdentity(providerId, version, loginId);
+    const homeReference = agentCodexManagedHomeReference(
+      providerId,
+      version,
+      loginId,
+    );
     const home = path.join(this.#root, homeReference);
 
     await this.#sealManagedHome(home);
@@ -284,29 +159,35 @@ export class AgentProviderCredentialStore {
     if (!isSecureRegularFile(await lstat(authFile))) {
       throw new Error("Codex device login did not create a secure auth file.");
     }
-    const credential: CodexManagedCredential = {
-      formatVersion: credentialFormatVersion,
+    const credential: CodexManagedCredentialManifest = {
+      formatVersion: agentCredentialFormatVersion,
       homeReference,
       providerId,
       type: "chatgpt-device-code",
       version,
     };
-    const reference =
-      `providers/${providerId}/codex-managed-v${version}-${loginId}.json`;
+    const reference = agentCodexManagedCredentialReference(
+      providerId,
+      version,
+      loginId,
+    );
     const result = {
-      digest: credentialDigest(credential),
+      digest: agentCredentialDigest(credential),
       reference,
       version,
     } as const;
     const file = path.join(this.#root, reference);
 
-    await writeFileDurably(file, serializeCredential(credential));
+    await writeFileDurably(
+      file,
+      serializeAgentCredentialManifest(credential),
+    );
     await fsyncDirectory(path.dirname(file));
     return result;
   }
 
   async resolveCodexManagedHome(reference: AgentCredentialReference) {
-    const parsed = parseReference(reference);
+    const parsed = parseAgentCredentialReference(reference);
 
     if (parsed.kind !== "chatgpt-device-code") {
       throw new Error("Agent credential is not Codex managed authentication.");
@@ -318,17 +199,20 @@ export class AgentProviderCredentialStore {
     await assertSecureStateDirectory(
       path.join(this.#root, "providers", parsed.providerId),
     );
-    const credential = parseManagedCredential(
-      await readCredentialJson(file),
+    const credential = parseCodexManagedCredentialManifest(
+      await readCredentialManifest(file),
     );
 
     if (credential.providerId !== parsed.providerId ||
         credential.version !== parsed.version ||
-        credentialDigest(credential) !== reference.digest) {
+        agentCredentialDigest(credential) !== reference.digest) {
       throw new Error("Codex managed credential reference verification failed.");
     }
-    const expectedHomeReference =
-      `providers/${parsed.providerId}/codex-home-v${parsed.version}-${parsed.loginId}`;
+    const expectedHomeReference = agentCodexManagedHomeReference(
+      parsed.providerId,
+      parsed.version,
+      parsed.loginId,
+    );
 
     if (credential.homeReference !== expectedHomeReference) {
       throw new Error("Codex managed credential home reference is invalid.");
@@ -347,15 +231,15 @@ export class AgentProviderCredentialStore {
     version: number,
     loginId: string,
   ) {
-    assertManagedIdentity(providerId, version, loginId);
+    assertAgentManagedCredentialIdentity(providerId, version, loginId);
     const providerDirectory = path.join(
       this.#root,
       "providers",
       providerId,
     );
     const home = path.join(
-      providerDirectory,
-      `codex-home-v${version}-${loginId}`,
+      this.#root,
+      agentCodexManagedHomeReference(providerId, version, loginId),
     );
 
     await this.#removeManagedTree(home);
@@ -366,7 +250,8 @@ export class AgentProviderCredentialStore {
   }
 
   async remove(reference: AgentCredentialReference) {
-    const { kind, loginId, providerId, version } = parseReference(reference);
+    const { kind, loginId, providerId, version } =
+      parseAgentCredentialReference(reference);
     const file = path.join(this.#root, reference.reference);
     const providerDirectory = path.join(this.#root, "providers", providerId);
 
@@ -381,7 +266,7 @@ export class AgentProviderCredentialStore {
     if (kind === "chatgpt-device-code") {
       await this.#removeManagedTree(path.join(
         this.#root,
-        `providers/${providerId}/codex-home-v${version}-${loginId}`,
+        agentCodexManagedHomeReference(providerId, version, loginId),
       ));
     }
     await unlink(file);
@@ -394,7 +279,7 @@ export class AgentProviderCredentialStore {
 
   async reconcile(references: readonly AgentCredentialReference[]) {
     const referenced = new Map(references.map((reference) => {
-      parseReference(reference);
+      parseAgentCredentialReference(reference);
       return [reference.reference, reference] as const;
     }));
     const providersDirectory = path.join(this.#root, "providers");
@@ -412,7 +297,7 @@ export class AgentProviderCredentialStore {
       return;
     }
     for (const reference of referenced.values()) {
-      const parsed = parseReference(reference);
+      const parsed = parseAgentCredentialReference(reference);
 
       if (parsed.kind === "api-key") await this.readApiKey(reference);
       else await this.resolveCodexManagedHome(reference);
@@ -430,7 +315,7 @@ export class AgentProviderCredentialStore {
 
     for (const providerEntry of providerEntries) {
       if (!providerEntry.isDirectory() ||
-          !providerIdPattern.test(providerEntry.name)) {
+          !isAgentCredentialProviderId(providerEntry.name)) {
         throw new Error("Agent credential providers partition is invalid.");
       }
       const providerId = providerEntry.name;
@@ -442,15 +327,13 @@ export class AgentProviderCredentialStore {
         withFileTypes: true,
       })) {
         const entryPath = path.join(providerDirectory, entry.name);
-        const apiKeyMatch = apiKeyFileNamePattern.exec(entry.name);
-        const managedMatch = managedFileNamePattern.exec(entry.name);
-        const homeMatch = managedHomeNamePattern.exec(entry.name);
+        const parsedEntry = parseAgentCredentialEntryName(entry.name);
 
-        if (entry.isFile() && apiKeyMatch) {
-          const credential = parseCredential(
-            await readCredentialJson(entryPath),
+        if (entry.isFile() && parsedEntry?.kind === "api-key") {
+          const credential = parseApiKeyCredentialManifest(
+            await readCredentialManifest(entryPath),
           );
-          const version = Number(apiKeyMatch[1]);
+          const { version } = parsedEntry;
 
           if (credential.providerId !== providerId ||
               credential.version !== version) {
@@ -460,21 +343,26 @@ export class AgentProviderCredentialStore {
             file: entryPath,
             home: null,
             reference: {
-              digest: credentialDigest(credential),
-              reference: `providers/${providerId}/${entry.name}`,
+              digest: agentCredentialDigest(credential),
+              reference: agentCredentialEntryReference(
+                providerId,
+                entry.name,
+              ),
               version,
             },
           });
           continue;
         }
-        if (entry.isFile() && managedMatch) {
-          const credential = parseManagedCredential(
-            await readCredentialJson(entryPath),
+        if (entry.isFile() && parsedEntry?.kind === "managed") {
+          const credential = parseCodexManagedCredentialManifest(
+            await readCredentialManifest(entryPath),
           );
-          const version = Number(managedMatch[1]);
-          const loginId = managedMatch[2]!;
-          const homeReference =
-            `providers/${providerId}/codex-home-v${version}-${loginId}`;
+          const { loginId, version } = parsedEntry;
+          const homeReference = agentCodexManagedHomeReference(
+            providerId,
+            version,
+            loginId,
+          );
 
           if (credential.providerId !== providerId ||
               credential.version !== version ||
@@ -485,17 +373,24 @@ export class AgentProviderCredentialStore {
             file: entryPath,
             home: path.join(this.#root, homeReference),
             reference: {
-              digest: credentialDigest(credential),
-              reference: `providers/${providerId}/${entry.name}`,
+              digest: agentCredentialDigest(credential),
+              reference: agentCredentialEntryReference(
+                providerId,
+                entry.name,
+              ),
               version,
             },
           });
           continue;
         }
-        if (entry.isDirectory() && homeMatch) {
+        if (entry.isDirectory() && parsedEntry?.kind === "managed-home") {
           await assertSecureStateDirectory(entryPath);
           homes.set(
-            `providers/${providerId}/${entry.name}`,
+            agentCodexManagedHomeReference(
+              providerId,
+              parsedEntry.version,
+              parsedEntry.loginId,
+            ),
             entryPath,
           );
           continue;
@@ -516,12 +411,19 @@ export class AgentProviderCredentialStore {
       }
     }
     for (const home of homes.values()) await this.#sealManagedHome(home);
-    const referencedHomes = new Set([...referenced.values()]
-      .map(parseReference)
-      .filter(({ kind }) => kind === "chatgpt-device-code")
-      .map(({ loginId, providerId, version }) =>
-        `providers/${providerId}/codex-home-v${version}-${loginId}`
-      ));
+    const referencedHomes = new Set([...referenced.values()].flatMap(
+      (reference) => {
+        const identity = parseAgentCredentialReference(reference);
+
+        return identity.kind === "chatgpt-device-code"
+          ? [agentCodexManagedHomeReference(
+              identity.providerId,
+              identity.version,
+              identity.loginId,
+            )]
+          : [];
+      },
+    ));
 
     for (const manifest of manifests) {
       if (referenced.has(manifest.reference.reference)) continue;
@@ -543,7 +445,8 @@ export class AgentProviderCredentialStore {
   }
 
   async #read(reference: AgentCredentialReference) {
-    const { kind, providerId, version } = parseReference(reference);
+    const { kind, providerId, version } =
+      parseAgentCredentialReference(reference);
 
     if (kind !== "api-key") throw new Error("Agent credential is not an API key.");
     const file = path.join(this.#root, reference.reference);
@@ -551,10 +454,12 @@ export class AgentProviderCredentialStore {
     await assertSecureStateDirectory(this.#root);
     await assertSecureStateDirectory(path.join(this.#root, "providers"));
     await assertSecureStateDirectory(path.join(this.#root, "providers", providerId));
-    const credential = parseCredential(await readCredentialJson(file));
+    const credential = parseApiKeyCredentialManifest(
+      await readCredentialManifest(file),
+    );
 
     if (credential.providerId !== providerId || credential.version !== version ||
-        credentialDigest(credential) !== reference.digest) {
+        agentCredentialDigest(credential) !== reference.digest) {
       throw new Error("Agent credential reference verification failed.");
     }
     return credential;
@@ -591,7 +496,7 @@ export class AgentProviderCredentialStore {
       await assertSecureStateDirectory(directory);
       return true;
     } catch (error) {
-      if (isMissing(error)) return false;
+      if (hasFileSystemErrorCode(error, "ENOENT")) return false;
       throw error;
     }
   }
@@ -600,7 +505,7 @@ export class AgentProviderCredentialStore {
     try {
       await this.#sealManagedHome(directory);
     } catch (error) {
-      if (isMissing(error)) return;
+      if (hasFileSystemErrorCode(error, "ENOENT")) return;
       throw error;
     }
     await rm(directory, { recursive: true });

@@ -2,6 +2,7 @@
 
 import { chmod, lstat, mkdir } from "node:fs/promises";
 import path from "node:path";
+import { hasFileSystemErrorCode } from "../persistence/fileSystemError.ts";
 import {
   fsyncDirectory,
   isSecureDirectory,
@@ -9,10 +10,6 @@ import {
   readSecureFileUtf8,
   writeFileDurably,
 } from "../persistence/fileSystemPersistence.ts";
-
-function isMissing(error: unknown) {
-  return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
 
 async function findExistingAncestor(directory: string) {
   let current = path.dirname(path.resolve(directory));
@@ -22,7 +19,7 @@ async function findExistingAncestor(directory: string) {
       await lstat(current);
       return current;
     } catch (error) {
-      if (!isMissing(error)) throw error;
+      if (!hasFileSystemErrorCode(error, "ENOENT")) throw error;
     }
     const parent = path.dirname(current);
 
@@ -64,7 +61,7 @@ export async function ensureSecureStateDirectory(directory: string) {
   try {
     stats = await lstat(resolvedDirectory);
   } catch (error) {
-    if (!isMissing(error)) throw error;
+    if (!hasFileSystemErrorCode(error, "ENOENT")) throw error;
     existingAncestor = await findExistingAncestor(resolvedDirectory);
     await mkdir(resolvedDirectory, { mode: 0o700, recursive: true });
     stats = await lstat(resolvedDirectory);
@@ -97,6 +94,7 @@ export async function assertSecureStateDirectory(directory: string) {
 
 export {
   fsyncDirectory,
+  hasFileSystemErrorCode,
   isSecureRegularFile,
   readSecureFileUtf8,
   writeFileDurably,

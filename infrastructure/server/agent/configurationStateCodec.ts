@@ -12,10 +12,10 @@ import {
 } from "../state/secureJsonPartition.ts";
 import type {
   AgentCredentialReference,
-} from "./providerCredentialStore.ts";
+} from "./credentialManifest.ts";
 import {
   validateAgentCredentialReference,
-} from "./providerCredentialStore.ts";
+} from "./credentialManifest.ts";
 
 const formatVersion = 5;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
