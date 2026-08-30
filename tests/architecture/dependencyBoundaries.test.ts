@@ -224,6 +224,31 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps Provider operation implementations behind their facade", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath:
+          "../../infrastructure/server/agent/providerOperations.ts",
+        importPath: "./conformanceOperations",
+        targetPath:
+          "../../infrastructure/server/agent/conformanceOperations.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath:
+          "../../infrastructure/server/agent/providerOperations.ts",
+        importPath: "./configuredAgentRuntimeFactory",
+        targetPath:
+          "../../infrastructure/server/agent/configuredAgentRuntimeFactory.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "Agent Provider operation facade composition boundary: ../../infrastructure/server/agent/providerOperations.ts imports ./configuredAgentRuntimeFactory",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

@@ -68,6 +68,18 @@ const clientAreaImports: Readonly<Record<string, readonly string[]>> = {
   runtime: ["http", "platform", "repository", "runtime"],
 };
 
+const agentProviderOperationFacadePath =
+  "../../infrastructure/server/agent/providerOperations.ts";
+const agentProviderOperationFacadeTargets: ReadonlySet<string> = new Set([
+  "../../infrastructure/server/agent/codexDeviceLoginOperations.ts",
+  "../../infrastructure/server/agent/configurationStore.ts",
+  "../../infrastructure/server/agent/conformanceOperations.ts",
+  "../../infrastructure/server/agent/providerOperationErrors.ts",
+  "../../infrastructure/server/agent/providerProbe.ts",
+  "../../infrastructure/server/agent/providerTargetPolicy.ts",
+  "../../infrastructure/server/api/http/runtime.ts",
+]);
+
 function peerDomain(filePath: string) {
   return filePath.match(
     /^(?:\.\.\/\.\.\/)?(?:core|application)\/(workspace|journal|todo)\//,
@@ -207,6 +219,12 @@ export function createDependencyImportPolicies({
           "../../infrastructure/server/agent/sessionTools.ts" &&
         isConcreteDomainModule(targetPath),
       name: "Agent session tool coordinator independence from domains",
+    },
+    {
+      allows: ({ targetPath }) =>
+        agentProviderOperationFacadeTargets.has(targetPath),
+      applies: ({ filePath }) => filePath === agentProviderOperationFacadePath,
+      name: "Agent Provider operation facade composition boundary",
     },
     {
       allows: () => false,
