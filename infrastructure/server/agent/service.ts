@@ -63,6 +63,7 @@ import {
   type AgentProposalCommitRoute,
 } from "./proposalCommitter.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
+import { AgentProfileTurnQueue } from "./profileTurnQueue.ts";
 import { AgentSessionTools } from "./sessionTools.ts";
 import { toAgentProposalDto } from "./proposalCodec.ts";
 import { agentRuntimeToolsForScope } from "./sessionToolProtocol.ts";
@@ -108,7 +109,7 @@ export class AgentService {
   readonly #ledger: OperationLedger | null;
   readonly #openingProfiles = new Map<string, number>();
   readonly #operations = new Set<Promise<unknown>>();
-  readonly #profileQueues = new Map<string, Promise<void>>();
+  readonly #profileTurns = new AgentProfileTurnQueue();
   readonly #proposalCommitter: AgentProposalCommitter;
   readonly #runtime: ApiRuntime;
   readonly #runtimeFactory: AgentRuntimeFactory;
@@ -426,14 +427,17 @@ export class AgentService {
     this.#assertOpen();
     const record = this.#requireSession(sessionId);
     const turnId = this.#runtime.createId();
-    const queued = this.#profileQueues.has(record.profile.id);
+    const queued = this.#profileTurns.has(record.profile.id);
 
     record.controller.beginTurn(turnId, queued);
     record.controller.addMessage("user", content);
     record.controller.clearProblem();
     record.abortController = new AbortController();
     this.#emitSnapshot(record);
-    this.#enqueue(record, () => this.#runConversationTurn(record, turnId));
+    this.#profileTurns.enqueue(
+      record.profile.id,
+      () => this.#runConversationTurn(record, turnId),
+    );
     return { accepted: true as const, turnId };
   }
 
@@ -635,7 +639,7 @@ export class AgentService {
     disposals: readonly Promise<void>[],
   ) {
     await Promise.allSettled([...starts, ...operations, ...disposals]);
-    await Promise.allSettled(this.#profileQueues.values());
+    await this.#profileTurns.waitForIdle();
     await Promise.allSettled(this.#sessionDisposals.values());
     await this.#ipc.dispose();
   }
@@ -734,20 +738,6 @@ export class AgentService {
         },
       },
     };
-  }
-
-  #enqueue(record: SessionRecord, task: () => Promise<void>) {
-    const profileId = record.profile.id;
-    const previous = this.#profileQueues.get(profileId) ?? Promise.resolve();
-    const current = previous.catch(() => undefined).then(task);
-    const tracked = current.finally(() => {
-      if (this.#profileQueues.get(profileId) === tracked) {
-        this.#profileQueues.delete(profileId);
-      }
-    });
-
-    this.#profileQueues.set(profileId, tracked);
-    void tracked.catch(() => undefined);
   }
 
   async #runConversationTurn(record: SessionRecord, turnId: string) {
@@ -947,13 +937,13 @@ export class AgentService {
   ) {
     if (record.controller.snapshot().activeTurnId) return;
     const turnId = this.#runtime.createId();
-    const queued = this.#profileQueues.has(record.profile.id);
+    const queued = this.#profileTurns.has(record.profile.id);
     const controller = new AbortController();
 
     record.controller.beginTurn(turnId, queued);
     record.abortController = controller;
     this.#emitSnapshot(record);
-    this.#enqueue(record, async () => {
+    this.#profileTurns.enqueue(record.profile.id, async () => {
       if (controller.signal.aborted) {
         this.#completeCancelled(record, turnId);
         return;
