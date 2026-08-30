@@ -105,6 +105,7 @@ export type TodoViewModel = TodoMutationActions & {
     focusTarget: { lineNumber: number; requestId: number } | null;
     onActiveLineChange: (lineNumber: number) => void;
     onConsumeFocusTarget: (requestId: number) => void;
+    readOnly: boolean;
     syntax: CtnCompiledSyntax;
     updateBody: (change: CtnEditableSourceChange) => void;
   };
@@ -405,6 +406,7 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
         : null,
       onActiveLineChange: updateActiveBodyLine,
       onConsumeFocusTarget: consumeFocusRequest,
+      readOnly: persistence.status === "conflict",
       syntax: index.syntax,
       updateBody(change) {
         if (activeCollectionId) {

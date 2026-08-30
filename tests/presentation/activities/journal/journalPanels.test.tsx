@@ -112,6 +112,29 @@ describe("Journal panels", () => {
     });
   });
 
+  it("renders the editor read-only while the repository is conflicted", () => {
+    const base = createJournalView();
+    const view = {
+      ...base,
+      editor: { ...base.editor, readOnly: true },
+      persistence: {
+        remoteRevision: `sha256:${"a".repeat(64)}` as const,
+        status: "conflict" as const,
+      },
+    };
+    const markup = renderToStaticMarkup(
+      <JournalEditorPanel
+        focusMode={false}
+        view={view}
+        onToggleFocusMode={() => undefined}
+      />,
+    );
+
+    expectMarkupSemantics(markup, {
+      has: ['data-editor-read-only="true"'],
+    });
+  });
+
   it("shows the selected body block timestamps with the entry structure", () => {
     const base = createJournalView();
     const view = {

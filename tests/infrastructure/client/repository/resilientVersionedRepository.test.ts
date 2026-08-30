@@ -4,6 +4,7 @@ import { createMemoryVersionedRepositoryCache } from "../../../../infrastructure
 import {
   VersionedRepositoryBackendConflictError,
   VersionedRepositoryBackendMergeConflictError,
+  VersionedRepositoryLocalConflictError,
   VersionedRepositoryUnavailableError,
 } from "../../../../application/persistence/versionedRepository";
 
@@ -321,7 +322,7 @@ describe("local-first versioned repository", () => {
     });
   });
 
-  it("preserves cached local content across offline reload and projects CAS conflict", async () => {
+  it("does not publish an unrecoverable conflict when the exact remote snapshot is offline", async () => {
     const cache = createMemoryVersionedRepositoryCache<
       Content,
       Revision,
@@ -364,13 +365,15 @@ describe("local-first versioned repository", () => {
       content: { records: [{ done: true, text: "cached" }] },
       pendingChanges: true,
     });
-    const conflicted = await repository.synchronizePendingSnapshot();
+    const failed = await repository.synchronizePendingSnapshot();
 
-    expect(conflicted.status).toBe("conflict");
-    expect(conflicted.transitions.at(-1)?.snapshot).toMatchObject({
-      conflictRevision: "revision:9",
-      remoteRevision: "revision:9",
+    expect(failed.status).toBe("sync-error");
+    expect(failed.transitions.at(-1)?.snapshot).toMatchObject({
+      conflictRevision: null,
+      pendingChanges: true,
+      remoteRevision: "revision:1",
     });
+    await expect(repository.loadConflict()).resolves.toBeNull();
   });
 
   it("records server conflict units only after rereading the exact reported revision", async () => {
@@ -403,7 +406,13 @@ describe("local-first versioned repository", () => {
       label: "generic",
       loadPolicy: { mode: "cache-first" },
       location: { kind: "memory" },
-      mergeContent: () => ({ status: "conflict", unitIds: ["local"] }),
+      mergeContent: (_base, localPrepared, remotePrepared, preference) =>
+        preference
+          ? {
+              ...(preference === "local" ? localPrepared : remotePrepared),
+              status: "merged" as const,
+            }
+          : { status: "conflict" as const, unitIds: ["record:shared"] },
       preparation: contentPreparation,
       repositoryIdentity: "generic:server-conflict",
     });
@@ -421,9 +430,124 @@ describe("local-first versioned repository", () => {
     await expect(repository.loadConflict()).resolves.toEqual({
       base,
       local,
+      localRevision: "local:3",
       remote,
       remoteRevision: "revision:2",
       unitIds: ["record:shared"],
+    });
+    await expect(repository.resolveConflictAndSynchronize(
+      {
+        localRevision: "local:999",
+        remoteRevision: "revision:2",
+      },
+      "local",
+    )).rejects.toBeInstanceOf(VersionedRepositoryLocalConflictError);
+    await expect(repository.resolveConflictAndSynchronize(
+      {
+        localRevision: "local:3",
+        remoteRevision: "revision:999",
+      },
+      "local",
+    )).rejects.toThrow("Repository conflict proof is no longer current.");
+    await expect(repository.resolveConflictAndSynchronize(
+      {
+        localRevision: "local:3",
+        remoteRevision: "revision:2",
+      },
+      "remote",
+      (prepared) => ({ coveredUnitIds: [], prepared }),
+    )).rejects.toThrow(
+      "Repository conflict recovery did not cover every discarded unit.",
+    );
+    await expect(repository.loadConflict()).resolves.toMatchObject({
+      localRevision: "local:3",
+      remoteRevision: "revision:2",
+      unitIds: ["record:shared"],
+    });
+  });
+
+  it("returns the rebased authority when remote conflict recovery fails after resolution", async () => {
+    let remoteLoad = 0;
+    let synchronizeCall = 0;
+    let localIndex = 0;
+    const base = { records: [] };
+    const local = { records: [{ done: false, text: "local" }] };
+    const remote = { records: [{ done: false, text: "remote" }] };
+    const repository = createLocalFirstVersionedRepository({
+      backend: {
+        async loadRemoteSnapshot() {
+          remoteLoad += 1;
+          if (remoteLoad === 3) {
+            throw new Error("remote snapshot could not be verified");
+          }
+          return remoteLoad === 1
+            ? { content: base, revision: "revision:1" as const }
+            : { content: remote, revision: "revision:2" as const };
+        },
+        async synchronizeRemoteSnapshot() {
+          synchronizeCall += 1;
+          if (synchronizeCall === 1) {
+            throw new VersionedRepositoryBackendMergeConflictError({
+              baseRevision: "revision:1" as const,
+              currentRevision: "revision:2" as const,
+              unitIds: ["record:shared"],
+            });
+          }
+          throw new VersionedRepositoryBackendConflictError(
+            "revision:3" as const,
+          );
+        },
+      },
+      cache: createMemoryVersionedRepositoryCache<
+        Content,
+        Revision,
+        LocalRevision
+      >(),
+      createLocalRevision: () => `local:${localIndex += 1}`,
+      label: "generic",
+      loadPolicy: { mode: "cache-first" },
+      location: { kind: "memory" },
+      mergeContent: (_base, preparedLocal, _remote, preference) =>
+        preference === "local"
+          ? { ...preparedLocal, status: "merged" as const }
+          : { status: "conflict" as const, unitIds: ["record:shared"] },
+      preparation: contentPreparation,
+      repositoryIdentity: "generic:resolution-recovery",
+    });
+    const initial = await repository.loadSnapshot();
+
+    await repository.stageSnapshot(replaceContent(initial, local));
+    await expect(repository.synchronizePendingSnapshot()).resolves.toMatchObject({
+      status: "conflict",
+    });
+    const conflict = await repository.loadConflict();
+    if (!conflict) throw new Error("expected a persisted conflict");
+
+    const resolved = await repository.resolveConflictAndSynchronize(
+      {
+        localRevision: conflict.localRevision,
+        remoteRevision: conflict.remoteRevision,
+      },
+      "local",
+    );
+
+    expect(resolved).toMatchObject({
+      message: "remote snapshot could not be verified",
+      status: "sync-error",
+    });
+    expect(resolved.transitions.at(-1)?.snapshot).toMatchObject({
+      conflictRevision: null,
+      content: local,
+      localRevision: "local:4",
+      pendingChanges: true,
+      remoteRevision: "revision:2",
+    });
+    await expect(repository.loadConflict()).resolves.toBeNull();
+    await expect(repository.loadSnapshot()).resolves.toMatchObject({
+      content: local,
+      localRevision: "local:4",
+      pendingChanges: true,
+      remoteRevision: "revision:2",
     });
   });
 

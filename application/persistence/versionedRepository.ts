@@ -112,17 +112,44 @@ export type VersionedContentMergeResult<Content, Projection> =
 export type VersionedRepositoryConflictRecord<
   Content,
   Revision extends string,
-> = {
+> = Readonly<{
   base: Content;
   local: Content;
   remote: Content;
   remoteRevision: Revision;
-  unitIds: string[];
-};
+  unitIds: readonly string[];
+}>;
+
+export type VersionedRepositoryConflictSnapshot<
+  Content,
+  Revision extends string,
+  LocalRevision extends string,
+> = VersionedRepositoryConflictRecord<Content, Revision> & Readonly<{
+  localRevision: LocalRevision;
+}>;
+
+export type VersionedRepositoryConflictProof<
+  Revision extends string,
+  LocalRevision extends string,
+> = Readonly<{
+  localRevision: LocalRevision;
+  remoteRevision: Revision;
+}>;
+
+export type VersionedRepositoryConflictDetails<Revision extends string> =
+  Readonly<{
+    remoteRevision: Revision;
+    unitIds: readonly string[];
+  }>;
 
 export type PreparedVersionedConflictSources<Content, Projection> = Readonly<{
   local: PreparedVersionedContent<Content, Projection>;
   remote: PreparedVersionedContent<Content, Projection>;
+}>;
+
+export type PreparedVersionedConflictRecovery<Content, Projection> = Readonly<{
+  coveredUnitIds: readonly string[];
+  prepared: PreparedVersionedContent<Content, Projection>;
 }>;
 
 type VersionedRepositorySyncResultBase<
@@ -218,23 +245,20 @@ export type VersionedRepository<
     VersionedRepositorySnapshot<Content, Revision, LocalRevision, Projection>
   >;
   loadConflict(): Promise<
-    VersionedRepositoryConflictRecord<Content, Revision> | null
-  >;
-  keepLocalConflictAndSynchronize(): Promise<
-    VersionedRepositorySyncResult<
+    VersionedRepositoryConflictSnapshot<
       Content,
-      Projection,
       Revision,
       LocalRevision
-    >
+    > | null
   >;
   resolveConflictAndSynchronize(
+    proof: VersionedRepositoryConflictProof<Revision, LocalRevision>,
     preference: VersionedContentConflictPreference,
     transform?: (
       prepared: PreparedVersionedContent<Content, Projection>,
       conflict: VersionedRepositoryConflictRecord<Content, Revision>,
       sources: PreparedVersionedConflictSources<Content, Projection>,
-    ) => PreparedVersionedContent<Content, Projection>,
+    ) => PreparedVersionedConflictRecovery<Content, Projection>,
   ): Promise<
     VersionedRepositorySyncResult<
       Content,

@@ -4,8 +4,10 @@ import { EditorView } from "@codemirror/view";
 import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types";
 import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
 import {
+  createCtnEditorReadOnlyExtensions,
   createCtnEditorExtensions,
   createCtnEditorRuntimeExtensions,
+  ctnEditorReadOnlyCompartment,
   getCtnEditorActiveLineNumber,
 } from "./ctnEditorExtensions";
 import type { CtnEditorParsedContentMode } from "./ctnEditorContentMode";
@@ -34,6 +36,7 @@ type CtnEditorBaseProps = {
   onConsumeFocusTarget: (requestId: number) => void;
   onOpenReference?: (target: CtnEditorReferenceTarget) => void;
   onToggleCheckableBlock?: (blockId: string) => void;
+  readOnly?: boolean;
 };
 
 type CtnEditorProps = CtnEditorBaseProps & (
@@ -86,6 +89,7 @@ export function CtnEditor(props: CtnEditorProps) {
     onConsumeFocusTarget,
     onOpenReference,
     onToggleCheckableBlock,
+    readOnly = false,
   } = props;
   const editorHostRef = useRef<HTMLDivElement | null>(null);
   const editorViewRef = useRef<EditorView | null>(null);
@@ -109,8 +113,10 @@ export function CtnEditor(props: CtnEditorProps) {
   }, [onOpenReference]);
 
   useEffect(() => {
-    onToggleCheckableBlockRef.current = onToggleCheckableBlock;
-  }, [onToggleCheckableBlock]);
+    onToggleCheckableBlockRef.current = readOnly
+      ? undefined
+      : onToggleCheckableBlock;
+  }, [onToggleCheckableBlock, readOnly]);
 
   useEffect(() => {
     if (!editorHostRef.current || editorViewRef.current) {
@@ -127,6 +133,7 @@ export function CtnEditor(props: CtnEditorProps) {
           onOpenReferenceRef,
           onActiveLineChangeRef,
           onToggleCheckableBlockRef,
+          readOnly,
         ),
       }),
     });
@@ -194,6 +201,17 @@ export function CtnEditor(props: CtnEditorProps) {
   useEffect(() => {
     const view = editorViewRef.current;
 
+    if (!view) return;
+    view.dispatch({
+      effects: ctnEditorReadOnlyCompartment.reconfigure(
+        createCtnEditorReadOnlyExtensions(readOnly),
+      ),
+    });
+  }, [readOnly]);
+
+  useEffect(() => {
+    const view = editorViewRef.current;
+
     if (
       !view ||
       !focusTarget ||
@@ -221,6 +239,7 @@ export function CtnEditor(props: CtnEditorProps) {
     <div
       className="source-editor"
       data-editor-mode={contentMode.kind}
+      data-editor-read-only={readOnly ? "true" : "false"}
       ref={editorHostRef}
     />
   );

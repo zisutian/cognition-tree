@@ -133,9 +133,6 @@ function createBuiltInRepository<Content, Projection>(
       };
       return snapshot;
     },
-    keepLocalConflictAndSynchronize: async () => {
-      throw new Error("Unexpected built-in conflict resolution in workbench test.");
-    },
     label,
     loadConflict: async () => null,
     loadSnapshot: async () => snapshot,
@@ -187,9 +184,6 @@ function createWorkspaceRepository(
 
   return {
     discardPendingSnapshotAndReload: readSnapshot,
-    keepLocalConflictAndSynchronize: async () => {
-      throw new Error("Unexpected workspace conflict resolution in workbench test.");
-    },
     label: descriptor.label,
     loadConflict: async () => null,
     loadSnapshot: readSnapshot,

@@ -85,7 +85,10 @@ describe("ordinary repository runtime issue projection", () => {
     expect(projectWorkspaceRepositoryRuntimeIssues(source({
       discardPendingChangesAndReload: async () => undefined,
       keepLocalConflictAndSynchronize: async () => undefined,
-      loadConflictUnitIds: async () => [],
+      loadConflictDetails: async () => ({
+        remoteRevision: "sha256:remote",
+        unitIds: [],
+      }),
       persistence: {
         remoteRevision: "sha256:remote",
         status: "conflict",
@@ -106,7 +109,10 @@ describe("ordinary repository runtime issue projection", () => {
     expect(projectWorkspaceRepositoryRuntimeIssues(source({
       discardPendingChangesAndReload: async () => undefined,
       keepLocalConflictAndSynchronize: async () => undefined,
-      loadConflictUnitIds: async () => [],
+      loadConflictDetails: async () => ({
+        remoteRevision: "sha256:remote",
+        unitIds: [],
+      }),
       persistence: {
         localCopySafe: false,
         message: "无法保存本地副本。",

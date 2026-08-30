@@ -249,7 +249,7 @@ export function projectOrdinaryRepositoryViewModel(
           persistence?.status === "conflict"
         ? {
             keepLocal: source.session.keepLocalConflictAndSynchronize,
-            loadUnitIds: source.session.loadConflictUnitIds,
+            loadDetails: source.session.loadConflictDetails,
             recoverLocalCopy: source.session.recoverLocalConflictCopy,
             useRemote: source.session.useRemoteConflictAndSynchronize,
           }

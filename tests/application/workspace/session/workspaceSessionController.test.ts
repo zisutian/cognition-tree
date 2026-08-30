@@ -115,9 +115,6 @@ function createRepositoryHarness({
   );
   const repository: WorkspaceRepository = {
     discardPendingSnapshotAndReload: () => discard(),
-    async keepLocalConflictAndSynchronize() {
-      throw new Error("Unexpected conflict resolution in workspace session test.");
-    },
     label: "test repository",
     loadConflict: async () => null,
     loadSnapshot: () => load(),

@@ -116,7 +116,7 @@ export type WorkbenchWorkspaceFacade = Pick<
   | "flushPendingChanges"
   | "synchronizePendingChanges"
   | "keepLocalConflictAndSynchronize"
-  | "loadConflictUnitIds"
+  | "loadConflictDetails"
   | "prepareForRepositoryRemoval"
   | "recoverLocalConflictCopy"
   | "reload"
@@ -130,7 +130,7 @@ export type WorkbenchBuiltInFacade<
   Controller,
   | "discardPendingChangesAndReload"
   | "keepLocalConflictAndSynchronize"
-  | "loadConflictUnitIds"
+  | "loadConflictDetails"
   | "mutate"
   | "recoverLocalConflictCopy"
   | "reload"
@@ -391,8 +391,8 @@ export function createWorkbenchController({
       requireWorkspaceController().synchronizePendingChanges(...args),
     keepLocalConflictAndSynchronize: (...args) =>
       requireWorkspaceController().keepLocalConflictAndSynchronize(...args),
-    loadConflictUnitIds: (...args) =>
-      requireWorkspaceController().loadConflictUnitIds(...args),
+    loadConflictDetails: (...args) =>
+      requireWorkspaceController().loadConflictDetails(...args),
     prepareForRepositoryRemoval: (...args) =>
       requireWorkspaceController().prepareForRepositoryRemoval(...args),
     recoverLocalConflictCopy: (...args) =>
@@ -408,8 +408,8 @@ export function createWorkbenchController({
       journalSlot.getController().discardPendingChangesAndReload(...args),
     keepLocalConflictAndSynchronize: (...args) =>
       journalSlot.getController().keepLocalConflictAndSynchronize(...args),
-    loadConflictUnitIds: (...args) =>
-      journalSlot.getController().loadConflictUnitIds(...args),
+    loadConflictDetails: (...args) =>
+      journalSlot.getController().loadConflictDetails(...args),
     mutate: (...args) => journalSlot.getController().mutate(...args),
     recoverLocalConflictCopy: (...args) =>
       journalSlot.getController().recoverLocalConflictCopy(...args),
@@ -426,8 +426,8 @@ export function createWorkbenchController({
       todoSlot.getController().discardPendingChangesAndReload(...args),
     keepLocalConflictAndSynchronize: (...args) =>
       todoSlot.getController().keepLocalConflictAndSynchronize(...args),
-    loadConflictUnitIds: (...args) =>
-      todoSlot.getController().loadConflictUnitIds(...args),
+    loadConflictDetails: (...args) =>
+      todoSlot.getController().loadConflictDetails(...args),
     mutate: (...args) => todoSlot.getController().mutate(...args),
     recoverLocalConflictCopy: (...args) =>
       todoSlot.getController().recoverLocalConflictCopy(...args),

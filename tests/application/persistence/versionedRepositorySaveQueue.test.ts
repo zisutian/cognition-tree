@@ -126,9 +126,6 @@ function createQueueHarness({
   let snapshot = initialSnapshot;
   const repository: WorkspaceRepository = {
     discardPendingSnapshotAndReload: async () => createSnapshot(),
-    async keepLocalConflictAndSynchronize() {
-      throw new Error("Unexpected conflict resolution in save queue test.");
-    },
     label: "test repository",
     loadConflict: async () => null,
     loadSnapshot: async () => snapshot,
@@ -446,7 +443,7 @@ describe("workspace session save queue", () => {
     harness.queue.dispose();
   });
 
-  it("continues staging after a conflict and keeps only the newest local pending snapshot", async () => {
+  it("rejects new queue entries after publishing a conflict", async () => {
     vi.useFakeTimers();
     const conflictRevision = remoteRevision("c");
     const synchronize = vi.fn(async () => createSyncResult({
@@ -466,13 +463,12 @@ describe("workspace session save queue", () => {
       status: "conflict",
     });
 
-    harness.queue.enqueue(prepareContent("superseded after conflict"));
-    harness.queue.enqueue(prepareContent("latest after conflict"));
-    await harness.queue.flushLocal();
-
-    expect(harness.localContents.at(-1)?.workspace.name).toBe(
-      "latest after conflict",
+    expect(() =>
+      harness.queue.enqueue(prepareContent("after conflict"))
+    ).toThrow(
+      "Repository conflict must be resolved before editing.",
     );
+    expect(harness.localContents.at(-1)?.workspace.name).toBe("before conflict");
     expect(synchronize).toHaveBeenCalledTimes(1);
     expect(harness.persistence.at(-1)).toEqual({
       remoteRevision: conflictRevision,

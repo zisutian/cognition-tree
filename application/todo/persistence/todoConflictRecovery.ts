@@ -25,22 +25,30 @@ export type TodoConflictRecoveryDependencies = {
 
 function todoConflictCollectionIds(unitIds: readonly string[]) {
   const prefix = "todo:collection:";
+  const suffix = ":body";
 
-  return unitIds.flatMap((unitId) => {
-    if (!unitId.startsWith(prefix)) return [];
-    const collectionId = unitId.slice(prefix.length).replace(/:body$/, "");
+  return unitIds.map((unitId) => {
+    const collectionId = unitId.startsWith(prefix) && unitId.endsWith(suffix)
+      ? unitId.slice(prefix.length, -suffix.length)
+      : "";
 
-    return [collectionId as TodoCollectionId];
+    if (!collectionId) {
+      throw new Error(`当前冲突单元无法无损另存：${unitId}`);
+    }
+    return collectionId as TodoCollectionId;
   });
 }
 
-function createRecoveryCollectionName(index: TodoParseIndex) {
+function createRecoveryCollectionName(
+  index: TodoParseIndex,
+  localName: string,
+) {
   const names = new Set(
     index.collections.map(({ name }) => createPortableNameKey(name)),
   );
 
   for (let index = 1; index <= 10_000; index += 1) {
-    const candidate = `本地恢复副本 ${index}`;
+    const candidate = `${localName} 本地恢复副本 ${index}`;
 
     if (!names.has(createPortableNameKey(candidate))) return candidate;
   }
@@ -54,16 +62,22 @@ export function recoverTodoLocalConflictCopies(
   localPrepared: PreparedVersionedContent<TodoContent, TodoParseIndex>,
 ) {
   const localIndex = localPrepared.projection;
+  const recoverableCollections = todoConflictCollectionIds(conflict.unitIds)
+    .map((sourceCollectionId) => {
+      const localCollection = localIndex.getParsedCollection(
+        sourceCollectionId,
+      );
+
+      if (!localCollection) {
+        throw new Error(`本地冲突清单不可用于另存：${sourceCollectionId}`);
+      }
+      return localCollection;
+    });
   let next = selected.content;
   let currentIndex = selected.projection;
   let recovered = 0;
 
-  for (
-    const sourceCollectionId of todoConflictCollectionIds(conflict.unitIds)
-  ) {
-    const localCollection = localIndex.getParsedCollection(sourceCollectionId);
-
-    if (!localCollection) continue;
+  for (const localCollection of recoverableCollections) {
     const body = createTodoCollectionBodyProjection(localCollection).source;
     const timestamp = dependencies.now();
     const collectionId = dependencies.createTodoCollectionId();
@@ -71,7 +85,7 @@ export function recoverTodoLocalConflictCopies(
       collectionId,
       createBlockId: dependencies.createBlockId,
       createdAt: timestamp,
-      name: createRecoveryCollectionName(currentIndex),
+      name: createRecoveryCollectionName(currentIndex, localCollection.name),
     });
     const createdIndex = createTodoParseIndex(
       created.content,
@@ -96,8 +110,11 @@ export function recoverTodoLocalConflictCopies(
     );
     recovered += 1;
   }
-  if (recovered === 0) {
+  if (recovered !== conflict.unitIds.length || recovered === 0) {
     throw new Error("当前冲突不包含可另存的本地正文。");
   }
-  return { content: next, projection: currentIndex };
+  return {
+    coveredUnitIds: [...conflict.unitIds],
+    prepared: { content: next, projection: currentIndex },
+  };
 }

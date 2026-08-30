@@ -61,6 +61,7 @@ export function TodoEditorPanel({
         onToggleCheckableBlock={(blockId) => feedback.runAction(() =>
           view.toggleBlock(view.activeCollection!.id, blockId)
         )}
+        readOnly={view.editor.readOnly}
       />
     </CtnEditorPanel>
   );

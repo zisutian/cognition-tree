@@ -123,6 +123,7 @@ export type JournalViewModel = {
     } | null;
     onActiveLineChange: (lineNumber: number) => void;
     onConsumeFocusTarget: (requestId: number) => void;
+    readOnly: boolean;
     stats: {
       lineCount: number;
       rootCount: number;
@@ -462,6 +463,7 @@ export function createJournalViewModel({
           : null,
       onActiveLineChange: updateActiveBodyLine,
       onConsumeFocusTarget: consumeFocusRequest,
+      readOnly: persistence.status === "conflict",
       stats: {
         lineCount: (activeProjection?.source ?? "").split("\n").length,
         rootCount: bodyRoots.length,

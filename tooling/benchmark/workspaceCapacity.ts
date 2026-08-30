@@ -484,6 +484,7 @@ await measure("repository.memory.seed", () =>
 await measure("repository.memory.singleResourceStage", async () => {
   memoryStageAttempts += 1;
   await memoryCache.snapshots.stage({
+    conflictUnitIds: null,
     content: editedContent,
     expectedLocalRevision: firstDraftRevision,
     identity: memoryRepositoryIdentity,
@@ -494,6 +495,7 @@ await measure("repository.memory.staleCas", () => {
   memoryStageAttempts += 1;
   return assert.rejects(
     memoryCache.snapshots.stage({
+      conflictUnitIds: null,
       content,
       expectedLocalRevision: firstDraftRevision,
       identity: memoryRepositoryIdentity,

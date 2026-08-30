@@ -248,10 +248,26 @@ completion 和 recurrence 为单元三方合并；不同单元可自动合并，
 浏览器发起同步时固定已提交内容 `L` 与 local revision `R`。响应 snapshot `S` 到达后，
 若本地未变则安装 `S`；若已产生 `L2`，必须执行 `merge(L, L2, S)`，再以 local-revision
 CAS 安装为基于 `S.revision` 的 pending。重叠时保存 `L/L2/S` 为本地 conflict；安装中
-再次编辑最多重新计算三次，绝不能只把 `L2` 挂到新 revision。服务端
+再次编辑最多重新计算三次，绝不能只把 `L2` 挂到新 revision。`conflict` 状态只有在
+`base/local/remote/unitIds` 完整保存后才能发布；只取得远端 revision 或远端重读失败时
+保留原 pending snapshot 并报告 sync error，不构造不可恢复的半冲突。服务端
 `merge_conflict.currentRevision=C` 后的 GET 只有 revision 仍等于 `C` 才能使用旧冲突
 单元，否则再次把原 base/local 交给服务端计算。刷新不会恢复尚未同步的 base 或
 conflict。
+
+冲突动作先由 VersionedSessionController 冻结 mutation、排空 local stage 并等待既有
+sync，再读取完整 conflict snapshot，以其中 `{ localRevision, remoteRevision }` 作为
+exact proof。repository 在同一解决操作中校验证明、rebase 并继续同步；会话直接安装
+返回 transition chain 的最终 snapshot，不通过普通 reload 猜测结果。若 rebase 后同步
+失败，新的本地权威 snapshot 与明确 sync error 一并交接，不能退回旧 conflict；若远端
+再次形成重叠修改，则必须返回另一份完整 conflict snapshot。
+
+完整 conflict 一经发布，普通编辑与 save-queue enqueue 均关闭，直到显式解决完成；
+同步期间已经进入 stage 的 mutation 仍由 local-revision CAS 串行化，并原子重算当前
+local 与 conflict units，不能把旧 unit list 绑定到新正文。“远端并另存本地”的领域
+transform 必须返回 covered unit ids，repository 在任何 rebase 前验证其与当前全部冲突
+单元完全相等；syntax、tree、identity、order、completion、recurrence、删除或混合单元
+只要无法无损表达，就整体拒绝，不允许以部分正文副本冒充成功。
 
 `application/sync` 是通用协调器，只消费组合根注入的 `revisionOf`、`prepare`、
 `merge`、`projectChanges` 与 prepared store port，不导入三个内容领域、HTTP 或
@@ -326,8 +342,9 @@ currentOccurrenceDate。
 每个内容领域拥有独立 session 和状态，但统一复用 application/persistence 的
 VersionedSessionController 与保存队列。该控制器负责页面内 ready 内容保持、
 并发 reload、discard 失败恢复、乐观 draft、CAS、冲突、断线重试、dispose 和
-删除前冻结/恢复；Workspace、Journal、Todo wrapper 只注入 preparation policy 与
-领域命令。普通仓库切换只排空并替换 Workspace session，不
+删除前冻结/恢复；冲突详情读取失败与整仓冲突是不同状态，解决动作只消费完整冲突
+快照。Workspace、Journal、Todo wrapper 只注入 preparation policy 与领域命令。
+普通仓库切换只排空并替换 Workspace session，不
 停止或重建 Journal/Todo。
 
 application/workbench/WorkbenchController 提供 start、dispose、subscribe、

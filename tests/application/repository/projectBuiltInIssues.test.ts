@@ -73,7 +73,10 @@ describe("built-in data runtime issue projection", () => {
         journal: {
           discardPendingChangesAndReload: async () => {},
           keepLocalConflictAndSynchronize: async () => {},
-          loadConflictUnitIds: async () => [],
+          loadConflictDetails: async () => ({
+            remoteRevision: `sha256:${"a".repeat(64)}`,
+            unitIds: [],
+          }),
           persistence: {
             remoteRevision: `sha256:${"a".repeat(64)}`,
             status: "conflict",
@@ -87,7 +90,10 @@ describe("built-in data runtime issue projection", () => {
         todo: {
           discardPendingChangesAndReload: async () => {},
           keepLocalConflictAndSynchronize: async () => {},
-          loadConflictUnitIds: async () => [],
+          loadConflictDetails: async () => ({
+            remoteRevision: `sha256:${"a".repeat(64)}`,
+            unitIds: [],
+          }),
           persistence: {
             localCopySafe: true,
             message: "todo synchronization failed",

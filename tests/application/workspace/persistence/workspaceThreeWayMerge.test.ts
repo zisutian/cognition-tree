@@ -87,7 +87,7 @@ describe("Workspace three-way persistence", () => {
     )).toEqual({ status: "conflict", unitIds: ["syntax"] });
   });
 
-  it("creates a recovery note from the persisted local body", () => {
+  it("creates a recovery note and rejects mixed unsupported units", () => {
     let nextId = 500;
     const timestamp = "2026-07-18T00:00:00.000Z";
     const remote = createWorkspaceRepositoryContent(
@@ -124,13 +124,35 @@ describe("Workspace three-way persistence", () => {
           previous: remoteProjection,
         }),
       },
-    ).content;
+    ).prepared.content;
 
     expect(recovered.workspace.notes).toHaveLength(2);
+    expect(recovered.workspace.notes[1]!.source).toContain(
+      "本地笔记 本地恢复副本",
+    );
     expect(recovered.workspace.notes[1]!.source).toContain(": 本地正文");
     expect(recovered.workspace.tree[1]).toMatchObject({
       kind: "note",
       noteId: recovered.workspace.notes[1]!.id,
     });
+    expect(() => recoverWorkspaceLocalConflictCopies(
+      { content: remote, projection: remoteProjection },
+      { unitIds: ["workspace:note:note-a", "workspace:tree"] },
+      {
+        createBlockId: () =>
+          `00000000-0000-4000-8000-${String(nextId++).padStart(12, "0")}`,
+        createWorkspaceNoteId: () =>
+          `note-00000000-0000-4000-8000-${
+            String(nextId++).padStart(12, "0")
+          }`,
+        now: () => "2026-07-29T12:00:00.000Z",
+      },
+      {
+        content: local,
+        projection: prepareWorkspaceRepositoryContent(local, {
+          previous: remoteProjection,
+        }),
+      },
+    )).toThrow("当前冲突单元无法无损另存：workspace:tree");
   });
 });

@@ -44,6 +44,7 @@ describe("workspace repository local cache", () => {
     });
 
     await cache.stage({
+      conflictUnitIds: null,
       content: createWorkspaceRepositoryContent("Winner"),
       expectedLocalRevision: draftA,
       identity: "repository",
@@ -51,6 +52,7 @@ describe("workspace repository local cache", () => {
     });
     await expect(
       cache.stage({
+        conflictUnitIds: null,
         content: createWorkspaceRepositoryContent("Stale tab"),
         expectedLocalRevision: draftA,
         identity: "repository",
@@ -83,12 +85,14 @@ describe("workspace repository local cache", () => {
       },
     });
     await cache.stage({
+      conflictUnitIds: null,
       content: committedContent,
       expectedLocalRevision: draftA,
       identity: "repository",
       localRevision: draftB,
     });
     await cache.stage({
+      conflictUnitIds: null,
       content: createWorkspaceRepositoryContent("Newest"),
       expectedLocalRevision: draftB,
       identity: "repository",
@@ -144,6 +148,7 @@ describe("workspace repository local cache", () => {
     const staged = createWorkspaceRepositoryContent("Typed stage");
 
     await cache.stage({
+      conflictUnitIds: null,
       content: staged,
       expectedLocalRevision: draftA,
       identity: "repository",

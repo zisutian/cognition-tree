@@ -611,14 +611,17 @@ describe("local-first workspace repository", () => {
     await stageWorkspace(
       repository,
       createWorkspaceRepositoryContent(
-        "Remote renamed",
+        "Latest local name",
         latestLocalNoteSource,
       ),
       conflicted,
     );
-    await expect(repository.loadConflict()).resolves.toMatchObject({
+    const conflict = await repository.loadConflict();
+
+    expect(conflict).toMatchObject({
       local: {
         workspace: {
+          name: "Latest local name",
           notes: [{ source: latestLocalNoteSource }],
         },
       },
@@ -628,14 +631,21 @@ describe("local-first workspace repository", () => {
           notes: [{ source: secondRemoteNoteSource }],
         },
       },
-      unitIds: ["workspace:note:note-a"],
+      unitIds: ["workspace:name", "workspace:note:note-a"],
     });
-    const resolved = await repository.keepLocalConflictAndSynchronize();
+    if (!conflict) throw new Error("expected a persisted conflict");
+    const resolved = await repository.resolveConflictAndSynchronize(
+      {
+        localRevision: conflict.localRevision,
+        remoteRevision: conflict.remoteRevision,
+      },
+      "local",
+    );
 
     expect(resolved.status).toBe("synced");
     expect(resolved.transitions.at(-1)?.snapshot.pendingChanges).toBe(false);
     expect(remote.commits.at(-1)?.content.workspace).toMatchObject({
-      name: "Second remote name",
+      name: "Latest local name",
       notes: [{ source: latestLocalNoteSource }],
     });
   });

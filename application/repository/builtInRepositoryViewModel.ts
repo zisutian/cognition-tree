@@ -95,7 +95,7 @@ function projectBuiltInOption(
       readySession
     ? {
         keepLocal: readySession.keepLocalConflictAndSynchronize,
-        loadUnitIds: readySession.loadConflictUnitIds,
+        loadDetails: readySession.loadConflictDetails,
         recoverLocalCopy: readySession.recoverLocalConflictCopy,
         useRemote: readySession.useRemoteConflictAndSynchronize,
       }

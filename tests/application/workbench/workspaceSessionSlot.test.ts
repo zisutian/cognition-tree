@@ -18,9 +18,6 @@ function createRepository(label: string): WorkspaceRepository {
 
   return {
     discardPendingSnapshotAndReload: async () => snapshot,
-    keepLocalConflictAndSynchronize: async () => {
-      throw new Error("Unexpected conflict resolution in session slot test.");
-    },
     label,
     loadConflict: async () => null,
     loadSnapshot: async () => snapshot,

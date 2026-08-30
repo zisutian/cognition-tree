@@ -223,6 +223,7 @@ export function JournalEditorPanel({
         onChange={view.editor.updateBody}
         onConsumeFocusTarget={view.editor.onConsumeFocusTarget}
         onOpenReference={referenceNavigation.openReference}
+        readOnly={view.editor.readOnly}
       />
       {referenceNavigation.picker}
     </CtnEditorPanel>

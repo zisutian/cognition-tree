@@ -63,9 +63,10 @@ function createSource(
     session: {
       discardPendingChangesAndReload: vi.fn(async () => undefined),
       keepLocalConflictAndSynchronize: vi.fn(async () => undefined),
-      loadConflictUnitIds: vi.fn(async () => [
-        "workspace:note:note-alpha",
-      ]),
+      loadConflictDetails: vi.fn(async () => ({
+        remoteRevision: remoteRevision("c"),
+        unitIds: ["workspace:note:note-alpha"],
+      })),
       persistence,
       recoverLocalConflictCopy: vi.fn(async () => undefined),
       reload: vi.fn(async () => undefined),
@@ -109,7 +110,10 @@ function createSource(
         journal: {
           discardPendingChangesAndReload: vi.fn(async () => undefined),
           keepLocalConflictAndSynchronize: vi.fn(async () => undefined),
-          loadConflictUnitIds: vi.fn(async () => ["journal:entry:entry-1"]),
+          loadConflictDetails: vi.fn(async () => ({
+            remoteRevision: `sha256:${"a".repeat(64)}`,
+            unitIds: ["journal:entry:entry-1"],
+          })),
           persistence: { status: "saved" },
           recoverLocalConflictCopy: vi.fn(async () => undefined),
           reload: reloadBuiltIn,
@@ -284,7 +288,7 @@ describe("repository view model", () => {
         "普通仓库存在同步冲突，本地与远端版本均已保留，请选择处理方式。",
       activeConflictResolution: {
         keepLocal: expect.any(Function),
-        loadUnitIds: expect.any(Function),
+        loadDetails: expect.any(Function),
         recoverLocalCopy: expect.any(Function),
         useRemote: expect.any(Function),
       },
@@ -488,7 +492,7 @@ describe("repository view model", () => {
     expect(projectedJournal).toMatchObject({
       conflictResolution: {
         keepLocal: expect.any(Function),
-        loadUnitIds: expect.any(Function),
+        loadDetails: expect.any(Function),
         recoverLocalCopy: expect.any(Function),
         useRemote: expect.any(Function),
       },

@@ -40,6 +40,7 @@ export function createNotesView(
       syntax: defaultCtnSyntax,
       onActiveLineChange: () => undefined,
       onConsumeFocusTarget: () => undefined,
+      readOnly: false,
     },
     outline: {
       activeBlock: null,

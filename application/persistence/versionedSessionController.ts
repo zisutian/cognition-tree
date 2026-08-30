@@ -3,12 +3,15 @@
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 import type {
   VersionedContentConflictPreference,
+  PreparedVersionedConflictRecovery,
   PreparedVersionedConflictSources,
   PreparedVersionedContent,
   PreparedVersionedContentChange,
   VersionedRepository,
+  VersionedRepositoryConflictDetails,
   VersionedRepositoryConflictRecord,
   VersionedRepositorySnapshot,
+  VersionedRepositorySyncResult,
 } from "./versionedRepository";
 import {
   createVersionedRepositorySaveQueue,
@@ -84,7 +87,7 @@ export type VersionedSessionController<
     LocalRevision,
     Location
   >;
-  loadConflictUnitIds(): Promise<string[]>;
+  loadConflictDetails(): Promise<VersionedRepositoryConflictDetails<Revision>>;
   keepLocalConflictAndSynchronize(): Promise<void>;
   resolveConflictAndSynchronize(
     preference: VersionedContentConflictPreference,
@@ -92,7 +95,7 @@ export type VersionedSessionController<
       prepared: PreparedVersionedContent<Content, Projection>,
       conflict: VersionedRepositoryConflictRecord<Content, Revision>,
       sources: PreparedVersionedConflictSources<Content, Projection>,
-    ) => PreparedVersionedContent<Content, Projection>,
+    ) => PreparedVersionedConflictRecovery<Content, Projection>,
   ): Promise<void>;
   mutate(
     update: (
@@ -211,15 +214,28 @@ export function createVersionedSessionController<
   const canMutate = () =>
     !disposed &&
     !quiesced &&
-    active?.queue !== null &&
+    active !== null &&
+    active.queue !== null &&
+    active.persistence.status !== "conflict" &&
     state.status === "ready";
   const requireActive = () => {
-    if (!active?.queue || !canMutate()) {
+    if (
+      disposed ||
+      quiesced ||
+      !active?.queue ||
+      state.status !== "ready"
+    ) {
       throw new VersionedSessionUnavailableError(label);
     }
     return active as Session & {
       queue: VersionedRepositorySaveQueue<Content, Projection, LocalRevision>;
     };
+  };
+  const requireMutable = () => {
+    if (!canMutate()) {
+      throw new VersionedSessionUnavailableError(label);
+    }
+    return requireActive();
   };
   const publishReady = (session: Session) => {
     if (
@@ -280,6 +296,7 @@ export function createVersionedSessionController<
   const installSnapshot = (
     snapshot: Snapshot,
     expectedTransition: number,
+    persistence = initialPersistenceState(snapshot),
   ) => {
     if (
       disposed ||
@@ -291,7 +308,7 @@ export function createVersionedSessionController<
     const session: Session = {
       generation: ++generation,
       optimisticHead: null,
-      persistence: initialPersistenceState(snapshot),
+      persistence,
       persistedSnapshot: snapshot,
       queue: null,
     };
@@ -345,16 +362,16 @@ export function createVersionedSessionController<
       LocalRevision
     >,
   ) => {
+    session.queue.enqueue(change);
     session.optimisticHead = change.after;
     publishReady(session);
-    session.queue.enqueue(change);
   };
   const mutate = (
     update: (
       current: PreparedVersionedContent<Content, Projection>,
     ) => PreparedVersionedContent<Content, Projection>,
   ) => {
-    const session = requireActive();
+    const session = requireMutable();
     const current = session.optimisticHead ?? {
       content: session.persistedSnapshot.content,
       projection: session.persistedSnapshot.projection,
@@ -370,6 +387,84 @@ export function createVersionedSessionController<
       baseLocalRevision: session.persistedSnapshot.localRevision,
       before,
     });
+  };
+  const persistenceAfterSynchronization = (
+    result: VersionedRepositorySyncResult<
+      Content,
+      Projection,
+      Revision,
+      LocalRevision
+    >,
+    snapshot: Snapshot,
+  ): VersionedRepositoryPersistenceState<Revision> => {
+    switch (result.status) {
+      case "conflict": {
+        if (!snapshot.conflictRevision) {
+          throw new Error(
+            "Repository reported a conflict without a conflict snapshot.",
+          );
+        }
+        return {
+          remoteRevision: snapshot.conflictRevision,
+          status: "conflict",
+        };
+      }
+      case "offline":
+        return { pendingChanges: snapshot.pendingChanges, status: "offline" };
+      case "sync-error":
+        return {
+          localCopySafe: true,
+          message: result.message,
+          phase: "sync",
+          status: "error",
+        };
+      case "synced":
+        return initialPersistenceState(snapshot);
+    }
+  };
+  const resolveConflict = async (
+    preference: VersionedContentConflictPreference,
+    transform?: (
+      prepared: PreparedVersionedContent<Content, Projection>,
+      conflict: VersionedRepositoryConflictRecord<Content, Revision>,
+      sources: PreparedVersionedConflictSources<Content, Projection>,
+    ) => PreparedVersionedConflictRecovery<Content, Projection>,
+  ) => {
+    const activeSession = requireActive();
+    const session: Session = activeSession;
+    const queue = activeSession.queue;
+    const expectedTransition = ++transitionVersion;
+
+    quiesced = true;
+    try {
+      await queue.prepareForReload();
+      session.queue = null;
+      const conflict = await repository!.loadConflict();
+
+      if (!conflict) {
+        throw new Error("Repository does not have a persisted conflict.");
+      }
+      const result = await repository!.resolveConflictAndSynchronize(
+        {
+          localRevision: conflict.localRevision,
+          remoteRevision: conflict.remoteRevision,
+        },
+        preference,
+        transform,
+      );
+      const snapshot = result.transitions.at(-1)!.snapshot;
+
+      installSnapshot(
+        snapshot,
+        expectedTransition,
+        persistenceAfterSynchronization(result, snapshot),
+      );
+    } catch (error) {
+      if (!disposed && transitionVersion === expectedTransition) {
+        restoreQueueAfterFailedTransition(session);
+      }
+      throw error;
+    }
   };
 
   return {
@@ -414,36 +509,25 @@ export function createVersionedSessionController<
     getState() {
       return state;
     },
-    async loadConflictUnitIds() {
+    async loadConflictDetails() {
       if (!repository) {
         throw new VersionedSessionUnavailableError(label);
       }
-      return (await repository.loadConflict())?.unitIds ?? [];
+      const conflict = await repository.loadConflict();
+
+      if (!conflict) {
+        throw new Error("Repository does not have a persisted conflict.");
+      }
+      return {
+        remoteRevision: conflict.remoteRevision,
+        unitIds: conflict.unitIds,
+      };
     },
     async keepLocalConflictAndSynchronize() {
-      if (!repository) {
-        throw new VersionedSessionUnavailableError(label);
-      }
-      const result = await repository.keepLocalConflictAndSynchronize();
-
-      if (result.status === "conflict") {
-        throw new Error("Remote content changed again while resolving conflict.");
-      }
-      await loadInitial();
+      await resolveConflict("local");
     },
     async resolveConflictAndSynchronize(preference, transform) {
-      if (!repository) {
-        throw new VersionedSessionUnavailableError(label);
-      }
-      const result = await repository.resolveConflictAndSynchronize(
-        preference,
-        transform,
-      );
-
-      if (result.status === "conflict") {
-        throw new Error("Remote content changed again while resolving conflict.");
-      }
-      await loadInitial();
+      await resolveConflict(preference, transform);
     },
     mutate,
     async prepareForRemoval() {
@@ -546,15 +630,7 @@ export function createVersionedSessionController<
       return () => listeners.delete(listener);
     },
     async useRemoteConflictAndSynchronize() {
-      if (!repository) {
-        throw new VersionedSessionUnavailableError(label);
-      }
-      const result = await repository.resolveConflictAndSynchronize("remote");
-
-      if (result.status === "conflict") {
-        throw new Error("Remote content changed again while resolving conflict.");
-      }
-      await loadInitial();
+      await resolveConflict("remote");
     },
   };
 }

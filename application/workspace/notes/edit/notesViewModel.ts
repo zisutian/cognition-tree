@@ -31,6 +31,7 @@ export type NotesViewModel = {
   editor: UiEditorView & {
     onConsumeFocusTarget: (requestId: number) => void;
     onActiveLineChange: (lineNumber: number) => void;
+    readOnly: boolean;
   };
   outline: {
     activeBlock: UiOutlineNode | null;

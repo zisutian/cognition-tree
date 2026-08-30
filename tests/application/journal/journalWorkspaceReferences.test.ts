@@ -50,9 +50,6 @@ function repository(
 ): WorkspaceRepository {
   return {
     discardPendingSnapshotAndReload: vi.fn(),
-    keepLocalConflictAndSynchronize: vi.fn(async () => {
-      throw new Error("Unexpected conflict resolution in reference test.");
-    }),
     label: descriptor.label,
     loadConflict: vi.fn(async () => null),
     loadSnapshot: result instanceof Error

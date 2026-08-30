@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EditorState } from "@codemirror/state";
 import {
   createCtnEditorRuntimeExtensions,
+  createCtnEditorReadOnlyExtensions,
   createCtnIndentUnit,
   createCtnParsingExtensions,
   createCtnTabSizeExtension,
@@ -34,6 +35,15 @@ describe("ctn editor extensions", () => {
     });
 
     expect(getCtnEditorActiveLineNumber(state)).toBe(2);
+  });
+
+  it("projects conflict editing as a CodeMirror read-only state", () => {
+    const state = EditorState.create({
+      doc: "read only",
+      extensions: createCtnEditorReadOnlyExtensions(true),
+    });
+
+    expect(state.facet(EditorState.readOnly)).toBe(true);
   });
 
   it("keeps one analysis field mounted and disables analysis in raw mode", () => {

@@ -16,7 +16,10 @@ import type { RepositoryNavigation } from
 const conflictActions = {
   discardPendingChangesAndReload: vi.fn(async () => undefined),
   keepLocalConflictAndSynchronize: vi.fn(async () => undefined),
-  loadConflictUnitIds: vi.fn(async () => ["unit-1"]),
+  loadConflictDetails: vi.fn(async () => ({
+    remoteRevision: "sha256:remote",
+    unitIds: ["unit-1"],
+  })),
   recoverLocalConflictCopy: vi.fn(async () => undefined),
   reload: vi.fn(async () => undefined),
   useRemoteConflictAndSynchronize: vi.fn(async () => undefined),

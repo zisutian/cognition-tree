@@ -13,6 +13,9 @@ import {
 import type {
   VersionedRepositoryPersistenceState,
 } from "../../persistence/versionedRepositorySaveQueue";
+import type {
+  VersionedRepositoryConflictDetails,
+} from "../../persistence/versionedRepository";
 import {
   createInitialWorkspaceSyntax,
   type WorkspaceSyntax,
@@ -79,7 +82,9 @@ export type WorkspaceSessionController = {
   synchronizePendingChanges: () => Promise<void>;
   getState: () => WorkspaceSessionControllerState;
   keepLocalConflictAndSynchronize: () => Promise<void>;
-  loadConflictUnitIds: () => Promise<string[]>;
+  loadConflictDetails: () => Promise<
+    VersionedRepositoryConflictDetails<RepositoryRevision>
+  >;
   recoverLocalConflictCopy: () => Promise<void>;
   reload: () => Promise<void>;
   prepareForRepositoryRemoval: () => Promise<{ resume: () => void }>;
@@ -246,7 +251,7 @@ export function createWorkspaceSessionController({
     synchronizePendingChanges: base.synchronizePendingChanges,
     getState: projectState,
     keepLocalConflictAndSynchronize: base.keepLocalConflictAndSynchronize,
-    loadConflictUnitIds: base.loadConflictUnitIds,
+    loadConflictDetails: base.loadConflictDetails,
     recoverLocalConflictCopy() {
       return base.resolveConflictAndSynchronize(
         "remote",

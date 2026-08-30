@@ -21,6 +21,7 @@ export type WorkspaceRuntime = {
   commands: SessionCommands;
   effectiveNotes: WorkspaceNote[];
   effectiveWorkspace: WorkspaceStructureIndex | null;
+  readOnly: boolean;
   workspace: WorkspaceStructureIndex;
 };
 
@@ -87,6 +88,7 @@ export function useWorkspaceApplication(
     commands,
     effectiveNotes,
     effectiveWorkspace,
+    readOnly: session.persistence.status === "conflict",
     workspace,
   };
 

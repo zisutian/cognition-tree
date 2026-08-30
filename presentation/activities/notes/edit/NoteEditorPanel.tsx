@@ -114,6 +114,7 @@ export function NoteEditorPanel({
           : view.editor.documentText}
         valueSyncVersion={editorSyncVersion}
         onActiveLineChange={view.editor.onActiveLineChange}
+        readOnly={view.editor.readOnly}
         onChange={(change) => {
           submitNotesEditorChange({
             authoritativeSource: view.editor.documentText,

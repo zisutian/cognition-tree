@@ -64,6 +64,7 @@ export function createTodoView(
       focusTarget: null,
       onActiveLineChange: () => undefined,
       onConsumeFocusTarget: () => undefined,
+      readOnly: false,
       syntax: defaultTodoSyntax,
       updateBody: () => undefined,
     },

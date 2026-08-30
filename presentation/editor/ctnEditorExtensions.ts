@@ -11,7 +11,7 @@ import {
   indentOnInput,
   indentUnit,
 } from "@codemirror/language";
-import { EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import {
   drawSelection,
   dropCursor,
@@ -60,6 +60,15 @@ export function getCtnEditorActiveLineNumber(state: EditorState) {
   return state.doc.lineAt(state.selection.main.head).number;
 }
 
+export const ctnEditorReadOnlyCompartment = new Compartment();
+
+export function createCtnEditorReadOnlyExtensions(readOnly: boolean) {
+  return [
+    EditorState.readOnly.of(readOnly),
+    EditorView.editable.of(!readOnly),
+  ];
+}
+
 export function createCtnEditorRuntimeExtensions(
   options: CtnEditorRuntimeOptions,
 ): Extension[] {
@@ -90,6 +99,7 @@ export function createCtnEditorExtensions(
   onToggleCheckableBlockRef?: {
     current: ((blockId: string) => void) | undefined;
   },
+  readOnly = false,
 ): Extension[] {
   const compositionChange = createEditorCompositionChange({
     onChange: (value) => onChangeRef.current(value),
@@ -115,6 +125,9 @@ export function createCtnEditorExtensions(
         ...runtimeOptions,
         checkableBlocks: [...runtimeOptions.checkableBlocks],
       }),
+    ),
+    ctnEditorReadOnlyCompartment.of(
+      createCtnEditorReadOnlyExtensions(readOnly),
     ),
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...foldKeymap]),
     analysisField,

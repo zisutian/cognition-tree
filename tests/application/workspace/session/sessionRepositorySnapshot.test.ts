@@ -14,9 +14,6 @@ function createRepository(
 ): WorkspaceRepository {
   return {
     discardPendingSnapshotAndReload: async () => snapshot,
-    keepLocalConflictAndSynchronize: async () => {
-      throw new Error("Unexpected conflict resolution in snapshot test.");
-    },
     label: "test repository",
     loadConflict: async () => null,
     loadSnapshot: async () => snapshot,

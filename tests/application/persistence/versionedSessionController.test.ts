@@ -6,7 +6,9 @@ import {
 } from "../../../application/persistence/versionedSessionController";
 import type {
   VersionedRepository,
+  VersionedRepositoryConflictSnapshot,
   VersionedRepositorySnapshot,
+  VersionedRepositorySyncResult,
 } from "../../../application/persistence/versionedRepository";
 import { testApplicationScheduler } from "../../support/testApplicationScheduler";
 
@@ -38,6 +40,27 @@ type TestController = VersionedSessionController<
   TestLocalRevision,
   TestLocation
 >;
+
+type TestConflict = VersionedRepositoryConflictSnapshot<
+  TestContent,
+  TestRemoteRevision,
+  TestLocalRevision
+>;
+
+type TestSyncResult = VersionedRepositorySyncResult<
+  TestContent,
+  TestProjection,
+  TestRemoteRevision,
+  TestLocalRevision
+>;
+
+type TestConflictResolver = VersionedRepository<
+  TestContent,
+  TestRemoteRevision,
+  TestLocalRevision,
+  TestLocation,
+  TestProjection
+>["resolveConflictAndSynchronize"];
 
 function deferred<Value>() {
   let reject!: (reason?: unknown) => void;
@@ -90,6 +113,8 @@ type RepositoryHarness = {
     ) => void | Promise<void>,
   ): void;
   setBeforeSynchronize(hook: () => void | Promise<void>): void;
+  setConflict(conflict: TestConflict | null): void;
+  setConflictResolver(resolver: TestConflictResolver): void;
   setDiscard(
     discard: () => TestSnapshot | Promise<TestSnapshot>,
   ): void;
@@ -108,6 +133,10 @@ function createRepositoryHarness(
     stageNumber: number,
   ) => void | Promise<void> = () => undefined;
   let beforeSynchronize: () => void | Promise<void> = () => undefined;
+  let conflict: TestConflict | null = null;
+  let conflictResolver: TestConflictResolver = async () => {
+    throw new Error("Unexpected conflict resolution in session test.");
+  };
   let discard: () => TestSnapshot | Promise<TestSnapshot> =
     async () => structuredClone(snapshot);
   let load: () => TestSnapshot | Promise<TestSnapshot> =
@@ -128,19 +157,14 @@ function createRepositoryHarness(
     async discardPendingSnapshotAndReload() {
       return await discard();
     },
-    async keepLocalConflictAndSynchronize() {
-      throw new Error("Unexpected conflict resolution in session test.");
-    },
     label: "test repository",
-    loadConflict: async () => null,
+    loadConflict: async () => conflict ? structuredClone(conflict) : null,
     async loadSnapshot() {
       loadCount += 1;
       return await load();
     },
     location: { type: "memory" },
-    async resolveConflictAndSynchronize() {
-      throw new Error("Unexpected conflict resolution in session test.");
-    },
+    resolveConflictAndSynchronize: (...args) => conflictResolver(...args),
     async stageSnapshot(change) {
       const stageNumber = stageCount + 1;
 
@@ -196,6 +220,12 @@ function createRepositoryHarness(
     },
     setBeforeSynchronize(hook) {
       beforeSynchronize = hook;
+    },
+    setConflict(nextConflict) {
+      conflict = nextConflict ? structuredClone(nextConflict) : null;
+    },
+    setConflictResolver(resolver) {
+      conflictResolver = resolver;
     },
     setDiscard(nextDiscard) {
       discard = nextDiscard;
@@ -366,6 +396,177 @@ describe("versioned session controller", () => {
 
     expect(harness.stagedContents.at(-1)).toEqual({ values: [1, 2, 3] });
     expect(harness.baseLocalRevisions.at(-1)).toBe(localRevision(10));
+    controller.dispose();
+  });
+
+  it("quiesces conflict actions, proves the exact snapshot, and installs the returned authority", async () => {
+    const conflictSnapshot = createSnapshot({
+      conflictRevision: remoteRevision(2),
+      content: { values: [1] },
+      localRevision: localRevision(1),
+      pendingChanges: true,
+      projection: { count: 1 },
+      remoteRevision: remoteRevision(2),
+    });
+    const resolvedSnapshot = createSnapshot({
+      content: { values: [1, 2] },
+      localRevision: localRevision(2),
+      projection: { count: 2 },
+      remoteRevision: remoteRevision(3),
+    });
+    const resolutionStarted = deferred<void>();
+    const releaseResolution = deferred<void>();
+    const harness = createRepositoryHarness(conflictSnapshot);
+    let receivedProof: unknown = null;
+    let receivedPreference: unknown = null;
+
+    harness.setConflict({
+      base: { values: [] },
+      local: { values: [1] },
+      localRevision: localRevision(1),
+      remote: { values: [2] },
+      remoteRevision: remoteRevision(2),
+      unitIds: ["value:1"],
+    });
+    harness.setConflictResolver(async (proof, preference) => {
+      receivedProof = proof;
+      receivedPreference = preference;
+      resolutionStarted.resolve();
+      await releaseResolution.promise;
+      return {
+        status: "synced",
+        transitions: [{
+          previousLocalRevision: localRevision(1),
+          snapshot: resolvedSnapshot,
+        }],
+      } satisfies TestSyncResult;
+    });
+    const controller = await startController(harness);
+
+    expect(controller.canMutate()).toBe(false);
+    await expect(controller.loadConflictDetails()).resolves.toEqual({
+      remoteRevision: remoteRevision(2),
+      unitIds: ["value:1"],
+    });
+    const resolution = controller.keepLocalConflictAndSynchronize();
+
+    await resolutionStarted.promise;
+    expect(controller.canMutate()).toBe(false);
+    expect(() => controller.mutate(append(3))).toThrow(
+      VersionedSessionUnavailableError,
+    );
+    releaseResolution.resolve();
+    await resolution;
+
+    expect(receivedProof).toEqual({
+      localRevision: localRevision(1),
+      remoteRevision: remoteRevision(2),
+    });
+    expect(receivedPreference).toBe("local");
+    expect(harness.getLoadCount()).toBe(1);
+    expect(controller.getState()).toMatchObject({
+      content: { values: [1, 2] },
+      persistence: { status: "saved" },
+      snapshot: resolvedSnapshot,
+      status: "ready",
+    });
+    expect(controller.canMutate()).toBe(true);
+    controller.dispose();
+  });
+
+  it("restores the exact read-only conflict session when resolution fails before commit", async () => {
+    const conflictSnapshot = createSnapshot({
+      conflictRevision: remoteRevision(2),
+      content: { values: [1] },
+      localRevision: localRevision(1),
+      pendingChanges: true,
+      projection: { count: 1 },
+      remoteRevision: remoteRevision(2),
+    });
+    const harness = createRepositoryHarness(conflictSnapshot);
+
+    harness.setConflict({
+      base: { values: [] },
+      local: { values: [1] },
+      localRevision: localRevision(1),
+      remote: { values: [2] },
+      remoteRevision: remoteRevision(2),
+      unitIds: ["value:1"],
+    });
+    harness.setConflictResolver(async () => {
+      throw new Error("conflict proof changed");
+    });
+    const controller = await startController(harness);
+
+    await expect(controller.useRemoteConflictAndSynchronize())
+      .rejects.toThrow("conflict proof changed");
+    expect(controller.canMutate()).toBe(false);
+    expect(() => controller.mutate(append(2))).toThrow(
+      VersionedSessionUnavailableError,
+    );
+    expect(controller.getState()).toMatchObject({
+      content: { values: [1] },
+      persistence: {
+        remoteRevision: remoteRevision(2),
+        status: "conflict",
+      },
+      snapshot: conflictSnapshot,
+      status: "ready",
+    });
+    controller.dispose();
+  });
+
+  it("installs the returned authority when post-resolution synchronization fails", async () => {
+    const conflictSnapshot = createSnapshot({
+      conflictRevision: remoteRevision(2),
+      content: { values: [1] },
+      localRevision: localRevision(1),
+      pendingChanges: true,
+      projection: { count: 1 },
+      remoteRevision: remoteRevision(2),
+    });
+    const resolvedSnapshot = createSnapshot({
+      content: { values: [1] },
+      localRevision: localRevision(2),
+      pendingChanges: true,
+      projection: { count: 1 },
+      remoteRevision: remoteRevision(2),
+    });
+    const harness = createRepositoryHarness(conflictSnapshot);
+
+    harness.setConflict({
+      base: { values: [] },
+      local: { values: [1] },
+      localRevision: localRevision(1),
+      remote: { values: [2] },
+      remoteRevision: remoteRevision(2),
+      unitIds: ["value:1"],
+    });
+    harness.setConflictResolver(async () => ({
+      message: "remote snapshot could not be verified",
+      status: "sync-error",
+      transitions: [{
+        previousLocalRevision: localRevision(1),
+        snapshot: resolvedSnapshot,
+      }],
+    }));
+    const controller = await startController(harness);
+
+    await controller.keepLocalConflictAndSynchronize();
+
+    expect(harness.getLoadCount()).toBe(1);
+    expect(controller.getState()).toMatchObject({
+      content: { values: [1] },
+      persistence: {
+        localCopySafe: true,
+        message: "remote snapshot could not be verified",
+        phase: "sync",
+        status: "error",
+      },
+      snapshot: resolvedSnapshot,
+      status: "ready",
+    });
+    expect(controller.canMutate()).toBe(true);
     controller.dispose();
   });
 

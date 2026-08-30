@@ -14,6 +14,7 @@ import {
   type PreparedVersionedContent,
   type PreparedVersionedContentChange,
   type VersionedContentPreparationPolicy,
+  type VersionedRepositoryConflictProof,
   type VersionedRepositorySnapshot,
   type VersionedRepositorySnapshotTransition,
   type VersionedRepositorySyncResult,
@@ -204,6 +205,8 @@ export function createLocalFirstVersionedRepository<
 
   const contentEqual = (left: Content, right: Content) =>
     JSON.stringify(left) === JSON.stringify(right);
+  const normalizeUnitIds = (unitIds: readonly string[]) =>
+    [...new Set(unitIds)].sort();
   const continuePreparedChange = (
     change: PreparedVersionedContentChange<
       Content,
@@ -248,6 +251,9 @@ export function createLocalFirstVersionedRepository<
   ) => {
     const syncContext = await cache.loadSyncContext(identity);
     const baseContent = syncContext?.baseContent;
+    if (!baseContent) {
+      throw new Error("Repository synchronization base is unavailable.");
+    }
     const basePrepared = baseContent && mergeContent
       ? prepareMergeBase(baseContent, current, currentPrepared)
       : null;
@@ -260,10 +266,11 @@ export function createLocalFirstVersionedRepository<
 
     if (merged.status === "conflict") {
       const state = await cache.recordConflict({
-        baseContent: baseContent ?? current.content,
+        baseContent,
         currentRemoteRevision: remote.revision,
         expectedLocalRevision: current.localRevision,
         identity,
+        localRevision: createLocalRevision(),
         localContent: current.content,
         remoteContent: remote.content,
         unitIds: merged.unitIds,
@@ -340,6 +347,7 @@ export function createLocalFirstVersionedRepository<
             currentRemoteRevision: remote.revision,
             expectedLocalRevision: current.localRevision,
             identity,
+            localRevision: createLocalRevision(),
             localContent: current.content,
             remoteContent: remote.content,
             unitIds: merged.unitIds,
@@ -663,6 +671,7 @@ export function createLocalFirstVersionedRepository<
               currentRemoteRevision: remote.revision,
               expectedLocalRevision: current.localRevision,
               identity,
+              localRevision: createLocalRevision(),
               localContent: current.content,
               remoteContent: remote.content,
               unitIds: error.unitIds,
@@ -695,33 +704,22 @@ export function createLocalFirstVersionedRepository<
             remote = await backend.loadRemoteSnapshot();
           } catch (loadError) {
             if (!isRetryableRemoteError(loadError)) throw loadError;
-            const current = await cache.recordConflictRevision({
-              currentRemoteRevision: conflictRevision,
-              identity,
-            });
+            const current = await cache.load(identity);
+            if (!current) throw loadError;
 
             return complete(toSnapshotTransition(
               current.localRevision,
               current,
               prepareState(current, localPrepared.projection),
             ), {
-              status: "conflict",
+              message: getErrorMessage(loadError),
+              status: "sync-error",
             });
           }
 
           if (remote.revision !== conflictRevision) {
-            const current = await cache.recordConflictRevision({
-              currentRemoteRevision: conflictRevision,
-              identity,
-            });
-
-            return complete(toSnapshotTransition(
-              current.localRevision,
-              current,
-              prepareState(current, localPrepared.projection),
-            ), {
-              status: "conflict",
-            });
+            if (attempt + 1 < 3) continue;
+            throw createBusyError();
           }
           const remotePrepared = prepareRemoteContent(
             remote.content,
@@ -776,7 +774,30 @@ export function createLocalFirstVersionedRepository<
     }
     throw createBusyError();
   };
+  const loadConflictSnapshot = async () => {
+    const identity = await resolveIdentity();
+
+    await ensureInitialized();
+    const [current, context] = await Promise.all([
+      cache.load(identity),
+      cache.loadSyncContext(identity),
+    ]);
+
+    if (!current) {
+      throw new Error(
+        "Local repository state disappeared while loading conflict details.",
+      );
+    }
+    return context?.conflict
+      ? {
+          ...context.conflict,
+          local: current.content,
+          localRevision: current.localRevision,
+        }
+      : null;
+  };
   const resolveConflictAndSynchronize = async (
+    proof: VersionedRepositoryConflictProof<Revision, LocalRevision>,
     preference: VersionedContentConflictPreference,
     transform?: Parameters<
       NonNullable<
@@ -788,7 +809,7 @@ export function createLocalFirstVersionedRepository<
           Projection
         >["resolveConflictAndSynchronize"]
       >
-    >[1],
+    >[2],
   ) => {
     const identity = await resolveIdentity();
 
@@ -802,6 +823,15 @@ export function createLocalFirstVersionedRepository<
     if (!current || !conflict) {
       throw new Error("Repository does not have a persisted conflict.");
     }
+    if (current.localRevision !== proof.localRevision) {
+      throw new VersionedRepositoryLocalConflictError(current.localRevision);
+    }
+    if (
+      current.remoteRevision !== proof.remoteRevision ||
+      conflict.remoteRevision !== proof.remoteRevision
+    ) {
+      throw new Error("Repository conflict proof is no longer current.");
+    }
     const currentPrepared = prepareState(current);
     const remotePrepared = prepareRemoteContent(
       conflict.remote,
@@ -811,29 +841,51 @@ export function createLocalFirstVersionedRepository<
     const basePrepared = mergeContent
       ? prepareMergeBase(conflict.base, current, currentPrepared)
       : null;
-    const merged = basePrepared && mergeContent
-      ? mergeContent(
-          basePrepared,
-          currentPrepared,
-          remotePrepared,
-          preference,
-        )
-      : {
-          ...(preference === "local" ? currentPrepared : remotePrepared),
-          status: "merged" as const,
-        };
+    const unresolved = basePrepared && mergeContent
+      ? mergeContent(basePrepared, currentPrepared, remotePrepared)
+      : { status: "conflict" as const, unitIds: ["repository"] };
+    const liveUnitIds = unresolved.status === "conflict"
+      ? normalizeUnitIds(unresolved.unitIds)
+      : [];
+    const merged = unresolved.status === "merged"
+      ? unresolved
+      : basePrepared && mergeContent
+        ? mergeContent(
+            basePrepared,
+            currentPrepared,
+            remotePrepared,
+            preference,
+          )
+        : {
+            ...(preference === "local" ? currentPrepared : remotePrepared),
+            status: "merged" as const,
+          };
 
     if (merged.status !== "merged") {
       throw new Error("Repository conflict could not be resolved.");
     }
-    const liveConflict = { ...conflict, local: current.content };
+    const liveConflict = {
+      ...conflict,
+      local: current.content,
+      unitIds: liveUnitIds,
+    };
     const mergedPrepared = merged;
-    const contentPrepared = transform
+    const recovery = transform && liveUnitIds.length > 0
       ? transform(mergedPrepared, liveConflict, {
           local: currentPrepared,
           remote: remotePrepared,
         })
-      : mergedPrepared;
+      : null;
+    if (
+      recovery &&
+      JSON.stringify(normalizeUnitIds(recovery.coveredUnitIds)) !==
+        JSON.stringify(liveUnitIds)
+    ) {
+      throw new Error(
+        "Repository conflict recovery did not cover every discarded unit.",
+      );
+    }
+    const contentPrepared = recovery?.prepared ?? mergedPrepared;
     const content = contentPrepared.content;
 
     preparation.validateTransition?.(remotePrepared, contentPrepared);
@@ -858,7 +910,31 @@ export function createLocalFirstVersionedRepository<
       rebased,
       contentPrepared,
     );
-    const synchronized = await synchronize();
+    let synchronized: SyncResult;
+
+    try {
+      synchronized = await synchronize();
+    } catch (error) {
+      const latest = await cache.load(identity);
+
+      if (!latest) throw error;
+      const latestTransition = latest.localRevision === rebased.localRevision
+        ? null
+        : toSnapshotTransition(
+            rebased.localRevision,
+            latest,
+            prepareState(latest, contentPrepared.projection),
+          );
+      const recoveryTransitions: SyncResult["transitions"] = latestTransition
+        ? [resolvedTransition, latestTransition]
+        : [resolvedTransition];
+
+      return {
+        message: getErrorMessage(error),
+        status: "sync-error" as const,
+        transitions: recoveryTransitions,
+      };
+    }
     const transitions: SyncResult["transitions"] = [
       resolvedTransition,
       ...synchronized.transitions,
@@ -901,23 +977,9 @@ export function createLocalFirstVersionedRepository<
       return toSnapshot(state, remotePrepared);
     },
     loadSnapshot,
-    async loadConflict() {
-      const identity = await resolveIdentity();
-
-      await ensureInitialized();
-      const [current, context] = await Promise.all([
-        cache.load(identity),
-        cache.loadSyncContext(identity),
-      ]);
-
-      return current && context?.conflict
-        ? { ...context.conflict, local: current.content }
-        : null;
-    },
-    keepLocalConflictAndSynchronize: () =>
-      resolveConflictAndSynchronize("local"),
-    resolveConflictAndSynchronize: (preference, transform) =>
-      resolveConflictAndSynchronize(preference, transform),
+    loadConflict: loadConflictSnapshot,
+    resolveConflictAndSynchronize: (proof, preference, transform) =>
+      resolveConflictAndSynchronize(proof, preference, transform),
     async stageSnapshot(change) {
       await ensureInitialized();
       const identity = await resolveIdentity();
@@ -944,6 +1006,7 @@ export function createLocalFirstVersionedRepository<
         );
 
         preparation.validateTransition?.(currentPrepared, nextPrepared);
+        const syncContext = await cache.loadSyncContext(identity);
         if (!current.pendingBaseRevision && current.remoteRevision) {
           preparedRemoteBase = {
             revision: current.remoteRevision,
@@ -951,7 +1014,64 @@ export function createLocalFirstVersionedRepository<
           };
         }
         try {
+          if (syncContext?.conflict) {
+            const remotePrepared = prepareRemoteContent(
+              syncContext.conflict.remote,
+              syncContext.conflict.remoteRevision,
+              nextPrepared.projection,
+            );
+            const basePrepared = mergeContent
+              ? prepareMergeBase(
+                  syncContext.conflict.base,
+                  current,
+                  nextPrepared,
+                )
+              : null;
+            const unresolved = basePrepared && mergeContent
+              ? mergeContent(basePrepared, nextPrepared, remotePrepared)
+              : { status: "conflict" as const, unitIds: ["repository"] };
+
+            if (unresolved.status === "merged") {
+              preparation.validateTransition?.(remotePrepared, unresolved);
+              const state = await cache.rebaseFromRemote({
+                content: unresolved.content,
+                expectedLocalRevision: current.localRevision,
+                identity,
+                localRevision: createLocalRevision(),
+                pendingChanges: !contentEqual(
+                  unresolved.content,
+                  syncContext.conflict.remote,
+                ),
+                snapshot: {
+                  content: syncContext.conflict.remote,
+                  revision: syncContext.conflict.remoteRevision,
+                },
+              });
+
+              rememberPrepared(state, unresolved);
+              return toSnapshotTransition(
+                current.localRevision,
+                state,
+                unresolved,
+              );
+            }
+            const state = await cache.stage({
+              conflictUnitIds: unresolved.unitIds,
+              content: nextPrepared.content,
+              expectedLocalRevision: current.localRevision,
+              identity,
+              localRevision: createLocalRevision(),
+            });
+
+            rememberPrepared(state, nextPrepared);
+            return toSnapshotTransition(
+              current.localRevision,
+              state,
+              nextPrepared,
+            );
+          }
           const state = await cache.stage({
+            conflictUnitIds: null,
             content: nextPrepared.content,
             expectedLocalRevision: current.localRevision,
             identity,

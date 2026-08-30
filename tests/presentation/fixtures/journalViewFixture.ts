@@ -29,6 +29,7 @@ export function createJournalView(
       focusTarget: null,
       onActiveLineChange: () => undefined,
       onConsumeFocusTarget: () => undefined,
+      readOnly: false,
       stats: { lineCount: 1, rootCount: 0, totalBlocks: 0 },
       syntax: defaultJournalSyntax,
       updateBody: () => undefined,

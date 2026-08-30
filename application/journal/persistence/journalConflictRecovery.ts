@@ -24,11 +24,15 @@ export type JournalConflictRecoveryDependencies = {
 };
 
 function journalConflictEntryIds(unitIds: readonly string[]) {
-  return unitIds.flatMap((unitId) =>
-    unitId.startsWith("journal:entry:")
-      ? [unitId.slice("journal:entry:".length) as JournalEntryId]
-      : []
-  );
+  return unitIds.map((unitId) => {
+    const prefix = "journal:entry:";
+    const entryId = unitId.startsWith(prefix) ? unitId.slice(prefix.length) : "";
+
+    if (!entryId) {
+      throw new Error(`当前冲突单元无法无损另存：${unitId}`);
+    }
+    return entryId as JournalEntryId;
+  });
 }
 
 export function recoverJournalLocalConflictCopies(
@@ -38,14 +42,21 @@ export function recoverJournalLocalConflictCopies(
   localPrepared: PreparedVersionedContent<JournalContent, JournalParseIndex>,
 ) {
   const localIndex = localPrepared.projection;
+  const recoverableEntries = journalConflictEntryIds(conflict.unitIds).map(
+    (sourceEntryId) => {
+      const localEntry = localIndex.getParsedEntry(sourceEntryId);
+
+      if (!localEntry) {
+        throw new Error(`本地冲突日记不可用于另存：${sourceEntryId}`);
+      }
+      return localEntry;
+    },
+  );
   let next = selected.content;
   let currentIndex = selected.projection;
   let recovered = 0;
 
-  for (const sourceEntryId of journalConflictEntryIds(conflict.unitIds)) {
-    const localEntry = localIndex.getParsedEntry(sourceEntryId);
-
-    if (!localEntry) continue;
+  for (const localEntry of recoverableEntries) {
     const body = createJournalEntryBodyProjection(localEntry).source;
     const timestamp = dependencies.now();
     const entryId = dependencies.createJournalEntryId();
@@ -78,8 +89,11 @@ export function recoverJournalLocalConflictCopies(
     );
     recovered += 1;
   }
-  if (recovered === 0) {
+  if (recovered !== conflict.unitIds.length || recovered === 0) {
     throw new Error("当前冲突不包含可另存的本地正文。");
   }
-  return { content: next, projection: currentIndex };
+  return {
+    coveredUnitIds: [...conflict.unitIds],
+    prepared: { content: next, projection: currentIndex },
+  };
 }

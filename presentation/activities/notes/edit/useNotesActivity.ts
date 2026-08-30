@@ -40,6 +40,7 @@ export function useNotesActivity({
     analysis,
     commands,
     effectiveWorkspace,
+    readOnly,
     workspace,
   } = runtime;
   const index = analysis.index;
@@ -190,6 +191,7 @@ export function useNotesActivity({
       ...editor,
       onActiveLineChange: updateActiveEditorLine,
       onConsumeFocusTarget: navigation.consumeNoteFocusRequest,
+      readOnly,
     },
     outline: {
       activeBlock,

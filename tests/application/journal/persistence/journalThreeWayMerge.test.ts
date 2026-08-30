@@ -91,7 +91,7 @@ describe("Journal three-way persistence", () => {
     }
   });
 
-  it("creates a recovery entry from the persisted local body", () => {
+  it("creates a recovery entry and rejects mixed unsupported units", () => {
     let nextId = 500;
     let base = createEmptyJournalContent();
     const timestamp = "2026-07-18T00:00:00.000Z";
@@ -124,9 +124,32 @@ describe("Journal three-way persistence", () => {
         content: local,
         projection: createJournalParseIndex(local, baseProjection),
       },
-    ).content;
+    ).prepared.content;
 
     expect(journalEntries(recovered)).toHaveLength(2);
     expect(journalEntries(recovered)[1]!.source).toContain(": 本地日记");
+    expect(() => recoverJournalLocalConflictCopies(
+      { content: base, projection: baseProjection },
+      {
+        unitIds: [
+          `journal:entry:${journalEntries(base)[0]!.id}`,
+          "syntax",
+        ],
+      },
+      {
+        createBlockId: () =>
+          `00000000-0000-4000-8000-${String(nextId++).padStart(12, "0")}`,
+        createJournalEntryId: () =>
+          `journal-entry-00000000-0000-4000-8000-${
+            String(nextId++).padStart(12, "0")
+          }` as const,
+        now: () => "2026-07-29T12:00:00.000Z",
+        timezoneOffsetMinutes: () => 0,
+      },
+      {
+        content: local,
+        projection: createJournalParseIndex(local, baseProjection),
+      },
+    )).toThrow("当前冲突单元无法无损另存：syntax");
   });
 });

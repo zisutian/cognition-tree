@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { RepositoryNavigation } from "../repository/repositoryNavigation";
+import type {
+  VersionedRepositoryConflictDetails,
+} from "../persistence/versionedRepository";
 import {
   createRepositoryApplication,
   type BuiltInSessionSummary,
@@ -26,7 +29,7 @@ type VersionedSessionProjectionState<AbsentStatus extends string> =
 type BuiltInSessionProjection = {
   discardPendingChangesAndReload(): Promise<void>;
   keepLocalConflictAndSynchronize(): Promise<void>;
-  loadConflictUnitIds(): Promise<string[]>;
+  loadConflictDetails(): Promise<VersionedRepositoryConflictDetails<string>>;
   recoverLocalConflictCopy(): Promise<void>;
   reload(): Promise<void>;
   requestSync(): void;
@@ -54,7 +57,7 @@ export function projectBuiltInSessionSummary(
           session.discardPendingChangesAndReload,
         keepLocalConflictAndSynchronize:
           session.keepLocalConflictAndSynchronize,
-        loadConflictUnitIds: session.loadConflictUnitIds,
+        loadConflictDetails: session.loadConflictDetails,
         recoverLocalConflictCopy: session.recoverLocalConflictCopy,
         persistence: session.state.persistence,
         reload: session.reload,
@@ -69,7 +72,7 @@ export function projectBuiltInSessionSummary(
 type WorkspaceSessionProjection = {
   discardPendingChangesAndReload(): Promise<void>;
   keepLocalConflictAndSynchronize(): Promise<void>;
-  loadConflictUnitIds(): Promise<string[]>;
+  loadConflictDetails(): Promise<VersionedRepositoryConflictDetails<string>>;
   recoverLocalConflictCopy(): Promise<void>;
   reload(): Promise<void>;
   state: VersionedSessionProjectionState<"absent">;
@@ -98,7 +101,7 @@ export function projectWorkspaceRepositorySessionSummary(
       session.discardPendingChangesAndReload,
     keepLocalConflictAndSynchronize:
       session.keepLocalConflictAndSynchronize,
-    loadConflictUnitIds: session.loadConflictUnitIds,
+    loadConflictDetails: session.loadConflictDetails,
     recoverLocalConflictCopy: session.recoverLocalConflictCopy,
     persistence: workspace.persistence,
     reload: session.reload,
@@ -119,7 +122,7 @@ function projectBuiltInSessions(
         controller.journal.discardPendingChangesAndReload,
       keepLocalConflictAndSynchronize:
         controller.journal.keepLocalConflictAndSynchronize,
-      loadConflictUnitIds: controller.journal.loadConflictUnitIds,
+      loadConflictDetails: controller.journal.loadConflictDetails,
       recoverLocalConflictCopy: controller.journal.recoverLocalConflictCopy,
       reload: controller.journal.reload,
       requestSync: controller.journal.requestSync,
@@ -132,7 +135,7 @@ function projectBuiltInSessions(
         controller.todo.discardPendingChangesAndReload,
       keepLocalConflictAndSynchronize:
         controller.todo.keepLocalConflictAndSynchronize,
-      loadConflictUnitIds: controller.todo.loadConflictUnitIds,
+      loadConflictDetails: controller.todo.loadConflictDetails,
       recoverLocalConflictCopy: controller.todo.recoverLocalConflictCopy,
       reload: controller.todo.reload,
       requestSync: controller.todo.requestSync,
@@ -171,7 +174,7 @@ export function createRepositoryProjection(
         controller.workspace.discardPendingChangesAndReload,
       keepLocalConflictAndSynchronize:
         controller.workspace.keepLocalConflictAndSynchronize,
-      loadConflictUnitIds: controller.workspace.loadConflictUnitIds,
+      loadConflictDetails: controller.workspace.loadConflictDetails,
       recoverLocalConflictCopy:
         controller.workspace.recoverLocalConflictCopy,
       reload: controller.workspace.reload,

@@ -11,6 +11,7 @@ import type {
 import type { RepositoryNavigation } from "./repositoryNavigation";
 import type { VersionedRepositoryPersistenceState } from "../persistence/versionedRepositorySaveQueue";
 import type { BuiltInCatalogApplication } from "./builtInCatalogController";
+import type { VersionedRepositoryConflictDetails } from "../persistence/versionedRepository";
 
 export type RepositoryPersistenceState =
   VersionedRepositoryPersistenceState<string>;
@@ -27,7 +28,9 @@ export type RepositorySessionState =
   | {
       discardPendingChangesAndReload: () => Promise<void>;
       keepLocalConflictAndSynchronize: () => Promise<void>;
-      loadConflictUnitIds: () => Promise<string[]>;
+      loadConflictDetails: () => Promise<
+        VersionedRepositoryConflictDetails<string>
+      >;
       recoverLocalConflictCopy: () => Promise<void>;
       persistence: RepositoryPersistenceState;
       reload: () => Promise<void>;
@@ -60,7 +63,9 @@ export type BuiltInSessionSummary =
   | {
       discardPendingChangesAndReload: () => Promise<void>;
       keepLocalConflictAndSynchronize: () => Promise<void>;
-      loadConflictUnitIds: () => Promise<string[]>;
+      loadConflictDetails: () => Promise<
+        VersionedRepositoryConflictDetails<string>
+      >;
       recoverLocalConflictCopy: () => Promise<void>;
       persistence: RepositoryPersistenceState;
       reload: () => Promise<void>;

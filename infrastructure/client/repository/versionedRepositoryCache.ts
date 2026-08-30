@@ -42,13 +42,10 @@ export type VersionedRepositoryCache<
     currentRemoteRevision: Revision;
     expectedLocalRevision: LocalRevision;
     identity: string;
+    localRevision: LocalRevision;
     localContent: Content;
     remoteContent: Content;
     unitIds: readonly string[];
-  }): Promise<VersionedRepositoryLocalState<Content, Revision, LocalRevision>>;
-  recordConflictRevision(input: {
-    currentRemoteRevision: Revision;
-    identity: string;
   }): Promise<VersionedRepositoryLocalState<Content, Revision, LocalRevision>>;
   rebaseFromRemote(input: {
     content: Content;
@@ -66,6 +63,7 @@ export type VersionedRepositoryCache<
     snapshot: VersionedRemoteSnapshot<Content, Revision>;
   }): Promise<VersionedRepositoryLocalState<Content, Revision, LocalRevision>>;
   stage(input: {
+    conflictUnitIds: readonly string[] | null;
     content: Content;
     expectedLocalRevision: LocalRevision;
     identity: string;
@@ -139,6 +137,7 @@ export function createMemoryVersionedRepositoryCache<
       currentRemoteRevision,
       expectedLocalRevision,
       identity,
+      localRevision,
       localContent,
       remoteContent,
       unitIds,
@@ -148,9 +147,15 @@ export function createMemoryVersionedRepositoryCache<
       if (current.localRevision !== expectedLocalRevision) {
         throw createLocalConflictError(current.localRevision);
       }
+      const normalizedUnitIds = [...new Set(unitIds)].sort();
+
+      if (normalizedUnitIds.length === 0) {
+        throw new Error("A persisted conflict requires at least one unit.");
+      }
       const remoteRevision = currentRemoteRevision;
       const next = {
         ...current,
+        localRevision,
         remoteRevision,
       };
 
@@ -162,19 +167,9 @@ export function createMemoryVersionedRepositoryCache<
           local: structuredClone(localContent),
           remote: structuredClone(remoteContent),
           remoteRevision,
-          unitIds: [...new Set(unitIds)].sort(),
+          unitIds: normalizedUnitIds,
         },
       });
-      return cloneState(next);
-    },
-    async recordConflictRevision({ currentRemoteRevision, identity }) {
-      const current = requireState(identity);
-      const next = {
-        ...current,
-        remoteRevision: currentRemoteRevision,
-      };
-
-      states.set(identity, next);
       return cloneState(next);
     },
     async remove(identity) {
@@ -233,7 +228,13 @@ export function createMemoryVersionedRepositoryCache<
       });
       return cloneState(state);
     },
-    async stage({ content, expectedLocalRevision, identity, localRevision }) {
+    async stage({
+      conflictUnitIds,
+      content,
+      expectedLocalRevision,
+      identity,
+      localRevision,
+    }) {
       const current = requireState(identity);
 
       if (current.localRevision !== expectedLocalRevision) {
@@ -249,6 +250,32 @@ export function createMemoryVersionedRepositoryCache<
         pendingBaseRevision:
           current.pendingBaseRevision ?? current.remoteRevision,
       };
+      const context = syncContexts.get(identity);
+
+      if (context?.conflict) {
+        if (conflictUnitIds === null) {
+          throw new Error(
+            "Conflict-aware staging requires current conflict units.",
+          );
+        }
+        const normalizedUnitIds = [...new Set(conflictUnitIds)].sort();
+
+        if (normalizedUnitIds.length === 0) {
+          throw new Error("A persisted conflict requires at least one unit.");
+        }
+        syncContexts.set(identity, {
+          baseContent: context.baseContent,
+          conflict: {
+            ...context.conflict,
+            local: structuredClone(content),
+            unitIds: normalizedUnitIds,
+          },
+        });
+      } else if (conflictUnitIds !== null) {
+        throw new Error(
+          "Conflict units were provided without a persisted conflict.",
+        );
+      }
 
       states.set(identity, next);
       return cloneState(next);

@@ -395,7 +395,10 @@ describe("repository setup and management semantics", () => {
       builtIns: [{
         conflictResolution: {
           keepLocal: async () => undefined,
-          loadUnitIds: async () => ["journal:entry:entry-1"],
+          loadDetails: async () => ({
+            remoteRevision: `sha256:${"a".repeat(64)}`,
+            unitIds: ["journal:entry:entry-1"],
+          }),
           recoverLocalCopy: async () => undefined,
           useRemote: async () => undefined,
         },

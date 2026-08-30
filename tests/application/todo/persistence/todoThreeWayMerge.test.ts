@@ -91,7 +91,7 @@ describe("Todo three-way persistence", () => {
     });
   });
 
-  it("creates a recovery collection from the persisted local body", () => {
+  it("creates a recovery collection and rejects mixed unsupported units", () => {
     let nextId = 500;
     let base = appendTodoTestCollection(createEmptyTodoContent(), {
       collectionIndex: 1,
@@ -127,13 +127,42 @@ describe("Todo three-way persistence", () => {
         content: local,
         projection: createTodoParseIndex(local),
       },
-    ).content;
+    ).prepared.content;
 
     expect(recovered.collections).toHaveLength(1);
     expect(recovered.collections[0]).toMatchObject({
       completions: [],
+      source: expect.stringContaining("本地任务"),
       recurrences: [],
     });
-    expect(recovered.collections[0]!.source).toContain("本地任务");
+    expect(createTodoParseIndex(recovered).collections[0]!.name).toContain(
+      "本地恢复副本",
+    );
+    expect(() => recoverTodoLocalConflictCopies(
+      { content: selected, projection: selectedProjection },
+      {
+        unitIds: [
+          `todo:collection:${todoCollectionId(1)}:body`,
+          `todo:completion:${todoCollectionId(1)}:${todoBlockId(1)}`,
+        ],
+      },
+      {
+        createBlockId: () =>
+          `00000000-0000-4000-8000-${String(nextId++).padStart(12, "0")}`,
+        createTodoCollectionId: () =>
+          `todo-collection-00000000-0000-4000-8000-${
+            String(nextId++).padStart(12, "0")
+          }` as const,
+        now: () => "2026-07-29T12:00:00.000Z",
+      },
+      {
+        content: local,
+        projection: createTodoParseIndex(local),
+      },
+    )).toThrow(
+      `当前冲突单元无法无损另存：todo:completion:${
+        todoCollectionId(1)
+      }:${todoBlockId(1)}`,
+    );
   });
 });
