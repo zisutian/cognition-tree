@@ -14,8 +14,52 @@ import {
 const revision = (value: string) =>
   `sha256:${value.repeat(64)}` as `sha256:${string}`;
 
-function snapshot(value: string): AgentConfigurationSnapshot {
-  return { profiles: [], providers: [], revision: revision(value) };
+function snapshot(
+  value: string,
+  {
+    profile = true,
+    provider = true,
+  }: { profile?: boolean; provider?: boolean } = {},
+): AgentConfigurationSnapshot {
+  return {
+    profiles: profile
+      ? [{
+          availability: "available",
+          conformance: null,
+          digest: revision("b"),
+          id: "profile-1",
+          label: "Default profile",
+          maxResidentSessions: 1,
+          model: "qwen3:8b",
+          parameters: {
+            historyBudgetCharacters: 10_000,
+            kind: "chat",
+            maxOutputTokens: 1_024,
+            maxToolSteps: 4,
+            reasoningEffort: "model-default",
+            toolCallMode: "native",
+          },
+          providerId: "provider-1",
+          timeoutMilliseconds: 30_000,
+          unavailableReason: null,
+          version: 1,
+        }]
+      : [],
+    providers: provider
+      ? [{
+          authenticationStatus: "not-required",
+          authenticationType: "none",
+          baseUrl: "http://127.0.0.1:11434",
+          digest: revision("a"),
+          id: "provider-1",
+          kind: "ollama",
+          label: "Local Ollama",
+          privateNetworkAccess: "not-required",
+          version: 1,
+        }]
+      : [],
+    revision: revision(value),
+  };
 }
 
 function providerInput(): AgentProviderInput {
@@ -501,6 +545,78 @@ describe("Agent configuration controller", () => {
     });
   });
 
+  it("removes operation state when configuration entities are deleted", async () => {
+    const adapter = port();
+    const controller = createAgentConfigurationController({
+      onConfigurationChanged: vi.fn(),
+      pollConformance: async () => undefined,
+      pollConformanceIntervalMilliseconds: 1,
+      port: adapter,
+    });
+
+    await controller.load();
+    await controller.probeProvider("provider-1");
+    await controller.checkConformance("profile-1");
+    await controller.startCodexDeviceLogin("provider-1");
+    await vi.waitFor(() => {
+      expect(controller.getSnapshot().codexDeviceLogins["provider-1"]?.status)
+        .toBe("succeeded");
+    });
+    vi.mocked(adapter.deleteProfile).mockResolvedValueOnce(
+      snapshot("4", { profile: false }),
+    );
+    await controller.deleteProfile("profile-1");
+
+    expect(controller.getSnapshot()).toMatchObject({
+      codexDeviceLogins: { "provider-1": { status: "succeeded" } },
+      conformanceChecks: {},
+      probes: { "provider-1": { reachable: true } },
+    });
+
+    vi.mocked(adapter.deleteProvider).mockResolvedValueOnce(
+      snapshot("5", { profile: false, provider: false }),
+    );
+    await controller.deleteProvider("provider-1");
+
+    expect(controller.getSnapshot()).toMatchObject({
+      codexDeviceLogins: {},
+      conformanceChecks: {},
+      probes: {},
+    });
+  });
+
+  it("ignores a provider probe that finishes after deletion", async () => {
+    const adapter = port();
+    const pendingProbe = createDeferred<AgentProviderProbe>();
+
+    vi.mocked(adapter.probeProvider).mockImplementationOnce(
+      () => pendingProbe.promise,
+    );
+    vi.mocked(adapter.deleteProvider).mockResolvedValueOnce(
+      snapshot("4", { profile: false, provider: false }),
+    );
+    const controller = createAgentConfigurationController({
+      onConfigurationChanged: vi.fn(),
+      pollConformance: async () => undefined,
+      pollConformanceIntervalMilliseconds: 1,
+      port: adapter,
+    });
+
+    await controller.load();
+    const probing = controller.probeProvider("provider-1");
+
+    await controller.deleteProvider("provider-1");
+    pendingProbe.resolve({
+      modelContexts: [],
+      models: [],
+      probedAt: "2026-08-25T00:00:00.000Z",
+      reachable: true,
+    });
+    await probing;
+
+    expect(controller.getSnapshot().probes).toEqual({});
+  });
+
   it("does not let a delayed mutation response regress later authority", async () => {
     const adapter = port();
     const controller = createAgentConfigurationController({
@@ -538,6 +654,8 @@ describe("Agent configuration controller", () => {
       pollConformanceIntervalMilliseconds: 1,
       port: adapter,
     });
+
+    await controller.load();
     const discovery = createDeferred<AgentOllamaDiscovery>();
     const probe = createDeferred<AgentProviderProbe>();
 

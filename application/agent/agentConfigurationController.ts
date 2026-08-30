@@ -105,8 +105,8 @@ export function createAgentConfigurationController({
   port: AgentConfigurationPort;
 }): AgentConfigurationController {
   const listeners = new Set<() => void>();
-  const codexDeviceLoginGenerations = new Map<string, number>();
-  const conformanceGenerations = new Map<string, number>();
+  const codexDeviceLoginOperations = new Map<string, symbol>();
+  const conformanceOperations = new Map<string, symbol>();
   let configurationAuthorityVersion = 0;
   let disposed = false;
   let loadRequestVersion = 0;
@@ -136,28 +136,79 @@ export function createAgentConfigurationController({
     return state.configuration.revision;
   };
   const beginResourceOperation = (
-    generations: Map<string, number>,
+    operations: Map<string, symbol>,
     resourceId: string,
   ) => {
-    const generation = (generations.get(resourceId) ?? 0) + 1;
+    const token = Symbol(resourceId);
 
-    generations.set(resourceId, generation);
-    return generation;
+    operations.set(resourceId, token);
+    return token;
   };
   const resourceOperationIsCurrent = (
-    generations: Map<string, number>,
+    operations: Map<string, symbol>,
     resourceId: string,
-    generation: number,
-  ) => !disposed && generations.get(resourceId) === generation;
-  const currentResourceOperationGeneration = (
-    generations: Map<string, number>,
+    token: symbol,
+  ) => !disposed && operations.get(resourceId) === token;
+  const finishResourceOperation = (
+    operations: Map<string, symbol>,
     resourceId: string,
-  ) => generations.get(resourceId) ?? 0;
+    token: symbol,
+  ) => {
+    if (operations.get(resourceId) === token) operations.delete(resourceId);
+  };
   const installConfiguration = (configuration: AgentConfigurationSnapshot) => {
+    const previousProviderDigests = new Map(
+      state.configuration?.providers.map(({ digest, id }) => [id, digest]) ?? [],
+    );
+    const previousProfileDigests = new Map(
+      state.configuration?.profiles.map(({ digest, id }) => [id, digest]) ?? [],
+    );
+    const currentProviderIds = new Set(
+      configuration.providers
+        .filter(({ digest, id }) =>
+          !previousProviderDigests.has(id) ||
+          previousProviderDigests.get(id) === digest
+        )
+        .map(({ id }) => id),
+    );
+    const currentProfileIds = new Set(
+      configuration.profiles
+        .filter(({ digest, id }) =>
+          !previousProfileDigests.has(id) ||
+          previousProfileDigests.get(id) === digest
+        )
+        .map(({ id }) => id),
+    );
+
+    for (const providerId of codexDeviceLoginOperations.keys()) {
+      if (!currentProviderIds.has(providerId)) {
+        codexDeviceLoginOperations.delete(providerId);
+      }
+    }
+    for (const profileId of conformanceOperations.keys()) {
+      if (!currentProfileIds.has(profileId)) {
+        conformanceOperations.delete(profileId);
+      }
+    }
     configurationAuthorityVersion += 1;
     publish({
+      codexDeviceLogins: Object.fromEntries(
+        Object.entries(state.codexDeviceLogins).filter(([providerId]) =>
+          currentProviderIds.has(providerId)
+        ),
+      ),
       configuration,
+      conformanceChecks: Object.fromEntries(
+        Object.entries(state.conformanceChecks).filter(([profileId]) =>
+          currentProfileIds.has(profileId)
+        ),
+      ),
       loadStatus: "ready",
+      probes: Object.fromEntries(
+        Object.entries(state.probes).filter(([providerId]) =>
+          currentProviderIds.has(providerId)
+        ),
+      ),
     });
   };
   const refreshConfiguration = async (isCurrent = () => true) => {
@@ -229,16 +280,15 @@ export function createAgentConfigurationController({
 
       if (!login || login.status !== "pending") return;
       await runOperation(async () => {
-        const expectedGeneration = currentResourceOperationGeneration(
-          codexDeviceLoginGenerations,
-          providerId,
-        );
+        const expectedToken = codexDeviceLoginOperations.get(providerId);
+
+        if (!expectedToken) return;
         const cancelled = await port.cancelCodexDeviceLogin(login.id);
 
         if (!resourceOperationIsCurrent(
-          codexDeviceLoginGenerations,
+          codexDeviceLoginOperations,
           providerId,
-          expectedGeneration,
+          expectedToken,
         )) return;
         const currentLogin = state.codexDeviceLogins[providerId];
 
@@ -246,26 +296,38 @@ export function createAgentConfigurationController({
           currentLogin?.id === cancelled.id &&
           currentLogin.status !== "pending"
         ) return;
-        const generation = cancelled.status === "pending"
-          ? expectedGeneration
+        const token = cancelled.status === "pending"
+          ? expectedToken
           : beginResourceOperation(
-            codexDeviceLoginGenerations,
+            codexDeviceLoginOperations,
             providerId,
           );
         const isCurrent = () => resourceOperationIsCurrent(
-          codexDeviceLoginGenerations,
+          codexDeviceLoginOperations,
           providerId,
-          generation,
+          token,
         );
 
-        publishCodexDeviceLogin(cancelled);
-        if (cancelled.status === "succeeded") {
-          await refreshConfiguration(isCurrent);
-          if (isCurrent()) await onConfigurationChanged();
-        } else if (cancelled.status === "failed") {
-          publish({
-            errorMessage: cancelled.errorMessage ?? "Codex device login failed.",
-          });
+        try {
+          publishCodexDeviceLogin(cancelled);
+          if (cancelled.status === "succeeded") {
+            if (await refreshConfiguration(isCurrent)) {
+              await onConfigurationChanged();
+            }
+          } else if (cancelled.status === "failed") {
+            publish({
+              errorMessage: cancelled.errorMessage ??
+                "Codex device login failed.",
+            });
+          }
+        } finally {
+          if (cancelled.status !== "pending") {
+            finishResourceOperation(
+              codexDeviceLoginOperations,
+              providerId,
+              token,
+            );
+          }
         }
       });
     },
@@ -275,16 +337,15 @@ export function createAgentConfigurationController({
 
       if (!check || check.status !== "running") return;
       await runOperation(async () => {
-        const expectedGeneration = currentResourceOperationGeneration(
-          conformanceGenerations,
-          profileId,
-        );
+        const expectedToken = conformanceOperations.get(profileId);
+
+        if (!expectedToken) return;
         const cancelled = await port.cancelConformance(check.id);
 
         if (!resourceOperationIsCurrent(
-          conformanceGenerations,
+          conformanceOperations,
           profileId,
-          expectedGeneration,
+          expectedToken,
         )) return;
         const currentCheck = state.conformanceChecks[profileId];
 
@@ -292,69 +353,82 @@ export function createAgentConfigurationController({
           currentCheck?.id === cancelled.id &&
           currentCheck.status !== "running"
         ) return;
-        const generation = cancelled.status === "running"
-          ? expectedGeneration
-          : beginResourceOperation(conformanceGenerations, profileId);
+        const token = cancelled.status === "running"
+          ? expectedToken
+          : beginResourceOperation(conformanceOperations, profileId);
         const isCurrent = () => resourceOperationIsCurrent(
-          conformanceGenerations,
+          conformanceOperations,
           profileId,
-          generation,
+          token,
         );
 
-        publishConformance(cancelled);
-        if (cancelled.status === "succeeded") {
-          await refreshConfiguration(isCurrent);
-          if (isCurrent()) await onConfigurationChanged();
-        } else if (cancelled.status === "failed") {
-          publish({
-            errorMessage: cancelled.errorMessage ??
-              "Agent conformance check failed.",
-          });
+        try {
+          publishConformance(cancelled);
+          if (cancelled.status === "succeeded") {
+            if (await refreshConfiguration(isCurrent)) {
+              await onConfigurationChanged();
+            }
+          } else if (cancelled.status === "failed") {
+            publish({
+              errorMessage: cancelled.errorMessage ??
+                "Agent conformance check failed.",
+            });
+          }
+        } finally {
+          if (cancelled.status !== "running") {
+            finishResourceOperation(conformanceOperations, profileId, token);
+          }
         }
       });
     },
     async checkConformance(profileId) {
       await runOperation(async () => {
-        const generation = beginResourceOperation(
-          conformanceGenerations,
+        const token = beginResourceOperation(
+          conformanceOperations,
           profileId,
         );
         const isCurrent = () => resourceOperationIsCurrent(
-          conformanceGenerations,
+          conformanceOperations,
           profileId,
-          generation,
+          token,
         );
-        let check: AgentConformanceCheckStatus;
 
         try {
-          check = await port.startConformance(
-            requireRevision(),
-            profileId,
-          );
-          if (!isCurrent()) return;
+          let check: AgentConformanceCheckStatus;
 
-          publishConformance(check);
-          while (check.status === "running") {
-            await pollConformance(pollConformanceIntervalMilliseconds);
+          try {
+            check = await port.startConformance(
+              requireRevision(),
+              profileId,
+            );
             if (!isCurrent()) return;
-            const polled = await port.getConformance(check.id);
 
-            if (!isCurrent()) return;
-            check = polled;
             publishConformance(check);
+            while (check.status === "running") {
+              await pollConformance(pollConformanceIntervalMilliseconds);
+              if (!isCurrent()) return;
+              const polled = await port.getConformance(check.id);
+
+              if (!isCurrent()) return;
+              check = polled;
+              publishConformance(check);
+            }
+          } catch (error) {
+            if (!isCurrent()) return;
+            throw error;
           }
-        } catch (error) {
-          if (!isCurrent()) return;
-          throw error;
+          if (check.status === "failed") {
+            throw new Error(
+              check.errorMessage ?? "Agent conformance check failed.",
+            );
+          }
+          if (check.status === "cancelled") return;
+          if (await refreshConfiguration(isCurrent)) {
+            await onConfigurationChanged();
+          }
+        } finally {
+          finishResourceOperation(conformanceOperations, profileId, token);
         }
-        if (check.status === "failed") {
-          throw new Error(check.errorMessage ?? "Agent conformance check failed.");
-        }
-        if (check.status === "cancelled") {
-          return;
-        }
-        await refreshConfiguration(isCurrent);
-        if (isCurrent()) await onConfigurationChanged();
       });
     },
     clearProviderAuthentication: (providerId) => mutate((revision) =>
@@ -376,6 +450,8 @@ export function createAgentConfigurationController({
       if (disposed) return;
       disposed = true;
       loadRequestVersion += 1;
+      codexDeviceLoginOperations.clear();
+      conformanceOperations.clear();
       listeners.clear();
     },
     async discoverOllama(endpoint) {
@@ -413,9 +489,19 @@ export function createAgentConfigurationController({
     },
     async probeProvider(providerId) {
       await runOperation(async () => {
-        const probe = await port.probeProvider(providerId);
+        const expectedDigest = state.configuration?.providers.find(
+          ({ id }) => id === providerId,
+        )?.digest;
 
-        if (disposed) return;
+        if (!expectedDigest) {
+          throw new Error(`Agent provider does not exist: ${providerId}`);
+        }
+        const probe = await port.probeProvider(providerId);
+        const currentDigest = state.configuration?.providers.find(
+          ({ id }) => id === providerId,
+        )?.digest;
+
+        if (disposed || currentDigest !== expectedDigest) return;
         publish({
           probes: { ...state.probes, [providerId]: probe },
         });
@@ -428,21 +514,38 @@ export function createAgentConfigurationController({
     },
     async startCodexDeviceLogin(providerId) {
       await runOperation(async () => {
-        const generation = beginResourceOperation(
-          codexDeviceLoginGenerations,
+        const token = beginResourceOperation(
+          codexDeviceLoginOperations,
           providerId,
         );
         const isCurrent = () => resourceOperationIsCurrent(
-          codexDeviceLoginGenerations,
+          codexDeviceLoginOperations,
           providerId,
-          generation,
+          token,
         );
-        const login = await port.startCodexDeviceLogin(
-          requireRevision(),
-          providerId,
-        );
+        let login: AgentCodexDeviceLoginStatus;
 
-        if (!isCurrent()) return;
+        try {
+          login = await port.startCodexDeviceLogin(
+            requireRevision(),
+            providerId,
+          );
+        } catch (error) {
+          finishResourceOperation(
+            codexDeviceLoginOperations,
+            providerId,
+            token,
+          );
+          throw error;
+        }
+        if (!isCurrent()) {
+          finishResourceOperation(
+            codexDeviceLoginOperations,
+            providerId,
+            token,
+          );
+          return;
+        }
         publishCodexDeviceLogin(login);
         void (async () => {
           try {
@@ -458,8 +561,9 @@ export function createAgentConfigurationController({
               publishCodexDeviceLogin(current);
             }
             if (current.status === "succeeded") {
-              await refreshConfiguration(isCurrent);
-              if (isCurrent()) await onConfigurationChanged();
+              if (await refreshConfiguration(isCurrent)) {
+                await onConfigurationChanged();
+              }
             } else if (current.status === "failed") {
               publish({
                 errorMessage: current.errorMessage ?? "Codex device login failed.",
@@ -467,6 +571,12 @@ export function createAgentConfigurationController({
             }
           } catch (error) {
             if (isCurrent()) publish({ errorMessage: message(error) });
+          } finally {
+            finishResourceOperation(
+              codexDeviceLoginOperations,
+              providerId,
+              token,
+            );
           }
         })();
       });
