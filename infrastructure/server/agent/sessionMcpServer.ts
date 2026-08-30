@@ -2,7 +2,6 @@
 
 import { randomUUID } from "node:crypto";
 import net from "node:net";
-import readline from "node:readline";
 import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
 import type {
   AgentIpcRequestDto,
@@ -15,6 +14,7 @@ import {
   parsePrivateIpcResult,
   parseSessionMcpRequestLine,
 } from "./sessionMcpProtocol.ts";
+import { listenToAgentJsonLines } from "./jsonLineTransport.ts";
 
 const maximumPrivateIpcResponseCharacters = 1_000_000;
 
@@ -88,93 +88,112 @@ async function listTools(): Promise<AgentIpcToolCatalogDto> {
   );
 }
 
-const input = readline.createInterface({ input: process.stdin });
+async function handleInputLine(line: string) {
+  const parsed = parseSessionMcpRequestLine(line);
 
-input.on("line", (line) => {
-  void (async () => {
-    const parsed = parseSessionMcpRequestLine(line);
+  if (parsed.kind === "error") {
+    write({
+      error: { code: parsed.code, message: parsed.message },
+      id: parsed.id,
+      jsonrpc: "2.0",
+    });
+    return;
+  }
+  if (parsed.kind === "notification") return;
+  const { id, request } = parsed;
 
-    if (parsed.kind === "error") {
-      write({
-        error: { code: parsed.code, message: parsed.message },
-        id: parsed.id,
-        jsonrpc: "2.0",
-      });
-      return;
-    }
-    if (parsed.kind === "notification") return;
-    const { id, request } = parsed;
+  if (request.method === "initialize") {
+    write({
+      id,
+      jsonrpc: "2.0",
+      result: {
+        capabilities: { tools: { listChanged: false } },
+        protocolVersion: "2025-06-18",
+        serverInfo: { name: "cognition-tree-session-agent", version: "1.0.0" },
+      },
+    });
+    return;
+  }
+  try {
+    if (request.method === "tools/list") {
+      const tools = await listTools();
 
-    if (request.method === "initialize") {
-      write({
-        id,
-        jsonrpc: "2.0",
-        result: {
-          capabilities: { tools: { listChanged: false } },
-          protocolVersion: "2025-06-18",
-          serverInfo: { name: "cognition-tree-session-agent", version: "1.0.0" },
-        },
-      });
-      return;
-    }
-    try {
-      if (request.method === "tools/list") {
-        const tools = await listTools();
-
-        write({
-          id,
-          jsonrpc: "2.0",
-          result: {
-            tools,
-          },
-        });
-        return;
-      }
-      if (request.method === "tools/call") {
-        const params = request.params && typeof request.params === "object" &&
-            !Array.isArray(request.params)
-          ? request.params as Record<string, unknown>
-          : {};
-        const definition = (await listTools()).find(({ name }) =>
-          name === params.name
-        );
-
-        if (!definition) {
-          write({ error: { code: -32602, message: "Unknown Agent tool" }, id, jsonrpc: "2.0" });
-          return;
-        }
-        const result = await callPrivateIpc({
-          kind: "call-tool",
-          tool: {
-            input: params.arguments ?? {},
-            name: definition.name,
-          } as AgentIpcToolCallRequest["tool"],
-        });
-
-        write({
-          id,
-          jsonrpc: "2.0",
-          result: {
-            content: [{ text: JSON.stringify(result), type: "text" }],
-            structuredContent: result,
-          },
-        });
-        return;
-      }
-    } catch (error) {
       write({
         id,
         jsonrpc: "2.0",
         result: {
-          content: [{
-            text: error instanceof Error ? error.message : "Agent tool failed",
-            type: "text",
-          }],
-          isError: true,
+          tools,
         },
       });
       return;
     }
-    write({ error: { code: -32601, message: "Method not found" }, id, jsonrpc: "2.0" });
-  })();
+    if (request.method === "tools/call") {
+      const params = request.params && typeof request.params === "object" &&
+          !Array.isArray(request.params)
+        ? request.params as Record<string, unknown>
+        : {};
+      const definition = (await listTools()).find(({ name }) =>
+        name === params.name
+      );
+
+      if (!definition) {
+        write({
+          error: { code: -32602, message: "Unknown Agent tool" },
+          id,
+          jsonrpc: "2.0",
+        });
+        return;
+      }
+      const result = await callPrivateIpc({
+        kind: "call-tool",
+        tool: {
+          input: params.arguments ?? {},
+          name: definition.name,
+        } as AgentIpcToolCallRequest["tool"],
+      });
+
+      write({
+        id,
+        jsonrpc: "2.0",
+        result: {
+          content: [{ text: JSON.stringify(result), type: "text" }],
+          structuredContent: result,
+        },
+      });
+      return;
+    }
+  } catch (error) {
+    write({
+      id,
+      jsonrpc: "2.0",
+      result: {
+        content: [{
+          text: error instanceof Error ? error.message : "Agent tool failed",
+          type: "text",
+        }],
+        isError: true,
+      },
+    });
+    return;
+  }
+  write({
+    error: { code: -32601, message: "Method not found" },
+    id,
+    jsonrpc: "2.0",
+  });
+}
+
+listenToAgentJsonLines(process.stdin, {
+  onFailure() {
+    write({
+      error: { code: -32700, message: "Parse error" },
+      id: null,
+      jsonrpc: "2.0",
+    });
+    process.exitCode = 1;
+    process.stdin.destroy();
+  },
+  onLine(line) {
+    void handleInputLine(line);
+  },
 });
