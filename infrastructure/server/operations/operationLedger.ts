@@ -9,11 +9,8 @@ import {
 } from "../../../contracts/agent/schemas.ts";
 import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
 import {
-  ApiOperationAuditEntrySchema,
-  type ApiOperationAuditEntryDto,
   type ApiOperationAuditPageDto,
 } from "../../../contracts/api/schemas/operations.ts";
-import { parseApiSchema } from "../../../contracts/api/parse.ts";
 import {
   SecureJsonPartition,
   SecureStatePartitionError,
@@ -31,11 +28,16 @@ import {
   type TrustedClientOperationStore,
 } from "./operationLedgerContract.ts";
 import {
-  type AgentReceiptState,
   createInitialOperationLedgerState,
   type OperationLedgerState,
   parseOperationLedgerState,
 } from "./operationLedgerState.ts";
+import {
+  createTrustedClientAuditEntry,
+  operationLedgerKey,
+  projectAgentOperationAudit,
+  projectIndeterminateAgentOperationAudit,
+} from "./operationLedgerProjection.ts";
 
 const defaultReceiptRetentionMilliseconds = 24 * 60 * 60 * 1_000;
 
@@ -43,13 +45,6 @@ type BeginAgentResult =
   | { kind: "execute" }
   | { kind: "indeterminate" }
   | { entry: AgentOperationAuditEntryDto; kind: "replay" };
-
-function operationKey(identity: Pick<
-  AgentOperationIdentity,
-  "proposalId" | "proposalVersion"
->) {
-  return `${identity.proposalId}\u0000${identity.proposalVersion}`;
-}
 
 export class OperationLedger {
   readonly #inFlight = new Map<string, {
@@ -140,7 +135,7 @@ export class OperationLedger {
     attempt: AgentOperationAttempt,
     execute: () => Promise<AgentOperationAuditEntryDto>,
   ) {
-    const key = operationKey(identity);
+    const key = operationLedgerKey(identity);
     const active = this.#inFlight.get(key);
 
     if (active) {
@@ -169,21 +164,7 @@ export class OperationLedger {
       if (state.auditEntries.some(({ entry }) => entry.id === input.requestId)) {
         throw new Error("Operation requestId is already present in the audit ledger");
       }
-      const entry = parseApiSchema(ApiOperationAuditEntrySchema, {
-        afterRevision: null,
-        beforeRevision: null,
-        changeMetadata: { blockIds: [], resourceIds: [] },
-        id: input.requestId,
-        intentDigest: null,
-        occurredAt: input.occurredAt,
-        principalId: input.principalId,
-        requestId: input.requestId,
-        result: "indeterminate",
-        route: input.route,
-        source: "trusted-client",
-        store: input.store,
-        updatedAt: input.occurredAt,
-      });
+      const entry = createTrustedClientAuditEntry(input);
 
       state.auditEntries.push({ entry, pending: true });
       this.#trimAudit(state);
@@ -314,9 +295,9 @@ export class OperationLedger {
   ): Promise<Exclude<BeginAgentResult, { kind: "indeterminate" }>> {
     return this.#mutate<BeginAgentResult>((state) => {
       const purged = this.#purgeReceipts(state);
-      const key = operationKey(identity);
+      const key = operationLedgerKey(identity);
       const existing = state.agentReceipts.find((receipt) =>
-        operationKey(receipt) === key
+        operationLedgerKey(receipt) === key
       );
 
       if (existing) {
@@ -333,7 +314,7 @@ export class OperationLedger {
           existing.status = "indeterminate";
           existing.updatedAt = this.#now();
           state.auditEntries.push({
-            entry: this.#projectIndeterminateAgentAudit(existing),
+            entry: projectIndeterminateAgentOperationAudit(existing),
             pending: false,
           });
           this.#trimAudit(state);
@@ -372,7 +353,7 @@ export class OperationLedger {
   ) {
     return this.#mutate((state) => {
       const receipt = state.agentReceipts.find((candidate) =>
-        operationKey(candidate) === operationKey(identity)
+        operationLedgerKey(candidate) === operationLedgerKey(identity)
       );
 
       if (!receipt || receipt.status !== "pending") {
@@ -382,7 +363,7 @@ export class OperationLedger {
       receipt.status = entry.result;
       receipt.updatedAt = this.#now();
       state.auditEntries.push({
-        entry: this.#projectAgentAudit(receipt, entry),
+        entry: projectAgentOperationAudit(receipt, entry),
         pending: false,
       });
       this.#trimAudit(state);
@@ -393,7 +374,7 @@ export class OperationLedger {
   #markAgentIndeterminate(identity: AgentOperationIdentity) {
     return this.#mutate((state) => {
       const receipt = state.agentReceipts.find((candidate) =>
-        operationKey(candidate) === operationKey(identity)
+        operationLedgerKey(candidate) === operationLedgerKey(identity)
       );
 
       if (!receipt || receipt.status !== "pending") {
@@ -402,7 +383,7 @@ export class OperationLedger {
       receipt.status = "indeterminate";
       receipt.updatedAt = this.#now();
       state.auditEntries.push({
-        entry: this.#projectIndeterminateAgentAudit(receipt),
+        entry: projectIndeterminateAgentOperationAudit(receipt),
         pending: false,
       });
       this.#trimAudit(state);
@@ -434,71 +415,6 @@ export class OperationLedger {
       changed = true;
     }
     return changed;
-  }
-
-  #projectAgentAudit(
-    receipt: AgentReceiptState,
-    entry: AgentOperationAuditEntryDto,
-  ): ApiOperationAuditEntryDto {
-    return parseApiSchema(ApiOperationAuditEntrySchema, {
-      afterRevision: entry.afterRevision,
-      agent: {
-        digest: entry.digest,
-        profileDigest: entry.profileDigest,
-        profileId: entry.profileId,
-        profileVersion: entry.profileVersion,
-        proposalId: entry.proposalId,
-        proposalVersion: entry.proposalVersion,
-        providerDigest: entry.providerDigest,
-        providerId: entry.providerId,
-        providerVersion: entry.providerVersion,
-        runtimeKind: entry.runtimeKind,
-        sessionId: entry.sessionId,
-      },
-      beforeRevision: entry.beforeRevision,
-      changeMetadata: entry.changeMetadata,
-      id: operationKey(receipt),
-      occurredAt: receipt.attempt.occurredAt,
-      principalId: receipt.attempt.approvingOwnerId,
-      requestId: receipt.attempt.requestId,
-      result: entry.result,
-      route: receipt.attempt.route,
-      source: "agent",
-      store: entry.store,
-      updatedAt: receipt.updatedAt,
-    });
-  }
-
-  #projectIndeterminateAgentAudit(
-    receipt: AgentReceiptState,
-  ): ApiOperationAuditEntryDto {
-    return parseApiSchema(ApiOperationAuditEntrySchema, {
-      afterRevision: null,
-      agent: {
-        digest: receipt.digest,
-        profileDigest: receipt.attempt.profileDigest,
-        profileId: receipt.attempt.profileId,
-        profileVersion: receipt.attempt.profileVersion,
-        proposalId: receipt.proposalId,
-        proposalVersion: receipt.proposalVersion,
-        providerDigest: receipt.attempt.providerDigest,
-        providerId: receipt.attempt.providerId,
-        providerVersion: receipt.attempt.providerVersion,
-        runtimeKind: receipt.attempt.runtimeKind,
-        sessionId: receipt.attempt.sessionId,
-      },
-      beforeRevision: receipt.attempt.beforeRevision,
-      changeMetadata: { blockIds: [], resourceIds: [] },
-      id: operationKey(receipt),
-      occurredAt: receipt.attempt.occurredAt,
-      principalId: receipt.attempt.approvingOwnerId,
-      requestId: receipt.attempt.requestId,
-      result: "indeterminate",
-      route: receipt.attempt.route,
-      source: "agent",
-      store: receipt.attempt.store,
-      updatedAt: receipt.updatedAt,
-    });
   }
 
   #currentStatus(): OperationAuditStatus {

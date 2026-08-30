@@ -404,7 +404,8 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     保持独立查询入口。server/access 独占 automation 与 trusted-client token；
     server/operations 独占统一账本、审计状态和 Agent receipt；其中
     operationLedgerContract 独占公开错误与命令类型，operationLedgerState 独占
-    operations-v1 严格解析与初始状态，operationLedger 只实现事务；
+    operations-v1 严格解析与初始状态，operationLedgerProjection 独占 Agent/trusted
+    审计 wire 投影与稳定 operation key，operationLedger 只实现事务；
     server/agent 拥有
     store 组合、runtime adapter、私有 IPC 与内存会话，不重写领域 command；其中
     providerOperations 只显式组合无状态 providerProbe、Codex 设备码登录状态机和
