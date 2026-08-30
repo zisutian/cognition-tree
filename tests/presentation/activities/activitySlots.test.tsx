@@ -223,20 +223,6 @@ describe("activity slots", () => {
       "repository",
       "settings",
     ]);
-    expect(activityDescriptors.map(({ id, group, availability }) => [
-      id,
-      group,
-      availability,
-    ])).toEqual([
-      ["notes", "primary", "workspace"],
-      ["journal", "primary", "always"],
-      ["todo", "primary", "always"],
-      ["syntax", "primary", "always"],
-      ["agent", "management", "always"],
-      ["search", "management", "always"],
-      ["repository", "management", "always"],
-      ["settings", "management", "always"],
-    ]);
   });
 
   it("renders every slot and gates parsed Activities without syntax", () => {

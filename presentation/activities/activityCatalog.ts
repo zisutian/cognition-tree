@@ -20,7 +20,6 @@ import type { ActivityId } from "../ui/activityTypes";
 import type { ActivityControllerProps } from "./activityController";
 
 export type ActivityDescriptor = {
-  availability: "always" | "workspace";
   Controller: LazyExoticComponent<ComponentType<ActivityControllerProps>>;
   group: "management" | "primary";
   icon: LucideIcon;
@@ -30,7 +29,6 @@ export type ActivityDescriptor = {
 
 export const activityDescriptors: readonly ActivityDescriptor[] = [
   {
-    availability: "workspace",
     Controller: lazy(async () => ({
       default: (await import("./notes/NotesActivityController"))
         .NotesActivityController,
@@ -41,7 +39,6 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
     label: "笔记",
   },
   {
-    availability: "always",
     Controller: lazy(async () => ({
       default: (await import("./journal/JournalActivityController"))
         .JournalActivityController,
@@ -52,7 +49,6 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
     label: "日记",
   },
   {
-    availability: "always",
     Controller: lazy(async () => ({
       default: (await import("./todo/TodoActivityController"))
         .TodoActivityController,
@@ -63,7 +59,6 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
     label: "代办",
   },
   {
-    availability: "always",
     Controller: lazy(async () => ({
       default: (await import("./syntax/SyntaxActivityController"))
         .SyntaxActivityController,
@@ -74,7 +69,6 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
     label: "语法",
   },
   {
-    availability: "always",
     Controller: lazy(async () => ({
       default: (await import("./agent/AgentActivityController"))
         .AgentActivityController,
@@ -85,7 +79,6 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
     label: "智能体",
   },
   {
-    availability: "always",
     Controller: lazy(async () => ({
       default: (await import("./search/SearchActivityController"))
         .SearchActivityController,
@@ -96,7 +89,6 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
     label: "搜索",
   },
   {
-    availability: "always",
     Controller: lazy(async () => ({
       default: (await import("./repository/RepositoryActivityController"))
         .RepositoryActivityController,
@@ -107,7 +99,6 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
     label: "仓库",
   },
   {
-    availability: "always",
     Controller: lazy(async () => ({
       default: (await import("./settings/SettingsActivityController"))
         .SettingsActivityController,
