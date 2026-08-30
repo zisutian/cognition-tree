@@ -6,6 +6,15 @@ import {
   createWorkspaceNoteNavigationController,
 } from "../../../application/workbench/workspaceNoteNavigationController";
 
+function deferred<Value>() {
+  let resolve!: (value: Value | PromiseLike<Value>) => void;
+  const promise = new Promise<Value>((nextResolve) => {
+    resolve = nextResolve;
+  });
+
+  return { promise, resolve };
+}
+
 const destination = {
   blockId: null,
   domain: "workspace" as const,
@@ -128,5 +137,82 @@ describe("workspace note navigation controller", () => {
     await vi.waitFor(() =>
       expect(controller.getState().status).toBe("ready")
     );
+  });
+
+  it("does not select for a request replaced while its flush is pending", async () => {
+    const pendingFlush = deferred<void>();
+    const replacementDestination = {
+      ...destination,
+      repositoryId: "repository-c",
+    };
+    const repositoryC = {
+      ...descriptor,
+      id: replacementDestination.repositoryId,
+      label: "仓库C",
+    };
+    let catalog: RepositoryCatalogControllerSnapshot = {
+      ...readyCatalog(null),
+      state: {
+        ...readyCatalog(null).state,
+        repositories: [descriptor, repositoryC],
+      } as RepositoryCatalogControllerSnapshot["state"],
+    };
+    const selectRepository = vi.fn(async (repositoryId: string) => {
+      catalog = {
+        activeDescriptor: repositoryId === descriptor.id
+          ? descriptor
+          : repositoryC,
+        catalogLabel: "Repositories",
+        state: {
+          activeRepositoryId: repositoryId,
+          issues: [],
+          operation: "idle",
+          repositories: [descriptor, repositoryC],
+          status: "ready",
+        },
+      };
+    });
+    const controller = createWorkspaceNoteNavigationController({
+      flushWorkspace: () => pendingFlush.promise,
+      getCatalog: () => catalog,
+      getWorkspace: () => ({ status: "ready" }),
+      onChange: vi.fn(),
+      selectRepository,
+    });
+
+    controller.request(destination);
+    controller.request(replacementDestination);
+    pendingFlush.resolve();
+
+    await vi.waitFor(() => expect(selectRepository).toHaveBeenCalledOnce());
+    expect(selectRepository).toHaveBeenCalledWith(
+      replacementDestination.repositoryId,
+    );
+    await vi.waitFor(() =>
+      expect(controller.getState()).toMatchObject({
+        destination: replacementDestination,
+        status: "ready",
+      })
+    );
+  });
+
+  it("does not select after disposal during a pending flush", async () => {
+    const pendingFlush = deferred<void>();
+    const selectRepository = vi.fn();
+    const controller = createWorkspaceNoteNavigationController({
+      flushWorkspace: () => pendingFlush.promise,
+      getCatalog: () => readyCatalog(null),
+      getWorkspace: () => ({ status: "ready" }),
+      onChange: vi.fn(),
+      selectRepository,
+    });
+
+    controller.request(destination);
+    controller.dispose();
+    pendingFlush.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(selectRepository).not.toHaveBeenCalled();
   });
 });

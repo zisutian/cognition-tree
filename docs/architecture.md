@@ -359,6 +359,8 @@ VersionedSessionController 与保存队列。该控制器负责页面内 ready �
 持有，不设置影子状态；旧生命周期完成不得改写活动仓选择。
 Workbench session slot 先完整构造、订阅并启动候选 controller，再原子替换当前
 controller；候选准备失败时释放候选并保留旧会话，同一连接描述可直接重试。
+跨仓导航只允许当前 requestId 在异步 flush 后执行仓库选择；新请求或 dispose 会撤销
+旧请求尚未发生的副作用，在途旧结果不得发布或继续读取已释放的组合对象。
 普通仓库切换只排空并替换 Workspace session，不
 停止或重建 Journal/Todo。
 

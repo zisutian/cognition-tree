@@ -60,6 +60,10 @@ export function createWorkspaceNoteNavigationController({
     state = nextState;
     onChange();
   };
+  const isCurrentPendingRequest = (requestId: number) =>
+    !disposed &&
+    state.status === "pending" &&
+    state.requestId === requestId;
   const process = async () => {
     if (processing || state.status !== "pending" || disposed) return;
     const request = state;
@@ -92,7 +96,9 @@ export function createWorkspaceNoteNavigationController({
 
         if (workspace.status === "ready") {
           await flushWorkspace();
+          if (!isCurrentPendingRequest(request.requestId)) return;
         }
+        if (!isCurrentPendingRequest(request.requestId)) return;
         await selectRepository(request.destination.repositoryId);
       } else {
         const workspace = getWorkspace();
@@ -117,14 +123,19 @@ export function createWorkspaceNoteNavigationController({
       }
     } finally {
       processing = false;
+      if (disposed || state.status !== "pending") return;
+      if (state.requestId !== request.requestId) {
+        void process();
+        return;
+      }
       if (
-        state.status === "pending" &&
-        (state.requestId !== request.requestId ||
-          (getCatalog().activeDescriptor?.id ===
-              state.destination.repositoryId &&
-            (getWorkspace().status === "ready" ||
-              getWorkspace().status === "failed")))
+        getCatalog().activeDescriptor?.id !== state.destination.repositoryId
       ) {
+        return;
+      }
+      const workspace = getWorkspace();
+
+      if (workspace.status === "ready" || workspace.status === "failed") {
         void process();
       }
     }
