@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomUUID } from "node:crypto";
-import { lstat, mkdir, readdir, realpath, rename, rm } from "node:fs/promises";
+import { lstat, realpath, rename, rm } from "node:fs/promises";
 import path from "node:path";
-import { lock } from "proper-lockfile";
 import { isRepositoryId } from "../../../../../contracts/workspace/parseCatalog.ts";
 import {
   createPortableNameKey,
@@ -33,12 +32,8 @@ import {
   type LocalRepositoryDeletionPhase,
 } from "./localRepositoryDeletion.ts";
 import { readLocalRepositoryCatalog } from "./localRepositoryInventory.ts";
+import { LocalRepositoryRootLease } from "./localRepositoryRootLease.ts";
 
-const writerLockFileName = ".ctn-writer.lock";
-const catalogCreateStagingPattern =
-  /^\.create-.+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const repositoryDeletionTombstonePattern =
-  /^\.delete-.+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const maximumIdAllocationAttempts = 100;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -77,15 +72,12 @@ async function pathExists(filePath: string) {
 export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
   #createId: NonNullable<LocalRepositoryCatalogOptions["createId"]>;
   #createStore: NonNullable<LocalRepositoryCatalogOptions["createStore"]>;
-  #initializePromise: Promise<void> | null = null;
   #hostRoot: string | null;
-  #lockCompromised = false;
   #onRepositoryDeletionPhase: NonNullable<
     LocalRepositoryCatalogOptions["onRepositoryDeletionPhase"]
   >;
   #operationQueue: Promise<void> = Promise.resolve();
-  #releaseWriterLock: (() => Promise<void>) | null = null;
-  #rootDir: string;
+  readonly #rootLease: LocalRepositoryRootLease;
   #storesById = new Map<string, WorkspaceFileStore>();
 
   constructor(
@@ -112,20 +104,11 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
     }
     this.#hostRoot = hostRoot === null ? null : path.normalize(hostRoot);
     this.#onRepositoryDeletionPhase = onRepositoryDeletionPhase;
-    this.#rootDir = path.resolve(rootDir);
+    this.#rootLease = new LocalRepositoryRootLease(rootDir);
   }
 
-  async initialize() {
-    if (!this.#initializePromise) {
-      this.#initializePromise = this.#initialize();
-    }
-
-    try {
-      await this.#initializePromise;
-    } catch (error) {
-      this.#initializePromise = null;
-      throw error;
-    }
+  initialize() {
+    return this.#rootLease.initialize();
   }
 
   async dispose() {
@@ -135,20 +118,14 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
 
       await Promise.all(storeDrains);
       this.#storesById.clear();
-      const release = this.#releaseWriterLock;
-
-      this.#releaseWriterLock = null;
-      this.#initializePromise = null;
-      if (release) {
-        await release();
-      }
+      await this.#rootLease.dispose();
     });
   }
 
   async listRepositories(): Promise<RepositoryCatalogDto> {
     return this.#enqueueOperation(async () => {
       await this.initialize();
-      this.#assertWriterLock();
+      this.#rootLease.assertOwned();
       return this.#listRepositories();
     });
   }
@@ -158,7 +135,7 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
   ): Promise<RepositoryDescriptorDto> {
     return this.#enqueueOperation(async () => {
       await this.initialize();
-      this.#assertWriterLock();
+      this.#rootLease.assertOwned();
       const label = await this.#assertAvailableLabel(request.label);
       const id = await this.#allocateRepositoryId();
 
@@ -171,7 +148,7 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
   ): Promise<RepositoryDescriptorDto> {
     return this.#enqueueOperation(async () => {
       await this.initialize();
-      this.#assertWriterLock();
+      this.#rootLease.assertOwned();
       return this.#createRepositoryWithId(request);
     });
   }
@@ -179,7 +156,7 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
   async deleteRepository(repositoryId: string): Promise<void> {
     return this.#enqueueOperation(async () => {
       await this.initialize();
-      this.#assertWriterLock();
+      this.#rootLease.assertOwned();
       const repositoryPath = this.#resolveRepositoryPath(repositoryId);
       const store = this.#storesById.get(repositoryId);
 
@@ -191,7 +168,7 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
         onPhase: this.#onRepositoryDeletionPhase,
         repositoryId,
         repositoryPath,
-        rootDir: this.#rootDir,
+        rootDir: this.#rootLease.rootPath,
       });
     });
   }
@@ -203,7 +180,7 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
   async renameRepository(repositoryId: string, request: RenameRepositoryDto) {
     return this.#enqueueOperation(async () => {
       await this.initialize();
-      this.#assertWriterLock();
+      this.#rootLease.assertOwned();
       const parsedLabel = await this.#assertAvailableLabel(
         request.label,
         repositoryId,
@@ -217,7 +194,7 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
 
   async #getStore(repositoryId: string) {
     await this.initialize();
-    this.#assertWriterLock();
+    this.#rootLease.assertOwned();
     const repositoryPath = this.#resolveRepositoryPath(repositoryId);
     const stats = await lstat(repositoryPath).catch((error: unknown) => {
       if (hasFileSystemErrorCode(error, "ENOENT")) {
@@ -235,7 +212,7 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
 
     const canonicalPath = await realpath(repositoryPath);
 
-    if (path.dirname(canonicalPath) !== this.#rootDir) {
+    if (path.dirname(canonicalPath) !== this.#rootLease.rootPath) {
       throw new RepositoryCatalogError("invalid_request", "Repository escapes the configured root");
     }
 
@@ -253,7 +230,7 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
   }
 
   get rootPath() {
-    return this.#rootDir;
+    return this.#rootLease.rootPath;
   }
 
   async #allocateRepositoryId() {
@@ -325,7 +302,7 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
     }
 
     const stagingPath = path.join(
-      this.#rootDir,
+      this.#rootLease.rootPath,
       `.create-${request.id}-${randomUUID()}`,
     );
 
@@ -337,7 +314,7 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
         rootDir: stagingPath,
       });
       await rename(stagingPath, repositoryPath);
-      await fsyncDirectory(this.#rootDir);
+      await fsyncDirectory(this.#rootLease.rootPath);
     } catch (error) {
       await rm(stagingPath, { force: true, recursive: true });
       throw error;
@@ -357,72 +334,8 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
         reservedRepositoryLabelKeys.has(createPortableNameKey(label)),
       resolveRepositoryPath: (repositoryId) =>
         this.#resolveRepositoryPath(repositoryId),
-      rootDir: this.#rootDir,
+      rootDir: this.#rootLease.rootPath,
     });
-  }
-
-  async #initialize() {
-    await mkdir(this.#rootDir, { recursive: true });
-    this.#rootDir = await realpath(this.#rootDir);
-
-    try {
-      this.#releaseWriterLock = await lock(this.#rootDir, {
-        lockfilePath: path.join(this.#rootDir, writerLockFileName),
-        onCompromised: () => {
-          this.#lockCompromised = true;
-        },
-        realpath: true,
-        retries: 0,
-        stale: 30_000,
-        update: 10_000,
-      });
-      const entries = await readdir(this.#rootDir, { withFileTypes: true });
-      const staleCreateDirectories = entries.filter(
-        (entry) =>
-          entry.isDirectory() && catalogCreateStagingPattern.test(entry.name),
-      );
-      const deletionTombstones = entries.filter(
-        (entry) =>
-          entry.isDirectory() &&
-          !entry.isSymbolicLink() &&
-          repositoryDeletionTombstonePattern.test(entry.name),
-      );
-
-      if (staleCreateDirectories.length > 0 || deletionTombstones.length > 0) {
-        await Promise.all(
-          [...staleCreateDirectories, ...deletionTombstones].map((entry) =>
-            rm(path.join(this.#rootDir, entry.name), {
-              force: true,
-              recursive: true,
-            })
-          ),
-        );
-        await fsyncDirectory(this.#rootDir);
-      }
-    } catch (error) {
-      const release = this.#releaseWriterLock;
-
-      this.#releaseWriterLock = null;
-      if (release) {
-        await release().catch(() => undefined);
-      }
-      if (error instanceof Error && "code" in error && error.code === "ELOCKED") {
-        throw new RepositoryCatalogError(
-          "repository_busy",
-          "Local repository root is already owned by another server",
-        );
-      }
-      throw error;
-    }
-  }
-
-  #assertWriterLock() {
-    if (this.#lockCompromised || !this.#releaseWriterLock) {
-      throw new RepositoryCatalogError(
-        "repository_busy",
-        "Local repository writer lock was lost",
-      );
-    }
   }
 
   #createDescriptor(repositoryId: string, label: string): RepositoryDescriptorDto {
@@ -448,9 +361,12 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
       throw new RepositoryCatalogError("invalid_request", `Invalid repository id: ${repositoryId}`);
     }
 
-    const repositoryPath = path.resolve(this.#rootDir, repositoryId);
+    const repositoryPath = path.resolve(
+      this.#rootLease.rootPath,
+      repositoryId,
+    );
 
-    if (path.dirname(repositoryPath) !== this.#rootDir) {
+    if (path.dirname(repositoryPath) !== this.#rootLease.rootPath) {
       throw new RepositoryCatalogError("invalid_request", "Repository escapes the configured root");
     }
     return repositoryPath;
