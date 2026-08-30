@@ -62,6 +62,12 @@ export function createWorkspaceSessionSlot({
     unsubscribe = null;
     releaseController(previousController, previousUnsubscribe);
   };
+  const requireController = () => {
+    if (!controller) {
+      throw new Error("Workspace session controller is unavailable.");
+    }
+    return controller;
+  };
 
   return {
     dispose() {
@@ -72,7 +78,7 @@ export function createWorkspaceSessionSlot({
     },
     async flushReady() {
       if (state?.status === "ready") {
-        await controller!.flushPendingChanges();
+        await requireController().flushPendingChanges();
       }
     },
     getController: () => controller,
@@ -142,7 +148,7 @@ export function createWorkspaceSessionSlot({
     },
     async synchronizeReady() {
       if (state?.status === "ready") {
-        await controller!.synchronizePendingChanges();
+        await requireController().synchronizePendingChanges();
       }
     },
   };

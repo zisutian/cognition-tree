@@ -175,7 +175,10 @@ export function createWorkspaceSessionController({
       case "unavailable":
         throw new WorkspaceSessionUnavailableError();
     }
-    return cachedState!;
+    if (!cachedState) {
+      throw new WorkspaceSessionUnavailableError();
+    }
+    return cachedState;
   };
   const commands = createSessionCommands({
     commitDataSnapshot(workspace, analysisOverrides) {
