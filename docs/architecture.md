@@ -449,10 +449,15 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 
     client/platform 只拥有 UUID、时间、调度，以及当前仓库和默认 Agent Profile 的
     localStorage 偏好；
-    client/repository 拥有内存 catalog/content cache、revision 与 resilient
-    repository；其中 resilientVersionedRepositoryProjection 独占 prepared local/remote
-    projection cache、merge-base 复用和 snapshot/transition 投影，resilient repository
-    状态机只通过其公开方法交接 prepared value；resilientVersionedRepositoryPolicy
+    client/repository 拥有内存 catalog/content cache、revision 与 local-first repository。
+    resilientVersionedRepository 只作为显式组合 façade，独占初始化与 load/sync 请求
+    去重；loading 独占 cache-first/remote-refresh 策略、首次安装与显式丢弃重载，staging
+    独占 prepared change 延续、冲突态合并和本地 CAS 重试，remoteReconciliation 独占
+    远端 snapshot 安装、pending rebase 和并发草稿交接，synchronization 独占提交、后端
+    冲突恢复、结果分类与 transition 汇总，conflictResolution 独占 proof、人工偏好、恢复
+    覆盖校验和 rebase 后同步。resilientVersionedRepositoryProjection 独占 prepared
+    local/remote projection cache、merge-base 复用和 snapshot/transition 投影；各协作者
+    只消费 projection port，不导入该具体状态实现。resilientVersionedRepositoryPolicy
     独占远端错误分类、cache fallback、内容等价和冲突单元规范化；client/http 只实现
     /api/v3 transport 与两类 SSE；client/runtime 只负责把
     这些实现注入 application 端口。源码中不存在 IndexedDB 或存储模式分支。
@@ -499,7 +504,10 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     credential/access 生命周期与这些纯策略；configurationRevision 独占 revision CAS
     断言，profileConfiguration 通过显式 mutation port 独占 Profile CRUD 与 conformance；
     providerConfiguration 通过显式 read/mutation ports 独占 Provider CRUD、认证候选、
-    device-code staging/activation、change lease 与 conformance 失效；
+    device-code staging/activation、change lease 与 conformance 失效；credentialManifest
+    独占凭据格式、引用路径、identity 解析、digest 与有界编解码，codexManagedHomeStore
+    独占托管 HOME 的 prepare、递归 seal、active 校验和安全删除，providerCredentialStore
+    只编排凭据分区、manifest 生命周期与配置引用 reconciliation；
     jsonLineTransport 独占 Codex app-server、STDIO MCP 与 private IPC 共用的有界
     JSONL framing，拒绝超长行、非法 UTF-8 和 EOF 残行；privateIpc 独占 capability
     与本地监听器，并线性化并发启动和幂等关闭，client 只接受一个匹配 correlation 的
