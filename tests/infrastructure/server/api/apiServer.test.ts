@@ -82,7 +82,7 @@ describe("API server", () => {
     expect(logged).toBe(false);
   });
 
-  it("contains a rejected API handler for an invalid request target", async () => {
+  it("keeps the API error envelope authoritative when logging fails", async () => {
     const server = createApiServer({
       catalog,
       logger: {
@@ -134,6 +134,11 @@ describe("API server", () => {
     await ended;
 
     expect(statusCode).toBe(500);
-    expect(body).toBe("Internal server error");
+    expect(JSON.parse(body)).toMatchObject({
+      code: "internal_error",
+      message: "Internal server error",
+      requestId: expect.any(String),
+      retryable: false,
+    });
   });
 });

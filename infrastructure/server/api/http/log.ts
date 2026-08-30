@@ -29,3 +29,18 @@ export function createSafeApiLogError(error: unknown) {
   if (error.stack) safe.stack = redactLogText(error.stack);
   return safe;
 }
+
+export function reportApiRequestFailure(
+  logger: Pick<Console, "error">,
+  requestId: string,
+  error: unknown,
+) {
+  try {
+    logger.error(
+      `[${requestId}] CTN API v3 request failed`,
+      createSafeApiLogError(error),
+    );
+  } catch {
+    // Logging is observational and must not replace the API error response.
+  }
+}

@@ -42,7 +42,7 @@ import {
   sendApiJson,
   sendApiNoContent,
 } from "./transport.ts";
-import { createSafeApiLogError } from "./log.ts";
+import { reportApiRequestFailure } from "./log.ts";
 import {
   ApiEventHub,
 } from "../sync/events.ts";
@@ -258,10 +258,7 @@ export function createApiRequestHandler({
         : mapApiError(error);
 
       if (mapped.statusCode >= 500) {
-        logger.error(
-          `[${requestId}] CTN API v3 request failed`,
-          createSafeApiLogError(error),
-        );
+        reportApiRequestFailure(logger, requestId, error);
       }
       if (
         response.headersSent ||
