@@ -1,6 +1,6 @@
 # 使用与部署
 
-本文件只拥有运行、配置、迁移、升级与 CLI 操作步骤。产品承诺、源码边界和界面排布
+本文件只拥有运行、配置、认证、迁移、CLI 与验证操作步骤。产品承诺、源码边界和界面排布
 分别见[产品需求](product-requirements.md)、[架构边界](architecture.md)与
 [界面规范](ui-guidelines.md)；HTTP operation 的完整事实始终来自 OpenAPI registry。
 

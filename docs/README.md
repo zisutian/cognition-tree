@@ -10,7 +10,7 @@
 | [架构边界](architecture.md) | 源码所有权、依赖方向、数据流、持久化、API 与运行时边界 |
 | [CTN 分析流水线](ctn-analysis-pipeline.md) | CTN v2 编译、分析、失效和 multiline 语义 |
 | [界面规范](ui-guidelines.md) | Activity 布局、交互、Problems、尺度、颜色和共享 UI 结构 |
-| [使用与部署](getting-started.md) | 环境准备、启动、设置、认证、迁移、API/CLI 入口和验证命令 |
+| [使用与部署](getting-started.md) | 环境准备、启动、设置、认证、迁移、API/CLI 入口、容器路径约定和验证命令 |
 | [工程原则](engineering-principles.md) | 修改方式、代码组织、测试策略和生成产物约束 |
 
 同一主题可以被多份文档引用，但约束性细节只能由一份文档拥有：
@@ -19,7 +19,7 @@
 - “哪个模块负责、状态如何流动、边界如何校验”进入架构边界。
 - “信息出现在哪里、如何交互、使用什么尺度和视觉”进入界面规范。
 - CTN 编译、分析和 multiline 的精确语义进入 CTN 分析流水线。
-- 命令、路径、升级和部署步骤进入使用与部署；HTTP method、path 与 schema 的完整清单
+- 命令、路径、配置、迁移和验证步骤进入使用与部署；HTTP method、path 与 schema 的完整清单
   不在文档中建立第二份权威。
 
 ## 维护规则
