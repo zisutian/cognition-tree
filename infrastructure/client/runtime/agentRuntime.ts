@@ -38,5 +38,12 @@ export function createClientAgentRuntime(
     }),
   });
 
-  return { configuration, session };
+  return {
+    configuration,
+    dispose() {
+      configuration.dispose();
+      session.dispose();
+    },
+    session,
+  };
 }

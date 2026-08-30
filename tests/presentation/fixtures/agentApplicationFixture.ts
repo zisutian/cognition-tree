@@ -13,6 +13,7 @@ export function createAgentApplicationFixture(): AgentApplication {
       createProvider: async () => undefined,
       deleteProfile: async () => undefined,
       deleteProvider: async () => undefined,
+      dispose: () => undefined,
       discoverOllama: async () => undefined,
       getSnapshot: () => ({
         codexDeviceLogins: {},

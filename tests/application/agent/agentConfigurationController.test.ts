@@ -569,4 +569,42 @@ describe("Agent configuration controller", () => {
       operationStatus: "idle",
     });
   });
+
+  it("terminates pending polling and rejects work after disposal", async () => {
+    const adapter = port();
+    const pollStarted = createDeferred<void>();
+    const releasePoll = createDeferred<void>();
+    const listener = vi.fn();
+    const controller = createAgentConfigurationController({
+      onConfigurationChanged: vi.fn(),
+      pollConformance: async () => {
+        pollStarted.resolve();
+        await releasePoll.promise;
+      },
+      pollConformanceIntervalMilliseconds: 1,
+      port: adapter,
+    });
+
+    await controller.load();
+    controller.subscribe(listener);
+    await controller.startCodexDeviceLogin("provider-1");
+    await pollStarted.promise;
+    const terminalSnapshot = controller.getSnapshot();
+
+    listener.mockClear();
+    controller.dispose();
+    releasePoll.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(adapter.getCodexDeviceLogin).not.toHaveBeenCalled();
+    expect(controller.getSnapshot()).toBe(terminalSnapshot);
+    await expect(controller.cancelCodexDeviceLogin("provider-1"))
+      .rejects.toThrow("disposed");
+    await expect(controller.discoverOllama("http://127.0.0.1:11434"))
+      .rejects.toThrow("disposed");
+    expect(adapter.cancelCodexDeviceLogin).not.toHaveBeenCalled();
+    expect(adapter.discoverOllama).not.toHaveBeenCalled();
+    expect(listener).not.toHaveBeenCalled();
+  });
 });

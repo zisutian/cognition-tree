@@ -78,6 +78,7 @@ export type AgentConfigurationController = {
   createProvider(provider: AgentProviderInput): Promise<void>;
   deleteProfile(profileId: string): Promise<void>;
   deleteProvider(providerId: string): Promise<void>;
+  dispose(): void;
   discoverOllama(endpoint: string): Promise<void>;
   getSnapshot(): AgentConfigurationState;
   load(): Promise<void>;
@@ -107,6 +108,7 @@ export function createAgentConfigurationController({
   const codexDeviceLoginGenerations = new Map<string, number>();
   const conformanceGenerations = new Map<string, number>();
   let configurationAuthorityVersion = 0;
+  let disposed = false;
   let loadRequestVersion = 0;
   let operationCount = 0;
   let state: AgentConfigurationState = {
@@ -120,8 +122,14 @@ export function createAgentConfigurationController({
     probes: {},
   };
   const publish = (patch: Partial<AgentConfigurationState>) => {
+    if (disposed) return;
     state = { ...state, ...patch };
     listeners.forEach((listener) => listener());
+  };
+  const requireActive = () => {
+    if (disposed) {
+      throw new Error("Agent configuration controller is disposed.");
+    }
   };
   const requireRevision = () => {
     if (!state.configuration) throw new Error("Agent configuration is not loaded.");
@@ -140,7 +148,7 @@ export function createAgentConfigurationController({
     generations: Map<string, number>,
     resourceId: string,
     generation: number,
-  ) => generations.get(resourceId) === generation;
+  ) => !disposed && generations.get(resourceId) === generation;
   const currentResourceOperationGeneration = (
     generations: Map<string, number>,
     resourceId: string,
@@ -182,6 +190,7 @@ export function createAgentConfigurationController({
     });
   };
   const runOperation = async <Result>(operation: () => Promise<Result>) => {
+    requireActive();
     operationCount += 1;
     publish({ errorMessage: null, operationStatus: "working" });
     try {
@@ -200,6 +209,8 @@ export function createAgentConfigurationController({
     runOperation(async () => {
       const baseRevision = requireRevision();
       const configuration = await operation(baseRevision);
+
+      if (disposed) return;
       const currentRevision = state.configuration?.revision ?? null;
 
       if (
@@ -213,6 +224,7 @@ export function createAgentConfigurationController({
 
   return {
     async cancelCodexDeviceLogin(providerId) {
+      requireActive();
       const login = state.codexDeviceLogins[providerId];
 
       if (!login || login.status !== "pending") return;
@@ -258,6 +270,7 @@ export function createAgentConfigurationController({
       });
     },
     async cancelConformance(profileId) {
+      requireActive();
       const check = state.conformanceChecks[profileId];
 
       if (!check || check.status !== "running") return;
@@ -359,15 +372,23 @@ export function createAgentConfigurationController({
     deleteProvider: (providerId) => mutate((revision) =>
       port.deleteProvider(revision, providerId)
     ),
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      loadRequestVersion += 1;
+      listeners.clear();
+    },
     async discoverOllama(endpoint) {
       await runOperation(async () => {
         const discovery = await port.discoverOllama(endpoint);
 
+        if (disposed) return;
         publish({ discovery });
       });
     },
     getSnapshot: () => state,
     async load() {
+      requireActive();
       const requestVersion = ++loadRequestVersion;
       const expectedAuthorityVersion = configurationAuthorityVersion;
 
@@ -376,12 +397,14 @@ export function createAgentConfigurationController({
         const configuration = await port.load();
 
         if (
+          disposed ||
           requestVersion !== loadRequestVersion ||
           expectedAuthorityVersion !== configurationAuthorityVersion
         ) return;
         installConfiguration(configuration);
       } catch (error) {
         if (
+          disposed ||
           requestVersion !== loadRequestVersion ||
           expectedAuthorityVersion !== configurationAuthorityVersion
         ) return;
@@ -392,12 +415,14 @@ export function createAgentConfigurationController({
       await runOperation(async () => {
         const probe = await port.probeProvider(providerId);
 
+        if (disposed) return;
         publish({
           probes: { ...state.probes, [providerId]: probe },
         });
       });
     },
     subscribe(listener) {
+      if (disposed) return () => undefined;
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
