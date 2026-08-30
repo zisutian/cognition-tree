@@ -11,7 +11,7 @@ function isMutation(method: string | undefined) {
 }
 
 export class ApiMaintenanceGate implements SystemMaintenancePort {
-  #activeRequests = 0;
+  #activeMutations = 0;
   #maintenance = false;
   readonly #waiters = new Set<() => void>();
 
@@ -23,7 +23,7 @@ export class ApiMaintenanceGate implements SystemMaintenancePort {
       );
     }
     this.#maintenance = true;
-    if (this.#activeRequests > 0) {
+    if (this.#activeMutations > 0) {
       await new Promise<void>((resolve) => this.#waiters.add(resolve));
     }
     let finished = false;
@@ -38,20 +38,23 @@ export class ApiMaintenanceGate implements SystemMaintenancePort {
   }
 
   enter(method: string | undefined) {
-    if (this.#maintenance && isMutation(method)) {
+    const mutation = isMutation(method);
+
+    if (this.#maintenance && mutation) {
       throw new ApiRequestError(
         "repository_busy",
         "Cognition Tree is migrating its data root",
       );
     }
-    this.#activeRequests += 1;
+    if (!mutation) return () => undefined;
+    this.#activeMutations += 1;
     let left = false;
 
     return () => {
       if (left) return;
       left = true;
-      this.#activeRequests -= 1;
-      if (this.#activeRequests !== 0) return;
+      this.#activeMutations -= 1;
+      if (this.#activeMutations !== 0) return;
       for (const resolve of this.#waiters) resolve();
       this.#waiters.clear();
     };
