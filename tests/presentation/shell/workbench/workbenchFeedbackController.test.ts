@@ -82,6 +82,7 @@ describe("workbench feedback controller", () => {
     const notesId = controller.reportError("notes", "笔记失败");
 
     controller.reportError("todo", "代办失败");
+    if (!notesId) throw new Error("Expected an accepted problem report.");
     controller.dismiss(notesId);
     expect(controller.getSnapshot().problems.map(({ target }) => target.scope)).toEqual([
       "todo",

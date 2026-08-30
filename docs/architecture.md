@@ -639,6 +639,8 @@ Audit 的状态投影分别由各自领域 status view 文件持有，不在路�
 `application/problems` 的 ProblemCenter 是运行期 operational incident 的唯一 owner。
 API、Agent、同步、Settings 与 UI action 只通过 `ProblemReporter` 上报结构化安全信息；
 ProblemCenter 负责指纹聚合、最近 requestId、时间、次数、200 项容量和页面生命周期。
+dispose 是不可恢复终态：取消 transient、清空订阅者，并拒绝迟到的上报、订阅和计时器
+发布；被拒绝的上报返回 null，不分配虚假的 problem id。
 领域 diagnostics 继续由源状态派生，不复制进 ProblemCenter。
 
 Presentation shell 在全部 Activity 合并 diagnostics、可恢复状态故障与 operational

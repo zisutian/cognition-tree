@@ -44,7 +44,7 @@ export type ProblemReport<Scope extends string> = Readonly<{
 }>;
 
 export type ProblemReporter<Scope extends string> = {
-  report(problem: ProblemReport<Scope>): string;
+  report(problem: ProblemReport<Scope>): string | null;
 };
 
 export type ProblemCenterTransient<Scope extends string> =
@@ -72,7 +72,7 @@ export type ProblemCenterController<Scope extends string> =
     dismissScope(scope: Scope): void;
     dispose(): void;
     getSnapshot(): ProblemCenterSnapshot<Scope>;
-    reportError(scope: Scope, error: unknown): string;
+    reportError(scope: Scope, error: unknown): string | null;
     reportInfo(scope: Scope, message: string): void;
     subscribe(listener: () => void): () => void;
   };
@@ -180,6 +180,7 @@ export function createProblemCenter<Scope extends string>({
 
   const listeners = new Set<() => void>();
   let cancelTransient: (() => void) | null = null;
+  let disposed = false;
   let nextId = 1;
   let nextSequence = 1;
   let snapshot: ProblemCenterSnapshot<Scope> = {
@@ -187,13 +188,16 @@ export function createProblemCenter<Scope extends string>({
     transient: null,
   };
   const publish = (next: ProblemCenterSnapshot<Scope>) => {
+    if (disposed) return;
     snapshot = next;
     listeners.forEach((listener) => listener());
   };
   const scheduleTransient = (transient: ProblemCenterTransient<Scope>) => {
+    if (disposed) return;
     cancelTransient?.();
     publish({ ...snapshot, transient });
     cancelTransient = scheduler.schedule(() => {
+      if (disposed) return;
       cancelTransient = null;
       if (snapshot.transient?.id === transient.id) {
         publish({ ...snapshot, transient: null });
@@ -203,6 +207,7 @@ export function createProblemCenter<Scope extends string>({
 
   const controller: ProblemCenterController<Scope> = {
     dismiss(id) {
+      if (disposed) return;
       const problems = snapshot.problems.filter((problem) => problem.id !== id);
 
       if (problems.length !== snapshot.problems.length) {
@@ -210,6 +215,7 @@ export function createProblemCenter<Scope extends string>({
       }
     },
     dismissScope(scope) {
+      if (disposed) return;
       const problems = snapshot.problems.filter(
         (problem) => problem.target.scope !== scope,
       );
@@ -229,12 +235,15 @@ export function createProblemCenter<Scope extends string>({
       }
     },
     dispose() {
+      if (disposed) return;
+      disposed = true;
       cancelTransient?.();
       cancelTransient = null;
       listeners.clear();
     },
     getSnapshot: () => snapshot,
     report(report) {
+      if (disposed) return null;
       const details = sanitizeDetails(report.details);
       const message = report.message.trim() || "操作失败。";
       const occurredAt = safeTimestamp(now);
@@ -292,6 +301,7 @@ export function createProblemCenter<Scope extends string>({
       return controller.report(projectError(scope, error));
     },
     reportInfo(scope, message) {
+      if (disposed) return;
       const normalized = message.trim();
 
       if (normalized) {
@@ -304,6 +314,7 @@ export function createProblemCenter<Scope extends string>({
       }
     },
     subscribe(listener) {
+      if (disposed) return () => undefined;
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
