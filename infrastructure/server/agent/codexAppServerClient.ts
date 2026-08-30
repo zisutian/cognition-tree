@@ -8,15 +8,99 @@ import { AgentRuntimeProtocolError } from "../../../application/agent/agentRunti
 
 export const pinnedCodexVersion = "0.148.0";
 
-type JsonRpcMessage = {
-  error?: { code?: number; message?: string };
+type OutgoingJsonRpcMessage = {
+  error?: { code: number; message: string };
   id?: number | string | null;
   method?: string;
   params?: unknown;
   result?: unknown;
 };
 
-type NotificationListener = (message: JsonRpcMessage) => void;
+export type CodexJsonRpcMessage =
+  | {
+      id: number | string;
+      kind: "server-request";
+      method: string;
+      params?: unknown;
+    }
+  | {
+      kind: "notification";
+      method: string;
+      params?: unknown;
+    }
+  | (
+      | { error: { code: number; message: string } }
+      | { result: unknown }
+    ) & { id: number; kind: "response" };
+
+type NotificationListener = (
+  message: Extract<CodexJsonRpcMessage, { kind: "notification" }>,
+) => void;
+
+function protocolError() {
+  return new AgentRuntimeProtocolError("Codex emitted invalid JSON-RPC");
+}
+
+export function parseCodexJsonRpcMessage(line: string): CodexJsonRpcMessage {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(line) as unknown;
+  } catch {
+    throw protocolError();
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw protocolError();
+  }
+  const record = parsed as Record<string, unknown>;
+
+  if ("method" in record) {
+    if (typeof record.method !== "string" || record.method.length === 0) {
+      throw protocolError();
+    }
+    if (!("id" in record)) {
+      return {
+        kind: "notification",
+        method: record.method,
+        ...(record.params === undefined ? {} : { params: record.params }),
+      };
+    }
+    if (
+      typeof record.id !== "string" &&
+      !(typeof record.id === "number" && Number.isSafeInteger(record.id))
+    ) {
+      throw protocolError();
+    }
+    return {
+      id: record.id,
+      kind: "server-request",
+      method: record.method,
+      ...(record.params === undefined ? {} : { params: record.params }),
+    };
+  }
+  if (!Number.isSafeInteger(record.id)) throw protocolError();
+  const id = record.id as number;
+  const hasError = Object.prototype.hasOwnProperty.call(record, "error");
+  const hasResult = Object.prototype.hasOwnProperty.call(record, "result");
+
+  if (hasError === hasResult) throw protocolError();
+  if (hasResult) return { id, kind: "response", result: record.result };
+  if (!record.error || typeof record.error !== "object" ||
+      Array.isArray(record.error)) {
+    throw protocolError();
+  }
+  const error = record.error as Record<string, unknown>;
+
+  if (typeof error.code !== "number" || !Number.isFinite(error.code) ||
+      typeof error.message !== "string") {
+    throw protocolError();
+  }
+  return {
+    error: { code: error.code, message: error.message },
+    id,
+    kind: "response",
+  };
+}
 
 export class CodexAppServerClient {
   readonly #child: ChildProcessWithoutNullStreams;
@@ -32,24 +116,17 @@ export class CodexAppServerClient {
     this.#child = child;
     child.stderr.resume();
     const lines = readline.createInterface({ input: child.stdout });
-    const close = (error: AgentRuntimeProtocolError) => {
-      if (this.#closedError) return;
-      this.#closedError = error;
-      for (const pending of this.#pending.values()) pending.reject(error);
-      this.#pending.clear();
-      this.#listeners.clear();
-    };
 
     lines.on("line", (line) => this.#receive(line));
     child.once("exit", (code, signal) => {
-      close(new AgentRuntimeProtocolError(
+      this.#close(new AgentRuntimeProtocolError(
         `Codex app-server exited (${code ?? signal ?? "unknown"})`,
       ));
     });
-    child.once("error", () => close(
+    child.once("error", () => this.#close(
       new AgentRuntimeProtocolError("Codex app-server failed to start"),
     ));
-    child.stdin.once("error", () => close(
+    child.stdin.once("error", () => this.#close(
       new AgentRuntimeProtocolError("Codex app-server input closed"),
     ));
   }
@@ -79,50 +156,55 @@ export class CodexAppServerClient {
     return () => this.#listeners.delete(listener);
   }
 
-  #send(message: JsonRpcMessage) {
+  #close(error: AgentRuntimeProtocolError) {
+    if (this.#closedError) return;
+    this.#closedError = error;
+    for (const pending of this.#pending.values()) pending.reject(error);
+    this.#pending.clear();
+    this.#listeners.clear();
+  }
+
+  #send(message: OutgoingJsonRpcMessage) {
     if (this.#closedError) throw this.#closedError;
     this.#child.stdin.write(`${JSON.stringify(message)}\n`);
   }
 
   #receive(line: string) {
     if (this.#closedError) return;
-    let message: JsonRpcMessage;
+    let message: CodexJsonRpcMessage;
 
     try {
-      message = JSON.parse(line) as JsonRpcMessage;
-    } catch {
-      for (const pending of this.#pending.values()) {
-        pending.reject(new AgentRuntimeProtocolError("Codex emitted invalid JSON-RPC"));
-      }
-      this.#pending.clear();
+      message = parseCodexJsonRpcMessage(line);
+    } catch (error) {
+      this.#close(
+        error instanceof AgentRuntimeProtocolError ? error : protocolError(),
+      );
       return;
     }
-    if (message.id !== undefined && message.method) {
+    if (message.kind === "server-request") {
       this.#resolveServerRequest(message);
       return;
     }
-    if (typeof message.id === "number") {
+    if (message.kind === "response") {
       const pending = this.#pending.get(message.id);
 
       if (!pending) return;
       this.#pending.delete(message.id);
-      if (message.error) {
+      if ("error" in message) {
         pending.reject(new AgentRuntimeProtocolError(
-          `Codex JSON-RPC error: ${
-            message.error.message ?? message.error.code ?? "unknown"
-          }`,
+          `Codex JSON-RPC error: ${message.error.message}`,
         ));
       } else {
         pending.resolve(message.result);
       }
       return;
     }
-    if (message.method) {
-      for (const listener of this.#listeners) listener(message);
-    }
+    for (const listener of this.#listeners) listener(message);
   }
 
-  #resolveServerRequest(message: JsonRpcMessage) {
+  #resolveServerRequest(
+    message: Extract<CodexJsonRpcMessage, { kind: "server-request" }>,
+  ) {
     if (
       message.method === "item/commandExecution/requestApproval" ||
       message.method === "item/fileChange/requestApproval"
@@ -155,11 +237,16 @@ export async function resolveCodexEntrypoint(projectRoot: string) {
     "@openai",
     "codex",
   );
-  const packageJson = JSON.parse(
+  const parsedPackageJson = JSON.parse(
     await readFile(path.join(packageDirectory, "package.json"), "utf8"),
-  ) as { version?: unknown };
+  ) as unknown;
+  const packageJson = parsedPackageJson &&
+      typeof parsedPackageJson === "object" &&
+      !Array.isArray(parsedPackageJson)
+    ? parsedPackageJson as Record<string, unknown>
+    : null;
 
-  if (packageJson.version !== pinnedCodexVersion) {
+  if (packageJson?.version !== pinnedCodexVersion) {
     throw new AgentRuntimeProtocolError(
       `Codex package version must be exactly ${pinnedCodexVersion}`,
     );
