@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createHash } from "node:crypto";
-import { constants } from "node:fs";
+import { constants, type Stats } from "node:fs";
 import {
   chmod,
-  copyFile,
   lstat,
   mkdir,
   open,
   opendir,
   realpath,
   rm,
-  stat,
   utimes,
+  type FileHandle,
 } from "node:fs/promises";
 import path from "node:path";
 import {
   SystemMigrationValidationError,
 } from "../../../application/system/systemConfiguration.ts";
+import { hasFileSystemErrorCode } from "../persistence/fileSystemError.ts";
 
 const authoritativePartitions = [
   "repositories",
@@ -34,6 +34,7 @@ type FileFingerprint = Readonly<{
 }>;
 
 type StableFileIdentity = Readonly<{
+  changed: number;
   device: string;
   inode: string;
   modified: number;
@@ -51,10 +52,6 @@ export type DataRootMigrationFileOperations = Readonly<{
   verify(source: string, destination: string): Promise<void>;
 }>;
 
-function isMissing(error: unknown) {
-  return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-
 function overlaps(left: string, right: string) {
   const relative = path.relative(left, right);
   const reverse = path.relative(right, left);
@@ -65,9 +62,10 @@ function overlaps(left: string, right: string) {
 }
 
 function stableFileIdentity(
-  stats: Awaited<ReturnType<typeof lstat>>,
+  stats: Stats,
 ): StableFileIdentity {
   return {
+    changed: Number(stats.ctimeMs),
     device: String(stats.dev),
     inode: String(stats.ino),
     modified: Number(stats.mtimeMs),
@@ -80,13 +78,104 @@ function sameStableFile(
   right: StableFileIdentity,
 ) {
   return left.device === right.device && left.inode === right.inode &&
-    left.modified === right.modified && left.size === right.size;
+    left.changed === right.changed && left.modified === right.modified &&
+    left.size === right.size;
+}
+
+async function writeAll(
+  handle: FileHandle,
+  buffer: Buffer,
+  length: number,
+) {
+  let written = 0;
+
+  while (written < length) {
+    const result = await handle.write(
+      buffer,
+      written,
+      length - written,
+      null,
+    );
+
+    if (result.bytesWritten === 0) {
+      throw new Error("Data-root destination stopped accepting bytes");
+    }
+    written += result.bytesWritten;
+  }
+}
+
+async function copyRegularFile(
+  source: string,
+  destination: string,
+  observed: Stats,
+) {
+  const sourceHandle = await open(
+    source,
+    constants.O_RDONLY | constants.O_NOFOLLOW,
+  );
+  let destinationHandle: FileHandle | undefined;
+
+  try {
+    const before = await sourceHandle.stat();
+
+    if (
+      !before.isFile() ||
+      !sameStableFile(
+        stableFileIdentity(observed),
+        stableFileIdentity(before),
+      )
+    ) {
+      throw new Error("Data-root file changed before copying: " + source);
+    }
+    destinationHandle = await open(
+      destination,
+      constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW |
+        constants.O_WRONLY,
+      observed.mode & 0o777,
+    );
+    const buffer = Buffer.allocUnsafe(64 * 1024);
+
+    while (true) {
+      const { bytesRead } = await sourceHandle.read(
+        buffer,
+        0,
+        buffer.length,
+        null,
+      );
+
+      if (bytesRead === 0) break;
+      await writeAll(destinationHandle, buffer, bytesRead);
+    }
+    const after = await sourceHandle.stat();
+
+    if (
+      !after.isFile() ||
+      !sameStableFile(
+        stableFileIdentity(before),
+        stableFileIdentity(after),
+      )
+    ) {
+      throw new Error("Data-root file changed during copying: " + source);
+    }
+    await destinationHandle.chmod(observed.mode & 0o777);
+    await destinationHandle.utimes(observed.atime, observed.mtime);
+    await destinationHandle.sync();
+  } finally {
+    try {
+      await sourceHandle.utimes(observed.atime, observed.mtime);
+    } finally {
+      await Promise.all([
+        sourceHandle.close(),
+        destinationHandle?.close(),
+      ]);
+    }
+  }
 }
 
 async function fingerprintFile(
   current: string,
   relative: string,
-  observed: Awaited<ReturnType<typeof lstat>>,
+  observed: Stats,
 ): Promise<FileFingerprint> {
   const handle = await open(
     current,
@@ -136,6 +225,21 @@ async function fingerprintFile(
   }
 }
 
+async function assertDestinationDirectory(
+  directory: string,
+  message: string,
+) {
+  const stats = await lstat(directory);
+
+  if (
+    stats.isSymbolicLink() ||
+    !stats.isDirectory() ||
+    await realpath(directory) !== path.normalize(directory)
+  ) {
+    throw new Error(message + ": " + directory);
+  }
+}
+
 async function prepareDestination(
   destination: string,
   source: string,
@@ -159,7 +263,7 @@ async function prepareDestination(
       "Data-root destination must not exist",
     );
   } catch (error) {
-    if (!isMissing(error)) throw error;
+    if (!hasFileSystemErrorCode(error, "ENOENT")) throw error;
   }
   let existingAncestor = path.dirname(target);
   const missingSegments: string[] = [];
@@ -175,7 +279,7 @@ async function prepareDestination(
       }
       break;
     } catch (error) {
-      if (!isMissing(error)) throw error;
+      if (!hasFileSystemErrorCode(error, "ENOENT")) throw error;
       const parent = path.dirname(existingAncestor);
 
       if (parent === existingAncestor) throw error;
@@ -215,6 +319,19 @@ async function copyTree(source: string, destination: string) {
           path.join(destination, entry.name),
         );
       }
+      const after = await lstat(source);
+
+      if (
+        !after.isDirectory() ||
+        !sameStableFile(
+          stableFileIdentity(sourceStats),
+          stableFileIdentity(after),
+        )
+      ) {
+        throw new Error(
+          "Data-root directory changed during copying: " + source,
+        );
+      }
       await chmod(destination, sourceStats.mode & 0o777);
       await utimes(destination, sourceStats.atime, sourceStats.mtime);
     } finally {
@@ -225,13 +342,7 @@ async function copyTree(source: string, destination: string) {
   if (!sourceStats.isFile()) {
     throw new Error(`Unsupported data-root entry: ${source}`);
   }
-  try {
-    await copyFile(source, destination);
-    await chmod(destination, sourceStats.mode & 0o777);
-    await utimes(destination, sourceStats.atime, sourceStats.mtime);
-  } finally {
-    await utimes(source, sourceStats.atime, sourceStats.mtime);
-  }
+  await copyRegularFile(source, destination, sourceStats);
 }
 
 async function fingerprints(
@@ -267,22 +378,66 @@ async function copyAuthoritativePartitions(
   source: string,
   destination: string,
 ) {
-  const sourceStats = await stat(source);
+  const sourceStats = await lstat(source);
 
-  await mkdir(destination, { mode: sourceStats.mode & 0o777, recursive: true });
+  if (sourceStats.isSymbolicLink() || !sourceStats.isDirectory()) {
+    throw new Error("Data-root source is not a regular directory: " + source);
+  }
+  try {
+    await lstat(destination);
+    throw new Error(
+      "Data-root destination appeared before copying: " + destination,
+    );
+  } catch (error) {
+    if (!hasFileSystemErrorCode(error, "ENOENT")) throw error;
+  }
+  const firstCreated = await mkdir(destination, {
+    mode: sourceStats.mode & 0o777,
+    recursive: true,
+  });
+
+  if (firstCreated === undefined) {
+    throw new Error(
+      "Data-root destination appeared before copying: " + destination,
+    );
+  }
+  await assertDestinationDirectory(
+    destination,
+    "Data-root destination is not a regular directory",
+  );
   for (const relative of authoritativePartitions) {
     const from = path.join(source, relative);
 
     try {
       await lstat(from);
     } catch (error) {
-      if (isMissing(error)) continue;
+      if (hasFileSystemErrorCode(error, "ENOENT")) continue;
       throw error;
     }
     const to = path.join(destination, relative);
+    const parent = path.dirname(to);
 
-    await mkdir(path.dirname(to), { mode: 0o700, recursive: true });
+    try {
+      await mkdir(parent, { mode: 0o700 });
+    } catch (error) {
+      if (!hasFileSystemErrorCode(error, "EEXIST")) throw error;
+      await assertDestinationDirectory(
+        parent,
+        "Data-root destination parent is invalid",
+      );
+    }
     await copyTree(from, to);
+  }
+  const after = await lstat(source);
+
+  if (
+    !after.isDirectory() ||
+    !sameStableFile(
+      stableFileIdentity(sourceStats),
+      stableFileIdentity(after),
+    )
+  ) {
+    throw new Error("Data-root source changed during copying: " + source);
   }
   await chmod(destination, sourceStats.mode & 0o777);
   await utimes(destination, sourceStats.atime, sourceStats.mtime);
@@ -298,7 +453,7 @@ async function verifyAuthoritativePartitions(
     try {
       await lstat(from);
     } catch (error) {
-      if (isMissing(error)) continue;
+      if (hasFileSystemErrorCode(error, "ENOENT")) continue;
       throw error;
     }
     const [before, after] = await Promise.all([
