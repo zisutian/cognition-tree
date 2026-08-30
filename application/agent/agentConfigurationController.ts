@@ -9,6 +9,7 @@ import type {
   AgentProviderInput,
   AgentProviderProbe,
 } from "./agentConfiguration.ts";
+import { LatestResourceOperationRegistry } from "./latestResourceOperationRegistry.ts";
 
 export type AgentConfigurationPort = {
   cancelCodexDeviceLogin(loginId: string): Promise<AgentCodexDeviceLoginStatus>;
@@ -105,8 +106,8 @@ export function createAgentConfigurationController({
   port: AgentConfigurationPort;
 }): AgentConfigurationController {
   const listeners = new Set<() => void>();
-  const codexDeviceLoginOperations = new Map<string, symbol>();
-  const conformanceOperations = new Map<string, symbol>();
+  const codexDeviceLoginOperations = new LatestResourceOperationRegistry();
+  const conformanceOperations = new LatestResourceOperationRegistry();
   let configurationAuthorityVersion = 0;
   let disposed = false;
   let loadRequestVersion = 0;
@@ -135,27 +136,11 @@ export function createAgentConfigurationController({
     if (!state.configuration) throw new Error("Agent configuration is not loaded.");
     return state.configuration.revision;
   };
-  const beginResourceOperation = (
-    operations: Map<string, symbol>,
-    resourceId: string,
-  ) => {
-    const token = Symbol(resourceId);
-
-    operations.set(resourceId, token);
-    return token;
-  };
   const resourceOperationIsCurrent = (
-    operations: Map<string, symbol>,
+    operations: LatestResourceOperationRegistry,
     resourceId: string,
     token: symbol,
-  ) => !disposed && operations.get(resourceId) === token;
-  const finishResourceOperation = (
-    operations: Map<string, symbol>,
-    resourceId: string,
-    token: symbol,
-  ) => {
-    if (operations.get(resourceId) === token) operations.delete(resourceId);
-  };
+  ) => !disposed && operations.isCurrent(resourceId, token);
   const installConfiguration = (configuration: AgentConfigurationSnapshot) => {
     const previousProviderDigests = new Map(
       state.configuration?.providers.map(({ digest, id }) => [id, digest]) ?? [],
@@ -180,16 +165,8 @@ export function createAgentConfigurationController({
         .map(({ id }) => id),
     );
 
-    for (const providerId of codexDeviceLoginOperations.keys()) {
-      if (!currentProviderIds.has(providerId)) {
-        codexDeviceLoginOperations.delete(providerId);
-      }
-    }
-    for (const profileId of conformanceOperations.keys()) {
-      if (!currentProfileIds.has(profileId)) {
-        conformanceOperations.delete(profileId);
-      }
-    }
+    codexDeviceLoginOperations.retain(currentProviderIds);
+    conformanceOperations.retain(currentProfileIds);
     configurationAuthorityVersion += 1;
     publish({
       codexDeviceLogins: Object.fromEntries(
@@ -280,7 +257,7 @@ export function createAgentConfigurationController({
 
       if (!login || login.status !== "pending") return;
       await runOperation(async () => {
-        const expectedToken = codexDeviceLoginOperations.get(providerId);
+        const expectedToken = codexDeviceLoginOperations.currentToken(providerId);
 
         if (!expectedToken) return;
         const cancelled = await port.cancelCodexDeviceLogin(login.id);
@@ -298,10 +275,7 @@ export function createAgentConfigurationController({
         ) return;
         const token = cancelled.status === "pending"
           ? expectedToken
-          : beginResourceOperation(
-            codexDeviceLoginOperations,
-            providerId,
-          );
+          : codexDeviceLoginOperations.begin(providerId);
         const isCurrent = () => resourceOperationIsCurrent(
           codexDeviceLoginOperations,
           providerId,
@@ -322,11 +296,7 @@ export function createAgentConfigurationController({
           }
         } finally {
           if (cancelled.status !== "pending") {
-            finishResourceOperation(
-              codexDeviceLoginOperations,
-              providerId,
-              token,
-            );
+            codexDeviceLoginOperations.finish(providerId, token);
           }
         }
       });
@@ -337,7 +307,7 @@ export function createAgentConfigurationController({
 
       if (!check || check.status !== "running") return;
       await runOperation(async () => {
-        const expectedToken = conformanceOperations.get(profileId);
+        const expectedToken = conformanceOperations.currentToken(profileId);
 
         if (!expectedToken) return;
         const cancelled = await port.cancelConformance(check.id);
@@ -355,7 +325,7 @@ export function createAgentConfigurationController({
         ) return;
         const token = cancelled.status === "running"
           ? expectedToken
-          : beginResourceOperation(conformanceOperations, profileId);
+          : conformanceOperations.begin(profileId);
         const isCurrent = () => resourceOperationIsCurrent(
           conformanceOperations,
           profileId,
@@ -376,17 +346,14 @@ export function createAgentConfigurationController({
           }
         } finally {
           if (cancelled.status !== "running") {
-            finishResourceOperation(conformanceOperations, profileId, token);
+            conformanceOperations.finish(profileId, token);
           }
         }
       });
     },
     async checkConformance(profileId) {
       await runOperation(async () => {
-        const token = beginResourceOperation(
-          conformanceOperations,
-          profileId,
-        );
+        const token = conformanceOperations.begin(profileId);
         const isCurrent = () => resourceOperationIsCurrent(
           conformanceOperations,
           profileId,
@@ -427,7 +394,7 @@ export function createAgentConfigurationController({
             await onConfigurationChanged();
           }
         } finally {
-          finishResourceOperation(conformanceOperations, profileId, token);
+          conformanceOperations.finish(profileId, token);
         }
       });
     },
@@ -514,10 +481,7 @@ export function createAgentConfigurationController({
     },
     async startCodexDeviceLogin(providerId) {
       await runOperation(async () => {
-        const token = beginResourceOperation(
-          codexDeviceLoginOperations,
-          providerId,
-        );
+        const token = codexDeviceLoginOperations.begin(providerId);
         const isCurrent = () => resourceOperationIsCurrent(
           codexDeviceLoginOperations,
           providerId,
@@ -531,19 +495,11 @@ export function createAgentConfigurationController({
             providerId,
           );
         } catch (error) {
-          finishResourceOperation(
-            codexDeviceLoginOperations,
-            providerId,
-            token,
-          );
+          codexDeviceLoginOperations.finish(providerId, token);
           throw error;
         }
         if (!isCurrent()) {
-          finishResourceOperation(
-            codexDeviceLoginOperations,
-            providerId,
-            token,
-          );
+          codexDeviceLoginOperations.finish(providerId, token);
           return;
         }
         publishCodexDeviceLogin(login);
@@ -572,11 +528,7 @@ export function createAgentConfigurationController({
           } catch (error) {
             if (isCurrent()) publish({ errorMessage: message(error) });
           } finally {
-            finishResourceOperation(
-              codexDeviceLoginOperations,
-              providerId,
-              token,
-            );
+            codexDeviceLoginOperations.finish(providerId, token);
           }
         })();
       });
