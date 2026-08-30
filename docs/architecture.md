@@ -403,6 +403,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     保持独立查询入口。server/access 独占 automation 与 trusted-client token；
     server/operations 独占统一账本、审计状态和 Agent receipt；server/agent 拥有
     store 组合、runtime adapter、私有 IPC 与内存会话，不重写领域 command；其中
+    providerOperations 只显式组合无状态 providerProbe、Codex 设备码登录状态机和
+    conformance 状态机，并统一拒绝关闭后启动的新操作；后两者分别独占自身记录、
+    启动预留、执行任务与幂等释放；
     sessionToolProtocol、sessionToolState 与 proposalCodec 分别独占模型工具映射、会话
     staging 形态和 Proposal wire/digest，Workspace/Journal/Todo session tool adapter
     分别独占本领域资源读取、scope 校验、staging 与 review 投影；sessionTools 只负责

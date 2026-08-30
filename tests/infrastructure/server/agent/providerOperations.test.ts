@@ -842,4 +842,84 @@ describe("Agent provider operations", () => {
       await rm(directory, { force: true, recursive: true });
     }
   });
+
+  it("serializes conformance starts for the same profile", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const store = new AgentConfigurationStore(directory);
+    const operations = new AgentProviderOperations({
+      configurationStore: store,
+      runtime,
+    });
+
+    try {
+      const initial = await store.readSnapshot();
+      const provider = await store.createProvider(initial.revision, {
+        authenticationType: "none",
+        baseUrl: "http://127.0.0.1:12345",
+        kind: "ollama",
+        label: "Local Ollama",
+        privateNetworkAccessConfirmed: false,
+      });
+      const profile = await store.createProfile(provider.configuration.revision, {
+        label: "Local writer",
+        maxResidentSessions: 1,
+        model: "qwen3.8:27b",
+        parameters: {
+          historyBudgetCharacters: 65_536,
+          kind: "chat",
+          maxOutputTokens: 2_048,
+          maxToolSteps: 8,
+          reasoningEffort: "model-default",
+          toolCallMode: "native",
+        },
+        providerId: provider.provider.id,
+        timeoutMilliseconds: 900_000,
+      });
+      const starts = await Promise.allSettled([
+        operations.startConformance(
+          profile.configuration.revision,
+          profile.profile.id,
+        ),
+        operations.startConformance(
+          profile.configuration.revision,
+          profile.profile.id,
+        ),
+      ]);
+
+      expect(starts.filter(({ status }) => status === "fulfilled")).toHaveLength(1);
+      expect(starts.filter(({ status }) => status === "rejected")).toHaveLength(1);
+      expect(starts.find(({ status }) => status === "rejected")).toMatchObject({
+        reason: expect.objectContaining({
+          message: "A conformance check is already running for this profile",
+        }),
+      });
+    } finally {
+      await operations.dispose();
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("rejects every new Provider operation after disposal", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const operations = new AgentProviderOperations({
+      configurationStore: new AgentConfigurationStore(directory),
+      runtime,
+    });
+
+    try {
+      await operations.dispose();
+      const message = "Agent provider operations are closing";
+
+      await expect(operations.discoverOllama("http://127.0.0.1:11434"))
+        .rejects.toThrow(message);
+      await expect(operations.probe("provider-id")).rejects.toThrow(message);
+      await expect(operations.startCodexDeviceLogin("revision", "provider-id"))
+        .rejects.toThrow(message);
+      await expect(operations.startConformance("revision", "profile-id"))
+        .rejects.toThrow(message);
+    } finally {
+      await operations.dispose();
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
 });

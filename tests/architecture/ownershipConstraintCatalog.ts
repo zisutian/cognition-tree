@@ -208,7 +208,7 @@ export function createOwnershipTextPolicies({
       name: "Ollama nested code Agent integration",
       pattern: /["'`]\/api\/(?:tasks|mcp)(?:\/|["'`])/,
       scope:
-        /^infrastructure\/server\/agent\/(?:ollamaRuntime|providerOperations|providerProbe)\.ts$/,
+        /^infrastructure\/server\/agent\/(?:conformanceOperations|ollamaRuntime|providerOperations|providerProbe)\.ts$/,
     },
     {
       corpus: infrastructureModules,

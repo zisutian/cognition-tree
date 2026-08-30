@@ -58,7 +58,7 @@ import {
   AgentConfigurationAccessConflictError,
 } from "../../agent/configurationAccess.ts";
 import { AgentProviderTargetValidationError } from "../../agent/providerTargetPolicy.ts";
-import { AgentProviderOperationConflictError } from "../../agent/providerOperations.ts";
+import { AgentProviderOperationConflictError } from "../../agent/providerOperationErrors.ts";
 import {
   AgentProposalStateError,
   AgentScopeUnavailableError,
