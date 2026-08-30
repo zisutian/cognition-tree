@@ -1,14 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { OutgoingHttpHeaders, ServerResponse } from "node:http";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-import {
-  createAgentRuntimeInstructions,
-  AgentSessionController,
-  type AgentProposal,
-  type AgentScope,
-} from "../../../application/agent/index.ts";
+import type { AgentProposal } from "../../../application/agent/index.ts";
 import type {
   AgentCreateSessionRequestDto,
   AgentProfileSummaryDto,
@@ -20,53 +13,30 @@ import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
 import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
 import type { ApiBuiltInCatalog } from "../api/http/ports.ts";
 import type { ApiRuntime } from "../api/http/runtime.ts";
-import { readApiRuntimeNow } from "../api/http/runtime.ts";
 import type { ApiSearchService } from "../api/search.ts";
 import type { ApiEventHub } from "../api/sync/events.ts";
 import type { ApiRevisionTracker } from "../api/sync/revisionTracker.ts";
 import { AgentPrivateIpcServer } from "./privateIpc.ts";
-import type {
-  AgentConfigurationStore,
-} from "./configurationStore.ts";
-import type {
-  AgentConfigurationProfileUse,
-} from "./configurationAccess.ts";
+import type { AgentConfigurationStore } from "./configurationStore.ts";
 import type { OperationLedger } from "../operations/operationLedger.ts";
-import {
-  createAgentRuntimeProfile,
-} from "./runtimeProfiles.ts";
 import {
   ConfiguredAgentRuntimeFactory,
   type AgentRuntimeFactory,
 } from "./configuredAgentRuntimeFactory.ts";
 import type { AgentServicePolicy } from "./servicePolicy.ts";
 import { AgentServiceError } from "./errors.ts";
-import {
-  AgentProposalCommitter,
-} from "./proposalCommitter.ts";
+import { AgentProposalCommitter } from "./proposalCommitter.ts";
 import { AgentProposalWorkflow } from "./proposalWorkflow.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import { AgentConversationRunner } from "./conversationRunner.ts";
 import { AgentSessionTools } from "./sessionTools.ts";
 import { toAgentProposalDto } from "./proposalCodec.ts";
-import { agentRuntimeToolsForScope } from "./sessionToolProtocol.ts";
-import {
-  AgentSessionEventStream,
-} from "./sessionEventStream.ts";
-import {
-  AgentSessionPool,
-  type AgentSessionRecord,
-} from "./sessionPool.ts";
+import { AgentSessionPool } from "./sessionPool.ts";
+import { AgentSessionOpener } from "./sessionOpener.ts";
+import type { AgentSessionRecord } from "./sessionRecord.ts";
 
 export { AgentServiceError } from "./errors.ts";
 export type { AgentServiceErrorCode } from "./errors.ts";
-
-function sessionMcpEntrypoint() {
-  const current = fileURLToPath(import.meta.url);
-  const extension = path.extname(current);
-
-  return path.join(path.dirname(current), `sessionMcpServer${extension}`);
-}
 
 export class AgentService {
   readonly #configurationStore: AgentConfigurationStore;
@@ -75,11 +45,9 @@ export class AgentService {
   readonly #ledger: OperationLedger | null;
   readonly #operations = new Set<Promise<unknown>>();
   readonly #proposalWorkflow: AgentProposalWorkflow<AgentSessionRecord>;
-  readonly #runtime: ApiRuntime;
-  readonly #runtimeFactory: AgentRuntimeFactory;
   readonly #servicePolicy: AgentServicePolicy;
+  readonly #sessionOpener: AgentSessionOpener;
   readonly #sessionPool: AgentSessionPool;
-  readonly #tools: AgentSessionTools;
   #disposed = false;
   #disposePromise: Promise<void> | null = null;
 
@@ -123,27 +91,27 @@ export class AgentService {
       revisionTracker,
       runtime,
     });
-    this.#runtime = runtime;
-    this.#runtimeFactory = runtimeFactory ?? new ConfiguredAgentRuntimeFactory({
-      projectRoot,
-      targetPolicy,
-    });
+    const resolvedRuntimeFactory = runtimeFactory ??
+      new ConfiguredAgentRuntimeFactory({
+        projectRoot,
+        targetPolicy,
+      });
     this.#servicePolicy = servicePolicy;
-    this.#tools = new AgentSessionTools({
+    const tools = new AgentSessionTools({
       builtInCatalog,
       catalog,
       runtime,
       search,
     });
     this.#conversation = new AgentConversationRunner({
-      createId: () => this.#runtime.createId(),
+      createId: () => runtime.createId(),
       emitProposal: (record, proposal) => this.#emitProposal(record, proposal),
       emitSnapshot: (record) => this.#emitSnapshot(record),
-      tools: this.#tools,
+      tools,
     });
     this.#proposalWorkflow = new AgentProposalWorkflow({
       assertScopeAvailable: (record) =>
-        this.#tools.assertScopeAvailable(record.controller.snapshot().scope),
+        tools.assertScopeAvailable(record.controller.snapshot().scope),
       committer: proposalCommitter,
       emitProposal: (record, proposal) => this.#emitProposal(record, proposal),
       isClosing: () => this.#disposed,
@@ -154,6 +122,23 @@ export class AgentService {
       ipc,
       runtime,
       servicePolicy,
+    });
+    this.#sessionOpener = new AgentSessionOpener({
+      assertOpen: () => this.#assertOpen(),
+      configurationStore,
+      createSnapshot: (record) => this.#snapshot(record),
+      emitSnapshot: (record) => this.#emitSnapshot(record),
+      executeTool: (sessionId, call) => this.#conversation.executeTool(
+        this.#sessionPool.require(sessionId),
+        call,
+      ),
+      ipc,
+      ledger,
+      residency: this.#sessionPool,
+      runtime,
+      runtimeFactory: resolvedRuntimeFactory,
+      servicePolicy,
+      tools,
     });
   }
 
@@ -220,144 +205,9 @@ export class AgentService {
 
   async createSession(request: AgentCreateSessionRequestDto) {
     this.#assertOpen();
-    const execution = this.#openSession(request);
+    const execution = this.#sessionOpener.open(request);
 
     return await this.#sessionPool.trackStart(execution);
-  }
-
-  async #openSession(request: AgentCreateSessionRequestDto) {
-    const configurationUse = this.#configurationStore.access.beginProfileUse(
-      request.profileId,
-    );
-
-    let resident = false;
-
-    try {
-      const snapshot = await this.#createSession(
-        request,
-        configurationUse,
-        () => {
-          resident = true;
-        },
-      );
-
-      this.#assertOpen();
-      return snapshot;
-    } finally {
-      if (!resident) configurationUse.release();
-    }
-  }
-
-  async #createSession(
-    request: AgentCreateSessionRequestDto,
-    configurationUse: AgentConfigurationProfileUse,
-    transferConfigurationUse: () => void,
-  ) {
-    this.#sessionPool.pruneExpired();
-    if (!this.#ledger) {
-      throw new AgentServiceError(
-        "profile_unavailable",
-        this.#servicePolicy.configurationProblem ??
-          "Agent operation ledger is unavailable",
-      );
-    }
-    const ledgerStatus = await this.#ledger.status();
-
-    this.#assertOpen();
-    if (ledgerStatus.status !== "available") {
-      throw new AgentServiceError(
-        "profile_unavailable",
-        "Agent operation audit is unavailable",
-      );
-    }
-    const configuration = await this.#configurationStore.resolveProfile(
-      request.profileId,
-      configurationUse,
-    );
-
-    this.#assertOpen();
-    if (!configuration || configuration.profile.availability !== "available") {
-      throw new AgentServiceError(
-        "profile_unavailable",
-        configuration?.profile.unavailableReason ?? "Agent profile is unavailable",
-      );
-    }
-    const scope = request.scope as AgentScope;
-    const profile = createAgentRuntimeProfile(configuration);
-    const capacity = this.#sessionPool.reserveProfile(profile);
-
-    try {
-      await this.#tools.assertScopeAvailable(scope);
-      this.#assertOpen();
-      const sessionId = this.#runtime.createId();
-      const controller = new AgentSessionController({
-        id: sessionId,
-        profileId: profile.id,
-        runtime: {
-          createId: () => this.#runtime.createId(),
-          now: () => readApiRuntimeNow(this.#runtime).timestamp,
-        },
-        scope,
-      });
-      const runtimePort = this.#runtimeFactory.create({
-        configuration,
-        openAiAuthentication: "require-api-key",
-        profile,
-      });
-      let capability: string | null = null;
-      let record: AgentSessionRecord | null = null;
-      let runtimeSession: AgentSessionRecord["runtimeSession"] | null = null;
-
-      try {
-        const privateToolProcess = profile.kind === "codex"
-          ? await this.#createPrivateToolProcess(sessionId, scope)
-          : undefined;
-
-        capability = privateToolProcess?.capability ?? null;
-        this.#assertOpen();
-        runtimeSession = await runtimePort.openSession({
-          instructions: createAgentRuntimeInstructions(scope),
-          ...(privateToolProcess
-            ? { privateToolProcess: privateToolProcess.process }
-            : {}),
-          profileId: profile.id,
-          scope,
-          sessionId,
-        });
-        this.#assertOpen();
-        record = {
-          abortController: null,
-          capability,
-          configuration,
-          configurationUse,
-          controller,
-          disposePromise: null,
-          events: new AgentSessionEventStream(sessionId),
-          profile,
-          runtime: runtimePort,
-          runtimeSession,
-          runtimeStopPromise: null,
-          staging: null,
-          syntaxKnowledge: null,
-        };
-
-        transferConfigurationUse();
-        this.#sessionPool.publish(record);
-        this.#emitSnapshot(record);
-        return this.#snapshot(record);
-      } catch (error) {
-        if (record) this.#sessionPool.unpublish(record);
-        if (record) {
-          await this.#sessionPool.disposeRecord(record);
-        } else {
-          if (capability) this.#ipc.revoke(capability);
-          if (runtimeSession) await runtimeSession.dispose();
-        }
-        throw error;
-      }
-    } finally {
-      capacity.release();
-    }
   }
 
   async deleteSession(sessionId: string) {
@@ -538,44 +388,6 @@ export class AgentService {
       providerVersion: record.configuration.provider.version,
       sequence,
     });
-  }
-
-  async #createPrivateToolProcess(sessionId: string, scope: AgentScope) {
-    const endpoint = await this.#ipc.start();
-    await this.#tools.assertScopeAvailable(scope);
-    const tools = agentRuntimeToolsForScope(scope);
-    const expiresAt = Date.parse(readApiRuntimeNow(this.#runtime).timestamp) +
-      this.#servicePolicy.absoluteTtlMilliseconds;
-    const capability = this.#ipc.register({
-      expiresAt,
-      handle: (request) => this.#conversation.executeTool(
-        this.#sessionPool.require(sessionId),
-        {
-          arguments: request.tool.input,
-          callId: request.id,
-          name: request.tool.name,
-        },
-      ),
-      listTools: () => tools.map((tool) => ({
-        description: tool.description,
-        inputSchema: { ...tool.inputSchema },
-        name: tool.name,
-      })),
-      sessionId,
-    });
-
-    return {
-      capability,
-      process: {
-        arguments: [sessionMcpEntrypoint()],
-        command: process.execPath,
-        environment: {
-          CTN_AGENT_IPC_ENDPOINT: endpoint,
-          CTN_AGENT_SESSION_CAPABILITY: capability,
-          CTN_AGENT_SESSION_ID: sessionId,
-        },
-      },
-    };
   }
 
   #emitProposal(record: AgentSessionRecord, proposal: AgentProposal) {

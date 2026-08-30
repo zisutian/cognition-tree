@@ -409,8 +409,10 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     启动预留、执行任务与幂等释放；
     privateIpc 独占 capability 与本地监听器，并线性化并发启动和幂等关闭；
     Agent service 关闭门统一阻止新 session 与 owner mutation，并协调 owner 操作、
-    session pool、turn queue 与 IPC 的关闭顺序；sessionPool 独占驻留表、Profile 容量
-    预留、过期驱逐、runtime stop/dispose 和 configuration use 释放；
+    session pool、turn queue 与 IPC 的关闭顺序；sessionOpener 独占配置租约、启动校验、
+    Profile 容量 reservation 的持有/释放、private IPC capability、runtime open、发布和
+    失败回滚；sessionPool 独占驻留表、Profile 容量计数、过期驱逐、runtime
+    stop/dispose 和 configuration use 释放；
     conversationRunner 独占普通对话、提交回执、工具执行、上下文压缩和取消收尾的
     turn 编排，内部 profileTurnQueue 独占跨 session 的 Profile FIFO、排队判定与直到
     真正空闲的关闭等待；

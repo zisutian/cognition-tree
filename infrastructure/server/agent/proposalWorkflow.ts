@@ -12,9 +12,9 @@ import type {
 } from "../../../contracts/agent/schemas.ts";
 import type { ResolvedAgentConfiguration } from "./configurationStore.ts";
 import { AgentServiceError } from "./errors.ts";
-import {
+import type {
   AgentProposalCommitter,
-  type AgentProposalCommitRoute,
+  AgentProposalCommitRoute,
 } from "./proposalCommitter.ts";
 import { toAgentProposalDto } from "./proposalCodec.ts";
 import type { AgentRuntimeProfile } from "./runtimeProfiles.ts";

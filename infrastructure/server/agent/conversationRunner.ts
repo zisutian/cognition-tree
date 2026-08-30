@@ -15,7 +15,7 @@ import type {
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import { AgentProfileTurnQueue } from "./profileTurnQueue.ts";
 import { AgentSessionEventStream } from "./sessionEventStream.ts";
-import { AgentSessionTools } from "./sessionTools.ts";
+import type { AgentSessionTools } from "./sessionTools.ts";
 import { agentRuntimeToolsForScope } from "./sessionToolProtocol.ts";
 import type { AgentToolSession } from "./sessionToolState.ts";
 
