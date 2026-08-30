@@ -102,6 +102,10 @@ const agentOpenAiCompatibleSessionConsumers: ReadonlySet<string> = new Set([
   "../../infrastructure/server/agent/openAiChatRuntime.ts",
 ]);
 const agentServicePath = "../../infrastructure/server/agent/service.ts";
+const operationLedgerPath =
+  "../../infrastructure/server/operations/operationLedger.ts";
+const operationLedgerStatePath =
+  "../../infrastructure/server/operations/operationLedgerState.ts";
 
 function peerDomain(filePath: string) {
   return filePath.match(
@@ -290,6 +294,11 @@ export function createDependencyImportPolicies({
       applies: ({ targetPath }) =>
         targetPath === agentOpenAiCompatibleSessionPath,
       name: "Agent compatible chat session composition boundary",
+    },
+    {
+      allows: ({ filePath }) => filePath === operationLedgerPath,
+      applies: ({ targetPath }) => targetPath === operationLedgerStatePath,
+      name: "operation ledger state composition boundary",
     },
     {
       allows: () => false,

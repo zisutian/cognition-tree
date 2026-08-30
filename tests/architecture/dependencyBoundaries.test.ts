@@ -420,6 +420,30 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps operation ledger state behind its transaction coordinator", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath:
+          "../../infrastructure/server/operations/operationLedger.ts",
+        importPath: "./operationLedgerState",
+        targetPath:
+          "../../infrastructure/server/operations/operationLedgerState.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/api/sync/handlers.ts",
+        importPath: "../../operations/operationLedgerState",
+        targetPath:
+          "../../infrastructure/server/operations/operationLedgerState.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "operation ledger state composition boundary: ../../infrastructure/server/api/sync/handlers.ts imports ../../operations/operationLedgerState",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

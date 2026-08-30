@@ -100,6 +100,48 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/agent\/openAiCompatibleSession\.ts$/,
     ],
     [
+      "operation ledger idempotency error",
+      infrastructureModules,
+      /\bclass AgentOperationIdempotencyError\b/,
+      /^infrastructure\/server\/operations\/operationLedgerContract\.ts$/,
+    ],
+    [
+      "operation ledger indeterminate error",
+      infrastructureModules,
+      /\bclass AgentOperationIndeterminateError\b/,
+      /^infrastructure\/server\/operations\/operationLedgerContract\.ts$/,
+    ],
+    [
+      "operation ledger unavailable error",
+      infrastructureModules,
+      /\bclass OperationAuditUnavailableError\b/,
+      /^infrastructure\/server\/operations\/operationLedgerContract\.ts$/,
+    ],
+    [
+      "operation ledger finalize error",
+      infrastructureModules,
+      /\bclass OperationAuditFinalizeError\b/,
+      /^infrastructure\/server\/operations\/operationLedgerContract\.ts$/,
+    ],
+    [
+      "operation ledger attempt contract",
+      infrastructureModules,
+      /\bexport type AgentOperationAttempt\b/,
+      /^infrastructure\/server\/operations\/operationLedgerContract\.ts$/,
+    ],
+    [
+      "operation ledger state parser",
+      infrastructureModules,
+      /\bexport function parseOperationLedgerState\s*\(/,
+      /^infrastructure\/server\/operations\/operationLedgerState\.ts$/,
+    ],
+    [
+      "operation ledger transaction coordinator",
+      infrastructureModules,
+      /\bclass OperationLedger\b/,
+      /^infrastructure\/server\/operations\/operationLedger\.ts$/,
+    ],
+    [
       "Agent Profile turn queue",
       infrastructureModules,
       /\bnew AgentProfileTurnQueue\s*\(/,
