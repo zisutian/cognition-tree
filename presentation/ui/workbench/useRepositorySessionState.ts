@@ -1,53 +1,35 @@
 import {
   useCallback,
   useRef,
-  useState,
+  useSyncExternalStore,
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { RepositorySessionStore } from "./repositorySessionStore";
 
 export function useRepositorySessionState<Value>(
   repositoryId: string,
   createInitial: () => Value,
 ): readonly [Value, Dispatch<SetStateAction<Value>>] {
-  const createInitialRef = useRef(createInitial);
-  const initialValuesRef = useRef(new Map<string, Value>());
-  const [values, setValues] = useState(() => new Map<string, Value>());
+  const storeRef = useRef<RepositorySessionStore<Value> | null>(null);
 
-  createInitialRef.current = createInitial;
-  let value: Value;
-
-  if (values.has(repositoryId)) {
-    value = values.get(repositoryId)!;
-  } else if (initialValuesRef.current.has(repositoryId)) {
-    value = initialValuesRef.current.get(repositoryId)!;
-  } else {
-    value = createInitialRef.current();
-    initialValuesRef.current.set(repositoryId, value);
-  }
-  const setValue = useCallback<Dispatch<SetStateAction<Value>>>((update) => {
-    setValues((current) => {
-      let previous: Value;
-
-      if (current.has(repositoryId)) {
-        previous = current.get(repositoryId)!;
-      } else if (initialValuesRef.current.has(repositoryId)) {
-        previous = initialValuesRef.current.get(repositoryId)!;
-      } else {
-        previous = createInitialRef.current();
-        initialValuesRef.current.set(repositoryId, previous);
-      }
-      const next = typeof update === "function"
-        ? (update as (value: Value) => Value)(previous)
-        : update;
-
-      if (Object.is(previous, next) && current.has(repositoryId)) return current;
-      const updated = new Map(current);
-
-      updated.set(repositoryId, next);
-      return updated;
-    });
-  }, [repositoryId]);
+  storeRef.current ??= new RepositorySessionStore(createInitial);
+  const store = storeRef.current;
+  const getSnapshot = useCallback(
+    () => store.read(repositoryId),
+    [repositoryId, store],
+  );
+  const subscribe = useCallback(
+    (listener: () => void) => store.subscribe(repositoryId, listener),
+    [repositoryId, store],
+  );
+  const value = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const setValue = useCallback<Dispatch<SetStateAction<Value>>>(
+    (update) => {
+      store.update(repositoryId, update);
+    },
+    [repositoryId, store],
+  );
 
   return [value, setValue] as const;
 }

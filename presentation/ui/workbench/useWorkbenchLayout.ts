@@ -1,19 +1,25 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   appContextDefaultWidth,
   appDetailDefaultWidth,
+  appProblemsDefaultHeight,
   clampAppContextWidth,
+  clampAppProblemsHeight,
 } from "./frameResize";
 import {
   useWorkbenchPanelResize,
   type WorkbenchPanelResizeController,
 } from "./useWorkbenchPanelResize";
-import {
-  readRepositoryContextWidth,
-  readRepositoryProblemsLayout,
-  writeRepositoryContextWidth,
-  writeRepositoryProblemsLayout,
-} from "./workbenchLayoutSession";
+import { useRepositorySessionState } from "./useRepositorySessionState";
+
+type RepositoryProblemsLayout = {
+  expanded: boolean;
+  height: number;
+};
+
+function createRepositoryProblemsLayout(): RepositoryProblemsLayout {
+  return { expanded: false, height: appProblemsDefaultHeight };
+}
 
 export type WorkbenchLayout = WorkbenchPanelResizeController & {
   contextCollapsed: boolean;
@@ -30,42 +36,27 @@ export type WorkbenchLayout = WorkbenchPanelResizeController & {
 };
 
 export function useWorkbenchLayout(repositoryId: string) {
-  const [layoutRepositoryId, setLayoutRepositoryId] = useState(repositoryId);
   const [contextCollapsed, setContextCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
-  const [contextWidth, setContextWidth] = useState<number | null>(() =>
-    readRepositoryContextWidth(repositoryId),
+  const [contextWidth, setContextWidth] = useRepositorySessionState<number | null>(
+    repositoryId,
+    () => null,
   );
   const [detailWidth, setDetailWidth] = useState<number | null>(null);
-  const [problemsLayout, setProblemsLayout] = useState(() =>
-    readRepositoryProblemsLayout(repositoryId),
+  const [problemsLayout, setProblemsLayout] = useRepositorySessionState(
+    repositoryId,
+    createRepositoryProblemsLayout,
   );
   const [focusMode, setFocusMode] = useState(false);
-
-  if (layoutRepositoryId !== repositoryId) {
-    setLayoutRepositoryId(repositoryId);
-    setContextWidth(readRepositoryContextWidth(repositoryId));
-    setProblemsLayout(readRepositoryProblemsLayout(repositoryId));
-  }
   const contextResizeValue = contextWidth ?? appContextDefaultWidth;
   const detailResizeValue = detailWidth ?? appDetailDefaultWidth;
   const problemsResizeValue = problemsLayout.height;
-
-  useEffect(() => {
-    if (contextWidth !== null) {
-      writeRepositoryContextWidth(layoutRepositoryId, contextWidth);
-    }
-  }, [contextWidth, layoutRepositoryId]);
-
-  useEffect(() => {
-    writeRepositoryProblemsLayout(layoutRepositoryId, problemsLayout);
-  }, [layoutRepositoryId, problemsLayout]);
 
   const panelResize = useWorkbenchPanelResize({
     context: {
       collapsed: contextCollapsed,
       resizeValue: contextResizeValue,
-      setWidth: setContextWidth,
+      setWidth: (width) => setContextWidth(clampAppContextWidth(width)),
     },
     detail: {
       collapsed: detailCollapsed,
@@ -76,7 +67,10 @@ export function useWorkbenchLayout(repositoryId: string) {
       expanded: problemsLayout.expanded,
       resizeValue: problemsResizeValue,
       setHeight: (height) =>
-        setProblemsLayout((current) => ({ ...current, height })),
+        setProblemsLayout((current) => ({
+          ...current,
+          height: clampAppProblemsHeight(height),
+        })),
     },
   });
   const expandPanels = () => {
