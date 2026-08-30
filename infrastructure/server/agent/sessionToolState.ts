@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type {
-  AgentProposal,
-  AgentSessionController,
-  AgentSyntaxKnowledge,
+import {
+  AgentScopeViolationError,
+  type AgentProposal,
+  type AgentSessionController,
+  type AgentSyntaxKnowledge,
 } from "../../../application/agent/index.ts";
 import type { PreparedVersionedSnapshot } from "../../../application/persistence/versionedRepository.ts";
 import type { WorkspaceRepositoryPreparation } from "../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
@@ -64,3 +65,22 @@ export type AgentToolExecution = {
   proposal?: AgentProposal;
   result: unknown;
 };
+
+export type AgentStagingFor<Kind extends AgentStaging["kind"]> = Extract<
+  AgentStaging,
+  { kind: Kind }
+>;
+
+export async function resolveAgentStaging<
+  Kind extends AgentStaging["kind"],
+>(
+  record: AgentToolSession,
+  kind: Kind,
+  create: () => Promise<AgentStagingFor<Kind>>,
+): Promise<AgentStagingFor<Kind>> {
+  if (!record.staging) return create();
+  if (record.staging.kind !== kind) {
+    throw new AgentScopeViolationError("A proposal can only stage one store");
+  }
+  return record.staging as AgentStagingFor<Kind>;
+}
