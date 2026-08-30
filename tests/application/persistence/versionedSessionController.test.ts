@@ -336,7 +336,7 @@ describe("versioned session controller", () => {
     ]);
     expect(harness.baseLocalRevisions).toEqual([
       localRevision(0),
-      localRevision(0),
+      localRevision(1),
     ]);
     expect(controller.getState()).toMatchObject({
       content: { values: [1, 2] },
