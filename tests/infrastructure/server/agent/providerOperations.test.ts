@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { AgentConfigurationStore } from "../../../../infrastructure/server/agent/configurationStore.ts";
+import { CodexDeviceLoginOperations } from "../../../../infrastructure/server/agent/codexDeviceLoginOperations.ts";
 import { AgentProviderOperations } from "../../../../infrastructure/server/agent/providerOperations.ts";
 import { pinnedCodexVersion } from "../../../../infrastructure/server/agent/codexAppServerClient.ts";
 import type { ApiRuntime } from "../../../../infrastructure/server/api/http/runtime.ts";
@@ -260,6 +261,62 @@ describe("Agent provider operations", () => {
         rm(completedDirectory, { force: true, recursive: true }),
         rm(cancelledDirectory, { force: true, recursive: true }),
         rm(expiredDirectory, { force: true, recursive: true }),
+      ]);
+    }
+  });
+
+  it("retains a failed TTL cleanup until device-login disposal", async () => {
+    const project = await createFakeCodexProject(false);
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-device-cleanup-"),
+    );
+    const store = new AgentConfigurationStore(directory, {
+      createId: () => "codex-cleanup-failure",
+    });
+    const cleanupDirectory = vi.fn(async () => {
+      throw new Error("injected login cleanup failure");
+    });
+    const operations = new CodexDeviceLoginOperations({
+      cleanupDirectory,
+      configurationStore: store,
+      projectRoot: project,
+      runtime,
+      ttlMilliseconds: 10,
+    });
+
+    try {
+      const initial = await store.readSnapshot();
+      const created = await store.createProvider(initial.revision, {
+        authenticationType: "chatgpt-device-code",
+        baseUrl: null,
+        kind: "codex",
+        label: "Cleanup failure Codex",
+        privateNetworkAccessConfirmed: false,
+      });
+      const started = await operations.start(
+        created.configuration.revision,
+        created.provider.id,
+      );
+
+      await vi.waitFor(() => {
+        expect(operations.get(started.id)?.status).toBe("expired");
+      });
+      await expect(operations.dispose()).rejects.toThrow(
+        "injected login cleanup failure",
+      );
+      expect(cleanupDirectory).toHaveBeenCalledOnce();
+      const current = await store.readSnapshot();
+      const lease = await store.reserveProviderChange(
+        current.revision,
+        created.provider.id,
+      );
+
+      lease.release();
+    } finally {
+      await operations.dispose().catch(() => undefined);
+      await Promise.all([
+        rm(project, { force: true, recursive: true }),
+        rm(directory, { force: true, recursive: true }),
       ]);
     }
   });

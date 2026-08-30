@@ -486,7 +486,9 @@ Codex adapter 精确锁定 `@openai/codex@0.148.0`。API Key 通过 app-server
 CAS；登录从 prepare 到 terminal 状态持有对应 Provider 的 change lease。失败、取消、
 过期或已确定冲突会撤销 staging；durable commit 结果未知时保留可能已成为权威的
 manifest 与 HOME，重启后以权威配置引用核验并回收孤儿。登录进行中和 opening/resident
-session 都会阻止 Provider、认证与数据根迁移的危险变更。无论认证方式，每条会话都启动独立常驻
+session 都会阻止 Provider、认证与数据根迁移的危险变更。TTL 取消、完成通知和显式取消
+都是登录操作 owner 持有的 terminal task；关闭必须等待这些任务并继续回收全部子进程，
+后台清理失败留存到关闭结果，不能成为无主 Promise rejection。无论认证方式，每条会话都启动独立常驻
 app-server，使用空临时 cwd、隔离 HOME/CODEX_HOME、`ephemeral: true`、只读
 filesystem、network disabled、approval never，并验证 instructionSources 为空；不
 读取个人 `.codex`、AGENTS、skills、hooks、plugins、sessions 或 MCP。进程环境是

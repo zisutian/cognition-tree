@@ -37,6 +37,22 @@ type CodexDeviceLoginRecord = {
   timeout: NodeJS.Timeout;
 };
 
+function rejectedReasons(results: readonly PromiseSettledResult<unknown>[]) {
+  return results.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : []
+  );
+}
+
+async function cleanupCodexLoginDirectory(directory: string) {
+  const resolved = path.resolve(directory);
+  const prefix = `${path.resolve(os.tmpdir())}${path.sep}ctn-codex-login-`;
+
+  if (!resolved.startsWith(prefix)) {
+    throw new Error("Refusing to clean an unexpected Codex login directory");
+  }
+  await rm(resolved, { force: true, recursive: true });
+}
+
 function verifiedDeviceLoginUrl(value: unknown) {
   if (typeof value !== "string") {
     throw new Error("Codex returned an invalid device login URL");
@@ -55,7 +71,10 @@ function verifiedDeviceLoginUrl(value: unknown) {
 }
 
 export class CodexDeviceLoginOperations {
+  readonly #backgroundFailures: unknown[] = [];
+  readonly #cancellations = new Set<Promise<AgentCodexDeviceLoginStatus | null>>();
   readonly #children = new Set<ChildProcessWithoutNullStreams>();
+  readonly #cleanupDirectory: (directory: string) => Promise<void>;
   readonly #configurationStore: AgentConfigurationStore;
   readonly #finishes = new Map<string, Promise<void>>();
   readonly #logins = new Map<string, CodexDeviceLoginRecord>();
@@ -68,16 +87,19 @@ export class CodexDeviceLoginOperations {
   #disposePromise: Promise<void> | null = null;
 
   constructor({
+    cleanupDirectory = cleanupCodexLoginDirectory,
     configurationStore,
     projectRoot,
     runtime,
     ttlMilliseconds,
   }: {
+    cleanupDirectory?: (directory: string) => Promise<void>;
     configurationStore: AgentConfigurationStore;
     projectRoot: string;
     runtime: ApiRuntime;
     ttlMilliseconds: number;
   }) {
+    this.#cleanupDirectory = cleanupDirectory;
     this.#configurationStore = configurationStore;
     this.#projectRoot = projectRoot;
     this.#runtime = runtime;
@@ -99,7 +121,7 @@ export class CodexDeviceLoginOperations {
   }
 
   cancel(loginId: string) {
-    return this.#cancel(loginId, "cancelled");
+    return this.#trackCancellation(loginId, "cancelled");
   }
 
   hasPending(providerId?: string) {
@@ -115,12 +137,24 @@ export class CodexDeviceLoginOperations {
     this.#disposed = true;
     this.#disposePromise ??= (async () => {
       await Promise.allSettled(this.#starts);
-      await Promise.all([...this.#logins.entries()]
+      const requestedCancellations = [...this.#logins.entries()]
         .filter(([, { status }]) => status.status === "pending")
-        .map(([id]) => this.#cancel(id, "cancelled")));
-      await Promise.all([...this.#children]
-        .map((child) => this.#stopProcess(child)));
-      await Promise.allSettled(this.#finishes.values());
+        .map(([id]) => this.#trackCancellation(id, "cancelled"));
+      const cancellationResults = await Promise.allSettled(
+        new Set([...this.#cancellations, ...requestedCancellations]),
+      );
+      const finishResults = await Promise.allSettled(this.#finishes.values());
+      const childResults = await Promise.allSettled(
+        [...this.#children].map((child) => this.#stopProcess(child)),
+      );
+      const failures = [
+        ...rejectedReasons(cancellationResults),
+        ...rejectedReasons(finishResults),
+        ...rejectedReasons(childResults),
+        ...this.#backgroundFailures.splice(0),
+      ];
+
+      if (failures.length > 0) throw failures[0];
     })();
     return this.#disposePromise;
   }
@@ -270,7 +304,9 @@ export class CodexDeviceLoginOperations {
         verificationUrl,
       };
       const timeout = setTimeout(() => {
-        void this.#cancel(id, "expired");
+        void this.#trackCancellation(id, "expired").catch((error: unknown) => {
+          this.#backgroundFailures.push(error);
+        });
       }, this.#ttlMilliseconds);
 
       timeout.unref();
@@ -404,7 +440,21 @@ export class CodexDeviceLoginOperations {
       .finally(() => this.#finishes.delete(loginId));
 
     this.#finishes.set(loginId, execution);
-    void execution.catch(() => undefined);
+    void execution.catch((error: unknown) => {
+      this.#backgroundFailures.push(error);
+    });
+  }
+
+  #trackCancellation(
+    loginId: string,
+    terminalStatus: "cancelled" | "expired",
+  ) {
+    const execution = this.#cancel(loginId, terminalStatus);
+
+    this.#cancellations.add(execution);
+    void execution.finally(() => this.#cancellations.delete(execution))
+      .catch(() => undefined);
+    return execution;
   }
 
   async #cancel(
@@ -464,16 +514,6 @@ export class CodexDeviceLoginOperations {
       });
     });
     this.#children.delete(child);
-  }
-
-  async #cleanupDirectory(directory: string) {
-    const resolved = path.resolve(directory);
-    const prefix = `${path.resolve(os.tmpdir())}${path.sep}ctn-codex-login-`;
-
-    if (!resolved.startsWith(prefix)) {
-      throw new Error("Refusing to clean an unexpected Codex login directory");
-    }
-    await rm(resolved, { force: true, recursive: true });
   }
 
   #prune() {
