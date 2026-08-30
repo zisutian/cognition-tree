@@ -208,18 +208,24 @@ describe("reference graph canvas pointer movement", () => {
 
   it("restores the same controller after leaving and reopening a topology", () => {
     const cache = new ReferenceGraphControllerCache();
-    const first = cache.get("reopen-test");
+    const topologyIdentity = {};
+    const first = cache.get(topologyIdentity, "reopen-test");
 
     first.transform = { scale: 2, x: 40, y: 50 };
 
-    expect(cache.get("reopen-test")).toBe(first);
-    expect(cache.get("reopen-test").transform).toEqual({
+    expect(cache.get(topologyIdentity, "reopen-test")).toBe(first);
+    expect(cache.get(topologyIdentity, "reopen-test").transform).toEqual({
       scale: 2,
       x: 40,
       y: 50,
     });
-    expect(new ReferenceGraphControllerCache().get("reopen-test"))
-      .not.toBe(first);
+    expect(cache.get({}, "reopen-test")).not.toBe(first);
+    expect(
+      new ReferenceGraphControllerCache().get(
+        topologyIdentity,
+        "reopen-test",
+      ),
+    ).not.toBe(first);
   });
 
   it("preserves a cached viewport on mount and resets only for a new signal", () => {

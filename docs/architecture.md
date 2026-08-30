@@ -511,6 +511,8 @@ Activity 内部仍按语义拆分独立 view：Repository 的 catalog、状态�
 Todo 的集合、编辑与周期结构，以及 Notes 的编辑、结构与图谱不因视觉相似而共享业务
 状态。引用图谱 Canvas 只声明 DOM 并接收当前仓库 session 选出的 controller；模拟、位置
 缓存、缩放和平移属于专用 hook/controller，controller cache 不得成为模块级全局状态。
+核心引用图只包含语义数据；Application 投影以源图对象身份标识一次拓扑，禁止在纯
+core 中用全局计数器制造展示缓存 revision。
 
 Agent Presentation 只消费 AgentClientController 的会话快照、连续事件和冻结 proposal
 review，不解析正文或生成审批摘要。发送、批准与 destructive confirmation 前的 scope

@@ -71,12 +71,12 @@ const graph: UiReferenceGraphView = {
       title: "Delta",
     },
   ],
-  revision: 1,
   stats: {
     edgeCount: 2,
     isolatedCount: 1,
     nodeCount: 4,
   },
+  topologyIdentity: {},
 };
 
 describe("reference graph view helpers", () => {

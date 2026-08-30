@@ -41,7 +41,7 @@ export function VisualizationPanel({
       visualization.graph,
     ],
   );
-  const topologyRevision = `${visualization.graph.revision}:${
+  const topologyVariant = `${
     mode === "local" ? visualization.activeNoteId ?? "none" : "global"
   }:${mode}:${localDepth}:${
     hideIsolated ? 1 : 0
@@ -60,7 +60,10 @@ export function VisualizationPanel({
         <div className="graph-canvas">
           {visibleGraph.nodes.length > 0 ? (
             <ReferenceGraphCanvas
-              controller={session.getController(topologyRevision)}
+              controller={session.getController(
+                visualization.graph.topologyIdentity,
+                topologyVariant,
+              )}
               displaySettings={session.settings.display}
               forceSettings={session.settings.forces}
               graph={visibleGraph}

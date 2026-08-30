@@ -21,7 +21,7 @@ export function AdjacentReferenceList({
   const outgoingEdges = details?.outgoingEdges ?? [];
   const titleById = useMemo(
     () => new Map(graph.nodes.map((node) => [node.id, node.title])),
-    [graph.revision],
+    [graph.nodes],
   );
 
   return incomingEdges.length + outgoingEdges.length > 0 ? (

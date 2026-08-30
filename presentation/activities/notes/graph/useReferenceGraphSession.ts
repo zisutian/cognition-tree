@@ -12,7 +12,10 @@ import {
 } from "./referenceGraphSettings";
 
 export type ReferenceGraphSession = {
-  getController: (topologyRevision: string) => ReferenceGraphController;
+  getController: (
+    topologyIdentity: object,
+    topologyVariant: string,
+  ) => ReferenceGraphController;
   resetSignal: number;
   settings: ReferenceGraphSettings;
   resetSettings: () => void;
@@ -42,7 +45,8 @@ export function useReferenceGraphSession(
     createReferenceGraphSessionState,
   );
   const getController = useCallback(
-    (topologyRevision: string) => session.controllers.get(topologyRevision),
+    (topologyIdentity: object, topologyVariant: string) =>
+      session.controllers.get(topologyIdentity, topologyVariant),
     [session.controllers],
   );
   const updateSettings = useCallback((next: ReferenceGraphSettings) => {

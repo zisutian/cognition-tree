@@ -28,12 +28,12 @@ export function createVisualizationView(
       edges: [],
       mostReferencedNodes: [],
       nodes: [],
-      revision: 0,
       stats: {
         edgeCount: 0,
         isolatedCount: 0,
         nodeCount: 0,
       },
+      topologyIdentity: {},
     },
     onSelectNote: () => undefined,
     setHideIsolated: () => undefined,
@@ -50,7 +50,8 @@ export function createReferenceGraphSession(
   const controllers = new ReferenceGraphControllerCache();
 
   return {
-    getController: (topologyRevision) => controllers.get(topologyRevision),
+    getController: (topologyIdentity, topologyVariant) =>
+      controllers.get(topologyIdentity, topologyVariant),
     resetSettings: () => undefined,
     resetSignal: 0,
     resetView: () => undefined,

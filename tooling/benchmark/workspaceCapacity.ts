@@ -263,7 +263,7 @@ const repeatedReferenceGraph = await measure(
   },
 );
 
-assert.equal(repeatedReferenceGraph.revision, referenceGraph.revision);
+assert.equal(repeatedReferenceGraph, referenceGraph);
 assert.deepEqual(repeatedReferenceGraph.nodes, referenceGraph.nodes);
 assert.deepEqual(repeatedReferenceGraph.edges, referenceGraph.edges);
 assert.deepEqual(
@@ -655,7 +655,7 @@ try {
     },
     timings,
     verification: {
-      graphRepeatRevision: repeatedReferenceGraph.revision,
+      graphRepeatReused: repeatedReferenceGraph === referenceGraph,
       hotIndexAnalysisRuns: hotParseIndex.analysisStats.runCount,
       hotIndexChangedRegistryOwners:
         hotParseIndex.analysisStats.updatedBlockIdOwnerIds.length,

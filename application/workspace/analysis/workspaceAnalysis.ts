@@ -25,7 +25,6 @@ export function createEmptyNoteReferenceGraph(): NoteReferenceGraph {
     ambiguousReferences: [],
     edges: [],
     nodes: [],
-    revision: 0,
     unresolvedReferences: [],
   };
 }

@@ -153,12 +153,12 @@ describe("visualization panels", () => {
             title: "Other note",
           },
         ],
-        revision: 2,
         stats: {
           edgeCount: 2,
           isolatedCount: 0,
           nodeCount: 3,
         },
+        topologyIdentity: {},
       },
       onSelectNote: () => undefined,
       setHideIsolated: () => undefined,

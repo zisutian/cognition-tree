@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createUiReferenceGraphView } from "../../../../application/workspace/projection/viewGraph";
 
 describe("reference graph projection", () => {
-  it("precomputes topology revision, adjacency, details and deterministic ranking", () => {
-    const view = createUiReferenceGraphView({
+  it("preserves topology identity and precomputes graph lookups", () => {
+    const graph = {
       ambiguousReferences: [],
       edges: [
         {
@@ -37,11 +37,11 @@ describe("reference graph projection", () => {
           title: "Beta",
         },
       ],
-      revision: 42,
       unresolvedReferences: [],
-    });
+    };
+    const view = createUiReferenceGraphView(graph);
 
-    expect(view.revision).toBe(42);
+    expect(view.topologyIdentity).toBe(graph);
     expect([...view.adjacencyByNoteId.get("alpha") ?? []]).toEqual([
       "beta",
       "alpha",

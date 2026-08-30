@@ -32,12 +32,12 @@ export type UiReferenceGraphView = {
   edges: UiReferenceGraphEdge[];
   mostReferencedNodes: UiReferenceGraphRankedNode[];
   nodes: UiReferenceGraphNode[];
-  revision: number;
   stats: {
     edgeCount: number;
     isolatedCount: number;
     nodeCount: number;
   };
+  topologyIdentity: object;
 };
 
 export type UiVisualizationView = {
@@ -99,11 +99,11 @@ export function createUiReferenceGraphView(
     edges,
     mostReferencedNodes,
     nodes,
-    revision: graph.revision,
     stats: {
       edgeCount: graph.edges.length,
       isolatedCount: nodes.filter((node) => node.isolated).length,
       nodeCount: nodes.length,
     },
+    topologyIdentity: graph,
   };
 }

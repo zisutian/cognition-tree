@@ -73,11 +73,8 @@ export type NoteReferenceGraph = {
   ambiguousReferences: AmbiguousNoteReference[];
   edges: NoteReferenceGraphEdge[];
   nodes: NoteReferenceGraphNode[];
-  revision: number;
   unresolvedReferences: UnresolvedNoteReference[];
 };
-
-let nextReferenceGraphRevision = 1;
 
 export type WorkspaceParseIndex = {
   analysisStats: {
@@ -336,7 +333,6 @@ function createWorkspaceNoteReferenceGraphBuilder(
             title: note.title,
           };
         }),
-        revision: nextReferenceGraphRevision++,
         unresolvedReferences: [...unresolvedCounts.values()],
       };
     },

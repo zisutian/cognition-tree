@@ -12,7 +12,6 @@ const emptyReferenceGraphView = createUiReferenceGraphView({
   ambiguousReferences: [],
   edges: [],
   nodes: [],
-  revision: 0,
   unresolvedReferences: [],
 });
 
