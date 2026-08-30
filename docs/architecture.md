@@ -426,7 +426,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     最后释放请求依赖资源四个有序阶段；多项关闭失败必须全部保留，不能让资源清理与
     尚未结束的 handler 并发；
     server/state 独占安全状态目录的类型、权限与创建持久性；首次递归创建必须从目标
-    向上逐级 fsync 至原有祖先，不能只同步最终状态文件所在目录；
+    向上逐级 fsync 至原有祖先，不能只同步最终状态文件所在目录；每个安全 JSON 文件
+    通过独立跨实例锁串行，持锁后刷新磁盘 authority 再执行 read/mutate，解锁失败后
+    分区 fail closed；
     api/resources、api/sync 分别拥有只读资源投影与 merge-aware snapshot 同步，search
     保持独立查询入口。server/access 独占 automation 与 trusted-client token；
     server/operations 独占统一账本、审计状态和 Agent receipt；其中

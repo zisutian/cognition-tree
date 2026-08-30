@@ -123,6 +123,57 @@ describe("Secure JSON partition", () => {
     expect((await stat(directory)).mode & 0o777).toBe(0o700);
   });
 
+  it("refreshes disk authority while serializing multiple partition instances", async () => {
+    const root = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-secure-partition-shared-"),
+    );
+    const directory = path.join(root, "state-v1");
+    const createSharedPartition = () => new SecureJsonPartition<TestState>({
+      createInitial: () => ({ records: [{ value: "initial" }], revision: 0 }),
+      directory,
+      fileName: "state.json",
+      name: "test",
+      parse: parseTestState,
+    });
+    const first = createSharedPartition();
+    const second = createSharedPartition();
+
+    roots.push(root);
+    await expect(first.read((state) => state.revision)).resolves.toBe(0);
+    await expect(second.read((state) => state.revision)).resolves.toBe(0);
+    await first.mutate((state) => {
+      state.revision += 1;
+      return { changed: true, result: undefined };
+    });
+    await second.mutate((state) => {
+      state.revision += 1;
+      return { changed: true, result: undefined };
+    });
+
+    await expect(first.read((state) => state.revision)).resolves.toBe(2);
+  });
+
+  it("keeps a known result but closes after state lock release fails", async () => {
+    const { directory } = await createPartition();
+    const releaseFailure = new Error("lock release failed");
+    const partition = new SecureJsonPartition<TestState>({
+      acquireLock: async () => async () => {
+        throw releaseFailure;
+      },
+      createInitial: () => ({ records: [{ value: "initial" }], revision: 0 }),
+      directory,
+      fileName: "state.json",
+      name: "test",
+      parse: parseTestState,
+    });
+
+    await expect(partition.read((state) => state.revision)).resolves.toBe(1);
+    await expect(partition.read((state) => state.revision)).rejects.toMatchObject({
+      cause: releaseFailure,
+      name: "SecureStateLockReleaseError",
+    });
+  });
+
   it("retries initial creation only when the target is still missing", async () => {
     const root = await mkdtemp(
       path.join(os.tmpdir(), "ctn-secure-partition-create-"),

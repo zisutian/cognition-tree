@@ -2,6 +2,7 @@
 
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
+import { lock } from "proper-lockfile";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import {
   isSecureRegularFile,
@@ -26,6 +27,16 @@ export class SecureStateCommitOutcomeUnknownError extends SecureStatePartitionEr
   constructor(partition: string, cause: unknown) {
     super(partition, "durable write outcome could not be verified");
     this.name = "SecureStateCommitOutcomeUnknownError";
+    this.cause = cause;
+  }
+}
+
+class SecureStateLockReleaseError extends SecureStatePartitionError {
+  readonly cause: unknown;
+
+  constructor(partition: string, cause: unknown) {
+    super(partition, "state lock could not be released");
+    this.name = "SecureStateLockReleaseError";
     this.cause = cause;
   }
 }
@@ -71,6 +82,8 @@ export type SecureStateFileReplacer = (
   content: string,
   options?: { hiddenTemporaryFile?: boolean },
 ) => Promise<void>;
+
+export type SecureStateLockAcquirer = () => Promise<() => Promise<void>>;
 
 // Persisted values are JSON-like, but parsers may attach non-enumerable symbol
 // metadata while migrating. Descriptor cloning preserves that transient state.
@@ -123,6 +136,7 @@ function clonePartitionValue<Value>(source: Value): Value {
 }
 
 export class SecureJsonPartition<Value> {
+  readonly #acquireLock: SecureStateLockAcquirer;
   readonly #createInitial: () => Value;
   readonly #directory: string;
   readonly #file: string;
@@ -141,8 +155,10 @@ export class SecureJsonPartition<Value> {
     fileName,
     name,
     parse,
+    acquireLock,
     replaceFile = replaceFileDurably,
   }: {
+    acquireLock?: SecureStateLockAcquirer;
     createInitial(): Value;
     directory: string;
     fileName: string;
@@ -155,6 +171,13 @@ export class SecureJsonPartition<Value> {
     this.#file = path.join(this.#directory, fileName);
     this.#name = name;
     this.#parse = parse;
+    this.#acquireLock = acquireLock ?? (() => lock(this.#directory, {
+      lockfilePath: path.join(this.#directory, `.${fileName}.lock`),
+      realpath: true,
+      retries: { retries: 20, factor: 1, minTimeout: 5, maxTimeout: 20 },
+      stale: 30_000,
+      update: 10_000,
+    }));
     this.#replaceFile = replaceFile;
   }
 
@@ -183,7 +206,6 @@ export class SecureJsonPartition<Value> {
   }
 
   async #initialize() {
-    await ensureSecureStateDirectory(this.#directory);
     let source: string;
 
     try {
@@ -239,39 +261,70 @@ export class SecureJsonPartition<Value> {
   ): Promise<Result> {
     const pending = this.#operationQueue.then(async () => {
       if (this.#terminalError) throw this.#terminalError;
-      await this.#ensureInitialized();
-      if (this.#terminalError) throw this.#terminalError;
-      const current = this.#requireValue();
-      const outcome = await operation(current);
+      await ensureSecureStateDirectory(this.#directory);
+      let release: () => Promise<void>;
 
-      if (outcome.changed) {
-        // The operation may retain its candidate, so never install it directly.
-        const committed = clonePartitionValue(outcome.candidate);
-        const committedSource = this.#serialize(committed);
-
-        try {
-          await this.#save(committedSource);
-        } catch (error) {
-          const stored = await this.#observePersistedSource();
-
-          if (
-            stored.kind !== "source" ||
-            stored.source !== this.#requirePersistedSource()
-          ) {
-            this.#terminalError = new SecureStateCommitOutcomeUnknownError(
-              this.#name,
-              error,
-            );
-            throw this.#terminalError;
-          }
-          throw error;
-        }
-        this.#persistedSource = committedSource;
-        this.#value = committed;
+      try {
+        release = await this.#acquireLock();
+      } catch (error) {
+        throw new SecureStatePartitionError(
+          this.#name,
+          error instanceof Error && "code" in error && error.code === "ELOCKED"
+            ? "state partition is busy"
+            : "state lock could not be acquired",
+        );
       }
-      // The operation only saw an isolated candidate, so its result cannot
-      // retain a reference to the installed authority and need not be cloned.
-      return outcome.result;
+      let operationFailed = false;
+
+      try {
+        await this.#ensureInitialized();
+        await this.#refreshAuthority();
+        if (this.#terminalError) throw this.#terminalError;
+        const current = this.#requireValue();
+        const outcome = await operation(current);
+
+        if (outcome.changed) {
+          // The operation may retain its candidate, so never install it directly.
+          const committed = clonePartitionValue(outcome.candidate);
+          const committedSource = this.#serialize(committed);
+
+          try {
+            await this.#save(committedSource);
+          } catch (error) {
+            const stored = await this.#observePersistedSource();
+
+            if (
+              stored.kind !== "source" ||
+              stored.source !== this.#requirePersistedSource()
+            ) {
+              this.#terminalError = new SecureStateCommitOutcomeUnknownError(
+                this.#name,
+                error,
+              );
+              throw this.#terminalError;
+            }
+            throw error;
+          }
+          this.#persistedSource = committedSource;
+          this.#value = committed;
+        }
+        // The operation only saw an isolated candidate, so its result cannot
+        // retain a reference to the installed authority and need not be cloned.
+        return outcome.result;
+      } catch (error) {
+        operationFailed = true;
+        throw error;
+      } finally {
+        try {
+          await release();
+        } catch (error) {
+          this.#terminalError ??= new SecureStateLockReleaseError(
+            this.#name,
+            error,
+          );
+          if (operationFailed) throw this.#terminalError;
+        }
+      }
     });
 
     this.#operationQueue = pending.then(() => undefined, () => undefined);
@@ -285,6 +338,36 @@ export class SecureJsonPartition<Value> {
       throw error;
     });
     return this.#initializePromise;
+  }
+
+  async #refreshAuthority() {
+    const stored = await this.#observePersistedSource();
+
+    if (
+      stored.kind === "source" &&
+      stored.source === this.#requirePersistedSource()
+    ) return;
+    if (stored.kind !== "source") {
+      this.#terminalError ??= new SecureStatePartitionError(
+        this.#name,
+        "persisted state became unavailable",
+      );
+      throw this.#terminalError;
+    }
+    try {
+      const refreshed = clonePartitionValue(
+        this.#parse(JSON.parse(stored.source) as unknown),
+      );
+
+      this.#persistedSource = stored.source;
+      this.#value = refreshed;
+    } catch (error) {
+      this.#terminalError ??= new SecureStatePartitionError(
+        this.#name,
+        error instanceof Error ? error.message : "invalid refreshed JSON",
+      );
+      throw this.#terminalError;
+    }
   }
 
   #requireValue() {
