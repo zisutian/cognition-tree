@@ -221,6 +221,32 @@ describe("trusted-client CLI security", () => {
     expect(error).toEqual([]);
   });
 
+  it("rejects a non trusted-client secret before persisting a profile", async () => {
+    const root = await temporaryRoot();
+    const store = new CliCredentialStore(
+      path.join(root, "cognition-tree", "cli-v1", "credentials.json"),
+    );
+    const errors: string[] = [];
+
+    expect(await runCtnCli([
+      "auth",
+      "add",
+      "--profile",
+      "invalid",
+      "--server",
+      "https://tree.example.test",
+    ], {
+      credentialStore: store,
+      io: {
+        error: (message) => errors.push(message),
+        output: () => undefined,
+        readSecret: async () => "automation-token",
+      },
+    })).toBe(2);
+    expect((await store.read()).profiles).toEqual([]);
+    expect(errors.join("\n")).toContain("trusted-client secret is invalid");
+  });
+
   it("reconciles a committed write without replaying PUT", async () => {
     const root = await temporaryRoot();
     const store = await configuredStore(root);

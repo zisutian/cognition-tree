@@ -15,6 +15,18 @@ import { randomUUID } from "node:crypto";
 import { readBoundedUtf8File } from "./boundedFile.ts";
 
 export const cliMaximumCredentialFileBytes = 1024 * 1024;
+export const cliMaximumTrustedClientSecretCharacters = 256;
+
+export function validateCliTrustedClientSecret(value: unknown) {
+  if (
+    typeof value !== "string" ||
+    !/^ctt_[A-Za-z0-9_-]+$/.test(value) ||
+    value.length > cliMaximumTrustedClientSecretCharacters
+  ) {
+    throw new Error("CLI trusted-client secret is invalid");
+  }
+  return value;
+}
 
 export type CliCredentialProfile = {
   name: string;
@@ -62,15 +74,14 @@ function parseState(value: unknown): CliCredentialState {
     if (
       Object.keys(profile).sort().join(",") !== "name,origin,secret" ||
       typeof profile.name !== "string" || !profile.name ||
-      typeof profile.origin !== "string" || !profile.origin ||
-      typeof profile.secret !== "string" || !profile.secret
+      typeof profile.origin !== "string" || !profile.origin
     ) {
       throw new Error(`CLI credential profile ${index} is invalid`);
     }
     return {
       name: profile.name,
       origin: profile.origin,
-      secret: profile.secret,
+      secret: validateCliTrustedClientSecret(profile.secret),
     };
   });
   if (new Set(profiles.map(({ name }) => name)).size !== profiles.length) {

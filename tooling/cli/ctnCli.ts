@@ -2,7 +2,11 @@
 
 import type { ReadStream, WriteStream } from "node:tty";
 import { pathToFileURL } from "node:url";
-import { CliCredentialStore } from "./credentialStore.ts";
+import {
+  cliMaximumTrustedClientSecretCharacters,
+  CliCredentialStore,
+  validateCliTrustedClientSecret,
+} from "./credentialStore.ts";
 import {
   CliApiError,
   type CliApiClient,
@@ -63,6 +67,11 @@ async function readSecretFromTty() {
           if (byte === 8 || byte === 127) {
             secret = secret.slice(0, -1);
           } else {
+            if (secret.length >= cliMaximumTrustedClientSecretCharacters) {
+              cleanup();
+              reject(new CliInputError("Trusted-client secret is too long"));
+              return;
+            }
             secret += String.fromCharCode(byte);
           }
         }
@@ -76,8 +85,11 @@ async function readSecretFromTty() {
     input.pause();
     output.write("\n");
   }
-  if (!secret) throw new CliInputError("Trusted-client secret cannot be empty");
-  return secret;
+  try {
+    return validateCliTrustedClientSecret(secret);
+  } catch {
+    throw new CliInputError("Trusted-client secret is invalid");
+  }
 }
 
 function defaultIo(): CliIo {
@@ -239,7 +251,13 @@ async function runAuth(
     const origin = normalizeCliOrigin(requireOption(args, "--server"));
 
     assertNoArguments(args);
-    const secret = await io.readSecret();
+    let secret: string;
+
+    try {
+      secret = validateCliTrustedClientSecret(await io.readSecret());
+    } catch {
+      throw new CliInputError("Trusted-client secret is invalid");
+    }
     const state = await store.read();
 
     if (state.profiles.some((profile) => profile.name === name)) {
