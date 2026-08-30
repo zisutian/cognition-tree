@@ -31,6 +31,9 @@ import {
   type TrustedClientOperationStore,
 } from "../../operations/operationLedgerContract.ts";
 import { readApiRuntimeNow } from "../http/runtime.ts";
+import {
+  VersionedContentCommitOutcomeUnknownError,
+} from "../../repository/versioned/contentStore.ts";
 
 async function publishApiChanges(
   context: ApiHandlerContext,
@@ -215,11 +218,16 @@ export async function handleApiSync(
       throw error;
     }
     await ledger.finalizeTrustedAttempt(operationId, {
-      afterRevision: null,
+      afterRevision:
+        error instanceof VersionedContentCommitOutcomeUnknownError
+          ? error.currentRevision
+          : null,
       changeMetadata: { blockIds: [], resourceIds: [] },
-      result: error instanceof ApiRequestError && error.code === "merge_conflict"
-        ? "conflict"
-        : "failed",
+      result: error instanceof VersionedContentCommitOutcomeUnknownError
+        ? "indeterminate"
+        : error instanceof ApiRequestError && error.code === "merge_conflict"
+          ? "conflict"
+          : "failed",
       updatedAt: readApiRuntimeNow(context.runtime).timestamp,
     });
     throw error;

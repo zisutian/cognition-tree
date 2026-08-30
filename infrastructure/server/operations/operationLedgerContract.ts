@@ -87,6 +87,7 @@ export type TrustedClientOperationResult =
   | "committed"
   | "conflict"
   | "failed"
+  | "indeterminate"
   | "unchanged";
 
 export type BeginTrustedClientOperationInput = Readonly<{

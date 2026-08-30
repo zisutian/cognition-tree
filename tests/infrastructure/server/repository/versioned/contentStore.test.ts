@@ -6,8 +6,12 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   FileSystemVersionedContentStore,
+  VersionedContentCommitOutcomeUnknownError,
   VersionedContentRevisionConflictError,
 } from "../../../../../infrastructure/server/repository/versioned/contentStore.ts";
+import {
+  replaceFileDurably,
+} from "../../../../../infrastructure/server/persistence/fileSystemPersistence.ts";
 
 type Content = { value: number };
 type Projection = { preparedValue: number };
@@ -73,6 +77,152 @@ describe("filesystem versioned content preparation", () => {
       });
       expect(await store.loadSnapshot()).toBe(receipt.after);
       expect(prepareContent).toHaveBeenCalledTimes(1);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("recovers the authoritative receipt when replacement completed before reporting failure", async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-content-recovery-"),
+    );
+    const filePath = path.join(directory, "content.json");
+
+    try {
+      await writeFile(filePath, JSON.stringify({ value: 1 }), { mode: 0o600 });
+      const store = new FileSystemVersionedContentStore<Content, Projection>(
+        filePath,
+        {
+          createRevision: (content) => revision(content.value),
+          normalizeReadError: (error) => error,
+          parseContent: (value) => value as Content,
+          prepareContent: (content) => ({ preparedValue: content.value }),
+          serializeContent: JSON.stringify,
+          validateTransition: vi.fn(),
+          validateWriteBoundary: (operation) => operation(),
+        },
+        {
+          replaceContent: async (content) => {
+            await replaceFileDurably(filePath, content, {
+              hiddenTemporaryFile: true,
+            });
+            throw new Error("replacement acknowledgement failed");
+          },
+        },
+      );
+      const before = await store.loadSnapshot();
+      const projection = { preparedValue: 2 };
+      const receipt = await store.commit({
+        baseRevision: before.revision,
+        content: { value: 2 },
+        projection,
+      });
+
+      expect(receipt).toMatchObject({
+        after: { content: { value: 2 }, revision: revision(2) },
+        before: { revision: revision(1) },
+        revision: revision(2),
+      });
+      expect(receipt.after.projection).toBe(projection);
+      expect(await store.loadSnapshot()).toBe(receipt.after);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("fails closed when a visible candidate cannot be made durably authoritative", async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-content-unknown-"),
+    );
+    const filePath = path.join(directory, "content.json");
+
+    try {
+      await writeFile(filePath, JSON.stringify({ value: 1 }), { mode: 0o600 });
+      const store = new FileSystemVersionedContentStore<Content, Projection>(
+        filePath,
+        {
+          createRevision: (content) => revision(content.value),
+          normalizeReadError: (error) => error,
+          parseContent: (value) => value as Content,
+          prepareContent: (content) => ({ preparedValue: content.value }),
+          serializeContent: JSON.stringify,
+          validateTransition: vi.fn(),
+          validateWriteBoundary: (operation) => operation(),
+        },
+        {
+          replaceContent: async (content) => {
+            await replaceFileDurably(filePath, content, {
+              hiddenTemporaryFile: true,
+            });
+            throw new Error("replacement acknowledgement failed");
+          },
+          synchronizeDirectory: async () => {
+            throw new Error("directory synchronization failed");
+          },
+        },
+      );
+      const before = await store.loadSnapshot();
+      let failure: unknown;
+
+      try {
+        await store.commit({
+          baseRevision: before.revision,
+          content: { value: 2 },
+          projection: { preparedValue: 2 },
+        });
+      } catch (error) {
+        failure = error;
+      }
+
+      expect(failure).toBeInstanceOf(
+        VersionedContentCommitOutcomeUnknownError,
+      );
+      expect(failure).toMatchObject({
+        commitOutcome: "unknown",
+        currentRevision: revision(2),
+      });
+      await expect(store.loadSnapshot()).rejects.toBe(failure);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("preserves a committed receipt when lock cleanup fails and closes the store", async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-content-lock-"),
+    );
+    const filePath = path.join(directory, "content.json");
+
+    try {
+      await writeFile(filePath, JSON.stringify({ value: 1 }), { mode: 0o600 });
+      const store = new FileSystemVersionedContentStore<Content, Projection>(
+        filePath,
+        {
+          createRevision: (content) => revision(content.value),
+          normalizeReadError: (error) => error,
+          parseContent: (value) => value as Content,
+          prepareContent: (content) => ({ preparedValue: content.value }),
+          serializeContent: JSON.stringify,
+          validateTransition: vi.fn(),
+          validateWriteBoundary: (operation) => operation(),
+        },
+        {
+          acquireLock: async () => async () => {
+            throw new Error("lock release failed");
+          },
+        },
+      );
+      const before = await store.loadSnapshot();
+
+      await expect(store.commit({
+        baseRevision: before.revision,
+        content: { value: 2 },
+        projection: { preparedValue: 2 },
+      })).resolves.toMatchObject({ revision: revision(2) });
+      await expect(store.loadSnapshot()).rejects.toMatchObject({
+        code: "adapter_unavailable",
+        message: "Versioned content lock could not be released",
+      });
     } finally {
       await rm(directory, { force: true, recursive: true });
     }

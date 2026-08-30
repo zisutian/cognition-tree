@@ -41,6 +41,7 @@ import {
   WorkspaceRevisionConflictError,
 } from "../../repository/store.ts";
 import {
+  VersionedContentCommitOutcomeUnknownError,
   VersionedContentRevisionConflictError,
 } from "../../repository/versioned/contentStore.ts";
 import {
@@ -78,6 +79,7 @@ import {
 
 export const ApiErrorCatalog = {
   adapter_unavailable: { retryable: true, statusCode: 503 },
+  content_commit_indeterminate: { retryable: false, statusCode: 500 },
   domain_validation_failed: { retryable: false, statusCode: 422 },
   forbidden: { retryable: false, statusCode: 403 },
   idempotency_conflict: { retryable: false, statusCode: 409 },
@@ -270,6 +272,20 @@ export function mapApiError(error: unknown): ApiRequestError {
     return new ApiRequestError("operation_audit_unavailable", error.message, {
       details: error.operationId ? { operationId: error.operationId } : {},
     });
+  }
+  if (error instanceof VersionedContentCommitOutcomeUnknownError) {
+    return new ApiRequestError(
+      "content_commit_indeterminate",
+      error.message,
+      {
+        details: {
+          commitState: "indeterminate",
+          ...(error.currentRevision
+            ? { currentRevision: error.currentRevision }
+            : {}),
+        },
+      },
+    );
   }
   if (error instanceof TodoOccurrenceConflictError) {
     return new ApiRequestError(

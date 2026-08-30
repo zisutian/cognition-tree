@@ -97,6 +97,7 @@ export type ApiCapabilitiesDto = Static<typeof ApiCapabilitiesSchema>;
 
 const apiErrorCodes = [
   "adapter_unavailable",
+  "content_commit_indeterminate",
   "domain_validation_failed",
   "forbidden",
   "idempotency_conflict",
@@ -157,6 +158,10 @@ const emptyError = <Code extends typeof apiErrorCodes[number]>(code: Code) =>
 
 export const ApiErrorSchema = Type.Union([
   emptyError("adapter_unavailable"),
+  errorBranch("content_commit_indeterminate", {
+    commitState: Type.Literal("indeterminate"),
+    currentRevision: Type.Optional(ApiResourceVersionSchema),
+  }),
   errorBranch("domain_validation_failed", {
     issues: Type.Optional(Type.Array(ApiErrorIssueSchema)),
   }),

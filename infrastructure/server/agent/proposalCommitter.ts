@@ -23,6 +23,7 @@ import type {
   VersionedContentStore,
 } from "../repository/versioned/contentStore.ts";
 import {
+  VersionedContentCommitOutcomeUnknownError,
   VersionedContentRevisionConflictError,
 } from "../repository/versioned/contentStore.ts";
 import type { ResolvedAgentConfiguration } from "./configurationStore.ts";
@@ -122,6 +123,9 @@ export class AgentProposalCommitter {
           proposal = committed.proposal;
           this.#publishCommittedProposal(proposal, afterRevision);
         } catch (error) {
+          if (error instanceof VersionedContentCommitOutcomeUnknownError) {
+            throw error;
+          }
           if (
             error instanceof WorkspaceRevisionConflictError ||
             error instanceof VersionedContentRevisionConflictError

@@ -12,6 +12,7 @@ import type {
 } from "../../../../application/persistence/versionedRepository.ts";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
+  fsyncDirectory,
   isSecureRegularFile,
   replaceFileDurably,
 } from "../../persistence/fileSystemPersistence.ts";
@@ -49,8 +50,51 @@ export class VersionedContentRevisionConflictError extends Error {
   }
 }
 
+export class VersionedContentCommitOutcomeUnknownError extends Error {
+  readonly cause: unknown;
+  readonly commitOutcome = "unknown" as const;
+  readonly currentRevision: `sha256:${string}` | null;
+
+  constructor(
+    cause: unknown,
+    currentRevision: `sha256:${string}` | null,
+  ) {
+    super("Versioned content durable commit outcome could not be verified");
+    this.name = "VersionedContentCommitOutcomeUnknownError";
+    this.cause = cause;
+    this.currentRevision = currentRevision;
+  }
+}
+
+class VersionedContentLockReleaseError extends RepositoryAdapterError {
+  readonly cause: unknown;
+
+  constructor(cause: unknown) {
+    super("adapter_unavailable", "Versioned content lock could not be released");
+    this.name = "VersionedContentLockReleaseError";
+    this.cause = cause;
+  }
+}
+
+class VersionedContentRecoveryError extends Error {
+  readonly causes: readonly unknown[];
+
+  constructor(message: string, causes: readonly unknown[]) {
+    super(message);
+    this.name = "VersionedContentRecoveryError";
+    this.causes = causes;
+  }
+}
+
+export type VersionedContentStoreOptions = Readonly<{
+  acquireLock?: () => Promise<() => Promise<void>>;
+  replaceContent?: (content: string) => Promise<void>;
+  synchronizeDirectory?: () => Promise<void>;
+}>;
+
 export class FileSystemVersionedContentStore<Content, Projection>
   implements VersionedContentStore<Content, Projection> {
+  readonly #acquireLock: () => Promise<() => Promise<void>>;
   readonly #definition: VersionedContentStoreDefinition<Content, Projection>;
   readonly #filePath: string;
   #lastPreparedSnapshot: PreparedVersionedContentSnapshot<
@@ -58,13 +102,32 @@ export class FileSystemVersionedContentStore<Content, Projection>
     Projection
   > | null = null;
   #operationQueue: Promise<void> = Promise.resolve();
+  readonly #replaceContent: (content: string) => Promise<void>;
+  readonly #synchronizeDirectory: () => Promise<void>;
+  #terminalError: Error | null = null;
 
   constructor(
     filePath: string,
     definition: VersionedContentStoreDefinition<Content, Projection>,
+    options: VersionedContentStoreOptions = {},
   ) {
     this.#filePath = path.resolve(filePath);
     this.#definition = definition;
+    this.#acquireLock = options.acquireLock ?? (() =>
+      lock(this.#filePath, {
+        realpath: true,
+        retries: { retries: 20, factor: 1, minTimeout: 5, maxTimeout: 20 },
+        stale: 30_000,
+        update: 10_000,
+      }));
+    this.#replaceContent = options.replaceContent ?? ((content) =>
+      replaceFileDurably(
+        this.#filePath,
+        content,
+        { hiddenTemporaryFile: true },
+      ));
+    this.#synchronizeDirectory = options.synchronizeDirectory ?? (() =>
+      fsyncDirectory(path.dirname(this.#filePath)));
   }
 
   loadSnapshot() {
@@ -81,12 +144,7 @@ export class FileSystemVersionedContentStore<Content, Projection>
     return this.#enqueueOperation(async () => {
       let release: (() => Promise<void>) | null = null;
       try {
-        release = await lock(this.#filePath, {
-          realpath: true,
-          retries: { retries: 20, factor: 1, minTimeout: 5, maxTimeout: 20 },
-          stale: 30_000,
-          update: 10_000,
-        });
+        release = await this.#acquireLock();
       } catch (error) {
         if (error instanceof Error && "code" in error && error.code === "ELOCKED") {
           throw new RepositoryAdapterError(
@@ -96,6 +154,8 @@ export class FileSystemVersionedContentStore<Content, Projection>
         }
         throw error;
       }
+      let operationFailed = false;
+
       try {
         const current = await this.#readSnapshot();
         if (current.revision !== transaction.baseRevision) {
@@ -109,7 +169,16 @@ export class FileSystemVersionedContentStore<Content, Projection>
         if (revision === current.revision) {
           return { after: current, before: current, revision };
         }
-        await this.#writeContent(transaction.content);
+        try {
+          await this.#writeContent(transaction.content);
+        } catch (error) {
+          return await this.#resolveFailedCommit(
+            current,
+            transaction,
+            revision,
+            error,
+          );
+        }
         const after = {
           content: transaction.content,
           projection: transaction.projection,
@@ -118,8 +187,18 @@ export class FileSystemVersionedContentStore<Content, Projection>
 
         this.#lastPreparedSnapshot = after;
         return { after, before: current, revision };
+      } catch (error) {
+        operationFailed = true;
+        throw error;
       } finally {
-        await release();
+        try {
+          await release();
+        } catch (error) {
+          const releaseError = new VersionedContentLockReleaseError(error);
+
+          this.#terminalError ??= releaseError;
+          if (operationFailed) throw this.#terminalError;
+        }
       }
     });
   }
@@ -188,15 +267,77 @@ export class FileSystemVersionedContentStore<Content, Projection>
   }
 
   async #writeContent(content: Content) {
-    await replaceFileDurably(
-      this.#filePath,
-      this.#definition.serializeContent(content),
-      { hiddenTemporaryFile: true },
+    await this.#replaceContent(this.#definition.serializeContent(content));
+  }
+
+  async #resolveFailedCommit(
+    before: PreparedVersionedContentSnapshot<Content, Projection>,
+    transaction: PreparedVersionedCommit<
+      Content,
+      Projection,
+      `sha256:${string}`
+    >,
+    candidateRevision: `sha256:${string}`,
+    writeError: unknown,
+  ) {
+    let observed: PreparedVersionedContentSnapshot<Content, Projection>;
+
+    try {
+      observed = await this.#readSnapshot();
+    } catch (observationError) {
+      throw this.#markCommitOutcomeUnknown(
+        new VersionedContentRecoveryError(
+          "Versioned content write and recovery observation failed",
+          [writeError, observationError],
+        ),
+        null,
+      );
+    }
+    if (observed.revision === before.revision) {
+      throw writeError;
+    }
+    if (observed.revision !== candidateRevision) {
+      throw this.#markCommitOutcomeUnknown(writeError, observed.revision);
+    }
+    try {
+      await this.#synchronizeDirectory();
+    } catch (synchronizationError) {
+      throw this.#markCommitOutcomeUnknown(
+        new VersionedContentRecoveryError(
+          "Versioned content recovery synchronization failed",
+          [writeError, synchronizationError],
+        ),
+        observed.revision,
+      );
+    }
+    const after = {
+      content: transaction.content,
+      projection: transaction.projection,
+      revision: candidateRevision,
+    };
+
+    this.#lastPreparedSnapshot = after;
+    return { after, before, revision: candidateRevision };
+  }
+
+  #markCommitOutcomeUnknown(
+    cause: unknown,
+    currentRevision: `sha256:${string}` | null,
+  ) {
+    const failure = new VersionedContentCommitOutcomeUnknownError(
+      cause,
+      currentRevision,
     );
+
+    this.#terminalError ??= failure;
+    return this.#terminalError;
   }
 
   #enqueueOperation<Result>(operation: () => Promise<Result>): Promise<Result> {
-    const result = this.#operationQueue.then(operation);
+    const result = this.#operationQueue.then(() => {
+      if (this.#terminalError) throw this.#terminalError;
+      return operation();
+    });
     this.#operationQueue = result.then(() => undefined, () => undefined);
     return result;
   }
