@@ -13,6 +13,7 @@ export type JsonLineFramingFailure =
 export function listenToAgentJsonLines(
   input: Readable,
   callbacks: Readonly<{
+    onEnd?(): void;
     onFailure(failure: JsonLineFramingFailure): void;
     onLine(line: string): boolean | void;
   }>,
@@ -89,6 +90,7 @@ export function listenToAgentJsonLines(
       return;
     }
     stop();
+    callbacks.onEnd?.();
   }
   function onError() {
     fail("read-failed");

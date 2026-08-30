@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { randomUUID } from "node:crypto";
-import net from "node:net";
 import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
 import type {
   AgentIpcRequestDto,
@@ -11,12 +9,13 @@ import {
   type AgentIpcToolCatalogDto,
 } from "../../../contracts/agent/ipc.ts";
 import {
-  parsePrivateIpcResult,
   parseSessionMcpRequestLine,
 } from "./sessionMcpProtocol.ts";
 import { listenToAgentJsonLines } from "./jsonLineTransport.ts";
-
-const maximumPrivateIpcResponseCharacters = 1_000_000;
+import {
+  callAgentPrivateIpc,
+  type AgentPrivateIpcPayload,
+} from "./privateIpcClient.ts";
 
 const configuredEndpoint = process.env.CTN_AGENT_IPC_ENDPOINT;
 const configuredCapability = process.env.CTN_AGENT_SESSION_CAPABILITY;
@@ -37,47 +36,13 @@ type AgentIpcToolCallRequest = Extract<
   AgentIpcRequestDto,
   { kind: "call-tool" }
 >;
-type AgentIpcRequestPayload =
-  | { kind: "list-tools" }
-  | { kind: "call-tool"; tool: AgentIpcToolCallRequest["tool"] };
 
-function callPrivateIpc(payload: AgentIpcRequestPayload) {
-  return new Promise<unknown>((resolve, reject) => {
-    const request: AgentIpcRequestDto = {
-      capability,
-      id: randomUUID(),
-      ...payload,
-      sessionId,
-    };
-    const socket = net.createConnection(endpoint);
-    let source = "";
-
-    socket.setEncoding("utf8");
-    socket.once("error", reject);
-    socket.on("data", (chunk: string) => {
-      source += chunk;
-      if (source.length > maximumPrivateIpcResponseCharacters) {
-        socket.destroy();
-        reject(new Error("Private Agent IPC response is too large"));
-        return;
-      }
-      const boundary = source.indexOf("\n");
-
-      if (boundary < 0) return;
-      socket.destroy();
-
-      try {
-        resolve(parsePrivateIpcResult(
-          source.slice(0, boundary),
-          request.id,
-        ));
-      } catch (error) {
-        reject(error);
-      }
-    });
-    socket.once("connect", () => {
-      socket.write(`${JSON.stringify(request)}\n`);
-    });
+function callPrivateIpc(payload: AgentPrivateIpcPayload) {
+  return callAgentPrivateIpc({
+    capability,
+    endpoint,
+    payload,
+    sessionId,
   });
 }
 
