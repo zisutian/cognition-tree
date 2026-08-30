@@ -309,6 +309,173 @@ describe("Agent configuration controller", () => {
     });
   });
 
+  it("keeps polling when device-login cancellation is not terminal", async () => {
+    const adapter = port();
+    const finishing = createDeferred<
+      Awaited<ReturnType<AgentConfigurationPort["getCodexDeviceLogin"]>>
+    >();
+
+    vi.mocked(adapter.load)
+      .mockResolvedValueOnce(snapshot("1"))
+      .mockResolvedValueOnce(snapshot("3"));
+    vi.mocked(adapter.getCodexDeviceLogin).mockImplementationOnce(
+      () => finishing.promise,
+    );
+    vi.mocked(adapter.cancelCodexDeviceLogin).mockResolvedValueOnce({
+      completedAt: null,
+      errorMessage: null,
+      expiresAt: "2026-08-25T00:15:00.000Z",
+      id: "login-1",
+      providerId: "provider-1",
+      startedAt: "2026-08-25T00:00:00.000Z",
+      status: "pending",
+      userCode: "ABCD-EFGH",
+      verificationUrl: "https://auth.openai.com/device",
+    });
+    const changed = vi.fn();
+    const controller = createAgentConfigurationController({
+      onConfigurationChanged: changed,
+      pollConformance: async () => undefined,
+      pollConformanceIntervalMilliseconds: 1,
+      port: adapter,
+    });
+
+    await controller.load();
+    await controller.startCodexDeviceLogin("provider-1");
+    await vi.waitFor(() => {
+      expect(adapter.getCodexDeviceLogin).toHaveBeenCalledWith("login-1");
+    });
+    await controller.cancelCodexDeviceLogin("provider-1");
+    finishing.resolve({
+      completedAt: "2026-08-25T00:01:00.000Z",
+      errorMessage: null,
+      expiresAt: "2026-08-25T00:15:00.000Z",
+      id: "login-1",
+      providerId: "provider-1",
+      startedAt: "2026-08-25T00:00:00.000Z",
+      status: "succeeded",
+      userCode: "ABCD-EFGH",
+      verificationUrl: "https://auth.openai.com/device",
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getSnapshot()).toMatchObject({
+        codexDeviceLogins: { "provider-1": { status: "succeeded" } },
+        configuration: { revision: revision("3") },
+      });
+    });
+    expect(changed).toHaveBeenCalledOnce();
+  });
+
+  it("does not let a late nonterminal cancellation regress login success", async () => {
+    const adapter = port();
+    const finishing = createDeferred<
+      Awaited<ReturnType<AgentConfigurationPort["getCodexDeviceLogin"]>>
+    >();
+    const cancelling = createDeferred<
+      Awaited<ReturnType<AgentConfigurationPort["cancelCodexDeviceLogin"]>>
+    >();
+
+    vi.mocked(adapter.load)
+      .mockResolvedValueOnce(snapshot("1"))
+      .mockResolvedValueOnce(snapshot("3"));
+    vi.mocked(adapter.getCodexDeviceLogin).mockImplementationOnce(
+      () => finishing.promise,
+    );
+    vi.mocked(adapter.cancelCodexDeviceLogin).mockImplementationOnce(
+      () => cancelling.promise,
+    );
+    const changed = vi.fn();
+    const controller = createAgentConfigurationController({
+      onConfigurationChanged: changed,
+      pollConformance: async () => undefined,
+      pollConformanceIntervalMilliseconds: 1,
+      port: adapter,
+    });
+
+    await controller.load();
+    await controller.startCodexDeviceLogin("provider-1");
+    await vi.waitFor(() => {
+      expect(adapter.getCodexDeviceLogin).toHaveBeenCalledWith("login-1");
+    });
+    const cancellation = controller.cancelCodexDeviceLogin("provider-1");
+
+    finishing.resolve({
+      completedAt: "2026-08-25T00:01:00.000Z",
+      errorMessage: null,
+      expiresAt: "2026-08-25T00:15:00.000Z",
+      id: "login-1",
+      providerId: "provider-1",
+      startedAt: "2026-08-25T00:00:00.000Z",
+      status: "succeeded",
+      userCode: "ABCD-EFGH",
+      verificationUrl: "https://auth.openai.com/device",
+    });
+    await vi.waitFor(() => {
+      expect(controller.getSnapshot().codexDeviceLogins["provider-1"]?.status)
+        .toBe("succeeded");
+    });
+    cancelling.resolve({
+      completedAt: null,
+      errorMessage: null,
+      expiresAt: "2026-08-25T00:15:00.000Z",
+      id: "login-1",
+      providerId: "provider-1",
+      startedAt: "2026-08-25T00:00:00.000Z",
+      status: "pending",
+      userCode: "ABCD-EFGH",
+      verificationUrl: "https://auth.openai.com/device",
+    });
+    await cancellation;
+
+    expect(controller.getSnapshot()).toMatchObject({
+      codexDeviceLogins: { "provider-1": { status: "succeeded" } },
+      configuration: { revision: revision("3") },
+      operationStatus: "idle",
+    });
+    expect(changed).toHaveBeenCalledOnce();
+  });
+
+  it("keeps polling when conformance cancellation is not terminal", async () => {
+    const adapter = port();
+    const finishing = createDeferred<AgentConformanceCheckStatus>();
+
+    vi.mocked(adapter.load)
+      .mockResolvedValueOnce(snapshot("1"))
+      .mockResolvedValueOnce(snapshot("3"));
+    vi.mocked(adapter.getConformance).mockImplementationOnce(
+      () => finishing.promise,
+    );
+    vi.mocked(adapter.cancelConformance).mockResolvedValueOnce({
+      ...check("running"),
+      phase: "recording-result",
+    });
+    const changed = vi.fn();
+    const controller = createAgentConfigurationController({
+      onConfigurationChanged: changed,
+      pollConformance: async () => undefined,
+      pollConformanceIntervalMilliseconds: 1,
+      port: adapter,
+    });
+
+    await controller.load();
+    const checking = controller.checkConformance("profile-1");
+
+    await vi.waitFor(() => {
+      expect(adapter.getConformance).toHaveBeenCalledWith("check-1");
+    });
+    await controller.cancelConformance("profile-1");
+    finishing.resolve(check("succeeded"));
+    await checking;
+
+    expect(controller.getSnapshot()).toMatchObject({
+      configuration: { revision: revision("3") },
+      conformanceChecks: { "profile-1": { status: "succeeded" } },
+      operationStatus: "idle",
+    });
+    expect(changed).toHaveBeenCalledOnce();
+  });
+
   it("does not let an older load overwrite a committed mutation", async () => {
     const adapter = port();
     const controller = createAgentConfigurationController({

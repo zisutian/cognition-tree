@@ -410,7 +410,8 @@ AgentConfigurationController 独占客户端配置快照 authority；load、设�
 陈旧读取与延迟响应不得回退已观察到的更新配置。operationStatus 从在途前台操作计数投影，
 单个请求结束不得把其他仍在执行的操作误报为 idle。设备登录与一致性检查还分别按
 provider/profile 持有 generation；取消或新操作会废弃旧轮询，旧 pending/running 回包不得
-覆盖更新的终态。
+覆盖更新的终态。若服务端在不可中断的 finishing/recording 阶段返回非终态，原轮询仍是
+唯一 owner；只有确认终态的取消回包才转移 generation。
 SystemConfigurationController 同样独占系统配置快照 authority；显式 load 采用最后请求优先，
 管理操作响应只能安装到其启动时的 authority 或相同 revision，旧响应不得回退新的服务配置；
 operationStatus 从所有在途管理操作计数投影。

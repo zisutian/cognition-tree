@@ -141,6 +141,10 @@ export function createAgentConfigurationController({
     resourceId: string,
     generation: number,
   ) => generations.get(resourceId) === generation;
+  const currentResourceOperationGeneration = (
+    generations: Map<string, number>,
+    resourceId: string,
+  ) => generations.get(resourceId) ?? 0;
   const installConfiguration = (configuration: AgentConfigurationSnapshot) => {
     configurationAuthorityVersion += 1;
     publish({
@@ -213,18 +217,43 @@ export function createAgentConfigurationController({
 
       if (!login || login.status !== "pending") return;
       await runOperation(async () => {
-        const generation = beginResourceOperation(
+        const expectedGeneration = currentResourceOperationGeneration(
           codexDeviceLoginGenerations,
           providerId,
         );
         const cancelled = await port.cancelCodexDeviceLogin(login.id);
 
-        if (resourceOperationIsCurrent(
+        if (!resourceOperationIsCurrent(
+          codexDeviceLoginGenerations,
+          providerId,
+          expectedGeneration,
+        )) return;
+        const currentLogin = state.codexDeviceLogins[providerId];
+
+        if (
+          currentLogin?.id === cancelled.id &&
+          currentLogin.status !== "pending"
+        ) return;
+        const generation = cancelled.status === "pending"
+          ? expectedGeneration
+          : beginResourceOperation(
+            codexDeviceLoginGenerations,
+            providerId,
+          );
+        const isCurrent = () => resourceOperationIsCurrent(
           codexDeviceLoginGenerations,
           providerId,
           generation,
-        )) {
-          publishCodexDeviceLogin(cancelled);
+        );
+
+        publishCodexDeviceLogin(cancelled);
+        if (cancelled.status === "succeeded") {
+          await refreshConfiguration(isCurrent);
+          if (isCurrent()) await onConfigurationChanged();
+        } else if (cancelled.status === "failed") {
+          publish({
+            errorMessage: cancelled.errorMessage ?? "Codex device login failed.",
+          });
         }
       });
     },
@@ -233,18 +262,41 @@ export function createAgentConfigurationController({
 
       if (!check || check.status !== "running") return;
       await runOperation(async () => {
-        const generation = beginResourceOperation(
+        const expectedGeneration = currentResourceOperationGeneration(
           conformanceGenerations,
           profileId,
         );
         const cancelled = await port.cancelConformance(check.id);
 
-        if (resourceOperationIsCurrent(
+        if (!resourceOperationIsCurrent(
+          conformanceGenerations,
+          profileId,
+          expectedGeneration,
+        )) return;
+        const currentCheck = state.conformanceChecks[profileId];
+
+        if (
+          currentCheck?.id === cancelled.id &&
+          currentCheck.status !== "running"
+        ) return;
+        const generation = cancelled.status === "running"
+          ? expectedGeneration
+          : beginResourceOperation(conformanceGenerations, profileId);
+        const isCurrent = () => resourceOperationIsCurrent(
           conformanceGenerations,
           profileId,
           generation,
-        )) {
-          publishConformance(cancelled);
+        );
+
+        publishConformance(cancelled);
+        if (cancelled.status === "succeeded") {
+          await refreshConfiguration(isCurrent);
+          if (isCurrent()) await onConfigurationChanged();
+        } else if (cancelled.status === "failed") {
+          publish({
+            errorMessage: cancelled.errorMessage ??
+              "Agent conformance check failed.",
+          });
         }
       });
     },
