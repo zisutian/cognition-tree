@@ -381,6 +381,45 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps compatible chat protocol and session behind their owners", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath:
+          "../../infrastructure/server/agent/openAiCompatibleSession.ts",
+        importPath: "./openAiChatProtocol",
+        targetPath:
+          "../../infrastructure/server/agent/openAiChatProtocol.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/agent/codexRuntime.ts",
+        importPath: "./openAiChatProtocol",
+        targetPath:
+          "../../infrastructure/server/agent/openAiChatProtocol.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/agent/ollamaRuntime.ts",
+        importPath: "./openAiCompatibleSession",
+        targetPath:
+          "../../infrastructure/server/agent/openAiCompatibleSession.ts",
+        targetRoot: "infrastructure",
+      },
+      {
+        filePath: "../../infrastructure/server/agent/service.ts",
+        importPath: "./openAiCompatibleSession",
+        targetPath:
+          "../../infrastructure/server/agent/openAiCompatibleSession.ts",
+        targetRoot: "infrastructure",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "Agent compatible chat protocol boundary: ../../infrastructure/server/agent/codexRuntime.ts imports ./openAiChatProtocol",
+      "Agent compatible chat session composition boundary: ../../infrastructure/server/agent/service.ts imports ./openAiCompatibleSession",
+    ]);
+  });
+
   it("keeps Syntax Activity React views on the application projection boundary", () => {
     const violations = auditImportPolicies([
       {

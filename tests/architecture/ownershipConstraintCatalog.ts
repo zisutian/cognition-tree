@@ -82,6 +82,24 @@ export function createOwnershipTextPolicies({
       /^application\/agent\/agentRuntimePort\.ts$/,
     ],
     [
+      "Agent runtime protocol error",
+      sourceModules,
+      /\bclass AgentRuntimeProtocolError\b/,
+      /^application\/agent\/agentRuntimePort\.ts$/,
+    ],
+    [
+      "Agent compatible chat protocol classification",
+      infrastructureModules,
+      /\bexport function classifySingleJsonToolCall\s*\(/,
+      /^infrastructure\/server\/agent\/openAiChatProtocol\.ts$/,
+    ],
+    [
+      "Agent compatible chat session lifecycle",
+      infrastructureModules,
+      /\bclass OpenAiCompatibleRuntimeSession\b/,
+      /^infrastructure\/server\/agent\/openAiCompatibleSession\.ts$/,
+    ],
+    [
       "Agent Profile turn queue",
       infrastructureModules,
       /\bnew AgentProfileTurnQueue\s*\(/,

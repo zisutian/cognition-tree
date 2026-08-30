@@ -93,6 +93,14 @@ const agentProviderConfigurationPath =
   "../../infrastructure/server/agent/providerConfiguration.ts";
 const agentConfigurationStorePath =
   "../../infrastructure/server/agent/configurationStore.ts";
+const agentOpenAiChatProtocolPath =
+  "../../infrastructure/server/agent/openAiChatProtocol.ts";
+const agentOpenAiCompatibleSessionPath =
+  "../../infrastructure/server/agent/openAiCompatibleSession.ts";
+const agentOpenAiCompatibleSessionConsumers: ReadonlySet<string> = new Set([
+  "../../infrastructure/server/agent/ollamaRuntime.ts",
+  "../../infrastructure/server/agent/openAiChatRuntime.ts",
+]);
 const agentServicePath = "../../infrastructure/server/agent/service.ts";
 
 function peerDomain(filePath: string) {
@@ -270,6 +278,18 @@ export function createDependencyImportPolicies({
       allows: ({ filePath }) => filePath === agentConfigurationStorePath,
       applies: ({ targetPath }) => targetPath === agentProviderConfigurationPath,
       name: "Agent Provider configuration composition boundary",
+    },
+    {
+      allows: ({ filePath }) => filePath === agentOpenAiCompatibleSessionPath,
+      applies: ({ targetPath }) => targetPath === agentOpenAiChatProtocolPath,
+      name: "Agent compatible chat protocol boundary",
+    },
+    {
+      allows: ({ filePath }) =>
+        agentOpenAiCompatibleSessionConsumers.has(filePath),
+      applies: ({ targetPath }) =>
+        targetPath === agentOpenAiCompatibleSessionPath,
+      name: "Agent compatible chat session composition boundary",
     },
     {
       allows: () => false,
