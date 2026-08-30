@@ -12,6 +12,7 @@ import type {
   SystemConfigurationInput,
 } from "../../../application/system/systemConfiguration.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
+import { hasFileSystemErrorCode } from "../persistence/fileSystemError.ts";
 import { replaceFileDurably } from "../persistence/fileSystemPersistence.ts";
 import {
   SecureJsonPartition,
@@ -61,7 +62,9 @@ export type BootstrapOwnerCredentialActivation = Readonly<{
 function absolutePathOrNull(value: unknown, label: string) {
   if (value === null) return null;
   if (typeof value !== "string" || !path.isAbsolute(value)) {
-    throw new Error(`${label} must be null or an absolute path.`);
+    throw new SystemConfigurationValidationError(
+      `${label} must be null or an absolute path.`,
+    );
   }
   return path.normalize(value);
 }
@@ -169,11 +172,25 @@ export class BootstrapConfigurationStore {
         "Recovery data root must be an absolute path.",
       );
     }
-    const dataRootStats = await lstat(resolvedDataRoot);
+    let dataRootStats: Awaited<ReturnType<typeof lstat>>;
+
+    try {
+      dataRootStats = await lstat(resolvedDataRoot);
+    } catch (error) {
+      if (
+        hasFileSystemErrorCode(error, "ENOENT") ||
+        hasFileSystemErrorCode(error, "ENOTDIR")
+      ) {
+        throw new SystemConfigurationValidationError(
+          "Recovery data root must be an existing non-symbolic directory.",
+        );
+      }
+      throw error;
+    }
 
     if (!dataRootStats.isDirectory() || dataRootStats.isSymbolicLink()) {
       throw new SystemConfigurationValidationError(
-        "Recovery data root must be an existing regular directory.",
+        "Recovery data root must be an existing non-symbolic directory.",
       );
     }
     await mkdir(this.#controlDirectory, { mode: 0o700, recursive: true });

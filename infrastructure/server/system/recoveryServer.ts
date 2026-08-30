@@ -2,6 +2,7 @@
 
 import { once } from "node:events";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
+import { SystemConfigurationValidationError } from "../../../application/system/systemConfiguration.ts";
 import { isLoopbackAddress } from "../network/loopbackAddress.ts";
 import type { BootstrapConfigurationStore } from "./bootstrapConfigurationStore.ts";
 import {
@@ -34,6 +35,18 @@ function sendJson(response: ServerResponse, status: number, body: unknown) {
     "Content-Type": "application/json; charset=utf-8",
   });
   response.end(JSON.stringify(body));
+}
+
+function sendUnexpectedRecoveryFailure(
+  response: ServerResponse,
+  error: unknown,
+) {
+  console.error("Cognition Tree recovery failed.", error);
+  if (response.headersSent || response.destroyed || response.writableEnded) {
+    if (!response.destroyed) response.destroy();
+    return;
+  }
+  sendJson(response, 500, { message: "Recovery failed" });
 }
 
 export async function runBootstrapRecoveryServer({
@@ -80,20 +93,22 @@ export async function runBootstrapRecoveryServer({
             if (!response.destroyed) response.destroy();
             return;
           }
-          sendJson(response, error instanceof RecoveryRequestError
-            ? error.statusCode
-            : 422, {
-            message: error instanceof Error ? error.message : "Recovery failed",
-          });
+          if (error instanceof RecoveryRequestError) {
+            sendJson(response, error.statusCode, { message: error.message });
+            return;
+          }
+          if (error instanceof SystemConfigurationValidationError) {
+            sendJson(response, 422, { message: error.message });
+            return;
+          }
+          sendUnexpectedRecoveryFailure(response, error);
         }
         return;
       }
       sendJson(response, 404, { message: "Recovery operation does not exist" });
-    })().catch((error: unknown) => {
-      sendJson(response, 500, {
-        message: error instanceof Error ? error.message : "Recovery failed",
-      });
-    });
+    })().catch((error: unknown) =>
+      sendUnexpectedRecoveryFailure(response, error)
+    );
   });
 
   const stop = () => server.close();

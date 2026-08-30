@@ -506,4 +506,16 @@ describe("Bootstrap configuration store", () => {
       port: 3_001,
     });
   });
+
+  it("classifies invalid data-root choices as configuration validation", async () => {
+    const { projectRoot, store } = await createStore();
+    const snapshot = await store.readSnapshot();
+
+    await expect(store.setDataRoot(snapshot.revision, "relative-root"))
+      .rejects.toBeInstanceOf(SystemConfigurationValidationError);
+    await expect(store.recover("relative-root"))
+      .rejects.toBeInstanceOf(SystemConfigurationValidationError);
+    await expect(store.recover(path.join(projectRoot, "missing-root")))
+      .rejects.toBeInstanceOf(SystemConfigurationValidationError);
+  });
 });
