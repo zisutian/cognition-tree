@@ -20,6 +20,13 @@ import { renderWorkspaceUnavailableActivity } from "../unavailable/WorkspaceUnav
 import {
   useRepositorySessionState,
 } from "../../ui/workbench/useRepositorySessionState";
+import {
+  createRepositorySessionKey,
+} from "../../ui/workbench/repositorySessionStore";
+
+const notesModeSessionKey = createRepositorySessionKey<NotesMode>(
+  "notes-mode",
+);
 
 function ActiveNotesActivity({
   application,
@@ -97,6 +104,7 @@ export function NotesActivityController({
   const repositoryId = application.repository.activeDescriptor?.id ??
     "workspace-unavailable";
   const [mode, setMode] = useRepositorySessionState<NotesMode>(
+    notesModeSessionKey,
     repositoryId,
     () => "edit",
   );

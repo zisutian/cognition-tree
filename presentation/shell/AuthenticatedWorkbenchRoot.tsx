@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type ReactNode,
 } from "react";
 import { createProblemCenter } from "../../application/problems/problemCenter";
 import type {
@@ -19,6 +20,9 @@ import {
 import { createWorkbenchRuntime } from "../../infrastructure/client/runtime/workbenchRuntime";
 import { clientApplicationScheduler } from "../../infrastructure/client/platform/applicationServices";
 import type { ActivityId } from "../ui/activityTypes";
+import {
+  RepositorySessionStateProvider,
+} from "../ui/workbench/useRepositorySessionState";
 import { useWorkbenchApplicationBindings } from "./application/useWorkbenchApplicationBindings";
 import { projectUnavailableWorkspace } from "./application/workbenchApplicationProjection";
 import { ReadyWorkspaceWorkbench } from "./workbench/ReadyWorkspaceWorkbench";
@@ -132,6 +136,8 @@ export function AuthenticatedWorkbenchRoot({
     systemConfigurationController,
   ]);
 
+  let workbench: ReactNode;
+
   if (snapshot.workspace.status === "ready") {
     const session = projectWorkspaceSessionApplication(
       controller.workspace,
@@ -141,7 +147,7 @@ export function AuthenticatedWorkbenchRoot({
     if (session.status !== "ready") {
       throw new Error("Ready Workspace projection lost its ready state.");
     }
-    return (
+    workbench = (
       <ReadyWorkspaceWorkbench
         activeActivityId={activeActivityId}
         agent={applications.agent}
@@ -160,16 +166,23 @@ export function AuthenticatedWorkbenchRoot({
         todo={applications.todo}
       />
     );
+  } else {
+    workbench = (
+      <WorkspaceWorkbench
+        activeActivityId={activeActivityId}
+        feedbackController={feedbackController}
+        application={{
+          ...applications,
+          workspace: projectUnavailableWorkspace(controller, snapshot),
+        }}
+        onActiveActivityChange={setActiveActivityId}
+      />
+    );
   }
+
   return (
-    <WorkspaceWorkbench
-      activeActivityId={activeActivityId}
-      feedbackController={feedbackController}
-      application={{
-        ...applications,
-        workspace: projectUnavailableWorkspace(controller, snapshot),
-      }}
-      onActiveActivityChange={setActiveActivityId}
-    />
+    <RepositorySessionStateProvider>
+      {workbench}
+    </RepositorySessionStateProvider>
   );
 }

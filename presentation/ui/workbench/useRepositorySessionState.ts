@@ -1,20 +1,50 @@
 import {
+  createContext,
+  createElement,
   useCallback,
+  useContext,
   useRef,
   useSyncExternalStore,
   type Dispatch,
+  type ReactNode,
   type SetStateAction,
 } from "react";
-import { RepositorySessionStore } from "./repositorySessionStore";
+import {
+  type RepositorySessionKey,
+  RepositorySessionStoreRegistry,
+} from "./repositorySessionStore";
+
+const RepositorySessionStoreContext =
+  createContext<RepositorySessionStoreRegistry | null>(null);
+
+export function RepositorySessionStateProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const registryRef = useRef<RepositorySessionStoreRegistry | null>(null);
+
+  registryRef.current ??= new RepositorySessionStoreRegistry();
+  return createElement(
+    RepositorySessionStoreContext.Provider,
+    { value: registryRef.current },
+    children,
+  );
+}
 
 export function useRepositorySessionState<Value>(
+  sessionKey: RepositorySessionKey<Value>,
   repositoryId: string,
   createInitial: () => Value,
 ): readonly [Value, Dispatch<SetStateAction<Value>>] {
-  const storeRef = useRef<RepositorySessionStore<Value> | null>(null);
+  const registry = useContext(RepositorySessionStoreContext);
 
-  storeRef.current ??= new RepositorySessionStore(createInitial);
-  const store = storeRef.current;
+  if (!registry) {
+    throw new Error(
+      "Repository session state requires its page-session provider.",
+    );
+  }
+  const store = registry.get(sessionKey, createInitial);
   const getSnapshot = useCallback(
     () => store.read(repositoryId),
     [repositoryId, store],

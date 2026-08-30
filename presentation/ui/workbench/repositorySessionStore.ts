@@ -2,6 +2,16 @@ export type RepositorySessionUpdate<Value> =
   | Value
   | ((current: Value) => Value);
 
+declare const repositorySessionValue: unique symbol;
+
+export type RepositorySessionKey<Value> = symbol & {
+  readonly [repositorySessionValue]: Value;
+};
+
+export function createRepositorySessionKey<Value>(description: string) {
+  return Symbol(description) as RepositorySessionKey<Value>;
+}
+
 export class RepositorySessionStore<Value> {
   readonly #createInitial: () => Value;
   readonly #listeners = new Map<string, Set<() => void>>();
@@ -42,5 +52,24 @@ export class RepositorySessionStore<Value> {
     this.#values.set(repositoryId, next);
     for (const listener of this.#listeners.get(repositoryId) ?? []) listener();
     return next;
+  }
+}
+
+export class RepositorySessionStoreRegistry {
+  readonly #stores = new Map<symbol, object>();
+
+  get<Value>(
+    key: RepositorySessionKey<Value>,
+    createInitial: () => Value,
+  ): RepositorySessionStore<Value> {
+    const existing = this.#stores.get(key);
+
+    if (existing) {
+      return existing as RepositorySessionStore<Value>;
+    }
+    const store = new RepositorySessionStore(createInitial);
+
+    this.#stores.set(key, store);
+    return store;
   }
 }

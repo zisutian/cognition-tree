@@ -3,6 +3,9 @@ import {
   useRepositorySessionState,
 } from "../../../ui/workbench/useRepositorySessionState";
 import {
+  createRepositorySessionKey,
+} from "../../../ui/workbench/repositorySessionStore";
+import {
   ReferenceGraphControllerCache,
   type ReferenceGraphController,
 } from "./referenceGraphController";
@@ -29,6 +32,11 @@ type ReferenceGraphSessionState = {
   settings: ReferenceGraphSettings;
 };
 
+const referenceGraphSessionKey =
+  createRepositorySessionKey<ReferenceGraphSessionState>(
+    "notes-reference-graph",
+  );
+
 function createReferenceGraphSessionState(): ReferenceGraphSessionState {
   return {
     controllers: new ReferenceGraphControllerCache(),
@@ -41,6 +49,7 @@ export function useReferenceGraphSession(
   repositoryId: string,
 ): ReferenceGraphSession {
   const [session, setSession] = useRepositorySessionState(
+    referenceGraphSessionKey,
     repositoryId,
     createReferenceGraphSessionState,
   );

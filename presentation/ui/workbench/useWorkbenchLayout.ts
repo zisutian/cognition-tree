@@ -11,11 +11,22 @@ import {
   type WorkbenchPanelResizeController,
 } from "./useWorkbenchPanelResize";
 import { useRepositorySessionState } from "./useRepositorySessionState";
+import {
+  createRepositorySessionKey,
+} from "./repositorySessionStore";
 
 type RepositoryProblemsLayout = {
   expanded: boolean;
   height: number;
 };
+
+const contextWidthSessionKey = createRepositorySessionKey<number | null>(
+  "workbench-context-width",
+);
+const problemsLayoutSessionKey =
+  createRepositorySessionKey<RepositoryProblemsLayout>(
+    "workbench-problems-layout",
+  );
 
 function createRepositoryProblemsLayout(): RepositoryProblemsLayout {
   return { expanded: false, height: appProblemsDefaultHeight };
@@ -39,11 +50,13 @@ export function useWorkbenchLayout(repositoryId: string) {
   const [contextCollapsed, setContextCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [contextWidth, setContextWidth] = useRepositorySessionState<number | null>(
+    contextWidthSessionKey,
     repositoryId,
     () => null,
   );
   const [detailWidth, setDetailWidth] = useState<number | null>(null);
   const [problemsLayout, setProblemsLayout] = useRepositorySessionState(
+    problemsLayoutSessionKey,
     repositoryId,
     createRepositoryProblemsLayout,
   );

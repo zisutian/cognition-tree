@@ -7,8 +7,16 @@ import type {
 import {
   useRepositorySessionState,
 } from "../../../ui/workbench/useRepositorySessionState";
+import {
+  createRepositorySessionKey,
+} from "../../../ui/workbench/repositorySessionStore";
 
 type VisualizationFilterState = VisualizationFilterController["filter"];
+
+const visualizationFilterSessionKey =
+  createRepositorySessionKey<VisualizationFilterState>(
+    "notes-visualization-filter",
+  );
 
 function createVisualizationFilterState(): VisualizationFilterState {
   return {
@@ -23,6 +31,7 @@ export function useVisualizationFilter(
   repositoryId: string,
 ): VisualizationFilterController {
   const [filter, setFilter] = useRepositorySessionState(
+    visualizationFilterSessionKey,
     repositoryId,
     createVisualizationFilterState,
   );

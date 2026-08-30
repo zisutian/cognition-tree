@@ -2,7 +2,9 @@
 
 import { describe, expect, it, vi } from "vitest";
 import {
+  createRepositorySessionKey,
   RepositorySessionStore,
+  RepositorySessionStoreRegistry,
 } from "../../../presentation/ui/workbench/repositorySessionStore";
 
 describe("repository session store", () => {
@@ -35,5 +37,19 @@ describe("repository session store", () => {
 
     expect(alphaListener).toHaveBeenCalledTimes(1);
     expect(betaListener).not.toHaveBeenCalled();
+  });
+
+  it("keeps named stores alive under the page-session registry", () => {
+    const registry = new RepositorySessionStoreRegistry();
+    const layoutKey = createRepositorySessionKey<number>("layout");
+    const notesKey = createRepositorySessionKey<string>("notes");
+    const layout = registry.get(layoutKey, () => 0);
+
+    layout.update("repository-alpha", 280);
+
+    expect(registry.get(layoutKey, () => 0)).toBe(layout);
+    expect(registry.get(layoutKey, () => 0).read("repository-alpha"))
+      .toBe(280);
+    expect(registry.get(notesKey, () => "edit")).not.toBe(layout);
   });
 });
