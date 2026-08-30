@@ -130,7 +130,8 @@ Todo 的读取和 merge-aware snapshot sync。它不能访问 Agent、admin、au
     server/agent-config-v1/
     server/operations-v1/
 
-服务保留权限与时间元数据，不遍历符号链接，并比较文件数量、大小与 SHA-256。旧
+服务保留并完整校验权限与访问/修改时间，不遍历符号链接，并以流式 SHA-256 校验文件
+内容；目标文件和目录同步落盘后才允许切换。旧
 `api-v1`、`agent-v1`、`agent-v2`、WebDAV 目录、旧 profile 文件和其他备份不读取、
 不复制。新账本启用时会精确删除旧 `api-v1/audit.json` 和
 `agent-v2/operations.json`；其他 legacy token、配置、凭据和内容原样保留。
@@ -160,8 +161,9 @@ Profile version 增加并清除旧符合性。Provider/Profile ID 与浏览器�
 失败都会 fail closed，不留下部分启用状态。该过程不读取环境变量或旧 profile 文件；
 当前 API 也不接受旧字段、null secret 或兼容清除语义。
 
-“会话历史预算（字符）”只控制 Cognition Tree 何时压缩驻留内存中的对话历史，
-不会向 Ollama 发送 `num_ctx`，也不表示模型的真实 token 上限。需要观察模型事实时，
+“会话历史预算（字符）”控制 Cognition Tree 何时压缩驻留内存中的对话历史，并限制
+单次响应与工具增量在途累计的字符数；不会向 Ollama 发送 `num_ctx`，也不表示模型的
+真实 token 上限。需要观察模型事实时，
 点击对应 Provider 的“探测”：Ollama 会为该 Provider 已配置 Profile 所引用的模型显示
 “模型架构上限”“当前驻留上下文”和探测时间；模型未加载时明确显示无法测量实际值，
 已加载但接口缺字段时显示未报告。探测不发送推理请求、不加载模型、不延长驻留，结果

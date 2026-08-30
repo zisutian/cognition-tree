@@ -341,9 +341,11 @@ reservation，预检失败才释放，不能让并发请求同时准备两个目
 读取请求不参与排空，也不能使迁移饥饿。状态协调器只保留当前一次可轮询迁移，不承担
 无界历史账本；下一次失败后重试会取代上一终态。文件事务只复制
 [使用与部署](getting-started.md#4-数据控制区与迁移)列出的当前
-权威分区，拒绝符号链接与路径重叠，逐文件校验数量、大小和 SHA-256，最后才 CAS 更新
-bootstrap 指针。失败不切换指针；目标清理失败会附加到失败状态，但不能阻止维护租约
-释放和 active 状态归零。成功通过专用退出状态由根 supervisor 重启。
+权威分区，拒绝符号链接与路径重叠；源文件通过 `O_NOFOLLOW` 句柄读取并在复制前后
+核对稳定身份，目标文件排他创建，文件和目录完成 fsync 后再验证目录/文件清单、
+mode、atime、mtime、文件大小与 SHA-256，最后才 CAS 更新 bootstrap 指针。失败不
+切换指针；目标清理失败会附加到失败状态，但不能阻止维护租约释放和 active 状态归零。
+成功通过专用退出状态由根 supervisor 重启。
 旧数据根不删除。
 
 Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前
@@ -460,10 +462,12 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     repository/workspace/local 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。localRepositoryRootLease 独占 canonical root、writer lock、丢失检测与启动时 staging/tombstone 清理；localRepositoryInventory 独占目录枚举、metadata/identity 校验、问题分类与 label issue 投影；LocalRepositoryCatalog 独占稳定 ID 分配、名称约束与 store 组合。catalog dispose 在调用时关闭新操作入口，排空已接纳操作后释放 store 与 root lease；catalog 和 root lease 都是不可重启终态。
     localRepositoryDeletion 独占普通仓库删除的 managed-data 校验、durable tombstone
     rename 提交点、失败回滚与可恢复物理 cleanup；catalog 只先排空驻留 store 并委托。
-    API server 的 api/http 拥有 request lifecycle、认证、限制和 registry 分派；
-    transport 在 wire schema 前执行 operation-specific 字节上限与 fatal UTF-8 解码，
-    非法字节不得以替换字符进入 JSON 或内容摘要；未完成的上传由 transport 投影为
-    request-aborted 生命周期事件，handler 不得将客户端断连伪装成 API 500；
+    server/network 的 jsonRequestBody 独占入站 JSON 的 media type、Content-Length、
+    流式字节上限、aborted 终态、fatal UTF-8 与 JSON framing；api/http 与 system
+    recoveryRequest 只把通用传输失败映射到各自公开错误。API server 的 api/http
+    拥有 request lifecycle、认证、operation-specific 限制和 registry 分派；非法字节
+    不得以替换字符进入 wire schema、内容摘要或恢复配置，handler 不得将客户端断连
+    伪装成 API 500；
     error mapping 与响应 envelope 仍是 handler 的权威事实，日志仅为经脱敏的
     非权威观测，logger 失败不得替换或拒绝既定 API 响应；
     api/http 独占 SSE socket 的失败与 backpressure 隔离，单个慢连接直接断开
@@ -496,7 +500,10 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     断言，profileConfiguration 通过显式 mutation port 独占 Profile CRUD 与 conformance；
     providerConfiguration 通过显式 read/mutation ports 独占 Provider CRUD、认证候选、
     device-code staging/activation、change lease 与 conformance 失效；
-    privateIpc 独占 capability 与本地监听器，并线性化并发启动和幂等关闭；
+    jsonLineTransport 独占 Codex app-server、STDIO MCP 与 private IPC 共用的有界
+    JSONL framing，拒绝超长行、非法 UTF-8 和 EOF 残行；privateIpc 独占 capability
+    与本地监听器，并线性化并发启动和幂等关闭，client 只接受一个匹配 correlation 的
+    完整响应终态；
     Agent service 关闭门统一阻止新 session 与 owner mutation，并协调 owner 操作、
     session pool、turn queue 与 IPC 的关闭顺序；sessionOpener 独占配置租约、启动校验、
     Profile 容量 reservation 的持有/释放、private IPC capability、runtime open、发布和
@@ -517,8 +524,10 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     staging 形态和 Proposal wire/digest，Workspace/Journal/Todo session tool adapter
     分别独占本领域资源读取、scope 校验、staging 与 review 投影；sessionTools 只负责
     公共工具执行和三者的显式组合；AgentRuntimeProtocolError 由 application runtime
-    port 独占，基础设施 adapter 只消费这个中立失败语义；openAiChatProtocol 独占
-    OpenAI-compatible SSE、tool envelope 与 correction 的纯协议规则，
+    port 独占，基础设施 adapter 只消费这个中立失败语义；providerProbe 独占带
+    SSRF policy、超时、禁止重定向、1 MiB 严格 JSON 响应的模型元数据探测；
+    openAiChatProtocol 独占要求 text/event-stream、fatal UTF-8、有界 frame 的
+    OpenAI-compatible SSE，以及 tool envelope 与 correction 的纯协议规则，
     openAiCompatibleSession 独占有状态 turn lifecycle，openAiChatRuntime 与
     ollamaRuntime 只作为各自 profile 的显式组合根。
     repository/built-ins、repository/versioned、repository/workspace 分别拥有
@@ -532,8 +541,9 @@ Agent 配置由 application/agent 端口协调、设置界面操作并写入独�
 session lifecycle policy 独占[产品需求](product-requirements.md#8-agent)定义的
 idle/absolute TTL 实现，审计容量来自 bootstrap 服务设置。每个 profile 显式声明
 maxResidentSessions、model、timeout 与 tool/request limit；chat profile 的
-`historyBudgetCharacters` 只是服务端内存会话历史的字符预算，不是模型 token 上限，
-也不会设置 Ollama `num_ctx`。凭据只写入不回读；Provider 只激活 `none`、API Key 或
+`historyBudgetCharacters` 是服务端内存会话历史和单次在途 completion/tool delta
+累计状态的字符硬上限，不是模型 token 上限，也不会设置 Ollama `num_ctx`。凭据只写入
+不回读；Provider 只激活 `none`、API Key 或
 ChatGPT 设备码中的一种认证，清除认证只能走专用 owner operation。
 aggregate、provider 和 profile 均有 version/digest，管理 mutation 使用 exact CAS。
 会话固定创建时的有效配置；配置访问门从 profile 解析前建立 use lease，绑定解析到的
@@ -549,7 +559,9 @@ Provider 创建或修改时显式确认，并进入该 Provider version/digest�
 conformance 每次请求前重新解析目标；metadata、link-local、unspecified、multicast
 与混合 DNS 结果不可被确认绕过。endpoint 变化清除许可和符合性。
 
-Codex adapter 精确锁定 `@openai/codex@0.148.0`。API Key 通过 app-server
+Codex adapter 精确锁定 `@openai/codex@0.148.0`；codexPackage 独占固定版本、入口布局
+及最多 1 MiB、`O_NOFOLLOW`、fatal UTF-8 的 package metadata 解析，JSON-RPC client
+只拥有协议与连接生命周期。API Key 通过 app-server
 `account/login/start` 注入单次会话的临时 CODEX_HOME，不进入子进程环境；ChatGPT
 设备码登录使用应用管理的隔离 CODEX_HOME，成功后以配置 base revision 执行 exact
 CAS；登录从 prepare 到 terminal 状态持有对应 Provider 的 change lease。失败、取消、

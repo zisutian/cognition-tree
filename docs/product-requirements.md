@@ -162,8 +162,9 @@ Provider、Profile、模型参数与凭据只由应用内设置管理。发现�
 显式、可观察的操作，不自动联网、创建、选模或 fallback；符合性检查可查询、可取消，
 不以一个长 HTTP 请求维持。会话从解析配置到 runtime 释放始终固定同一 Profile 与
 Provider；opening 与 resident session 都会阻止对应的危险删除或凭据变更。
-“会话历史预算（字符）”只控制内存对话压缩，不代表 token 上限，
-也不修改 Ollama `num_ctx`；探测结果只读且不改变 Profile。具体操作见使用与部署。
+“会话历史预算（字符）”控制内存对话压缩，并限制单次模型响应与工具增量累计状态；
+它不代表 token 上限，也不修改 Ollama `num_ctx`。探测结果只读且不改变 Profile。
+具体操作见使用与部署。
 
 Provider 认证是严格 union：`none`、API Key 或 Codex 专属 ChatGPT 设备码；同一
 Provider 只激活一种。API Key 与 Codex 托管登录态属于独立凭据分区，配置只保存引用，
