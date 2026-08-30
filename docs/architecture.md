@@ -403,6 +403,8 @@ AgentConfigurationController 独占客户端配置快照 authority；load、设�
 回读只可安装到未变化的 authority，mutation 响应只可替换其 base revision 或相同 revision，
 陈旧读取与延迟响应不得回退已观察到的更新配置。operationStatus 从在途前台操作计数投影，
 单个请求结束不得把其他仍在执行的操作误报为 idle。
+SystemConfigurationController 同样独占系统配置快照 authority；显式 load 采用最后请求优先，
+管理操作响应只能安装到其启动时的 authority 或相同 revision，旧响应不得回退新的服务配置。
 
 Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 UUID、时间、页面事件和定时器实现由 infrastructure 注入。Problems 的选择与合并留在 application，Activity 切换和 DOM 聚焦只由 presentation 执行。
 

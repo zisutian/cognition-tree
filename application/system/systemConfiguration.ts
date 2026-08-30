@@ -205,6 +205,8 @@ export function createSystemConfigurationController(
   },
 ): SystemConfigurationController {
   const listeners = new Set<() => void>();
+  let configurationAuthorityVersion = 0;
+  let loadRequestVersion = 0;
   let state: SystemConfigurationState = {
     configuration: null,
     errorMessage: null,
@@ -220,17 +222,31 @@ export function createSystemConfigurationController(
     if (!state.configuration) throw new Error("System configuration is not loaded.");
     return state.configuration.revision;
   };
+  const installConfiguration = (configuration: SystemConfigurationSnapshot) => {
+    configurationAuthorityVersion += 1;
+    publish({ configuration, loadStatus: "ready" });
+  };
+  const installOperationConfiguration = (
+    expectedAuthorityVersion: number,
+    configuration: SystemConfigurationSnapshot,
+  ) => {
+    if (
+      configurationAuthorityVersion !== expectedAuthorityVersion &&
+      state.configuration?.revision !== configuration.revision
+    ) return;
+    installConfiguration(configuration);
+  };
   const mutate = async (
     operation: () => Promise<SystemConfigurationSnapshot>,
   ) => {
+    const expectedAuthorityVersion = configurationAuthorityVersion;
+
     publish({ errorMessage: null, operationStatus: "working" });
     try {
       const configuration = await operation();
 
-      publish({
-        configuration,
-        operationStatus: "idle",
-      });
+      installOperationConfiguration(expectedAuthorityVersion, configuration);
+      publish({ operationStatus: "idle" });
       return configuration;
     } catch (error) {
       publish({ errorMessage: errorMessage(error), operationStatus: "idle" });
@@ -245,17 +261,29 @@ export function createSystemConfigurationController(
       );
     },
     async clearOwnerCredential() {
-      await mutate(() => port.clearOwnerCredential(revision()));
+      const baseRevision = revision();
+
+      await mutate(() => port.clearOwnerCredential(baseRevision));
     },
     getSnapshot: () => state,
     async load() {
+      const requestVersion = ++loadRequestVersion;
+      const expectedAuthorityVersion = configurationAuthorityVersion;
+
       publish({ errorMessage: null, loadStatus: "loading" });
       try {
-        publish({
-          configuration: await port.load(),
-          loadStatus: "ready",
-        });
+        const configuration = await port.load();
+
+        if (
+          requestVersion !== loadRequestVersion ||
+          expectedAuthorityVersion !== configurationAuthorityVersion
+        ) return;
+        installConfiguration(configuration);
       } catch (error) {
+        if (
+          requestVersion !== loadRequestVersion ||
+          expectedAuthorityVersion !== configurationAuthorityVersion
+        ) return;
         publish({ errorMessage: errorMessage(error), loadStatus: "failed" });
       }
     },
@@ -283,16 +311,20 @@ export function createSystemConfigurationController(
       }
     },
     async prepareOwnerCredentialRotation() {
+      const expectedAuthorityVersion = configurationAuthorityVersion;
+      const baseRevision = revision();
+
       publish({ errorMessage: null, operationStatus: "working" });
       try {
         const preparation = await port.prepareOwnerCredentialRotation(
-          revision(),
+          baseRevision,
         );
 
-        publish({
-          configuration: preparation.configuration,
-          operationStatus: "idle",
-        });
+        installOperationConfiguration(
+          expectedAuthorityVersion,
+          preparation.configuration,
+        );
+        publish({ operationStatus: "idle" });
         return preparation;
       } catch (error) {
         publish({ errorMessage: errorMessage(error), operationStatus: "idle" });

@@ -69,6 +69,15 @@ const updatedConfiguration: SystemConfigurationSnapshot = {
   version: 2,
 };
 
+function createDeferred<Value>() {
+  let resolve!: (value: Value) => void;
+  const promise = new Promise<Value>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
+}
+
 function migration(
   status: DataRootMigrationStatus["status"],
   errorMessage: string | null = null,
@@ -218,6 +227,68 @@ describe("system configuration controller", () => {
       errorMessage: "verification mismatch",
       migration: { errorMessage: "verification mismatch", status: "failed" },
       operationStatus: "idle",
+    });
+  });
+
+  it("does not let an older load overwrite a committed update", async () => {
+    const administration = port([]);
+    const controller = createSystemConfigurationController(administration, {
+      pollMigration: async () => undefined,
+      pollMigrationIntervalMilliseconds: 1,
+    });
+
+    await controller.load();
+    const staleLoad = createDeferred<SystemConfigurationSnapshot>();
+
+    vi.mocked(administration.load).mockImplementationOnce(
+      () => staleLoad.promise,
+    );
+    vi.mocked(administration.update).mockResolvedValueOnce(updatedConfiguration);
+    const loading = controller.load();
+
+    await controller.update({
+      baseRevision: revision,
+      configuration: updateInput,
+    });
+    staleLoad.resolve(configuration);
+    await loading;
+
+    expect(controller.getSnapshot()).toMatchObject({
+      configuration: { revision: updatedConfiguration.revision },
+      loadStatus: "ready",
+    });
+  });
+
+  it("does not let a delayed update response regress later authority", async () => {
+    const administration = port([]);
+    const controller = createSystemConfigurationController(administration, {
+      pollMigration: async () => undefined,
+      pollMigrationIntervalMilliseconds: 1,
+    });
+
+    await controller.load();
+    const delayedUpdate = createDeferred<SystemConfigurationSnapshot>();
+
+    vi.mocked(administration.update).mockImplementationOnce(
+      () => delayedUpdate.promise,
+    );
+    const updating = controller.update({
+      baseRevision: revision,
+      configuration: updateInput,
+    });
+
+    vi.mocked(administration.load).mockResolvedValueOnce(updatedConfiguration);
+    await controller.load();
+    vi.mocked(administration.clearOwnerCredential).mockResolvedValueOnce(
+      activatedConfiguration,
+    );
+    await controller.clearOwnerCredential();
+    delayedUpdate.resolve(updatedConfiguration);
+    await updating;
+
+    expect(controller.getSnapshot()).toMatchObject({
+      configuration: { revision: activatedConfiguration.revision },
+      loadStatus: "ready",
     });
   });
 });
