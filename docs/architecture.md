@@ -337,7 +337,9 @@ pending rotation；配置使用 exact CAS，v1 摘要/version 无损迁入 v2 �
 租约、copy/verify/bootstrap CAS 与重启；独立文件事务是目标路径校验、权威分区清单、
 复制、指纹校验和失败清理的唯一 owner。状态协调器在任何异步预检之前先取得唯一迁移
 reservation，预检失败才释放，不能让并发请求同时准备两个目标。maintenance gate
-在 start 结果可见前通过微任务交接关闭新 mutation 入口，再等待已有请求结束；文件事务只复制
+在 start 结果可见前通过微任务交接关闭新 mutation 入口，再等待已有 mutation 结束；
+读取请求不参与排空，也不能使迁移饥饿。状态协调器只保留当前一次可轮询迁移，不承担
+无界历史账本；下一次失败后重试会取代上一终态。文件事务只复制
 [使用与部署](getting-started.md#4-数据控制区与迁移)列出的当前
 权威分区，拒绝符号链接与路径重叠，逐文件校验数量、大小和 SHA-256，最后才 CAS 更新
 bootstrap 指针。失败不切换指针；目标清理失败会附加到失败状态，但不能阻止维护租约
@@ -427,9 +429,11 @@ AgentConfigurationController 独占客户端配置快照 authority；load、设�
 回读只可安装到未变化的 authority，mutation 响应只可替换其 base revision 或相同 revision，
 陈旧读取与延迟响应不得回退已观察到的更新配置。operationStatus 从在途前台操作计数投影，
 单个请求结束不得把其他仍在执行的操作误报为 idle。设备登录与一致性检查还分别按
-provider/profile 持有 generation；取消或新操作会废弃旧轮询，旧 pending/running 回包不得
-覆盖更新的终态。若服务端在不可中断的 finishing/recording 阶段返回非终态，原轮询仍是
-唯一 owner；只有确认终态的取消回包才转移 generation。
+provider/profile 持有最新操作令牌；取消、新操作或配置实体变化会废弃旧轮询，旧
+pending/running 回包不得覆盖更新的终态。若服务端在不可中断的 finishing/recording
+阶段返回非终态，原轮询仍是
+唯一 owner；只有确认终态的取消回包才转移令牌。Provider/Profile 被删除或 digest 变化时，
+对应 probe、登录、conformance 派生状态由配置快照 owner 原子裁剪。
 SystemConfigurationController 同样独占系统配置快照 authority；显式 load 采用最后请求优先，
 管理操作响应只能安装到其启动时的 authority 或相同 revision，旧响应不得回退新的服务配置；
 operationStatus 从所有在途管理操作计数投影。
@@ -649,7 +653,8 @@ Settings 的页内选择和未提交表单、Search 的查询草稿、Notes 的�
 以及工作台布局都属于 Presentation 页面会话状态；需要跨仓库保留的状态由显式
 repository session store registry 以带值类型的 slot key 分区，React hook 只订阅当前仓库。
 registry 位于按仓库重挂载的工作台边界之上、认证边界之内，因此仓库切换保留分区，退出
-登录销毁整个页面会话；不得用模块级 Map 建立第二个页面会话 owner，也不得进入领域
+登录销毁整个页面会话；ready catalog 是有效仓库分区集合的唯一依据，删除仓库后 registry
+统一裁剪所有 slot 的对应分区。不得用模块级 Map 建立第二个页面会话 owner，也不得进入领域
 content 或服务端配置。write-only secret 随对应表单卸载
 而清除；服务端 pending 操作具有独立生命周期，不由页面卸载取消。API access settings 的
 列表 authority、load generation、mutation version 与在途计数由独立页面 session controller
