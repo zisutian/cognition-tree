@@ -25,6 +25,18 @@ import {
   withTimeout,
 } from "./codexAppServerClient.ts";
 
+const codexProcessTerminationGraceMilliseconds = 2_000;
+
+class CodexSessionOpeningCleanupError extends AgentRuntimeProtocolError {
+  readonly causes: readonly unknown[];
+
+  constructor(causes: readonly unknown[]) {
+    super("Codex session opening and cleanup both failed");
+    this.name = "CodexSessionOpeningCleanupError";
+    this.causes = causes;
+  }
+}
+
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -69,6 +81,52 @@ async function cleanupSessionDirectory(directory: string) {
   await rm(resolved, { force: true, recursive: true });
 }
 
+function childHasExited(child: ChildProcessWithoutNullStreams) {
+  return child.pid === undefined ||
+    child.exitCode !== null ||
+    child.signalCode !== null;
+}
+
+function waitForChildExit(
+  child: ChildProcessWithoutNullStreams,
+  timeoutMilliseconds: number,
+) {
+  if (childHasExited(child)) return Promise.resolve(true);
+  return new Promise<boolean>((resolve) => {
+    const onExit = () => {
+      clearTimeout(timeout);
+      resolve(true);
+    };
+    const timeout = setTimeout(() => {
+      child.off("exit", onExit);
+      resolve(false);
+    }, timeoutMilliseconds);
+
+    timeout.unref();
+    child.once("exit", onExit);
+  });
+}
+
+async function terminateCodexProcess(child: ChildProcessWithoutNullStreams) {
+  if (childHasExited(child)) return;
+  child.kill("SIGTERM");
+  if (await waitForChildExit(
+    child,
+    codexProcessTerminationGraceMilliseconds,
+  )) {
+    return;
+  }
+  child.kill("SIGKILL");
+  if (!await waitForChildExit(
+    child,
+    codexProcessTerminationGraceMilliseconds,
+  )) {
+    throw new AgentRuntimeProtocolError(
+      "Codex app-server did not exit after SIGKILL",
+    );
+  }
+}
+
 function mcpConfig(process: AgentPrivateToolProcess, cwd: string) {
   return {
     approval_policy: "never",
@@ -103,6 +161,8 @@ class CodexRuntimeSession implements AgentRuntimeSession {
   readonly #profile: CodexAgentProfile;
   readonly #threadId: string;
   #activeTurnId: string | null = null;
+  #disposed = false;
+  #disposePromise: Promise<void> | null = null;
 
   constructor(input: {
     child: ChildProcessWithoutNullStreams;
@@ -121,33 +181,34 @@ class CodexRuntimeSession implements AgentRuntimeSession {
   }
 
   async cancel() {
-    if (!this.#activeTurnId) return;
-    await this.#client.request("turn/interrupt", {
-      threadId: this.#threadId,
-      turnId: this.#activeTurnId,
-    });
+    if (this.#disposed) return;
+    await this.#interruptActiveTurn();
   }
 
-  async dispose() {
-    if (this.#activeTurnId) await this.cancel().catch(() => undefined);
-    this.#child.kill("SIGTERM");
-    await new Promise<void>((resolve) => {
-      if (this.#child.exitCode !== null) return resolve();
-      const timeout = setTimeout(() => {
-        this.#child.kill("SIGKILL");
-        resolve();
-      }, 2_000);
+  #interruptActiveTurn() {
+    if (!this.#activeTurnId) return Promise.resolve();
+    return withTimeout(this.#client.request("turn/interrupt", {
+      threadId: this.#threadId,
+      turnId: this.#activeTurnId,
+    }), codexProcessTerminationGraceMilliseconds, "Codex interrupt timed out")
+      .then(() => undefined);
+  }
 
-      timeout.unref();
-      this.#child.once("exit", () => {
-        clearTimeout(timeout);
-        resolve();
-      });
-    });
-    await cleanupSessionDirectory(this.#directory);
+  dispose() {
+    if (this.#disposePromise) return this.#disposePromise;
+    this.#disposed = true;
+    this.#disposePromise = (async () => {
+      await this.#interruptActiveTurn().catch(() => undefined);
+      await terminateCodexProcess(this.#child);
+      await cleanupSessionDirectory(this.#directory);
+    })();
+    return this.#disposePromise;
   }
 
   async runTurn(request: AgentRuntimeTurnRequest) {
+    if (this.#disposed) {
+      throw new AgentRuntimeProtocolError("Codex session is disposed");
+    }
     if (this.#activeTurnId) throw new Error("Codex session already has an active turn");
     const input = [...request.messages].reverse().find(({ role }) => role === "user");
 
@@ -436,8 +497,12 @@ export class CodexRuntime implements AgentRuntimePort {
         threadId,
       });
     } catch (error) {
-      child.kill("SIGTERM");
-      await cleanupSessionDirectory(temporary.directory);
+      try {
+        await terminateCodexProcess(child);
+        await cleanupSessionDirectory(temporary.directory);
+      } catch (cleanupError) {
+        throw new CodexSessionOpeningCleanupError([error, cleanupError]);
+      }
       throw error;
     }
   }

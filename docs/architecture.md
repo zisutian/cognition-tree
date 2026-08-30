@@ -553,7 +553,9 @@ allowlist，API key 不进入 shell/MCP environment。缺少 sandbox、binary/ve
 不匹配或协议结果不满足这些断言时 profile fail closed。Codex app-server notification
 按到达顺序交付 runtime event，`turn/completed` 必须等待此前异步 event handler 完成；
 handler 失败直接使 turn 失败。会话结束、过期或取消后
-撤销 capability、停止进程，并只清理服务为该 session 建立的临时目录。
+撤销 capability；interrupt 使用有界等待，随后按 SIGTERM、SIGKILL 两阶段终止并确认
+exit，最后才清理服务为该 session 建立的临时目录。session dispose 是幂等终态，子进程
+退出会拒绝全部 pending 和后续 JSON-RPC 请求。
 
 Codex 的会话专属 STDIO MCP 只定义 scope 内 list/read/search、describe_syntax、
 submit_proposal，

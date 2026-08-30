@@ -20,6 +20,7 @@ type NotificationListener = (message: JsonRpcMessage) => void;
 
 export class CodexAppServerClient {
   readonly #child: ChildProcessWithoutNullStreams;
+  #closedError: AgentRuntimeProtocolError | null = null;
   readonly #listeners = new Set<NotificationListener>();
   #nextId = 1;
   readonly #pending = new Map<number, {
@@ -31,16 +32,26 @@ export class CodexAppServerClient {
     this.#child = child;
     child.stderr.resume();
     const lines = readline.createInterface({ input: child.stdout });
+    const close = (error: AgentRuntimeProtocolError) => {
+      if (this.#closedError) return;
+      this.#closedError = error;
+      for (const pending of this.#pending.values()) pending.reject(error);
+      this.#pending.clear();
+      this.#listeners.clear();
+    };
 
     lines.on("line", (line) => this.#receive(line));
     child.once("exit", (code, signal) => {
-      const error = new AgentRuntimeProtocolError(
+      close(new AgentRuntimeProtocolError(
         `Codex app-server exited (${code ?? signal ?? "unknown"})`,
-      );
-
-      for (const pending of this.#pending.values()) pending.reject(error);
-      this.#pending.clear();
+      ));
     });
+    child.once("error", () => close(
+      new AgentRuntimeProtocolError("Codex app-server failed to start"),
+    ));
+    child.stdin.once("error", () => close(
+      new AgentRuntimeProtocolError("Codex app-server input closed"),
+    ));
   }
 
   notify(method: string, params: unknown) {
@@ -48,24 +59,33 @@ export class CodexAppServerClient {
   }
 
   request(method: string, params: unknown) {
+    if (this.#closedError) return Promise.reject(this.#closedError);
     const id = this.#nextId++;
 
     return new Promise<unknown>((resolve, reject) => {
       this.#pending.set(id, { reject, resolve });
-      this.#send({ id, method, params });
+      try {
+        this.#send({ id, method, params });
+      } catch (error) {
+        this.#pending.delete(id);
+        reject(error);
+      }
     });
   }
 
   subscribe(listener: NotificationListener) {
+    if (this.#closedError) return () => undefined;
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);
   }
 
   #send(message: JsonRpcMessage) {
+    if (this.#closedError) throw this.#closedError;
     this.#child.stdin.write(`${JSON.stringify(message)}\n`);
   }
 
   #receive(line: string) {
+    if (this.#closedError) return;
     let message: JsonRpcMessage;
 
     try {
