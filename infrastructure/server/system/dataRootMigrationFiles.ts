@@ -18,6 +18,7 @@ import {
   SystemMigrationValidationError,
 } from "../../../application/system/systemConfiguration.ts";
 import { hasFileSystemErrorCode } from "../persistence/fileSystemError.ts";
+import { fsyncDirectory } from "../persistence/fileSystemPersistence.ts";
 
 const authoritativePartitions = [
   "repositories",
@@ -27,11 +28,23 @@ const authoritativePartitions = [
   "server/operations-v1",
 ] as const;
 
-type FileFingerprint = Readonly<{
-  digest: string;
-  path: string;
-  size: number;
+type EntryMetadata = Readonly<{
+  accessed: number;
+  mode: number;
+  modified: number;
 }>;
+
+type EntryFingerprint =
+  | (Readonly<{
+    kind: "directory";
+    path: string;
+  }> & EntryMetadata)
+  | (Readonly<{
+    digest: string;
+    kind: "file";
+    path: string;
+    size: number;
+  }> & EntryMetadata);
 
 type StableFileIdentity = Readonly<{
   changed: number;
@@ -80,6 +93,14 @@ function sameStableFile(
   return left.device === right.device && left.inode === right.inode &&
     left.changed === right.changed && left.modified === right.modified &&
     left.size === right.size;
+}
+
+function entryMetadata(stats: Stats): EntryMetadata {
+  return {
+    accessed: stats.atime.getTime(),
+    mode: stats.mode & 0o777,
+    modified: stats.mtime.getTime(),
+  };
 }
 
 async function writeAll(
@@ -176,7 +197,7 @@ async function fingerprintFile(
   current: string,
   relative: string,
   observed: Stats,
-): Promise<FileFingerprint> {
+): Promise<EntryFingerprint> {
   const handle = await open(
     current,
     constants.O_RDONLY | constants.O_NOFOLLOW,
@@ -212,7 +233,9 @@ async function fingerprintFile(
       throw new Error(`Data-root file changed during verification: ${current}`);
     }
     return {
+      ...entryMetadata(observed),
       digest: hash.digest("hex"),
+      kind: "file",
       path: relative,
       size: after.size,
     };
@@ -334,6 +357,7 @@ async function copyTree(source: string, destination: string) {
       }
       await chmod(destination, sourceStats.mode & 0o777);
       await utimes(destination, sourceStats.atime, sourceStats.mtime);
+      await fsyncDirectory(destination);
     } finally {
       await utimes(source, sourceStats.atime, sourceStats.mtime);
     }
@@ -348,7 +372,7 @@ async function copyTree(source: string, destination: string) {
 async function fingerprints(
   root: string,
   relative = "",
-): Promise<FileFingerprint[]> {
+): Promise<EntryFingerprint[]> {
   const current = path.join(root, relative);
   const stats = await lstat(current);
 
@@ -363,7 +387,11 @@ async function fingerprints(
   }
   try {
     const directory = await opendir(current);
-    const result: FileFingerprint[] = [];
+    const result: EntryFingerprint[] = [{
+      ...entryMetadata(stats),
+      kind: "directory",
+      path: relative,
+    }];
 
     for await (const entry of directory) {
       result.push(...await fingerprints(root, path.join(relative, entry.name)));
@@ -427,6 +455,7 @@ async function copyAuthoritativePartitions(
       );
     }
     await copyTree(from, to);
+    await fsyncDirectory(parent);
   }
   const after = await lstat(source);
 
@@ -441,6 +470,7 @@ async function copyAuthoritativePartitions(
   }
   await chmod(destination, sourceStats.mode & 0o777);
   await utimes(destination, sourceStats.atime, sourceStats.mtime);
+  await fsyncDirectory(destination);
 }
 
 async function verifyAuthoritativePartitions(
