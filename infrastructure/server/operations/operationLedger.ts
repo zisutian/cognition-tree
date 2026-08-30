@@ -15,8 +15,6 @@ import {
 } from "../../../contracts/api/schemas/operations.ts";
 import { parseApiSchema } from "../../../contracts/api/parse.ts";
 import {
-  assertStateFields,
-  requireStateRecord,
   SecureJsonPartition,
   SecureStatePartitionError,
   type SecureStateFileReplacer,
@@ -32,205 +30,19 @@ import {
   type TrustedClientOperationResult,
   type TrustedClientOperationStore,
 } from "./operationLedgerContract.ts";
+import {
+  type AgentReceiptState,
+  createInitialOperationLedgerState,
+  type OperationLedgerState,
+  parseOperationLedgerState,
+} from "./operationLedgerState.ts";
 
-const formatVersion = 2;
 const defaultReceiptRetentionMilliseconds = 24 * 60 * 60 * 1_000;
-
-type AgentReceiptStatus =
-  | "committed"
-  | "failed"
-  | "indeterminate"
-  | "pending"
-  | "stale";
-
-type AgentReceiptState = {
-  attempt: AgentOperationAttempt;
-  digest: `sha256:${string}`;
-  entry: AgentOperationAuditEntryDto | null;
-  proposalId: string;
-  proposalVersion: number;
-  runtimeId: string;
-  status: AgentReceiptStatus;
-  updatedAt: string;
-};
-
-type OperationState = {
-  agentReceipts: AgentReceiptState[];
-  auditEntries: Array<{
-    entry: ApiOperationAuditEntryDto;
-    pending: boolean;
-  }>;
-  formatVersion: typeof formatVersion;
-};
 
 type BeginAgentResult =
   | { kind: "execute" }
   | { kind: "indeterminate" }
   | { entry: AgentOperationAuditEntryDto; kind: "replay" };
-
-function requireString(value: unknown, label: string) {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${label} must be a non-empty string.`);
-  }
-  return value;
-}
-
-function requirePositiveInteger(value: unknown, label: string) {
-  if (!Number.isSafeInteger(value) || Number(value) < 1) {
-    throw new Error(`${label} must be a positive integer.`);
-  }
-  return Number(value);
-}
-
-function parseAttempt(value: unknown): AgentOperationAttempt {
-  const record = requireStateRecord(value, "Agent operation attempt");
-
-  assertStateFields(record, [
-    "approvingOwnerId",
-    "beforeRevision",
-    "occurredAt",
-    "profileDigest",
-    "profileId",
-    "profileVersion",
-    "providerDigest",
-    "providerId",
-    "providerVersion",
-    "requestId",
-    "route",
-    "runtimeKind",
-    "sessionId",
-    "store",
-  ], "Agent operation attempt");
-  if (
-    record.route !== "destructive-confirmation" &&
-    record.route !== "proposal-decision"
-  ) {
-    throw new Error("Agent operation attempt route is invalid.");
-  }
-  const candidate = {
-    afterRevision: null,
-    approvingOwnerId: record.approvingOwnerId,
-    beforeRevision: record.beforeRevision,
-    changeMetadata: { blockIds: [], resourceIds: [] },
-    digest: `sha256:${"0".repeat(64)}`,
-    occurredAt: record.occurredAt,
-    profileDigest: record.profileDigest,
-    profileId: record.profileId,
-    profileVersion: record.profileVersion,
-    proposalId: "00000000-0000-4000-8000-000000000000",
-    proposalVersion: 1,
-    providerDigest: record.providerDigest,
-    providerId: record.providerId,
-    providerVersion: record.providerVersion,
-    result: "failed",
-    runtimeKind: record.runtimeKind,
-    sessionId: record.sessionId,
-    store: record.store,
-  };
-  const parsed = parseAgentSchema(AgentOperationAuditEntrySchema, candidate);
-
-  return {
-    approvingOwnerId: parsed.approvingOwnerId,
-    beforeRevision: parsed.beforeRevision,
-    occurredAt: parsed.occurredAt,
-    profileDigest: parsed.profileDigest,
-    profileId: parsed.profileId,
-    profileVersion: parsed.profileVersion,
-    providerDigest: parsed.providerDigest,
-    providerId: parsed.providerId,
-    providerVersion: parsed.providerVersion,
-    requestId: requireString(record.requestId, "Agent operation attempt requestId"),
-    route: record.route,
-    runtimeKind: parsed.runtimeKind,
-    sessionId: parsed.sessionId,
-    store: parsed.store,
-  };
-}
-
-function parseReceipt(value: unknown): AgentReceiptState {
-  const record = requireStateRecord(value, "Agent operation receipt");
-
-  assertStateFields(record, [
-    "attempt",
-    "digest",
-    "entry",
-    "proposalId",
-    "proposalVersion",
-    "runtimeId",
-    "status",
-    "updatedAt",
-  ], "Agent operation receipt");
-  if (
-    record.status !== "committed" && record.status !== "failed" &&
-    record.status !== "indeterminate" && record.status !== "pending" &&
-    record.status !== "stale"
-  ) {
-    throw new Error("Agent operation receipt status is invalid.");
-  }
-  const entry = record.entry === null
-    ? null
-    : parseAgentSchema(AgentOperationAuditEntrySchema, record.entry);
-  const digest = requireString(record.digest, "Agent operation receipt digest");
-
-  if (!/^sha256:[0-9a-f]{64}$/.test(digest)) {
-    throw new Error("Agent operation receipt digest is invalid.");
-  }
-  if (record.status === "pending" && entry !== null) {
-    throw new Error("Pending Agent receipt cannot contain a terminal entry.");
-  }
-  if (
-    (record.status === "committed" || record.status === "failed" ||
-      record.status === "stale") && entry === null
-  ) {
-    throw new Error("Terminal Agent receipt must contain an entry.");
-  }
-  return {
-    attempt: parseAttempt(record.attempt),
-    digest: digest as `sha256:${string}`,
-    entry,
-    proposalId: requireString(record.proposalId, "Agent operation receipt proposalId"),
-    proposalVersion: requirePositiveInteger(
-      record.proposalVersion,
-      "Agent operation receipt proposalVersion",
-    ),
-    runtimeId: requireString(record.runtimeId, "Agent operation receipt runtimeId"),
-    status: record.status,
-    updatedAt: requireString(record.updatedAt, "Agent operation receipt updatedAt"),
-  };
-}
-
-function parseOperationState(value: unknown): OperationState {
-  const record = requireStateRecord(value, "Operation ledger state");
-
-  assertStateFields(
-    record,
-    ["agentReceipts", "auditEntries", "formatVersion"],
-    "Operation ledger state",
-  );
-  if (
-    record.formatVersion !== formatVersion ||
-    !Array.isArray(record.agentReceipts) ||
-    !Array.isArray(record.auditEntries)
-  ) {
-    throw new Error("Operation ledger state has an invalid format.");
-  }
-  return {
-    agentReceipts: record.agentReceipts.map(parseReceipt),
-    auditEntries: record.auditEntries.map((value, index) => {
-      const stored = requireStateRecord(value, `auditEntries[${index}]`);
-
-      assertStateFields(stored, ["entry", "pending"], `auditEntries[${index}]`);
-      if (typeof stored.pending !== "boolean") {
-        throw new Error(`auditEntries[${index}].pending must be boolean.`);
-      }
-      return {
-        entry: parseApiSchema(ApiOperationAuditEntrySchema, stored.entry),
-        pending: stored.pending,
-      };
-    }),
-    formatVersion,
-  };
-}
 
 function operationKey(identity: Pick<
   AgentOperationIdentity,
@@ -247,7 +59,7 @@ export class OperationLedger {
   #maxAuditEntries: number;
   readonly #now: () => string;
   #operationQueue: Promise<void> = Promise.resolve();
-  readonly #partition: SecureJsonPartition<OperationState>;
+  readonly #partition: SecureJsonPartition<OperationLedgerState>;
   readonly #receiptRetentionMilliseconds: number;
   readonly #runtimeId: string;
   readonly #stateDirectory: string;
@@ -273,15 +85,11 @@ export class OperationLedger {
     this.#runtimeId = options.runtimeId ?? randomUUID();
     this.#stateDirectory = path.resolve(stateDirectory);
     this.#partition = new SecureJsonPartition({
-      createInitial: () => ({
-        agentReceipts: [],
-        auditEntries: [],
-        formatVersion,
-      }),
+      createInitial: createInitialOperationLedgerState,
       directory: path.join(this.#stateDirectory, "operations-v1"),
       fileName: "operations.json",
       name: "operation ledger",
-      parse: parseOperationState,
+      parse: parseOperationLedgerState,
       ...(options.replaceStateFile
         ? { replaceFile: options.replaceStateFile }
         : {}),
@@ -602,7 +410,7 @@ export class OperationLedger {
     });
   }
 
-  #purgeReceipts(state: OperationState): boolean {
+  #purgeReceipts(state: OperationLedgerState): boolean {
     const cutoff = Date.parse(this.#now()) - this.#receiptRetentionMilliseconds;
     const receiptCount = state.agentReceipts.length;
 
@@ -613,7 +421,7 @@ export class OperationLedger {
   }
 
   #trimAudit(
-    state: OperationState,
+    state: OperationLedgerState,
     maxAuditEntries = this.#maxAuditEntries,
   ): boolean {
     let changed = false;
@@ -706,11 +514,13 @@ export class OperationLedger {
     return pending;
   }
 
-  #read<Result>(project: (state: OperationState) => Result) {
+  #read<Result>(project: (state: OperationLedgerState) => Result) {
     return this.#enqueue(() => this.#readPartition(project));
   }
 
-  async #readPartition<Result>(project: (state: OperationState) => Result) {
+  async #readPartition<Result>(
+    project: (state: OperationLedgerState) => Result,
+  ) {
     if (this.#unavailableMessage) {
       throw new OperationAuditUnavailableError(this.#unavailableMessage);
     }
@@ -729,7 +539,7 @@ export class OperationLedger {
 
   #mutate<Result>(
     operation: (
-      state: OperationState,
+      state: OperationLedgerState,
     ) => { changed: boolean; result: Result } | Promise<{
       changed: boolean;
       result: Result;
@@ -740,7 +550,7 @@ export class OperationLedger {
 
   async #mutatePartition<Result>(
     operation: (
-      state: OperationState,
+      state: OperationLedgerState,
     ) => { changed: boolean; result: Result } | Promise<{
       changed: boolean;
       result: Result;
