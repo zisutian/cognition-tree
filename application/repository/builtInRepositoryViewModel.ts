@@ -112,13 +112,13 @@ function projectBuiltInOption(
         : "";
   const recoveryAction = session.status === "failed"
     ? { label: "重试挂载", run: session.reload }
-    : persistence?.status === "error"
+    : persistence?.status === "error" && readySession
       ? persistence.phase === "sync"
         ? {
             label: "重试同步",
-            run: async () => readySession!.requestSync(),
+            run: async () => readySession.requestSync(),
           }
-        : { label: "重新加载", run: readySession!.reload }
+        : { label: "重新加载", run: readySession.reload }
       : null;
 
   return {
