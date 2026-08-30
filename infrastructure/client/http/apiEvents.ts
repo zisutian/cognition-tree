@@ -6,6 +6,7 @@ import type {
 } from "../../../application/sync/domainChangeEvents";
 import { parseApiEvent } from "../../../contracts/api/parse";
 import { resolveApiUrl } from "./apiTransport";
+import { readHttpSseData } from "./sseTransport";
 
 const initialReconnectDelayMs = 1_000;
 const maximumReconnectDelayMs = 30_000;
@@ -37,16 +38,6 @@ function projectNotification(
     sequence: input.sequence,
     streamId: input.streamId,
   };
-}
-
-function readSseData(frame: string) {
-  const data = frame
-    .split("\n")
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).replace(/^ /, ""))
-    .join("\n");
-
-  return data.length > 0 ? data : null;
 }
 
 export function createHttpApiEventSource({
@@ -95,28 +86,9 @@ export function createHttpApiEventSource({
         throw new Error(`CTN API event stream failed (${response.status}).`);
       }
       reconnectDelayMs = initialReconnectDelayMs;
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (!disposed && !controller.signal.aborted) {
-        const { done, value } = await reader.read();
-
-        buffer += decoder.decode(value, { stream: !done }).replace(/\r\n/g, "\n");
-        let boundary = buffer.indexOf("\n\n");
-
-        while (boundary >= 0) {
-          const frame = buffer.slice(0, boundary);
-
-          buffer = buffer.slice(boundary + 2);
-          const data = readSseData(frame);
-
-          if (data) {
-            publish(projectNotification(parseApiEvent(JSON.parse(data))));
-          }
-          boundary = buffer.indexOf("\n\n");
-        }
-        if (done) break;
+      for await (const data of readHttpSseData(response)) {
+        if (disposed || controller.signal.aborted) break;
+        publish(projectNotification(parseApiEvent(JSON.parse(data))));
       }
     } catch (error) {
       if (!controller.signal.aborted && !disposed) {

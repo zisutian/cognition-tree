@@ -25,6 +25,7 @@ import {
   resolveApiUrl,
   type HttpApiTransportOptions,
 } from "./apiTransport";
+import { readHttpSseData } from "./sseTransport";
 
 function sessionPath(sessionId: string) {
   return `/api/v3/agent/sessions/${encodeURIComponent(sessionId)}`;
@@ -36,16 +37,6 @@ function jsonRequest(body: unknown, method: "POST") {
     headers: { "Content-Type": "application/json" },
     method,
   } satisfies RequestInit;
-}
-
-function readSseData(frame: string) {
-  const data = frame
-    .split("\n")
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).replace(/^ /, ""))
-    .join("\n");
-
-  return data.length > 0 ? data : null;
 }
 
 export function createHttpAgentClient({
@@ -143,38 +134,16 @@ export function createHttpAgentClient({
               `Agent event stream failed (${response.status}).`,
             );
           }
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = "";
-
-          while (!closed && !controller.signal.aborted) {
-            const { done, value } = await reader.read();
-
-            buffer += decoder.decode(value, { stream: !done })
-              .replace(/\r\n/g, "\n");
-            let boundary = buffer.indexOf("\n\n");
-
-            while (boundary >= 0) {
-              const frame = buffer.slice(0, boundary);
-
-              buffer = buffer.slice(boundary + 2);
-              const data = readSseData(frame);
-
-              if (data) {
-                onEvent(
-                  parseAgentSchema(
-                    AgentEventSchema,
-                    JSON.parse(data),
-                  ) as AgentClientEvent,
-                );
-              }
-              boundary = buffer.indexOf("\n\n");
-            }
-            if (done) {
-              if (!closed && !controller.signal.aborted) onClose(null);
-              return;
-            }
+          for await (const data of readHttpSseData(response)) {
+            if (closed || controller.signal.aborted) return;
+            onEvent(
+              parseAgentSchema(
+                AgentEventSchema,
+                JSON.parse(data),
+              ) as AgentClientEvent,
+            );
           }
+          if (!closed && !controller.signal.aborted) onClose(null);
         } catch (error) {
           if (!closed && !controller.signal.aborted) onClose(error);
         }
