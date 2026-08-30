@@ -17,6 +17,7 @@ import {
   type LocalRepositoryIndex,
 } from "./localWorkingTreeLayout.ts";
 import { assertLocalProjectedPath } from "./localWorkingTreePath.ts";
+import { mapLocalFileSystemEntries } from "./localFileSystemConcurrency.ts";
 
 export type LocalPhysicalEntry = {
   device: string;
@@ -121,43 +122,59 @@ async function scanPhysicalWorkingTreeOnce(
     }
     const entries = await readdir(directoryPath, { withFileTypes: true });
 
-    for (const entry of entries) {
-      if (!relativeDirectory && entry.name === localControlDirectoryName) {
-        continue;
-      }
-      const relativePath = relativeDirectory
-        ? `${relativeDirectory}/${entry.name}`
-        : entry.name;
+    const scannedEntries = await mapLocalFileSystemEntries(
+      entries,
+      async (entry) => {
+        if (!relativeDirectory && entry.name === localControlDirectoryName) {
+          return null;
+        }
+        const relativePath = relativeDirectory
+          ? `${relativeDirectory}/${entry.name}`
+          : entry.name;
 
-      assertLocalProjectedPath(
-        relativePath,
-        "Local working tree path",
-        rootDir,
-      );
-      const entryPath = path.join(rootDir, ...relativePath.split("/"));
-      const entryStats = await lstat(entryPath);
+        assertLocalProjectedPath(
+          relativePath,
+          "Local working tree path",
+          rootDir,
+        );
+        const entryPath = path.join(rootDir, ...relativePath.split("/"));
+        const entryStats = await lstat(entryPath);
 
-      if (entryStats.isSymbolicLink()) continue;
-      if (entryStats.isDirectory()) {
-        result.push({
-          device: String(entryStats.dev),
-          inode: String(entryStats.ino),
-          kind: "folder",
-          path: relativePath,
-        });
-        pending.push(relativePath);
-      } else if (entryStats.isFile() && entry.name.endsWith(".ctn")) {
-        const { source, stats } = await readStableLocalFile(entryPath);
+        if (entryStats.isSymbolicLink()) return null;
+        if (entryStats.isDirectory()) {
+          return {
+            directoryToScan: relativePath,
+            physical: {
+              device: String(entryStats.dev),
+              inode: String(entryStats.ino),
+              kind: "folder" as const,
+              path: relativePath,
+            },
+          };
+        }
+        if (entryStats.isFile() && entry.name.endsWith(".ctn")) {
+          const { source, stats } = await readStableLocalFile(entryPath);
 
-        result.push({
-          device: stats.device,
-          inode: stats.inode,
-          kind: "note",
-          path: relativePath,
-          source,
-          sourceHash: sourceHash(source),
-        });
-      }
+          return {
+            directoryToScan: null,
+            physical: {
+              device: stats.device,
+              inode: stats.inode,
+              kind: "note" as const,
+              path: relativePath,
+              source,
+              sourceHash: sourceHash(source),
+            },
+          };
+        }
+        return null;
+      },
+    );
+
+    for (const scanned of scannedEntries) {
+      if (!scanned) continue;
+      result.push(scanned.physical);
+      if (scanned.directoryToScan) pending.push(scanned.directoryToScan);
     }
     const after = await lstat(directoryPath);
 

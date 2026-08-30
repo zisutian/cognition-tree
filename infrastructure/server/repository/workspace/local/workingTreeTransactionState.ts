@@ -22,6 +22,7 @@ import {
   localSyntaxDirectoryName,
   type LocalManagedFileSet,
 } from "./localWorkingTreeLayout.ts";
+import { mapLocalFileSystemEntries } from "./localFileSystemConcurrency.ts";
 
 export type LocalManagedWorkingTreeState = {
   directories: Set<string>;
@@ -171,25 +172,38 @@ async function collectManagedFiles(rootDir: string) {
     }
     const entries = await readdir(directoryPath, { withFileTypes: true });
 
-    for (const entry of entries) {
-      if (
-        !relativeDirectory &&
-        entry.name === localControlDirectoryName
-      ) {
-        continue;
-      }
-      const relativePath = relativeDirectory
-        ? `${relativeDirectory}/${entry.name}`
-        : entry.name;
-      const absolutePath = path.join(rootDir, ...relativePath.split("/"));
-      const stats = await lstat(absolutePath);
+    const scannedEntries = await mapLocalFileSystemEntries(
+      entries,
+      async (entry) => {
+        if (
+          !relativeDirectory &&
+          entry.name === localControlDirectoryName
+        ) {
+          return null;
+        }
+        const relativePath = relativeDirectory
+          ? `${relativeDirectory}/${entry.name}`
+          : entry.name;
+        const absolutePath = path.join(rootDir, ...relativePath.split("/"));
+        const stats = await lstat(absolutePath);
 
-      if (stats.isSymbolicLink()) continue;
-      if (stats.isDirectory()) {
-        directories.add(relativePath);
-        pending.push(relativePath);
-      } else if (stats.isFile() && entry.name.endsWith(".ctn")) {
-        files.add(relativePath);
+        if (stats.isSymbolicLink()) return null;
+        if (stats.isDirectory()) {
+          return { kind: "directory" as const, relativePath };
+        }
+        return stats.isFile() && entry.name.endsWith(".ctn")
+          ? { kind: "file" as const, relativePath }
+          : null;
+      },
+    );
+
+    for (const scanned of scannedEntries) {
+      if (!scanned) continue;
+      if (scanned.kind === "directory") {
+        directories.add(scanned.relativePath);
+        pending.push(scanned.relativePath);
+      } else {
+        files.add(scanned.relativePath);
       }
     }
     const after = await lstat(directoryPath);
@@ -331,11 +345,17 @@ export async function captureLocalManagedWorkingTreeState(
 ): Promise<LocalManagedWorkingTreeState> {
   const { directories, files } = await collectManagedFiles(rootDir);
   const result: LocalManagedFileSet = new Map();
+  const relativePaths = [...files];
+  const sources = await mapLocalFileSystemEntries(
+    relativePaths,
+    (relativePath) => readLocalManagedFile(rootDir, relativePath),
+  );
 
-  for (const relativePath of files) {
-    const source = await readLocalManagedFile(rootDir, relativePath);
+  for (let index = 0; index < relativePaths.length; index += 1) {
+    const relativePath = relativePaths[index]!;
+    const source = sources[index];
 
-    if (source === null) {
+    if (source === null || source === undefined) {
       throw new RepositoryCorruptError(
         "Local managed file disappeared while being captured",
       );

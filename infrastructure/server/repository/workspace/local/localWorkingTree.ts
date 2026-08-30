@@ -45,6 +45,7 @@ import {
   type LocalRepositoryMetadata,
   type LocalWorkingTreeProjection,
 } from "./localWorkingTreeLayout.ts";
+import { mapLocalFileSystemEntries } from "./localFileSystemConcurrency.ts";
 import {
   isLocalWorkingTreeUnstableError,
   matchLocalPhysicalIdentities,
@@ -139,11 +140,18 @@ export async function createLocalProjectionFromWorkingTree({
     LocalCanonicalNoteProjection
   >();
   const reservedBlockIds = new Set<string>();
+  const previousNotes = previousIndex.entries.filter(
+    (entry): entry is LocalNoteIndexEntry => entry.kind === "note",
+  );
+  const previousSidecars = await mapLocalFileSystemEntries(
+    previousNotes,
+    async (entry) => ({
+      entry,
+      sidecar: await readNoteMetadata(entry.noteId),
+    }),
+  );
 
-  for (const entry of previousIndex.entries) {
-    if (entry.kind !== "note") continue;
-    const sidecar = await readNoteMetadata(entry.noteId);
-
+  for (const { entry, sidecar } of previousSidecars) {
     if (!sidecar) {
       throw new RepositoryCorruptError(
         `Tracked Local note ${entry.noteId} is missing its metadata sidecar`,
