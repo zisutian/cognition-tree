@@ -140,6 +140,7 @@ describe("ProblemsPanel", () => {
     const markup = renderToStaticMarkup(
       <ProblemsPanel
         expanded
+        onCopyRequestId={() => undefined}
         onDismiss={() => undefined}
         onOpen={() => undefined}
         onToggle={() => undefined}

@@ -13,7 +13,10 @@ import {
   isActivityId,
 } from "../../activities/activityCatalog";
 import { ProblemsPanel } from "../../ui/problems/ProblemsPanel";
-import { useWorkbenchFeedback } from "../../ui/shared/FeedbackProvider";
+import {
+  runActivityFeedbackAction,
+  useWorkbenchFeedback,
+} from "../../ui/shared/FeedbackProvider";
 import { useWorkbenchProblemsShortcut } from "../../ui/problems/useProblemsShortcut";
 import type { WorkbenchController } from "../../ui/workbench/useWorkbenchLayout";
 import { openWorkbenchProblem } from "./workbenchProblemNavigation";
@@ -115,6 +118,20 @@ export function WorkbenchProblemsController({
     problemsEnabled ? (
       <ProblemsPanel
         expanded={workbench.layout.problemsExpanded}
+        onCopyRequestId={(requestId) => {
+          void runActivityFeedbackAction(
+            feedback.controller,
+            activeActivityId,
+            async () => {
+              const clipboard = globalThis.navigator?.clipboard;
+
+              if (!clipboard) {
+                throw new Error("当前环境不支持复制请求编号。");
+              }
+              await clipboard.writeText(requestId);
+            },
+          );
+        }}
         onDismiss={(problem) => {
           if (problem.target.kind === "operational-error") {
             feedback.controller.dismiss(problem.target.problemId);

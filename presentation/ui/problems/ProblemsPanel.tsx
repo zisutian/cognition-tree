@@ -78,7 +78,7 @@ function ProblemRow({
   style,
 }: {
   problem: UiWorkbenchProblem;
-  onCopyRequestId: (requestId: string) => void;
+  onCopyRequestId?: (requestId: string) => void;
   onOpen: (problem: UiWorkbenchProblem) => void;
   onDismiss: (problem: UiWorkbenchProblem) => void;
   style?: CSSProperties;
@@ -90,7 +90,7 @@ function ProblemRow({
     <ToolListRow
       actions={operational ? (
         <>
-          {operational.requestId ? (
+          {operational.requestId && onCopyRequestId ? (
             <button
               aria-label={`复制请求编号：${operational.requestId}`}
               onClick={() => onCopyRequestId(operational.requestId!)}
@@ -148,7 +148,7 @@ function ProblemsList({
   onOpen,
 }: {
   problems: UiWorkbenchProblem[];
-  onCopyRequestId: (requestId: string) => void;
+  onCopyRequestId?: (requestId: string) => void;
   onOpen: (problem: UiWorkbenchProblem) => void;
   onDismiss: (problem: UiWorkbenchProblem) => void;
 }) {
@@ -216,9 +216,7 @@ function ProblemsList({
 export function ProblemsPanel({
   expanded,
   view,
-  onCopyRequestId = (requestId) => {
-    void globalThis.navigator?.clipboard?.writeText(requestId);
-  },
+  onCopyRequestId,
   onDismiss = () => undefined,
   onOpen,
   onToggle,
