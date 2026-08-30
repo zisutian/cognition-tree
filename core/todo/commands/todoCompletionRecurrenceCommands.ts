@@ -16,6 +16,7 @@ import {
   projectTodoRecurrence,
 } from "../recurrence/todoRecurrenceProjection.ts";
 import {
+  todoRecurrenceRulesEqual,
   validateTodoRecurrenceRule,
   type TodoRecurrenceRule,
 } from "../recurrence/todoRecurrenceRule.ts";
@@ -219,10 +220,6 @@ function assertNewRecurrenceStageId(
   }
 }
 
-function rulesEqual(left: TodoRecurrenceRule, right: TodoRecurrenceRule) {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
 export function setTodoBlockRecurrence(
   content: TodoContent,
   index: TodoParseIndex,
@@ -278,7 +275,9 @@ export function setTodoBlockRecurrence(
         lastStage.startsOn !== today &&
         lastStage.startsOn === addTodoLocalDays(today, 1)
       ) {
-        if (rulesEqual(lastStage.rule, input.rule)) return content;
+        if (todoRecurrenceRulesEqual(lastStage.rule, input.rule)) {
+          return content;
+        }
         nextRecurrence = {
           ...recurrence,
           stages: [
@@ -289,7 +288,7 @@ export function setTodoBlockRecurrence(
       } else {
         if (
           projection.currentStage &&
-          rulesEqual(projection.currentStage.rule, input.rule)
+          todoRecurrenceRulesEqual(projection.currentStage.rule, input.rule)
         ) {
           return content;
         }

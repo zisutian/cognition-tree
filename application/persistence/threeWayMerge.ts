@@ -12,7 +12,59 @@ export type ThreeWayContentMergeResult<Content> =
   | { status: "conflict"; unitIds: string[] };
 
 export function areMergeValuesEqual(left: unknown, right: unknown) {
-  return JSON.stringify(left) === JSON.stringify(right);
+  const pending: Array<readonly [unknown, unknown]> = [[left, right]];
+  const compared = new WeakMap<object, WeakSet<object>>();
+
+  while (pending.length > 0) {
+    const [leftValue, rightValue] = pending.pop()!;
+
+    if (
+      leftValue === rightValue ||
+      (typeof leftValue === "number" &&
+        typeof rightValue === "number" &&
+        Number.isNaN(leftValue) && Number.isNaN(rightValue))
+    ) {
+      continue;
+    }
+    if (
+      leftValue === null || rightValue === null ||
+      typeof leftValue !== "object" || typeof rightValue !== "object"
+    ) {
+      return false;
+    }
+    const leftIsArray = Array.isArray(leftValue);
+
+    if (leftIsArray !== Array.isArray(rightValue)) return false;
+    let comparedWithLeft = compared.get(leftValue);
+
+    if (comparedWithLeft?.has(rightValue)) continue;
+    if (!comparedWithLeft) {
+      comparedWithLeft = new WeakSet<object>();
+      compared.set(leftValue, comparedWithLeft);
+    }
+    comparedWithLeft.add(rightValue);
+    if (leftIsArray) {
+      const leftArray = leftValue as unknown[];
+      const rightArray = rightValue as unknown[];
+
+      if (leftArray.length !== rightArray.length) return false;
+      for (let index = 0; index < leftArray.length; index += 1) {
+        pending.push([leftArray[index], rightArray[index]]);
+      }
+      continue;
+    }
+    const leftRecord = leftValue as Record<string, unknown>;
+    const rightRecord = rightValue as Record<string, unknown>;
+    const leftKeys = Object.keys(leftRecord);
+    const rightKeys = Object.keys(rightRecord);
+
+    if (leftKeys.length !== rightKeys.length) return false;
+    for (const key of leftKeys) {
+      if (!Object.prototype.hasOwnProperty.call(rightRecord, key)) return false;
+      pending.push([leftRecord[key], rightRecord[key]]);
+    }
+  }
+  return true;
 }
 
 export function reusePreparedMergeContent<Content, Projection>(

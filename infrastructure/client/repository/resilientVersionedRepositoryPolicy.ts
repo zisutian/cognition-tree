@@ -4,6 +4,9 @@ import {
   VersionedRepositoryRemoteError,
   VersionedRepositoryUnavailableError,
 } from "../../../application/persistence/versionedRepository.ts";
+import {
+  areMergeValuesEqual,
+} from "../../../application/persistence/threeWayMerge.ts";
 
 export function versionedRepositoryErrorMessage(error: unknown) {
   return error instanceof Error
@@ -26,7 +29,7 @@ export function versionedContentEqual<Content>(
   left: Content,
   right: Content,
 ) {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return areMergeValuesEqual(left, right);
 }
 
 export function normalizeVersionedConflictUnitIds(

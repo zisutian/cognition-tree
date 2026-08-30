@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  todoRecurrenceRulesEqual,
   validateTodoRecurrenceRule,
 } from "../../../../core/todo/recurrence/todoRecurrenceRule";
 
@@ -27,5 +28,16 @@ describe("Todo recurrence rule", () => {
       interval: 1,
       kind: "monthly",
     })).toThrow(/between 1 and 31/);
+  });
+
+  it("compares recurrence rules through their domain fields", () => {
+    expect(todoRecurrenceRulesEqual(
+      { interval: 2, kind: "weekly", weekdays: [1, 5] },
+      { weekdays: [1, 5], kind: "weekly", interval: 2 },
+    )).toBe(true);
+    expect(todoRecurrenceRulesEqual(
+      { interval: 2, kind: "weekly", weekdays: [1, 5] },
+      { interval: 2, kind: "weekly", weekdays: [5, 1] },
+    )).toBe(false);
   });
 });

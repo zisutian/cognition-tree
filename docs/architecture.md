@@ -242,7 +242,9 @@ revision 相符，再 direct commit 或执行 `merge(base, local, current)`；�
 计算三次，耗尽后返回可重试 `resource_conflict`。Workspace 以语法、树和单篇 note
 为单元，Journal 以 entry 为单元，Todo 以 collection body、collection order、单任务
 completion 和 recurrence 为单元三方合并；不同单元可自动合并，同一单元双改或删改
-返回 `merge_conflict`。
+返回 `merge_conflict`。通用 merge equality 与本地优先 pending 判定共享同一结构比较
+策略：对象键插入顺序不构成内容变化，数组顺序仍是领域事实；不得以原始
+`JSON.stringify` 字节顺序制造伪冲突。
 语法变化是 barrier，不能跨 grammar 自动合并。
 
 浏览器发起同步时固定已提交内容 `L` 与 local revision `R`。响应 snapshot `S` 到达后，

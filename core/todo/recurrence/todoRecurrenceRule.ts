@@ -25,6 +25,20 @@ export type TodoRecurrenceRule =
   | TodoWeeklyRecurrenceRule
   | TodoMonthlyRecurrenceRule;
 
+export function todoRecurrenceRulesEqual(
+  left: TodoRecurrenceRule,
+  right: TodoRecurrenceRule,
+) {
+  if (left.kind !== right.kind || left.interval !== right.interval) return false;
+  if (left.kind === "daily" && right.kind === "daily") return true;
+  if (left.kind === "monthly" && right.kind === "monthly") {
+    return left.dayOfMonth === right.dayOfMonth;
+  }
+  return left.kind === "weekly" && right.kind === "weekly" &&
+    left.weekdays.length === right.weekdays.length &&
+    left.weekdays.every((weekday, index) => weekday === right.weekdays[index]);
+}
+
 function requirePositiveInterval(interval: number) {
   if (!Number.isSafeInteger(interval) || interval < 1) {
     throw new DomainValidationError(
