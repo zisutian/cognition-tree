@@ -839,4 +839,22 @@ describe("versioned session controller", () => {
     await failedController.flushPendingChanges();
     failedController.dispose();
   });
+
+  it("does not read the repository after dispose", async () => {
+    const harness = createRepositoryHarness();
+    const controller = await startController(harness);
+    const loadCountAtDispose = harness.getLoadCount();
+
+    controller.dispose();
+    controller.dispose();
+
+    await expect(controller.reload()).rejects.toThrow(
+      VersionedSessionUnavailableError,
+    );
+    await expect(controller.loadConflictDetails()).rejects.toThrow(
+      VersionedSessionUnavailableError,
+    );
+    expect(harness.getLoadCount()).toBe(loadCountAtDispose);
+    expect(controller.subscribe(vi.fn())).toBeTypeOf("function");
+  });
 });

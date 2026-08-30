@@ -218,6 +218,11 @@ export function createVersionedSessionController<
     active.queue !== null &&
     active.persistence.status !== "conflict" &&
     state.status === "ready";
+  const requireOpen = () => {
+    if (disposed) {
+      throw new VersionedSessionUnavailableError(label);
+    }
+  };
   const requireActive = () => {
     if (
       disposed ||
@@ -510,6 +515,7 @@ export function createVersionedSessionController<
       return state;
     },
     async loadConflictDetails() {
+      requireOpen();
       if (!repository) {
         throw new VersionedSessionUnavailableError(label);
       }
@@ -553,6 +559,7 @@ export function createVersionedSessionController<
       };
     },
     async reload() {
+      requireOpen();
       if (state.status !== "ready" || !active) {
         await loadInitial();
         return;
