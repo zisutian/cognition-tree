@@ -409,6 +409,8 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     privateIpc 独占 capability 与本地监听器，并线性化并发启动和幂等关闭；
     Agent service 关闭门统一阻止新 session 与 owner mutation，释放会等待 session
     启动、审批操作、Profile turn 队列和幂等 session 清理全部收敛；
+    proposalCommitter 独占 Agent exact-CAS、幂等账本、审计 receipt 与提交后的
+    revision/event 发布，service 只把终态投影回 session 并调度回执摘要；
     sessionToolProtocol、sessionToolState 与 proposalCodec 分别独占模型工具映射、会话
     staging 形态和 Proposal wire/digest，Workspace/Journal/Todo session tool adapter
     分别独占本领域资源读取、scope 校验、staging 与 review 投影；sessionTools 只负责

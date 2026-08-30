@@ -4,12 +4,9 @@ import type { OutgoingHttpHeaders, ServerResponse } from "node:http";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import {
-  commitAgentProposalExactly,
   confirmAgentProposalDestruction,
   createAgentRuntimeInstructions,
   decideAgentProposal,
-  markAgentProposalFailed,
-  markAgentProposalStale,
   AgentScopeUnavailableError,
   AgentScopeViolationError,
   AgentSessionController,
@@ -33,16 +30,12 @@ import { AgentSessionSnapshotSchema } from "../../../contracts/agent/schemas.ts"
 import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
-import type { WorkspaceRepositoryStore } from "../repository/store.ts";
-import { WorkspaceRevisionConflictError } from "../repository/store.ts";
-import type { VersionedContentStore } from "../repository/versioned/contentStore.ts";
-import { VersionedContentRevisionConflictError } from "../repository/versioned/contentStore.ts";
 import type { ApiBuiltInCatalog } from "../api/http/ports.ts";
 import type { ApiRuntime } from "../api/http/runtime.ts";
 import { readApiRuntimeNow } from "../api/http/runtime.ts";
 import type { ApiSearchService } from "../api/search.ts";
-import { ApiEventHub } from "../api/sync/events.ts";
-import { ApiRevisionTracker } from "../api/sync/revisionTracker.ts";
+import type { ApiEventHub } from "../api/sync/events.ts";
+import type { ApiRevisionTracker } from "../api/sync/revisionTracker.ts";
 import { AgentPrivateIpcServer } from "./privateIpc.ts";
 import {
   AgentContextLimitError,
@@ -54,10 +47,7 @@ import type {
 import type {
   AgentConfigurationProfileUse,
 } from "./configurationAccess.ts";
-import type {
-  AgentOperationAttempt,
-  OperationLedger,
-} from "../operations/operationLedger.ts";
+import type { OperationLedger } from "../operations/operationLedger.ts";
 import {
   createAgentRuntimeProfile,
   type AgentRuntimeProfile,
@@ -68,6 +58,10 @@ import {
 } from "./configuredAgentRuntimeFactory.ts";
 import type { AgentServicePolicy } from "./servicePolicy.ts";
 import { AgentServiceError } from "./errors.ts";
+import {
+  AgentProposalCommitter,
+  type AgentProposalCommitRoute,
+} from "./proposalCommitter.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import { AgentSessionTools } from "./sessionTools.ts";
 import { toAgentProposalDto } from "./proposalCodec.ts";
@@ -96,10 +90,6 @@ type SessionRecord = {
   syntaxKnowledge: AgentSyntaxKnowledge | null;
 };
 
-function unique(values: readonly string[]) {
-  return [...new Set(values)];
-}
-
 function isAbort(error: unknown, signal: AbortSignal) {
   return signal.aborted ||
     (error instanceof Error && error.name === "AbortError");
@@ -113,16 +103,13 @@ function sessionMcpEntrypoint() {
 }
 
 export class AgentService {
-  readonly #builtInCatalog: ApiBuiltInCatalog;
-  readonly #catalog: WorkspaceRepositoryCatalog;
   readonly #configurationStore: AgentConfigurationStore;
-  readonly #eventHub: ApiEventHub;
   readonly #ipc: AgentPrivateIpcServer;
   readonly #ledger: OperationLedger | null;
   readonly #openingProfiles = new Map<string, number>();
   readonly #operations = new Set<Promise<unknown>>();
   readonly #profileQueues = new Map<string, Promise<void>>();
-  readonly #revisionTracker: ApiRevisionTracker;
+  readonly #proposalCommitter: AgentProposalCommitter;
   readonly #runtime: ApiRuntime;
   readonly #runtimeFactory: AgentRuntimeFactory;
   readonly #servicePolicy: AgentServicePolicy;
@@ -163,13 +150,17 @@ export class AgentService {
     servicePolicy: AgentServicePolicy;
     targetPolicy?: AgentProviderTargetPolicy;
   }) {
-    this.#builtInCatalog = builtInCatalog;
-    this.#catalog = catalog;
     this.#configurationStore = configurationStore;
-    this.#eventHub = eventHub;
     this.#ipc = ipc;
     this.#ledger = ledger;
-    this.#revisionTracker = revisionTracker;
+    this.#proposalCommitter = new AgentProposalCommitter({
+      builtInCatalog,
+      catalog,
+      eventHub,
+      ledger,
+      revisionTracker,
+      runtime,
+    });
     this.#runtime = runtime;
     this.#runtimeFactory = runtimeFactory ?? new ConfiguredAgentRuntimeFactory({
       projectRoot,
@@ -918,157 +909,36 @@ export class AgentService {
     proposal: AgentProposal,
     ownerId: string,
     requestId: string,
-    route: AgentOperationAttempt["route"],
+    route: AgentProposalCommitRoute,
   ) {
-    const ledger = this.#ledger;
-
-    if (!ledger) {
-      throw new AgentServiceError("profile_unavailable", "Agent ledger is unavailable");
-    }
-    const identity = {
-      digest: proposal.digest,
-      proposalId: proposal.id,
-      proposalVersion: proposal.version,
-    };
-    const result = await ledger.runAgentIdempotent(
-      identity,
-      this.#auditAttempt(record, proposal, ownerId, requestId, route),
-      async () => {
-        let afterRevision: `sha256:${string}` | null = null;
-        let result: AgentOperationAuditEntryDto["result"] = "failed";
-
-        try {
-          const store = await this.#proposalStore(proposal);
-          const committed = await commitAgentProposalExactly({
-            proposal,
-            store,
-          });
-
-          afterRevision = committed.receipt.revision;
-          result = "committed";
-          proposal = committed.proposal;
-          this.#publishCommittedProposal(proposal, afterRevision);
-        } catch (error) {
-          if (
-            error instanceof WorkspaceRevisionConflictError ||
-            error instanceof VersionedContentRevisionConflictError
-          ) {
-            afterRevision = error.currentRevision;
-            result = "stale";
-            proposal = markAgentProposalStale(proposal);
-          } else {
-            proposal = markAgentProposalFailed(proposal);
-          }
-        }
-        return this.#auditEntry(record, proposal, ownerId, afterRevision, result);
+    const outcome = await this.#proposalCommitter.commit({
+      context: {
+        configuration: record.configuration,
+        profile: record.profile,
+        runtimeKind: record.runtime.kind,
+        sessionId: record.controller.snapshot().id,
       },
-    );
+      ownerId,
+      proposal,
+      requestId,
+      route,
+    });
 
-    if (result.entry.result === "committed") {
-      if (proposal.status !== "committed") {
-        proposal = { ...proposal, status: "committed" };
+    record.controller.putProposal(outcome.proposal);
+    if (!this.#disposed) this.#emitProposal(record, outcome.proposal);
+    if (outcome.receipt.result === "committed") {
+      if (!outcome.replayed && !this.#disposed) {
+        this.#scheduleReceiptSummary(record, outcome.receipt);
       }
-      record.controller.putProposal(proposal);
-      this.#emitProposal(record, proposal);
-      if (!result.replayed) this.#scheduleReceiptSummary(record, result.entry);
-      return toAgentProposalDto(proposal);
+      return toAgentProposalDto(outcome.proposal);
     }
-    proposal = result.entry.result === "stale"
-      ? markAgentProposalStale(proposal)
-      : markAgentProposalFailed(proposal);
-    record.controller.putProposal(proposal);
-    this.#emitProposal(record, proposal);
-    if (result.entry.result === "stale") {
+    if (outcome.receipt.result === "stale") {
       throw new AgentServiceError(
         "proposal_stale",
         "Store revision changed after the proposal was staged",
       );
     }
     throw new AgentServiceError("session_unavailable", "Agent commit failed");
-  }
-
-  async #proposalStore(proposal: AgentProposal) {
-    if (proposal.store.domain === "workspace") {
-      return await this.#catalog.getStore(proposal.store.repositoryId) as WorkspaceRepositoryStore;
-    }
-    return await this.#builtInCatalog.getStore(proposal.store.domain) as
-      VersionedContentStore<unknown, unknown>;
-  }
-
-  #auditEntry(
-    record: SessionRecord,
-    proposal: AgentProposal,
-    ownerId: string,
-    afterRevision: `sha256:${string}` | null,
-    result: AgentOperationAuditEntryDto["result"],
-  ): AgentOperationAuditEntryDto {
-    return {
-      afterRevision,
-      approvingOwnerId: ownerId,
-      beforeRevision: proposal.base.revision,
-      changeMetadata: {
-        blockIds: unique(proposal.changes.blocks.map(({ blockId }) => blockId)),
-        resourceIds: unique(
-          proposal.changes.resources.map(({ resourceId }) => resourceId),
-        ),
-      },
-      digest: proposal.digest,
-      occurredAt: readApiRuntimeNow(this.#runtime).timestamp,
-      profileDigest: record.configuration.profile.digest,
-      profileId: record.profile.id,
-      profileVersion: record.configuration.profile.version,
-      proposalId: proposal.id,
-      proposalVersion: proposal.version,
-      result,
-      runtimeKind: record.runtime.kind,
-      sessionId: record.controller.snapshot().id,
-      providerDigest: record.configuration.provider.digest,
-      providerId: record.configuration.provider.id,
-      providerVersion: record.configuration.provider.version,
-      store: proposal.store,
-    };
-  }
-
-  #auditAttempt(
-    record: SessionRecord,
-    proposal: AgentProposal,
-    ownerId: string,
-    requestId: string,
-    route: AgentOperationAttempt["route"],
-  ): AgentOperationAttempt {
-    return {
-      approvingOwnerId: ownerId,
-      beforeRevision: proposal.base.revision,
-      occurredAt: readApiRuntimeNow(this.#runtime).timestamp,
-      profileDigest: record.configuration.profile.digest,
-      profileId: record.profile.id,
-      profileVersion: record.configuration.profile.version,
-      providerDigest: record.configuration.provider.digest,
-      providerId: record.configuration.provider.id,
-      providerVersion: record.configuration.provider.version,
-      requestId,
-      route,
-      runtimeKind: record.runtime.kind,
-      sessionId: record.controller.snapshot().id,
-      store: proposal.store,
-    };
-  }
-
-  #publishCommittedProposal(
-    proposal: AgentProposal,
-    revision: `sha256:${string}`,
-  ) {
-    if (proposal.store.domain === "workspace") {
-      this.#revisionTracker.observeWorkspace(proposal.store.repositoryId, revision);
-    } else {
-      this.#revisionTracker.observeDomain(proposal.store.domain, revision);
-    }
-    const checkpoint = this.#revisionTracker.checkpoint({
-      sequence: this.#eventHub.sequence,
-      streamId: this.#eventHub.streamId,
-    });
-
-    this.#eventHub.publish(checkpoint, proposal.changes);
   }
 
   #scheduleReceiptSummary(
