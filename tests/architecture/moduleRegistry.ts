@@ -766,6 +766,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "infrastructure/server/runtime/index.ts"
     ],
     "dependencies": [
+      "application/runtime",
       "application/agentHost",
       "application/commands",
       "application/search",

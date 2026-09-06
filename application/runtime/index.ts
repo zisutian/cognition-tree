@@ -7,3 +7,5 @@ export type {
 export {
   ApplicationWriteBarrier,
 } from "./writeBarrier.ts";
+export type { AdmittedWriteLease, WriteAdmissionPort, WriteCoordinationPort } from "./writeBarrier.ts";
+export { WriteAdmissionClosedError } from "./writeBarrier.ts";

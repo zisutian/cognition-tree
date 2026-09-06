@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerDataRootWriteScope } from "../../infrastructure/server/runtime/index.ts";
 import { createServerAgentService } from "../../infrastructure/server/runtime/agentRuntime.ts";
 import { createServerSearchQuery } from "../../infrastructure/server/runtime/searchRuntime.ts";
 import { localRepositoryWriterLockName } from "../../infrastructure/server/repository/repositoryRuntimeLayout.ts";
@@ -39,30 +40,6 @@ import { BootstrapConfigurationStore } from "../../infrastructure/server/system/
 import { SystemAdministrationService } from "../../application/system/systemAdministrationService.ts";
 
 const dataRootMigrationFileOperations = createDataRootMigrationFileOperations(localRepositoryWriterLockName);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 const host = "127.0.0.1";
 
@@ -108,7 +85,7 @@ export async function startE2EWorkspaceServer({
   };
 
   async function createRuntime(): Promise<E2ERuntime> {
-    const maintenanceGate = new ApiMaintenanceGate();
+    const maintenanceGate = new ApiMaintenanceGate(createServerDataRootWriteScope());
     let agentService: AgentService | null = null;
     const migrations = new DataRootMigrationCoordinator({
       bootstrap, controlRoot, createId: randomUUID, files: dataRootMigrationFileOperations,
@@ -138,6 +115,7 @@ export async function startE2EWorkspaceServer({
       serverStateDirectory,
     );
     agentService = createServerAgentService({
+      writes: maintenanceGate.writes,
       builtInCatalog,
       catalog,
       configurationStore: agentConfigurationStore,

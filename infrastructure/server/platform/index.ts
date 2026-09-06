@@ -3,3 +3,4 @@
 export {
   serverApplicationScheduler,
 } from "./applicationScheduler.ts";
+export { DataRootWriteScope } from "./dataRootWriteScope.ts";

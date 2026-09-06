@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerDataRootWriteScope } from "../../../../infrastructure/server/runtime/index.ts";
 import { createServerAgentService } from "../../../../infrastructure/server/runtime/agentRuntime.ts";
 import { createServerSearchQuery } from "../../../../infrastructure/server/runtime/searchRuntime.ts";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -38,9 +39,8 @@ const journalScope = { domain: "journal" as const, entryIds: null };
 const profileId = "agent-profile-fake-openai";
 
 function uuid(index: number) {
-  return `00000000-0000-4000-8000-${
-    String(index).padStart(12, "0")
-  }` as `${string}-${string}-${string}-${string}-${string}`;
+  return `00000000-0000-4000-8000-${String(index).padStart(12, "0")
+    }` as `${string}-${string}-${string}-${string}-${string}`;
 }
 
 function createRuntime(): ApiRuntime {
@@ -153,7 +153,9 @@ async function createFixture(
     created.profile.id,
     { checkedAt: "2026-08-20T08:00:00.000Z", toolCallMode: "native" },
   );
+  const writes = createServerDataRootWriteScope();
   const service = createServerAgentService({
+    writes,
     builtInCatalog,
     catalog: unavailableWorkspaceCatalog,
     configurationStore,
@@ -178,6 +180,7 @@ async function createFixture(
     runTurn,
     runtime,
     service,
+    writes,
     async cleanup() {
       await service.dispose();
       await rm(root, { force: true, recursive: true });
@@ -755,6 +758,48 @@ describe("Agent service proposal lifecycle", () => {
       expect((await fixture.ledger.list({ cursor: 0, limit: 10 })).entries)
         .toHaveLength(1);
     } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  it("holds the content commit lease through durable audit finalization", async () => {
+    const fixture = await createFixture(createTwoEntries);
+    let release!: () => void;
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    let committed!: () => void;
+    const contentCommitted = new Promise<void>(resolve => { committed = resolve; });
+    let maintenance: Awaited<ReturnType<typeof fixture.writes.begin>> | null = null;
+    try {
+      const session = await fixture.service.createSession({ profileId, scope: journalScope });
+      fixture.service.sendMessage(session.id, "Create two entries");
+      const proposal = await waitForProposal(fixture.service, session.id);
+      const run = fixture.ledger.runAgentIdempotent.bind(fixture.ledger);
+      vi.spyOn(fixture.ledger, "runAgentIdempotent").mockImplementation((identity, attempt, execute) =>
+        run(identity, attempt, async () => {
+          const receipt = await execute();
+          committed();
+          await blocked;
+          return receipt;
+        }),
+      );
+      const approval = fixture.service.decideProposal({
+        decision: "approve", ownerId: "local-owner", proposalId: proposal.id,
+        requestId: uuid(304), sessionId: session.id,
+      });
+      await contentCommitted;
+      const acquired = vi.fn();
+      const pending = fixture.writes.begin().then(lease => { acquired(); return lease; });
+      await Promise.resolve();
+      expect(acquired).not.toHaveBeenCalled();
+      release();
+      await approval;
+      maintenance = await pending;
+      expect((await fixture.ledger.list({ cursor: 0, limit: 10 })).entries).toHaveLength(1);
+      const store = await fixture.builtInCatalog.getStore("journal");
+      expect(listJournalEntries((await store.loadSnapshot()).content)).toHaveLength(2);
+    } finally {
+      release();
+      maintenance?.finish();
       await fixture.cleanup();
     }
   });

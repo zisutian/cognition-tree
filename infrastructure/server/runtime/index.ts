@@ -12,3 +12,4 @@ export {
 export {
   createServerSearchQuery,
 } from "./searchRuntime.ts";
+export { createServerDataRootWriteScope } from "./dataRootWriteRuntime.ts";

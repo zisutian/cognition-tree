@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { ApplicationWriteBarrier } from "../../../../application/runtime/index.ts";
+import { WriteAdmissionClosedError, type WriteCoordinationPort } from "../../../../application/runtime/index.ts";
 import type { SystemMaintenancePort } from "../../../../application/system/index.ts";
 import { ApiRequestError } from "../protocol/index.ts";
 
@@ -12,16 +12,19 @@ const maintenanceControlOperations = new Set([
 ]);
 
 export class ApiMaintenanceGate implements SystemMaintenancePort {
-  readonly #barrier = new ApplicationWriteBarrier();
+  readonly writes: WriteCoordinationPort;
+  constructor(writes: WriteCoordinationPort) { this.writes = writes; }
 
-  begin() { return this.#barrier.begin(); }
-  isClosed() { return this.#barrier.isClosed(); }
-
-  enter(operationId: string | undefined) {
-    if (operationId && maintenanceControlOperations.has(operationId)) return () => undefined;
-    try { return this.#barrier.enter().finish; }
-    catch {
+  async run<Result>(operationId: string | undefined, operation: () => Promise<Result>) {
+    if (operationId && maintenanceControlOperations.has(operationId)) return operation();
+    try { return await this.writes.run(operation); }
+    catch (error) {
+      if (!(error instanceof WriteAdmissionClosedError)) throw error;
       throw new ApiRequestError("repository_busy", "Cognition Tree is migrating its data root");
     }
   }
+
+  begin() { return this.writes.begin(); }
+  isClosed() { return this.writes.isClosed(); }
+
 }

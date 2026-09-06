@@ -19,7 +19,6 @@ import type {
   WorkspaceRepositoryCatalog,
   ApiBuiltInCatalog,
 } from "../../repository/index.ts";
-
 import { mapApiError } from "./errors.ts";
 import { ApiRequestError } from "../protocol/index.ts";
 import {
@@ -52,7 +51,6 @@ import {
   AutomationTokenStore,
   TrustedClientTokenStore,
 } from "../../access/index.ts";
-
 import type { AgentService } from "../../../../application/agentHost/index.ts";
 import type { OperationLedger } from "../../operations/index.ts";
 import { AgentConfigurationStore } from "../../agent/index.ts";
@@ -108,106 +106,106 @@ export function createHttpApiRequestHandler({
   return async (request, response) => {
     const requestId = randomUUID();
     let responseHeaders = createApiResponseHeaders(null, requestId);
-    let leaveRequest: (() => void) | null = null;
 
     try {
       const requestedRoute = resolveApiRoute(new URL(request.url ?? "/", "http://localhost").pathname);
-      leaveRequest = maintenanceGate.enter(requestedRoute?.operations.get(request.method ?? "")?.operationId);
-      const authorized = await authorizeApiRequest(
-        request,
-        security,
-        bearerAuthenticator,
-      );
-
-      responseHeaders = createApiResponseHeaders(
-        authorized.allowedOrigin,
-        requestId,
-      );
-      const url = new URL(request.url ?? "/", "http://localhost");
-      const route = resolveApiRoute(url.pathname);
-
-      if (!route) {
-        throw new ApiRequestError("not_found", "Not found");
-      }
-      if (request.method === "OPTIONS") {
-        sendApiNoContent(response, responseHeaders);
-        return;
-      }
-      const method = request.method;
-
-      if (
-        !method ||
-        !route.methods.includes(
-          method as (typeof route.methods)[number],
-        )
-      ) {
-        throw new ApiRequestError(
-          "invalid_request",
-          "Method not allowed",
-          { statusCode: 405 },
+      await maintenanceGate.run(requestedRoute?.operations.get(request.method ?? "")?.operationId, async () => {
+        const authorized = await authorizeApiRequest(
+          request,
+          security,
+          bearerAuthenticator,
         );
-      }
-      const operation = getApiRouteOperation(route, method);
 
-      if (!operation.body) {
-        assertApiRequestHasNoBody(request);
-      }
-      const query = parseApiOperationQuery(
-        operation,
-        url.searchParams,
-      );
-      let parsedBody: Promise<unknown> | null = null;
-      const result = await handleApiRoute({
-        accessStore: resolvedAccessStore,
-        agentConfigurationStore: resolvedAgentConfigurationStore,
-        agentProviderOperations: resolvedAgentProviderOperations,
-        agentService,
-        builtInCatalog,
-        catalog,
-        eventHub,
-        operation,
-        operationLedger,
-        ownerSessions: security.ownerSessions,
-        principal: authorized.principal,
-        query,
-        readJsonBody: () => {
-          parsedBody ??= readApiJsonBody(
-            request,
-            operation.maximumBodyBytes,
-          ).then((input) =>
-            parseApiOperationRequest(operation, input)
-          );
-          return parsedBody;
-        },
-        requestRestart,
-        requestId,
-        response,
-        responseHeaders,
-        revisionTracker,
-        route,
-        runtime,
-        search,
-        systemAdministration,
-        trustedClientTokenStore: resolvedTrustedClientTokenStore,
-      });
-
-      if (result) {
-        assertApiOperationResponse(
-          operation,
-          result.statusCode,
-          result.body,
+        responseHeaders = createApiResponseHeaders(
+          authorized.allowedOrigin,
+          requestId,
         );
-        if (result.statusCode === 204) {
+        const url = new URL(request.url ?? "/", "http://localhost");
+        const route = resolveApiRoute(url.pathname);
+
+        if (!route) {
+          throw new ApiRequestError("not_found", "Not found");
+        }
+        if (request.method === "OPTIONS") {
           sendApiNoContent(response, responseHeaders);
-        } else {
-          sendApiJson(
-            response,
-            result.statusCode,
-            result.body,
-            responseHeaders,
+          return;
+        }
+        const method = request.method;
+
+        if (
+          !method ||
+          !route.methods.includes(
+            method as (typeof route.methods)[number],
+          )
+        ) {
+          throw new ApiRequestError(
+            "invalid_request",
+            "Method not allowed",
+            { statusCode: 405 },
           );
         }
-      }
+        const operation = getApiRouteOperation(route, method);
+
+        if (!operation.body) {
+          assertApiRequestHasNoBody(request);
+        }
+        const query = parseApiOperationQuery(
+          operation,
+          url.searchParams,
+        );
+        let parsedBody: Promise<unknown> | null = null;
+        const result = await handleApiRoute({
+          accessStore: resolvedAccessStore,
+          agentConfigurationStore: resolvedAgentConfigurationStore,
+          agentProviderOperations: resolvedAgentProviderOperations,
+          agentService,
+          builtInCatalog,
+          catalog,
+          eventHub,
+          operation,
+          operationLedger,
+          ownerSessions: security.ownerSessions,
+          principal: authorized.principal,
+          query,
+          readJsonBody: () => {
+            parsedBody ??= readApiJsonBody(
+              request,
+              operation.maximumBodyBytes,
+            ).then((input) =>
+              parseApiOperationRequest(operation, input)
+            );
+            return parsedBody;
+          },
+          requestRestart,
+          requestId,
+          response,
+          responseHeaders,
+          revisionTracker,
+          route,
+          runtime,
+          search,
+          systemAdministration,
+          trustedClientTokenStore: resolvedTrustedClientTokenStore,
+        });
+
+        if (result) {
+          assertApiOperationResponse(
+            operation,
+            result.statusCode,
+            result.body,
+          );
+          if (result.statusCode === 204) {
+            sendApiNoContent(response, responseHeaders);
+          } else {
+            sendApiJson(
+              response,
+              result.statusCode,
+              result.body,
+              responseHeaders,
+            );
+          }
+        }
+      });
     } catch (error) {
       if (error instanceof ApiRequestAbortedError) {
         if (!response.destroyed) response.destroy();
@@ -246,8 +244,6 @@ export function createHttpApiRequestHandler({
         mapped.toDto(requestId),
         responseHeaders,
       );
-    } finally {
-      leaveRequest?.();
     }
   };
 }

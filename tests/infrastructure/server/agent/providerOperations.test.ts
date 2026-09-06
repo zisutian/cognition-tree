@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerDataRootWriteScope } from "../../../../infrastructure/server/runtime/index.ts";
 import { createServerDeviceLoginOperations } from "../../../../infrastructure/server/runtime/deviceLoginRuntime.ts";
 import { createServerProviderOperations } from "../../../../infrastructure/server/runtime/providerRuntime.ts";
 import { once } from "node:events";
@@ -149,16 +150,19 @@ describe("Agent provider operations", () => {
       createId: () => "codex-expired",
     });
     const completedOperations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: completedStore,
       projectRoot: completedProject,
       runtime,
     });
     const cancelledOperations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: cancelledStore,
       projectRoot: cancelledProject,
       runtime,
     });
     const expiredOperations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       codexDeviceLoginTtlMilliseconds: 10,
       configurationStore: expiredStore,
       projectRoot: expiredProject,
@@ -301,6 +305,7 @@ describe("Agent provider operations", () => {
       throw new Error("injected login cleanup failure");
     });
     const operations = createServerDeviceLoginOperations({
+      writes: createServerDataRootWriteScope(),
       cleanupDirectory,
       configurationStore: store,
       projectRoot: project,
@@ -345,6 +350,53 @@ describe("Agent provider operations", () => {
     }
   });
 
+  it("drains background credential activation before admitting migration", async () => {
+    const project = await createFakeCodexProject(true);
+    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-device-drain-"));
+    const writes = createServerDataRootWriteScope();
+    let release!: () => void;
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    let activated!: () => void;
+    const activating = new Promise<void>(resolve => { activated = resolve; });
+    let pause = false;
+    const store = new AgentConfigurationStore(directory, {
+      createId: () => "codex-drain",
+      replaceConfigurationFile: async (file, source, options) => {
+        if (pause) { pause = false; activated(); await blocked; }
+        await replaceFileDurably(file, source, options);
+      },
+    });
+    const operations = createServerProviderOperations({ configurationStore: store, projectRoot: project, runtime, writes });
+    let maintenance: Awaited<ReturnType<typeof writes.begin>> | null = null;
+    try {
+      const initial = await store.readSnapshot();
+      const provider = await store.createProvider(initial.revision, {
+        authenticationType: "chatgpt-device-code", baseUrl: null, kind: "codex",
+        label: "Drained Codex", privateNetworkAccessConfirmed: false,
+      });
+      pause = true;
+      const login = await operations.startCodexDeviceLogin(provider.configuration.revision, provider.provider.id);
+      await activating;
+      const acquired = vi.fn();
+      const pending = writes.begin().then(lease => { acquired(); return lease; });
+      await Promise.resolve();
+      expect(acquired).not.toHaveBeenCalled();
+      release();
+      maintenance = await pending;
+      await vi.waitFor(() => expect(operations.getCodexDeviceLogin(login.id)?.status).toBe("succeeded"));
+      const reloaded = new AgentConfigurationStore(directory);
+      await expect(reloaded.resolveProvider(provider.provider.id)).resolves.toMatchObject({
+        codexHome: expect.any(String), provider: { authenticationStatus: "configured" },
+      });
+    } finally {
+      release();
+      maintenance?.finish();
+      await operations.dispose();
+      await rm(project, { force: true, recursive: true });
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   it("preserves possibly authoritative Codex authentication after an unknown commit", async () => {
     const project = await createFakeCodexProject(true);
     const directory = await mkdtemp(
@@ -362,6 +414,7 @@ describe("Agent provider operations", () => {
       },
     });
     const operations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: store,
       projectRoot: project,
       runtime,
@@ -442,7 +495,7 @@ describe("Agent provider operations", () => {
         completion === 1
           ? JSON.stringify({ arguments: {}, name: "describe_syntax" })
           : completion === 2
-          ? JSON.stringify({
+            ? JSON.stringify({
               arguments: {
                 body: "- Conformance",
                 parentFolderId: null,
@@ -450,7 +503,7 @@ describe("Agent provider operations", () => {
               },
               name: "stage_workspace_create_note",
             })
-          : "符合性验证完成。",
+            : "符合性验证完成。",
       );
     });
 
@@ -466,6 +519,7 @@ describe("Agent provider operations", () => {
       createId: () => ids.shift()!,
     });
     const operations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: store,
       runtime,
     });
@@ -576,6 +630,7 @@ describe("Agent provider operations", () => {
       createId: () => "codex-probe",
     });
     const operations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: store,
       fetch: fetchFn,
       runtime,
@@ -619,6 +674,7 @@ describe("Agent provider operations", () => {
       createId: () => "openai-probe",
     });
     const operations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: store,
       fetch: fetchFn,
       runtime,
@@ -682,6 +738,7 @@ describe("Agent provider operations", () => {
         status: 200,
       }));
     const operations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: new AgentConfigurationStore(directory),
       fetch: fetchFn,
       runtime,
@@ -717,6 +774,7 @@ describe("Agent provider operations", () => {
       })
     );
     const operations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: new AgentConfigurationStore(directory),
       fetch: fetchFn,
       runtime,
@@ -743,6 +801,7 @@ describe("Agent provider operations", () => {
     const fetchFn = vi.fn();
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
     const operations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: new AgentConfigurationStore(directory),
       fetch: fetchFn,
       runtime,
@@ -794,6 +853,7 @@ describe("Agent provider operations", () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
     const store = new AgentConfigurationStore(directory);
     const operations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: store,
       runtime,
     });
@@ -892,6 +952,7 @@ describe("Agent provider operations", () => {
       createId: () => ids.shift()!,
     });
     const operations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: store,
       runtime,
     });
@@ -949,6 +1010,7 @@ describe("Agent provider operations", () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
     const store = new AgentConfigurationStore(directory);
     const operations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: store,
       runtime,
     });
@@ -1004,6 +1066,7 @@ describe("Agent provider operations", () => {
   it("rejects every new Provider operation after disposal", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
     const operations = createServerProviderOperations({
+      writes: createServerDataRootWriteScope(),
       configurationStore: new AgentConfigurationStore(directory),
       runtime,
     });
