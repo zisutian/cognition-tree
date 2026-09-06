@@ -17,9 +17,10 @@ import { AgentPrivateIpcServer } from '../agent/privateIpc.ts';
 import { createPrivateAgentTools } from '../agent/privateToolProcess.ts';
 import { AgentProposalCommitter } from '../../../application/agentHost/proposalCommitter.ts';
 import { AgentProviderTargetPolicy } from '../agent/providerTargetPolicy.ts';
-import { AgentSessionTools } from '../agent/sessionTools.ts';
+import { createServerAgentTools } from "./agentToolRuntime.ts";
 import { agentRuntimeToolsForScope } from '../agent/sessionToolProtocol.ts';
-import type { ApiSearchService } from '../api/search.ts';
+import type { SearchQuery } from "../../../application/search/searchTypes.ts";
+import type { SearchAccess } from "../../../application/search/scopedSearch.ts";
 
 type CommitDependencies = {
   builtInCatalog: ApiBuiltInCatalog;
@@ -50,7 +51,7 @@ export function createServerAgentService(input: CommitDependencies & {
   ipc?: AgentPrivateIpcServer;
   projectRoot?: string;
   runtimeFactory?: AgentRuntimeFactory;
-  search: ApiSearchService;
+  search: SearchQuery<SearchAccess>;
   servicePolicy: AgentServicePolicy;
   targetPolicy?: AgentProviderTargetPolicy;
 }) {
@@ -74,7 +75,7 @@ export function createServerAgentService(input: CommitDependencies & {
     runtime: input.runtime,
     runtimeFactory: input.runtimeFactory ?? new ConfiguredAgentRuntimeFactory({projectRoot: input.projectRoot, targetPolicy: input.targetPolicy}),
     servicePolicy: input.servicePolicy,
-    tools: new AgentSessionTools(input),
+    tools: createServerAgentTools(input),
     protocol,
     scheduler: agentHostScheduler,
   });

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createServerAgentService } from "../../infrastructure/server/runtime/agentRuntime.ts";
-import { createServerSearchService } from "../../infrastructure/server/runtime/searchRuntime.ts";
+import { createServerSearchQuery } from "../../infrastructure/server/runtime/searchRuntime.ts";
 import { localRepositoryWriterLockName } from "../../infrastructure/server/repository/repositoryRuntimeLayout.ts";
 import { randomUUID } from "node:crypto";
 import { DataRootMigrationCoordinator } from "../../application/system/dataRootMigrationCoordinator.ts";
@@ -146,7 +146,7 @@ export async function startE2EWorkspaceServer({
       revisionTracker,
       runtime: systemApiRuntime,
       runtimeFactory: { create: createE2EAgentRuntime },
-      search: createServerSearchService({ builtInCatalog, catalog }),
+      search: createServerSearchQuery({ builtInCatalog, catalog }),
       servicePolicy: agentServicePolicy,
     });
 

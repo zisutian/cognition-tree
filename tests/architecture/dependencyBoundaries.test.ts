@@ -199,7 +199,7 @@ describe("dependency boundaries", () => {
       },
       {
         filePath:
-          "../../infrastructure/server/agent/sessionTools.ts",
+          "../../application/agentHost/sessionTools.ts",
         importPath:
           "../../../application/workspace/commands/workspaceAgentCommandPreparation",
         targetPath:
@@ -214,7 +214,7 @@ describe("dependency boundaries", () => {
       "generic persistence and sync independence from domains: ../../application/persistence/merge.ts imports ../../core/todo/model",
       "generic client HTTP independence from domains: ../../infrastructure/client/http/apiTransport.ts imports ../../../application/workspace/persistence/workspaceRepository",
       "server API independence from core commands: ../../infrastructure/server/api/http/queryHandlers.ts imports ../../../../core/todo/commands/todoCompletionRecurrenceCommands",
-      "Agent session tool coordinator independence from domains: ../../infrastructure/server/agent/sessionTools.ts imports ../../../application/workspace/commands/workspaceAgentCommandPreparation",
+      "Agent session tool coordinator independence from domains: ../../application/agentHost/sessionTools.ts imports ../../../application/workspace/commands/workspaceAgentCommandPreparation",
       "application coordination root independence: ../../application/workbench/problems.ts imports ../agent/controller",
       "workbench content coordination boundary: ../../application/workbench/controller.ts imports ../apiAccess/administration",
     ]);
@@ -311,7 +311,7 @@ describe("dependency boundaries", () => {
         targetRoot: "application",
       },
       {
-        filePath: "../../infrastructure/server/agent/sessionTools.ts",
+        filePath: "../../application/agentHost/sessionTools.ts",
         importPath: "./proposalWorkflow",
         targetPath: "../../application/agentHost/proposalWorkflow.ts",
         targetRoot: "application",
@@ -319,7 +319,7 @@ describe("dependency boundaries", () => {
     ], dependencyImportPolicies);
 
     expect(violations).toEqual([
-      "Agent Proposal workflow composition boundary: ../../infrastructure/server/agent/sessionTools.ts imports ./proposalWorkflow",
+      "Agent Proposal workflow composition boundary: ../../application/agentHost/sessionTools.ts imports ./proposalWorkflow",
     ]);
   });
 
@@ -354,7 +354,7 @@ describe("dependency boundaries", () => {
         targetRoot: "infrastructure",
       },
       {
-        filePath: "../../infrastructure/server/agent/sessionTools.ts",
+        filePath: "../../infrastructure/server/agent/privateIpc.ts",
         importPath: "./profileConfiguration",
         targetPath:
           "../../infrastructure/server/agent/profileConfiguration.ts",
@@ -363,7 +363,7 @@ describe("dependency boundaries", () => {
     ], dependencyImportPolicies);
 
     expect(violations).toEqual([
-      "Agent Profile configuration composition boundary: ../../infrastructure/server/agent/sessionTools.ts imports ./profileConfiguration",
+      "Agent Profile configuration composition boundary: ../../infrastructure/server/agent/privateIpc.ts imports ./profileConfiguration",
     ]);
   });
 
@@ -377,7 +377,7 @@ describe("dependency boundaries", () => {
         targetRoot: "infrastructure",
       },
       {
-        filePath: "../../infrastructure/server/agent/sessionTools.ts",
+        filePath: "../../infrastructure/server/agent/privateIpc.ts",
         importPath: "./providerConfiguration",
         targetPath:
           "../../infrastructure/server/agent/providerConfiguration.ts",
@@ -386,7 +386,7 @@ describe("dependency boundaries", () => {
     ], dependencyImportPolicies);
 
     expect(violations).toEqual([
-      "Agent Provider configuration composition boundary: ../../infrastructure/server/agent/sessionTools.ts imports ./providerConfiguration",
+      "Agent Provider configuration composition boundary: ../../infrastructure/server/agent/privateIpc.ts imports ./providerConfiguration",
     ]);
   });
 

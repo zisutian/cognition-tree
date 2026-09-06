@@ -59,7 +59,6 @@ export class ApiSearchService {
     const access: SearchAccess = principal.kind === "automation" ? { domains: searchDomains.filter((domain) => principal.scopes.includes(`${domain}:read`)), repositoryIds: principal.repositoryIds } : { domains: searchDomains, repositoryIds: null };
     return this.#search(request, access);
   }
-  searchAgent(request: ApiSearchRequestDto) { return this.#search(request, { domains: searchDomains, repositoryIds: null }); }
   async #search(request: ApiSearchRequestDto, access: SearchAccess) {
     try { return projectApiSearchResponse(await this.#query.search(request, access)); }
     catch (error) {

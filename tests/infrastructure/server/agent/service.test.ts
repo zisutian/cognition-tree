@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createServerAgentService } from "../../../../infrastructure/server/runtime/agentRuntime.ts";
-import { createServerSearchService } from "../../../../infrastructure/server/runtime/searchRuntime.ts";
+import { createServerSearchQuery } from "../../../../infrastructure/server/runtime/searchRuntime.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -162,7 +162,7 @@ async function createFixture(
     revisionTracker: new ApiRevisionTracker(),
     runtime,
     runtimeFactory: { create: () => runtimePort },
-    search: createServerSearchService({
+    search: createServerSearchQuery({
       builtInCatalog,
       catalog: unavailableWorkspaceCatalog,
     }),

@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { TodoAgentToolPorts } from './todoToolPorts.ts';
+import type { SearchResponse } from '../search/searchTypes.ts';
+import { readCommandRuntimeNow } from '../commands/commandRuntime.ts';
+import type { TodoAgentCommandIntent } from '../todo/todoAgentCommandPreparation.ts';
 import {
   AgentScopeUnavailableError,
   AgentScopeViolationError,
@@ -8,61 +12,39 @@ import {
   createAgentProposal,
   type AgentProposal,
   type AgentScope,
-} from "../../../application/agent/index.ts";
+} from "../agent/index.ts";
 import {
   prepareAgentTodoCommand,
-  type TodoAgentCommandIntent,
-} from "../../../application/todo/todoAgentCommandPreparation.ts";
+} from "../todo/todoAgentCommandPreparation.ts";
 import {
   projectTodoAgentProposalReview,
   projectTodoContentChanges,
-} from "../../../application/todo/todoContentProjection.ts";
-import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types.ts";
-import { isTodoCollectionId } from "../../../core/todo/model/todoIdentity.ts";
-import type { AgentTodoCommandIntentDto } from "../../../contracts/agent/tools.ts";
-import type { ApiSearchResponseDto } from "../../../contracts/api/types.ts";
-import type { ApiBuiltInCatalog } from "../api/http/ports.ts";
-import type { ApiRuntime } from "../api/http/runtime.ts";
-import { readApiRuntimeNow } from "../api/http/runtime.ts";
-import {
-  projectApiTodoCollection,
-  projectApiTodoCollections,
-} from "../api/resources/todo.ts";
-import { todoResourceVersions } from "../api/resources/versions.ts";
-import { AgentServiceError } from "../../../application/agentHost/errors.ts";
-import { digestAgentProposal } from "./proposalCodec.ts";
-import { syntaxRequiredResult } from "./sessionToolProtocol.ts";
+} from "../todo/todoContentProjection.ts";
+import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types.ts";
+import { isTodoCollectionId } from "../../core/todo/model/todoIdentity.ts";
+import { AgentServiceError } from "./errors.ts";
+import { syntaxRequiredResult } from "./toolRequest.ts";
 import {
   resolveAgentStaging,
   type AgentStagingFor,
   type AgentToolSession,
-} from "../../../application/agentHost/sessionToolState.ts";
+} from "./sessionToolState.ts";
 
 type TodoScope = Extract<AgentScope, { domain: "todo" }>;
 type TodoStaging = AgentStagingFor<"todo">;
 
 export class TodoAgentSessionTools {
-  readonly #builtInCatalog: ApiBuiltInCatalog;
-  readonly #runtime: ApiRuntime;
+  readonly #ports: TodoAgentToolPorts;
+  readonly #runtime: TodoAgentToolPorts['runtime'];
 
-  constructor({
-    builtInCatalog,
-    runtime,
-  }: {
-    builtInCatalog: ApiBuiltInCatalog;
-    runtime: ApiRuntime;
-  }) {
-    this.#builtInCatalog = builtInCatalog;
-    this.#runtime = runtime;
+  constructor(ports: TodoAgentToolPorts) {
+    this.#ports = ports;
+    this.#runtime = ports.runtime;
   }
 
   async list(scope: TodoScope) {
     const snapshot = await this.#loadSnapshot();
-    const collections = projectApiTodoCollections(
-      snapshot.content,
-      snapshot.projection,
-      snapshot.revision,
-    );
+    const collections = this.#ports.resources.list(snapshot);
 
     return {
       ...collections,
@@ -88,13 +70,7 @@ export class TodoAgentSessionTools {
         "Todo collection does not exist",
       );
     }
-    const collection = projectApiTodoCollection(
-      parsed,
-      this.#runtime.today(this.#runtime.now()),
-    );
-    const { writingGuide: _writingGuide, ...document } = collection.document;
-
-    return { ...collection, document };
+    return this.#ports.resources.read(parsed, this.#runtime.today(this.#runtime.now()));
   }
 
   async syntax(
@@ -109,7 +85,7 @@ export class TodoAgentSessionTools {
     return (await this.#loadSnapshot()).projection.syntax;
   }
 
-  filterSearch(scope: TodoScope, response: ApiSearchResponseDto) {
+  filterSearch(scope: TodoScope, response: SearchResponse) {
     return {
       ...response,
       results: response.results.filter((result) =>
@@ -123,7 +99,7 @@ export class TodoAgentSessionTools {
   async stage(
     record: AgentToolSession,
     scope: TodoScope,
-    intent: AgentTodoCommandIntentDto,
+    intent: TodoAgentCommandIntent,
   ) {
     let staging = await resolveAgentStaging(
       record,
@@ -136,7 +112,7 @@ export class TodoAgentSessionTools {
           current: base,
           destructive: false,
           kind: "todo",
-          timestamp: readApiRuntimeNow(this.#runtime).timestamp,
+          timestamp: readCommandRuntimeNow(this.#runtime).timestamp,
         };
       },
     );
@@ -162,10 +138,10 @@ export class TodoAgentSessionTools {
       });
     }
     const prepared = prepareAgentTodoCommand({
-      intent: intent as TodoAgentCommandIntent,
+      intent,
       runtime: this.#runtime,
       snapshot: staging.current,
-      versionPolicy: todoResourceVersions,
+      versionPolicy: this.#ports.versions,
     });
 
     staging = {
@@ -192,14 +168,14 @@ export class TodoAgentSessionTools {
       staging.timestamp,
       staging.base.projection,
       staging.current.projection,
-      todoResourceVersions,
+      this.#ports.versions,
     );
 
     return createAgentProposal({
       base: staging.base,
       changes: transition.changes,
       destructive: staging.destructive,
-      digestPort: { digest: digestAgentProposal },
+      digestPort: { digest: this.#ports.digest },
       diff: transition.diff,
       id,
       review: projectTodoAgentProposalReview({
@@ -229,7 +205,6 @@ export class TodoAgentSessionTools {
   }
 
   #loadSnapshot() {
-    return this.#builtInCatalog.getStore("todo")
-      .then((store) => store.loadSnapshot());
+    return this.#ports.load();
   }
 }

@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { parseAgentSchema } from '../../../contracts/agent/parse.ts';
+import type { AgentToolDecoder } from '../../../application/agentHost/toolRequest.ts';
+import type { TodoAgentCommandIntent } from '../../../application/todo/todoAgentCommandPreparation.ts';
 import {
   AgentScopeViolationError,
   type AgentRuntimeTool,
@@ -141,12 +144,24 @@ export function todoToolIntent(
   }
 }
 
-export function syntaxRequiredResult(reason: string) {
-  return {
-    error: {
-      code: "syntax_read_required",
-      message: reason,
-    },
-    staged: false,
-  };
-}
+export const agentToolDecoder: AgentToolDecoder = {
+  decode(call) {
+    const definition = agentToolDefinitions.find(({name}) => name === call.name);
+    if (!definition) throw new AgentScopeViolationError('Unknown Agent tool');
+    const input = parseAgentSchema(definition.inputSchema, call.arguments);
+    switch (definition.name) {
+      case 'list': return {kind: 'list'};
+      case 'read': return {kind: 'read', resourceId: (input as {resourceId: string}).resourceId};
+      case 'search': return {kind: 'search', query: (input as {query: string}).query};
+      case 'describe_syntax': return {kind: 'describe-syntax'};
+      case 'submit_proposal': return {kind: 'submit-proposal'};
+      default:
+        switch (definition.domain) {
+          case 'workspace': return {kind: 'stage-workspace', intent: workspaceToolIntent(definition.name, input)};
+          case 'journal': return {kind: 'stage-journal', intent: journalToolIntent(definition.name, input)};
+          case 'todo': return {kind: 'stage-todo', intent: todoToolIntent(definition.name, input) as TodoAgentCommandIntent};
+        }
+        throw new AgentScopeViolationError('Unknown Agent tool');
+    }
+  },
+};

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createServerAgentService } from "./runtime/agentRuntime.ts";
-import { createServerSearchService } from "./runtime/searchRuntime.ts";
+import { createServerSearchQuery } from "./runtime/searchRuntime.ts";
 import { runDataRootMigrationRecoveryServer } from "./system/dataRootMigrationRecoveryServer.ts";
 import { randomUUID } from "node:crypto";
 import { FileDataRootMigrationRecordStore } from "./system/dataRootMigrationRecordStore.ts";
@@ -198,7 +198,7 @@ const operationLedger = new OperationLedger(
 await operationLedger.initialize();
 const eventHub = new ApiEventHub();
 const revisionTracker = new ApiRevisionTracker();
-const search = createServerSearchService({ builtInCatalog, catalog });
+const search = createServerSearchQuery({ builtInCatalog, catalog });
 const agentService = createServerAgentService({
   builtInCatalog,
   catalog,

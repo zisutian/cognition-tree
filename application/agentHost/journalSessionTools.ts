@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { JournalAgentToolPorts } from './journalToolPorts.ts';
+import type { SearchResponse } from '../search/searchTypes.ts';
+import { readCommandRuntimeNow } from '../commands/commandRuntime.ts';
+import type { JournalAgentCommandIntent } from '../journal/journalAgentCommandPreparation.ts';
 import {
   AgentScopeUnavailableError,
   AgentScopeViolationError,
@@ -8,58 +12,37 @@ import {
   createAgentProposal,
   type AgentProposal,
   type AgentScope,
-} from "../../../application/agent/index.ts";
-import { prepareAgentJournalCommand } from "../../../application/journal/journalAgentCommandPreparation.ts";
+} from "../agent/index.ts";
+import { prepareAgentJournalCommand } from "../journal/journalAgentCommandPreparation.ts";
 import {
   projectJournalAgentProposalReview,
   projectJournalContentChanges,
-} from "../../../application/journal/journalContentProjection.ts";
-import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types.ts";
-import { isJournalEntryId } from "../../../core/journal/model/journalIdentity.ts";
-import type { AgentJournalCommandIntentDto } from "../../../contracts/agent/tools.ts";
-import type { ApiSearchResponseDto } from "../../../contracts/api/types.ts";
-import type { ApiBuiltInCatalog } from "../api/http/ports.ts";
-import type { ApiRuntime } from "../api/http/runtime.ts";
-import { readApiRuntimeNow } from "../api/http/runtime.ts";
-import {
-  projectApiJournalEntries,
-  projectApiJournalEntry,
-} from "../api/resources/journal.ts";
-import { journalResourceVersions } from "../api/resources/versions.ts";
-import { AgentServiceError } from "../../../application/agentHost/errors.ts";
-import { digestAgentProposal } from "./proposalCodec.ts";
-import { syntaxRequiredResult } from "./sessionToolProtocol.ts";
+} from "../journal/journalContentProjection.ts";
+import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types.ts";
+import { isJournalEntryId } from "../../core/journal/model/journalIdentity.ts";
+import { AgentServiceError } from "./errors.ts";
+import { syntaxRequiredResult } from "./toolRequest.ts";
 import {
   resolveAgentStaging,
   type AgentStagingFor,
   type AgentToolSession,
-} from "../../../application/agentHost/sessionToolState.ts";
+} from "./sessionToolState.ts";
 
 type JournalScope = Extract<AgentScope, { domain: "journal" }>;
 type JournalStaging = AgentStagingFor<"journal">;
 
 export class JournalAgentSessionTools {
-  readonly #builtInCatalog: ApiBuiltInCatalog;
-  readonly #runtime: ApiRuntime;
+  readonly #ports: JournalAgentToolPorts;
+  readonly #runtime: JournalAgentToolPorts['runtime'];
 
-  constructor({
-    builtInCatalog,
-    runtime,
-  }: {
-    builtInCatalog: ApiBuiltInCatalog;
-    runtime: ApiRuntime;
-  }) {
-    this.#builtInCatalog = builtInCatalog;
-    this.#runtime = runtime;
+  constructor(ports: JournalAgentToolPorts) {
+    this.#ports = ports;
+    this.#runtime = ports.runtime;
   }
 
   async list(scope: JournalScope) {
     const snapshot = await this.#loadSnapshot();
-    const entries = projectApiJournalEntries(
-      snapshot.content,
-      snapshot.projection,
-      snapshot.revision,
-    );
+    const entries = this.#ports.resources.list(snapshot);
 
     return {
       ...entries,
@@ -85,10 +68,7 @@ export class JournalAgentSessionTools {
         "Journal entry does not exist",
       );
     }
-    const { writingGuide: _writingGuide, ...resource } =
-      projectApiJournalEntry(parsed);
-
-    return resource;
+    return this.#ports.resources.read(parsed);
   }
 
   async syntax(
@@ -103,7 +83,7 @@ export class JournalAgentSessionTools {
     return (await this.#loadSnapshot()).projection.syntax;
   }
 
-  filterSearch(scope: JournalScope, response: ApiSearchResponseDto) {
+  filterSearch(scope: JournalScope, response: SearchResponse) {
     return {
       ...response,
       results: response.results.filter((result) =>
@@ -116,7 +96,7 @@ export class JournalAgentSessionTools {
   async stage(
     record: AgentToolSession,
     scope: JournalScope,
-    intent: AgentJournalCommandIntentDto,
+    intent: JournalAgentCommandIntent,
   ) {
     let staging = await resolveAgentStaging(
       record,
@@ -129,7 +109,7 @@ export class JournalAgentSessionTools {
           current: base,
           destructive: false,
           kind: "journal",
-          timestamp: readApiRuntimeNow(this.#runtime).timestamp,
+          timestamp: readCommandRuntimeNow(this.#runtime).timestamp,
         };
       },
     );
@@ -157,7 +137,7 @@ export class JournalAgentSessionTools {
       intent,
       runtime: this.#runtime,
       snapshot: staging.current,
-      versionPolicy: journalResourceVersions,
+      versionPolicy: this.#ports.versions,
     });
 
     staging = {
@@ -184,14 +164,14 @@ export class JournalAgentSessionTools {
       staging.timestamp,
       staging.base.projection,
       staging.current.projection,
-      journalResourceVersions,
+      this.#ports.versions,
     );
 
     return createAgentProposal({
       base: staging.base,
       changes: transition.changes,
       destructive: staging.destructive,
-      digestPort: { digest: digestAgentProposal },
+      digestPort: { digest: this.#ports.digest },
       diff: transition.diff,
       id,
       review: projectJournalAgentProposalReview({
@@ -221,7 +201,6 @@ export class JournalAgentSessionTools {
   }
 
   #loadSnapshot() {
-    return this.#builtInCatalog.getStore("journal")
-      .then((store) => store.loadSnapshot());
+    return this.#ports.load();
   }
 }

@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { toAgentProposalView } from '../agent/agentTypes.ts';
+import type { SearchQuery } from '../search/searchTypes.ts';
+import { searchDomains } from '../search/searchTypes.ts';
+import type { SearchAccess } from '../search/scopedSearch.ts';
+import type { CommandRuntime } from '../commands/commandRuntime.ts';
+import type { AgentToolDecoder, AgentToolRequest } from './toolRequest.ts';
 import {
   AgentScopeViolationError,
   createAgentSyntaxKnowledge,
@@ -7,99 +13,73 @@ import {
   type AgentProposal,
   type AgentRuntimeToolCall,
   type AgentScope,
-} from "../../../application/agent/index.ts";
-import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
-import {
-  AgentSyntaxDescriptionSchema,
-  agentToolDefinitions,
-} from "../../../contracts/agent/tools.ts";
-import type { ApiBuiltInCatalog } from "../api/http/ports.ts";
-import type { ApiRuntime } from "../api/http/runtime.ts";
-import type { ApiSearchService } from "../api/search.ts";
-import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
-import { AgentServiceError } from "../../../application/agentHost/errors.ts";
+} from "../agent/index.ts";
+import { AgentServiceError } from "./errors.ts";
 import { JournalAgentSessionTools } from "./journalSessionTools.ts";
-import { toAgentProposalDto } from "./proposalCodec.ts";
-import {
-  journalToolIntent,
-  todoToolIntent,
-  workspaceToolIntent,
-} from "./sessionToolProtocol.ts";
 import type {
   AgentToolExecution,
   AgentToolSession,
-} from "../../../application/agentHost/sessionToolState.ts";
+} from "./sessionToolState.ts";
 import { TodoAgentSessionTools } from "./todoSessionTools.ts";
 import { WorkspaceAgentSessionTools } from "./workspaceSessionTools.ts";
 
 export class AgentSessionTools {
+  readonly #decoder: AgentToolDecoder;
   readonly #journal: JournalAgentSessionTools;
-  readonly #runtime: ApiRuntime;
-  readonly #search: ApiSearchService;
+  readonly #runtime: CommandRuntime;
+  readonly #search: SearchQuery<SearchAccess>;
   readonly #todo: TodoAgentSessionTools;
   readonly #workspace: WorkspaceAgentSessionTools;
 
-  constructor({
-    builtInCatalog,
-    catalog,
-    runtime,
-    search,
-  }: {
-    builtInCatalog: ApiBuiltInCatalog;
-    catalog: WorkspaceRepositoryCatalog;
-    runtime: ApiRuntime;
-    search: ApiSearchService;
+  constructor({journal, todo, workspace, runtime, search, decoder}: {
+    journal: JournalAgentSessionTools;
+    todo: TodoAgentSessionTools;
+    workspace: WorkspaceAgentSessionTools;
+    runtime: CommandRuntime;
+    search: SearchQuery<SearchAccess>;
+    decoder: AgentToolDecoder;
   }) {
-    this.#journal = new JournalAgentSessionTools({ builtInCatalog, runtime });
+    this.#journal = journal;
+    this.#todo = todo;
+    this.#workspace = workspace;
     this.#runtime = runtime;
     this.#search = search;
-    this.#todo = new TodoAgentSessionTools({ builtInCatalog, runtime });
-    this.#workspace = new WorkspaceAgentSessionTools({ catalog, runtime });
+    this.#decoder = decoder;
   }
 
   async execute(
     record: AgentToolSession,
     call: AgentRuntimeToolCall,
   ): Promise<AgentToolExecution> {
-    const definition = agentToolDefinitions.find(({ name }) =>
-      name === call.name
-    );
+    const request = this.#decoder.decode(call);
 
-    if (!definition) throw new AgentScopeViolationError("Unknown Agent tool");
-    const input = parseAgentSchema(definition.inputSchema, call.arguments);
-
-    switch (definition.name) {
+    switch (request.kind) {
       case "list":
         return { result: await this.#listResources(record) };
       case "read":
         return {
           result: await this.#readResource(
             record,
-            (input as { resourceId: string }).resourceId,
+            request.resourceId,
           ),
         };
       case "search":
         return {
           result: await this.#searchResources(
             record,
-            (input as { query: string }).query,
+            request.query,
           ),
         };
-      case "describe_syntax":
+      case "describe-syntax":
         return { result: await this.#describeSyntax(record) };
-      case "submit_proposal": {
+      case "submit-proposal": {
         const proposal = await this.#submitProposal(record);
 
-        return { proposal, result: toAgentProposalDto(proposal) };
+        return { proposal, result: toAgentProposalView(proposal) };
       }
       default:
         return {
-          result: await this.#stage(
-            record,
-            definition.domain,
-            definition.name,
-            input,
-          ),
+          result: await this.#stage(record, request),
         };
     }
   }
@@ -149,16 +129,16 @@ export class AgentSessionTools {
 
     if (!syntax) {
       record.syntaxKnowledge = null;
-      return parseAgentSchema(AgentSyntaxDescriptionSchema, {
+      return {
         available: false,
         reason: "The scoped Workspace repository has no active CTN syntax",
-      });
+      };
     }
     record.syntaxKnowledge = createAgentSyntaxKnowledge(syntax);
-    return parseAgentSchema(AgentSyntaxDescriptionSchema, {
+    return {
       available: true,
       guide: projectAgentSyntaxGuide(syntax),
-    });
+    };
   }
 
   #readSyntax(record: AgentToolSession, scope: AgentScope) {
@@ -174,14 +154,14 @@ export class AgentSessionTools {
 
   async #searchResources(record: AgentToolSession, query: string) {
     const scope = record.controller.snapshot().scope;
-    const response = await this.#search.searchAgent({
+    const response = await this.#search.search({
       domains: [scope.domain],
       limit: 100,
       query,
       ...(scope.domain === "workspace"
         ? { repositoryIds: [scope.repositoryId] }
         : {}),
-    });
+    }, {domains: searchDomains, repositoryIds: null});
 
     switch (scope.domain) {
       case "workspace":
@@ -195,30 +175,19 @@ export class AgentSessionTools {
 
   #stage(
     record: AgentToolSession,
-    domain: "workspace" | "journal" | "todo" | undefined,
-    name: string,
-    input: unknown,
+    request: Extract<AgentToolRequest, {kind: 'stage-workspace' | 'stage-journal' | 'stage-todo'}>,
   ) {
     const scope = record.controller.snapshot().scope;
-
-    if (domain === "workspace" && scope.domain === "workspace") {
-      return this.#workspace.stage(
-        record,
-        scope,
-        workspaceToolIntent(name, input),
-      );
+    if (request.kind === 'stage-workspace' && scope.domain === 'workspace') {
+      return this.#workspace.stage(record, scope, request.intent);
     }
-    if (domain === "journal" && scope.domain === "journal") {
-      return this.#journal.stage(
-        record,
-        scope,
-        journalToolIntent(name, input),
-      );
+    if (request.kind === 'stage-journal' && scope.domain === 'journal') {
+      return this.#journal.stage(record, scope, request.intent);
     }
-    if (domain === "todo" && scope.domain === "todo") {
-      return this.#todo.stage(record, scope, todoToolIntent(name, input));
+    if (request.kind === 'stage-todo' && scope.domain === 'todo') {
+      return this.#todo.stage(record, scope, request.intent);
     }
-    throw new AgentScopeViolationError("Unknown Agent tool");
+    throw new AgentScopeViolationError('Unknown Agent tool');
   }
 
   async #submitProposal(record: AgentToolSession): Promise<AgentProposal> {

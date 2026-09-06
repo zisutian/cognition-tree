@@ -284,7 +284,7 @@ export function createDependencyImportPolicies({
       allows: () => false,
       applies: ({ filePath, targetPath }) =>
         filePath ===
-          "../../infrastructure/server/agent/sessionTools.ts" &&
+          "../../application/agentHost/sessionTools.ts" &&
         isConcreteDomainModule(targetPath),
       name: "Agent session tool coordinator independence from domains",
     },

@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { WorkspaceRepositoryContent } from '../workspace/persistence/workspaceRepository.ts';
+import type { WorkspaceAgentToolPorts } from './workspaceToolPorts.ts';
+import type { SearchResponse } from '../search/searchTypes.ts';
+import { readCommandRuntimeNow } from '../commands/commandRuntime.ts';
+import type { WorkspaceAgentCommandIntent } from '../workspace/commands/workspaceAgentCommandPreparation.ts';
 import {
   AgentScopeViolationError,
   agentSyntaxKnowledgeMatches,
@@ -8,60 +13,36 @@ import {
   resolveWorkspaceAgentScope,
   type AgentProposal,
   type AgentScope,
-} from "../../../application/agent/index.ts";
-import { prepareAgentWorkspaceCommand } from "../../../application/workspace/commands/workspaceAgentCommandPreparation.ts";
+} from "../agent/index.ts";
+import { prepareAgentWorkspaceCommand } from "../workspace/commands/workspaceAgentCommandPreparation.ts";
 import {
   projectWorkspaceAgentProposalReview,
   projectWorkspaceContentChanges,
-} from "../../../application/workspace/commands/workspaceContentProjection.ts";
-import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types.ts";
-import type { AgentWorkspaceCommandIntentDto } from "../../../contracts/agent/tools.ts";
-import type { ApiSearchResponseDto } from "../../../contracts/api/types.ts";
-import type { WorkspaceRepositoryContentDto } from "../../../contracts/workspace/types.ts";
-import type { ApiRuntime } from "../api/http/runtime.ts";
-import { readApiRuntimeNow } from "../api/http/runtime.ts";
-import {
-  projectApiWorkspaceAnalysis,
-  projectApiWorkspaceNote,
-  projectApiWorkspaceTree,
-} from "../api/resources/workspace.ts";
-import { workspaceResourceVersions } from "../api/resources/versions.ts";
-import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
-import { AgentServiceError } from "../../../application/agentHost/errors.ts";
-import { digestAgentProposal } from "./proposalCodec.ts";
-import { syntaxRequiredResult } from "./sessionToolProtocol.ts";
+} from "../workspace/commands/workspaceContentProjection.ts";
+import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types.ts";
+import { AgentServiceError } from "./errors.ts";
+import { syntaxRequiredResult } from "./toolRequest.ts";
 import {
   resolveAgentStaging,
   type AgentStagingFor,
   type AgentToolSession,
-} from "../../../application/agentHost/sessionToolState.ts";
+} from "./sessionToolState.ts";
 
 type WorkspaceScope = Extract<AgentScope, { domain: "workspace" }>;
 type WorkspaceStaging = AgentStagingFor<"workspace">;
 
 export class WorkspaceAgentSessionTools {
-  readonly #catalog: WorkspaceRepositoryCatalog;
-  readonly #runtime: ApiRuntime;
+  readonly #ports: WorkspaceAgentToolPorts;
+  readonly #runtime: WorkspaceAgentToolPorts['runtime'];
 
-  constructor({
-    catalog,
-    runtime,
-  }: {
-    catalog: WorkspaceRepositoryCatalog;
-    runtime: ApiRuntime;
-  }) {
-    this.#catalog = catalog;
-    this.#runtime = runtime;
+  constructor(ports: WorkspaceAgentToolPorts) {
+    this.#ports = ports;
+    this.#runtime = ports.runtime;
   }
 
   async list(scope: WorkspaceScope) {
     const snapshot = await this.#loadSnapshot(scope);
-    const analysis = projectApiWorkspaceAnalysis(snapshot.projection);
-    const tree = projectApiWorkspaceTree(
-      scope.repositoryId,
-      snapshot.revision,
-      analysis,
-    );
+    const tree = this.#ports.resources.tree(scope.repositoryId, snapshot);
     const resolved = resolveWorkspaceAgentScope(
       scope,
       snapshot.content.workspace,
@@ -83,23 +64,14 @@ export class WorkspaceAgentSessionTools {
       scope,
       snapshot.content.workspace,
     );
-    const analysis = projectApiWorkspaceAnalysis(snapshot.projection);
 
     if (resolved.noteIds.has(resourceId)) {
-      const note = projectApiWorkspaceNote(analysis, resourceId);
+      const note = this.#ports.resources.note(snapshot, resourceId);
 
-      if (note) {
-        const { writingGuide: _writingGuide, ...resource } = note;
-
-        return resource;
-      }
+      if (note) return note;
     }
     if (resolved.folderIds === null || resolved.folderIds.has(resourceId)) {
-      const tree = projectApiWorkspaceTree(
-        scope.repositoryId,
-        snapshot.revision,
-        analysis,
-      );
+      const tree = this.#ports.resources.tree(scope.repositoryId, snapshot);
       const folder = tree.nodes.find((node) =>
         node.kind === "folder" && node.folderId === resourceId
       );
@@ -126,7 +98,7 @@ export class WorkspaceAgentSessionTools {
 
   async filterSearch(
     scope: WorkspaceScope,
-    response: ApiSearchResponseDto,
+    response: SearchResponse,
   ) {
     const snapshot = await this.#loadSnapshot(scope);
     const resolved = resolveWorkspaceAgentScope(
@@ -147,7 +119,7 @@ export class WorkspaceAgentSessionTools {
   async stage(
     record: AgentToolSession,
     scope: WorkspaceScope,
-    intent: AgentWorkspaceCommandIntentDto,
+    intent: WorkspaceAgentCommandIntent,
   ) {
     let staging = await resolveAgentStaging(
       record,
@@ -160,7 +132,7 @@ export class WorkspaceAgentSessionTools {
           current: base,
           destructive: false,
           kind: "workspace",
-          timestamp: readApiRuntimeNow(this.#runtime).timestamp,
+          timestamp: readCommandRuntimeNow(this.#runtime).timestamp,
         };
       },
     );
@@ -180,7 +152,7 @@ export class WorkspaceAgentSessionTools {
       intent,
       runtime: this.#runtime,
       snapshot: staging.current,
-      versionPolicy: workspaceResourceVersions,
+      versionPolicy: this.#ports.versions,
     });
 
     staging = {
@@ -209,9 +181,9 @@ export class WorkspaceAgentSessionTools {
       staging.timestamp,
       staging.base.projection,
       staging.current.projection,
-      workspaceResourceVersions,
+      this.#ports.versions,
     );
-    const catalog = await this.#catalog.listRepositories();
+    const catalog = await this.#ports.listRepositories();
     const descriptor = catalog.repositories.find(({ id: repositoryId }) =>
       repositoryId === scope.repositoryId
     );
@@ -226,7 +198,7 @@ export class WorkspaceAgentSessionTools {
       base: staging.base,
       changes: transition.changes,
       destructive: staging.destructive,
-      digestPort: { digest: digestAgentProposal },
+      digestPort: { digest: this.#ports.digest },
       diff: transition.diff,
       id,
       review: projectWorkspaceAgentProposalReview({
@@ -247,14 +219,13 @@ export class WorkspaceAgentSessionTools {
   }
 
   #loadSnapshot(scope: WorkspaceScope) {
-    return this.#catalog.getStore(scope.repositoryId)
-      .then((store) => store.loadSnapshot());
+    return this.#ports.load(scope.repositoryId);
   }
 
   #assertIntentScope(
     scope: WorkspaceScope,
-    workspace: WorkspaceRepositoryContentDto["workspace"],
-    intent: AgentWorkspaceCommandIntentDto,
+    workspace: WorkspaceRepositoryContent["workspace"],
+    intent: WorkspaceAgentCommandIntent,
   ) {
     const checkNote = (noteId: string) =>
       assertAgentResourceInScope(scope, {
