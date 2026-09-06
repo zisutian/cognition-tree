@@ -2,21 +2,14 @@ import {
   getCtnEditableLineNumber,
 } from "../../../core/ctn/metadata/editableSource";
 import type {
-  CtnSyntaxDraft,
-  CtnSyntaxDraftBuildResult,
-} from "../../../core/ctn/syntax/draft";
-import type {
   NoteReferenceGraph,
   ParsedWorkspaceNote,
 } from "../../../core/workspace/indexes/workspaceParseIndex";
 import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import type { NoteId } from "../../../core/workspace/model/workspaceData";
 import { collectWorkspacePortableNameIssues } from "../../../core/workspace/queries/workspacePortableNameIssues";
-import {
-  resolveSyntaxDiagnosticLocation,
-  syntaxFieldIds,
-  type SyntaxFieldId,
-} from "../../syntax/syntaxProjection";
+import type { SyntaxDiagnosticTarget } from "../../syntax/syntaxDiagnostics";
+import type { Diagnostic } from "../../problems/diagnostic";
 
 export type UiWorkbenchDiagnosticSource =
   | "document"
@@ -31,18 +24,7 @@ export type UiWorkbenchDiagnosticTarget =
       lineNumber: number;
       noteId: NoteId;
     }
-  | {
-      fieldId: SyntaxFieldId;
-      kind: "syntax-field";
-      path: string;
-      syntaxFileId: string;
-    }
-  | {
-      fieldId: SyntaxFieldId;
-      kind: "system-syntax";
-      owner: "journal" | "todo";
-      path: string;
-    }
+  | SyntaxDiagnosticTarget
   | {
       entity: "folder";
       folderId: string;
@@ -56,15 +38,7 @@ export type UiWorkbenchDiagnosticTarget =
       owner: "workspace";
     };
 
-export type UiWorkbenchDiagnostic = {
-  code: string;
-  id: string;
-  locationLabel: string;
-  message: string;
-  severity: UiWorkbenchDiagnosticSeverity;
-  source: UiWorkbenchDiagnosticSource;
-  target: UiWorkbenchDiagnosticTarget;
-};
+export type UiWorkbenchDiagnostic = Diagnostic<UiWorkbenchDiagnosticTarget>;
 
 export type UiWorkbenchDiagnostics = {
   diagnostics: UiWorkbenchDiagnostic[];
@@ -187,86 +161,6 @@ export function createUiWorkspacePortableNameDiagnostics(
             kind: "portable-name",
             owner: "workspace",
           },
-    };
-  });
-}
-
-export function createUiSyntaxDiagnostics(
-  draft: CtnSyntaxDraft,
-  draftResult: CtnSyntaxDraftBuildResult,
-  syntaxFileId: string,
-  catalogNameConflictMessage = "",
-): UiWorkbenchDiagnostic[] {
-  const schemaDiagnostics: UiWorkbenchDiagnostic[] =
-    draftResult.diagnostics.map((diagnostic) => {
-      const location = resolveSyntaxDiagnosticLocation(
-        draft,
-        diagnostic.path,
-      );
-      const syntaxName = draft.name.trim() || "未命名语法";
-
-      return {
-        code: diagnostic.code,
-        id: `syntax:${syntaxFileId}:${diagnostic.code}:${diagnostic.path}`,
-        locationLabel: `${syntaxName} · ${location.label}`,
-        message: diagnostic.message,
-        severity: "error",
-        source: "syntax",
-        target: {
-          fieldId: location.fieldId,
-          kind: "syntax-field",
-          path: diagnostic.path,
-          syntaxFileId,
-        },
-      };
-    });
-
-  if (!catalogNameConflictMessage) {
-    return schemaDiagnostics;
-  }
-
-  const syntaxName = draft.name.trim() || "未命名语法";
-  const conflictDiagnostic: UiWorkbenchDiagnostic = {
-    code: "duplicate-syntax-name",
-    id: `syntax:${syntaxFileId}:duplicate-syntax-name:$.name`,
-    locationLabel: `${syntaxName} · 语法名称`,
-    message: catalogNameConflictMessage,
-    severity: "error",
-    source: "syntax",
-    target: {
-      fieldId: syntaxFieldIds.name,
-      kind: "syntax-field",
-      path: "$.name",
-      syntaxFileId,
-    },
-  };
-
-  return [...schemaDiagnostics, conflictDiagnostic];
-}
-
-export function createUiSystemSyntaxDiagnostics(
-  draft: CtnSyntaxDraft,
-  draftResult: CtnSyntaxDraftBuildResult,
-  owner: "journal" | "todo",
-): UiWorkbenchDiagnostic[] {
-  const ownerLabel = owner === "journal" ? "日记" : "代办";
-
-  return draftResult.diagnostics.map((diagnostic) => {
-    const location = resolveSyntaxDiagnosticLocation(draft, diagnostic.path);
-
-    return {
-      code: diagnostic.code,
-      id: `syntax:${owner}:${diagnostic.code}:${diagnostic.path}`,
-      locationLabel: `${ownerLabel}语法 · ${location.label}`,
-      message: diagnostic.message,
-      severity: "error",
-      source: "syntax",
-      target: {
-        fieldId: location.fieldId,
-        kind: "system-syntax",
-        owner,
-        path: diagnostic.path,
-      },
     };
   });
 }

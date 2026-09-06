@@ -1,6 +1,6 @@
 import type { CtnSyntaxDraft } from "../../core/ctn/syntax/draft";
 import type { CtnSyntaxOwner } from "../../core/ctn/syntax/types";
-import type { UiWorkbenchDiagnostic } from "../workspace/projection/viewDiagnostics";
+import type { SyntaxDiagnostic } from "./syntaxDiagnostics";
 import type { createSyntaxDraftActions } from "./syntaxDraftActions";
 import type { SyntaxProjection } from "./syntaxProjection";
 
@@ -43,7 +43,7 @@ export type SyntaxViewModel = SyntaxProjection &
     nameConflictMessage: string;
     onConsumeFocusTarget: (requestId: number) => void;
     owner: CtnSyntaxOwner;
-    syntaxDiagnostics: UiWorkbenchDiagnostic[];
+    syntaxDiagnostics: SyntaxDiagnostic[];
     revertInvalidChanges: () => void;
     selectedTarget: SyntaxTarget;
     selectTarget: (target: SyntaxTarget) => Promise<void>;

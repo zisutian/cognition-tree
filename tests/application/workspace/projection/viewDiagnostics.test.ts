@@ -4,14 +4,8 @@ import {
   createCtnSyntaxDraft,
 } from "../../../../core/ctn/syntax/draft";
 import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
-import {
-  createUiDocumentDiagnostics,
-  createUiReferenceDiagnostics,
-  createUiSyntaxDiagnostics,
-  createUiWorkspacePortableNameDiagnostics,
-  createUiWorkbenchDiagnostics,
-  type UiWorkbenchDiagnostic,
-} from "../../../../application/workspace/projection/viewDiagnostics";
+import { createUiDocumentDiagnostics, createUiReferenceDiagnostics, createUiWorkspacePortableNameDiagnostics, createUiWorkbenchDiagnostics, type UiWorkbenchDiagnostic } from "../../../../application/workspace/projection/viewDiagnostics";
+import { createUiSyntaxDiagnostics } from "../../../../application/syntax/syntaxDiagnostics";
 import {
   createSyntaxRuleFieldId,
   syntaxFieldIds,

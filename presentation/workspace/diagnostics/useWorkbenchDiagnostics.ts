@@ -4,12 +4,8 @@ import type {
   CtnSyntaxDraftBuildResult,
 } from "../../../core/ctn/syntax/draft";
 import type { WorkspaceAnalysis } from "../../../application/workspace/analysis/workspaceAnalysis";
-import {
-  createUiSyntaxDiagnostics,
-  createUiWorkbenchDiagnostics,
-  type UiWorkbenchDiagnostic,
-  type UiWorkbenchDiagnostics,
-} from "../../../application/workspace/projection/viewDiagnostics";
+import { createUiWorkbenchDiagnostics, type UiWorkbenchDiagnostic, type UiWorkbenchDiagnostics } from "../../../application/workspace/projection/viewDiagnostics";
+import { createUiSyntaxDiagnostics } from "../../../application/syntax/syntaxDiagnostics";
 
 export function selectWorkbenchDiagnostics({
   analysisDiagnostics,

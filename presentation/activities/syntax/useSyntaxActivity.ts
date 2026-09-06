@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  createUiSystemSyntaxDiagnostics,
-  createUiSyntaxDiagnostics,
-} from "../../../application/workspace/projection/viewDiagnostics";
+import { createUiSystemSyntaxDiagnostics, createUiSyntaxDiagnostics } from "../../../application/syntax/syntaxDiagnostics";
 import { createSyntaxProjection } from "../../../application/syntax/syntaxProjection";
 import type { SyntaxRuntime } from "../../workspace/runtime/useSyntaxRuntime";
 import { createSyntaxDraftActions } from "../../../application/syntax/syntaxDraftActions";
