@@ -3,7 +3,7 @@
 import type { JournalApplicationServices } from "../../../application/journal/journalApplication";
 import type { TodoApplicationServices } from "../../../application/todo/todoApplication";
 import type { ApplicationScheduler } from "../../../application/runtime/applicationScheduler";
-import type { ApplicationLocalCalendar } from "../../../application/runtime/applicationLocalCalendar";
+import type { TodoLocalCalendar } from "../../../application/todo/todoLocalCalendar";
 import { createInitialRepositoryContent } from "../../../application/workspace/session/initialRepository";
 import type { SessionCommandDependencies } from "../../../application/workspace/session/sessionCommands";
 
@@ -20,10 +20,10 @@ function clientLocalDate(date = new Date()) {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}` as
-    ReturnType<ApplicationLocalCalendar["today"]>;
+    ReturnType<TodoLocalCalendar["today"]>;
 }
 
-export const clientApplicationLocalCalendar: ApplicationLocalCalendar = {
+export const clientTodoLocalCalendar: TodoLocalCalendar = {
   subscribe(listener) {
     let disposed = false;
     let cancelTimer: (() => void) | null = null;
@@ -103,7 +103,7 @@ export function createClientTodoApplicationServices(): TodoApplicationServices {
     createBlockId: createUuid,
     createCollectionId: () => `todo-collection-${createUuid()}`,
     createRecurrenceStageId: () => `todo-recurrence-stage-${createUuid()}`,
-    localCalendar: clientApplicationLocalCalendar,
+    localCalendar: clientTodoLocalCalendar,
     now: () => new Date(),
   };
 }

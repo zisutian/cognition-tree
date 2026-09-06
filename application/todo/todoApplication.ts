@@ -28,7 +28,7 @@ import {
   resolveTodoCollectionSelectionAfterDelete,
 } from "../../core/todo/queries/todoQueries";
 import type { TodoSessionState } from "./todoSessionController";
-import type { ApplicationLocalCalendar } from "../runtime/applicationLocalCalendar";
+import type { TodoLocalCalendar } from "./todoLocalCalendar";
 import {
   createTodoParseIndex,
   type TodoParseIndex,
@@ -44,7 +44,7 @@ export type TodoApplicationServices = {
   createBlockId: () => string;
   createCollectionId: () => TodoCollectionId;
   createRecurrenceStageId: () => TodoRecurrenceStageId;
-  localCalendar: ApplicationLocalCalendar;
+  localCalendar: TodoLocalCalendar;
   now: () => Date;
 };
 
