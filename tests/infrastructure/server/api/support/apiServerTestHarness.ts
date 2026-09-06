@@ -22,10 +22,8 @@ import type {
 } from "../../../../../contracts/workspace/types.ts";
 import { LocalRepositoryCatalog } from
   "../../../../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
-import {
-  createApiRequestHandler,
-  type ApiRequestHandler,
-} from "../../../../../infrastructure/server/api/http/server.ts";
+import { type ApiRequestHandler } from "../../../../../infrastructure/server/api/http/server.ts";
+import { createApiRequestHandler } from "../../../../../infrastructure/server/runtime/apiRuntime.ts";
 import type { ApiRuntime } from "../../../../../infrastructure/server/api/http/runtime.ts";
 import {
   createApiSecurityPolicy,

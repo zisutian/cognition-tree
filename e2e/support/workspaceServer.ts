@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerSearchService } from "../../infrastructure/server/runtime/searchRuntime.ts";
 import { localRepositoryWriterLockName } from "../../infrastructure/server/repository/repositoryRuntimeLayout.ts";
 import { randomUUID } from "node:crypto";
 import { DataRootMigrationCoordinator } from "../../application/system/dataRootMigrationCoordinator.ts";
@@ -13,10 +14,8 @@ import http, {
 } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
-import {
-  createApiRequestHandler,
-  type ApiRequestHandler,
-} from "../../infrastructure/server/api/http/server.ts";
+import { type ApiRequestHandler } from "../../infrastructure/server/api/http/server.ts";
+import { createApiRequestHandler } from "../../infrastructure/server/runtime/apiRuntime.ts";
 import {
   createApiSecurityPolicy,
 } from "../../infrastructure/server/api/http/security.ts";
@@ -30,7 +29,6 @@ import { AgentService } from "../../infrastructure/server/agent/service.ts";
 import { agentServicePolicy } from "../../infrastructure/server/agent/servicePolicy.ts";
 import { ApiEventHub } from "../../infrastructure/server/api/sync/events.ts";
 import { ApiRevisionTracker } from "../../infrastructure/server/api/sync/revisionTracker.ts";
-import { ApiSearchService } from "../../infrastructure/server/api/search.ts";
 import { systemApiRuntime } from "../../infrastructure/server/api/http/runtime.ts";
 import {
   createE2EAgentRuntime,
@@ -147,7 +145,7 @@ export async function startE2EWorkspaceServer({
       revisionTracker,
       runtime: systemApiRuntime,
       runtimeFactory: { create: createE2EAgentRuntime },
-      search: new ApiSearchService({ builtInCatalog, catalog }),
+      search: createServerSearchService({ builtInCatalog, catalog }),
       servicePolicy: agentServicePolicy,
     });
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
@@ -18,7 +20,7 @@ import type { WorkspaceRepositoryProvisioner } from "../../application/workspace
 import type {
   WorkspaceRepositoryDescriptor,
 } from "../../application/repository/workspaceRepositoryCatalog";
-import { createApiServer } from "../../infrastructure/server/api/http/server.ts";
+import { createApiServer } from "../../infrastructure/server/runtime/apiRuntime.ts";
 import { createApiSecurityPolicy } from "../../infrastructure/server/api/http/security.ts";
 import { LocalRepositoryCatalog } from
   "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";

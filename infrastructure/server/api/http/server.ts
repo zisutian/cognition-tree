@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { ApiSearchService } from "../search.ts";
 import { randomUUID } from "node:crypto";
 import http from "node:http";
 import type {
   IncomingMessage,
   ServerResponse,
 } from "node:http";
-import path from "node:path";
 import {
   apiAllowedMethods,
   assertApiOperationResponse,
@@ -26,7 +26,6 @@ import {
   mapApiError,
 } from "./errors.ts";
 import {
-  createApiSearchService,
   handleApiRoute,
 } from "./handlers.ts";
 import {
@@ -47,7 +46,6 @@ import {
   ApiEventHub,
 } from "../sync/events.ts";
 import {
-  systemApiRuntime,
   type ApiRuntime,
 } from "./runtime.ts";
 import {
@@ -67,24 +65,24 @@ export type ApiRequestHandler = (
   response: ServerResponse,
 ) => Promise<void>;
 
-export type ApiServerOptions = {
-  accessStore?: AutomationTokenStore;
-  agentConfigurationStore?: AgentConfigurationStore;
-  agentProviderOperations?: AgentProviderOperations;
-  agentService?: AgentService | null;
-  builtInCatalog?: ApiBuiltInCatalog;
+export type ApiHttpDependencies = {
+  accessStore: AutomationTokenStore;
+  agentConfigurationStore: AgentConfigurationStore;
+  agentProviderOperations: AgentProviderOperations;
+  agentService: AgentService | null;
+  builtInCatalog: ApiBuiltInCatalog | undefined;
   catalog: WorkspaceRepositoryCatalog;
-  eventHub?: ApiEventHub;
-  logger?: Pick<Console, "error">;
-  maintenanceGate?: ApiMaintenanceGate;
-  operationLedger?: OperationLedger | null;
-  requestRestart?: () => void;
-  runtime?: ApiRuntime;
-  revisionTracker?: ApiRevisionTracker;
+  search: ApiSearchService | null;
+  eventHub: ApiEventHub;
+  logger: Pick<Console, "error">;
+  maintenanceGate: ApiMaintenanceGate;
+  operationLedger: OperationLedger | null;
+  requestRestart: () => void;
+  runtime: ApiRuntime;
+  revisionTracker: ApiRevisionTracker;
   security: ApiSecurityPolicy;
-  stateDirectory?: string;
-  systemAdministration?: SystemAdministrationServerPort | null;
-  trustedClientTokenStore?: TrustedClientTokenStore;
+  systemAdministration: SystemAdministrationServerPort | null;
+  trustedClientTokenStore: TrustedClientTokenStore;
 };
 
 function mapSecurityError(error: ApiSecurityError) {
@@ -95,52 +93,18 @@ function mapSecurityError(error: ApiSecurityError) {
   );
 }
 
-export function createApiRequestHandler({
-  accessStore,
-  agentConfigurationStore,
-  agentProviderOperations,
-  agentService = null,
-  builtInCatalog,
-  catalog,
-  eventHub = new ApiEventHub(),
-  logger = console,
-  maintenanceGate = new ApiMaintenanceGate(),
-  operationLedger = null,
-  requestRestart = () => undefined,
-  runtime = systemApiRuntime,
-  revisionTracker = new ApiRevisionTracker(),
-  security,
-  stateDirectory = path.join(
-    process.cwd(),
-    ".cognition-tree",
-    "server",
-  ),
-  systemAdministration = null,
-  trustedClientTokenStore,
-}: ApiServerOptions): ApiRequestHandler {
-  const resolvedAccessStore = accessStore ?? new AutomationTokenStore(
-    stateDirectory,
-  );
-  const resolvedTrustedClientTokenStore = trustedClientTokenStore ??
-    new TrustedClientTokenStore(stateDirectory);
+export function createHttpApiRequestHandler({
+  accessStore: resolvedAccessStore,
+  trustedClientTokenStore: resolvedTrustedClientTokenStore,
+  agentConfigurationStore: resolvedAgentConfigurationStore,
+  agentProviderOperations: resolvedAgentProviderOperations,
+  agentService, builtInCatalog, catalog, eventHub, logger, maintenanceGate,
+  operationLedger, requestRestart, runtime, revisionTracker, search, security,
+  systemAdministration,
+}: ApiHttpDependencies): ApiRequestHandler {
   const bearerAuthenticator = {
-    authenticate: async (secret: string) => maintenanceGate.isClosed()
-      ? null
-      : await resolvedAccessStore.authenticate(secret) ??
-        await resolvedTrustedClientTokenStore.authenticate(secret),
+    authenticate: async (secret: string) => maintenanceGate.isClosed() ? null : await resolvedAccessStore.authenticate(secret) ?? await resolvedTrustedClientTokenStore.authenticate(secret),
   };
-  const resolvedAgentConfigurationStore = agentConfigurationStore ??
-    new AgentConfigurationStore(stateDirectory);
-  const resolvedAgentProviderOperations = agentProviderOperations ??
-    new AgentProviderOperations({
-      configurationStore: resolvedAgentConfigurationStore,
-      runtime,
-    });
-  const search = createApiSearchService({
-    builtInCatalog,
-    catalog,
-  });
-
   return async (request, response) => {
     const requestId = randomUUID();
     let responseHeaders = createApiResponseHeaders(null, requestId);
@@ -288,11 +252,11 @@ export function createApiRequestHandler({
   };
 }
 
-export function createApiServer(
-  options: ApiServerOptions,
+export function createHttpApiServer(
+  options: ApiHttpDependencies,
   fallbackRequestHandler?: ApiRequestHandler,
 ) {
-  const apiRequestHandler = createApiRequestHandler(options);
+  const apiRequestHandler = createHttpApiRequestHandler(options);
   const server = http.createServer((request, response) => {
     let handler = apiRequestHandler;
 

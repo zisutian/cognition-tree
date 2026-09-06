@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerSearchService } from "../../../../infrastructure/server/runtime/searchRuntime.ts";
 import { describe, expect, it } from "vitest";
 import type {
   DomainChangeSetDto,
@@ -9,14 +10,11 @@ import type {
   RepositoryDescriptorDto,
   WorkspaceRepositoryContentDto,
 } from "../../../../contracts/workspace/types.ts";
-import {
-  createApiRequestHandler,
-} from "../../../../infrastructure/server/api/http/server.ts";
+import { createApiRequestHandler } from "../../../../infrastructure/server/runtime/apiRuntime.ts";
 import {
   createApiSecurityPolicy,
 } from "../../../../infrastructure/server/api/http/security.ts";
 import type { ApiBuiltInCatalog } from "../../../../infrastructure/server/api/http/ports.ts";
-import { ApiSearchService } from "../../../../infrastructure/server/api/search.ts";
 import { workspaceResourceVersions } from "../../../../infrastructure/server/api/resources/versions.ts";
 import { ApiRevisionTracker } from "../../../../infrastructure/server/api/sync/revisionTracker.ts";
 import { synchronizeApiWorkspace } from "../../../../infrastructure/server/api/sync/service.ts";
@@ -231,7 +229,7 @@ describe("CTN API v4", () => {
       kind: "owner",
       name: "Owner",
     };
-    const search = new ApiSearchService({
+    const search = createServerSearchService({
       builtInCatalog: {} as ApiBuiltInCatalog,
       catalog,
     });

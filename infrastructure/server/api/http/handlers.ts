@@ -2,8 +2,6 @@
 
 import { createApiOpenApiDocument } from "../../../../contracts/api/openApi.ts";
 import type { ApiSearchRequestDto } from "../../../../contracts/api/types.ts";
-import type { WorkspaceRepositoryCatalog } from "../../repository/catalog.ts";
-import type { ApiBuiltInCatalog } from "./ports.ts";
 import { ApiRequestError } from "./errors.ts";
 import {
   assertOperationAccess,
@@ -32,7 +30,6 @@ import {
   handleTrustedClientTokenAdmin,
   parseAuditQuery,
 } from "./adminHandlers.ts";
-import { ApiSearchService } from "../search.ts";
 import {
   handleOwnerSession,
   handleSystemAdministration,
@@ -223,16 +220,4 @@ export async function handleApiRoute(
     return handleSystemAdministration(authorizedContext);
   }
   throw new ApiRequestError("not_found", "Not found");
-}
-
-export function createApiSearchService({
-  builtInCatalog,
-  catalog,
-}: {
-  builtInCatalog?: ApiBuiltInCatalog;
-  catalog: WorkspaceRepositoryCatalog;
-}) {
-  return builtInCatalog
-    ? new ApiSearchService({ builtInCatalog, catalog })
-    : null;
 }

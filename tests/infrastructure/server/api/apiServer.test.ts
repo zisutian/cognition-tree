@@ -8,10 +8,7 @@ import type {
 import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
 import type { WorkspaceRepositoryCatalog } from "../../../../infrastructure/server/repository/catalog.ts";
-import {
-  createApiRequestHandler,
-  createApiServer,
-} from "../../../../infrastructure/server/api/http/server.ts";
+import { createApiRequestHandler, createApiServer } from "../../../../infrastructure/server/runtime/apiRuntime.ts";
 
 const unusedCatalogOperation = async (): Promise<never> => {
   throw new Error("Catalog must not be used by this test");

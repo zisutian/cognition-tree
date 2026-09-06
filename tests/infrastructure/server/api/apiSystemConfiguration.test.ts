@@ -9,7 +9,7 @@ import type {
   ApiSystemConfigurationSnapshotDto,
 } from "../../../../contracts/api/schemas/system.ts";
 import { OperationLedger } from "../../../../infrastructure/server/operations/operationLedger.ts";
-import { createApiRequestHandler } from "../../../../infrastructure/server/api/http/server.ts";
+import { createApiRequestHandler } from "../../../../infrastructure/server/runtime/apiRuntime.ts";
 import { createApiSecurityPolicy } from "../../../../infrastructure/server/api/http/security.ts";
 import { LocalRepositoryCatalog } from "../../../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
 import { BootstrapConfigurationStore } from "../../../../infrastructure/server/system/bootstrapConfigurationStore.ts";

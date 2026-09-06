@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { SourceModules } from "./moduleImports";
 import type {
   SourceImport,
@@ -22,6 +24,7 @@ export const sourceLayerImports: Readonly<
 };
 
 const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
+  runtime: ["runtime", "access", "agent", "api", "api/http", "api/resources", "api/sync", "network", "operations", "persistence", "repository", "state", "system"],
   access: ["access", "state"],
   agent: [
     "agent",

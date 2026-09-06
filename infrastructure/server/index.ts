@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerSearchService } from "./runtime/searchRuntime.ts";
 import { runDataRootMigrationRecoveryServer } from "./system/dataRootMigrationRecoveryServer.ts";
 import { randomUUID } from "node:crypto";
 import { FileDataRootMigrationRecordStore } from "./system/dataRootMigrationRecordStore.ts";
@@ -16,7 +17,7 @@ import { AgentProviderOperations } from "./agent/providerOperations.ts";
 import { AgentProviderTargetPolicy } from "./agent/providerTargetPolicy.ts";
 import { AgentService } from "./agent/service.ts";
 import { agentServicePolicy } from "./agent/servicePolicy.ts";
-import { createApiServer } from "./api/http/server.ts";
+import { createApiServer } from "./runtime/apiRuntime.ts";
 import { ApiMaintenanceGate } from "./api/http/maintenanceGate.ts";
 import {
   closeApiServer,
@@ -25,7 +26,6 @@ import {
 } from "./api/http/serverLifecycle.ts";
 import { systemApiRuntime } from "./api/http/runtime.ts";
 import { createApiSecurityPolicy } from "./api/http/security.ts";
-import { ApiSearchService } from "./api/search.ts";
 import { ApiEventHub } from "./api/sync/events.ts";
 import { ApiRevisionTracker } from "./api/sync/revisionTracker.ts";
 import { createStaticClientRuntime } from "./client/staticClientRuntime.ts";
@@ -198,7 +198,7 @@ const operationLedger = new OperationLedger(
 await operationLedger.initialize();
 const eventHub = new ApiEventHub();
 const revisionTracker = new ApiRevisionTracker();
-const search = new ApiSearchService({ builtInCatalog, catalog });
+const search = createServerSearchService({ builtInCatalog, catalog });
 const agentService = new AgentService({
   builtInCatalog,
   catalog,
