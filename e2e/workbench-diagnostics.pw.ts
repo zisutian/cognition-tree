@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  expect,
-  type APIRequestContext,
-} from "@playwright/test";
+import { expect, type APIRequestContext } from "@playwright/test";
 import {
   seedDiagnosticsRepository,
   seedWorkbenchRepository,
@@ -14,9 +11,7 @@ import {
   openRepositoryFromContext,
   openWorkbench,
 } from "./support/workbenchPage";
-import {
-  appResizeKeyboardStep,
-} from "../presentation/ui/workbench/frameResize";
+import { appResizeKeyboardStep } from "../presentation/ui/workbench/frameResize";
 
 const repositoryId = "problems-base";
 const diagnosticsRepositoryId = "problems";
@@ -42,26 +37,36 @@ test.describe("workbench diagnostics", () => {
     const problemsHeader = problems.locator(".problems-panel-header");
 
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
-    expect(await problemsHeader.evaluate((element) => {
-      const style = getComputedStyle(element);
+    expect(
+      await problemsHeader.evaluate((element) => {
+        const style = getComputedStyle(element);
 
-      return { fontSize: style.fontSize, height: style.height };
-    })).toEqual({ fontSize: "13px", height: "22px" });
+        return { fontSize: style.fontSize, height: style.height };
+      }),
+    ).toEqual({ fontSize: "13px", height: "22px" });
     await expect(problems.locator(".problems-panel-status")).toHaveCount(0);
-    await expect(problems.locator(".problems-panel-error-count")).toContainText("0");
-    await expect(problems.locator(".problems-panel-warning-count")).toContainText("2");
+    await expect(problems.locator(".problems-panel-error-count")).toContainText(
+      "0",
+    );
+    await expect(
+      problems.locator(".problems-panel-warning-count"),
+    ).toContainText("2");
     await problemsHeader.click();
 
     const rows = problems.locator(".ui-tool-list-row-target");
     const documentProblem = rows.filter({ hasText: "未知行首符号 !" });
-    const referenceProblem = rows.filter({ hasText: "无法解析全局引用“Missing”" });
+    const referenceProblem = rows.filter({
+      hasText: "无法解析全局引用“Missing”",
+    });
 
     await expect(rows).toHaveCount(2);
-    expect(await rows.first().evaluate((element) => {
-      const style = getComputedStyle(element);
+    expect(
+      await rows.first().evaluate((element) => {
+        const style = getComputedStyle(element);
 
-      return { fontSize: style.fontSize, height: style.height };
-    })).toEqual({ fontSize: "13px", height: "22px" });
+        return { fontSize: style.fontSize, height: style.height };
+      }),
+    ).toEqual({ fontSize: "13px", height: "22px" });
     await documentProblem.click();
     await expect(
       page.getByLabel("笔记编辑").getByRole("heading", {
@@ -113,8 +118,7 @@ test.describe("workbench diagnostics", () => {
     const initialProblemsHeight = Number(
       await problemsResize.getAttribute("aria-valuenow"),
     );
-    const resizedProblemsHeight =
-      initialProblemsHeight + appResizeKeyboardStep;
+    const resizedProblemsHeight = initialProblemsHeight + appResizeKeyboardStep;
 
     await problemsResize.focus();
     await problemsResize.press("ArrowUp");
@@ -138,34 +142,34 @@ test.describe("workbench diagnostics", () => {
     const settingsPanel = page.locator(".settings-panel");
 
     const interfaceSection = settingsContext.getByRole("button", {
-      name: "界面",
+      name: "工作台布局",
       exact: true,
     });
     const apiSection = settingsContext.getByRole("button", {
-      name: "API 访问",
+      name: "新建 自动化令牌",
       exact: true,
     });
     const agentSection = settingsContext.getByRole("button", {
-      name: "智能体",
+      name: "默认会话配置",
       exact: true,
     });
     const serviceSection = settingsContext.getByRole("button", {
-      name: "服务",
+      name: "网络访问",
       exact: true,
     });
     const auditSection = settingsContext.getByRole("button", {
-      name: "审计",
+      name: "操作记录",
       exact: true,
     });
 
-    await expect(settingsContext.getByRole("button")).toHaveCount(5);
     await expect(interfaceSection).toHaveAttribute("aria-current", "page");
     await expect(serviceSection).not.toHaveAttribute("aria-current", "page");
     await expect(agentSection).not.toHaveAttribute("aria-current", "page");
     await expect(apiSection).not.toHaveAttribute("aria-current", "page");
     await expect(auditSection).not.toHaveAttribute("aria-current", "page");
-    await expect(settingsPanel.getByRole("heading", { name: "界面" }))
-      .toBeVisible();
+    await expect(
+      settingsPanel.getByRole("heading", { name: "界面" }),
+    ).toBeVisible();
     await expect(
       settingsPanel.getByRole("spinbutton", { name: "左侧栏宽度" }),
     ).toBeVisible();
@@ -185,15 +189,19 @@ test.describe("workbench diagnostics", () => {
     );
 
     await page.setViewportSize({ width: 760, height: 640 });
-    const mainContentBox = await page.locator(".app-main-content").boundingBox();
+    const mainContentBox = await page
+      .locator(".app-main-content")
+      .boundingBox();
     const problemsBox = await page.locator(".app-problems").boundingBox();
 
     expect(mainContentBox).not.toBeNull();
     expect(problemsBox).not.toBeNull();
-    expect((mainContentBox?.y ?? 0) + (mainContentBox?.height ?? 0))
-      .toBeLessThanOrEqual((problemsBox?.y ?? 0) + 1);
-    expect((problemsBox?.y ?? 0) + (problemsBox?.height ?? 0))
-      .toBeLessThanOrEqual(640);
+    expect(
+      (mainContentBox?.y ?? 0) + (mainContentBox?.height ?? 0),
+    ).toBeLessThanOrEqual((problemsBox?.y ?? 0) + 1);
+    expect(
+      (problemsBox?.y ?? 0) + (problemsBox?.height ?? 0),
+    ).toBeLessThanOrEqual(640);
   });
 
   test("reports syntax save failure once through global persistence feedback", async ({

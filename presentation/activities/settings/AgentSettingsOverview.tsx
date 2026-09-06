@@ -1,58 +1,72 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentApplication } from "../../../application/agent/index.ts";
+import { useState } from "react";
+import type {
+  AgentApplication,
+  AgentConfigurationController,
+  AgentConfigurationState,
+} from "../../../application/agent/index.ts";
 import {
+  Button,
+  FieldRow,
+  FormLayout,
   InputControl,
   SelectControl,
-  FieldRow,
-  FormActions,
-  FormLayout,
-  Button,
+  ToolPropertyList,
+  ToolPropertyRow,
   useFeedback,
-  ToolSection,
-  ToolSectionStack,
 } from "../../ui/index.ts";
-
-
-
-
-import type { AgentSettingsRoute } from "./settingsTypes.ts";
-
-type ManagementPage = Exclude<AgentSettingsRoute["page"], "overview">;
+import { SettingsPage } from "./SettingsPage.tsx";
+import {
+  useSettingsInteraction,
+  type SettingsInteractionReporter,
+} from "./useSettingsInteraction.ts";
 
 export function AgentSettingsOverview({
-  agent,
-  busy,
-  ollamaEndpoint,
-  onEndpointChange,
-  onNavigate,
+  configurationState,
+  discover,
+  page,
+  preferredProfileId,
+  report,
+  setPreferredProfile,
+  status,
 }: {
-  agent: AgentApplication;
-  busy: boolean;
-  ollamaEndpoint: string;
-  onEndpointChange(value: string): void;
-  onNavigate(page: ManagementPage): void;
+  configurationState: AgentConfigurationState;
+  discover: AgentConfigurationController["discoverOllama"];
+  page: "agent-default" | "agent-discovery";
+  preferredProfileId: string | null;
+  report: SettingsInteractionReporter;
+  setPreferredProfile: AgentApplication["controller"]["setPreferredProfile"];
+  status: AgentApplication["state"]["status"];
 }) {
   const feedback = useFeedback();
-  const statusProfiles = agent.state.status?.profiles ?? [];
-
+  const [endpoint, setEndpoint] = useState("http://127.0.0.1:11434");
+  const busy = configurationState.operationStatus === "working";
+  useSettingsInteraction(report, {
+    errorMessage: configurationState.errorMessage,
+  });
   return (
-    <ToolSectionStack>
-      <ToolSection title="默认 Profile">
+    <SettingsPage
+      title={page === "agent-default" ? "默认会话配置" : "本地服务发现"}
+      errorMessage={configurationState.errorMessage}
+    >
+      {page === "agent-default" ? (
         <FormLayout>
-          <FieldRow fieldId="settings-agent-default-profile" label="默认 Profile">
+          <FieldRow
+            fieldId="settings-agent-default-profile"
+            label="默认 Profile"
+          >
             {(accessibility) => (
               <SelectControl
                 {...accessibility}
                 aria-label="默认 Profile"
-                disabled={agent.state.loadStatus === "loading"}
-                onChange={(event) => agent.controller.setPreferredProfile(
-                  event.currentTarget.value || null,
-                )}
-                value={agent.state.preferredProfileId ?? ""}
+                value={preferredProfileId ?? ""}
+                onChange={(event) =>
+                  setPreferredProfile(event.currentTarget.value || null)
+                }
               >
                 <option value="">未选择</option>
-                {statusProfiles.map((profile) => (
+                {(status?.profiles ?? []).map((profile) => (
                   <option
                     disabled={profile.availability !== "available"}
                     key={profile.id}
@@ -66,42 +80,44 @@ export function AgentSettingsOverview({
             )}
           </FieldRow>
         </FormLayout>
-      </ToolSection>
-      <ToolSection title="发现本地 Ollama">
-        <FormLayout>
-          <FieldRow fieldId="settings-agent-ollama-endpoint" label="Ollama 地址">
-            {(accessibility) => (
-              <InputControl
-                {...accessibility}
-                aria-label="Ollama 地址"
-                onChange={(event) => onEndpointChange(event.currentTarget.value)}
-                value={ollamaEndpoint}
-              />
-            )}
-          </FieldRow>
-          <FormActions>
+      ) : (
+        <>
+          <FormLayout>
+            <FieldRow
+              fieldId="settings-agent-ollama-endpoint"
+              label="Ollama 地址"
+            >
+              {(accessibility) => (
+                <InputControl
+                  {...accessibility}
+                  aria-label="Ollama 地址"
+                  onChange={(event) => setEndpoint(event.currentTarget.value)}
+                  value={endpoint}
+                />
+              )}
+            </FieldRow>
+          </FormLayout>
+          <div className="ui-actions">
             <Button
               disabled={busy}
-              onClick={() => void feedback.runAction(() =>
-                agent.configurationController.discoverOllama(ollamaEndpoint)
-              )}
+              onClick={() => void feedback.runAction(() => discover(endpoint))}
               type="button"
             >
               发现本地 Ollama
             </Button>
-          </FormActions>
-        </FormLayout>
-      </ToolSection>
-      <ToolSection aria-label="智能体管理入口">
-        <div className="settings-agent-overview-links">
-          <Button onClick={() => onNavigate("providers")} type="button">
-            管理 Provider
-          </Button>
-          <Button onClick={() => onNavigate("profiles")} type="button">
-            管理 Profile
-          </Button>
-        </div>
-      </ToolSection>
-    </ToolSectionStack>
+          </div>
+          {configurationState.discovery ? (
+            <ToolPropertyList aria-label="发现结果">
+              <ToolPropertyRow
+                label="模型"
+                value={
+                  configurationState.discovery.models.join("、") || "未发现模型"
+                }
+              />
+            </ToolPropertyList>
+          ) : null}
+        </>
+      )}
+    </SettingsPage>
   );
 }

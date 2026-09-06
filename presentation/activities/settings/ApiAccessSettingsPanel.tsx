@@ -1,355 +1,200 @@
-import {
-  useMemo,
-  useState,
-} from "react";
-import type {
-  AutomationApiScope,
-  AutomationApiToken,
-  TrustedClientToken,
-} from "../../../application/apiAccess/index.ts";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { useState } from "react";
 import {
   Button,
+  ConfirmAction,
   EmptyState,
-  ChoiceGroup,
-  InputControl,
-  FieldRow,
-  FormActions,
-  FormLayout,
-  ManagementList,
-  ManagementRow,
-  ToolPanel,
-  ToolPanelBody,
-  ToolSection,
-  ToolSectionStack,
-  useExclusiveAsyncAction,
+  FormSaveActions,
+  ToolPropertyList,
+  ToolPropertyRow,
+  useFeedback,
 } from "../../ui/index.ts";
-
-
-
-
-
-import type {
-  ApiAccessSelection,
-} from "./settingsTypes.ts";
-import type {
-  ApiAccessSettingsPanelView,
-} from "./useApiAccessSettingsSession.ts";
-
-type AutomationDomain = "journal" | "todo" | "workspace";
-type PermissionLevel = "none" | "read";
-
-const automationDomains = [
-  {
-    id: "workspace",
-    label: "Workspace",
-    permissionLabel: "Workspace 权限",
-  },
-  { id: "journal", label: "日记", permissionLabel: "日记权限" },
-  { id: "todo", label: "代办", permissionLabel: "代办权限" },
-] as const satisfies ReadonlyArray<{
-  id: AutomationDomain;
-  label: string;
-  permissionLabel: string;
-}>;
-
-const permissionLevels = [
-  { label: "不授权", value: "none" },
-  { label: "只读", value: "read" },
-] as const satisfies ReadonlyArray<{
-  label: string;
-  value: PermissionLevel;
-}>;
-
-const initialPermissions: Record<AutomationDomain, PermissionLevel> = {
-  journal: "read",
-  todo: "read",
-  workspace: "read",
-};
-
-function permissionsToScopes(
-  permissions: typeof initialPermissions,
-): AutomationApiScope[] {
-  return automationDomains.flatMap(({ id: domain }) => {
-    const level = permissions[domain];
-
-    if (level === "none") return [];
-    return [`${domain}:read` as AutomationApiScope];
-  });
-}
-
-function TokenList({
-  disabled,
-  onRevoke,
-  onSelect,
-  selection,
-  tokens,
-}: {
-  disabled: boolean;
-  onRevoke(tokenId: string): void;
-  onSelect(tokenId: string): void;
-  selection: ApiAccessSelection;
-  tokens: AutomationApiToken[];
-}) {
-  if (tokens.length === 0) {
-    return <EmptyState compact title="尚未创建自动化令牌" />;
-  }
-  return (
-    <ManagementList aria-label="自动化令牌">
-      {tokens.map((token) => (
-        <ManagementRow
-          actions={<Button disabled={disabled} onClick={() => onRevoke(token.id)} type="button" variant="danger">撤销</Button>}
-          key={token.id}
-          onSelect={() => onSelect(token.id)}
-          selected={selection.kind === "automation" && selection.id === token.id}
-          status={<code>{token.prefix}…</code>}
-          title={token.name}
-        />
-      ))}
-    </ManagementList>
-  );
-}
-
-function TrustedClientTokenList({
-  disabled,
-  onRevoke,
-  onSelect,
-  selection,
-  tokens,
-}: {
-  disabled: boolean;
-  onRevoke(tokenId: string): void;
-  onSelect(tokenId: string): void;
-  selection: ApiAccessSelection;
-  tokens: TrustedClientToken[];
-}) {
-  if (tokens.length === 0) {
-    return <EmptyState compact title="尚未创建可信客户端令牌" />;
-  }
-  return (
-    <ManagementList aria-label="可信客户端令牌">
-      {tokens.map((token) => (
-        <ManagementRow
-          actions={<Button disabled={disabled} onClick={() => onRevoke(token.id)} type="button" variant="danger">撤销</Button>}
-          key={token.id}
-          onSelect={() => onSelect(token.id)}
-          selected={selection.kind === "trusted" && selection.id === token.id}
-          status={<code>{token.prefix}…</code>}
-          title={token.name}
-        />
-      ))}
-    </ManagementList>
-  );
-}
+import {
+  apiAccessDraftScopes,
+  createApiAccessDraft,
+} from "./apiAccessDraft.ts";
+import { ApiAccessSettingsForm } from "./ApiAccessSettingsForm.tsx";
+import { SettingsPage } from "./SettingsPage.tsx";
+import type { SettingsTarget } from "./settingsTypes.ts";
+import { useSettingsDraft } from "./useSettingsDraft.ts";
+import {
+  useSettingsInteraction,
+  type SettingsInteractionReporter,
+} from "./useSettingsInteraction.ts";
+import type { ApiAccessSettingsView } from "./useApiAccessSettingsSession.ts";
 
 export function ApiAccessSettingsPanel({
-  onSelectionChange,
-  selection,
+  onCompleted,
+  report,
   session,
+  target,
 }: {
-  onSelectionChange(selection: ApiAccessSelection): void;
-  selection: ApiAccessSelection;
-  session: ApiAccessSettingsPanelView;
+  onCompleted(target: SettingsTarget): void;
+  report: SettingsInteractionReporter;
+  session: ApiAccessSettingsView;
+  target: Extract<SettingsTarget, { id: string | null }> & {
+    kind: "automation" | "trusted";
+  };
 }) {
-  const [name, setName] = useState("");
-  const [permissions, setPermissions] = useState(initialPermissions);
-  const [repositoryIds, setRepositoryIds] = useState<string[] | null>(null);
-  const [trustedClientName, setTrustedClientName] = useState("");
-  const operationAction = useExclusiveAsyncAction();
-  const {
+  const feedback = useFeedback();
+  const [confirming, setConfirming] = useState(false);
+  const initial = createApiAccessDraft();
+  const draft = useSettingsDraft(initial, {
+    revision: "new-token",
+    value: initial,
+  });
+  const [revoking, setRevoking] = useState(false);
+  const busy = draft.submitting || revoking || session.snapshot.loading;
+  const scopes = apiAccessDraftScopes(draft.draft);
+  const creating = target.id === null;
+  const automationToken =
+    target.kind === "automation"
+      ? session.snapshot.tokens.find((item) => item.id === target.id)
+      : null;
+  const token =
+    automationToken ??
+    session.snapshot.trustedClientTokens.find((item) => item.id === target.id);
+  const title =
+    token?.name ??
+    (creating
+      ? target.kind === "automation"
+        ? "新建自动化令牌"
+        : "新建可信客户端令牌"
+      : "令牌已移除");
+  const errorMessage = draft.errorMessage ?? session.snapshot.errorMessage;
+  useSettingsInteraction(report, {
+    dirty: creating && draft.dirty,
+    submitting: draft.submitting || revoking,
     errorMessage,
-    loading,
-    tokens,
-    trustedClientTokens,
-  } = session.snapshot;
-  const busy = loading || operationAction.busy;
-
-  const scopes = useMemo(
-    () => permissionsToScopes(permissions),
-    [permissions],
-  );
-  const updatePermission = (
-    domain: AutomationDomain,
-    level: PermissionLevel,
-  ) => {
-    setPermissions((current) => ({
-      ...current,
-      [domain]: level,
-    }));
-  };
-  const createToken = async () => {
-    if (name.trim().length === 0 || scopes.length === 0) {
-      return;
-    }
-    const created = await operationAction.run(() =>
-      session.createToken({
-        name: name.trim(),
-        repositoryIds: permissions.workspace === "none"
-          ? null
-          : repositoryIds,
-        scopes,
-      })
-    );
-
-    if (!created) return;
-    setName("");
-    onSelectionChange({ id: created.id, kind: "automation" });
-  };
-  const revokeToken = async (tokenId: string) => {
-    const index = tokens.findIndex(({ id }) => id === tokenId);
-    const remaining = tokens.filter(({ id }) => id !== tokenId);
-    const revoked = await operationAction.run(
-      () => session.revokeToken(tokenId),
-    );
-
-    if (!revoked) return;
-    const next = remaining[
-      Math.min(Math.max(index, 0), Math.max(0, remaining.length - 1))
-    ];
-
-    onSelectionChange(next
-      ? { id: next.id, kind: "automation" }
-      : trustedClientTokens[0]
-        ? { id: trustedClientTokens[0].id, kind: "trusted" }
-        : { kind: "overview" });
-  };
-  const createTrustedClientToken = async () => {
-    const tokenName = trustedClientName.trim();
-
-    if (!tokenName) return;
-    const created = await operationAction.run(
-      () => session.createTrustedClientToken(tokenName),
-    );
-
-    if (!created) return;
-    setTrustedClientName("");
-    onSelectionChange({ id: created.id, kind: "trusted" });
-  };
-  const revokeTrustedClientToken = async (tokenId: string) => {
-    const index = trustedClientTokens.findIndex(({ id }) => id === tokenId);
-    const remaining = trustedClientTokens.filter(({ id }) => id !== tokenId);
-    const revoked = await operationAction.run(
-      () => session.revokeTrustedClientToken(tokenId),
-    );
-
-    if (!revoked) return;
-    const next = remaining[
-      Math.min(Math.max(index, 0), Math.max(0, remaining.length - 1))
-    ];
-
-    onSelectionChange(next
-      ? { id: next.id, kind: "trusted" }
-      : tokens[0]
-        ? { id: tokens[0].id, kind: "automation" }
-        : { kind: "overview" });
-  };
-
+  });
+  const create = () =>
+    feedback.runAction(async () => {
+      let createdId: string | null = null;
+      const receipt = await draft.submit(async (value) => {
+        const created =
+          target.kind === "automation"
+            ? await session.createToken({
+                name: value.name.trim(),
+                scopes: apiAccessDraftScopes(value),
+                repositoryIds:
+                  value.permissions.workspace === "none"
+                    ? null
+                    : value.repositoryIds,
+              })
+            : await session.createTrustedClientToken(value.name.trim());
+        if (!created) throw new Error("未能创建令牌，请查看服务状态。");
+        createdId = created.id;
+        return { revision: "new-token", value };
+      });
+      if (receipt && createdId)
+        onCompleted({ kind: target.kind, id: createdId });
+    });
+  const revoke = () =>
+    feedback.runAction(async () => {
+      if (revoking || !target.id) return;
+      setRevoking(true);
+      try {
+        const removed =
+          target.kind === "automation"
+            ? await session.revokeToken(target.id)
+            : await session.revokeTrustedClientToken(target.id);
+        if (removed) onCompleted({ kind: target.kind, id: null });
+      } finally {
+        setRevoking(false);
+      }
+    });
   return (
-    <ToolPanel
-      actions={(
-        <Button disabled={busy} onClick={() => void operationAction.run(session.load)} type="button">
-          刷新
-        </Button>
-      )}
-      aria-label="API 访问"
-      className="settings-panel"
-      title="API 访问"
+    <SettingsPage
+      title={title}
+      label="API 访问"
+      errorMessage={errorMessage}
+      actions={
+        creating ? (
+          <FormSaveActions
+            busy={busy}
+            canDiscard={draft.dirty}
+            canSave={
+              !!draft.draft.name.trim() &&
+              (target.kind === "trusted" ||
+                (scopes.length > 0 &&
+                  (draft.draft.permissions.workspace === "none" ||
+                    draft.draft.repositoryIds === null ||
+                    draft.draft.repositoryIds.length > 0)))
+            }
+            formId="api-token-form"
+            onDiscard={draft.discard}
+            saveLabel={
+              target.kind === "automation" ? "创建令牌" : "创建可信客户端令牌"
+            }
+          />
+        ) : undefined
+      }
     >
-      <ToolPanelBody layout="form">
-        <ToolSectionStack>
-          {errorMessage
-            ? <p className="settings-api-error" role="alert">{errorMessage}</p>
-            : null}
-          <ToolSection title="Automation">
-            <FormLayout>
-              <FieldRow fieldId="settings-api-token-name" label="名称">
-                {(accessibility) => (
-                  <InputControl {...accessibility} maxLength={80} onChange={(event) => setName(event.currentTarget.value)} placeholder="名称" value={name} />
-                )}
-              </FieldRow>
-              {automationDomains.map(({ id, label, permissionLabel }) => (
-                <FieldRow
-                  fieldId={`settings-api-${id}-permission`}
-                  key={id}
-                  label={`${label} 权限`}
-                >
-                  {(accessibility) => (
-                    <ChoiceGroup
-                      {...accessibility}
-                      ariaLabel={permissionLabel}
-                      mode="single"
-                      onChange={(value) => updatePermission(id, value)}
-                      options={permissionLevels}
-                      value={permissions[id]}
-                    />
-                  )}
-                </FieldRow>
-              ))}
-              {permissions.workspace !== "none" ? (
-                <>
-                  <FieldRow fieldId="settings-api-repository-scope" label="仓库范围">
-                    {(accessibility) => (
-                      <ChoiceGroup
-                        {...accessibility}
-                        ariaLabel="仓库范围"
-                        mode="single"
-                        onChange={(value) => setRepositoryIds(value === "all" ? null : [])}
-                        options={[
-                          { label: "全部仓库", value: "all" },
-                          { disabled: session.repositories.length === 0, label: "指定仓库", value: "selected" },
-                        ]}
-                        value={repositoryIds === null ? "all" : "selected"}
-                      />
-                    )}
-                  </FieldRow>
-                  {repositoryIds === null ? null : (
-                    <FieldRow fieldId="settings-api-allowed-repositories" label="允许的仓库">
-                      {(accessibility) => (
-                        <ChoiceGroup
-                          {...accessibility}
-                          ariaLabel="允许访问的 Workspace 仓库"
-                          layout="wrap"
-                          mode="multiple"
-                          onChange={setRepositoryIds}
-                          options={session.repositories.map(({ id, label }) => ({
-                            ariaLabel: `${label}（${id}）`,
-                            label,
-                            value: id,
-                          }))}
-                          values={repositoryIds}
-                        />
-                      )}
-                    </FieldRow>
-                  )}
-                </>
-              ) : null}
-              <FormActions>
-                <Button disabled={busy || name.trim().length === 0 || scopes.length === 0 || (permissions.workspace !== "none" && repositoryIds !== null && repositoryIds.length === 0)} onClick={() => void createToken()} type="button" variant="primary">创建令牌</Button>
-              </FormActions>
-            </FormLayout>
-            <h3 className="settings-subsection-heading">现有令牌</h3>
-            {loading && tokens.length === 0 ? <EmptyState compact description="正在读取自动化令牌。" title="正在加载" /> : <TokenList disabled={busy} onRevoke={(id) => void revokeToken(id)} onSelect={(id) => onSelectionChange({ id, kind: "automation" })} selection={selection} tokens={tokens} />}
-          </ToolSection>
-          <ToolSection title="可信客户端">
-            <FormLayout>
-              <FieldRow fieldId="settings-trusted-client-name" label="名称">
-                {(accessibility) => (
-                  <InputControl {...accessibility} aria-label="可信客户端名称" maxLength={80} onChange={(event) => setTrustedClientName(event.currentTarget.value)} placeholder="名称" value={trustedClientName} />
-                )}
-              </FieldRow>
-              <FormActions>
-                <Button disabled={busy || trustedClientName.trim().length === 0} onClick={() => void createTrustedClientToken()} type="button" variant="primary">创建可信客户端令牌</Button>
-              </FormActions>
-            </FormLayout>
-            <TrustedClientTokenList
-              disabled={busy}
-              onRevoke={(id) => void revokeTrustedClientToken(id)}
-              onSelect={(id) => onSelectionChange({ id, kind: "trusted" })}
-              selection={selection}
-              tokens={trustedClientTokens}
+      {creating ? (
+        <ApiAccessSettingsForm
+          busy={busy}
+          draft={draft.draft}
+          kind={target.kind}
+          onChange={draft.change}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void create();
+          }}
+          repositories={session.repositories}
+        />
+      ) : token ? (
+        <>
+          <ToolPropertyList aria-label="令牌权限">
+            <ToolPropertyRow
+              label="权限"
+              value={
+                automationToken ? automationToken.scopes.join("、") : "完整同步"
+              }
             />
-          </ToolSection>
-        </ToolSectionStack>
-      </ToolPanelBody>
-    </ToolPanel>
+            {automationToken ? (
+              <ToolPropertyRow
+                label="仓库范围"
+                value={automationToken.repositoryIds?.join("、") || "全部仓库"}
+              />
+            ) : null}
+          </ToolPropertyList>
+          {session.snapshot.secret ? (
+            <>
+              <p>密钥仅在当前页面显示一次，请保存后关闭显示。</p>
+              <ToolPropertyList aria-label="新令牌">
+                <ToolPropertyRow
+                  label="密钥"
+                  value={
+                    <code data-sensitive="true">{session.snapshot.secret}</code>
+                  }
+                  actions={
+                    <Button onClick={session.dismissSecret} type="button">
+                      关闭显示
+                    </Button>
+                  }
+                />
+              </ToolPropertyList>
+            </>
+          ) : null}
+          <div className="ui-actions">
+            <ConfirmAction
+              confirming={confirming}
+              disabled={busy}
+              label="撤销令牌"
+              onRequest={() => setConfirming(true)}
+              onCancel={() => setConfirming(false)}
+              onConfirm={() => void revoke()}
+            />
+          </div>
+        </>
+      ) : (
+        <EmptyState
+          compact
+          title="令牌已移除"
+          description="从左侧选择其他令牌，或创建新令牌。"
+        />
+      )}
+    </SettingsPage>
   );
 }

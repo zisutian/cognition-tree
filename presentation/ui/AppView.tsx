@@ -16,7 +16,10 @@ type AppViewProps = {
   activeActivityId: ActivityId;
   activityItems: readonly ActivityNavigationItem[];
   createActivitySlots: CreateActivitySlots;
-  onActiveActivityChange: (activityId: ActivityId) => void;
+  onActiveActivityChange: (
+    activityId: ActivityId,
+    beforeChange?: () => boolean | void,
+  ) => void;
   problemsSlot: ReactNode;
   workbench: WorkbenchController;
 };
@@ -30,8 +33,7 @@ function AppView({
   workbench,
 }: AppViewProps) {
   const configureSyntax = () => {
-    onActiveActivityChange("syntax");
-    workbench.expandPanels();
+    onActiveActivityChange("syntax", workbench.expandPanels);
   };
   const activitySlots = createActivitySlots({
     contextWidth: workbench.layout.contextResizeValue,
@@ -63,8 +65,7 @@ function AppView({
       return;
     }
 
-    onActiveActivityChange(activityId);
-    workbench.expandPanels();
+    onActiveActivityChange(activityId, workbench.expandPanels);
   };
 
   return (

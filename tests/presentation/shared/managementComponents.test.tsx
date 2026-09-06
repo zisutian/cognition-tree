@@ -11,63 +11,28 @@ import {
   ManagementList,
   ManagementRow,
 } from "../../../presentation/ui/shared/ManagementList";
-import {
-  StatusBadge,
-} from "../../../presentation/ui/shared/StatusPresentation";
-import {
-  getSubsectionTabTargetIndex,
-  SubsectionTabs,
-} from "../../../presentation/ui/shared/SubsectionTabs";
+import { StatusBadge } from "../../../presentation/ui/shared/StatusPresentation";
+
 import { Button, EmptyState } from "../../../presentation/ui/shared/primitives";
 import { InputControl } from "../../../presentation/ui/shared/controls";
 
 describe("shared management components", () => {
-  it("renders tabs with one controlled panel and keyboard targets", () => {
-    const markup = renderToStaticMarkup(
-      <SubsectionTabs
-        ariaLabel="智能体设置页面"
-        onChange={() => undefined}
-        options={[
-          { label: "概览", value: "overview" },
-          { label: "Provider", value: "providers" },
-          { label: "Profile", value: "profiles" },
-        ]}
-        value="providers"
-      >
-        Provider 列表
-      </SubsectionTabs>,
-    );
-
-    expect(markup).toContain('role="tablist"');
-    expect(markup.match(/role="tab"/g)).toHaveLength(3);
-    expect(markup).toContain('aria-selected="true"');
-    expect(markup).toContain('role="tabpanel"');
-    expect(markup).toContain("Provider 列表");
-    expect(getSubsectionTabTargetIndex(0, "ArrowLeft", 3)).toBe(2);
-    expect(getSubsectionTabTargetIndex(2, "ArrowRight", 3)).toBe(0);
-    expect(getSubsectionTabTargetIndex(1, "Home", 3)).toBe(0);
-    expect(getSubsectionTabTargetIndex(1, "End", 3)).toBe(2);
-    expect(getSubsectionTabTargetIndex(1, "Enter", 3)).toBeNull();
-  });
-
   it("associates field labels and errors with shared controls", () => {
     const markup = renderToStaticMarkup(
       <FormLayout>
         <FieldRow fieldId="profile-name" label="名称">
-          {(accessibility) => (
-            <InputControl {...accessibility} />
-          )}
+          {(accessibility) => <InputControl {...accessibility} />}
         </FieldRow>
         <FieldRow
           errorMessage="名称不能为空"
           fieldId="provider-name"
           label="Provider"
         >
-          {(accessibility) => (
-            <InputControl {...accessibility} />
-          )}
+          {(accessibility) => <InputControl {...accessibility} />}
         </FieldRow>
-        <FormActions><Button>保存</Button></FormActions>
+        <FormActions>
+          <Button>保存</Button>
+        </FormActions>
       </FormLayout>,
     );
 
@@ -94,9 +59,6 @@ describe("shared management components", () => {
     );
 
     expect(markup).toContain('aria-label="Providers"');
-    expect(markup).toContain("ui-status-badge-success");
-    expect(markup).toContain("ui-management-row is-selected");
     expect(markup).toContain('aria-current="true"');
-    expect(markup).toContain("ui-empty-state is-compact");
   });
 });

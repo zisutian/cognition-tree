@@ -37,4 +37,14 @@ export type CreateActivitySlots = (
   controls: ActivitySlotControls,
 ) => ActivitySlots;
 
-export type ActivityNavigationItem = { group: "management" | "primary"; icon: LucideIcon; id: ActivityId; label: string };
+export type ActivityNavigationItem = {
+  group: "management" | "primary";
+  icon: LucideIcon;
+  id: ActivityId;
+  label: string;
+};
+
+export type ActivityInteractionState = Readonly<{
+  navigationBlocked: boolean;
+  statusMessage: string;
+}>;

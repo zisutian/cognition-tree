@@ -11,9 +11,7 @@
   font: inherit;
   font-size: var(--ui-control-font-size);
   font-weight: var(--ui-body-weight);
-  line-height: calc(
-    var(--ui-control-height) - var(--ui-border-width) * 2
-  );
+  line-height: calc(var(--ui-control-height) - var(--ui-border-width) * 2);
   outline: none;
 }
 
@@ -73,8 +71,7 @@
 }
 
 .ui-choice-option,
-.ui-toggle-button,
-.ui-subsection-tab {
+.ui-toggle-button {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -97,39 +94,33 @@
   cursor: pointer;
 }
 
-.ui-choice-group-joined > :first-child,
-.ui-subsection-tab:first-child {
+.ui-choice-group-joined > :first-child {
   border-radius: var(--ui-radius) 0 0 var(--ui-radius);
 }
 
-.ui-choice-group-joined > :not(:first-child),
-.ui-subsection-tab + .ui-subsection-tab {
+.ui-choice-group-joined > :not(:first-child) {
   margin-left: calc(var(--ui-border-width) * -1);
 }
 
-.ui-choice-group-joined > :last-child,
-.ui-subsection-tab:last-child {
+.ui-choice-group-joined > :last-child {
   border-radius: 0 var(--ui-radius) var(--ui-radius) 0;
 }
 
 .ui-choice-group-joined > :only-child,
-.ui-subsection-tab:only-child,
 .ui-toggle-button,
 .ui-choice-group-wrap > .ui-choice-option {
   border-radius: var(--ui-radius);
 }
 
 .ui-choice-option:hover:not(:disabled),
-.ui-toggle-button:hover:not(:disabled),
-.ui-subsection-tab:hover {
+.ui-toggle-button:hover:not(:disabled) {
   border-color: var(--color-fg-subtle);
   color: var(--color-fg);
   background: var(--color-hover);
 }
 
 .ui-choice-option:focus-visible,
-.ui-toggle-button:focus-visible,
-.ui-subsection-tab:focus-visible {
+.ui-toggle-button:focus-visible {
   position: relative;
   z-index: 1;
   border-color: var(--color-accent);
@@ -137,8 +128,7 @@
 }
 
 .ui-choice-option.is-active,
-.ui-toggle-button.is-active,
-.ui-subsection-tab.is-active {
+.ui-toggle-button.is-active {
   position: relative;
   z-index: 1;
   border-color: var(--color-accent);

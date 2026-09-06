@@ -23,30 +23,20 @@ import type {
   ActivityId,
   ActivitySlots,
 } from "../../../presentation/ui/activityTypes";
-import {
-  appContextDefaultWidth,
-} from "../../../presentation/ui/workbench/frameResize";
+import { appContextDefaultWidth } from "../../../presentation/ui/workbench/frameResize";
 import {
   createActivityViews,
   type TestActivityViews,
 } from "../fixtures/activityViewsFixture";
 import { createNotesView } from "../fixtures/notesViewFixture";
-import {
-  createReferenceGraphSession,
-} from "../fixtures/visualizationViewFixture";
+import { createReferenceGraphSession } from "../fixtures/visualizationViewFixture";
 import { createWorkspaceShell } from "../fixtures/workspaceShellFixture";
 import { createSearchController } from "../../../application/search/searchController";
 import { createAgentActivitySlots } from "../../../presentation/activities/agent/AgentActivitySlots";
 import { createAgentApplicationFixture } from "../fixtures/agentApplicationFixture";
-import {
-  createApiAccessSettingsSessionFixture,
-} from "../fixtures/apiAccessSettingsSessionFixture";
-import {
-  createSystemOwnerCredentialSessionFixture,
-} from "../fixtures/systemOwnerCredentialSessionFixture";
-import {
-  createOperationsSettingsSessionFixture,
-} from "../fixtures/operationsSettingsSessionFixture";
+import { createApiAccessSettingsSessionFixture } from "../fixtures/apiAccessSettingsSessionFixture";
+import { createSystemOwnerCredentialSessionFixture } from "../fixtures/systemOwnerCredentialSessionFixture";
+import { createOperationsSettingsSessionFixture } from "../fixtures/operationsSettingsSessionFixture";
 
 const controls = {
   contextWidth: appContextDefaultWidth,
@@ -137,16 +127,23 @@ function createSlots(
     case "settings":
       return createSettingsActivitySlots({
         agent: createAgentApplicationFixture(),
-        agentRoute: { page: "overview" },
-        apiAccessSession: createApiAccessSettingsSessionFixture(),
-        onAgentRouteChange: () => undefined,
+        target: { kind: "interface" },
+        blocked: false,
+        navigation: {
+          reload: () => undefined,
+          scheduleReconnect: () => () => undefined,
+        },
+        onSelect: () => undefined,
+        onRefresh: () => undefined,
+        report: () => undefined,
+        api: createApiAccessSettingsSessionFixture(),
+        onCompleted: () => undefined,
         onCollapseDetail: controls.onCollapseDetail,
-        operationsSession: createOperationsSettingsSessionFixture(),
+        operations: createOperationsSettingsSessionFixture(),
         system: {} as Parameters<
           typeof createSettingsActivitySlots
         >[0]["system"],
-        systemOwnerCredentialSession:
-          createSystemOwnerCredentialSessionFixture(),
+        owner: createSystemOwnerCredentialSessionFixture(),
         workbench: {
           contextWidth: controls.contextWidth,
           onContextWidthChange: controls.onContextWidthChange,
@@ -173,27 +170,28 @@ describe("activity slots", () => {
       ["syntax", "语法", true],
       ["search", "搜索", true],
       ["repository", "仓库", true],
-      ["settings", "设置", true],
+      ["settings", "设置", false],
     ] as const satisfies ReadonlyArray<
       readonly [ActivityId, string | null, boolean]
     >;
 
-    expect(expected.map(([activityId]) => {
-      const slots = createSlots(activityId);
+    expect(
+      expected.map(([activityId]) => {
+        const slots = createSlots(activityId);
 
-      return [
-        activityId,
-        slots.context?.title ?? null,
-        slots.detail !== null,
-      ] as const;
-    })).toEqual(expected);
+        return [
+          activityId,
+          slots.context?.title ?? null,
+          slots.detail !== null,
+        ] as const;
+      }),
+    ).toEqual(expected);
 
-    for (const [activityId] of expected) {
+    for (const [activityId, , hasDetail] of expected) {
+      if (!hasDetail) continue;
       const detailMarkup = renderSlot(createSlots(activityId).detail);
 
-      expect(detailMarkup).toContain(
-        'class="ui-panel ui-panel-detail',
-      );
+      expect(detailMarkup).toContain('class="ui-panel ui-panel-detail');
       expect(detailMarkup).toContain("ui-button-icon");
     }
   });
@@ -251,12 +249,12 @@ describe("activity slots", () => {
       shell: createWorkspaceShell({ hasConfiguredSyntax: false }),
     });
 
-    expect(renderSlot(createSlots("notes", rawViews).main))
-      .toContain('data-editor-mode="raw"');
+    expect(renderSlot(createSlots("notes", rawViews).main)).toContain(
+      'data-editor-mode="raw"',
+    );
     const rawGraphSlots = createSlots("notes", rawViews, "graph");
 
-    expect(renderSlot(rawGraphSlots.main))
-      .toContain("引用图谱不可用");
+    expect(renderSlot(rawGraphSlots.main)).toContain("引用图谱不可用");
     expect(rawGraphSlots.context?.title).toBe("Primary");
     expect(renderSlot(rawGraphSlots.context?.content)).toContain(
       'role="radiogroup"',
@@ -264,14 +262,13 @@ describe("activity slots", () => {
     expect(renderSlot(rawGraphSlots.context?.content)).not.toContain(
       'aria-label="图谱控制"',
     );
-    expect(renderSlot(createSlots("notes", rawViews, "structure").main))
-      .toContain("结构操作不可用");
+    expect(
+      renderSlot(createSlots("notes", rawViews, "structure").main),
+    ).toContain("结构操作不可用");
     const noteModeSlots = (["edit", "structure", "graph"] as const).map(
       (mode) => createSlots("notes", undefined, mode),
     );
-    const notesContextMarkup = renderSlot(
-      noteModeSlots[0]?.context?.content,
-    );
+    const notesContextMarkup = renderSlot(noteModeSlots[0]?.context?.content);
 
     expect(noteModeSlots.map(({ context }) => context?.title)).toEqual([
       "Primary",
@@ -283,12 +280,15 @@ describe("activity slots", () => {
     expect(renderSlot(noteModeSlots[0]?.main)).not.toContain(
       'aria-label="笔记视图"',
     );
-    expect(renderSlot(noteModeSlots[1]?.context?.content))
-      .toContain("结构操作模式");
-    expect(renderSlot(noteModeSlots[2]?.context?.content))
-      .toContain('aria-label="图谱控制"');
-    expect(renderSlot(noteModeSlots[2]?.main))
-      .not.toContain('aria-label="图谱控制"');
+    expect(renderSlot(noteModeSlots[1]?.context?.content)).toContain(
+      "结构操作模式",
+    );
+    expect(renderSlot(noteModeSlots[2]?.context?.content)).toContain(
+      'aria-label="图谱控制"',
+    );
+    expect(renderSlot(noteModeSlots[2]?.main)).not.toContain(
+      'aria-label="图谱控制"',
+    );
 
     const submitted = {
       domains: ["workspace", "journal", "todo"] as const,
@@ -300,8 +300,7 @@ describe("activity slots", () => {
       resourceId: "note-a",
       title: "Alpha",
       updatedAt: "2026-07-29T10:00:00.000Z",
-      version:
-        `sha256:${"a".repeat(64)}` as `sha256:${string}`,
+      version: `sha256:${"a".repeat(64)}` as `sha256:${string}`,
     };
     const searchSlots = createSearchActivitySlots({
       controller: searchController,
@@ -314,11 +313,13 @@ describe("activity slots", () => {
           ...submitted,
           domains: [...submitted.domains],
         },
-        faults: [{
-          code: "source_unavailable",
-          domain: "journal",
-          message: "暂时不可用",
-        }],
+        faults: [
+          {
+            code: "source_unavailable",
+            domain: "journal",
+            message: "暂时不可用",
+          },
+        ],
         results: [
           {
             ...resultBase,
@@ -352,62 +353,77 @@ describe("activity slots", () => {
     expect(searchMain).toContain("部分来源不可用");
     expect(searchMain).toContain(`搜索 · ${submitted.query}`);
     expect(searchMain).toContain("块内共同词");
-    expect(searchMain).toContain(
-      'aria-label="打开Alpha中的匹配块"',
-    );
+    expect(searchMain).toContain('aria-label="打开Alpha中的匹配块"');
     expect(searchMain).not.toContain("整篇共同词");
     expect(renderSlot(searchSlots.detail)).toContain('aria-label="搜索状态"');
 
     const renderSearchState = (
       override: Partial<ReturnType<typeof searchController.getState>>,
     ) =>
-      renderSlot(createSearchActivitySlots({
-        controller: searchController,
-        onCollapseDetail: () => undefined,
-        onOpenResult: () => undefined,
-        repositories: [{ id: "repository-a", label: "仓库 A" }],
-        state: {
-          ...searchController.getState(),
-          status: "ready",
-          submitted: {
-            ...submitted,
-            domains: [...submitted.domains],
+      renderSlot(
+        createSearchActivitySlots({
+          controller: searchController,
+          onCollapseDetail: () => undefined,
+          onOpenResult: () => undefined,
+          repositories: [{ id: "repository-a", label: "仓库 A" }],
+          state: {
+            ...searchController.getState(),
+            status: "ready",
+            submitted: {
+              ...submitted,
+              domains: [...submitted.domains],
+            },
+            ...override,
           },
-          ...override,
+        }).main,
+      );
+    expect(
+      renderSearchState({
+        draft: {
+          ...submitted,
+          domains: [...submitted.domains],
+          query: "另一个搜索词",
         },
-      }).main);
-    expect(renderSearchState({
-      draft: {
-        ...submitted,
-        domains: [...submitted.domains],
-        query: "另一个搜索词",
-      },
-    })).toContain("条件已修改");
+      }),
+    ).toContain("条件已修改");
     const statusScenarios: Array<
       [Parameters<typeof renderSearchState>[0], string]
     > = [
       [{ status: "loading" }, "正在搜索"],
       [{ results: [] }, "没有结果"],
-      [{
-        errorMessage: "无法执行搜索",
-        results: [],
-      }, "搜索失败"],
-      [{
-        faults: [{
-          code: "source_unavailable",
-          domain: "todo",
-          message: "暂时不可用",
-        }],
-        results: [],
-      }, "搜索来源不可用"],
-      [{
-        errorMessage: "搜索来源已更新，请重新搜索。",
-        results: [{
-          ...resultBase,
-          blockId: "block-a",
-          snippet: "保留旧结果",
-        }],
-      }, "搜索来源已更新，请重新搜索。"],
+      [
+        {
+          errorMessage: "无法执行搜索",
+          results: [],
+        },
+        "搜索失败",
+      ],
+      [
+        {
+          faults: [
+            {
+              code: "source_unavailable",
+              domain: "todo",
+              message: "暂时不可用",
+            },
+          ],
+          results: [],
+        },
+        "搜索来源不可用",
+      ],
+      [
+        {
+          errorMessage: "搜索来源已更新，请重新搜索。",
+          results: [
+            {
+              ...resultBase,
+              blockId: "block-a",
+              snippet: "保留旧结果",
+            },
+          ],
+        },
+        "搜索来源已更新，请重新搜索。",
+      ],
     ];
 
     for (const [state, expectedText] of statusScenarios) {
@@ -439,26 +455,30 @@ describe("activity slots", () => {
     expect(mainMarkup).toContain(">硬范围<");
     expect(mainMarkup).toContain("需要在设置中完成配置");
 
-    const emptyConversationMarkup = renderSlot(createAgentActivitySlots({
-      agent,
-      creatingSession: false,
-      onBeginCreateSession: () => undefined,
-      onCollapseDetail: controls.onCollapseDetail,
-      onSelectSession: () => undefined,
-    }).main);
+    const emptyConversationMarkup = renderSlot(
+      createAgentActivitySlots({
+        agent,
+        creatingSession: false,
+        onBeginCreateSession: () => undefined,
+        onCollapseDetail: controls.onCollapseDetail,
+        onSelectSession: () => undefined,
+      }).main,
+    );
 
     expect(emptyConversationMarkup).toContain("创建或选择一个 Agent 会话");
     expect(emptyConversationMarkup).not.toContain("默认 profile");
     expect(emptyConversationMarkup).not.toContain(
       "在左侧选择 allowlist profile 和不可扩大的硬范围。",
     );
-    expect(createAgentActivitySlots({
-      agent,
-      creatingSession: false,
-      onBeginCreateSession: () => undefined,
-      onCollapseDetail: controls.onCollapseDetail,
-      onSelectSession: () => undefined,
-    }).detail).not.toBeNull();
+    expect(
+      createAgentActivitySlots({
+        agent,
+        creatingSession: false,
+        onBeginCreateSession: () => undefined,
+        onCollapseDetail: controls.onCollapseDetail,
+        onSelectSession: () => undefined,
+      }).detail,
+    ).not.toBeNull();
   });
 
   it("renders a human review before collapsed technical proposal facts", () => {
@@ -472,69 +492,82 @@ describe("activity slots", () => {
       createdAt: "2026-08-25T00:00:00.000Z",
       id: "00000000-0000-4000-8000-000000000100",
       lastActiveAt: "2026-08-25T00:00:00.000Z",
-      messages: [{
-        content: "请更新正文",
-        createdAt: "2026-08-25T00:00:01.000Z",
-        id: "00000000-0000-4000-8000-000000000104",
-        role: "user" as const,
-      }, {
-        content: "已生成 Proposal",
-        createdAt: "2026-08-25T00:00:02.000Z",
-        id: "00000000-0000-4000-8000-000000000105",
-        role: "assistant" as const,
-      }],
+      messages: [
+        {
+          content: "请更新正文",
+          createdAt: "2026-08-25T00:00:01.000Z",
+          id: "00000000-0000-4000-8000-000000000104",
+          role: "user" as const,
+        },
+        {
+          content: "已生成 Proposal",
+          createdAt: "2026-08-25T00:00:02.000Z",
+          id: "00000000-0000-4000-8000-000000000105",
+          role: "assistant" as const,
+        },
+      ],
       problem: null,
       profileDigest: `sha256:${"3".repeat(64)}` as const,
       profileId: "profile-a",
       profileLabel: "27B",
       profileModel: "qwen3.8:27b",
       profileVersion: 1,
-      proposals: [{
-        baseRevision,
-        changes: {
-          blocks: [],
-          occurredAt: "2026-08-25T00:00:00.000Z",
-          resources: [{
-            domain: "workspace" as const,
-            kind: "created" as const,
-            repositoryId: "repository-a",
-            resourceId,
-            version: `sha256:${"4".repeat(64)}` as const,
-          }],
+      proposals: [
+        {
+          baseRevision,
+          changes: {
+            blocks: [],
+            occurredAt: "2026-08-25T00:00:00.000Z",
+            resources: [
+              {
+                domain: "workspace" as const,
+                kind: "created" as const,
+                repositoryId: "repository-a",
+                resourceId,
+                version: `sha256:${"4".repeat(64)}` as const,
+              },
+            ],
+          },
+          destructive: false,
+          digest,
+          diff: [{ from: 0, insertedText: "- 新内容", resourceId, to: 0 }],
+          id: proposalId,
+          review: {
+            resources: [
+              {
+                actions: ["created" as const],
+                after: { label: "新笔记", path: "新笔记" },
+                before: null,
+                blockSummary: {
+                  created: 1,
+                  deleted: 0,
+                  moved: 0,
+                  stateUpdated: 0,
+                  updated: 0,
+                },
+                diff: [
+                  {
+                    lines: [
+                      {
+                        afterLineNumber: 1,
+                        beforeLineNumber: null,
+                        kind: "added" as const,
+                        text: "- 新内容",
+                      },
+                    ],
+                  },
+                ],
+                resourceId,
+                type: "workspace-note" as const,
+              },
+            ],
+            storeLabel: "测试仓库",
+          },
+          status: "pending" as const,
+          store: { domain: "workspace" as const, repositoryId: "repository-a" },
+          version: 2,
         },
-        destructive: false,
-        digest,
-        diff: [{ from: 0, insertedText: "- 新内容", resourceId, to: 0 }],
-        id: proposalId,
-        review: {
-          resources: [{
-            actions: ["created" as const],
-            after: { label: "新笔记", path: "新笔记" },
-            before: null,
-            blockSummary: {
-              created: 1,
-              deleted: 0,
-              moved: 0,
-              stateUpdated: 0,
-              updated: 0,
-            },
-            diff: [{
-              lines: [{
-                afterLineNumber: 1,
-                beforeLineNumber: null,
-                kind: "added" as const,
-                text: "- 新内容",
-              }],
-            }],
-            resourceId,
-            type: "workspace-note" as const,
-          }],
-          storeLabel: "测试仓库",
-        },
-        status: "pending" as const,
-        store: { domain: "workspace" as const, repositoryId: "repository-a" },
-        version: 2,
-      }],
+      ],
       providerDigest: `sha256:${"5".repeat(64)}` as const,
       providerId: "provider-a",
       providerVersion: 1,
@@ -554,20 +587,24 @@ describe("activity slots", () => {
         sessions: [session],
       },
     };
-    const markup = renderSlot(createAgentActivitySlots({
-      agent,
-      creatingSession: false,
-      onBeginCreateSession: () => undefined,
-      onCollapseDetail: controls.onCollapseDetail,
-      onSelectSession: () => undefined,
-    }).detail);
-    const conversationMarkup = renderSlot(createAgentActivitySlots({
-      agent,
-      creatingSession: false,
-      onBeginCreateSession: () => undefined,
-      onCollapseDetail: controls.onCollapseDetail,
-      onSelectSession: () => undefined,
-    }).main);
+    const markup = renderSlot(
+      createAgentActivitySlots({
+        agent,
+        creatingSession: false,
+        onBeginCreateSession: () => undefined,
+        onCollapseDetail: controls.onCollapseDetail,
+        onSelectSession: () => undefined,
+      }).detail,
+    );
+    const conversationMarkup = renderSlot(
+      createAgentActivitySlots({
+        agent,
+        creatingSession: false,
+        onBeginCreateSession: () => undefined,
+        onCollapseDetail: controls.onCollapseDetail,
+        onSelectSession: () => undefined,
+      }).main,
+    );
 
     expect(markup).toContain("测试仓库");
     expect(markup).toContain('aria-label="Proposal 摘要"');
@@ -589,31 +626,36 @@ describe("activity slots", () => {
 
     const destructiveSession = {
       ...session,
-      proposals: [{
-        ...session.proposals[0]!,
-        destructive: true,
-        status: "awaiting-destructive-confirmation" as const,
-      }, {
-        ...session.proposals[0]!,
-        id: "00000000-0000-4000-8000-000000000103",
-        status: "rejected" as const,
-      }],
+      proposals: [
+        {
+          ...session.proposals[0]!,
+          destructive: true,
+          status: "awaiting-destructive-confirmation" as const,
+        },
+        {
+          ...session.proposals[0]!,
+          id: "00000000-0000-4000-8000-000000000103",
+          status: "rejected" as const,
+        },
+      ],
       state: "awaiting-destructive-confirmation" as const,
     };
-    const destructiveMarkup = renderSlot(createAgentActivitySlots({
-      agent: {
-        ...fixture,
-        state: {
-          ...fixture.state,
-          activeSessionId: destructiveSession.id,
-          sessions: [destructiveSession],
+    const destructiveMarkup = renderSlot(
+      createAgentActivitySlots({
+        agent: {
+          ...fixture,
+          state: {
+            ...fixture.state,
+            activeSessionId: destructiveSession.id,
+            sessions: [destructiveSession],
+          },
         },
-      },
-      creatingSession: false,
-      onBeginCreateSession: () => undefined,
-      onCollapseDetail: controls.onCollapseDetail,
-      onSelectSession: () => undefined,
-    }).detail);
+        creatingSession: false,
+        onBeginCreateSession: () => undefined,
+        onCollapseDetail: controls.onCollapseDetail,
+        onSelectSession: () => undefined,
+      }).detail,
+    );
 
     expect(destructiveMarkup).toContain("第 1 份");
     expect(destructiveMarkup).toContain("第 2 份");

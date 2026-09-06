@@ -36,12 +36,8 @@ export {
   CompactContextRow,
   CompactContextStatusIcon,
 } from "./shared/CompactContextList.tsx";
-export {
-  ContextMenu,
-} from "./shared/ContextMenu.tsx";
-export type {
-  ContextMenuPosition,
-} from "./shared/ContextMenu.tsx";
+export { ContextMenu } from "./shared/ContextMenu.tsx";
+export type { ContextMenuPosition } from "./shared/ContextMenu.tsx";
 export {
   createRepositorySessionKey,
   globalWorkbenchSessionId,
@@ -54,20 +50,14 @@ export {
   getToneStyleDeclaration,
   isCustomTone,
 } from "./shared/tonePresentation.ts";
-export {
-  default,
-} from "./AppView.tsx";
+export { default } from "./AppView.tsx";
 export {
   FeedbackProvider,
   runActivityFeedbackAction,
   useFeedback,
   useWorkbenchFeedback,
 } from "./shared/FeedbackProvider.tsx";
-export {
-  FieldRow,
-  FormActions,
-  FormLayout,
-} from "./shared/FormLayout.tsx";
+export { FieldRow, FormActions, FormLayout } from "./shared/FormLayout.tsx";
 export {
   getListReorderIndex,
   getListRowDropPlacement,
@@ -78,57 +68,35 @@ export {
   StructureTree,
   TreeMoveQuickPick,
 } from "./shared/tree/index.ts";
-export type {
-  ListRowDropPlacement,
-} from "./shared/listDrag.ts";
-export {
-  ManagementList,
-  ManagementRow,
-} from "./shared/ManagementList.tsx";
-export {
-  Popover,
-} from "./shared/Popover.tsx";
-export {
-  ProblemsPanel,
-} from "./problems/ProblemsPanel.tsx";
-export {
-  QuickPick,
-} from "./shared/QuickPick.tsx";
+export type { ListRowDropPlacement } from "./shared/listDrag.ts";
+export { ManagementList, ManagementRow } from "./shared/ManagementList.tsx";
+export { Popover } from "./shared/Popover.tsx";
+export { ProblemsPanel } from "./problems/ProblemsPanel.tsx";
+export { QuickPick } from "./shared/QuickPick.tsx";
 export {
   RepositorySessionStateProvider,
   useRepositorySessionState,
 } from "./workbench/useRepositorySessionState.ts";
-export {
-  StatusBadge,
-} from "./shared/StatusPresentation.tsx";
+export { StatusBadge } from "./shared/StatusPresentation.tsx";
 export type {
   StructureTreeProps,
   StructureTreeRowProps,
   TreeNode,
 } from "./shared/tree/index.ts";
-export {
-  SubsectionTabs,
-} from "./shared/SubsectionTabs.tsx";
 export { ToolPanel, ToolPanelBody } from "./shared/ToolPanel.tsx";
 export { ToolSection, ToolSectionStack } from "./shared/ToolSection.tsx";
 export { ToolDivider, ToolToolbar } from "./shared/ToolToolbar.tsx";
-export { ToolPropertyList, ToolPropertyRow } from "./shared/ToolPropertyList.tsx";
+export {
+  ToolPropertyList,
+  ToolPropertyRow,
+} from "./shared/ToolPropertyList.tsx";
 export { ToolList, ToolListRow } from "./shared/ToolList.tsx";
-export {
-  useExclusiveAsyncAction,
-} from "./shared/useExclusiveAsyncAction.ts";
-export {
-  useReferenceNavigation,
-} from "./shared/useReferenceNavigation.tsx";
-export {
-  useWorkbenchLayout,
-} from "./workbench/useWorkbenchLayout.ts";
-export {
-  useWorkbenchProblemsShortcut,
-} from "./problems/useProblemsShortcut.ts";
-export type {
-  WorkbenchActivityFeedbackController,
-} from "./shared/FeedbackProvider.tsx";
-export type {
-  WorkbenchController,
-} from "./workbench/useWorkbenchLayout.ts";
+export { useExclusiveAsyncAction } from "./shared/useExclusiveAsyncAction.ts";
+export { useReferenceNavigation } from "./shared/useReferenceNavigation.tsx";
+export { useWorkbenchLayout } from "./workbench/useWorkbenchLayout.ts";
+export { useWorkbenchProblemsShortcut } from "./problems/useProblemsShortcut.ts";
+export type { WorkbenchActivityFeedbackController } from "./shared/FeedbackProvider.tsx";
+export type { WorkbenchController } from "./workbench/useWorkbenchLayout.ts";
+export { FormError, FormSaveActions } from "./shared/FormStatus.tsx";
+export { ConfirmAction } from "./shared/ConfirmAction.tsx";
+export type { ActivityInteractionState } from "./activityTypes.ts";

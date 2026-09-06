@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createResponseGates } from "./responseGate";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -10,10 +11,7 @@ import {
 } from "@playwright/test";
 import type { JournalContentDto } from "../../contracts/journal/types";
 import type { TodoContentDto } from "../../contracts/todo/types";
-import {
-  resetJournalRepository,
-  resetTodoRepository,
-} from "./builtInSeeds";
+import { resetJournalRepository, resetTodoRepository } from "./builtInSeeds";
 import {
   startE2EWorkspaceServer,
   type E2EWorkspaceServer,
@@ -29,6 +27,7 @@ type E2EState = {
 };
 
 type E2EFixtures = {
+  responseGates: ReturnType<typeof createResponseGates>;
   api: APIRequestContext;
   apiBaseUrl: string;
   baseURL: string;
@@ -41,21 +40,32 @@ type E2EWorkerFixtures = {
 };
 
 export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
-  e2eServer: [async ({}, use) => {
-    const rootDirectory = await mkdtemp(
-      path.join(os.tmpdir(), "cognition-tree-e2e-"),
-    );
-    const server = await startE2EWorkspaceServer({
-      rootDirectory,
-    });
+  e2eServer: [
+    async ({}, use) => {
+      const rootDirectory = await mkdtemp(
+        path.join(os.tmpdir(), "cognition-tree-e2e-"),
+      );
+      const server = await startE2EWorkspaceServer({
+        rootDirectory,
+      });
 
+      try {
+        await use(server);
+      } finally {
+        await server.close();
+        await rm(rootDirectory, { force: true, recursive: true });
+      }
+    },
+    { scope: "worker" },
+  ],
+  responseGates: async ({ page }, use) => {
+    const gates = createResponseGates(page);
     try {
-      await use(server);
+      await use(gates);
     } finally {
-      await server.close();
-      await rm(rootDirectory, { force: true, recursive: true });
+      await gates.dispose();
     }
-  }, { scope: "worker" }],
+  },
   apiBaseUrl: async ({ e2eServer }, use) => {
     await use(e2eServer.baseUrl);
   },
@@ -70,20 +80,26 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
       baseURL: e2eServer.baseUrl,
     });
 
-    await use(api);
-    await api.dispose();
+    try {
+      await use(api);
+    } finally {
+      await api.dispose();
+    }
   },
-  e2eState: [async ({ api, e2eServer }, use) => {
-    await e2eServer.reset();
-    await use({
-      async setBuiltIns({ journal, todo }) {
-        await Promise.all([
-          resetJournalRepository(api, journal),
-          resetTodoRepository(api, todo),
-        ]);
-      },
-      setJournal: (content) => resetJournalRepository(api, content),
-      setTodo: (content) => resetTodoRepository(api, content),
-    });
-  }, { auto: true }],
+  e2eState: [
+    async ({ api, e2eServer }, use) => {
+      await e2eServer.reset();
+      await use({
+        async setBuiltIns({ journal, todo }) {
+          await Promise.all([
+            resetJournalRepository(api, journal),
+            resetTodoRepository(api, todo),
+          ]);
+        },
+        setJournal: (content) => resetJournalRepository(api, content),
+        setTodo: (content) => resetTodoRepository(api, content),
+      });
+    },
+    { auto: true },
+  ],
 });

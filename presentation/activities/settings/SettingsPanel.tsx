@@ -1,132 +1,132 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Bot, ClipboardList, KeyRound, PanelLeft, ServerCog } from "lucide-react";
 import type { AgentApplication } from "../../../application/agent/index.ts";
-import {
-  CompactContextList,
-  CompactContextRow,
-} from "../../ui/index.ts";
+import type {
+  SystemApplication,
+  SystemReconnectPort,
+} from "../../../application/system/index.ts";
+import { AgentProviderSettingsPanel } from "./AgentProviderSettingsPanel.tsx";
+import { AgentProfileSettingsPanel } from "./AgentProfileSettingsPanel.tsx";
+import { AgentSettingsOverview } from "./AgentSettingsOverview.tsx";
 import { ApiAccessSettingsPanel } from "./ApiAccessSettingsPanel.tsx";
-import { AgentSettingsPanel } from "./AgentSettingsPanel.tsx";
-import type {
-  AgentSettingsRoute,
-  ApiAccessSelection,
-  SettingsSection,
-} from "./settingsTypes.ts";
-import type {
-  ApiAccessSettingsPanelView,
-} from "./useApiAccessSettingsSession.ts";
-import {
-  SystemSettingsPanel,
-  type SystemSettingsPanelApplication,
-} from "./SystemSettingsPanel.tsx";
-import { OperationsSettingsPanel } from "./OperationsSettingsPanel.tsx";
-import type {
-  OperationsSettingsPanelView,
-} from "./useOperationsSettingsSession.ts";
 import {
   InterfaceSettingsPanel,
   type SettingsWorkbenchPreferences,
 } from "./InterfaceSettingsPanel.tsx";
-import type {
-  SystemOwnerCredentialPanelView,
-} from "./useSystemOwnerCredentialSession.ts";
+import { MigrationSettingsPanel } from "./MigrationSettingsPanel.tsx";
+import { OperationsSettingsPanel } from "./OperationsSettingsPanel.tsx";
+import { OwnerCredentialSettingsPanel } from "./OwnerCredentialSettingsPanel.tsx";
+import { SystemConfigurationPanel } from "./SystemConfigurationPanel.tsx";
+import type { ApiAccessSettingsView } from "./useApiAccessSettingsSession.ts";
+import type { OperationsSettingsPanelView } from "./useOperationsSettingsSession.ts";
+import type { SettingsInteractionReporter } from "./useSettingsInteraction.ts";
+import type { SystemOwnerCredentialPanelView } from "./useSystemOwnerCredentialSession.ts";
+import type { SettingsTarget } from "./settingsTypes.ts";
 
-export type { SettingsSection } from "./settingsTypes.ts";
-export type { SettingsWorkbenchPreferences } from "./InterfaceSettingsPanel.tsx";
+export type SettingsPanelProps = {
+  agent: AgentApplication;
+  api: ApiAccessSettingsView;
+  navigation: SystemReconnectPort;
+  onCompleted(target: SettingsTarget): void;
+  operations: OperationsSettingsPanelView;
+  owner: SystemOwnerCredentialPanelView;
+  report: SettingsInteractionReporter;
+  system: SystemApplication;
+  target: SettingsTarget;
+  workbench: SettingsWorkbenchPreferences;
+};
 
-const settingsSections = [
-  { icon: PanelLeft, id: "interface", label: "界面" },
-  { icon: ServerCog, id: "system", label: "服务" },
-  { icon: Bot, id: "agent", label: "智能体" },
-  { icon: KeyRound, id: "api-access", label: "API 访问" },
-  { icon: ClipboardList, id: "audit", label: "审计" },
-] as const;
-
-export function SettingsContext({
-  onSectionChange = () => undefined,
-  section = "interface",
-}: {
-  onSectionChange?: (section: SettingsSection) => void;
-  section?: SettingsSection;
-}) {
-  return (
-    <div className="activity-context-content settings-context">
-      <CompactContextList aria-label="设置页面">
-        {settingsSections.map(({ icon: Icon, id, label }) => {
-          const selected = section === id;
-
-          return (
-            <CompactContextRow
-              icon={<Icon aria-hidden="true" size={13} />}
-              key={id}
-              label={label}
-              onSelect={() => onSectionChange(id)}
-              selected={selected}
-              title={label}
-            />
-          );
-        })}
-      </CompactContextList>
-    </div>
-  );
-}
-
+/** Composition boundary: pages receive only their own state and commands. */
 export function SettingsPanel({
   agent,
-  agentRoute,
-  apiAccessSession,
-  apiAccessSelection = { kind: "overview" },
-  onAgentRouteChange,
-  onApiAccessSelectionChange = () => undefined,
-  operationsSession,
-  section = "interface",
+  api,
+  navigation,
+  onCompleted,
+  operations,
+  owner,
+  report,
   system,
-  systemOwnerCredentialSession,
+  target,
   workbench,
-}: {
-  agent: AgentApplication;
-  agentRoute: AgentSettingsRoute;
-  apiAccessSession: ApiAccessSettingsPanelView;
-  apiAccessSelection?: ApiAccessSelection;
-  onAgentRouteChange: (route: AgentSettingsRoute) => void;
-  onApiAccessSelectionChange?: (selection: ApiAccessSelection) => void;
-  operationsSession: OperationsSettingsPanelView;
-  section?: SettingsSection;
-  system: SystemSettingsPanelApplication;
-  systemOwnerCredentialSession: SystemOwnerCredentialPanelView;
-  workbench: SettingsWorkbenchPreferences;
-}) {
-  if (section === "agent") {
-    return (
-      <AgentSettingsPanel
-        agent={agent}
-        onRouteChange={onAgentRouteChange}
-        route={agentRoute}
-      />
-    );
+}: SettingsPanelProps) {
+  switch (target.kind) {
+    case "interface":
+      return <InterfaceSettingsPanel workbench={workbench} />;
+    case "network":
+    case "paths":
+    case "audit-retention":
+      return (
+        <SystemConfigurationPanel
+          controller={system.configurationController}
+          navigation={navigation}
+          page={target.kind}
+          report={report}
+          state={system.configurationState}
+        />
+      );
+    case "owner":
+      return (
+        <OwnerCredentialSettingsPanel
+          authentication={system.authenticationController}
+          navigation={navigation}
+          report={report}
+          session={owner}
+          state={system.configurationState}
+        />
+      );
+    case "migration":
+      return (
+        <MigrationSettingsPanel
+          controller={system.configurationController}
+          navigation={navigation}
+          report={report}
+          state={system.configurationState}
+        />
+      );
+    case "provider":
+      return (
+        <AgentProviderSettingsPanel
+          commands={agent.configurationController}
+          id={target.id}
+          onCompleted={onCompleted}
+          report={report}
+          state={agent.configurationState}
+        />
+      );
+    case "profile":
+      return (
+        <AgentProfileSettingsPanel
+          commands={agent.configurationController}
+          id={target.id}
+          onCompleted={onCompleted}
+          report={report}
+          state={agent.configurationState}
+        />
+      );
+    case "agent-default":
+    case "agent-discovery":
+      return (
+        <AgentSettingsOverview
+          configurationState={agent.configurationState}
+          discover={agent.configurationController.discoverOllama}
+          page={target.kind}
+          preferredProfileId={agent.state.preferredProfileId}
+          report={report}
+          setPreferredProfile={agent.controller.setPreferredProfile}
+          status={agent.state.status}
+        />
+      );
+    case "automation":
+    case "trusted":
+      return (
+        <ApiAccessSettingsPanel
+          onCompleted={onCompleted}
+          report={report}
+          session={api}
+          target={target}
+        />
+      );
+    case "audit":
+      return <OperationsSettingsPanel session={operations} />;
   }
-  if (section === "system") {
-    return (
-      <SystemSettingsPanel
-        ownerCredentialSession={systemOwnerCredentialSession}
-        system={system}
-      />
-    );
-  }
-  if (section === "api-access") {
-    return (
-      <ApiAccessSettingsPanel
-        onSelectionChange={onApiAccessSelectionChange}
-        selection={apiAccessSelection}
-        session={apiAccessSession}
-      />
-    );
-  }
-  if (section === "audit") {
-    return (
-      <OperationsSettingsPanel session={operationsSession} />
-    );
-  }
-  return <InterfaceSettingsPanel workbench={workbench} />;
 }

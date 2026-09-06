@@ -29,6 +29,7 @@ type SystemConfigurationDraftView = Readonly<{
   change(draft: SystemConfigurationInput): void;
   discardChanges(): void;
   draft: SystemConfigurationInput | null;
+  dirty: boolean;
   stale: boolean;
   submit(): Promise<SystemConfigurationDraftSubmitResult>;
   submitting: boolean;
@@ -83,10 +84,13 @@ export function useSystemConfigurationDraft({
     latestSourceRef.current = latestSource;
   }, [latestSource]);
 
-  useLayoutEffect(() => () => {
-    lifecycleEpochRef.current += 1;
-    activeSubmissionRef.current = null;
-  }, []);
+  useLayoutEffect(
+    () => () => {
+      lifecycleEpochRef.current += 1;
+      activeSubmissionRef.current = null;
+    },
+    [],
+  );
 
   const change = useCallback((draft: SystemConfigurationInput) => {
     const generation = draftGenerationRef.current + 1;
@@ -148,8 +152,8 @@ export function useSystemConfigurationDraft({
       const editedAfterSubmission =
         draftGenerationRef.current !== submission.generation;
       const updatedSource = projectSystemConfigurationDraftSource(updated);
-      const superseded = (latestSourceRef.current?.version ?? -1) >
-        updated.version;
+      const superseded =
+        (latestSourceRef.current?.version ?? -1) > updated.version;
 
       activeSubmissionRef.current = null;
       dispatch({
@@ -181,6 +185,10 @@ export function useSystemConfigurationDraft({
     change,
     discardChanges,
     draft: state.draft,
+    dirty:
+      !!state.draft &&
+      !!state.baseline &&
+      !systemConfigurationInputsEqual(state.draft, state.baseline.input),
     stale: state.conflict !== null,
     submit,
     submitting: state.activeSubmission !== null,

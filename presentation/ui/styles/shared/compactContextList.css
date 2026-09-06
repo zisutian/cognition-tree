@@ -73,3 +73,10 @@
   width: var(--ui-symbol-size);
   height: var(--ui-symbol-size);
 }
+
+.ui-compact-context-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-gap-tight);
+}

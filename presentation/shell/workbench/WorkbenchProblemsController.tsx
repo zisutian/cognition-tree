@@ -8,14 +8,8 @@ import {
   projectWorkbenchProblems,
 } from "../../../application/workbench/index.ts";
 
-import type {
-  ActivityId,
-  WorkbenchController,
-} from "../../ui/index.ts";
-import {
-  getActivityLabel,
-  isActivityId,
-} from "./activityCatalog.tsx";
+import type { ActivityId, WorkbenchController } from "../../ui/index.ts";
+import { getActivityLabel, isActivityId } from "./activityCatalog.tsx";
 import {
   ProblemsPanel,
   runActivityFeedbackAction,
@@ -23,12 +17,8 @@ import {
   useWorkbenchProblemsShortcut,
 } from "../../ui/index.ts";
 
-
-
 import { openWorkbenchProblem } from "./workbenchProblemNavigation.ts";
-import {
-  selectWorkbenchPersistenceStatus,
-} from "./workbenchProblemsPanelProjection.ts";
+import { selectWorkbenchPersistenceStatus } from "./workbenchProblemsPanelProjection.ts";
 
 export function WorkbenchProblemsController({
   activeActivityId,
@@ -36,38 +26,41 @@ export function WorkbenchProblemsController({
   children,
   onOpenSystemSyntax,
   onActiveActivityChange,
+  statusMessage: activityStatusMessage,
   syntaxDiagnostics,
   workbench,
 }: {
   activeActivityId: ActivityId;
   application: WorkbenchApplication;
   children: (problemsSlot: ReactNode) => ReactNode;
-  onOpenSystemSyntax: (
-    owner: "journal" | "todo",
-    fieldId: string,
+  onOpenSystemSyntax: (owner: "journal" | "todo", fieldId: string) => void;
+  onActiveActivityChange: (
+    activityId: ActivityId,
+    beforeChange?: () => boolean | void,
   ) => void;
-  onActiveActivityChange: (activityId: ActivityId) => void;
+  statusMessage: string;
   syntaxDiagnostics: WorkbenchDiagnostics | null;
   workbench: WorkbenchController;
 }) {
   const feedback = useWorkbenchFeedback();
-  const workspace = application.workspace.status === "ready"
-    ? application.workspace.application
-    : null;
-  const journal = application.journal.status === "ready"
-    ? application.journal.view
-    : null;
-  const todo = application.todo.status === "ready"
-    ? application.todo.view
-    : null;
+  const workspace =
+    application.workspace.status === "ready"
+      ? application.workspace.application
+      : null;
+  const journal =
+    application.journal.status === "ready" ? application.journal.view : null;
+  const todo =
+    application.todo.status === "ready" ? application.todo.view : null;
   const problems = projectWorkbenchProblems({
     agentProblems: application.agent.state.status?.configurationProblem
-      ? [{
-          code: "configuration_unavailable",
-          id: "agent-configuration-problem",
-          message: application.agent.state.status.configurationProblem,
-          sessionId: null,
-        }]
+      ? [
+          {
+            code: "configuration_unavailable",
+            id: "agent-configuration-problem",
+            message: application.agent.state.status.configurationProblem,
+            sessionId: null,
+          },
+        ]
       : [],
     diagnostics: workspace?.diagnostics ?? {
       diagnostics: [],
@@ -100,16 +93,21 @@ export function WorkbenchProblemsController({
       onActiveActivityChange,
     });
 
-  const transient = feedback.snapshot.transient?.scope === activeActivityId
-    ? feedback.snapshot.transient
-    : null;
-  const transientStatus = transient?.tone === "info"
-    ? transient.message
-    : transient?.tone === "error"
-      ? feedback.snapshot.problems.find(({ id }) => id === transient.problemId)
-        ?.message ?? ""
-      : "";
-  const statusMessage = transientStatus ||
+  const transient =
+    feedback.snapshot.transient?.scope === activeActivityId
+      ? feedback.snapshot.transient
+      : null;
+  const transientStatus =
+    transient?.tone === "info"
+      ? transient.message
+      : transient?.tone === "error"
+        ? (feedback.snapshot.problems.find(
+            ({ id }) => id === transient.problemId,
+          )?.message ?? "")
+        : "";
+  const statusMessage =
+    activityStatusMessage ||
+    transientStatus ||
     selectWorkbenchPersistenceStatus(activeActivityId, application) ||
     (problems.status === "collecting" ? "正在检查…" : "");
 

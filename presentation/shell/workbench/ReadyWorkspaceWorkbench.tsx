@@ -1,3 +1,4 @@
+import type { ActivityInteractionState } from "../../ui/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect } from "react";
@@ -22,6 +23,8 @@ import { WorkspaceWorkbench } from "./WorkspaceWorkbench.tsx";
 export function ReadyWorkspaceWorkbench({
   scheduler,
   activeActivityId,
+  interaction,
+  onInteractionStateChange,
   agent,
   apiAccess,
   controller,
@@ -38,13 +41,21 @@ export function ReadyWorkspaceWorkbench({
 }: {
   scheduler: import("../../../application/runtime/index.ts").ApplicationScheduler;
   activeActivityId: ActivityId;
+  interaction: ActivityInteractionState;
+  onInteractionStateChange(
+    activityId: ActivityId,
+    state: ActivityInteractionState,
+  ): void;
   agent: AgentApplication;
   apiAccess: ApiAccessApplication;
   controller: WorkbenchController;
   feedbackController: ProblemCenterController<ActivityId>;
   journal: JournalApplication;
   operations: OperationApplication;
-  onActiveActivityChange: (activityId: ActivityId) => void;
+  onActiveActivityChange: (
+    activityId: ActivityId,
+    beforeChange?: () => boolean | void,
+  ) => void;
   repository: RepositoryApplication;
   search: WorkbenchApplication["search"];
   session: ActiveWorkspaceSession;
@@ -53,24 +64,24 @@ export function ReadyWorkspaceWorkbench({
   todo: TodoApplication;
 }) {
   const workspace = useWorkspaceApplication(session, scheduler);
-  const focusRequest = snapshot.navigation.status === "ready"
-    ? snapshot.navigation
-    : null;
+  const focusRequest =
+    snapshot.navigation.status === "ready" ? snapshot.navigation : null;
 
   useEffect(() => {
     if (!focusRequest) return;
-    const found = workspace.navigation.openNoteBlock(
-      focusRequest.destination.resourceId,
-      focusRequest.destination.blockId,
-    );
-
-    if (!found) {
-      feedbackController.reportInfo(
-        "notes",
-        "搜索结果中的块已不存在，已打开笔记首行。",
+    onActiveActivityChange("notes", () => {
+      const found = workspace.navigation.openNoteBlock(
+        focusRequest.destination.resourceId,
+        focusRequest.destination.blockId,
       );
-    }
-    onActiveActivityChange("notes");
+
+      if (!found) {
+        feedbackController.reportInfo(
+          "notes",
+          "搜索结果中的块已不存在，已打开笔记首行。",
+        );
+      }
+    });
     controller.consumeWorkspaceNoteDestination(focusRequest.requestId);
   }, [
     controller,
@@ -83,6 +94,8 @@ export function ReadyWorkspaceWorkbench({
   return (
     <WorkspaceWorkbench
       activeActivityId={activeActivityId}
+      interaction={interaction}
+      onInteractionStateChange={onInteractionStateChange}
       feedbackController={feedbackController}
       application={{
         agent,

@@ -1,17 +1,12 @@
+import type { ActivityInteractionState } from "../../ui/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { WorkbenchDiagnostics } from "../../../application/workbench/index.ts";
 import type { SyntaxFocusTarget } from "../../../application/syntax/index.ts";
 import type { WorkbenchApplication } from "../application/workbenchApplication.ts";
-import {
-  activityDescriptors,
-  getActivityLabel,
-} from "./activityCatalog.tsx";
-import type {
-  RenderActivity,
-  ActivityId,
-} from "../../ui/index.ts";
+import { activityDescriptors, getActivityLabel } from "./activityCatalog.tsx";
+import type { RenderActivity, ActivityId } from "../../ui/index.ts";
 import AppView from "../../ui/index.ts";
 
 import {
@@ -21,10 +16,8 @@ import {
   useWorkbenchLayout,
 } from "../../ui/index.ts";
 
-
 import { PlaceholderPanel } from "./PlaceholderPanel.tsx";
 import { WorkbenchProblemsController } from "./WorkbenchProblemsController.tsx";
-import { canChangeActivityWithSyntaxDraft } from "./syntaxNavigationGuard.ts";
 
 function ActivityLoadingView({
   activeActivityId,
@@ -49,28 +42,46 @@ function ActivityLoadingView({
 
 export function WorkspaceWorkbench({
   activeActivityId,
+  interaction,
+  onInteractionStateChange,
   application,
   feedbackController,
   onActiveActivityChange,
 }: {
   activeActivityId: ActivityId;
+  interaction: ActivityInteractionState;
+  onInteractionStateChange(
+    activityId: ActivityId,
+    state: ActivityInteractionState,
+  ): void;
   application: WorkbenchApplication;
   feedbackController: WorkbenchActivityFeedbackController;
-  onActiveActivityChange: (activityId: ActivityId) => void;
+  onActiveActivityChange: (
+    activityId: ActivityId,
+    beforeChange?: () => boolean | void,
+  ) => void;
 }) {
   const workbench = useWorkbenchLayout(
     application.repository.activeDescriptor?.id ?? globalWorkbenchSessionId,
   );
   const [retainedActivityIds, setRetainedActivityIds] = useState(
-    () =>
-      new Set<ActivityId>([activeActivityId]),
+    () => new Set<ActivityId>([activeActivityId]),
   );
-  const [syntaxLeaveBlocked, setSyntaxLeaveBlocked] = useState(false);
+  const setSyntaxLeaveBlocked = useCallback(
+    (blocked: boolean) =>
+      onInteractionStateChange("syntax", {
+        navigationBlocked: blocked,
+        statusMessage: blocked ? "语法包含未解决的问题，请先处理后再切换" : "",
+      }),
+    [onInteractionStateChange],
+  );
   const [syntaxProblems, setSyntaxProblems] =
     useState<WorkbenchDiagnostics | null>(null);
-  const [systemSyntaxFocusRequest, setSystemSyntaxFocusRequest] = useState<
-    Extract<SyntaxFocusTarget, { systemOwner: "journal" | "todo" }> | null
-  >(null);
+  const [systemSyntaxFocusRequest, setSystemSyntaxFocusRequest] =
+    useState<Extract<
+      SyntaxFocusTarget,
+      { systemOwner: "journal" | "todo" }
+    > | null>(null);
   const nextSystemSyntaxFocusRequestIdRef = useRef(1);
   const openSystemSyntax = (
     systemOwner: "journal" | "todo",
@@ -84,24 +95,16 @@ export function WorkspaceWorkbench({
   };
   const consumeSystemSyntaxFocusRequest = (requestId: number) => {
     setSystemSyntaxFocusRequest((current) =>
-      current?.requestId === requestId ? null : current
+      current?.requestId === requestId ? null : current,
     );
   };
-  const requestActivityChange = (activityId: ActivityId) => {
-    if (!canChangeActivityWithSyntaxDraft({
-      activeActivityId,
-      nextActivityId: activityId,
-      syntaxLeaveBlocked,
-    })) {
-      return;
-    }
-    onActiveActivityChange(activityId);
-  };
-  const updateSyntaxProblems = useCallback((
-    diagnostics: WorkbenchDiagnostics | null,
-  ) => {
-    setSyntaxProblems(diagnostics);
-  }, []);
+  const requestActivityChange = onActiveActivityChange;
+  const updateSyntaxProblems = useCallback(
+    (diagnostics: WorkbenchDiagnostics | null) => {
+      setSyntaxProblems(diagnostics);
+    },
+    [],
+  );
 
   useEffect(() => {
     setRetainedActivityIds((current) => {
@@ -125,13 +128,12 @@ export function WorkspaceWorkbench({
         application={application}
         onOpenSystemSyntax={openSystemSyntax}
         onActiveActivityChange={requestActivityChange}
+        statusMessage={interaction.statusMessage}
         syntaxDiagnostics={syntaxProblems}
         workbench={workbench}
       >
         {(problemsSlot) => {
-          const renderActivity: RenderActivity = (
-            createActivitySlots,
-          ) => (
+          const renderActivity: RenderActivity = (createActivitySlots) => (
             <AppView
               activityItems={activityDescriptors}
               activeActivityId={activeActivityId}
@@ -144,8 +146,8 @@ export function WorkspaceWorkbench({
           const controllerProps = {
             application,
             onActiveActivityChange: requestActivityChange,
-            onConsumeSystemSyntaxFocusRequest:
-              consumeSystemSyntaxFocusRequest,
+            onInteractionStateChange,
+            onConsumeSystemSyntaxFocusRequest: consumeSystemSyntaxFocusRequest,
             onSyntaxLeaveBlockedChange: setSyntaxLeaveBlocked,
             onSyntaxProblemsChange: updateSyntaxProblems,
             renderActivity,

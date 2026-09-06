@@ -1,3 +1,4 @@
+import { createWorkbenchNavigation } from "./workbench/workbenchNavigation.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
@@ -21,12 +22,9 @@ import {
   createWorkbenchRuntime,
 } from "../../infrastructure/client/runtime/index.ts";
 
-
 import { clientApplicationScheduler } from "../../infrastructure/client/platform/index.ts";
 import type { ActivityId } from "../ui/index.ts";
-import {
-  RepositorySessionStateProvider,
-} from "../ui/index.ts";
+import { RepositorySessionStateProvider } from "../ui/index.ts";
 import { useWorkbenchApplicationBindings } from "./application/useWorkbenchApplicationBindings.ts";
 import { projectUnavailableWorkspace } from "./application/workbenchApplicationProjection.ts";
 import { ReadyWorkspaceWorkbench } from "./workbench/ReadyWorkspaceWorkbench.tsx";
@@ -44,39 +42,46 @@ export function AuthenticatedWorkbenchRoot({
   const workbenchRuntime = useMemo(() => createWorkbenchRuntime(api), [api]);
   const controller = workbenchRuntime.controller;
   const feedbackController = useMemo(
-    () => createProblemCenter<ActivityId>({
-      scheduler: clientApplicationScheduler,
-    }),
+    () =>
+      createProblemCenter<ActivityId>({
+        scheduler: clientApplicationScheduler,
+      }),
     [],
   );
-  const agentRuntime = useMemo(() => createClientAgentRuntime(
-    api,
-    async (scope) => {
-      const current = controller.getSnapshot();
+  const agentRuntime = useMemo(
+    () =>
+      createClientAgentRuntime(
+        api,
+        async (scope) => {
+          const current = controller.getSnapshot();
 
-      if (scope.domain === "workspace") {
-        if (current.catalog.activeDescriptor?.id !== scope.repositoryId) return;
-        if (current.workspace.status !== "ready") {
-          throw new Error("Workspace draft is not ready to synchronize.");
-        }
-        await controller.workspace.synchronizePendingChanges();
-        return;
-      }
-      if (scope.domain === "journal") {
-        if (current.builtIns.journal.state.status !== "ready") return;
-        await controller.journal.synchronizePendingChanges();
-        return;
-      }
-      if (current.builtIns.todo.state.status !== "ready") return;
-      await controller.todo.synchronizePendingChanges();
-    },
-    feedbackController,
-  ), [api, controller, feedbackController]);
+          if (scope.domain === "workspace") {
+            if (current.catalog.activeDescriptor?.id !== scope.repositoryId)
+              return;
+            if (current.workspace.status !== "ready") {
+              throw new Error("Workspace draft is not ready to synchronize.");
+            }
+            await controller.workspace.synchronizePendingChanges();
+            return;
+          }
+          if (scope.domain === "journal") {
+            if (current.builtIns.journal.state.status !== "ready") return;
+            await controller.journal.synchronizePendingChanges();
+            return;
+          }
+          if (current.builtIns.todo.state.status !== "ready") return;
+          await controller.todo.synchronizePendingChanges();
+        },
+        feedbackController,
+      ),
+    [api, controller, feedbackController],
+  );
   const systemConfigurationController = useMemo(
-    () => createClientSystemConfigurationRuntime(
-      api,
-      controller.flushLoadedContent,
-    ),
+    () =>
+      createClientSystemConfigurationRuntime(
+        api,
+        controller.flushLoadedContent,
+      ),
     [api, controller],
   );
   const snapshot = useSyncExternalStore(
@@ -100,8 +105,12 @@ export function AuthenticatedWorkbenchRoot({
     systemConfigurationController.getSnapshot,
   );
   const lifecycleEpochRef = useRef(0);
-  const [activeActivityId, setActiveActivityId] =
-    useState<ActivityId>("notes");
+  const [navigation] = useState(() => createWorkbenchNavigation("notes"));
+  const { activeActivityId, interaction } = useSyncExternalStore(
+    navigation.subscribe,
+    navigation.getSnapshot,
+    navigation.getSnapshot,
+  );
   const applications = useWorkbenchApplicationBindings({
     applicationServices: workbenchRuntime.applicationServices,
     agentConfigurationController: agentRuntime.configuration,
@@ -119,9 +128,10 @@ export function AuthenticatedWorkbenchRoot({
     systemConfigurationState: systemConfigurationSnapshot,
   });
   const repositorySessionIds = useMemo(
-    () => snapshot.catalog.state.status === "ready"
-      ? snapshot.catalog.state.repositories.map(({ id }) => id)
-      : null,
+    () =>
+      snapshot.catalog.state.status === "ready"
+        ? snapshot.catalog.state.repositories.map(({ id }) => id)
+        : null,
     [snapshot.catalog.state],
   );
 
@@ -171,7 +181,9 @@ export function AuthenticatedWorkbenchRoot({
         feedbackController={feedbackController}
         journal={applications.journal}
         key={snapshot.catalog.activeDescriptor?.id}
-        onActiveActivityChange={setActiveActivityId}
+        onActiveActivityChange={navigation.request}
+        onInteractionStateChange={navigation.reportInteraction}
+        interaction={interaction}
         operations={applications.operations}
         repository={applications.repository}
         search={applications.search}
@@ -190,7 +202,9 @@ export function AuthenticatedWorkbenchRoot({
           ...applications,
           workspace: projectUnavailableWorkspace(controller, snapshot),
         }}
-        onActiveActivityChange={setActiveActivityId}
+        onActiveActivityChange={navigation.request}
+        onInteractionStateChange={navigation.reportInteraction}
+        interaction={interaction}
       />
     );
   }

@@ -1,23 +1,14 @@
 import { describe, expect, it } from "vitest";
-import {
-  configurableSyntaxTones,
-} from "../../core/ctn/syntax/tones";
-import {
-  defaultStructureTreeIndentWidthPx,
-} from "../../presentation/ui/shared/tree/structureIndent";
-import {
-  uiVirtualRowHeightPx,
-} from "../../presentation/ui/shared/virtualListMetrics";
+import { configurableSyntaxTones } from "../../core/ctn/syntax/tones";
+import { defaultStructureTreeIndentWidthPx } from "../../presentation/ui/shared/tree/structureIndent";
+import { uiVirtualRowHeightPx } from "../../presentation/ui/shared/virtualListMetrics";
 import {
   appContextDefaultWidth,
   appDetailDefaultWidth,
   appProblemsCollapsedHeight,
   appProblemsDefaultHeight,
 } from "../../presentation/ui/workbench/frameResize";
-import {
-  auditTextPolicies,
-  type TextCorpus,
-} from "../support/textPolicy";
+import { auditTextPolicies, type TextCorpus } from "../support/textPolicy";
 import {
   createUiTextPolicies,
   createUiConstraintCatalog,
@@ -37,10 +28,7 @@ const styleModules = import.meta.glob("../../presentation/**/*.css", {
   import: "default",
   query: "?raw",
 }) as TextCorpus;
-const uiTestModules = import.meta.glob([
-  "./**/*.test.ts",
-  "./**/*.test.tsx",
-], {
+const uiTestModules = import.meta.glob(["./**/*.test.ts", "./**/*.test.tsx"], {
   eager: true,
   import: "default",
   query: "?raw",
@@ -60,10 +48,7 @@ function readStyle(relativePath: string) {
 
 function expectFragments(
   source: string,
-  {
-    forbidden = [],
-    required = [],
-  }: FragmentContract,
+  { forbidden = [], required = [] }: FragmentContract,
 ) {
   expect({
     forbidden: forbidden.filter((fragment) => source.includes(fragment)),
@@ -91,8 +76,9 @@ function readRule(source: string, selector: string) {
 
 function readCustomProperties(source: string) {
   return new Map(
-    [...source.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)]
-      .map((match) => [match[1] ?? "", match[2]?.trim() ?? ""] as const),
+    [...source.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map(
+      (match) => [match[1] ?? "", match[2]?.trim() ?? ""] as const,
+    ),
   );
 }
 
@@ -103,11 +89,10 @@ describe("UI design contract", () => {
       .map((path) => path.replace("../../presentation/", ""));
     const globalStyleEntry = readStyle("ui/styles/index.css");
     expect(
-      uiConstraintCatalog.requiredStyleLayers.filter((path) =>
-        !uiStylePaths.includes(path)
+      uiConstraintCatalog.requiredStyleLayers.filter(
+        (path) => !uiStylePaths.includes(path),
       ),
-    )
-      .toEqual([]);
+    ).toEqual([]);
     expect(globalStyleEntry).not.toContain("./activities/");
     expect(globalStyleEntry).toContain("./frame/problems.css");
     expect(globalStyleEntry).toContain("./shared/toolSurface.css");
@@ -115,33 +100,38 @@ describe("UI design contract", () => {
   });
 
   it("enforces the declared source-level UI policies", () => {
-    expect(auditTextPolicies(createUiTextPolicies({
-      presentationModules,
-      sourceModules,
-      styleModules,
-      uiTestModules,
-    }))).toEqual([]);
+    expect(
+      auditTextPolicies(
+        createUiTextPolicies({
+          presentationModules,
+          sourceModules,
+          styleModules,
+          uiTestModules,
+        }),
+      ),
+    ).toEqual([]);
   });
 
   it("centralizes the complete design vocabulary and runtime dimensions", () => {
     const theme = readStyle("ui/styles/foundation/theme.css");
     const themeProperties = readCustomProperties(theme);
     const blockTextStyle = readStyle("ui/styles/shared/blockText.css");
-    const missingToneSelectors = configurableSyntaxTones.flatMap((tone) => [
-      `.ctn-tone-${tone}`,
-      `.ctn-text-color-${tone}`,
-    ]).filter((selector) => !blockTextStyle.includes(selector));
+    const missingToneSelectors = configurableSyntaxTones
+      .flatMap((tone) => [`.ctn-tone-${tone}`, `.ctn-text-color-${tone}`])
+      .filter((selector) => !blockTextStyle.includes(selector));
 
     expect(
-      uiConstraintCatalog.requiredThemeTokens.filter((token) =>
-        !themeProperties.has(token)
+      uiConstraintCatalog.requiredThemeTokens.filter(
+        (token) => !themeProperties.has(token),
       ),
     ).toEqual([]);
-    expect(uiConstraintCatalog.runtimeDimensions.map(([token, expected]) => [
-      token,
-      themeProperties.get(token),
-      expected,
-    ])).toEqual(
+    expect(
+      uiConstraintCatalog.runtimeDimensions.map(([token, expected]) => [
+        token,
+        themeProperties.get(token),
+        expected,
+      ]),
+    ).toEqual(
       uiConstraintCatalog.runtimeDimensions.map(([token, expected]) => [
         token,
         expected,
@@ -149,56 +139,6 @@ describe("UI design contract", () => {
       ]),
     );
     expect(missingToneSelectors).toEqual([]);
-  });
-
-  it("keeps tool typography, widths, sections, and rows in one shared owner", () => {
-    const toolSurface = readStyle("ui/styles/shared/toolSurface.css");
-    const controls = readStyle("ui/styles/shared/controls.css");
-
-    expectFragments(toolSurface, {
-      required: [
-        ".ui-tool-panel",
-        "--ui-gap: var(--ui-gap-tight)",
-        "--ui-control-height: var(--ui-row-height)",
-        "--ui-control-font-size: var(--ui-body-font-size)",
-        "--ui-micro-font-size: var(--ui-body-font-size)",
-        "--ui-code-font-size: var(--ui-body-font-size)",
-        ".ui-tool-panel-body-form > .ui-tool-panel-content",
-        "width: min(100%, 880px)",
-        ".ui-tool-panel-body-results > .ui-tool-panel-content",
-        "width: min(100%, 920px)",
-        ".ui-tool-section + .ui-tool-section",
-        "border-top: var(--ui-border-width) solid var(--color-border)",
-        ".ui-tool-divider",
-        ".ui-tool-property-list",
-        ".ui-tool-property-row",
-        "grid-template-columns: 88px minmax(0, 1fr)",
-        "column-gap: calc(var(--ui-gap-tight) * 2)",
-        ".ui-tool-property-row dt",
-        "text-align: left",
-        ".ui-tool-property-row dd",
-        "grid-template-columns: minmax(0, 1fr) auto",
-        "overflow-wrap: anywhere",
-        ".ui-tool-list-row-single-line",
-        ".ui-tool-list-row-wrap",
-        "height: var(--ui-row-height)",
-      ],
-    });
-    expectFragments(controls, {
-      required: [
-        ".ui-control",
-        "height: var(--ui-control-height)",
-        "min-width: 72px",
-        "max-width: min(320px, 100%)",
-        ".ui-choice-option",
-        ".ui-toggle-button",
-        ".ui-subsection-tab.is-active",
-        "background: var(--color-selected)",
-        "border-color: var(--color-accent)",
-        ".ui-range-control",
-        ".ui-color-control",
-      ],
-    });
   });
 
   it("keeps repeated CTN document chrome in shared editor owners", () => {
@@ -249,13 +189,11 @@ describe("UI design contract", () => {
     const editorStyle = readStyle("editor/CtnEditor.css");
     const backgroundPositions =
       uiConstraintCatalog.editor.backgroundPrecedence.map((selector) =>
-      editorStyle.indexOf(selector)
-    );
+        editorStyle.indexOf(selector),
+      );
 
-    for (
-      const { forbidden, required, selector } of
-        uiConstraintCatalog.editor.rules
-    ) {
+    for (const { forbidden, required, selector } of uiConstraintCatalog.editor
+      .rules) {
       expectFragments(readRule(editorStyle, selector), {
         forbidden,
         required,

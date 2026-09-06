@@ -135,6 +135,7 @@ export function CompactContextList({
 }
 
 export type CompactContextGroupProps = {
+  actions?: ReactNode;
   children: ReactNode;
   className?: string;
   count?: number;
@@ -145,6 +146,7 @@ export type CompactContextGroupProps = {
 };
 
 export function CompactContextGroup({
+  actions,
   children,
   className,
   count,
@@ -158,14 +160,14 @@ export function CompactContextGroup({
       aria-labelledby={headingId}
       className={cx("ui-compact-context-group", className)}
     >
-      <h3 className="ui-compact-context-group-title" id={headingId}>
-        <span>{label}</span>
-        {count === undefined ? null : <span>{count}</span>}
-      </h3>
-      <CompactContextList
-        aria-label={listAriaLabel}
-        className={listClassName}
-      >
+      <div className="ui-compact-context-group-heading">
+        <h3 className="ui-compact-context-group-title" id={headingId}>
+          <span>{label}</span>
+          {count === undefined ? null : <span>{count}</span>}
+        </h3>
+        {actions ? <span className="ui-actions">{actions}</span> : null}
+      </div>
+      <CompactContextList aria-label={listAriaLabel} className={listClassName}>
         {children}
       </CompactContextList>
     </section>

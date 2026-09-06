@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { DataRootMigrationStatus } from "./dataRootMigrationPorts.ts";
-import type { SystemConfigurationSnapshot, SystemConfigurationInput, SystemConfigurationUpdateRequest, OwnerCredentialRotationPreparation, OwnerCredentialRotationActivation } from "./systemConfigurationModel.ts";
+import type {
+  SystemConfigurationSnapshot,
+  SystemConfigurationInput,
+  SystemConfigurationUpdateRequest,
+  OwnerCredentialRotationPreparation,
+  OwnerCredentialRotationActivation,
+} from "./systemConfigurationModel.ts";
 
 export type SystemAdministrationPort = {
   activateOwnerCredentialRotation(
@@ -9,7 +15,9 @@ export type SystemAdministrationPort = {
     rotationId: string,
     secret: string,
   ): Promise<SystemConfigurationSnapshot>;
-  clearOwnerCredential(baseRevision: string): Promise<SystemConfigurationSnapshot>;
+  clearOwnerCredential(
+    baseRevision: string,
+  ): Promise<SystemConfigurationSnapshot>;
   getCurrentMigration(): Promise<DataRootMigrationStatus | null>;
   reconcileMigration(migrationId: string): Promise<DataRootMigrationStatus>;
   getMigration(migrationId: string): Promise<DataRootMigrationStatus>;
@@ -35,13 +43,14 @@ export type OwnerCredentialRotationCommit = Readonly<{
 export type SystemAdministrationServerPort = Omit<
   SystemAdministrationPort,
   "activateOwnerCredentialRotation"
-> & Readonly<{
-  activateOwnerCredentialRotation(
-    baseRevision: string,
-    rotationId: string,
-    secret: string,
-  ): Promise<OwnerCredentialRotationCommit>;
-}>;
+> &
+  Readonly<{
+    activateOwnerCredentialRotation(
+      baseRevision: string,
+      rotationId: string,
+      secret: string,
+    ): Promise<OwnerCredentialRotationCommit>;
+  }>;
 
 export type SystemMaintenanceLease = {
   finish(): void;
@@ -104,7 +113,9 @@ export type SystemApplication = Readonly<{
 }>;
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "System configuration failed.";
+  return error instanceof Error
+    ? error.message
+    : "System configuration failed.";
 }
 
 export function createSystemConfigurationController(
@@ -143,7 +154,8 @@ export function createSystemConfigurationController(
     }
   };
   const revision = () => {
-    if (!state.configuration) throw new Error("System configuration is not loaded.");
+    if (!state.configuration)
+      throw new Error("System configuration is not loaded.");
     return state.configuration.revision;
   };
   const installConfiguration = (configuration: SystemConfigurationSnapshot) => {
@@ -158,7 +170,8 @@ export function createSystemConfigurationController(
     if (
       configurationAuthorityVersion !== expectedAuthorityVersion &&
       state.configuration?.revision !== configuration.revision
-    ) return;
+    )
+      return;
     installConfiguration(configuration);
   };
   const runOperation = async <Result>(operation: () => Promise<Result>) => {
@@ -175,9 +188,7 @@ export function createSystemConfigurationController(
       publish({ operationStatus: operationCount > 0 ? "working" : "idle" });
     }
   };
-  const mutate = (
-    operation: () => Promise<SystemConfigurationSnapshot>,
-  ) => {
+  const mutate = (operation: () => Promise<SystemConfigurationSnapshot>) => {
     const expectedAuthorityVersion = configurationAuthorityVersion;
 
     return runOperation(async () => {
@@ -197,21 +208,38 @@ export function createSystemConfigurationController(
       return true;
     };
     if (!publishCurrent()) return;
-    while (["preparing", "copying", "verifying", "committing", "reconciling"].includes(migration.status)) {
+    while (
+      [
+        "preparing",
+        "copying",
+        "verifying",
+        "committing",
+        "reconciling",
+      ].includes(migration.status)
+    ) {
       await pollMigration(pollMigrationIntervalMilliseconds);
       if (disposed || requestVersion !== migrationRequestVersion) return;
       migration = await port.getMigration(migration.id);
       if (!publishCurrent()) return;
     }
-    if (migration.status === "failed" || migration.status === "recovery-required") {
-      throw new Error(migration.errorMessage ?? "Data-root migration needs attention.");
+    if (
+      migration.status === "failed" ||
+      migration.status === "recovery-required"
+    ) {
+      throw new Error(
+        migration.errorMessage ?? "Data-root migration needs attention.",
+      );
     }
   };
 
   return {
-    async activateOwnerCredentialRotation({ baseRevision, rotationId, secret }) {
+    async activateOwnerCredentialRotation({
+      baseRevision,
+      rotationId,
+      secret,
+    }) {
       await mutate(() =>
-        port.activateOwnerCredentialRotation(baseRevision, rotationId, secret)
+        port.activateOwnerCredentialRotation(baseRevision, rotationId, secret),
       );
     },
     async clearOwnerCredential() {
@@ -235,16 +263,23 @@ export function createSystemConfigurationController(
 
       publish({ errorMessage: null, loadStatus: "loading" });
       try {
-        const [configuration, migration] = await Promise.all([port.load(), port.getCurrentMigration()]);
+        const [configuration, migration] = await Promise.all([
+          port.load(),
+          port.getCurrentMigration(),
+        ]);
 
         if (
           disposed ||
           requestVersion !== loadRequestVersion ||
           expectedAuthorityVersion !== configurationAuthorityVersion
-        ) return;
+        )
+          return;
         installConfiguration(configuration);
         if (expectedMigrationVersion === migrationRequestVersion) {
-          if (migration) void runOperation(() => trackMigration(migration)).catch(() => undefined);
+          if (migration)
+            void runOperation(() => trackMigration(migration)).catch(
+              () => undefined,
+            );
           else publish({ migration: null });
         }
       } catch (error) {
@@ -252,7 +287,8 @@ export function createSystemConfigurationController(
           disposed ||
           requestVersion !== loadRequestVersion ||
           expectedAuthorityVersion !== configurationAuthorityVersion
-        ) return;
+        )
+          return;
         publish({ errorMessage: errorMessage(error), loadStatus: "failed" });
       }
     },
@@ -271,7 +307,9 @@ export function createSystemConfigurationController(
       requireActive();
       const migration = state.migration;
       if (!migration) throw new Error("No migration is available to reconcile");
-      await runOperation(async () => trackMigration(await port.reconcileMigration(migration.id)));
+      await runOperation(async () =>
+        trackMigration(await port.reconcileMigration(migration.id)),
+      );
     },
     async prepareOwnerCredentialRotation() {
       requireActive();
@@ -279,9 +317,8 @@ export function createSystemConfigurationController(
       const baseRevision = revision();
 
       return await runOperation(async () => {
-        const preparation = await port.prepareOwnerCredentialRotation(
-          baseRevision,
-        );
+        const preparation =
+          await port.prepareOwnerCredentialRotation(baseRevision);
 
         installOperationConfiguration(
           expectedAuthorityVersion,
@@ -295,9 +332,8 @@ export function createSystemConfigurationController(
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    update: ({ baseRevision, configuration }) => mutate(() =>
-      port.update(baseRevision, configuration)
-    ),
+    update: ({ baseRevision, configuration }) =>
+      mutate(() => port.update(baseRevision, configuration)),
   };
 }
 
@@ -328,10 +364,7 @@ export function createOwnerAuthenticationController(
       }
     }
   };
-  const mutate = (
-    operation: () => Promise<void>,
-    authenticated: boolean,
-  ) => {
+  const mutate = (operation: () => Promise<void>, authenticated: boolean) => {
     authenticationMutationVersion += 1;
     pendingMutationCount += 1;
     publish({ errorMessage: null, status: "loading" });
@@ -355,7 +388,10 @@ export function createOwnerAuthenticationController(
       }
     });
 
-    mutationQueue = pending.then(() => undefined, () => undefined);
+    mutationQueue = pending.then(
+      () => undefined,
+      () => undefined,
+    );
     return pending;
   };
 
@@ -376,13 +412,15 @@ export function createOwnerAuthenticationController(
         if (
           requestVersion !== loadRequestVersion ||
           expectedMutationVersion !== authenticationMutationVersion
-        ) return;
+        )
+          return;
         publish({ authenticated, status: "ready" });
       } catch (error) {
         if (
           requestVersion !== loadRequestVersion ||
           expectedMutationVersion !== authenticationMutationVersion
-        ) return;
+        )
+          return;
         publish({
           authenticated: false,
           errorMessage: errorMessage(error),
@@ -398,3 +436,8 @@ export function createOwnerAuthenticationController(
     },
   };
 }
+
+export type SystemReconnectPort = Readonly<{
+  scheduleReconnect(address: string | null): () => void;
+  reload(): void;
+}>;

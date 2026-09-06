@@ -26,9 +26,7 @@ export type {
   DataRootMigrationStatus,
   PreparedDataRootChange,
 } from "./dataRootMigrationPorts.ts";
-export {
-  DataRootMigrationCoordinator,
-} from "./dataRootMigrationCoordinator.ts";
+export { DataRootMigrationCoordinator } from "./dataRootMigrationCoordinator.ts";
 export type {
   OwnerAuthenticationController,
   OwnerAuthenticationPort,
@@ -42,9 +40,7 @@ export type {
   SystemMaintenanceLease,
   SystemMaintenancePort,
 } from "./systemConfiguration.ts";
-export {
-  SystemAdministrationService,
-} from "./systemAdministrationService.ts";
+export { SystemAdministrationService } from "./systemAdministrationService.ts";
 export {
   SystemConfigurationConflictError,
   SystemConfigurationValidationError,
@@ -52,3 +48,4 @@ export {
   SystemMigrationNotFoundError,
   SystemMigrationValidationError,
 } from "./systemConfigurationModel.ts";
+export type { SystemReconnectPort } from "./systemConfiguration.ts";

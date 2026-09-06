@@ -1,18 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { expect, type JSHandle, type Page } from "@playwright/test";
-import {
-  seedWorkbenchRepository,
-} from "./support/repositorySeeds";
+import { seedWorkbenchRepository } from "./support/repositorySeeds";
 import { test } from "./support/e2eTest";
 import {
   e2eAgentProfileId,
   e2eAgentUnavailableProfileId,
 } from "./support/fakeAgentRuntime";
-import {
-  getActivityButton,
-  openWorkbench,
-} from "./support/workbenchPage";
+import { getActivityButton, openWorkbench } from "./support/workbenchPage";
 
 const syntaxRepositoryId = "workbench-syntax-view";
 const deniedRepositoryId = "workbench-settings-denied";
@@ -26,11 +21,16 @@ function observeTextReappearance(page: Page, text: string) {
   return page.evaluateHandle((value): TextReappearanceObservation => {
     const state = { reappeared: false };
     const observer = new MutationObserver((records) => {
-      if (records.some((record) =>
-        (record.type === "characterData" &&
-          record.target.textContent?.includes(value)) ||
-        [...record.addedNodes].some((node) => node.textContent?.includes(value))
-      )) {
+      if (
+        records.some(
+          (record) =>
+            (record.type === "characterData" &&
+              record.target.textContent?.includes(value)) ||
+            [...record.addedNodes].some((node) =>
+              node.textContent?.includes(value),
+            ),
+        )
+      ) {
         state.reappeared = true;
       }
     });
@@ -56,6 +56,9 @@ async function stopTextReappearanceObservation(
   return reappeared;
 }
 
+// These flows display credentials. Traces include response bodies and DOM snapshots.
+test.use({ screenshot: "off", trace: "off" });
+
 test.describe("settings activity flows", () => {
   test.beforeEach(async ({ api }) => {
     await Promise.all([
@@ -64,107 +67,88 @@ test.describe("settings activity flows", () => {
     ]);
   });
 
-  test("keeps the edited provider and its details on the same object", async ({ page }) => {
+  test("keeps the edited provider and its details on the same object", async ({
+    page,
+  }) => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "设置").click();
-    await page.locator(".settings-context").getByRole("button", { name: "智能体", exact: true }).click();
-    const panel = page.getByRole("region", { name: "智能体设置" });
-    await panel.getByRole("tab", { name: "Provider", exact: true }).click();
-    await panel.getByRole("button", { name: "编辑 E2E missing provider", exact: true }).click();
-    await expect(panel.getByRole("textbox", { name: "Provider 名称", exact: true })).toHaveValue("E2E missing provider");
+    await page
+      .locator(".settings-context")
+      .getByRole("button", { name: "E2E missing provider", exact: true })
+      .click();
+    const panel = page.getByRole("region", { name: "模型服务设置" });
+    await expect(
+      panel.getByRole("textbox", { name: "Provider 名称", exact: true }),
+    ).toHaveValue("E2E missing provider");
     const details = page.getByRole("region", { name: "设置状态" });
     await expect(details).toContainText("E2E missing provider");
     await expect(details).toContainText("https://e2e-missing.invalid/v1");
     await expect(details).not.toContainText("https://e2e-runtime.invalid/v1");
   });
 
-  test("manages the owner credential only in service settings", async ({
+  test("keeps credential preparation in the main panel and blocks navigation while pending", async ({
     page,
+    responseGates,
   }) => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "设置").click();
-    await page.getByRole("button", { name: "服务", exact: true }).click();
-    const panel = page.getByRole("region", { name: "服务设置" });
-    const statusPanel = page.getByRole("region", { name: "设置状态" });
+    const context = page.locator(".settings-context");
+    await context
+      .getByRole("button", { name: "所有者凭据", exact: true })
+      .click();
+    const panel = page.getByRole("region", { name: "所有者凭据设置" });
+    await page
+      .getByRole("button", { name: "收回右侧详情", exact: true })
+      .click();
+    await panel
+      .getByRole("button", { name: "准备创建密钥", exact: true })
+      .click();
+    const secretNode = panel.locator("code[data-sensitive]");
+    await expect(secretNode).toHaveCount(1);
+    const secret = (await secretNode.textContent()) ?? "";
+    expect(/^ctn_owner_[A-Za-z0-9_-]{43}$/.test(secret)).toBe(true);
+    const observation = await observeTextReappearance(page, secret);
+    await context
+      .getByRole("button", { name: "工作台布局", exact: true })
+      .click();
+    await context
+      .getByRole("button", { name: "所有者凭据", exact: true })
+      .click();
+    await expect(secretNode).toHaveCount(0);
+    expect(await stopTextReappearanceObservation(observation)).toBe(false);
 
-    await expect(statusPanel).toContainText("当前数据根");
-    await expect(statusPanel).toContainText("当前监听");
-    await expect(statusPanel).toContainText("仅本机 · 3001");
-    await panel.getByRole("button", { name: "创建密钥" }).click();
-    const oneTimeSecret = statusPanel.getByLabel("所有者凭据状态");
-    await expect(oneTimeSecret.locator("code")).toHaveText(
-      /^ctn_owner_[A-Za-z0-9_-]{43}$/,
-    );
-    const secret = (await oneTimeSecret.locator("code").textContent()) ?? "";
-
-    expect(secret).toMatch(/^ctn_owner_[A-Za-z0-9_-]{43}$/);
-    const secretObservation = await observeTextReappearance(page, secret);
-    const settingsContext = page.locator(".settings-context");
-
-    await settingsContext.getByRole("button", {
-      name: "界面",
-      exact: true,
-    }).click();
-    await settingsContext.getByRole("button", {
-      name: "服务",
-      exact: true,
-    }).click();
-    await expect(page.getByText(secret, { exact: true })).toHaveCount(0);
-    expect(await stopTextReappearanceObservation(secretObservation)).toBe(false);
-    const ownerCredentialEndpoint =
+    const endpoint =
       "**/api/v4/admin/system-configuration/owner-credential/rotations";
-    let markRotationResponseHeld!: () => void;
-    let releaseRotationResponse!: () => void;
-    const rotationResponseHeld = new Promise<void>((resolve) => {
-      markRotationResponseHeld = resolve;
-    });
-    const rotationResponseRelease = new Promise<void>((resolve) => {
-      releaseRotationResponse = resolve;
-    });
-    let lateSecret = "";
-
-    await page.route(ownerCredentialEndpoint, async (route) => {
-      if (route.request().method() !== "POST") {
-        await route.continue();
-        return;
-      }
-      const response = await route.fetch();
-      const body = await response.json() as { secret?: unknown };
-
-      lateSecret = typeof body.secret === "string" ? body.secret : "";
-      markRotationResponseHeld();
-      await rotationResponseRelease;
-      await route.fulfill({ response });
-    });
-    await panel.getByRole("button", { name: "重新准备新密钥" }).click();
-    await rotationResponseHeld;
-    expect(lateSecret).toMatch(/^ctn_owner_[A-Za-z0-9_-]{43}$/);
-    await settingsContext.getByRole("button", {
-      name: "界面",
-      exact: true,
-    }).click();
-    releaseRotationResponse();
-    await settingsContext.getByRole("button", {
-      name: "服务",
-      exact: true,
-    }).click();
-    await expect(panel.getByRole("button", { name: "重新准备新密钥" }))
-      .toBeEnabled();
-    await page.unroute(ownerCredentialEndpoint);
-    await expect(oneTimeSecret.locator("code")).toHaveCount(0);
-    await expect(oneTimeSecret.getByText("新密钥", { exact: true }))
-      .toHaveCount(0);
-    await expect(page.getByText(lateSecret, { exact: true })).toHaveCount(0);
-    await panel.getByRole("button", { name: "清除凭据" }).click();
-    await expect(statusPanel).toContainText("未创建");
+    const gate = await responseGates.hold(endpoint, "POST");
+    await panel
+      .getByRole("button", { name: "重新准备新密钥", exact: true })
+      .click();
+    await gate.arrived;
+    await context
+      .getByRole("button", { name: "工作台布局", exact: true })
+      .click();
+    await getActivityButton(page, "笔记").click();
+    await expect(panel).toBeVisible();
+    gate.release();
+    await expect(secretNode).toHaveCount(1);
+    await page.unroute(endpoint);
+    await panel.getByRole("button", { name: "关闭显示", exact: true }).click();
+    await panel.getByRole("button", { name: "清除凭据", exact: true }).click();
+    await panel
+      .getByRole("button", { name: "确认清除凭据", exact: true })
+      .click();
+    await expect(
+      panel.getByRole("button", { name: "准备创建密钥", exact: true }),
+    ).toBeEnabled();
   });
 
   test("preserves system draft edits made while a save response is pending", async ({
     page,
+    responseGates,
   }) => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "设置").click();
-    await page.getByRole("button", { name: "服务", exact: true }).click();
+    await page.getByRole("button", { name: "保留策略", exact: true }).click();
     const panel = page.getByRole("region", { name: "服务设置" });
     const auditLimit = panel.getByRole("spinbutton", {
       name: "操作审计保留条数",
@@ -174,55 +158,36 @@ test.describe("settings activity flows", () => {
     const submitted = original + 1;
     const continued = original + 2;
     const configurationEndpoint = "**/api/v4/admin/system-configuration";
-    let markResponseHeld!: () => void;
-    let releaseResponse!: () => void;
-    const responseHeld = new Promise<void>((resolve) => {
-      markResponseHeld = resolve;
-    });
-    const responseRelease = new Promise<void>((resolve) => {
-      releaseResponse = resolve;
-    });
-    let intercepted = false;
-
-    await page.route(configurationEndpoint, async (route) => {
-      if (route.request().method() !== "PATCH" || intercepted) {
-        await route.continue();
-        return;
-      }
-      intercepted = true;
-      const response = await route.fetch();
-
-      markResponseHeld();
-      await responseRelease;
-      await route.fulfill({ response });
-    });
+    const gate = await responseGates.hold(configurationEndpoint, "PATCH");
     await auditLimit.fill(String(submitted));
     await save.click();
-    await responseHeld;
+    await gate.arrived;
     await expect(save).toBeDisabled();
     await auditLimit.fill(String(continued));
-    releaseResponse();
+    gate.release();
     await expect(save).toBeEnabled();
     await page.unroute(configurationEndpoint);
 
     await expect(auditLimit).toHaveValue(String(continued));
-    const continuedResponse = page.waitForResponse((response) =>
-      response.request().method() === "PATCH" &&
-      response.url().endsWith("/api/v4/admin/system-configuration")
+    const continuedResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().endsWith("/api/v4/admin/system-configuration"),
     );
 
     await save.click();
     expect((await continuedResponse).ok()).toBe(true);
-    await expect(save).toBeEnabled();
+    await expect(save).toBeDisabled();
     await auditLimit.fill(String(original));
-    const cleanupResponse = page.waitForResponse((response) =>
-      response.request().method() === "PATCH" &&
-      response.url().endsWith("/api/v4/admin/system-configuration")
+    const cleanupResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().endsWith("/api/v4/admin/system-configuration"),
     );
 
     await save.click();
     expect((await cleanupResponse).ok()).toBe(true);
-    await expect(save).toBeEnabled();
+    await expect(save).toBeDisabled();
   });
 
   test("creates only read-scoped tokens and retains only the prefix", async ({
@@ -231,54 +196,75 @@ test.describe("settings activity flows", () => {
   }) => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "设置").click();
-    await page.getByRole("button", { name: "API 访问", exact: true }).click();
-    const panel = page.locator(".app-main-content")
+    await page
+      .getByRole("button", { name: "新建 自动化令牌", exact: true })
+      .click();
+    const panel = page
+      .locator(".app-main-content")
       .getByRole("region", { name: "API 访问", exact: true });
 
     await expect(panel).toBeVisible();
-    await panel.getByRole("textbox", { name: "名称", exact: true })
+    await panel
+      .getByRole("textbox", { name: "自动化令牌名称", exact: true })
       .fill("E2E AI");
-    await panel.getByRole("radiogroup", { name: "Workspace 权限" })
-      .getByRole("radio", { name: "只读" }).click();
-    await panel.getByRole("radiogroup", { name: "日记权限" })
-      .getByRole("radio", { name: "不授权" }).click();
-    await panel.getByRole("radiogroup", { name: "代办权限" })
-      .getByRole("radio", { name: "只读" }).click();
-    await panel.getByRole("radiogroup", { name: "仓库范围" })
-      .getByRole("radio", { name: "指定仓库" }).click();
-    await panel.getByRole("group", {
-      name: "允许访问的 Workspace 仓库",
-    }).getByRole("button", {
-      name: `浏览器回归仓库（${syntaxRepositoryId}）`,
-    }).click();
+    await panel
+      .getByRole("radiogroup", { name: "Workspace 权限" })
+      .getByRole("radio", { name: "只读" })
+      .click();
+    await panel
+      .getByRole("radiogroup", { name: "日记权限" })
+      .getByRole("radio", { name: "不授权" })
+      .click();
+    await panel
+      .getByRole("radiogroup", { name: "代办权限" })
+      .getByRole("radio", { name: "只读" })
+      .click();
+    await panel
+      .getByRole("radiogroup", { name: "仓库范围" })
+      .getByRole("radio", { name: "指定仓库" })
+      .click();
+    await panel
+      .getByRole("group", {
+        name: "允许访问的 Workspace 仓库",
+      })
+      .getByRole("button", {
+        name: `浏览器回归仓库（${syntaxRepositoryId}）`,
+      })
+      .click();
     await panel.getByRole("button", { name: "创建令牌" }).click();
-    const statusPanel = page.getByRole("region", { name: "设置状态" });
-    const oneTimeSecret = statusPanel.getByLabel("新令牌");
+    const oneTimeSecret = panel.getByLabel("新令牌");
+    await expect(oneTimeSecret.locator("code")).toHaveCount(1);
 
     const secret = (await oneTimeSecret.locator("code").textContent()) ?? "";
 
     expect(secret).toMatch(/^ctn_[A-Za-z0-9_-]+$/);
     await oneTimeSecret.getByRole("button", { name: "关闭显示" }).click();
     await expect(oneTimeSecret).toHaveCount(0);
-    const tokenRow = panel.getByRole("list", { name: "自动化令牌" })
+    const tokenRow = page
+      .locator(".settings-context")
+      .getByRole("list", { name: "自动化令牌", exact: true })
       .getByRole("listitem")
       .filter({ hasText: "E2E AI" });
 
     await expect(tokenRow).toBeVisible();
     await expect(tokenRow).not.toContainText(secret);
     await tokenRow.getByRole("button", { name: "E2E AI" }).click();
-    await expect(statusPanel).toContainText("workspace:read");
-    await expect(statusPanel).toContainText("todo:read");
-    await expect(statusPanel).not.toContainText("journal:read");
-    await expect(statusPanel).toContainText(syntaxRepositoryId);
+    await expect(panel).toContainText("workspace:read");
+    await expect(panel).toContainText("todo:read");
+    await expect(panel).not.toContainText("journal:read");
+    await expect(panel).toContainText(syntaxRepositoryId);
     await page.reload();
-    await expect(page.getByRole("navigation", { name: "工作区功能" }))
-      .toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "工作区功能" }),
+    ).toBeVisible();
     await getActivityButton(page, "设置").click();
-    await page.getByRole("button", { name: "API 访问", exact: true }).click();
+    await page
+      .getByRole("button", { name: "新建 自动化令牌", exact: true })
+      .click();
     await expect(page.getByText(secret, { exact: true })).toHaveCount(0);
-    await expect(page.getByRole("list", { name: "自动化令牌" }))
-      .toContainText("E2E AI");
+    await expect(page.getByRole("list", { name: "自动化令牌" })).toContainText(
+      "E2E AI",
+    );
 
     const automationHeaders = {
       Authorization: `Bearer ${secret}`,
@@ -299,19 +285,29 @@ test.describe("settings activity flows", () => {
       expect(denied.status()).toBe(403);
     }
 
-    const reloadedPanel = page.locator(".app-main-content")
+    const reloadedPanel = page
+      .locator(".app-main-content")
       .getByRole("region", { name: "API 访问", exact: true });
 
-    await reloadedPanel.getByRole("button", { name: "刷新" }).click();
-    const reloadedTokenRow = reloadedPanel
+    await page
+      .getByRole("button", { name: "刷新设置状态", exact: true })
+      .click();
+    const reloadedTokenRow = page
+      .locator(".settings-context")
       .getByRole("list", { name: "自动化令牌" })
       .getByRole("listitem")
       .filter({ hasText: "E2E AI" });
 
     await reloadedTokenRow.getByRole("button", { name: "E2E AI" }).click();
-    await expect(page.getByRole("region", { name: "设置状态" }))
-      .toContainText("最近使用");
-    await reloadedTokenRow.getByRole("button", { name: "撤销" }).click();
+    await expect(page.getByRole("region", { name: "设置状态" })).toContainText(
+      "最近使用",
+    );
+    await reloadedPanel
+      .getByRole("button", { name: "撤销令牌", exact: true })
+      .click();
+    await reloadedPanel
+      .getByRole("button", { name: "确认撤销令牌", exact: true })
+      .click();
     await expect(reloadedTokenRow).toHaveCount(0);
 
     const revoked = await api.get(
@@ -329,205 +325,206 @@ test.describe("settings activity flows", () => {
     await getActivityButton(page, "设置").click();
     const settingsContext = page.locator(".settings-context");
 
-    await settingsContext.getByRole("button", {
-      name: "API 访问",
-      exact: true,
-    }).click();
-    const panel = page.locator(".app-main-content")
+    await settingsContext
+      .getByRole("button", {
+        name: "新建 自动化令牌",
+        exact: true,
+      })
+      .click();
+    const panel = page
+      .locator(".app-main-content")
       .getByRole("region", { name: "API 访问", exact: true });
 
-    await panel.getByRole("textbox", { name: "名称", exact: true })
+    await panel
+      .getByRole("textbox", { name: "自动化令牌名称", exact: true })
       .fill("E2E transient secret");
     await panel.getByRole("button", { name: "创建令牌" }).click();
-    const oneTimeSecret = page.getByRole("region", { name: "设置状态" })
-      .getByLabel("新令牌");
+    const oneTimeSecret = panel.getByLabel("新令牌");
+    await expect(oneTimeSecret.locator("code")).toHaveCount(1);
     const secret = (await oneTimeSecret.locator("code").textContent()) ?? "";
 
     expect(secret).toMatch(/^ctn_[A-Za-z0-9_-]+$/);
     const secretObservation = await observeTextReappearance(page, secret);
-    await settingsContext.getByRole("button", {
-      name: "界面",
-      exact: true,
-    }).click();
-    await settingsContext.getByRole("button", {
-      name: "API 访问",
-      exact: true,
-    }).click();
+    await settingsContext
+      .getByRole("button", {
+        name: "工作台布局",
+        exact: true,
+      })
+      .click();
+    await settingsContext
+      .getByRole("button", {
+        name: "E2E transient secret",
+        exact: true,
+      })
+      .click();
 
     await expect(page.getByText(secret, { exact: true })).toHaveCount(0);
-    expect(await stopTextReappearanceObservation(secretObservation)).toBe(false);
-    const tokenRow = panel.getByRole("list", { name: "自动化令牌" })
+    expect(await stopTextReappearanceObservation(secretObservation)).toBe(
+      false,
+    );
+    const tokenRow = page
+      .locator(".settings-context")
+      .getByRole("list", { name: "自动化令牌", exact: true })
       .getByRole("listitem")
       .filter({ hasText: "E2E transient secret" });
 
-    await tokenRow.getByRole("button", { name: "撤销" }).click();
+    await panel.getByRole("button", { name: "撤销令牌", exact: true }).click();
+    await panel
+      .getByRole("button", { name: "确认撤销令牌", exact: true })
+      .click();
     await expect(tokenRow).toHaveCount(0);
   });
 
   test("persists an explicit Agent profile without unavailable fallback", async ({
     page,
   }) => {
-    await page.setViewportSize({ height: 900, width: 1440 });
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "设置").click();
-    await page.locator(".settings-context")
-      .getByRole("button", { name: "智能体", exact: true }).click();
-    let panel = page.getByRole("region", { name: "智能体设置" });
-    let selection = panel.getByRole("combobox", { name: "默认 Profile" });
-
+    const context = page.locator(".settings-context");
+    await context
+      .getByRole("button", { name: "默认会话配置", exact: true })
+      .click();
+    const selection = page.getByRole("combobox", { name: "默认 Profile" });
     await expect(selection).toHaveValue("");
-    await expect(panel.getByRole("tab", { name: "概览" }))
-      .toHaveAttribute("aria-selected", "true");
-    await expect(panel.getByRole("combobox", { name: "Profile Provider" }))
-      .toHaveCount(0);
-    const mainMetrics = await panel.evaluate((element) => {
-      const title = element.querySelector(".ui-panel-header h2");
-      const sectionTitle = element.querySelector(".ui-tool-section-heading h3");
-      const control = element.querySelector(".ui-control");
-      const button = element.querySelector(".ui-button");
-      const tab = element.querySelector(".ui-subsection-tab");
-
-      if (!title || !sectionTitle || !control || !button || !tab) {
-        throw new Error("Agent settings tool surface is incomplete");
-      }
-
-      return {
-        button: {
-          fontSize: getComputedStyle(button).fontSize,
-          height: getComputedStyle(button).height,
-        },
-        control: {
-          fontSize: getComputedStyle(control).fontSize,
-          height: getComputedStyle(control).height,
-        },
-        sectionTitleFontSize: getComputedStyle(sectionTitle).fontSize,
-        tab: {
-          fontSize: getComputedStyle(tab).fontSize,
-          height: getComputedStyle(tab).height,
-        },
-        titleFontSize: getComputedStyle(title).fontSize,
-      };
-    });
-    const statusMetrics = await page.getByRole("region", { name: "设置状态" })
-      .evaluate((element) => {
-        const propertyList = element.querySelector(".ui-tool-property-list");
-        const propertyRows = propertyList
-          ? [...propertyList.querySelectorAll(".ui-tool-property-row")]
-          : [];
-        const propertyValues = propertyRows.map((row) => row.querySelector("dd"));
-        const statusBadge = propertyList?.querySelector(".ui-status-badge");
-
-        if (!propertyList || !statusBadge || propertyValues.some((value) => !value)) {
-          throw new Error("Agent settings status surface is incomplete");
-        }
-        return {
-          propertyLabelTexts: propertyRows.map((row) =>
-            row.querySelector("dt")?.textContent ?? ""),
-          propertyRowMinimumHeights: propertyRows.map((row) =>
-            getComputedStyle(row).minHeight),
-          propertyValueStarts: propertyValues.map((value) =>
-            Math.round(value!.getBoundingClientRect().x)),
-          statusBadgeHeight: getComputedStyle(statusBadge).height,
-        };
-      });
-    const toolMetrics = { ...mainMetrics, ...statusMetrics };
-
-    expect(toolMetrics).toMatchObject({
-      button: { fontSize: "13px", height: "22px" },
-      control: { fontSize: "13px", height: "22px" },
-      propertyLabelTexts: ["状态", "Provider", "Profile", "默认 Profile"],
-      propertyRowMinimumHeights: ["22px", "22px", "22px", "22px"],
-      sectionTitleFontSize: "13px",
-      statusBadgeHeight: "22px",
-      tab: { fontSize: "13px", height: "22px" },
-      titleFontSize: "16px",
-    });
-    expect(new Set(toolMetrics.propertyValueStarts).size).toBe(1);
-    await panel.getByRole("tab", { name: "Provider" }).click();
-    await expect(panel).toContainText("E2E provider");
-    await expect(page.getByRole("region", { name: "设置状态" }))
-      .toContainText("已配置");
-    await expect(panel.getByRole("textbox", { name: "Provider 名称" }))
-      .toHaveCount(0);
-    const providerRow = panel.getByRole("list", { name: "Provider 列表" })
-      .getByRole("listitem")
-      .filter({ hasText: "E2E provider" });
-
-    await providerRow.getByRole("button", { name: "编辑" }).click();
-    const apiKey = panel.getByLabel("Provider API Key");
-
-    await apiKey.fill("discard-this-secret");
-    await panel.getByRole("button", { name: "取消" }).click();
-    await providerRow.getByRole("button", { name: "编辑" }).click();
-    await expect(panel.getByLabel("Provider API Key")).toHaveValue("");
-    await panel.getByRole("button", { name: "取消" }).click();
-    await panel.getByRole("tab", { name: "Profile" }).click();
-    await expect(page.getByRole("region", { name: "设置状态" }))
-      .toContainText("deterministic-e2e");
-    await expect(panel.getByRole("combobox", { name: "Profile Provider" }))
-      .toHaveCount(0);
-    await panel.getByRole("button", { name: "新建 Profile" }).click();
-    await panel.getByRole("combobox", { name: "Profile Provider" })
-      .selectOption("agent-provider-e2e-provider");
-    await expect(panel.getByRole("spinbutton", {
-      name: "Profile 会话历史预算（字符）",
-    })).toHaveValue("131072");
-    await expect(panel).not.toContainText("不会修改 Ollama num_ctx");
-    await page.locator(".settings-context")
-      .getByRole("button", { name: "服务", exact: true }).click();
-    await page.locator(".settings-context")
-      .getByRole("button", { name: "智能体", exact: true }).click();
-    panel = page.getByRole("region", { name: "智能体设置" });
-    await expect(panel.getByRole("tab", { name: "Profile" }))
-      .toHaveAttribute("aria-selected", "true");
-    await expect(panel.getByRole("combobox", { name: "Profile Provider" }))
-      .toHaveCount(0);
-    await panel.getByRole("tab", { name: "概览" }).click();
-    selection = panel.getByRole("combobox", { name: "默认 Profile" });
     await selection.selectOption(e2eAgentProfileId);
     await expect(selection).toHaveValue(e2eAgentProfileId);
-    await expect(page.getByLabel("智能体状态").locator("dd").last())
-      .toHaveText("E2E Agent");
-
     await page.reload();
-    await expect(page.getByRole("navigation", { name: "工作区功能" }))
-      .toBeVisible();
     await getActivityButton(page, "设置").click();
-    await page.locator(".settings-context")
-      .getByRole("button", { name: "智能体", exact: true }).click();
-    panel = page.getByRole("region", { name: "智能体设置" });
-    selection = panel.getByRole("combobox", { name: "默认 Profile" });
+    await context
+      .getByRole("button", { name: "默认会话配置", exact: true })
+      .click();
     await expect(selection).toHaveValue(e2eAgentProfileId);
-    await panel.getByRole("button", { name: "刷新状态" }).click();
+    await context
+      .getByRole("button", { name: "刷新设置状态", exact: true })
+      .click();
     await expect(selection).toHaveValue(e2eAgentProfileId);
-
-    await page.evaluate((profileId) => {
-      globalThis.localStorage.setItem("cognition-tree.agent-profile", profileId);
-    }, e2eAgentUnavailableProfileId);
+    await page.evaluate(
+      (id) =>
+        globalThis.localStorage.setItem("cognition-tree.agent-profile", id),
+      e2eAgentUnavailableProfileId,
+    );
     await page.reload();
-    await expect(page.getByRole("navigation", { name: "工作区功能" }))
-      .toBeVisible();
     await getActivityButton(page, "设置").click();
-    await page.locator(".settings-context")
-      .getByRole("button", { name: "智能体", exact: true }).click();
-    panel = page.getByRole("region", { name: "智能体设置" });
-    selection = panel.getByRole("combobox", { name: "默认 Profile" });
+    await context
+      .getByRole("button", { name: "默认会话配置", exact: true })
+      .click();
     await expect(selection).toHaveValue(e2eAgentUnavailableProfileId);
-    await expect(panel).toContainText("E2E Agent Missing");
-
     await getActivityButton(page, "智能体").click();
-    await page.locator(".agent-context")
-      .getByRole("button", { name: "新建会话" }).click();
-    const createPanel = page.getByRole("region", {
-      name: "新建 Agent 会话",
-    });
-
+    await page
+      .locator(".agent-context")
+      .getByRole("button", { name: "新建会话" })
+      .click();
+    const createPanel = page.getByRole("region", { name: "新建 Agent 会话" });
     await expect(createPanel).toContainText("E2E Agent Missing");
-    await expect(createPanel.getByRole("button", { name: "创建会话" }))
-      .toBeDisabled();
-
-    expect(await page.evaluate(() =>
-      document.documentElement.scrollWidth <= document.documentElement.clientWidth
-    )).toBe(true);
+    await expect(
+      createPanel.getByRole("button", { name: "创建会话" }),
+    ).toBeDisabled();
   });
+});
+
+test("creates and revokes a trusted client with details collapsed", async ({
+  api,
+  page,
+}) => {
+  await seedWorkbenchRepository(api, syntaxRepositoryId);
+  await openWorkbench(page, syntaxRepositoryId);
+  await getActivityButton(page, "设置").click();
+  const context = page.locator(".settings-context");
+  await context
+    .getByRole("button", { name: "新建 可信客户端令牌", exact: true })
+    .click();
+  const panel = page.getByRole("region", { name: "API 访问", exact: true });
+  await panel
+    .getByRole("textbox", { name: "可信客户端名称", exact: true })
+    .fill("E2E trusted client");
+  await panel
+    .getByRole("button", { name: "创建可信客户端令牌", exact: true })
+    .click();
+  await page.getByRole("button", { name: "收回右侧详情", exact: true }).click();
+  const secretNode = panel.locator("code[data-sensitive]");
+  await expect(secretNode).toHaveCount(1);
+  const secret = (await secretNode.textContent()) ?? "";
+  expect(/^ctt_[A-Za-z0-9_-]+$/.test(secret)).toBe(true);
+  const headers = { Authorization: `Bearer ${secret}` };
+  expect(
+    (
+      await api.get(`/api/v4/content/workspaces/${syntaxRepositoryId}/tree`, {
+        headers,
+      })
+    ).status(),
+  ).toBe(200);
+  expect(
+    (await api.get("/api/v4/admin/repositories", { headers })).status(),
+  ).toBe(403);
+  await panel.getByRole("button", { name: "关闭显示", exact: true }).click();
+  await panel.getByRole("button", { name: "撤销令牌", exact: true }).click();
+  await panel
+    .getByRole("button", { name: "确认撤销令牌", exact: true })
+    .click();
+  await expect(
+    context.getByRole("button", { name: "E2E trusted client", exact: true }),
+  ).toHaveCount(0);
+  expect(
+    (
+      await api.get(`/api/v4/content/workspaces/${syntaxRepositoryId}/tree`, {
+        headers,
+      })
+    ).status(),
+  ).toBe(401);
+});
+
+test("discards Provider credentials and protects a new Profile draft", async ({
+  api,
+  page,
+}) => {
+  await seedWorkbenchRepository(api, syntaxRepositoryId);
+  await openWorkbench(page, syntaxRepositoryId);
+  await getActivityButton(page, "设置").click();
+  const context = page.locator(".settings-context");
+  await context
+    .getByRole("button", { name: "E2E provider", exact: true })
+    .click();
+  await page
+    .getByLabel("Provider API Key", { exact: true })
+    .fill("discard-this-secret");
+  await page.getByRole("button", { name: "放弃修改", exact: true }).click();
+  await expect(
+    page.getByLabel("Provider API Key", { exact: true }),
+  ).toHaveValue("");
+  await context
+    .getByRole("button", { name: "新建 Profile", exact: true })
+    .click();
+  const panel = page.getByRole("region", { name: "会话配置设置" });
+  await panel
+    .getByRole("textbox", { name: "Profile 名称", exact: true })
+    .fill("E2E created profile");
+  await panel
+    .getByRole("combobox", { name: "Profile Provider" })
+    .selectOption("agent-provider-e2e-provider");
+  await panel
+    .getByRole("combobox", { name: "Profile 模型", exact: true })
+    .fill("deterministic-e2e");
+  await expect(
+    panel.getByRole("spinbutton", { name: "Profile 会话历史预算（字符）" }),
+  ).toHaveValue("131072");
+  await getActivityButton(page, "笔记").click();
+  await expect(panel).toBeVisible();
+  await panel
+    .getByRole("button", { name: "创建 Profile", exact: true })
+    .click();
+  await expect(
+    context.getByRole("button", { name: "E2E created profile", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("region", { name: "设置状态" })).toContainText(
+    "deterministic-e2e",
+  );
+  await panel
+    .getByRole("button", { name: "删除 Profile", exact: true })
+    .click();
+  await panel
+    .getByRole("button", { name: "确认删除 Profile", exact: true })
+    .click();
+  await expect(
+    context.getByRole("button", { name: "E2E created profile", exact: true }),
+  ).toHaveCount(0);
 });

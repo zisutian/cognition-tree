@@ -3,26 +3,7 @@
   min-height: 0;
 }
 
-.settings-subsection-heading {
-  margin: 0;
-  color: var(--color-fg-muted);
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
-}
-
-.settings-agent-overview-links {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ui-gap);
-}
-
-.settings-api-error {
-  margin: 0;
-  font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
-}
-
-.settings-api-error {
-  color: var(--color-error);
+.settings-context-subgroup {
+  list-style: none;
+  padding-left: var(--ui-gap-tight);
 }

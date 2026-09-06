@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Automatic page snapshots can capture one-time secrets even when screenshots and traces are off.
+process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
+
 const requestedWorkers = process.env.CTN_E2E_WORKERS
   ? Number(process.env.CTN_E2E_WORKERS)
   : process.env.CI

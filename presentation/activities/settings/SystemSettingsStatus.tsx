@@ -1,83 +1,90 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { SystemConfigurationState } from "../../../application/system/index.ts";
-import {
-  Button,
-  EmptyState,
-  StatusBadge,
-  ToolPropertyList,
-  ToolPropertyRow,
-  ToolSection,
-  ToolSectionStack,
-} from "../../ui/index.ts";
+import { ToolPropertyList, ToolPropertyRow } from "../../ui/index.ts";
 
-
-import type { SystemOwnerCredentialStatusView } from "./useSystemOwnerCredentialSession.ts";
-
-export function SystemSettingsStatus({ ownerCredentialSession, state }: {
-  ownerCredentialSession: SystemOwnerCredentialStatusView;
+export function SystemSettingsStatus({
+  page,
+  state,
+}: {
+  page: "network" | "paths" | "owner" | "migration" | "audit-retention";
   state: SystemConfigurationState;
 }) {
-  const phaseLabels = { preparing: "准备", copying: "复制", verifying: "校验", committing: "切换指针", reconciling: "核对写入结果", restarting: "等待重启", completed: "已完成", failed: "未完成，源目录继续使用", "recovery-required": "需要恢复" } as const;
   const snapshot = state.configuration;
-  const ownerCredentialPreparation = ownerCredentialSession.snapshot.preparation;
-
-  if (!snapshot) {
-    return <EmptyState compact description={state.errorMessage ?? "正在读取服务状态。"} title="服务状态不可用" />;
-  }
-  const nextAddress = snapshot.configuration.listenMode === "lan"
-    ? snapshot.configuration.publicOrigin
-    : `http://127.0.0.1:${snapshot.configuration.port}`;
-
+  if (!snapshot) return null;
   return (
-    <ToolSectionStack>
-      <ToolSection title="服务">
-        <ToolPropertyList aria-label="服务状态">
+    <ToolPropertyList aria-label="服务状态">
+      {page === "network" ? (
+        <>
           <ToolPropertyRow
             label="状态"
-            value={(
-              <StatusBadge tone={snapshot.runtimeApplyErrorMessage ? "danger" : snapshot.restartRequired ? "warning" : "success"}>
-                {snapshot.runtimeApplyErrorMessage ? "部分生效" : snapshot.restartRequired ? "等待重启" : "已生效"}
-              </StatusBadge>
-            )}
+            value={
+              snapshot.runtimeApplyErrorMessage
+                ? "部分生效"
+                : snapshot.restartRequired
+                  ? "等待重启"
+                  : "已生效"
+            }
           />
-          <ToolPropertyRow label="当前监听" value={`${snapshot.effectiveConfiguration.listenMode === "loopback" ? "仅本机" : "局域网"} · ${snapshot.effectiveConfiguration.port}`} />
-          <ToolPropertyRow label="当前数据根" value={<code>{snapshot.effectiveConfiguration.dataRoot}</code>} />
-          <ToolPropertyRow label="当前审计上限" value={snapshot.effectiveConfiguration.maxAuditEntries} />
-          <ToolPropertyRow label="访问地址" value={<code>{nextAddress}</code>} />
-          {snapshot.runtimeApplyErrorMessage ? <ToolPropertyRow label="应用错误" value={snapshot.runtimeApplyErrorMessage} /> : null}
-        </ToolPropertyList>
-      </ToolSection>
-      <ToolSection title="所有者凭据">
-        <ToolPropertyList aria-label="所有者凭据状态">
           <ToolPropertyRow
-            label="凭据"
-            value={(
-              <StatusBadge tone={snapshot.ownerCredentialConfigured ? "success" : "warning"}>
-                {snapshot.ownerCredentialConfigured ? "已创建" : "未创建"}
-              </StatusBadge>
-            )}
+            label="当前监听"
+            value={`${snapshot.effectiveConfiguration.listenMode === "loopback" ? "仅本机" : "局域网"} · ${snapshot.effectiveConfiguration.port}`}
           />
-          <ToolPropertyRow label="待处理轮换" value={snapshot.ownerCredentialRotationPending ? "有" : "无"} />
-          {ownerCredentialPreparation ? (
+          <ToolPropertyRow
+            label="访问地址"
+            value={
+              <code>
+                {snapshot.configuration.listenMode === "lan"
+                  ? snapshot.configuration.publicOrigin
+                  : `http://127.0.0.1:${snapshot.configuration.port}`}
+              </code>
+            }
+          />
+          {snapshot.runtimeApplyErrorMessage ? (
             <ToolPropertyRow
-              actions={<Button disabled={state.operationStatus === "working"} onClick={ownerCredentialSession.dismissSecret} type="button">关闭显示</Button>}
-              label={ownerCredentialSession.snapshot.activationStatus === "activated" ? "已激活新密钥" : "待激活新密钥"}
-              value={<code>{ownerCredentialPreparation.secret}</code>}
+              label="应用错误"
+              value={snapshot.runtimeApplyErrorMessage}
             />
           ) : null}
-        </ToolPropertyList>
-      </ToolSection>
-      {state.migration ? (
-        <ToolSection title="数据根迁移">
-          <ToolPropertyList aria-label="数据根迁移状态">
-            <ToolPropertyRow label="状态" value={phaseLabels[state.migration.status]} />
-            <ToolPropertyRow label="源目录" value={<code>{state.migration.source}</code>} />
-            <ToolPropertyRow label="目标目录" value={<code>{state.migration.destination}</code>} />
-            {state.migration.errorMessage ? <ToolPropertyRow label="错误" value={state.migration.errorMessage} /> : null}
-          </ToolPropertyList>
-        </ToolSection>
-      ) : null}
-    </ToolSectionStack>
+        </>
+      ) : page === "paths" ? (
+        <>
+          <ToolPropertyRow
+            label="显示路径"
+            value={
+              <code>
+                {snapshot.effectiveConfiguration.repositoryHostRoot ??
+                  "使用服务端路径"}
+              </code>
+            }
+          />
+          <ToolPropertyRow
+            label="数据根"
+            value={<code>{snapshot.effectiveConfiguration.dataRoot}</code>}
+          />
+        </>
+      ) : page === "owner" ? (
+        <>
+          <ToolPropertyRow
+            label="凭据"
+            value={snapshot.ownerCredentialConfigured ? "已创建" : "未创建"}
+          />
+          <ToolPropertyRow
+            label="待处理轮换"
+            value={snapshot.ownerCredentialRotationPending ? "有" : "无"}
+          />
+        </>
+      ) : page === "audit-retention" ? (
+        <ToolPropertyRow
+          label="当前审计上限"
+          value={snapshot.effectiveConfiguration.maxAuditEntries}
+        />
+      ) : (
+        <ToolPropertyRow
+          label="迁移编号"
+          value={<code>{state.migration?.id ?? "暂无迁移"}</code>}
+        />
+      )}
+    </ToolPropertyList>
   );
 }
