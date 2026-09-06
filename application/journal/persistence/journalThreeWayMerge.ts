@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { equalCtnSourceExceptModificationTime, mergeCtnSourceModificationTimes } from "../../../core/ctn/index.ts";
 import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/index.ts";
 import {
   createJournalParseIndex,
@@ -10,6 +11,7 @@ import type {
   JournalEntryId,
 } from "../../../core/journal/index.ts";
 import {
+  areMergeValuesEqual,
   createThreeWayContentMergeResult,
   crossesSyntaxMergeBarrier,
   mergeThreeWayMapValues,
@@ -62,7 +64,8 @@ function mergeJournalContentValues(
   base: JournalContent,
   local: JournalContent,
   remote: JournalContent,
-  conflictPreference?: VersionedContentConflictPreference,
+  conflictPreference: VersionedContentConflictPreference | undefined,
+  candidates: readonly PreparedVersionedContent<JournalContent, JournalParseIndex>[],
 ): ThreeWayContentMergeResult<JournalContent> {
   const conflicts: string[] = [];
 
@@ -90,14 +93,39 @@ function mergeJournalContentValues(
   );
 
   if (syntax.conflict) conflicts.push(syntax.conflict);
+  const analysisFor = (entry: JournalContent["days"][number]["entries"][number]) => candidates
+    .map(candidate => candidate.projection.getParsedEntry(entry.id))
+    .find(parsed => parsed?.source === entry.source)?.analysis;
   const entries = mergeThreeWayMapValues(
     "journal:entry",
     journalEntries(base),
     journalEntries(local),
     journalEntries(remote),
     conflictPreference,
+    (left, right) => {
+      if (!areMergeValuesEqual(
+        { ...left, entry: { ...left.entry, source: null, updatedAt: null } },
+        { ...right, entry: { ...right.entry, source: null, updatedAt: null } },
+      )) return false;
+      if (left.entry.source === right.entry.source) return true;
+      const a = analysisFor(left.entry), b = analysisFor(right.entry);
+      return !!a && !!b && equalCtnSourceExceptModificationTime(a, b);
+    },
   );
 
+  for (const [id, item] of entries.values) {
+    const selected = analysisFor(item.entry);
+    if (!selected) continue;
+    const observations = candidates.flatMap(candidate => {
+      const parsed = candidate.projection.getParsedEntry(item.entry.id);
+      return parsed && parsed.entry.createdAt === item.entry.createdAt ? [parsed] : [];
+    });
+    const source = mergeCtnSourceModificationTimes(selected, observations.map(parsed => parsed.analysis));
+    const updatedAt = observations.reduce((latest, parsed) => Date.parse(parsed.entry.updatedAt) > Date.parse(latest) ? parsed.entry.updatedAt : latest, item.entry.updatedAt);
+    if (source !== item.entry.source || updatedAt !== item.entry.updatedAt) {
+      entries.values.set(id, { ...item, entry: { ...item.entry, source, updatedAt } });
+    }
+  }
   conflicts.push(...entries.conflicts);
   const dayByDate = new Map<string, JournalContent["days"][number]>();
 
@@ -159,6 +187,7 @@ export const mergeJournalContent: VersionedContentMergePolicy<
     local.content,
     remote.content,
     conflictPreference,
+    [base, local, remote],
   );
 
   if (merged.status === "conflict") return merged;

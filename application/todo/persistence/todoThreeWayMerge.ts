@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/index.ts";
-import { touchCtnSourceBlockMetadata } from "../../../core/ctn/index.ts";
+import { mergeCtnSourceModificationTimes } from "../../../core/ctn/index.ts";
 import {
   createTodoParseIndex,
-  type ParsedTodoIndexCollection,
   type TodoParseIndex,
   createTodoCollectionBodyProjection,
 } from "../../../core/todo/index.ts";
@@ -13,7 +12,6 @@ import type {
   TodoCollectionId,
   TodoContent,
 } from "../../../core/todo/index.ts";
-
 import {
   areMergeValuesEqual,
   createThreeWayContentMergeResult,
@@ -84,35 +82,6 @@ function todoRecurrencesByBlock(collection: TodoCollection | undefined) {
       recurrence,
     ]),
   );
-}
-
-function touchLatestTodoBlockTimes(
-  source: string,
-  sourceOwner: ParsedTodoIndexCollection,
-  candidates: readonly (ParsedTodoIndexCollection | null)[],
-) {
-  const latestById = new Map<string, string>();
-
-  for (const candidate of candidates) {
-    if (!candidate) continue;
-    for (const block of candidate.analysis.document.blocks) {
-      const previous = latestById.get(block.id);
-
-      if (!previous || block.metadata.updatedAt > previous) {
-        latestById.set(block.id, block.metadata.updatedAt);
-      }
-    }
-  }
-  let next = source;
-
-  for (const block of sourceOwner.analysis.document.blocks) {
-    const updatedAt = latestById.get(block.id);
-
-    if (updatedAt && updatedAt > block.metadata.updatedAt) {
-      next = touchCtnSourceBlockMetadata(next, block, updatedAt);
-    }
-  }
-  return next;
 }
 
 function mergeTodoContentWithIndexes(
@@ -253,14 +222,13 @@ function mergeTodoContentWithIndexes(
     );
 
     conflicts.push(...completions.conflicts, ...recurrences.conflicts);
-    const source = touchLatestTodoBlockTimes(
-      sourceOwner.source,
-      sourceOwnerParsed,
+    const source = mergeCtnSourceModificationTimes(
+      sourceOwnerParsed.analysis,
       [
         indexes.base.getParsedCollection(typedCollectionId),
         indexes.local.getParsedCollection(typedCollectionId),
         indexes.remote.getParsedCollection(typedCollectionId),
-      ],
+      ].flatMap(parsed => parsed ? [parsed.analysis] : []),
     );
 
     mergedCollections.set(collectionId, {

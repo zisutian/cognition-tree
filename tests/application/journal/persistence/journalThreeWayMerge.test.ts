@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { describe, expect, it } from "vitest";
 import { createJournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex";
 import { recoverJournalLocalConflictCopies } from "../../../../application/journal/persistence/journalConflictRecovery";
@@ -89,6 +91,26 @@ describe("Journal three-way persistence", () => {
           journalEntries(remote)[1]!.source,
         ]);
     }
+  });
+
+  it("merges an edit reverted to the original body while retaining the latest modification times", () => {
+    let base = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:00.000Z", entryIndex: 1, timezoneOffsetMinutes: 0,
+    });
+    base = updateJournalTestBody(base, { body: ": base", entryIndex: 1, updatedAt: "2026-07-18T01:00:00.000Z" });
+    const changed = updateJournalTestBody(base, { previousBody: ": base", body: ": local", entryIndex: 1, updatedAt: "2026-07-18T02:00:00.000Z" });
+    const local = updateJournalTestBody(changed, { previousBody: ": local", body: ": base", entryIndex: 1, updatedAt: "2026-07-18T04:00:00.000Z" });
+    const remote = updateJournalTestBody(base, { previousBody: ": base", body: ": remote", entryIndex: 1, updatedAt: "2026-07-18T03:00:00.000Z" });
+    const prepared = (content: typeof base) => ({ content, projection: createJournalParseIndex(content) });
+    const result = mergeJournalContent(prepared(base), prepared(local), prepared(remote));
+    expect(result.status).toBe("merged");
+    if (result.status !== "merged") throw new Error("Conflict was not resolved");
+    const entry = journalEntries(result.content)[0]!;
+    expect(entry.source).toContain(": remote");
+    expect(entry.updatedAt).toBe("2026-07-18T04:00:00.000Z");
+    expect(entry.source).toContain("updated=2026-07-18T04:00:00.000Z");
+    expect(entry.id).toBe(journalEntries(base)[0]!.id);
+    expect(entry.createdAt).toBe(journalEntries(base)[0]!.createdAt);
   });
 
   it("creates a recovery entry and rejects mixed unsupported units", () => {

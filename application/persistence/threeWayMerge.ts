@@ -82,14 +82,15 @@ export function mergeThreeWayValue<Value>(
   local: Value,
   remote: Value,
   conflictPreference?: VersionedContentConflictPreference,
+  equal: (left: Value, right: Value) => boolean = areMergeValuesEqual,
 ): { conflict: string | null; resolvedConflict?: string; value: Value } {
-  if (areMergeValuesEqual(local, remote)) {
+  if (equal(local, remote)) {
     return { conflict: null, value: local };
   }
-  if (areMergeValuesEqual(local, base)) {
+  if (equal(local, base)) {
     return { conflict: null, value: remote };
   }
-  if (areMergeValuesEqual(remote, base)) {
+  if (equal(remote, base)) {
     return { conflict: null, value: local };
   }
   return {
@@ -119,6 +120,7 @@ export function mergeThreeWayMapValues<Value>(
   local: ReadonlyMap<string, Value>,
   remote: ReadonlyMap<string, Value>,
   conflictPreference?: VersionedContentConflictPreference,
+  equal: (left: Value, right: Value) => boolean = areMergeValuesEqual,
 ) {
   const values = new Map<string, Value>();
   const conflicts: string[] = [];
@@ -131,6 +133,7 @@ export function mergeThreeWayMapValues<Value>(
       local.get(key) ?? missing,
       remote.get(key) ?? missing,
       conflictPreference,
+      (left, right) => left === missing || right === missing ? left === right : equal(left, right),
     );
 
     if (merged.conflict) conflicts.push(merged.conflict);

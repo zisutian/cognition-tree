@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+
+
 export {
   analyzeCtnSource,
   reprojectCtnAnalysisPresentation,
@@ -128,3 +130,4 @@ export {
   recanonicalizeCtnSourceBlockMetadata,
   reconcileCtnSourceBlockMetadata,
 } from "./metadata/reconcileSourceMetadata.ts";
+export { equalCtnSourceExceptModificationTime, mergeCtnSourceModificationTimes } from "./metadata/sourceMergeMetadata.ts";

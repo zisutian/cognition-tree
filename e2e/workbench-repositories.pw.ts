@@ -540,6 +540,53 @@ test.describe("repository and capacity flows", () => {
     }).toBe(true);
   });
 
+  test("automatically clears a conflict after editing and preserves other pending notes", async ({ apiBaseUrl, page }) => {
+    await page.route(`${apiBaseUrl}/api/v4/content/events`, route => route.abort());
+    await openWorkbench(page, repositoryId);
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    const response = await api.get(`/api/v4/sync/workspaces/${repositoryId}`);
+    const snapshot = await response.json() as WorkspaceRepositorySnapshotDto;
+    const remote = structuredClone(snapshot.content);
+    const alpha = remote.workspace.notes.find(note => note.id === "note-alpha")!;
+    alpha.source += "\n" + createSeedSource(": remote-resolution", 9_100)
+      .split("\n").map(line => `\t${line}`).join("\n");
+    expect((await api.put(`/api/v4/sync/workspaces/${repositoryId}`, {
+      data: { base: snapshot, content: remote },
+    })).ok()).toBe(true);
+
+    const editor = page.locator(".source-editor .cm-content");
+    await editor.click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.type(" local");
+    await getActivityButton(page, "仓库").click();
+    const conflict = page.getByRole("region", { name: "同步冲突" });
+    await expect(conflict).toBeVisible();
+    await getActivityButton(page, "笔记").click();
+    await page.locator(".app-context").getByTitle("Beta", { exact: true }).click();
+    await editor.click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.type(" preserved-during-conflict");
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    await editor.click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.down("Shift");
+    for (let index = 0; index < " local".length; index++) await page.keyboard.press("ArrowLeft");
+    await page.keyboard.up("Shift");
+    await page.keyboard.press("Backspace");
+    await getActivityButton(page, "仓库").click();
+    await expect(conflict).toBeHidden();
+    await expect.poll(async () => {
+      const result = await api.get(`/api/v4/sync/workspaces/${repositoryId}`);
+      const current = await result.json() as WorkspaceRepositorySnapshotDto;
+      return current.content.workspace.notes.find(note => note.id === "note-beta")?.source;
+    }).toContain("preserved-during-conflict");
+    await getActivityButton(page, "笔记").click();
+    await expect(page.getByLabel("笔记编辑")).toContainText("remote-resolution");
+    await page.reload();
+    await page.locator(".app-context").getByTitle("Beta", { exact: true }).click();
+    await expect(page.getByLabel("笔记编辑")).toContainText("preserved-during-conflict");
+  });
+
   test("virtualizes large directory and structure trees", async ({ page }) => {
     await seedLargeTreeRepository(api, largeRepositoryId);
     await openWorkbench(page, repositoryId);

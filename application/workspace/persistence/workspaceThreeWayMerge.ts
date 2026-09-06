@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { equalCtnSourceExceptModificationTime, mergeCtnSourceModificationTimes } from "../../../core/ctn/index.ts";
 import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/index.ts";
 import type {
   WorkspaceSyntax,
   NoteId,
 } from "../../../core/workspace/index.ts";
-
 import {
   createThreeWayContentMergeResult,
   crossesSyntaxMergeBarrier,
@@ -62,7 +62,8 @@ function mergeWorkspaceContentValues(
   base: WorkspaceRepositoryContent,
   local: WorkspaceRepositoryContent,
   remote: WorkspaceRepositoryContent,
-  conflictPreference?: VersionedContentConflictPreference,
+  conflictPreference: VersionedContentConflictPreference | undefined,
+  candidates: readonly PreparedVersionedContent<WorkspaceRepositoryContent, WorkspaceRepositoryPreparation>[],
 ): ThreeWayContentMergeResult<WorkspaceRepositoryContent> {
   const conflicts: string[] = [];
 
@@ -113,12 +114,21 @@ function mergeWorkspaceContentValues(
   ) {
     conflicts.push("workspace:identity");
   }
+  const analysisFor = (note: WorkspaceRepositoryContent["workspace"]["notes"][number]) => candidates
+    .map(candidate => candidate.projection.analysisIndex?.getParsedNote(note.id))
+    .find(parsed => parsed?.source === note.source)?.analysis;
   const notes = mergeThreeWayMapValues(
     "workspace:note",
     new Map(base.workspace.notes.map((note) => [note.id, note])),
     new Map(local.workspace.notes.map((note) => [note.id, note])),
     new Map(remote.workspace.notes.map((note) => [note.id, note])),
     conflictPreference,
+    (left, right) => {
+      if (left.id !== right.id) return false;
+      if (left.source === right.source) return true;
+      const a = analysisFor(left), b = analysisFor(right);
+      return !!a && !!b && equalCtnSourceExceptModificationTime(a, b);
+    },
   );
 
   conflicts.push(...notes.conflicts);
@@ -128,7 +138,16 @@ function mergeWorkspaceContentValues(
     workspace: {
       id: base.workspace.id,
       name: name.value,
-      notes: [...notes.values.values()],
+      notes: [...notes.values.values()].map(note => {
+        const selected = analysisFor(note);
+        if (!selected) return note;
+        const observations = candidates.flatMap(candidate => {
+          const parsed = candidate.projection.analysisIndex?.getParsedNote(note.id);
+          return parsed ? [parsed.analysis] : [];
+        });
+        const source = mergeCtnSourceModificationTimes(selected, observations);
+        return source === note.source ? note : { ...note, source };
+      }),
       tree: tree.value,
     },
   }, conflicts);
@@ -143,6 +162,7 @@ export const mergeWorkspaceContent: VersionedContentMergePolicy<
     local.content,
     remote.content,
     conflictPreference,
+    [base, local, remote],
   );
 
   if (merged.status === "conflict") return merged;
