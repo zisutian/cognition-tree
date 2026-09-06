@@ -361,6 +361,7 @@ export function createOwnershipTextPolicies({
       corpus: sourceModules,
       matches: 1,
       name: "private Agent child process environment ingress",
+      scope: /^(application|contracts|core|infrastructure|presentation)\//,
       pattern: /\bprocess\.env\b/,
     },
     {

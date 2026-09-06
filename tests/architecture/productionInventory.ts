@@ -16,5 +16,16 @@ export function listProductionInventory(roots: readonly string[]) {
         return [relativePath];
       });
   }
-  return roots.flatMap(walk).sort();
+  const excluded = new Set([
+    "node_modules", ".git", ".artifacts", ".cognition-tree", "docs", "tests", "e2e",
+    "README.md", "LICENSE", ".gitignore", ".gitattributes",
+  ]);
+  const entries = readdirSync(projectRoot, { withFileTypes: true });
+  for (const root of roots) {
+    if (!entries.some(entry => entry.name === root && entry.isDirectory())) throw new Error(`Missing source root: ${root}`);
+  }
+  return entries.filter(entry => !excluded.has(entry.name)).flatMap(entry => {
+    if (entry.isSymbolicLink()) throw new Error(`Untracked ownership through symlink: ${entry.name}`);
+    return entry.isDirectory() ? walk(entry.name) : [entry.name];
+  }).sort();
 }

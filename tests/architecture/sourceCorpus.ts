@@ -39,12 +39,12 @@ export const presentationModules: SourceModules = Object.freeze(
 );
 
 export const toolingModules: SourceModules = Object.freeze(
-  import.meta.glob("../../tooling/**/*.{ts,tsx,js,mjs,cjs,mts,cts}",
+  import.meta.glob(["../../tooling/**/*.{ts,tsx,js,mjs,cjs,mts,cts}", "../../*.{ts,tsx,js,mjs,cjs,mts,cts}"],
     { eager: true, import: "default", query: "?raw" }) as SourceModules,
 );
 
 export const sourceAssets: SourceModules = Object.freeze(
-  import.meta.glob("../../{application,contracts,core,infrastructure,presentation,tooling}/**/*.{css,json}",
+  import.meta.glob(["../../{application,contracts,core,infrastructure,presentation,tooling}/**/*.{css,json}", "../../*.{html,sh,json,yaml}", "../../ctn", "../../.githooks/*"],
     { eager: true, import: "default", query: "?raw" }) as SourceModules,
 );
 

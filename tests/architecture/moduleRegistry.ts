@@ -8,6 +8,7 @@ export type ModuleRegistration = {
   responsibility: string;
   scope: "directory" | "tree";
   publicEntries: readonly string[];
+  rootFiles?: readonly string[];
   dependencies: readonly string[];
 };
 
@@ -671,6 +672,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     "id": "infrastructure/server",
+    "rootFiles": ["start.sh"],
     "responsibility": "Executable server startup and shutdown composition",
     "scope": "directory",
     "publicEntries": [],
@@ -971,6 +973,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     "id": "presentation/shell",
+    "rootFiles": ["index.html"],
     "responsibility": "React composition root, activity registry, session wiring and navigation shell",
     "scope": "tree",
     "publicEntries": [
@@ -1083,6 +1086,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     "id": "tooling/cli",
+    "rootFiles": ["ctn"],
     "responsibility": "Trusted-client command line protocol and local credential adapters",
     "scope": "tree",
     "publicEntries": [
@@ -1094,6 +1098,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     "id": "tooling/config",
+    "rootFiles": ["vite.config.ts", "playwright.config.ts", "tsconfig.json", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"],
     "responsibility": "Compiler and tool configuration",
     "scope": "tree",
     "publicEntries": [],
@@ -1101,6 +1106,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     "id": "tooling/git",
+    "rootFiles": [".githooks/pre-commit", ".githooks/commit-msg"],
     "responsibility": "Commit message validation executable",
     "scope": "tree",
     "publicEntries": [],

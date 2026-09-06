@@ -18,6 +18,7 @@ export function auditModules(
   const owners = new Map<string, ModuleRegistration>();
   for (const file of files) {
     const candidates = registry.filter(module => {
+      if (module.rootFiles?.includes(file)) return true;
       if (!file.startsWith(`${module.id}/`)) return false;
       return module.scope === "tree" || !file.slice(module.id.length + 1).includes("/");
     });
@@ -28,6 +29,9 @@ export function auditModules(
   for (const module of registry) {
     if (!module.responsibility.trim()) violations.push(`${module.id}: responsibility is empty`);
     if (![...owners.values()].includes(module)) violations.push(`${module.id}: scan scope is empty`);
+    for (const file of module.rootFiles ?? []) {
+      if (!knownFiles.has(file)) violations.push(`${module.id}: missing root file ${file}`);
+    }
     for (const entry of module.publicEntries) {
       if (!knownFiles.has(entry) || owners.get(entry) !== module) violations.push(`${module.id}: missing or foreign public entry ${entry}`);
     }

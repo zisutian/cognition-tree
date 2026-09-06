@@ -35,7 +35,9 @@ export function sourcePathToRelative(filePath: string) {
 }
 
 export function getSourceRoot(filePath: string): SourceRoot {
-  const root = sourcePathToRelative(filePath).split("/")[0];
+  const relative = sourcePathToRelative(filePath);
+  if (["vite.config.ts", "playwright.config.ts"].includes(relative)) return "tooling";
+  const root = relative.split("/")[0];
 
   if (!(root && sourceRoots.has(root))) {
     throw new Error(`Unknown source root for ${filePath}`);

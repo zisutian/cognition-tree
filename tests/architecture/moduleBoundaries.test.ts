@@ -61,6 +61,12 @@ describe("complete production module graph", () => {
       .toContain("b: scan scope is empty");
     expect(auditModules(["a/leaf.ts"], [], [module("a")]))
       .toContain("a: missing or foreign public entry a/index.ts");
+    const rootOwner = { ...module("tool"), rootFiles: ["launch.sh"] };
+    expect(auditModules(["tool/index.ts", "launch.sh"], [], [rootOwner])).toEqual([]);
+    expect(auditModules(["tool/index.ts"], [], [rootOwner]))
+      .toContain("tool: missing root file launch.sh");
+    expect(auditModules(["tool/index.ts", "a/index.ts", "launch.sh"], [], [rootOwner, { ...module("a"), rootFiles: ["launch.sh"] }]))
+      .toContain("launch.sh: expected one owner, found 2");
     expect(auditTextPolicies([{ name: "removed scope", corpus: {"a.ts": ""}, scope: /^missing/, pattern: /forbidden/, matches: 0 }]))
       .toEqual(["removed scope: scan scope is empty"]);
   });
