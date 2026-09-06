@@ -77,3 +77,5 @@ export {
 export {
   WorkspaceAgentSessionTools,
 } from "./workspaceSessionTools.ts";
+export { AgentProviderProbeService } from "./providerProbe.ts";
+export type { AgentProviderProbeTransportPort } from "./providerProbe.ts";

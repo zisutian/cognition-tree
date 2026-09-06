@@ -4,13 +4,14 @@ import { createServerDeviceLoginOperations } from "./deviceLoginRuntime.ts";
 import path from 'node:path';
 import {
   AgentProviderOperations,
+  AgentProviderProbeService,
   AgentConformanceOperations,
 } from '../../../application/agentHost/index.ts';
 
 import type { CommandRuntime } from '../../../application/commands/index.ts';
 import {
   ConfiguredAgentRuntimeFactory,
-  AgentProviderProbeService,
+  AgentProviderProbeTransport,
   AgentProviderTargetPolicy,
   agentRuntimeToolsForScope,
 } from '../agent/index.ts';
@@ -44,6 +45,6 @@ export function createServerProviderOperations({
       tools: agentRuntimeToolsForScope({domain: 'workspace', repositoryId: 'conformance-only', target: {kind: 'repository'}}).filter(({name}) => name === 'list' || name === 'describe_syntax' || name === 'stage_workspace_create_note'),
       scheduler: serverApplicationScheduler,
     }),
-    probe: new AgentProviderProbeService({configurationStore, fetch: fetchFn, runtime, targetPolicy}),
+    probe: new AgentProviderProbeService({configuration: configurationStore, transport: new AgentProviderProbeTransport({fetch: fetchFn, targetPolicy}), runtime}),
   });
 }

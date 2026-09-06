@@ -7,8 +7,8 @@ export {
   AgentPrivateIpcServer,
 } from "./privateIpc.ts";
 export {
-  AgentProviderProbeService,
-} from "./providerProbe.ts";
+  AgentProviderProbeTransport,
+} from "./providerProbeTransport.ts";
 export {
   AgentProviderTargetPolicy,
   AgentProviderTargetValidationError,

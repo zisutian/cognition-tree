@@ -4,9 +4,7 @@ import type {
   AgentOllamaDiscovery,
   AgentProviderProbe,
 } from "../../../application/agent/index.ts";
-import type { CommandRuntime } from "../../../application/commands/index.ts";
-import { readCommandRuntimeNow } from "../../../application/commands/index.ts";
-import { AgentConfigurationStore } from "./configurationStore.ts";
+import type { AgentProviderProbeTransportPort, ResolvedAgentProvider } from "../../../application/agentHost/index.ts";
 import { AgentConfigurationValidationError } from "../../../application/agentHost/index.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 
@@ -215,26 +213,18 @@ function parseModels(value: unknown) {
   }))].sort();
 }
 
-export class AgentProviderProbeService {
-  readonly #configurationStore: AgentConfigurationStore;
+export class AgentProviderProbeTransport implements AgentProviderProbeTransportPort {
   readonly #fetch: typeof fetch;
-  readonly #runtime: CommandRuntime;
   readonly #targetPolicy: AgentProviderTargetPolicy;
 
   constructor({
-    configurationStore,
     fetch: fetchFn = globalThis.fetch.bind(globalThis),
-    runtime,
     targetPolicy = new AgentProviderTargetPolicy(),
   }: {
-    configurationStore: AgentConfigurationStore;
     fetch?: typeof fetch;
-    runtime: CommandRuntime;
     targetPolicy?: AgentProviderTargetPolicy;
   }) {
-    this.#configurationStore = configurationStore;
     this.#fetch = fetchFn;
-    this.#runtime = runtime;
     this.#targetPolicy = targetPolicy;
   }
 
@@ -251,20 +241,7 @@ export class AgentProviderProbeService {
     return { endpoint: endpoint.toString().replace(/\/$/, ""), models };
   }
 
-  async probe(providerId: string): Promise<AgentProviderProbe> {
-    const resolved = await this.#configurationStore.resolveProvider(providerId);
-
-    if (!resolved) {
-      throw new AgentConfigurationValidationError("Agent provider does not exist");
-    }
-    if (resolved.provider.kind === "codex") {
-      return {
-        modelContexts: [],
-        models: [],
-        probedAt: readCommandRuntimeNow(this.#runtime).timestamp,
-        reachable: resolved.provider.authenticationStatus === "configured",
-      };
-    }
+  async probe(resolved: ResolvedAgentProvider, configuredModels: readonly string[]): Promise<Omit<AgentProviderProbe, "probedAt" | "reachable">> {
     const endpoint = validatedEndpoint(resolved.provider.baseUrl!);
     const requestPath = resolved.provider.kind === "ollama" ? "api/tags" : "models";
     const url = new URL(
@@ -285,14 +262,8 @@ export class AgentProviderProbeService {
       return {
         modelContexts: [],
         models,
-        probedAt: readCommandRuntimeNow(this.#runtime).timestamp,
-        reachable: true,
       };
     }
-    const snapshot = await this.#configurationStore.readSnapshot();
-    const configuredModels = [...new Set(snapshot.profiles
-      .filter(({ providerId: candidate }) => candidate === providerId)
-      .map(({ model }) => model))].sort();
     const psUrl = new URL(
       "api/ps",
       `${endpoint.toString().replace(/\/?$/, "/")}`,
@@ -343,8 +314,6 @@ export class AgentProviderProbeService {
     return {
       modelContexts,
       models,
-      probedAt: readCommandRuntimeNow(this.#runtime).timestamp,
-      reachable: true,
     };
   }
 }
