@@ -51,6 +51,22 @@ describe("Agent provider target policy", () => {
     expect(resolveAddresses).toHaveBeenCalledWith("models.example.invalid");
   });
 
+  it.each(["[::1]", "[0:0:0:0:0:0:0:1]", "[::ffff:127.0.0.1]", "[0:0:0:0:0:ffff:7f00:1]", "localhost."])("accepts explicit loopback URL %s without DNS or confirmation", async (host) => {
+    const resolveAddresses = vi.fn();
+    const policy = new AgentProviderTargetPolicy({ resolveAddresses });
+    const endpoint = new URL(`http://${host}:11434/v1`);
+    expect(policy.configurationPermission(endpoint, "none", false)).toBeNull();
+    await expect(policy.assertRequestTarget(endpoint, null)).resolves.toBeUndefined();
+    expect(resolveAddresses).not.toHaveBeenCalled();
+  });
+
+  it.each(["[::]", "[0:0:0:0:0:0:0:0]", "[fe80::1]", "[ff02::1]", "[::ffff:a9fe:a9fe]"])("rejects forbidden literal %s even with confirmation", async (host) => {
+    const policy = new AgentProviderTargetPolicy();
+    const endpoint = new URL(`http://${host}:11434`);
+    expect(() => policy.configurationPermission(endpoint, "none", true)).toThrow("allowed network targets");
+    await expect(policy.assertRequestTarget(endpoint, endpoint.origin)).rejects.toThrow("forbidden");
+  });
+
   it("keeps explicit loopback endpoints available without DNS", async () => {
     const resolveAddresses = vi.fn();
     const policy = new AgentProviderTargetPolicy({ resolveAddresses });

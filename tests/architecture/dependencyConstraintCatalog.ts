@@ -25,6 +25,7 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   access: ["access", "state"],
   agent: [
     "agent",
+    "network",
     "api",
     "api/http",
     "api/resources",
