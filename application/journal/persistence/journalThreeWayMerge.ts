@@ -114,6 +114,10 @@ function mergeJournalContentValues(
     });
   }
 
+  const preferredDays = conflictPreference
+    ? new Map((conflictPreference === "local" ? local : remote).days.map((day) => [day.date, day]))
+    : null;
+
   for (const { date, entry } of entries.values.values()) {
     const day = dayByDate.get(date);
 
@@ -121,8 +125,14 @@ function mergeJournalContentValues(
       conflicts.push(`journal:day:${date}`);
       continue;
     }
-    if (day.entries.some(({ sequence }) => sequence === entry.sequence)) {
-      conflicts.push(`journal:day:${date}:sequence:${entry.sequence}`);
+    const collisionIndex = day.entries.findIndex(({ sequence }) => sequence === entry.sequence);
+    if (collisionIndex >= 0) {
+      const selected = preferredDays?.get(date)?.entries.find(({ sequence }) => sequence === entry.sequence);
+      if (selected?.id === entry.id) {
+        day.entries[collisionIndex] = entry;
+      } else if (!selected || selected.id !== day.entries[collisionIndex]!.id) {
+        conflicts.push(`journal:day:${date}:sequence:${entry.sequence}`);
+      }
       continue;
     }
     day.entries.push(entry);
@@ -137,7 +147,7 @@ function mergeJournalContentValues(
     ),
     schemaVersion: 3,
     syntaxSource: syntax.value,
-  }, conflicts, conflictPreference);
+  }, conflicts);
 }
 
 export const mergeJournalContent: VersionedContentMergePolicy<

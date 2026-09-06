@@ -128,7 +128,7 @@ function mergeWorkspaceContentValues(
       notes: [...notes.values.values()],
       tree: tree.value,
     },
-  }, conflicts, conflictPreference);
+  }, conflicts);
 }
 
 export const mergeWorkspaceContent: VersionedContentMergePolicy<

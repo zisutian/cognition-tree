@@ -82,7 +82,7 @@ export function mergeThreeWayValue<Value>(
   local: Value,
   remote: Value,
   conflictPreference?: VersionedContentConflictPreference,
-): { conflict: string | null; value: Value } {
+): { conflict: string | null; resolvedConflict?: string; value: Value } {
   if (areMergeValuesEqual(local, remote)) {
     return { conflict: null, value: local };
   }
@@ -93,7 +93,8 @@ export function mergeThreeWayValue<Value>(
     return { conflict: null, value: local };
   }
   return {
-    conflict: unitId,
+    conflict: conflictPreference ? null : unitId,
+    ...(conflictPreference ? { resolvedConflict: unitId } : {}),
     value: conflictPreference === "remote" ? remote : local,
   };
 }
@@ -121,6 +122,7 @@ export function mergeThreeWayMapValues<Value>(
 ) {
   const values = new Map<string, Value>();
   const conflicts: string[] = [];
+  const resolvedConflicts: string[] = [];
 
   for (const key of orderedKeys(local, remote, base)) {
     const merged = mergeThreeWayValue(
@@ -132,19 +134,19 @@ export function mergeThreeWayMapValues<Value>(
     );
 
     if (merged.conflict) conflicts.push(merged.conflict);
+    if (merged.resolvedConflict) resolvedConflicts.push(merged.resolvedConflict);
     if (merged.value !== missing) values.set(key, merged.value as Value);
   }
-  return { conflicts, values };
+  return { conflicts, resolvedConflicts, values };
 }
 
 export function createThreeWayContentMergeResult<Content>(
   content: Content,
   conflicts: readonly string[],
-  conflictPreference?: VersionedContentConflictPreference,
 ): ThreeWayContentMergeResult<Content> {
   const unitIds = [...new Set(conflicts)].sort();
 
-  return unitIds.length > 0 && !conflictPreference
+  return unitIds.length > 0
     ? { status: "conflict", unitIds }
     : { content, status: "merged" };
 }

@@ -179,7 +179,7 @@ function mergeTodoContentWithIndexes(
         if (areMergeValuesEqual(localCollection, remoteCollection)) {
           mergedCollections.set(collectionId, localCollection);
         } else {
-          conflicts.push(unitId);
+          if (!conflictPreference) conflicts.push(unitId);
           mergedCollections.set(
             collectionId,
             conflictPreference === "remote"
@@ -197,7 +197,7 @@ function mergeTodoContentWithIndexes(
     if (!localCollection && !remoteCollection) continue;
     if (!localCollection) {
       if (!areMergeValuesEqual(remoteCollection, baseCollection)) {
-        conflicts.push(unitId);
+        if (!conflictPreference) conflicts.push(unitId);
         if (conflictPreference === "remote" && remoteCollection) {
           mergedCollections.set(collectionId, remoteCollection);
         }
@@ -206,7 +206,7 @@ function mergeTodoContentWithIndexes(
     }
     if (!remoteCollection) {
       if (!areMergeValuesEqual(localCollection, baseCollection)) {
-        conflicts.push(unitId);
+        if (!conflictPreference) conflicts.push(unitId);
         if (conflictPreference !== "remote") {
           mergedCollections.set(collectionId, localCollection);
         }
@@ -293,7 +293,7 @@ function mergeTodoContentWithIndexes(
     collections: ordered,
     schemaVersion: 4,
     syntaxSource: syntax.value,
-  }, conflicts, conflictPreference);
+  }, conflicts);
 }
 
 export const mergeTodoContent: VersionedContentMergePolicy<
