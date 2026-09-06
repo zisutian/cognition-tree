@@ -1,8 +1,7 @@
 import {
   EmptyState,
   Panel,
-} from "../../ui/shared/primitives";
-import "../../ui/styles/shared/placeholder.css";
+} from "../../ui/index.ts";
 
 export function PlaceholderPanel({
   description,

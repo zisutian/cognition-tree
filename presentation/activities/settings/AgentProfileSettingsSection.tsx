@@ -1,23 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useMemo, useState, type FormEvent } from "react";
-import type { AgentApplication } from "../../../application/agent";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
+import type { AgentApplication } from "../../../application/agent/index.ts";
 import {
+  useFeedback,
   ManagementList,
   ManagementRow,
-} from "../../ui/shared/ManagementList";
-import { Button, EmptyState } from "../../ui/shared/primitives";
-import { StatusBadge } from "../../ui/shared/StatusPresentation";
-import { ToolSection } from "../../ui/shared/ToolSurface";
+  Button,
+  EmptyState,
+  StatusBadge,
+  ToolSection,
+} from "../../ui/index.ts";
+
+
+
+
 import {
   agentProfileDraftFrom,
   agentProfileInput,
   createAgentProfileDraft,
   type AgentProfileDraft,
-} from "./agentSettingsDraft";
-import { AgentProfileSettingsForm } from "./AgentProfileSettingsForm";
-import type { AgentSettingsRoute } from "./settingsTypes";
+} from "./agentSettingsDraft.ts";
+import { AgentProfileSettingsForm } from "./AgentProfileSettingsForm.tsx";
+import type { AgentSettingsRoute } from "./settingsTypes.ts";
 
 type ProfileRoute = Extract<AgentSettingsRoute, { page: "profiles" }>;
 

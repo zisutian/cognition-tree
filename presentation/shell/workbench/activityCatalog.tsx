@@ -15,11 +15,15 @@ import {
   type ComponentType,
   type LazyExoticComponent,
 } from "react";
-import type { ActivityId } from "../../ui/activityTypes";
-import type { ActivityControllerProps } from "../../ui/activityController";
-import type { WorkbenchApplication } from "../application/workbenchApplication";
-import type { SyntaxActivityControllerProps } from "../../activities/syntax/SyntaxActivityController";
-import type { ActivityNavigationItem } from "../../ui/activityTypes";
+import type {
+  ActivityId,
+  ActivityControllerProps,
+  ActivityNavigationItem,
+} from "../../ui/index.ts";
+
+import type { WorkbenchApplication } from "../application/workbenchApplication.ts";
+import type { SyntaxActivityControllerProps } from "../../activities/syntax/index.ts";
+
 
 export type WorkbenchActivityControllerProps = ActivityControllerProps<WorkbenchApplication> & Omit<SyntaxActivityControllerProps, keyof ActivityControllerProps<unknown>>;
 
@@ -32,7 +36,7 @@ export type ActivityDescriptor = ActivityNavigationItem & {
 export const activityDescriptors: readonly ActivityDescriptor[] = [
   {
     Controller: lazy(async () => {
-      const { NotesActivityController } = await import("../../activities/notes/NotesActivityController");
+      const { NotesActivityController } = await import("../../activities/notes/index.ts");
       return { default: (props: WorkbenchActivityControllerProps) => {
         const { application } = props;
         return <NotesActivityController active={props.active} application={{ repository: { activeDescriptor: application.repository.activeDescriptor, session: application.repository.session }, workspace: application.workspace }} onActiveActivityChange={props.onActiveActivityChange} renderActivity={props.renderActivity} />;
@@ -45,7 +49,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   },
   {
     Controller: lazy(async () => {
-      const { JournalActivityController } = await import("../../activities/journal/JournalActivityController");
+      const { JournalActivityController } = await import("../../activities/journal/index.ts");
       return { default: (props: WorkbenchActivityControllerProps) => {
         const { application } = props;
         return <JournalActivityController active={props.active} application={{ journal: application.journal, repository: { builtIns: application.repository.builtIns } }} onActiveActivityChange={props.onActiveActivityChange} renderActivity={props.renderActivity} />;
@@ -58,7 +62,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   },
   {
     Controller: lazy(async () => {
-      const { TodoActivityController } = await import("../../activities/todo/TodoActivityController");
+      const { TodoActivityController } = await import("../../activities/todo/index.ts");
       return { default: (props: WorkbenchActivityControllerProps) => {
         const { application } = props;
         return <TodoActivityController active={props.active} application={{ todo: application.todo, repository: { builtIns: application.repository.builtIns } }} onActiveActivityChange={props.onActiveActivityChange} renderActivity={props.renderActivity} />;
@@ -71,7 +75,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   },
   {
     Controller: lazy(async () => {
-      const { SyntaxActivityController } = await import("../../activities/syntax/SyntaxActivityController");
+      const { SyntaxActivityController } = await import("../../activities/syntax/index.ts");
       return { default: (props: WorkbenchActivityControllerProps) => {
         const { application } = props;
         return <SyntaxActivityController active={props.active} application={{ journal: application.journal.status === "ready" ? { status: "ready", view: { syntax: application.journal.view.syntax, diagnostics: application.journal.view.diagnostics } } : { status: application.journal.status }, todo: application.todo.status === "ready" ? { status: "ready", view: { syntax: application.todo.view.syntax, diagnostics: application.todo.view.diagnostics } } : { status: application.todo.status }, workspace: application.workspace }} onActiveActivityChange={props.onActiveActivityChange} renderActivity={props.renderActivity} onSyntaxLeaveBlockedChange={props.onSyntaxLeaveBlockedChange} onSyntaxProblemsChange={props.onSyntaxProblemsChange} systemSyntaxFocusRequest={props.systemSyntaxFocusRequest} onConsumeSystemSyntaxFocusRequest={props.onConsumeSystemSyntaxFocusRequest} />;
@@ -84,7 +88,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   },
   {
     Controller: lazy(async () => {
-      const { AgentActivityController } = await import("../../activities/agent/AgentActivityController");
+      const { AgentActivityController } = await import("../../activities/agent/index.ts");
       return { default: (props: WorkbenchActivityControllerProps) => {
         const { application } = props;
         return <AgentActivityController active={props.active} application={{ agent: application.agent }} onActiveActivityChange={props.onActiveActivityChange} renderActivity={props.renderActivity} />;
@@ -97,7 +101,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   },
   {
     Controller: lazy(async () => {
-      const { SearchActivityController } = await import("../../activities/search/SearchActivityController");
+      const { SearchActivityController } = await import("../../activities/search/index.ts");
       return { default: (props: WorkbenchActivityControllerProps) => {
         const { application } = props;
         return <SearchActivityController active={props.active} application={{ repository: { catalogState: application.repository.catalogState }, search: application.search }} onActiveActivityChange={props.onActiveActivityChange} renderActivity={props.renderActivity} />;
@@ -110,7 +114,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   },
   {
     Controller: lazy(async () => {
-      const { RepositoryActivityController } = await import("../../activities/repository/RepositoryActivityController");
+      const { RepositoryActivityController } = await import("../../activities/repository/index.ts");
       return { default: (props: WorkbenchActivityControllerProps) => {
         const { application } = props;
         return <RepositoryActivityController active={props.active} application={{ repository: application.repository }} onActiveActivityChange={props.onActiveActivityChange} renderActivity={props.renderActivity} />;
@@ -123,7 +127,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   },
   {
     Controller: lazy(async () => {
-      const { SettingsActivityController } = await import("../../activities/settings/SettingsActivityController");
+      const { SettingsActivityController } = await import("../../activities/settings/index.ts");
       return { default: (props: WorkbenchActivityControllerProps) => {
         const { application } = props;
         return <SettingsActivityController active={props.active} application={{ agent: application.agent, apiAccess: application.apiAccess, operations: application.operations, system: application.system }} onActiveActivityChange={props.onActiveActivityChange} renderActivity={props.renderActivity} />;

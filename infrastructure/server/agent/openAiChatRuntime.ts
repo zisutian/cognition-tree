@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentRuntimePort } from "../../../application/agent/agentRuntimePort.ts";
-import type { AgentScope } from "../../../application/agent/agentTypes.ts";
+import type {
+  AgentRuntimePort,
+  AgentScope,
+} from "../../../application/agent/index.ts";
+
 import { OpenAiCompatibleRuntimeSession } from "./openAiCompatibleSession.ts";
-import type { OpenAiChatAgentProfile } from "../../../application/agentHost/runtimeProfiles.ts";
+import type { OpenAiChatAgentProfile } from "../../../application/agentHost/index.ts";
 
 export class OpenAiChatRuntime implements AgentRuntimePort {
   readonly #apiKey: string;

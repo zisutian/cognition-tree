@@ -4,26 +4,23 @@ import type {
   ApiTodoCollectionDto,
   ApiTodoCollectionsDto,
   ApiTodoItemStateDto,
-} from "../../../../contracts/api/types.ts";
-import type { ContentRevisionDto } from "../../../../contracts/common/versionedContent.ts";
+} from "../../../../contracts/api/index.ts";
+import type { ContentRevisionDto } from "../../../../contracts/common/index.ts";
 import {
   createTodoParseIndex,
   type ParsedTodoIndexCollection,
   type TodoParseIndex,
-} from "../../../../core/todo/indexes/todoParseIndex.ts";
-import {
   todoItemSemanticType,
   type TodoContent,
-} from "../../../../core/todo/model/todoContent.ts";
-import {
   createTodoCollectionBodyProjection,
-} from "../../../../core/todo/model/todoCollectionProjection.ts";
-import {
   projectTodoRecurrence,
-} from "../../../../core/todo/recurrence/todoRecurrenceProjection.ts";
+} from "../../../../core/todo/index.ts";
+
+
+
 import type {
   TodoLocalDate,
-} from "../../../../core/todo/recurrence/todoLocalDate.ts";
+} from "../../../../core/todo/index.ts";
 import { projectApiCtnDocument } from "./ctn.ts";
 import {
   createParsedTodoCollectionVersion,

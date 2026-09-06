@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentOperationAuditEntryDto } from "../../../contracts/agent/schemas.ts";
-import type { SecureStateFileReplacer } from "../state/secureJsonPartition.ts";
+import type { AgentOperationAuditEntryDto } from "../../../contracts/agent/index.ts";
+import type { SecureStateFileReplacer } from "../state/index.ts";
 import { AgentOperationLedger } from "./agentOperationLedger.ts";
 import type {
   AgentOperationAttempt,
@@ -9,7 +9,7 @@ import type {
   AttachTrustedClientOperationIntentInput,
   BeginTrustedClientOperationInput,
   FinalizeTrustedClientOperationInput,
-} from "../../../application/operations/operationLedgerPort.ts";
+} from "../../../application/operations/index.ts";
 import { OperationLedgerStore } from "./operationLedgerStore.ts";
 import { TrustedClientOperationLedger } from "./trustedClientOperationLedger.ts";
 

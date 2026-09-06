@@ -2,11 +2,11 @@
 
 import type {
   AgentPreparedCommand,
-} from "../../commands/agentCommandPreparation.ts";
+} from "../../commands/index.ts";
 import {
   readCommandRuntimeNow,
   type CommandRuntime,
-} from "../../commands/commandRuntime.ts";
+} from "../../commands/index.ts";
 import {
   createWorkspaceSourceReplacement,
   prepareWorkspaceMutation,
@@ -17,18 +17,18 @@ import {
 import {
   DomainNotFoundError,
   DomainValidationError,
-} from "../../../core/errors/domainErrors.ts";
+} from "../../../core/errors/index.ts";
 import type {
   NoteTreeNode,
   WorkspaceData,
-} from "../../../core/workspace/model/workspaceData.ts";
-import type {
   NoteTreeNodeReference,
-} from "../../../core/workspace/model/noteTree/types.ts";
-import type { WorkspaceCommandOutcome } from "../../../core/workspace/commands/workspaceCommandOutcome.ts";
+  WorkspaceCommandOutcome,
+} from "../../../core/workspace/index.ts";
+
+
 import type {
   PreparedVersionedSnapshot,
-} from "../../persistence/versionedRepository.ts";
+} from "../../persistence/index.ts";
 import type {
   RepositoryRevision,
   WorkspaceRepositoryContent,

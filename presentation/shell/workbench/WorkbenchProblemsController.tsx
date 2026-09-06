@@ -1,30 +1,34 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ReactNode } from "react";
-import type { WorkbenchApplication } from "../application/workbenchApplication";
+import type { WorkbenchApplication } from "../application/workbenchApplication.ts";
 import {
   type WorkbenchDiagnostics,
   type UiWorkbenchProblem,
-} from "../../../application/workbench/problems/workbenchProblems";
-import {
   projectWorkbenchProblems,
-} from "../../../application/workbench/problems/workbenchProblemsProjection";
-import type { ActivityId } from "../../ui/activityTypes";
+} from "../../../application/workbench/index.ts";
+
+import type {
+  ActivityId,
+  WorkbenchController,
+} from "../../ui/index.ts";
 import {
   getActivityLabel,
   isActivityId,
-} from "./activityCatalog";
-import { ProblemsPanel } from "../../ui/problems/ProblemsPanel";
+} from "./activityCatalog.tsx";
 import {
+  ProblemsPanel,
   runActivityFeedbackAction,
   useWorkbenchFeedback,
-} from "../../ui/shared/FeedbackProvider";
-import { useWorkbenchProblemsShortcut } from "../../ui/problems/useProblemsShortcut";
-import type { WorkbenchController } from "../../ui/workbench/useWorkbenchLayout";
-import { openWorkbenchProblem } from "./workbenchProblemNavigation";
+  useWorkbenchProblemsShortcut,
+} from "../../ui/index.ts";
+
+
+
+import { openWorkbenchProblem } from "./workbenchProblemNavigation.ts";
 import {
   selectWorkbenchPersistenceStatus,
-} from "./workbenchProblemsPanelProjection";
+} from "./workbenchProblemsPanelProjection.ts";
 
 export function WorkbenchProblemsController({
   activeActivityId,

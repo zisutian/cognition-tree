@@ -1,66 +1,67 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { ApiRequestError } from '../protocol/requestError.ts';
+import { ApiRequestError } from '../protocol/index.ts';
 import { createHash } from "node:crypto";
 import {
   UnsupportedWireVersionError,
   WireContractError,
-} from "../../../../contracts/common/contractValue.ts";
+} from "../../../../contracts/common/index.ts";
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
-} from "../../../../contracts/workspace/contractValue.ts";
+} from "../../../../contracts/workspace/index.ts";
 import {
   TodoOccurrenceConflictError,
-} from "../../../../core/todo/recurrence/todoOccurrenceConflict.ts";
+  TodoContentValidationError,
+} from "../../../../core/todo/index.ts";
 import {
   DomainNotFoundError,
   DomainValidationError,
-} from "../../../../core/errors/domainErrors.ts";
+} from "../../../../core/errors/index.ts";
 import {
   PortableNameValidationError,
-} from "../../../../core/naming/portableName.ts";
+} from "../../../../core/naming/index.ts";
 import {
   DomainResourceConflictError,
-} from "../../../../application/commands/domainCommand.ts";
+} from "../../../../application/commands/index.ts";
 import {
   JournalContentValidationError,
-} from "../../../../core/journal/model/journalErrors.ts";
-import {
-  TodoContentValidationError,
-} from "../../../../core/todo/model/todoErrors.ts";
+} from "../../../../core/journal/index.ts";
+
 import {
   RepositoryCatalogError,
-} from "../../repository/catalog.ts";
-import { RepositoryAdapterError } from "../../repository/store.ts";
-import { WorkspaceRevisionConflictError } from "../../../../application/workspace/persistence/workspaceCommitErrors.ts";
-import { VersionedContentCommitOutcomeUnknownError, VersionedContentRevisionConflictError } from "../../../../application/persistence/versionedCommitErrors.ts";
+  RepositoryAdapterError,
+  WorkspacePayloadValidationError,
+} from "../../repository/index.ts";
+
+import { WorkspaceRevisionConflictError } from "../../../../application/workspace/index.ts";
+import { VersionedContentCommitOutcomeUnknownError, VersionedContentRevisionConflictError } from "../../../../application/persistence/index.ts";
 import {
   AgentOperationIdempotencyError,
   AgentOperationIndeterminateError,
   OperationAuditFinalizeError,
   OperationAuditUnavailableError,
-} from "../../../../application/operations/operationLedgerPort.ts";
+} from "../../../../application/operations/index.ts";
 import {
   AgentProposalCommitIndeterminateError,
   AgentServiceError,
-} from "../../../../application/agentHost/errors.ts";
-import { AgentConfigurationConflictError, AgentConfigurationValidationError } from "../../../../application/agentHost/configurationErrors.ts";
-import {
+  AgentConfigurationConflictError,
+  AgentConfigurationValidationError,
   AgentConfigurationAccessConflictError,
-} from "../../../../application/agentHost/configurationAccess.ts";
-import { AgentProviderTargetValidationError } from "../../agent/providerTargetPolicy.ts";
-import { AgentProviderOperationConflictError } from "../../../../application/agentHost/providerOperationErrors.ts";
+  AgentProviderOperationConflictError,
+} from "../../../../application/agentHost/index.ts";
+
+
+import { AgentProviderTargetValidationError } from "../../agent/index.ts";
+
 import {
   AgentProposalStateError,
   AgentScopeUnavailableError,
   AgentScopeViolationError,
   AgentSessionStateError,
 } from "../../../../application/agent/index.ts";
-import {
-  WorkspacePayloadValidationError,
-} from "../../repository/workspace/layout.ts";
-import { SystemConfigurationConflictError, SystemConfigurationValidationError, SystemMigrationConflictError, SystemMigrationNotFoundError, SystemMigrationValidationError } from "../../../../application/system/systemConfigurationModel.ts";
+
+import { SystemConfigurationConflictError, SystemConfigurationValidationError, SystemMigrationConflictError, SystemMigrationNotFoundError, SystemMigrationValidationError } from "../../../../application/system/index.ts";
 
 function createConflictId(kind: string, currentVersion: string) {
   const digest = createHash("sha256")

@@ -8,15 +8,16 @@ import {
   GitBranch,
 } from "lucide-react";
 import { useState } from "react";
-import type { StructureOperationActivityViewModel } from "../../../../application/workspace/notes/structure/structureOperationViewModel";
-import { ChoiceGroup } from "../../../ui/shared/controls";
-import { CompactContextStatusIcon } from
-  "../../../ui/shared/CompactContextList";
+import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
 import {
+  ChoiceGroup,
+  CompactContextStatusIcon,
   NoteTree,
   TreeMoveQuickPick,
   type TreeNode,
-} from "../../../ui/shared/tree";
+} from "../../../ui/index.ts";
+
+
 
 type StructureOperationDirectoryMode = "betweenNotes" | "withinNote";
 type StructureOperationNoteStatus = "source" | "structure" | "target" | "";

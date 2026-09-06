@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { inspectWireSchema } from "../common/schemaValidation.ts";
+import {
+  inspectWireSchema,
+  failWireContract,
+} from "../common/index.ts";
 import type { Static, TSchema } from "@sinclair/typebox";
-import { failWireContract } from "../common/contractValue.ts";
+
 
 
 export function parseAgentSchema<Schema extends TSchema>(

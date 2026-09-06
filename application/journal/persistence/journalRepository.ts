@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { JournalParseIndex } from "../../../core/journal/indexes/journalParseIndex.ts";
-import type { JournalContent } from "../../../core/journal/model/journalContent.ts";
+import type {
+  JournalParseIndex,
+  JournalContent,
+} from "../../../core/journal/index.ts";
+
 import type {
   VersionedRepository,
   VersionedRepositoryBackend,
   VersionedRepositorySnapshot,
-} from "../../persistence/versionedRepository.ts";
+} from "../../persistence/index.ts";
 import type {
   BuiltInDescriptor,
   BuiltInLocation,
-} from "../../repository/builtInCatalog.ts";
+} from "../../repository/index.ts";
 
 export type JournalRevision = `sha256:${string}`;
 export type JournalLocalDraftRevision = `draft:${string}`;

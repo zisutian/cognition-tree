@@ -2,11 +2,10 @@ import type {
   UiReferenceGraphEdge,
   UiReferenceGraphNode,
   UiReferenceGraphView,
-} from "../../../../application/workspace/projection/viewGraph";
-import type {
   ReferenceGraphLocalDepth,
   ReferenceGraphMode,
-} from "../../../../application/workspace/notes/graph/visualizationViewModel";
+} from "../../../../application/workspace/index.ts";
+
 
 export type VisibleReferenceGraphNode = UiReferenceGraphNode & {
   radius: number;

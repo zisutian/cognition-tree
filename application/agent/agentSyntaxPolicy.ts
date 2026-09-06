@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types.ts";
+import type { CtnCompiledSyntax } from "../../core/ctn/index.ts";
 import type { AgentScope } from "./agentTypes.ts";
 
 type AgentSyntaxDomain = AgentScope["domain"];

@@ -12,14 +12,14 @@ import type {
   SystemConfigurationController,
   SystemConfigurationInput,
   SystemConfigurationSnapshot,
-} from "../../../application/system";
+} from "../../../application/system/index.ts";
 import {
   createSystemConfigurationDraftState,
   projectSystemConfigurationDraftSource,
   reduceSystemConfigurationDraft,
   systemConfigurationInputsEqual,
   type SystemConfigurationDraftSubmission,
-} from "./systemConfigurationDraft";
+} from "./systemConfigurationDraft.ts";
 
 type SystemConfigurationDraftSubmitResult = Readonly<{
   restartConfiguration: SystemConfigurationInput | null;

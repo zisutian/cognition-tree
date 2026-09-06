@@ -3,9 +3,9 @@
 import type {
   AgentProfileInput,
   AgentToolCallMode,
-} from "../../../application/agent/agentConfiguration.ts";
-import type { AgentConfigurationAccess } from "../../../application/agentHost/configurationAccess.ts";
-import { AgentConfigurationValidationError } from "../../../application/agentHost/configurationErrors.ts";
+} from "../../../application/agent/index.ts";
+import type { AgentConfigurationAccess } from "../../../application/agentHost/index.ts";
+import { AgentConfigurationValidationError } from "../../../application/agentHost/index.ts";
 import { normalizeProfileInput } from "./configurationInput.ts";
 import { assertAgentConfigurationRevision } from "./configurationRevision.ts";
 import type {

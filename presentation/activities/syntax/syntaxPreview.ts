@@ -1,6 +1,6 @@
 import type {
   AvailableSyntaxViewModel,
-} from "../../../application/syntax/syntaxViewModel";
+} from "../../../application/syntax/index.ts";
 
 type SyntaxInlineRule = AvailableSyntaxViewModel["draft"]["inline"][number];
 

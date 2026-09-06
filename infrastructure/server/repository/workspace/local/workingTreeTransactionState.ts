@@ -11,8 +11,11 @@ import {
   RepositoryAdapterError,
   RepositoryCorruptError,
 } from "../../store.ts";
-import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
-import { readFileHandleUtf8 } from "../../../persistence/fileSystemPersistence.ts";
+import {
+  hasFileSystemErrorCode,
+  readFileHandleUtf8,
+} from "../../../persistence/index.ts";
+
 import {
   localControlDirectoryName,
   localIndexFileName,

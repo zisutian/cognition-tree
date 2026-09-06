@@ -1,19 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { BootstrapConfigurationSnapshot, BootstrapOwnerCredentialActivation } from "../../../application/system/systemConfigurationPorts.ts";
-import type { PreparedDataRootChange } from "../../../application/system/dataRootMigrationPorts.ts";
+import type {
+  BootstrapConfigurationSnapshot,
+  BootstrapOwnerCredentialActivation,
+  PreparedDataRootChange,
+  SystemConfiguration,
+  SystemConfigurationInput,
+} from "../../../application/system/index.ts";
+
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { chmod, lstat, mkdir } from "node:fs/promises";
 import path from "node:path";
-import { SystemConfigurationConflictError, SystemConfigurationValidationError } from "../../../application/system/systemConfigurationModel.ts";
-import type { SystemConfiguration, SystemConfigurationInput } from "../../../application/system/systemConfigurationModel.ts";
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
-import { hasFileSystemErrorCode } from "../persistence/fileSystemError.ts";
-import { replaceFileDurably } from "../persistence/fileSystemPersistence.ts";
+import { SystemConfigurationConflictError, SystemConfigurationValidationError } from "../../../application/system/index.ts";
+
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
+import {
+  hasFileSystemErrorCode,
+  replaceFileDurably,
+} from "../persistence/index.ts";
+
 import {
   SecureJsonPartition,
   type SecureStateFileReplacer,
-} from "../state/secureJsonPartition.ts";
+} from "../state/index.ts";
 import {
   consumeBootstrapFormatRewrite,
   createInitialBootstrapState,

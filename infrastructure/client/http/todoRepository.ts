@@ -1,34 +1,40 @@
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
+import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { serializeJsonIteratively } from "../../../contracts/common/json";
-import { parseBuiltInDescriptor } from "../../../contracts/built-ins/parseBuiltIns";
+import {
+  serializeJsonIteratively,
+  parseContentRevision,
+} from "../../../contracts/common/index.ts";
+import { parseBuiltInDescriptor } from "../../../contracts/built-ins/index.ts";
 import {
   parseTodoSnapshot,
   parseTodoSyncRequest,
   parseTodoSyncResult,
-} from "../../../contracts/todo/parseTodo";
+} from "../../../contracts/todo/index.ts";
 import type {
   TodoRepository,
   TodoRepositoryBackend,
   TodoRepositoryProvider,
-} from "../../../application/todo/persistence/todoRepository";
+} from "../../../application/todo/index.ts";
 import type {
   TodoContentDto,
   TodoRevisionDto,
-} from "../../../contracts/todo/types";
-import { parseContentRevision } from "../../../contracts/common/contractValue";
-import { createVersionedLocalDraftRevision } from "../../../application/persistence/versionedRepository";
-import { mergeTodoContent } from "../../../application/todo/persistence/todoThreeWayMerge";
-import { createLocalFirstVersionedRepository } from "../../../application/persistence/localFirst/localFirstRepository";
-import { todoRepositoryPreparation } from "../repository/todoRepositoryCodec";
-import type { VersionedRepositoryCache } from "../../../application/persistence/versionedRepositoryCache";
+} from "../../../contracts/todo/index.ts";
+
+import {
+  createVersionedLocalDraftRevision,
+  createLocalFirstVersionedRepository,
+} from "../../../application/persistence/index.ts";
+import { mergeTodoContent } from "../../../application/todo/index.ts";
+
+import { todoRepositoryPreparation } from "../repository/index.ts";
+import type { VersionedRepositoryCache } from "../../../application/persistence/index.ts";
 import {
   subscribeClientReconnect,
   type HttpApiTransportOptions,
-} from "./apiTransport";
-import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity";
-import { createHttpVersionedContentRepositoryBackend } from "./versionedContentRepository";
+} from "./apiTransport.ts";
+import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity.ts";
+import { createHttpVersionedContentRepositoryBackend } from "./versionedContentRepository.ts";
 
 type TodoRepositoryCache = VersionedRepositoryCache<
   TodoContentDto,

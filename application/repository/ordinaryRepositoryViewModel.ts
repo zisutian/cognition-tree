@@ -3,25 +3,25 @@
 import type {
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
-} from "./workspaceRepositoryCatalog";
+} from "./workspaceRepositoryCatalog.ts";
 import type {
   RepositoryApplication,
   RepositoryPersistenceState,
-} from "./repositoryApplication";
+} from "./repositoryApplication.ts";
 import type {
   CreateRepositoryRequest,
   DeleteRepositoryRequest,
   RepositoryCatalogOperation,
-} from "./repositoryCatalog";
+} from "./repositoryCatalog.ts";
 import {
   projectRepositoryIssueMessage,
   requiresManualLocalDeletion,
-} from "./repositoryIssueProjection";
+} from "./repositoryIssueProjection.ts";
 import type {
   RepositoryConflictResolutionView,
   RepositoryLocationRow,
   RepositoryRecoveryAction,
-} from "./repositoryViewTypes";
+} from "./repositoryViewTypes.ts";
 
 const persistenceLabels: Record<RepositoryPersistenceState["status"], string> = {
   conflict: "仓库内容已更改",

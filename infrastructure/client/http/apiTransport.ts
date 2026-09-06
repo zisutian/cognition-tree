@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseApiError } from "../../../contracts/api/parseError";
-import type { ApiErrorCodeDto } from "../../../contracts/api/types";
+import { parseApiError } from "../../../contracts/api/index.ts";
+import type { ApiErrorCodeDto } from "../../../contracts/api/index.ts";
 
 export const apiRequestTimeoutMs = 30_000;
 export const apiMaximumJsonResponseBytes = 64 * 1024 * 1024;

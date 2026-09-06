@@ -5,28 +5,30 @@ import type {
   AgentApplication,
   AgentScope,
   AgentScopeOption,
-} from "../../../application/agent";
+} from "../../../application/agent/index.ts";
 import {
   Button,
-} from "../../ui/shared/primitives";
-import { ChoiceGroup, SelectControl } from "../../ui/shared/controls";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
-import {
+  ChoiceGroup,
+  SelectControl,
+  useFeedback,
   FieldRow,
   FormActions,
   FormLayout,
-} from "../../ui/shared/FormLayout";
-import { StatusBadge } from "../../ui/shared/StatusPresentation";
-import {
+  StatusBadge,
   ToolPanel,
   ToolPanelBody,
   ToolPropertyList,
   ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
-import { useExclusiveAsyncAction } from
-  "../../ui/shared/useExclusiveAsyncAction";
+  useExclusiveAsyncAction,
+} from "../../ui/index.ts";
+
+
+
+
+
+
 
 type ScopeDomain = AgentScope["domain"];
 type WorkspaceTargetKind = Extract<

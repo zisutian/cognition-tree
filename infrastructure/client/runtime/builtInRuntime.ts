@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { OfficialClientApi } from "../http/apiTransport";
+import type { OfficialClientApi } from "../http/index.ts";
 import {
   createHttpBuiltInCatalog,
   createMemoryBuiltInCatalogCache,
-} from "../http/builtInCatalog";
-import type { BuiltInCatalog } from "../../../application/repository/builtInCatalog";
-import type { JournalRepositoryProvider } from "../../../application/journal/persistence/journalRepository";
-import type { TodoRepositoryProvider } from "../../../application/todo/persistence/todoRepository";
-import { createHttpJournalRepositoryProvider } from "../http/journalRepository";
-import { createHttpTodoRepositoryProvider } from "../http/todoRepository";
-import { createMemoryVersionedRepositoryCache } from "../repository/versionedRepositoryCache";
+  createHttpJournalRepositoryProvider,
+  createHttpTodoRepositoryProvider,
+} from "../http/index.ts";
+import type { BuiltInCatalog } from "../../../application/repository/index.ts";
+import type { JournalRepositoryProvider } from "../../../application/journal/index.ts";
+import type { TodoRepositoryProvider } from "../../../application/todo/index.ts";
+
+
+import { createMemoryVersionedRepositoryCache } from "../repository/index.ts";
 
 export type BuiltInRuntime = {
   catalog: BuiltInCatalog;

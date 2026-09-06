@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { RepositoryRevisionDto } from "../../../../../contracts/workspace/types.ts";
-import { workspaceRepositorySchemaVersion } from "../../../../../contracts/workspace/types.ts";
-import type { CtnCanonicalSourceAnalysis } from "../../../../../core/ctn/analysis/sourceAnalysis.ts";
-import type { WorkspaceSyntax } from "../../../../../core/workspace/context/workspaceSyntax.ts";
+import type { RepositoryRevisionDto } from "../../../../../contracts/workspace/index.ts";
+import { workspaceRepositorySchemaVersion } from "../../../../../contracts/workspace/index.ts";
+import type { CtnCanonicalSourceAnalysis } from "../../../../../core/ctn/index.ts";
+import type { WorkspaceSyntax } from "../../../../../core/workspace/index.ts";
 
 export const localControlDirectoryName = ".ctn";
 export const localIndexFileName = "index.json";
@@ -72,7 +72,7 @@ export type LocalManagedFileSet = Map<string, string>;
 
 export type LocalWorkingTreeProjection = {
   analysisOverrides: ReadonlyMap<string, CtnCanonicalSourceAnalysis>;
-  content: import("../../../../../contracts/workspace/types.ts").WorkspaceRepositoryContentDto;
+  content: import("../../../../../contracts/workspace/index.ts").WorkspaceRepositoryContentDto;
   files: LocalManagedFileSet;
   index: LocalRepositoryIndex;
   metadata: LocalRepositoryMetadata;

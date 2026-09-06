@@ -1,6 +1,6 @@
-import type { CtnSyntaxDraft, CtnSyntaxDraftBuildResult } from "../../core/ctn/syntax/draft";
-import type { Diagnostic } from "../problems/diagnostic";
-import { resolveSyntaxDiagnosticLocation, syntaxFieldIds, type SyntaxFieldId } from "./syntaxProjection";
+import type { CtnSyntaxDraft, CtnSyntaxDraftBuildResult } from "../../core/ctn/index.ts";
+import type { Diagnostic } from "../problems/index.ts";
+import { resolveSyntaxDiagnosticLocation, syntaxFieldIds, type SyntaxFieldId } from "./syntaxProjection.ts";
 
 export type SyntaxDiagnosticTarget =
   | {

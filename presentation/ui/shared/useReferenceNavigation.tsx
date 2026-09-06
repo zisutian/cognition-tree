@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
-import { useFeedback } from "./FeedbackProvider";
-import { QuickPick } from "./QuickPick";
+import { useFeedback } from "./FeedbackProvider.tsx";
+import { QuickPick } from "./QuickPick.tsx";
 
 type ReferenceDestination = {
   description: string;

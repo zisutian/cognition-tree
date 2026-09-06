@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { nullable } from "../../common/schema.ts";
+import { nullable } from "../../common/index.ts";
 import { Type } from "@sinclair/typebox";
 import {
   ApiOperationAuditPageSchema,
@@ -18,8 +18,8 @@ import {
   AgentProfileMutationRequestSchema,
   AgentProviderProbeResultSchema,
   AgentProviderMutationRequestSchema,
-} from "../../agent/configurationSchemas.ts";
-import { parseCreateRepository, parseRenameRepository } from "../../workspace/parseCatalog.ts";
+} from "../../agent/index.ts";
+import { parseCreateRepository, parseRenameRepository } from "../../workspace/index.ts";
 import { parseApiCreateTokenRequest } from "../parse.ts";
 import {
   ApiCreateTokenRequestSchema,

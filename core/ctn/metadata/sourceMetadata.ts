@@ -7,8 +7,11 @@ import {
 import {
   readCtnCanonicalTitleHeader,
 } from "../parser/parseCtnDocument.ts";
-import type { CtnEditableDocument } from "../parser/types.ts";
-import type { CtnCanonicalBlock } from "../parser/types.ts";
+import type {
+  CtnEditableDocument,
+  CtnCanonicalBlock,
+} from "../parser/types.ts";
+
 import type { CtnCompiledSyntax } from "../syntax/types.ts";
 import {
   formatCtnBlockMetadataLine,

@@ -3,7 +3,8 @@ export type SourceRoot =
   | "contracts"
   | "application"
   | "infrastructure"
-  | "presentation";
+  | "presentation"
+  | "tooling";
 
 export type SourceImport = Readonly<{
   filePath: string;
@@ -22,6 +23,7 @@ const sourceRoots: ReadonlySet<string> = new Set<string>([
   "core",
   "infrastructure",
   "presentation",
+  "tooling",
 ]);
 
 export function modulePathToRelative(filePath: string, prefix: string) {

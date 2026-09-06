@@ -6,7 +6,7 @@ import type { PointerEvent } from "react";
 import type {
   VisibleReferenceGraphEdge,
   VisibleReferenceGraphNode,
-} from "./referenceGraphView";
+} from "./referenceGraphView.ts";
 
 export type GraphSimulationNode = VisibleReferenceGraphNode &
   SimulationNodeDatum & {

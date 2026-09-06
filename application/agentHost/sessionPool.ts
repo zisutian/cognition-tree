@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ApplicationScheduler, CancelScheduledTask } from '../runtime/applicationScheduler.ts';
+import type { ApplicationScheduler, CancelScheduledTask } from '../runtime/index.ts';
 import { AgentServiceError } from "./errors.ts";
 import type { AgentPrivateToolsPort } from "./runtimePorts.ts";
 import type { AgentRuntimeProfile } from "./runtimeProfiles.ts";

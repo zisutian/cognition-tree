@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseApiSchema } from "../../../contracts/api/parse.ts";
-import { RecoveryBootstrapRequestSchema } from "../../../contracts/api/operations/recovery.ts";
+import {
+  parseApiSchema,
+  RecoveryBootstrapRequestSchema,
+} from "../../../contracts/api/index.ts";
+
 import type { IncomingMessage } from "node:http";
 import {
   JsonRequestBodyError,
   readJsonRequestBody,
-} from "../network/jsonRequestBody.ts";
+} from "../network/index.ts";
 
 export const maximumRecoveryRequestBodyBytes = 16_384;
 

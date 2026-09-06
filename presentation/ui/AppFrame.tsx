@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ActivityNavigationItem } from "./activityTypes";
-import type { CSSProperties, ReactNode } from "react";
-import { ChevronLeft } from "lucide-react";
 import type {
+  ActivityNavigationItem,
   ActivityContextSlot,
   ActivityId,
-} from "./activityTypes";
-import { ActivityBar } from "./ActivityBar";
+} from "./activityTypes.ts";
+import type { CSSProperties, ReactNode } from "react";
+import { ChevronLeft } from "lucide-react";
+
+import { ActivityBar } from "./ActivityBar.tsx";
 import {
   appContextMaxWidth,
   appContextMinWidth,
@@ -15,9 +16,9 @@ import {
   appDetailMinWidth,
   appProblemsMaxHeight,
   appProblemsMinHeight,
-} from "./workbench/frameResize";
-import { Button, cx } from "./shared/primitives";
-import type { WorkbenchLayout } from "./workbench/useWorkbenchLayout";
+} from "./workbench/frameResize.ts";
+import { Button, cx } from "./shared/primitives.tsx";
+import type { WorkbenchLayout } from "./workbench/useWorkbenchLayout.ts";
 
 type AppFrameStyle = CSSProperties & {
   "--app-context-width"?: string;

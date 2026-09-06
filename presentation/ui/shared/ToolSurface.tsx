@@ -13,7 +13,7 @@ import {
   PanelBody,
   PanelHeader,
   cx,
-} from "./primitives";
+} from "./primitives.tsx";
 
 export function ToolPanel({
   actions,

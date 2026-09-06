@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/analysis/sourceAnalysis.ts";
-import { touchCtnSourceBlockMetadata } from "../../../core/ctn/metadata/sourceMetadata.ts";
+import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/index.ts";
+import { touchCtnSourceBlockMetadata } from "../../../core/ctn/index.ts";
 import {
   createTodoParseIndex,
   type ParsedTodoIndexCollection,
   type TodoParseIndex,
-} from "../../../core/todo/indexes/todoParseIndex.ts";
+  createTodoCollectionBodyProjection,
+} from "../../../core/todo/index.ts";
 import type {
   TodoCollection,
   TodoCollectionId,
   TodoContent,
-} from "../../../core/todo/model/todoContent.ts";
-import { createTodoCollectionBodyProjection } from "../../../core/todo/model/todoCollectionProjection.ts";
+} from "../../../core/todo/index.ts";
+
 import {
   areMergeValuesEqual,
   createThreeWayContentMergeResult,
@@ -21,12 +22,12 @@ import {
   mergeThreeWayValue,
   reusePreparedMergeContent,
   type ThreeWayContentMergeResult,
-} from "../../persistence/threeWayMerge.ts";
+} from "../../persistence/index.ts";
 import type {
   PreparedVersionedContent,
   VersionedContentConflictPreference,
   VersionedContentMergePolicy,
-} from "../../persistence/versionedRepository.ts";
+} from "../../persistence/index.ts";
 
 function collectTodoAnalysisOverrides(
   content: TodoContent,

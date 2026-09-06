@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import net from "node:net";
-import type { AgentIpcRequestDto } from "../../../contracts/agent/ipc.ts";
+import type { AgentIpcRequestDto } from "../../../contracts/agent/index.ts";
 import { listenToAgentJsonLines } from "./jsonLineTransport.ts";
 import { parsePrivateIpcResult } from "./sessionMcpProtocol.ts";
 

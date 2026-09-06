@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { resolveApiUrl } from "./apiTransport";
+import { resolveApiUrl } from "./apiTransport.ts";
 
 export async function createHttpRepositoryCacheIdentity({
   baseUrl,

@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { buildApiOperationPath, getApiOperation, parseApiOperationRequest, assertApiOperationResponse } from "../../../contracts/api/registry.ts";
+import { buildApiOperationPath, getApiOperation, parseApiOperationRequest, assertApiOperationResponse } from "../../../contracts/api/index.ts";
 import { once } from "node:events";
 import http from "node:http";
-import type { DataRootMigrationCoordinator } from "../../../application/system/dataRootMigrationCoordinator.ts";
-import { isLocalRecoveryRequest } from "../network/localRecoveryRequest.ts";
-import { readJsonRequestBody } from "../network/jsonRequestBody.ts";
+import type { DataRootMigrationCoordinator } from "../../../application/system/index.ts";
+import {
+  isLocalRecoveryRequest,
+  readJsonRequestBody,
+} from "../network/index.ts";
+
 
 const statusPath = buildApiOperationPath("getMigrationRecoveryStatus");
 const reconcilePath = buildApiOperationPath("reconcileMigrationRecovery");

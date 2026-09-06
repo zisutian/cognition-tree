@@ -4,11 +4,14 @@ import { useState, type FormEvent } from "react";
 import type {
   OwnerAuthenticationController,
   OwnerAuthenticationState,
-} from "../../application/system";
-import { Button } from "../ui/shared/primitives";
-import { InputControl } from "../ui/shared/controls";
-import { useExclusiveAsyncAction } from
-  "../ui/shared/useExclusiveAsyncAction";
+} from "../../application/system/index.ts";
+import {
+  Button,
+  InputControl,
+  useExclusiveAsyncAction,
+} from "../ui/index.ts";
+
+
 import "./ownerLogin.css";
 
 export function OwnerLogin({

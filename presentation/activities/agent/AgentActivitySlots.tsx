@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentApplication } from "../../../application/agent";
-import type { ActivitySlots } from "../../ui/activityTypes";
-import { AgentContextPanel } from "./AgentContextPanel";
-import { AgentConversationPanel } from "./AgentConversationPanel";
-import { AgentProposalPanel } from "./AgentProposalPanel";
-import { AgentSessionCreatePanel } from "./AgentSessionCreatePanel";
+import type { AgentApplication } from "../../../application/agent/index.ts";
+import type { ActivitySlots } from "../../ui/index.ts";
+import { AgentContextPanel } from "./AgentContextPanel.tsx";
+import { AgentConversationPanel } from "./AgentConversationPanel.tsx";
+import { AgentProposalPanel } from "./AgentProposalPanel.tsx";
+import { AgentSessionCreatePanel } from "./AgentSessionCreatePanel.tsx";
 import "./agent.css";
 
 export function createAgentActivitySlots({

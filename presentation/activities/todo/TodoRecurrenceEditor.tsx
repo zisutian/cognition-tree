@@ -3,18 +3,20 @@
 import { useState, type FormEvent } from "react";
 import type {
   TodoBlockView,
-} from "../../../application/todo";
+} from "../../../application/todo/index.ts";
 import type {
   TodoIsoWeekday,
-} from "../../../core/todo/recurrence/todoLocalDate";
-import type {
   TodoRecurrenceRule,
-} from "../../../core/todo/recurrence/todoRecurrenceRule";
+} from "../../../core/todo/index.ts";
+
 import {
   Button,
-} from "../../ui/shared/primitives";
-import { ChoiceGroup, InputControl } from "../../ui/shared/controls";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
+  ChoiceGroup,
+  InputControl,
+  useFeedback,
+} from "../../ui/index.ts";
+
+
 
 type RecurrenceMode = "daily" | "monthly" | "none" | "weekly";
 

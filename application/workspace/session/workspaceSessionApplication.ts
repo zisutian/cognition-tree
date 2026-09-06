@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { SessionCommands } from "./sessionCommands";
+import type { SessionCommands } from "./sessionCommands.ts";
 import type {
   WorkspaceSessionController,
   WorkspaceSessionControllerState,
   WorkspaceSessionReadyState,
-} from "./workspaceSessionController";
+} from "./workspaceSessionController.ts";
 
 type WorkspaceSessionOperations = Pick<
   WorkspaceSessionController,

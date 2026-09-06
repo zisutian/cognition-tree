@@ -2,21 +2,19 @@
 
 import type {
   CtnCanonicalSourceAnalysis,
-} from "../../../core/ctn/analysis/sourceAnalysis.ts";
+  CtnEditableSourceChange,
+  CtnCompiledSyntax,
+} from "../../../core/ctn/index.ts";
 import {
   createMyersTextEdits,
-} from "../../../core/ctn/metadata/myersTextEdits.ts";
-import type {
-  CtnEditableSourceChange,
-} from "../../../core/ctn/metadata/textEdits.ts";
+} from "../../../core/ctn/index.ts";
+
 import {
   DomainNotFoundError,
   DomainValidationError,
-} from "../../../core/errors/domainErrors.ts";
+} from "../../../core/errors/index.ts";
 import {
   collectWorkspaceTitleBlockIds,
-} from "../../../core/workspace/context/workspaceBlockMetadata.ts";
-import {
   createWorkspaceFolder,
   createWorkspaceNote,
   deleteWorkspaceFolder,
@@ -26,37 +24,31 @@ import {
   renameWorkspaceNote,
   updateWorkspaceNoteSource,
   updateWorkspaceRawNoteSource,
-} from "../../../core/workspace/commands/workspaceCommands.ts";
-import {
   moveWorkspaceStructureBlockBetweenNotes,
   moveWorkspaceStructureBlockWithinNote,
   type WorkspaceStructureBlockTargetPositionRequest,
-} from "../../../core/workspace/commands/structureBlockCommands.ts";
-import {
   createWorkspaceParseIndex,
   type WorkspaceParseIndex,
-} from "../../../core/workspace/indexes/workspaceParseIndex.ts";
-import {
   createWorkspaceStructureIndex,
   type WorkspaceStructureIndex,
-} from "../../../core/workspace/indexes/workspaceStructureIndex.ts";
-import type {
-  CtnCompiledSyntax,
-} from "../../../core/ctn/syntax/types.ts";
+} from "../../../core/workspace/index.ts";
+
+
+
+
+
 import type {
   FolderId,
   NoteId,
   WorkspaceData,
-} from "../../../core/workspace/model/workspaceData.ts";
-import type {
   NoteTreeMoveRequest,
-} from "../../../core/workspace/model/noteTree/types.ts";
-import type {
   WorkspaceCommandOutcome,
-} from "../../../core/workspace/commands/workspaceCommandOutcome.ts";
+} from "../../../core/workspace/index.ts";
+
+
 import {
   assertDomainResourceVersion,
-} from "../../commands/domainCommand.ts";
+} from "../../commands/index.ts";
 
 type ResourceVersion = `sha256:${string}`;
 

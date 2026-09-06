@@ -5,15 +5,16 @@ import type {
   AgentOllamaResidentContext,
   AgentProfileView,
   AgentProviderView,
-} from "../../../application/agent";
-import { StatusBadge } from "../../ui/shared/StatusPresentation";
+} from "../../../application/agent/index.ts";
 import {
+  StatusBadge,
   ToolPropertyList,
   ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
-import type { AgentSettingsRoute } from "./settingsTypes";
+} from "../../ui/index.ts";
+
+import type { AgentSettingsRoute } from "./settingsTypes.ts";
 
 const authenticationLabels = {
   configured: "已配置",

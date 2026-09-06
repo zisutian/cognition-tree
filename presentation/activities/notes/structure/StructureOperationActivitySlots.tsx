@@ -1,10 +1,10 @@
-import type { StructureOperationActivityViewModel } from "../../../../application/workspace/notes/structure/structureOperationViewModel";
+import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
 import "./structure.css";
-import type { WorkspaceShell } from "../../../workspace/runtime/useWorkspaceApplication";
-import type { ActivitySlots } from "../../../ui/activityTypes";
-import { SyntaxUnavailablePanel } from "../../../ui/SyntaxUnavailablePanel";
-import { StructureOperationContext } from "./StructureOperationContext";
-import { StructureOperationMainPanel } from "./StructureOperationPanels";
+import type { WorkspaceShell } from "../../../workspace/index.ts";
+import type { ActivitySlots } from "../../../ui/index.ts";
+import { SyntaxUnavailablePanel } from "../../../ui/index.ts";
+import { StructureOperationContext } from "./StructureOperationContext.tsx";
+import { StructureOperationMainPanel } from "./StructureOperationPanels.tsx";
 
 export function createStructureOperationActivitySlots({
   onConfigureSyntax,

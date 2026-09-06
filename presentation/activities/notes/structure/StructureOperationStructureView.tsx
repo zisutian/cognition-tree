@@ -3,24 +3,26 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { StructureOperationActivityViewModel } from "../../../../application/workspace/notes/structure/structureOperationViewModel";
+import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
 import {
   ContextMenu,
   type ContextMenuPosition,
-} from "../../../ui/shared/ContextMenu";
-import { Section } from "../../../ui/shared/primitives";
-import { useFeedback } from "../../../ui/shared/FeedbackProvider";
+  Section,
+  useFeedback,
+} from "../../../ui/index.ts";
+
+
 import {
   findBlockByLineNumber,
   useSelectedBlockLines,
-} from "./structureOperationBlocks";
+} from "./structureOperationBlocks.ts";
 import {
   DropTarget,
   StructureOperationTargetTree,
   canDropStructureBlockAtEnd,
   getBlockedStructureDropLineNumbers,
-} from "./structureOperationDropTargets";
-import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick";
+} from "./structureOperationDropTargets.tsx";
+import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick.tsx";
 
 export function StructureOperationStructureView({
   view,

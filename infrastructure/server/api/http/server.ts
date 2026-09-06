@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ApiSearchService } from "../search.ts";
+import type { ApiSearchService } from "../index.ts";
 import { randomUUID } from "node:crypto";
 import http from "node:http";
 import type {
@@ -14,15 +14,14 @@ import {
   parseApiOperationRequest,
   parseApiOperationQuery,
   resolveApiRoute,
-} from "../../../../contracts/api/registry.ts";
+} from "../../../../contracts/api/index.ts";
 import type {
   WorkspaceRepositoryCatalog,
-} from "../../repository/catalog.ts";
-import type {
   ApiBuiltInCatalog,
-} from "../../repository/built-ins/catalogPort.ts";
+} from "../../repository/index.ts";
+
 import { mapApiError } from "./errors.ts";
-import { ApiRequestError } from "../protocol/requestError.ts";
+import { ApiRequestError } from "../protocol/index.ts";
 import {
   handleApiRoute,
 } from "./handlers.ts";
@@ -42,20 +41,23 @@ import {
 import { reportApiRequestFailure } from "./log.ts";
 import {
   ApiEventHub,
-} from "../sync/events.ts";
+} from "../sync/index.ts";
 import {
   type ApiRuntime,
 } from "./runtime.ts";
 import {
   DomainRevisionTracker,
-} from "../../../../application/sync/domainRevisionTracker.ts";
-import { AutomationTokenStore } from "../../access/automationTokenStore.ts";
-import { TrustedClientTokenStore } from "../../access/trustedClientTokenStore.ts";
-import type { AgentService } from "../../../../application/agentHost/service.ts";
-import type { OperationLedger } from "../../operations/operationLedger.ts";
-import { AgentConfigurationStore } from "../../agent/configurationStore.ts";
-import { AgentProviderOperations } from "../../../../application/agentHost/providerOperations.ts";
-import type { SystemAdministrationServerPort } from "../../../../application/system/systemConfiguration.ts";
+} from "../../../../application/sync/index.ts";
+import {
+  AutomationTokenStore,
+  TrustedClientTokenStore,
+} from "../../access/index.ts";
+
+import type { AgentService } from "../../../../application/agentHost/index.ts";
+import type { OperationLedger } from "../../operations/index.ts";
+import { AgentConfigurationStore } from "../../agent/index.ts";
+import { AgentProviderOperations } from "../../../../application/agentHost/index.ts";
+import type { SystemAdministrationServerPort } from "../../../../application/system/index.ts";
 import { ApiMaintenanceGate } from "./maintenanceGate.ts";
 
 export type ApiRequestHandler = (

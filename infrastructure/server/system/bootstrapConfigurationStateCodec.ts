@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import path from "node:path";
-import type { SystemConfiguration } from "../../../application/system/systemConfigurationModel.ts";
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
+import type { SystemConfiguration } from "../../../application/system/index.ts";
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
 import {
   assertStateFields,
   requireStateRecord,
-} from "../state/secureJsonPartition.ts";
-import { createStateDigest } from "../state/stateDigest.ts";
+  createStateDigest,
+} from "../state/index.ts";
+
 import {
   createInitialOwnerCredential,
   migrateLegacyOwnerCredential,

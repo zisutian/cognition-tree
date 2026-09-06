@@ -3,7 +3,7 @@
 import type {
   VersionedRepositorySnapshot,
   VersionedRepositorySnapshotTransition,
-} from "./versionedRepository";
+} from "./versionedRepository.ts";
 
 export type VersionedRepositoryTransitionAuthority<
   Content,

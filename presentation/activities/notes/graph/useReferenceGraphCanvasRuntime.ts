@@ -8,18 +8,18 @@ import {
   type PointerEvent,
   type WheelEvent,
 } from "react";
-import type { UiNoteId } from "../../../../application/workspace/projection/viewTree";
+import type { UiNoteId } from "../../../../application/workspace/index.ts";
 import {
   findReferenceGraphNodeAtPoint,
   type PositionedReferenceGraphNode,
   type VisibleReferenceGraph,
-} from "./referenceGraphView";
+} from "./referenceGraphView.ts";
 import {
   drawGraph,
   getReferenceGraphFocusNodeIds,
   readReferenceGraphCanvasTheme,
   type ReferenceGraphCanvasTheme,
-} from "./referenceGraphCanvasDrawing";
+} from "./referenceGraphCanvasDrawing.ts";
 import {
   clampScale,
   defaultCanvasSize,
@@ -31,21 +31,21 @@ import {
   type GraphSimulationNode,
   type GraphNodePointerMovement,
   type GraphTransform,
-} from "./referenceGraphCanvasModel";
+} from "./referenceGraphCanvasModel.ts";
 import {
   consumeReferenceGraphResetSignal,
   type ReferenceGraphController,
-} from "./referenceGraphController";
+} from "./referenceGraphController.ts";
 import {
   createReferenceGraphSimulation,
   resizeReferenceGraphSimulation,
   updateReferenceGraphSimulationForces,
-} from "./referenceGraphSimulation";
+} from "./referenceGraphSimulation.ts";
 import {
   getReferenceGraphForceSettingsKey,
   type GraphDisplaySettings,
   type GraphForceSettings,
-} from "./referenceGraphSettings";
+} from "./referenceGraphSettings.ts";
 
 export type ReferenceGraphCanvasProps = {
   controller: ReferenceGraphController;

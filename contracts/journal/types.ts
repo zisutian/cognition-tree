@@ -5,7 +5,7 @@ import type {
   VersionedContentSnapshotDto,
   VersionedContentSyncRequestDto,
   VersionedContentSyncResultDto,
-} from "../common/versionedContent.ts";
+} from "../common/index.ts";
 
 export type JournalEntryDto = {
   id: `journal-entry-${string}`;

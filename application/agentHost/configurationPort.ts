@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentConfigurationSnapshot, AgentProfileView, AgentProviderView, AgentToolCallMode } from '../agent/agentConfiguration.ts';
+import type { AgentConfigurationSnapshot, AgentProfileView, AgentProviderView, AgentToolCallMode } from '../agent/index.ts';
 import type { AgentConfigurationProfileUse } from './configurationAccess.ts';
 
 export type ResolvedAgentProvider = Readonly<{

@@ -1,19 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { analyzeCtnSource } from "../../ctn/analysis/sourceAnalysis.ts";
+import {
+  analyzeCtnSource,
+  createCtnBlockIdAllocator,
+  formatCtnBlockMetadataLine,
+  recanonicalizeCtnSourceBlockMetadata,
+  initializeCtnRawSourceBlockMetadataAnalysis,
+  readCtnCanonicalTitleHeader,
+} from "../../ctn/index.ts";
 import type {
   CtnCanonicalSourceAnalysis,
-} from "../../ctn/analysis/sourceAnalysis.ts";
-import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator.ts";
-import { formatCtnBlockMetadataLine } from "../../ctn/metadata/blockMetadata.ts";
-import {
-  recanonicalizeCtnSourceBlockMetadata,
-} from "../../ctn/metadata/reconcileSourceMetadata.ts";
-import {
-  initializeCtnRawSourceBlockMetadataAnalysis,
-} from "../../ctn/metadata/sourceMetadata.ts";
-import { readCtnCanonicalTitleHeader } from "../../ctn/parser/parseCtnDocument.ts";
-import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
+  CtnCompiledSyntax,
+} from "../../ctn/index.ts";
+
+
+
+
+
+
 import type { WorkspaceParseIndex } from "../indexes/workspaceParseIndex.ts";
 import {
   replaceWorkspaceNoteSources,

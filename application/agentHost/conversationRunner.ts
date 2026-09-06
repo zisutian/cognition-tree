@@ -9,11 +9,14 @@ import {
   type AgentRuntimeTool,
   type AgentRuntimeToolCall,
 } from "../agent/index.ts";
-import type { AgentOperationReceipt } from "../operations/agentOperationReceipt.ts";
+import type { AgentOperationReceipt } from "../operations/index.ts";
 import { AgentProfileTurnQueue } from "./profileTurnQueue.ts";
 import { AgentSessionEventStream } from "./sessionEventStream.ts";
-import type { AgentHostTools } from "./runtimePorts.ts";
-import type { AgentToolProtocolPort } from "./runtimePorts.ts";
+import type {
+  AgentHostTools,
+  AgentToolProtocolPort,
+} from "./runtimePorts.ts";
+
 import type { AgentToolSession } from "./sessionToolState.ts";
 
 export type AgentConversationRecord = AgentToolSession & {

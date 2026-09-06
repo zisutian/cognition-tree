@@ -3,7 +3,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 
 type ManifestChunk = {
   file: string;
@@ -31,12 +31,21 @@ if (!clientEntry) {
 const catalogUrl = new URL("../../presentation/shell/workbench/activityCatalog.tsx", import.meta.url);
 const catalogPath = fileURLToPath(catalogUrl);
 const catalog = ts.createSourceFile(catalogPath, readFileSync(catalogUrl, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const parseDiagnostics = (catalog as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics;
+if (parseDiagnostics.length) throw new Error("Activity catalog cannot be parsed");
 const controllerSources: string[] = [];
+function resolveControllerEntry(specifier: string) {
+  const base = path.resolve(path.dirname(catalogPath), specifier);
+  const entry = [base, `${base}.ts`, `${base}.tsx`, path.join(base, "index.ts")]
+    .find(candidate => existsSync(candidate) && statSync(candidate).isFile());
+  if (!entry) throw new Error(`Activity entry does not exist: ${specifier}`);
+  return path.relative(fileURLToPath(new URL("../../", import.meta.url)), entry);
+}
 function visitCatalog(node: ts.Node) {
   if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
     const argument = node.arguments[0];
     if (!argument || !ts.isStringLiteralLike(argument)) throw new Error("Activity lazy import must declare a literal public entry");
-    controllerSources.push(path.relative(fileURLToPath(new URL("../../", import.meta.url)), path.resolve(path.dirname(catalogPath), argument.text + (path.extname(argument.text) ? "" : ".tsx"))));
+    controllerSources.push(resolveControllerEntry(argument.text));
   }
   ts.forEachChild(node, visitCatalog);
 }
@@ -68,7 +77,8 @@ function collectStaticImports(
 
   collected.add(sourcePath);
 
-  for (const importedPath of manifest[sourcePath]?.imports ?? []) {
+  if (!manifest[sourcePath]) throw new Error(`Missing manifest import: ${sourcePath}`);
+  for (const importedPath of manifest[sourcePath].imports ?? []) {
     collectStaticImports(importedPath, collected);
   }
 

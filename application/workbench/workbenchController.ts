@@ -2,86 +2,88 @@
 
 import type {
   JournalWorkspaceReferenceResolver,
-} from "../journal/journalExternalReferences";
+  JournalRepositoryProvider,
+} from "../journal/index.ts";
 import type {
   WorkspaceContentDestination,
-} from "../navigation/contentDestination";
+} from "../navigation/index.ts";
 import {
   createJournalSessionController,
   type JournalSessionController,
-} from "../journal/journalSessionController";
+} from "../journal/index.ts";
 import {
   createBuiltInCatalogController,
   type BuiltInCatalogState,
   type BuiltInCatalogController,
-} from "../repository/builtInCatalogController";
+  createRepositoryCatalogController,
+  type RepositoryCatalogControllerSnapshot,
+} from "../repository/index.ts";
 import type {
   BuiltInCatalog,
   BuiltInDescriptor,
   BuiltInId,
-} from "../repository/builtInCatalog";
-import type { JournalRepositoryProvider } from "../journal/persistence/journalRepository";
-import type { TodoRepositoryProvider } from "../todo/persistence/todoRepository";
-import {
-  createRepositoryCatalogController,
-  type RepositoryCatalogControllerSnapshot,
-} from "../repository/repositoryCatalogController";
-import type {
   CreateRepositoryRequest,
   DeleteRepositoryRequest,
   RenameRepositoryRequest,
-} from "../repository/repositoryCatalog";
-import type { ActiveRepositorySelection } from "../repository/activeRepositorySelection";
-import type { WorkspaceRepositoryCatalog } from "../repository/workspaceRepositoryCatalog";
-import type { WorkspaceRepositoryContent } from "../workspace/persistence/workspaceRepository";
+  ActiveRepositorySelection,
+  WorkspaceRepositoryCatalog,
+} from "../repository/index.ts";
+
+import type { TodoRepositoryProvider } from "../todo/index.ts";
+
+
+
+
 import type {
+  WorkspaceRepositoryContent,
   WorkspaceRepositoryProvider,
   WorkspaceRepositoryProvisioner,
-} from "../workspace/persistence/workspaceRepositoryProvider";
-import type { ApplicationScheduler } from "../runtime/applicationScheduler";
+  SessionCommandDependencies,
+  WorkspaceSessionController,
+} from "../workspace/index.ts";
+
+import type { ApplicationScheduler } from "../runtime/index.ts";
 import type {
   DomainChangeEventSource,
-} from "../sync/domainChangeEvents";
+} from "../sync/index.ts";
 import {
   createSearchController,
   type SearchController,
   type SearchControllerView,
   type SearchControllerState,
-} from "../search/searchController";
-import type { SearchResourceVersion } from "../search/searchTypes";
+} from "../search/index.ts";
+import type { SearchResourceVersion } from "../search/index.ts";
 import {
   createTodoSessionController,
   type TodoSessionController,
-} from "../todo/todoSessionController";
-import type { SessionCommandDependencies } from "../workspace/session/sessionCommands";
-import type {
-  WorkspaceSessionController,
-} from "../workspace/session/workspaceSessionController";
+} from "../todo/index.ts";
+
+
 import {
   createBuiltInSessionSlot,
   type WorkbenchBuiltInSession,
-} from "./builtInSessionSlot";
+} from "./builtInSessionSlot.ts";
 import {
   createJournalWorkspaceReferenceResolver,
   type JournalWorkspaceReferenceSnapshot,
-} from "./journalWorkspaceReferences";
+} from "./journalWorkspaceReferences.ts";
 import {
   createWorkspaceNoteNavigationController,
   type WorkbenchNavigationState,
-} from "./workspaceNoteNavigationController";
+} from "./workspaceNoteNavigationController.ts";
 import {
   createWorkspaceSessionSlot,
   type WorkbenchWorkspaceSession,
-} from "./workspaceSessionSlot";
-import { createWorkbenchSearchQuery } from "./workbenchSearchQuery";
+} from "./workspaceSessionSlot.ts";
+import { createWorkbenchSearchQuery } from "./workbenchSearchQuery.ts";
 import {
   createCheckpointReloadReconciler,
   type CheckpointReloadReconciler,
-} from "./checkpointReloadReconciler";
+} from "./checkpointReloadReconciler.ts";
 
-export type { WorkbenchNavigationState } from "./workspaceNoteNavigationController";
-export type { WorkbenchWorkspaceSession } from "./workspaceSessionSlot";
-export type { WorkbenchBuiltInSession } from "./builtInSessionSlot";
+export type { WorkbenchNavigationState } from "./workspaceNoteNavigationController.ts";
+export type { WorkbenchWorkspaceSession } from "./workspaceSessionSlot.ts";
+export type { WorkbenchBuiltInSession } from "./builtInSessionSlot.ts";
 
 export type WorkbenchRepositoryCatalogSnapshot =
   RepositoryCatalogControllerSnapshot;

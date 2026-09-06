@@ -6,7 +6,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { cx } from "./primitives";
+import { cx } from "./primitives.tsx";
 
 export type SubsectionTab<Value extends string> = Readonly<{
   label: ReactNode;

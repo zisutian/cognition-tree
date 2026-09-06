@@ -1,35 +1,35 @@
-import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import type {
+  WorkspaceStructureIndex,
   MoveWorkspaceStructureBlockBetweenNotesFailureReason,
   MoveWorkspaceStructureBlockWithinNoteFailureReason,
   WorkspaceStructureBlockMoveBetweenNotesRequest,
   WorkspaceStructureBlockMoveWithinNoteRequest,
   WorkspaceStructureBlockTargetPositionRequest,
-} from "../../../core/workspace/commands/structureBlockCommands";
-import type {
   FolderId,
   NoteId,
   WorkspaceData,
-} from "../../../core/workspace/model/workspaceData";
+  WorkspaceParseIndex,
+  NoteTreeMoveRequest,
+} from "../../../core/workspace/index.ts";
+
+
 import {
   defaultNoteTitle,
-} from "../../../core/workspace/model/workspaceData";
-import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types";
-import type { CtnEditableSourceChange } from "../../../core/ctn/metadata/textEdits";
+} from "../../../core/workspace/index.ts";
 import type {
-  WorkspaceParseIndex,
-} from "../../../core/workspace/indexes/workspaceParseIndex";
-import type {
+  CtnCompiledSyntax,
+  CtnEditableSourceChange,
   CtnCanonicalSourceAnalysis,
-} from "../../../core/ctn/analysis/sourceAnalysis";
-import type {
-  NoteTreeMoveRequest,
-} from "../../../core/workspace/model/noteTree/types";
+} from "../../../core/ctn/index.ts";
+
+
+
+
 import {
   prepareWorkspaceMutation,
   type WorkspaceBlockTarget,
   type WorkspaceDomainCommand,
-} from "../commands/workspaceDomainCommands";
+} from "../commands/workspaceDomainCommands.ts";
 
 type WorkspaceStructureBlockMoveIndex = WorkspaceParseIndex;
 type MoveWorkspaceStructureBlockBetweenNotesCommandResult =

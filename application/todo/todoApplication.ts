@@ -1,44 +1,39 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
 import type {
+  CtnEditableSourceChange,
   CtnCanonicalSourceAnalysis,
-} from "../../core/ctn/analysis/sourceAnalysis";
+} from "../../core/ctn/index.ts";
+
 import {
   updateTodoSyntaxSource,
-} from "../../core/todo/commands/todoSyntaxCommands";
-import type {
-  TodoBlockMoveTarget,
-} from "../../core/todo/commands/todoBlockCommands";
-import {
   type TodoCollectionId,
   type TodoContent,
-} from "../../core/todo/model/todoContent";
-import type {
-  TodoLocalDate,
-} from "../../core/todo/recurrence/todoLocalDate";
-import type {
-  TodoRecurrenceRule,
-} from "../../core/todo/recurrence/todoRecurrenceRule";
-import type {
-  TodoRecurrenceStageId,
-} from "../../core/todo/recurrence/todoRecurrenceSchedule";
-import {
   resolveTodoCollectionSelection,
   resolveTodoCollectionSelectionAfterDelete,
-} from "../../core/todo/queries/todoQueries";
-import type { TodoSessionState } from "./todoSessionController";
-import type { TodoLocalCalendar } from "./todoLocalCalendar";
-import {
   createTodoParseIndex,
   type TodoParseIndex,
-} from "../../core/todo/indexes/todoParseIndex";
+} from "../../core/todo/index.ts";
+import type {
+  TodoBlockMoveTarget,
+  TodoLocalDate,
+  TodoRecurrenceRule,
+  TodoRecurrenceStageId,
+} from "../../core/todo/index.ts";
+
+
+
+
+
+import type { TodoSessionState } from "./todoSessionController.ts";
+import type { TodoLocalCalendar } from "./todoLocalCalendar.ts";
+
 import type {
   PreparedVersionedContent,
-} from "../persistence/versionedRepository";
+} from "../persistence/index.ts";
 import {
   prepareTodoMutation,
-} from "./todoDomainCommands";
+} from "./todoDomainCommands.ts";
 
 export type TodoApplicationServices = {
   createBlockId: () => string;

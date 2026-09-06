@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ApplicationScheduler } from "../runtime/applicationScheduler";
+import type { ApplicationScheduler } from "../runtime/index.ts";
 import type {
   VersionedContentConflictPreference,
   PreparedVersionedConflictRecovery,
@@ -12,13 +12,13 @@ import type {
   VersionedRepositoryConflictRecord,
   VersionedRepositorySnapshot,
   VersionedRepositorySyncResult,
-} from "./versionedRepository";
-import { finalVersionedRepositoryTransition } from "./versionedRepository";
+} from "./versionedRepository.ts";
+import { finalVersionedRepositoryTransition } from "./versionedRepository.ts";
 import {
   createVersionedRepositorySaveQueue,
   type VersionedRepositoryPersistenceState,
   type VersionedRepositorySaveQueue,
-} from "./versionedRepositorySaveQueue";
+} from "./versionedRepositorySaveQueue.ts";
 
 export type VersionedSessionReadyState<
   Content,

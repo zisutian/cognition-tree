@@ -2,12 +2,12 @@ import type {
   Dispatch,
   SetStateAction,
 } from "react";
-import type { ContextMenuPosition } from "../ContextMenu";
+import type { ContextMenuPosition } from "../ContextMenu.tsx";
 import type {
   NoteTreeProps,
   TreeDragState,
   TreeNode,
-} from "./types";
+} from "./types.ts";
 
 export type DirectoryTreeEditingNode = {
   errorMessage?: string;

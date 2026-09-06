@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import path from "node:path";
-import { WorkspaceRepositoryContractError } from "../../../../../contracts/workspace/contractValue.ts";
+import { WorkspaceRepositoryContractError } from "../../../../../contracts/workspace/index.ts";
 import { RepositoryCorruptError } from "../../store.ts";
 import { localControlDirectoryName } from "./localWorkingTreeLayout.ts";
 

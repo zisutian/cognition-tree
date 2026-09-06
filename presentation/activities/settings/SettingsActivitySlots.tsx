@@ -1,36 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import "./settings.css";
-import type { ActivitySlots } from "../../ui/activityTypes";
+import type { ActivitySlots } from "../../ui/index.ts";
 import {
   SettingsContext,
   SettingsPanel,
   type SettingsWorkbenchPreferences,
-} from "./SettingsPanel";
-import type { AgentApplication } from "../../../application/agent";
-import type { SystemApplication } from "../../../application/system";
+} from "./SettingsPanel.tsx";
+import type { AgentApplication } from "../../../application/agent/index.ts";
+import type { SystemApplication } from "../../../application/system/index.ts";
 import {
   SettingsStatusPanel,
-} from "./SettingsStatusPanel";
+} from "./SettingsStatusPanel.tsx";
 import type {
   AgentSettingsRoute,
   ApiAccessSelection,
   SettingsSection,
-} from "./settingsTypes";
+} from "./settingsTypes.ts";
 import type {
   ApiAccessSettingsView,
-} from "./useApiAccessSettingsSession";
+} from "./useApiAccessSettingsSession.ts";
 import type {
   SystemOwnerCredentialView,
-} from "./useSystemOwnerCredentialSession";
+} from "./useSystemOwnerCredentialSession.ts";
 import type {
   OperationsSettingsPanelView,
   OperationsSettingsStatusView,
   OperationsSettingsView,
-} from "./useOperationsSettingsSession";
+} from "./useOperationsSettingsSession.ts";
 import type {
   SystemSettingsPanelApplication,
-} from "./SystemSettingsPanel";
+} from "./SystemSettingsPanel.tsx";
 
 export function createSettingsActivitySlots({
   agent,

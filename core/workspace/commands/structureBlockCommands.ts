@@ -1,18 +1,19 @@
-import type { CtnCanonicalBlock } from "../../ctn/parser/types.ts";
+import type {
+  CtnCanonicalBlock,
+  CtnCanonicalSourceAnalysis,
+} from "../../ctn/index.ts";
 import {
   moveCtnBlockWithinText,
   moveCtnBlockText,
   type CtnBlockTextTargetPosition,
-} from "../../ctn/parser/blockTextEdit.ts";
+} from "../../ctn/index.ts";
 import type {
   NoteId,
   WorkspaceNote,
 } from "../model/workspaceData.ts";
 import { replaceWorkspaceNoteSources } from "../model/workspaceData.ts";
 import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex.ts";
-import type {
-  CtnCanonicalSourceAnalysis,
-} from "../../ctn/analysis/sourceAnalysis.ts";
+
 
 export type WorkspaceStructureBlockTargetPositionRequest =
   | {

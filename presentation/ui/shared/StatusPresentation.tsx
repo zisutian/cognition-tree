@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { HTMLAttributes } from "react";
-import { cx } from "./primitives";
+import { cx } from "./primitives.tsx";
 
 export type StatusTone = "danger" | "neutral" | "success" | "warning";
 

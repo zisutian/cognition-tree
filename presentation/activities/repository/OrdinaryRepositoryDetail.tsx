@@ -1,11 +1,16 @@
 import { RefreshCw } from "lucide-react";
-import type { RepositoryOption } from "../../../application/repository/ordinaryRepositoryViewModel";
-import type { RepositoryViewModel } from
-  "../../../application/repository/repositoryViewModel";
-import { Button } from "../../ui/shared/primitives";
-import { ToolSection } from "../../ui/shared/ToolSurface";
-import { RepositoryDangerZone } from "./RepositoryDangerZone";
-import { RepositoryConflictActions } from "./RepositoryConflictResolution";
+import type {
+  RepositoryOption,
+  RepositoryViewModel,
+} from "../../../application/repository/index.ts";
+
+import {
+  Button,
+  ToolSection,
+} from "../../ui/index.ts";
+
+import { RepositoryDangerZone } from "./RepositoryDangerZone.tsx";
+import { RepositoryConflictActions } from "./RepositoryConflictResolution.tsx";
 
 export function OrdinaryRepositoryDetail({
   busy,

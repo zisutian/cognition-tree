@@ -3,13 +3,16 @@ import {
   searchDraftsEqual,
   type SearchControllerView,
   type SearchControllerState,
-} from "../../../application/search/searchController";
-import {
   searchDomains,
   type SearchDomain,
-} from "../../../application/search/searchTypes";
-import { ChoiceGroup, InputControl } from "../../ui/shared/controls";
-import { Button } from "../../ui/shared/primitives";
+} from "../../../application/search/index.ts";
+
+import {
+  ChoiceGroup,
+  InputControl,
+  Button,
+} from "../../ui/index.ts";
+
 
 const domainOptions = [
   { label: "本地仓库", value: "workspace" },

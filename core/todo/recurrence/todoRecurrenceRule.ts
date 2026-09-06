@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { DomainValidationError } from "../../errors/domainErrors.ts";
+import { DomainValidationError } from "../../errors/index.ts";
 import type { TodoIsoWeekday } from "./todoLocalDate.ts";
 
 export type TodoDailyRecurrenceRule = {

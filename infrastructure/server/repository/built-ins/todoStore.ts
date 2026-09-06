@@ -4,21 +4,23 @@ import { createHash } from "node:crypto";
 import {
   WireContractError,
   UnsupportedWireVersionError,
-} from "../../../../contracts/common/contractValue.ts";
-import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
+  serializeJsonIteratively,
+} from "../../../../contracts/common/index.ts";
+
 import {
   parseTodoContent,
-} from "../../../../contracts/todo/parseTodo.ts";
-import { serializeTodoRevisionContent } from "../../../../contracts/todo/revision.ts";
-import type { TodoContentDto, TodoRevisionDto } from "../../../../contracts/todo/types.ts";
+  serializeTodoRevisionContent,
+} from "../../../../contracts/todo/index.ts";
+
+import type { TodoContentDto, TodoRevisionDto } from "../../../../contracts/todo/index.ts";
 import {
   TodoContentValidationError,
-} from "../../../../core/todo/model/todoErrors.ts";
-import type { TodoParseIndex } from "../../../../core/todo/indexes/todoParseIndex.ts";
+} from "../../../../core/todo/index.ts";
+import type { TodoParseIndex } from "../../../../core/todo/index.ts";
 import {
   prepareTodoRepositoryContent,
   validateTodoRepositoryPreparedTransition,
-} from "../../../../application/todo/persistence/todoRepositoryPreparation.ts";
+} from "../../../../application/todo/index.ts";
 import { RepositoryCorruptError } from "../store.ts";
 import {
   FileSystemVersionedContentStore,

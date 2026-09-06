@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createHash } from "node:crypto";
-import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
-import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
+import { serializeJsonIteratively } from "../../../../contracts/common/index.ts";
+import type { DomainChangeSetDto } from "../../../../contracts/common/index.ts";
 import type {
   WorkspaceResourceVersionPolicy,
-} from "../../../../application/workspace/commands/workspaceAgentCommandPreparation.ts";
+} from "../../../../application/workspace/index.ts";
 import type {
   JournalDomainVersions,
-} from "../../../../application/journal/journalDomainCommands.ts";
+} from "../../../../application/journal/index.ts";
 import type {
   TodoDomainVersions,
-} from "../../../../application/todo/todoDomainCommands.ts";
-import { ApiRequestError, apiNotFound } from "../protocol/requestError.ts";
+} from "../../../../application/todo/index.ts";
+import { ApiRequestError, apiNotFound } from "../protocol/index.ts";
 import {
   assertRepositoryAllowed,
   publishTrackedChanges,
@@ -23,14 +23,14 @@ import {
   synchronizeApiJournal,
   synchronizeApiTodo,
   synchronizeApiWorkspace,
-} from "../sync/service.ts";
+} from "../sync/index.ts";
 import {
   OperationAuditFinalizeError,
   OperationAuditUnavailableError,
   type TrustedClientOperationStore,
-} from "../../../../application/operations/operationLedgerPort.ts";
+} from "../../../../application/operations/index.ts";
 import { readApiRuntimeNow } from "./runtime.ts";
-import { VersionedContentCommitOutcomeUnknownError } from "../../../../application/persistence/versionedCommitErrors.ts";
+import { VersionedContentCommitOutcomeUnknownError } from "../../../../application/persistence/index.ts";
 
 async function publishApiChanges(
   context: ApiHandlerContext,

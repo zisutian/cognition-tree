@@ -2,8 +2,12 @@
 
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
-import { classifyNetworkAddress, normalizeNetworkHost } from "../network/networkAddress.ts";
-import { isLoopbackAddress } from "../network/loopbackAddress.ts";
+import {
+  classifyNetworkAddress,
+  normalizeNetworkHost,
+  isLoopbackAddress,
+} from "../network/index.ts";
+
 
 export class AgentProviderTargetValidationError extends Error {
   constructor(message: string) {

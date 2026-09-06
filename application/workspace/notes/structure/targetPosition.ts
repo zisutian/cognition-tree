@@ -1,4 +1,4 @@
-import type { WorkspaceStructureBlockTargetPositionRequest } from "../../../../core/workspace/commands/structureBlockCommands";
+import type { WorkspaceStructureBlockTargetPositionRequest } from "../../../../core/workspace/index.ts";
 
 export function parseUiStructureOperationTargetPosition(
   value: string,

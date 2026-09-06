@@ -4,7 +4,7 @@ import {
   Button,
   Panel,
   PanelHeader,
-} from "../ui/shared/primitives";
+} from "../ui/index.ts";
 import "./CtnEditorPanel.css";
 
 export function CtnEditorPanel({

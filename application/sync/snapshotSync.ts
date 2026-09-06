@@ -3,12 +3,12 @@
 import {
   readCommandRuntimeNow,
   type CommandRuntime,
-} from "../commands/commandRuntime.ts";
+} from "../commands/index.ts";
 import type {
   PreparedVersionedSnapshot,
   PreparedVersionedStore,
   VersionedContentMergePolicy,
-} from "../persistence/versionedRepository.ts";
+} from "../persistence/index.ts";
 
 export type SnapshotSyncStore<
   Content,

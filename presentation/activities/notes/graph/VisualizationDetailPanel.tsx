@@ -1,12 +1,12 @@
-import type { VisualizationViewModel } from "../../../../application/workspace/notes/graph/visualizationViewModel";
+import type { VisualizationViewModel } from "../../../../application/workspace/index.ts";
 import {
   DetailPanel,
   PanelBody,
-} from "../../../ui/shared/primitives";
+} from "../../../ui/index.ts";
 import {
   AdjacentReferenceList,
   MostReferencedList,
-} from "./VisualizationDetailLists";
+} from "./VisualizationDetailLists.tsx";
 
 export function VisualizationDetailPanel({
   onCollapseDetail,

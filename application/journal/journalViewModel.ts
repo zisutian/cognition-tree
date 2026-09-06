@@ -1,41 +1,43 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnBlockMetadata } from "../../core/ctn/metadata/blockMetadata";
-import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
-import type { CtnCanonicalBlock } from "../../core/ctn/parser/types";
 import type {
+  CtnBlockMetadata,
+  CtnEditableSourceChange,
+  CtnCanonicalBlock,
   CtnCompiledSyntax,
   CtnSyntaxTone,
-} from "../../core/ctn/syntax/types";
-import type { JournalParseIndex } from "../../core/journal/indexes/journalParseIndex";
+} from "../../core/ctn/index.ts";
+
+
+
 import type {
+  JournalParseIndex,
   JournalContent,
   JournalEntryId,
-} from "../../core/journal/model/journalContent";
+} from "../../core/journal/index.ts";
+
 import {
   createJournalEntryBodyProjection,
-} from "../../core/journal/model/journalEntryProjection";
-import {
   createJournalCalendar,
-} from "../../core/journal/queries/journalQueries";
-import {
   resolveJournalReferenceNavigation,
   type JournalReferenceNavigationDestination,
   type JournalReferenceNavigationTarget,
-} from "../../core/journal/queries/journalReferenceNavigation";
-import type { JournalPersistenceState } from "./journalSessionController";
+} from "../../core/journal/index.ts";
+
+
+import type { JournalPersistenceState } from "./journalSessionController.ts";
 import {
   createJournalDiagnostics,
   type JournalDiagnostics,
-} from "./journalDiagnostics";
+} from "./journalDiagnostics.ts";
 import {
   findJournalWorkspaceReferenceResolution,
   type JournalWorkspaceReferenceDestination,
   type JournalWorkspaceReferenceResolutionState,
-} from "./journalExternalReferences";
+} from "./journalExternalReferences.ts";
 import {
   findCtnEditableBlockLineNumber,
-} from "../../core/ctn/analysis/editableProjection";
+} from "../../core/ctn/index.ts";
 
 export type JournalFocusRequest = {
   entryId: JournalEntryId;

@@ -1,12 +1,12 @@
 import {
   createMemoryWorkspaceRepositoryCatalogCache,
   type WorkspaceRepositoryCatalogCache,
-} from "./workspaceRepositoryCatalogCache";
+} from "./workspaceRepositoryCatalogCache.ts";
 import {
   createMemoryWorkspaceRepositoryCache,
   type WorkspaceRepositoryCache,
-} from "./workspaceRepositoryCache";
-import { projectWorkspaceRepositoryLabelIssues } from "./repositoryLabelPolicy";
+} from "./workspaceRepositoryCache.ts";
+import { projectWorkspaceRepositoryLabelIssues } from "./repositoryLabelPolicy.ts";
 
 export type RepositoryClientCache = {
   catalogs: WorkspaceRepositoryCatalogCache;

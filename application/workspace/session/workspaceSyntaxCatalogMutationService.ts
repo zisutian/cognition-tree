@@ -1,22 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { formatCtnSyntaxV2 } from "../../../core/ctn/syntax/formatter";
+import { formatCtnSyntaxV2 } from "../../../core/ctn/index.ts";
 import {
   parseWorkspaceSyntax,
   type WorkspaceSyntax,
-} from "../../../core/workspace/context/workspaceSyntax";
-import { reconcileWorkspaceSyntaxBlockMetadata } from "../../../core/workspace/context/workspaceSyntaxMetadata";
-import {
+  reconcileWorkspaceSyntaxBlockMetadata,
   isWorkspaceSyntaxFileId,
   normalizeWorkspaceSyntaxName,
   type WorkspaceSyntaxCatalog,
-} from "../../../core/workspace/model/workspaceSyntaxCatalog";
-import type { WorkspaceRepositoryContent } from "../persistence/workspaceRepository";
-import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
+} from "../../../core/workspace/index.ts";
+
+
+import type { WorkspaceRepositoryContent } from "../persistence/workspaceRepository.ts";
+import type {
+  WorkspaceParseIndex,
+  NoteId,
+} from "../../../core/workspace/index.ts";
 import type {
   CtnCanonicalSourceAnalysis,
-} from "../../../core/ctn/analysis/sourceAnalysis";
-import type { NoteId } from "../../../core/workspace/model/workspaceData";
+} from "../../../core/ctn/index.ts";
+
 
 export type WorkspaceSyntaxCatalogMutation = {
   analysisOverrides: ReadonlyMap<NoteId, CtnCanonicalSourceAnalysis>;

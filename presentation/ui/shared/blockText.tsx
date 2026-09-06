@@ -1,11 +1,11 @@
 import type {
   CtnSyntaxTone,
-} from "../../../core/ctn/syntax/types";
+} from "../../../core/ctn/index.ts";
 import {
   createToneStyle,
   getTextColorClassName,
   getToneClassName,
-} from "./tonePresentation";
+} from "./tonePresentation.ts";
 
 export type DisplayText = {
   displayText: string;

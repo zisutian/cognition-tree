@@ -8,11 +8,11 @@ import {
   type VersionedRepositorySnapshot,
   type VersionedRepositorySnapshotTransition,
   type VersionedRemoteSnapshot,
-} from "../versionedRepository";
+} from "../versionedRepository.ts";
 import type {
   LocalFirstRepositoryProjectionPort,
 } from "./localFirstRepositoryProjectionPort.ts";
-import type { VersionedRepositoryCache, VersionedRepositoryLocalState } from "../versionedRepositoryCache";
+import type { VersionedRepositoryCache, VersionedRepositoryLocalState } from "../versionedRepositoryCache.ts";
 import { versionedContentEqual } from "./localFirstRepositoryPolicy.ts";
 
 type RemoteProjectionPort<

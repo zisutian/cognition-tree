@@ -5,11 +5,11 @@ import {
   type AutomationApiScope,
   type ApiCreateTokenRequestDto,
   type ApiCreateTrustedClientTokenRequestDto,
-} from "../../../../contracts/api/types.ts";
+} from "../../../../contracts/api/index.ts";
 import type {
   CreateRepositoryDto,
   RenameRepositoryDto,
-} from "../../../../contracts/workspace/types.ts";
+} from "../../../../contracts/workspace/index.ts";
 import type {
   AgentConfigurationDeleteRequestDto,
   AgentCodexDeviceLoginRequestDto,
@@ -17,8 +17,8 @@ import type {
   AgentOllamaDiscoveryRequestDto,
   AgentProfileMutationRequestDto,
   AgentProviderMutationRequestDto,
-} from "../../../../contracts/agent/configurationSchemas.ts";
-import { ApiRequestError, apiNotFound } from "../protocol/requestError.ts";
+} from "../../../../contracts/agent/index.ts";
+import { ApiRequestError, apiNotFound } from "../protocol/index.ts";
 import {
   publishTrackedChanges,
   type ApiHandlerContext,

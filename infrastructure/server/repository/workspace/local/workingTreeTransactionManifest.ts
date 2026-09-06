@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { serializeJsonIteratively } from "../../../../../contracts/common/json.ts";
-import { parseRepositoryRevision } from "../../../../../contracts/workspace/revision.ts";
-import type { RepositoryRevisionDto } from "../../../../../contracts/workspace/types.ts";
+import { serializeJsonIteratively } from "../../../../../contracts/common/index.ts";
+import { parseRepositoryRevision } from "../../../../../contracts/workspace/index.ts";
+import type { RepositoryRevisionDto } from "../../../../../contracts/workspace/index.ts";
 import { RepositoryCorruptError } from "../../store.ts";
 
 export type LocalTransactionFileOperation = {

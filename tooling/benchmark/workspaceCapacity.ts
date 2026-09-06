@@ -6,45 +6,56 @@ import path from "node:path";
 import {
   parseWorkspaceRepositorySyncRequest,
   parseWorkspaceRepositoryContent,
-} from "../../contracts/workspace/parseRepository.ts";
-import { serializeWorkspaceRepositoryRevisionContent } from "../../contracts/workspace/revision.ts";
-import {
+  serializeWorkspaceRepositoryRevisionContent,
   type LocalDraftRevisionDto,
   type RepositoryRevisionDto,
   type WorkspaceRepositorySyncRequestDto,
   type WorkspaceRepositoryContentDto,
-} from "../../contracts/workspace/types.ts";
+} from "../../contracts/workspace/index.ts";
+
+
 import {
   WorkspaceFileStore,
-} from "../../infrastructure/server/repository/workspace/local/workspaceFileStore.ts";
-import {
   provisionWorkspaceFileRepository,
-} from "../../infrastructure/server/repository/workspace/local/workspaceFileRepositoryProvisioning.ts";
-import { createWorkspaceRepositoryRevision } from "../../infrastructure/server/repository/workspace/revision.ts";
+  createWorkspaceRepositoryRevision,
+} from "../../infrastructure/server/repository/index.ts";
+
+
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparationObserver,
-} from "../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
-import { createUiOutlineNodes } from "../../application/workspace/projection/viewBlocks.ts";
-import { createUiNoteTree } from "../../application/workspace/projection/viewTree.ts";
-import { formatCtnBlockMetadataLine } from "../../core/ctn/metadata/blockMetadata.ts";
-import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax.ts";
-import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/client/http/workspaceRepository.ts";
-import { createMemoryRepositoryClientCache } from "../../infrastructure/client/repository/repositoryClientCache.ts";
-import { WorkspaceRepositoryLocalConflictError } from "../../application/workspace/persistence/workspaceRepository.ts";
-import { createInitialWorkspaceSyntaxSource } from "../../core/workspace/context/workspaceSyntax.ts";
-import { updateWorkspaceNoteSource } from "../../core/workspace/commands/workspaceCommands.ts";
-import { createWorkspaceParseIndex } from "../../core/workspace/indexes/workspaceParseIndex.ts";
-import { createWorkspaceStructureIndex } from "../../core/workspace/indexes/workspaceStructureIndex.ts";
+  createUiOutlineNodes,
+  createUiNoteTree,
+  WorkspaceRepositoryLocalConflictError,
+} from "../../application/workspace/index.ts";
+
+
+import {
+  formatCtnBlockMetadataLine,
+  defaultCtnSyntax,
+} from "../../core/ctn/index.ts";
+
+import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/client/http/index.ts";
+import { createMemoryRepositoryClientCache } from "../../infrastructure/client/repository/index.ts";
+
+import {
+  createInitialWorkspaceSyntaxSource,
+  updateWorkspaceNoteSource,
+  createWorkspaceParseIndex,
+  createWorkspaceStructureIndex,
+} from "../../core/workspace/index.ts";
+
+
+
 import {
   createSearchQuery,
-} from "../../application/search/searchIndex.ts";
-import type { SearchDocument } from "../../application/search/searchTypes.ts";
+} from "../../application/search/index.ts";
+import type { SearchDocument } from "../../application/search/index.ts";
 import type {
   NoteRecord,
   NoteTreeNode,
   WorkspaceData,
-} from "../../core/workspace/model/workspaceData.ts";
+} from "../../core/workspace/index.ts";
 
 const noteCount = 1_000;
 const blocksPerNote = 100;

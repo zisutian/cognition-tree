@@ -4,11 +4,14 @@ import type {
   AgentConfigurationSnapshot,
   AgentProfileView,
   AgentProviderView,
-} from "../../../application/agent/agentConfiguration.ts";
-import { agentConformanceContractVersion } from "../../../contracts/agent/conformance.ts";
-import { agentToolContractVersion } from "../../../contracts/agent/tools.ts";
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
-import { createStateDigest } from "../state/stateDigest.ts";
+} from "../../../application/agent/index.ts";
+import {
+  agentConformanceContractVersion,
+  agentToolContractVersion,
+} from "../../../contracts/agent/index.ts";
+
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
+import { createStateDigest } from "../state/index.ts";
 import type {
   AgentConfigurationState,
   StoredProfile,

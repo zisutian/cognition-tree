@@ -1,17 +1,20 @@
 import type {
   BuiltInId,
-} from "./builtInCatalog";
-import type { WorkspaceRepositoryDescriptor } from "./workspaceRepositoryCatalog";
+} from "./builtInCatalog.ts";
+import type { WorkspaceRepositoryDescriptor } from "./workspaceRepositoryCatalog.ts";
 import type {
   CreateRepositoryRequest,
   DeleteRepositoryRequest,
   RenameRepositoryRequest,
   RepositoryCatalogState,
-} from "./repositoryCatalog";
-import type { RepositoryNavigation } from "./repositoryNavigation";
-import type { VersionedRepositoryPersistenceState } from "../persistence/versionedRepositorySaveQueue";
-import type { BuiltInCatalogApplication } from "./builtInCatalogController";
-import type { VersionedRepositoryConflictDetails } from "../persistence/versionedRepository";
+} from "./repositoryCatalog.ts";
+import type { RepositoryNavigation } from "./repositoryNavigation.ts";
+import type {
+  VersionedRepositoryPersistenceState,
+  VersionedRepositoryConflictDetails,
+} from "../persistence/index.ts";
+import type { BuiltInCatalogApplication } from "./builtInCatalogController.ts";
+
 
 export type RepositoryPersistenceState =
   VersionedRepositoryPersistenceState<string>;

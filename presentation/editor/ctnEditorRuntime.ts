@@ -6,13 +6,13 @@ import {
 } from "@codemirror/state";
 import type {
   CtnCompiledSyntax,
-} from "../../core/ctn/syntax/types";
+} from "../../core/ctn/index.ts";
 import type {
   CtnEditorCheckableBlock,
-} from "./ctnEditorCheckableBlocks";
+} from "./ctnEditorCheckableBlocks.ts";
 import type {
   CtnEditorParsedContentMode,
-} from "./ctnEditorContentMode";
+} from "./ctnEditorContentMode.ts";
 
 type CtnEditorRuntimeBaseOptions = {
   checkableBlocks: readonly CtnEditorCheckableBlock[];

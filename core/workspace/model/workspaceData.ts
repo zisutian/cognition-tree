@@ -1,7 +1,8 @@
 import {
   formatCtnBlockMetadataLine,
-} from "../../ctn/metadata/blockMetadata.ts";
-import { readCtnCanonicalTitleHeader } from "../../ctn/parser/parseCtnDocument.ts";
+  readCtnCanonicalTitleHeader,
+} from "../../ctn/index.ts";
+
 
 export type NoteId = string;
 export type FolderId = string;

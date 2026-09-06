@@ -1,22 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator.ts";
 import {
+  createCtnBlockIdAllocator,
   recanonicalizeCtnSourceBlockMetadata,
   reconcileCtnSourceBlockMetadata,
-} from "../../ctn/metadata/reconcileSourceMetadata.ts";
-import {
   initializeCtnSourceBlockMetadataAnalysis,
-} from "../../ctn/metadata/sourceMetadata.ts";
-import {
   assertCtnEditableSourceChange,
   type CtnEditableSourceChange,
-} from "../../ctn/metadata/textEdits.ts";
-import { requireCtnSyntax } from "../../ctn/syntax/compiler.ts";
-import {
+  requireCtnSyntax,
   analyzeCtnSource,
   type CtnCanonicalSourceAnalysis,
-} from "../../ctn/analysis/sourceAnalysis.ts";
+} from "../../ctn/index.ts";
+
+
+
+
+
 import type {
   JournalParseIndex,
 } from "../indexes/journalParseIndex.ts";
@@ -33,7 +32,7 @@ import {
 import {
   DomainNotFoundError,
   DomainValidationError,
-} from "../../errors/domainErrors.ts";
+} from "../../errors/index.ts";
 
 export type CreateJournalEntryInput = {
   createBlockId: () => string;

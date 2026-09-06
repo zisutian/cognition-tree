@@ -4,20 +4,18 @@ import type {
   ApiCtnDocumentDto,
   ApiJournalEntriesDto,
   ApiJournalEntrySummaryDto,
-} from "../../../../contracts/api/types.ts";
-import type { ContentRevisionDto } from "../../../../contracts/common/versionedContent.ts";
+} from "../../../../contracts/api/index.ts";
+import type { ContentRevisionDto } from "../../../../contracts/common/index.ts";
 import {
   createJournalParseIndex,
   type JournalParseIndex,
   type ParsedJournalIndexEntry,
-} from "../../../../core/journal/indexes/journalParseIndex.ts";
-import {
   listJournalEntries,
   type JournalContent,
-} from "../../../../core/journal/model/journalContent.ts";
-import {
   createJournalEntryBodyProjection,
-} from "../../../../core/journal/model/journalEntryProjection.ts";
+} from "../../../../core/journal/index.ts";
+
+
 import { projectApiCtnDocument } from "./ctn.ts";
 import {
   createJournalEntriesVersion,

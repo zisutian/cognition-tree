@@ -2,26 +2,28 @@
 
 import { Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { AgentApplication } from "../../../application/agent";
+import type { AgentApplication } from "../../../application/agent/index.ts";
 import {
   Button,
   EmptyState,
   PanelBody,
-} from "../../ui/shared/primitives";
-import { TextareaControl } from "../../ui/shared/controls";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
-import { StatusBadge } from "../../ui/shared/StatusPresentation";
-import {
+  TextareaControl,
+  useFeedback,
+  StatusBadge,
   ToolDivider,
   ToolPanel,
   ToolToolbar,
-} from "../../ui/shared/ToolSurface";
-import { useExclusiveAsyncAction } from
-  "../../ui/shared/useExclusiveAsyncAction";
+  useExclusiveAsyncAction,
+} from "../../ui/index.ts";
+
+
+
+
+
 import {
   agentSessionStateLabels,
   formatAgentScopeLabel,
-} from "./agentViewLabels";
+} from "./agentViewLabels.ts";
 
 export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
   const feedback = useFeedback();

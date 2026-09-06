@@ -1,12 +1,12 @@
 import {
   isAvailableSyntaxViewModel,
   type SyntaxViewModel,
-} from "../../../application/syntax/syntaxViewModel";
+} from "../../../application/syntax/index.ts";
 import "./syntax.css";
-import type { ActivitySlots } from "../../ui/activityTypes";
-import { SyntaxContext } from "./SyntaxContext";
-import { SyntaxDetailPanel } from "./SyntaxDetailPanel";
-import { SyntaxMainPanel } from "./SyntaxMainPanel";
+import type { ActivitySlots } from "../../ui/index.ts";
+import { SyntaxContext } from "./SyntaxContext.tsx";
+import { SyntaxDetailPanel } from "./SyntaxDetailPanel.tsx";
+import { SyntaxMainPanel } from "./SyntaxMainPanel.tsx";
 
 export function createSyntaxActivitySlots({
   onCollapseDetail,

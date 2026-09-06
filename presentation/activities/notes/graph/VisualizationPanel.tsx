@@ -1,18 +1,18 @@
 import { useMemo } from "react";
-import type { VisualizationViewModel } from "../../../../application/workspace/notes/graph/visualizationViewModel";
+import type { VisualizationViewModel } from "../../../../application/workspace/index.ts";
 import {
   EmptyState,
   Panel,
   PanelBody,
-} from "../../../ui/shared/primitives";
-import { ReferenceGraphCanvas } from "./ReferenceGraphCanvas";
-import { getEmptyGraphMessage } from "./graphEmptyState";
+} from "../../../ui/index.ts";
+import { ReferenceGraphCanvas } from "./ReferenceGraphCanvas.tsx";
+import { getEmptyGraphMessage } from "./graphEmptyState.ts";
 import {
   createVisibleReferenceGraph,
-} from "./referenceGraphView";
+} from "./referenceGraphView.ts";
 import type {
   ReferenceGraphSession,
-} from "./useReferenceGraphSession";
+} from "./useReferenceGraphSession.ts";
 
 export function VisualizationPanel({
   session,

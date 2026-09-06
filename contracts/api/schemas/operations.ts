@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Type, type Static } from "@sinclair/typebox";
-import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiResourceVersionSchema, nullable, strictObject } from "../../common/schema.ts";
+import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiResourceVersionSchema, nullable, strictObject } from "../../common/index.ts";
 
 const digest = Type.String({ pattern: "^sha256:[0-9a-f]{64}$" });
 const store = Type.Union([

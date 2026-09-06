@@ -4,11 +4,11 @@ import type {
   BuiltInCatalogDto,
   BuiltInIdDto,
   BuiltInRetryResultDto,
-} from "../../../../contracts/built-ins/types.ts";
-import type { JournalContentDto } from "../../../../contracts/journal/types.ts";
-import type { TodoContentDto } from "../../../../contracts/todo/types.ts";
-import type { JournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex.ts";
-import type { TodoParseIndex } from "../../../../core/todo/indexes/todoParseIndex.ts";
+} from "../../../../contracts/built-ins/index.ts";
+import type { JournalContentDto } from "../../../../contracts/journal/index.ts";
+import type { TodoContentDto } from "../../../../contracts/todo/index.ts";
+import type { JournalParseIndex } from "../../../../core/journal/index.ts";
+import type { TodoParseIndex } from "../../../../core/todo/index.ts";
 import type {
   VersionedContentStore,
 } from "../versioned/contentStore.ts";

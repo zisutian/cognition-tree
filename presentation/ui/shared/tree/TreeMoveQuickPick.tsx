@@ -1,11 +1,11 @@
-import { QuickPick } from "../QuickPick";
-import { useFeedback } from "../FeedbackProvider";
-import { getTreeNodeReference } from "./drag";
-import { createTreeMoveOptions } from "./moveOptions";
+import { QuickPick } from "../QuickPick.tsx";
+import { useFeedback } from "../FeedbackProvider.tsx";
+import { getTreeNodeReference } from "./drag.ts";
+import { createTreeMoveOptions } from "./moveOptions.ts";
 import type {
   TreeMoveRequest,
   TreeNode,
-} from "./types";
+} from "./types.ts";
 
 export function TreeMoveQuickPick({
   nodes,

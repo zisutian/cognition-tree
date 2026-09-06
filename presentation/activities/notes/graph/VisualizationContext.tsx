@@ -2,16 +2,18 @@ import { RotateCcw } from "lucide-react";
 import type {
   ReferenceGraphLocalDepth,
   VisualizationViewModel,
-} from "../../../../application/workspace/notes/graph/visualizationViewModel";
+} from "../../../../application/workspace/index.ts";
 import {
   Button,
   ToggleButton,
-} from "../../../ui/shared/primitives";
-import { ChoiceGroup, InputControl } from "../../../ui/shared/controls";
-import { VisualizationGraphSettings } from "./VisualizationGraphSettings";
+  ChoiceGroup,
+  InputControl,
+} from "../../../ui/index.ts";
+
+import { VisualizationGraphSettings } from "./VisualizationGraphSettings.tsx";
 import type {
   ReferenceGraphSession,
-} from "./useReferenceGraphSession";
+} from "./useReferenceGraphSession.ts";
 
 export function VisualizationContext({
   session,

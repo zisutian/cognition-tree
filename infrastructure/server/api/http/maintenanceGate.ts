@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { ApplicationWriteBarrier } from "../../../../application/runtime/writeBarrier.ts";
-import type { SystemMaintenancePort } from "../../../../application/system/systemConfiguration.ts";
-import { ApiRequestError } from "../protocol/requestError.ts";
+import { ApplicationWriteBarrier } from "../../../../application/runtime/index.ts";
+import type { SystemMaintenancePort } from "../../../../application/system/index.ts";
+import { ApiRequestError } from "../protocol/index.ts";
 
 // These control operations read established control state and never enter a
 // data-root store. Bearer authentication is disabled while the gate is closed.

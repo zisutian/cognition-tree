@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentClientEvent } from '../agent/agentClientPort.ts';
-import type { AgentSessionSnapshot } from '../agent/agentTypes.ts';
+import type {
+  AgentClientEvent,
+  AgentSessionSnapshot,
+} from '../agent/index.ts';
+
 
 export type AgentEventSink = {
   open(): void;

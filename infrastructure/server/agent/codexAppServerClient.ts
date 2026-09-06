@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
-import { AgentRuntimeProtocolError } from "../../../application/agent/agentRuntimePort.ts";
+import { AgentRuntimeProtocolError } from "../../../application/agent/index.ts";
 import { listenToAgentJsonLines } from "./jsonLineTransport.ts";
 
 type OutgoingJsonRpcMessage = {

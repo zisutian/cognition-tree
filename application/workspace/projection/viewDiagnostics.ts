@@ -1,15 +1,17 @@
 import {
   getCtnEditableLineNumber,
-} from "../../../core/ctn/metadata/editableSource";
+} from "../../../core/ctn/index.ts";
 import type {
   NoteReferenceGraph,
   ParsedWorkspaceNote,
-} from "../../../core/workspace/indexes/workspaceParseIndex";
-import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
-import type { NoteId } from "../../../core/workspace/model/workspaceData";
-import { collectWorkspacePortableNameIssues } from "../../../core/workspace/queries/workspacePortableNameIssues";
-import type { SyntaxDiagnosticTarget } from "../../syntax/syntaxDiagnostics";
-import type { Diagnostic } from "../../problems/diagnostic";
+  WorkspaceStructureIndex,
+  NoteId,
+} from "../../../core/workspace/index.ts";
+
+
+import { collectWorkspacePortableNameIssues } from "../../../core/workspace/index.ts";
+import type { SyntaxDiagnosticTarget } from "../../syntax/index.ts";
+import type { Diagnostic } from "../../problems/index.ts";
 
 export type UiWorkbenchDiagnosticSource =
   | "document"

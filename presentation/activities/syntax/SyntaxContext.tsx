@@ -10,19 +10,21 @@ import { useEffect, useState } from "react";
 import type {
   SyntaxFileView,
   SyntaxViewModel,
-} from "../../../application/syntax/syntaxViewModel";
+} from "../../../application/syntax/index.ts";
 import { syntaxFieldIds } from
-  "../../../application/syntax/syntaxProjection";
+  "../../../application/syntax/index.ts";
 import {
   CompactContextActionButtons,
   CompactContextList,
   CompactContextRow,
   CompactContextStatusIcon,
-} from "../../ui/shared/CompactContextList";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
-import { Button } from "../../ui/shared/primitives";
-import { useExclusiveAsyncAction } from
-  "../../ui/shared/useExclusiveAsyncAction";
+  useFeedback,
+  Button,
+  useExclusiveAsyncAction,
+} from "../../ui/index.ts";
+
+
+
 
 export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
   const feedback = useFeedback();

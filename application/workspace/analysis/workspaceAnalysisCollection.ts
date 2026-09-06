@@ -1,19 +1,20 @@
 import type {
   ParsedWorkspaceNote,
   WorkspaceParseIndex,
-} from "../../../core/workspace/indexes/workspaceParseIndex";
-import type { NoteId } from "../../../core/workspace/model/workspaceData";
+  NoteId,
+} from "../../../core/workspace/index.ts";
+
 import {
   createUiDocumentDiagnostics,
   createUiReferenceDiagnostics,
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
-} from "../projection/viewDiagnostics";
+} from "../projection/viewDiagnostics.ts";
 import {
   createEmptyNoteReferenceGraph,
   type WorkspaceAnalysis,
-} from "./workspaceAnalysis";
-import type { ApplicationScheduler } from "../../runtime/applicationScheduler";
+} from "./workspaceAnalysis.ts";
+import type { ApplicationScheduler } from "../../runtime/index.ts";
 
 export const workspaceAnalysisBatchNoteLimit = 25;
 export const workspaceAnalysisBatchTimeLimitMs = 8;

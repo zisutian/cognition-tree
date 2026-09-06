@@ -1,16 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { JournalParseIndex } from "../../core/journal/indexes/journalParseIndex.ts";
-import type { JournalContent } from "../../core/journal/model/journalContent.ts";
-import { createJournalEntryBodyProjection } from "../../core/journal/model/journalEntryProjection.ts";
-import { isJournalEntryId } from "../../core/journal/model/journalIdentity.ts";
-import type { DomainChangeSet } from "../../core/sync/domainChangeSet.ts";
+import type {
+  JournalParseIndex,
+  JournalContent,
+} from "../../core/journal/index.ts";
+
+import {
+  createJournalEntryBodyProjection,
+  isJournalEntryId,
+} from "../../core/journal/index.ts";
+
+import type { DomainChangeSet } from "../../core/sync/index.ts";
 import {
   projectAgentProposalLineDiff,
   summarizeAgentProposalBlocks,
   type AgentProposalReview,
   type AgentProposalReviewAction,
-} from "../commands/agentProposalReview.ts";
+} from "../commands/index.ts";
 import {
   projectJournalMutation,
   type JournalDomainVersions,

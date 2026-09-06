@@ -11,7 +11,7 @@ import {
   type FileHandle,
 } from "node:fs/promises";
 import path from "node:path";
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
 import { hasFileSystemErrorCode } from "./fileSystemError.ts";
 
 const durableTemporaryFilePattern =

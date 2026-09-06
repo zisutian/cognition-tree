@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ApiErrorCodeDto, ApiErrorDto } from '../../../../contracts/api/types.ts';
-import { parseApiError } from '../../../../contracts/api/parseError.ts';
-import { ApiErrorCatalog } from '../../../../contracts/api/errorPolicy.ts';
+import type { ApiErrorCodeDto, ApiErrorDto } from '../../../../contracts/api/index.ts';
+import {
+  parseApiError,
+  ApiErrorCatalog,
+} from '../../../../contracts/api/index.ts';
+
 
 export class ApiRequestError extends Error {
   readonly code: ApiErrorCodeDto;

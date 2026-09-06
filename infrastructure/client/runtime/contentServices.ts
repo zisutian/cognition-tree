@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { JournalApplicationServices } from "../../../application/journal/journalApplication.ts";
-import type { TodoApplicationServices } from "../../../application/todo/todoApplication.ts";
-import { createInitialRepositoryContent } from "../../../application/workspace/session/initialRepository.ts";
-import type { SessionCommandDependencies } from "../../../application/workspace/session/sessionCommands.ts";
-import { createClientUuid as createUuid, clientTodoLocalCalendar, clientClock } from "../platform/applicationServices.ts";
+import type { JournalApplicationServices } from "../../../application/journal/index.ts";
+import type { TodoApplicationServices } from "../../../application/todo/index.ts";
+import { createInitialRepositoryContent } from "../../../application/workspace/index.ts";
+import type { SessionCommandDependencies } from "../../../application/workspace/index.ts";
+import { createClientUuid as createUuid, clientTodoLocalCalendar, clientClock } from "../platform/index.ts";
 
 export const clientWorkspaceSessionCommandDependencies:
   SessionCommandDependencies = {

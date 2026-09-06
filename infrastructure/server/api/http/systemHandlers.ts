@@ -6,8 +6,8 @@ import type {
   ApiOwnerSessionRequestDto,
   ApiSystemConfigurationMutationDto,
   ApiSystemConfigurationRevisionDto,
-} from "../../../../contracts/api/schemas/system.ts";
-import { ApiRequestError } from "../protocol/requestError.ts";
+} from "../../../../contracts/api/index.ts";
+import { ApiRequestError } from "../protocol/index.ts";
 import type {
   ApiHandlerContext,
   ApiRouteHandlerContext,

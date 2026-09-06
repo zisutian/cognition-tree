@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import {
   createClientOwnerAuthenticationRuntime,
-} from "../../infrastructure/client/runtime/systemRuntime";
-import { AuthenticatedWorkbenchRoot } from "./AuthenticatedWorkbenchRoot";
-import { OwnerLogin } from "./OwnerLogin";
+} from "../../infrastructure/client/runtime/index.ts";
+import { AuthenticatedWorkbenchRoot } from "./AuthenticatedWorkbenchRoot.tsx";
+import { OwnerLogin } from "./OwnerLogin.tsx";
 
 export function AppRoot() {
   const api = useMemo(() => ({ baseUrl: globalThis.location.origin }), []);

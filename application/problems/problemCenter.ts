@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ApplicationScheduler } from "../runtime/applicationScheduler.ts";
+import type { ApplicationScheduler } from "../runtime/index.ts";
 
 export type ProblemSeverity = "error" | "warning";
 export type ProblemSource = "agent" | "api" | "settings" | "sync" | "ui-action";

@@ -3,11 +3,11 @@
 import type {
   AgentOllamaDiscovery,
   AgentProviderProbe,
-} from "../../../application/agent/agentConfiguration.ts";
-import type { CommandRuntime } from "../../../application/commands/commandRuntime.ts";
-import { readCommandRuntimeNow } from "../../../application/commands/commandRuntime.ts";
+} from "../../../application/agent/index.ts";
+import type { CommandRuntime } from "../../../application/commands/index.ts";
+import { readCommandRuntimeNow } from "../../../application/commands/index.ts";
 import { AgentConfigurationStore } from "./configurationStore.ts";
-import { AgentConfigurationValidationError } from "../../../application/agentHost/configurationErrors.ts";
+import { AgentConfigurationValidationError } from "../../../application/agentHost/index.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 
 const responseByteLimit = 1024 * 1024;

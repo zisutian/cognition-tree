@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { TodoViewModel } from "./todoViewModel";
+import type { TodoViewModel } from "./todoViewModel.ts";
 
 export type TodoApplication =
   | { reload: () => Promise<void>; status: "unavailable" }

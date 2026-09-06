@@ -2,13 +2,13 @@
 
 import type {
   AgentProviderInput,
-} from "../../../application/agent/agentConfiguration.ts";
-import { SecureStateCommitOutcomeUnknownError } from "../../../application/persistence/secureStateErrors.ts";
+} from "../../../application/agent/index.ts";
+import { SecureStateCommitOutcomeUnknownError } from "../../../application/persistence/index.ts";
 import type {
   AgentConfigurationAccess,
   AgentConfigurationProviderChange,
-} from "../../../application/agentHost/configurationAccess.ts";
-import { AgentConfigurationValidationError } from "../../../application/agentHost/configurationErrors.ts";
+} from "../../../application/agentHost/index.ts";
+import { AgentConfigurationValidationError } from "../../../application/agentHost/index.ts";
 import { normalizeProviderInput } from "./configurationInput.ts";
 import { assertAgentConfigurationRevision } from "./configurationRevision.ts";
 import type {

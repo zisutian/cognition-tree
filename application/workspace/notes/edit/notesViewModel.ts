@@ -1,15 +1,15 @@
-import type { UiOutlineNode } from "../../projection/viewBlocks";
-import type { UiEditorView } from "../../projection/viewEditor";
+import type { UiOutlineNode } from "../../projection/viewBlocks.ts";
+import type { UiEditorView } from "../../projection/viewEditor.ts";
 import type {
   UiDirectoryActiveNode,
   UiFolderId,
   UiNoteId,
   UiTreeNode,
-} from "../../projection/viewTree";
-import type { WorkspaceDirectoryMutations } from "../../selection/workspaceSelection";
-import type { WorkspaceReferenceNavigationDestination } from "../../../../core/workspace/queries/workspaceReferenceNavigation";
-import type { CtnEditableSourceChange } from "../../../../core/ctn/metadata/textEdits";
-import type { WorkspaceNoteSourceUpdateResult } from "../../session/sessionCommands";
+} from "../../projection/viewTree.ts";
+import type { WorkspaceDirectoryMutations } from "../../selection/workspaceSelection.ts";
+import type { WorkspaceReferenceNavigationDestination } from "../../../../core/workspace/index.ts";
+import type { CtnEditableSourceChange } from "../../../../core/ctn/index.ts";
+import type { WorkspaceNoteSourceUpdateResult } from "../../session/sessionCommands.ts";
 
 export type NotesViewModel = {
   activeNote: {

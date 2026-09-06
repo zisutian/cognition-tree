@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { SystemConfigurationState } from "../../../application/system";
-import { Button, EmptyState } from "../../ui/shared/primitives";
-import { StatusBadge } from "../../ui/shared/StatusPresentation";
+import type { SystemConfigurationState } from "../../../application/system/index.ts";
 import {
+  Button,
+  EmptyState,
+  StatusBadge,
   ToolPropertyList,
   ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
-import type { SystemOwnerCredentialStatusView } from "./useSystemOwnerCredentialSession";
+} from "../../ui/index.ts";
+
+
+import type { SystemOwnerCredentialStatusView } from "./useSystemOwnerCredentialSession.ts";
 
 export function SystemSettingsStatus({ ownerCredentialSession, state }: {
   ownerCredentialSession: SystemOwnerCredentialStatusView;

@@ -5,15 +5,20 @@ import type {
   ApiCtnDocumentDto,
   ApiResourceVersionDto,
   ApiSyntaxGuideDto,
-} from "../../../../contracts/api/types.ts";
-import type { CtnCanonicalSourceAnalysis } from "../../../../core/ctn/analysis/sourceAnalysis.ts";
+} from "../../../../contracts/api/index.ts";
+import type {
+  CtnCanonicalSourceAnalysis,
+  CtnCanonicalBlock,
+  CtnCompiledSyntax,
+} from "../../../../core/ctn/index.ts";
 import {
   projectCtnCanonicalBlockBody,
   projectCtnEditableText,
-} from "../../../../core/ctn/analysis/editableProjection.ts";
-import { getCtnEditableLineNumber } from "../../../../core/ctn/metadata/editableSource.ts";
-import type { CtnCanonicalBlock } from "../../../../core/ctn/parser/types.ts";
-import type { CtnCompiledSyntax } from "../../../../core/ctn/syntax/types.ts";
+  getCtnEditableLineNumber,
+} from "../../../../core/ctn/index.ts";
+
+
+
 
 export function projectApiSyntaxGuide(
   syntax: CtnCompiledSyntax,

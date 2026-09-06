@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ResolvedAgentConfiguration, ResolvedAgentProvider } from '../../../application/agentHost/configurationPort.ts';
+import type { ResolvedAgentConfiguration, ResolvedAgentProvider } from '../../../application/agentHost/index.ts';
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type {
   AgentProfileInput,
   AgentProviderInput,
   AgentToolCallMode,
-} from "../../../application/agent/agentConfiguration.ts";
+} from "../../../application/agent/index.ts";
 import {
   SecureJsonPartition,
   type SecureStateFileReplacer,
-} from "../state/secureJsonPartition.ts";
+} from "../state/index.ts";
 import {
   AgentConfigurationAccess,
   type AgentConfigurationProfileUse,
   type AgentConfigurationProviderChange,
   type AgentConfigurationProviderUse,
-} from "../../../application/agentHost/configurationAccess.ts";
+} from "../../../application/agentHost/index.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import {
   AgentProviderCredentialStore,

@@ -1,11 +1,11 @@
-import { getListRowDropPlacement } from "../listDrag";
+import { getListRowDropPlacement } from "../listDrag.ts";
 import type {
   TreeDragState,
   TreeMoveDestination,
   TreeMoveRequest,
   TreeNode,
   TreeNodeReference,
-} from "./types";
+} from "./types.ts";
 
 export const treeNodeDragDataType = "application/x-cognition-tree-node";
 

@@ -9,10 +9,11 @@ import path from "node:path";
 import {
   RepositoryCorruptError,
 } from "../../store.ts";
-import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
 import {
+  hasFileSystemErrorCode,
   fsyncDirectory,
-} from "../../../persistence/fileSystemPersistence.ts";
+} from "../../../persistence/index.ts";
+
 import { readLocalJson } from "./localWorkingTree.ts";
 import {
   localControlDirectoryName,

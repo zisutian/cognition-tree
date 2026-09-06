@@ -3,14 +3,18 @@
 import {
   analyzeCtnSource,
   type CtnCanonicalSourceAnalysis,
-} from "../../ctn/analysis/sourceAnalysis.ts";
-import { isCtnBlockId } from "../../ctn/metadata/blockMetadata.ts";
-import {
+  isCtnBlockId,
   readCtnCanonicalTitleHeader,
-} from "../../ctn/parser/parseCtnDocument.ts";
-import type { CtnCanonicalBlock } from "../../ctn/parser/types.ts";
-import { requireCtnSyntax } from "../../ctn/syntax/compiler.ts";
-import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
+  requireCtnSyntax,
+} from "../../ctn/index.ts";
+
+
+import type {
+  CtnCanonicalBlock,
+  CtnCompiledSyntax,
+} from "../../ctn/index.ts";
+
+
 import {
   compareTodoLocalDates,
   isTodoLocalDate,

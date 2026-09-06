@@ -5,19 +5,21 @@ import { useEffect, useState, type DragEvent } from "react";
 import type {
   TodoCollectionListItem,
   TodoViewModel,
-} from "../../../application/todo";
+} from "../../../application/todo/index.ts";
 import {
   CompactContextActionButtons,
   CompactContextList,
   CompactContextRow,
-} from "../../ui/shared/CompactContextList";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
-import {
+  useFeedback,
   getListReorderIndex,
   getListRowDropPlacement,
   type ListRowDropPlacement,
-} from "../../ui/shared/listDrag";
-import { Button, cx } from "../../ui/shared/primitives";
+  Button,
+  cx,
+} from "../../ui/index.ts";
+
+
+
 
 type CollectionDraft = {
   errorMessage?: string;

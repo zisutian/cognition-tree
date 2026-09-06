@@ -6,35 +6,34 @@ import type {
   AutomationApiScope,
   AutomationApiToken,
   TrustedClientToken,
-} from "../../../application/apiAccess/apiAccessAdministration";
+} from "../../../application/apiAccess/index.ts";
 import {
   Button,
   EmptyState,
-} from "../../ui/shared/primitives";
-import { ChoiceGroup, InputControl } from "../../ui/shared/controls";
-import {
+  ChoiceGroup,
+  InputControl,
   FieldRow,
   FormActions,
   FormLayout,
-} from "../../ui/shared/FormLayout";
-import {
   ManagementList,
   ManagementRow,
-} from "../../ui/shared/ManagementList";
-import {
   ToolPanel,
   ToolPanelBody,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
-import { useExclusiveAsyncAction } from
-  "../../ui/shared/useExclusiveAsyncAction";
+  useExclusiveAsyncAction,
+} from "../../ui/index.ts";
+
+
+
+
+
 import type {
   ApiAccessSelection,
-} from "./settingsTypes";
+} from "./settingsTypes.ts";
 import type {
   ApiAccessSettingsPanelView,
-} from "./useApiAccessSettingsSession";
+} from "./useApiAccessSettingsSession.ts";
 
 type AutomationDomain = "journal" | "todo" | "workspace";
 type PermissionLevel = "none" | "read";

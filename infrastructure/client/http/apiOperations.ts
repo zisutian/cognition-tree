@@ -1,15 +1,17 @@
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
+import {
+  buildApiOperationPath,
+  ApiOperationAuditPageSchema,
+  ApiOperationAuditStatusSchema,
+  parseApiSchema,
+} from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
   OperationAdministration,
   OperationAuditEntry,
-} from "../../../application/operations/operationAdministration.ts";
-import {
-  ApiOperationAuditPageSchema,
-  ApiOperationAuditStatusSchema,
-} from "../../../contracts/api/schemas/operations.ts";
-import { parseApiSchema } from "../../../contracts/api/parse.ts";
+} from "../../../application/operations/index.ts";
+
+
 import {
   requestApiJson,
   type HttpApiTransportOptions,

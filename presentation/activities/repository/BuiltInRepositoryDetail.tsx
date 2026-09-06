@@ -1,21 +1,20 @@
 import { RefreshCw } from "lucide-react";
 import type {
   BuiltInId,
-} from "../../../application/repository/builtInCatalog";
-import type {
   BuiltInIssueView,
   BuiltInOption,
-} from "../../../application/repository/builtInRepositoryViewModel";
-import type {
   RepositoryViewModel,
-} from "../../../application/repository/repositoryViewModel";
+} from "../../../application/repository/index.ts";
+
+
 import {
   Button,
   EmptyState,
-} from "../../ui/shared/primitives";
-import { ToolSection } from "../../ui/shared/ToolSurface";
-import { builtInLabel } from "./repositoryViewHelpers";
-import { RepositoryConflictActions } from "./RepositoryConflictResolution";
+  ToolSection,
+} from "../../ui/index.ts";
+
+import { builtInLabel } from "./repositoryViewHelpers.ts";
+import { RepositoryConflictActions } from "./RepositoryConflictResolution.tsx";
 
 export function BuiltInRepositoryDetail({
   busy,

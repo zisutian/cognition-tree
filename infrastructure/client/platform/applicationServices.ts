@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ApplicationScheduler } from "../../../application/runtime/applicationScheduler";
-import type { TodoLocalCalendar } from "../../../application/todo/todoLocalCalendar";
+import type { ApplicationScheduler } from "../../../application/runtime/index.ts";
+import type { TodoLocalCalendar } from "../../../application/todo/index.ts";
 
 export function createClientUuid() {
   if (!globalThis.crypto?.randomUUID) {

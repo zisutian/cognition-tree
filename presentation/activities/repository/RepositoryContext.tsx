@@ -7,30 +7,35 @@ import {
   Plus,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { RepositoryFocusRequest } from "../../../application/repository/repositoryNavigation";
+import type {
+  RepositoryFocusRequest,
+  BuiltInId,
+  RepositoryOption,
+  RepositoryViewModel,
+} from "../../../application/repository/index.ts";
 import {
   createDefaultRepositorySelection,
   projectRepositoryFocusSelection,
   type RepositorySelection,
-} from "../../../application/repository/repositorySelection";
-import type { BuiltInId } from
-  "../../../application/repository/builtInCatalog";
-import type { RepositoryOption } from
-  "../../../application/repository/ordinaryRepositoryViewModel";
-import type { RepositoryViewModel } from
-  "../../../application/repository/repositoryViewModel";
+} from "../../../application/repository/index.ts";
+
+
+
 import {
   CompactContextActionButtons,
   CompactContextGroup,
   CompactContextRow,
   CompactContextStatusIcon,
-} from "../../ui/shared/CompactContextList";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
-import { Button, cx } from "../../ui/shared/primitives";
+  useFeedback,
+  Button,
+  cx,
+} from "../../ui/index.ts";
+
+
 import {
   builtInIds,
   builtInLabel,
-} from "./repositoryViewHelpers";
+} from "./repositoryViewHelpers.ts";
 
 const ignoreSelectionChange = () => undefined;
 

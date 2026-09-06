@@ -5,29 +5,33 @@ import {
   useState,
   type MouseEvent,
 } from "react";
-import type { StructureOperationActivityViewModel } from "../../../../application/workspace/notes/structure/structureOperationViewModel";
-import { Button, Section } from "../../../ui/shared/primitives";
-import { useFeedback } from "../../../ui/shared/FeedbackProvider";
+import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
 import {
+  Button,
+  Section,
+  useFeedback,
   ContextMenu,
   type ContextMenuPosition,
-} from "../../../ui/shared/ContextMenu";
-import { StructureTree } from "../../../ui/shared/tree";
+  StructureTree,
+} from "../../../ui/index.ts";
+
+
+
 import {
   blockLineDragDataType,
   createBlockLineDragPayload,
-} from "./blockLineDrag";
+} from "./blockLineDrag.ts";
 import {
   findBlockByLineNumber,
   useSelectedBlockLines,
-} from "./structureOperationBlocks";
+} from "./structureOperationBlocks.ts";
 import {
   DropTarget,
   StructureOperationTargetTree,
   canDropStructureBlockAtEnd,
   emptySelectedLineNumbers,
-} from "./structureOperationDropTargets";
-import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick";
+} from "./structureOperationDropTargets.tsx";
+import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick.tsx";
 
 export function StructureOperationPairView({
   view,

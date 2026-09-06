@@ -2,8 +2,8 @@ import {
   createInitialNode,
   type GraphSimulationNode,
   type GraphTransform,
-} from "./referenceGraphCanvasModel";
-import type { VisibleReferenceGraphNode } from "./referenceGraphView";
+} from "./referenceGraphCanvasModel.ts";
+import type { VisibleReferenceGraphNode } from "./referenceGraphView.ts";
 
 const maximumCachedTopologyVariants = 12;
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { VersionedContentRevisionConflictError, VersionedContentCommitOutcomeUnknownError } from '../../../../application/persistence/versionedCommitErrors.ts';
+import { VersionedContentRevisionConflictError, VersionedContentCommitOutcomeUnknownError } from '../../../../application/persistence/index.ts';
 import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 import path from "node:path";
@@ -10,14 +10,15 @@ import type {
   PreparedVersionedContent,
   PreparedVersionedSnapshot,
   PreparedVersionedStore,
-} from "../../../../application/persistence/versionedRepository.ts";
-import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
+} from "../../../../application/persistence/index.ts";
 import {
+  hasFileSystemErrorCode,
   fsyncDirectory,
   isSecureRegularFile,
   readFileHandleUtf8,
   replaceFileDurably,
-} from "../../persistence/fileSystemPersistence.ts";
+} from "../../persistence/index.ts";
+
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,

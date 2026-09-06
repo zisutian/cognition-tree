@@ -2,14 +2,24 @@
 
 import { createServerProviderOperations } from "./providerRuntime.ts";
 import path from "node:path";
-import { createHttpApiRequestHandler, createHttpApiServer, type ApiHttpDependencies, type ApiRequestHandler } from "../api/http/server.ts";
-import { AgentConfigurationStore } from "../agent/configurationStore.ts";
-import { AutomationTokenStore } from "../access/automationTokenStore.ts";
-import { TrustedClientTokenStore } from "../access/trustedClientTokenStore.ts";
-import { ApiEventHub } from "../api/sync/events.ts";
-import { DomainRevisionTracker } from "../../../application/sync/domainRevisionTracker.ts";
-import { ApiMaintenanceGate } from "../api/http/maintenanceGate.ts";
-import { systemApiRuntime } from "../api/http/runtime.ts";
+import {
+  createHttpApiRequestHandler,
+  createHttpApiServer,
+  type ApiHttpDependencies,
+  type ApiRequestHandler,
+  ApiMaintenanceGate,
+  systemApiRuntime,
+} from "../api/http/index.ts";
+import { AgentConfigurationStore } from "../agent/index.ts";
+import {
+  AutomationTokenStore,
+  TrustedClientTokenStore,
+} from "../access/index.ts";
+
+import { ApiEventHub } from "../api/sync/index.ts";
+import { DomainRevisionTracker } from "../../../application/sync/index.ts";
+
+
 import { createServerSearchService } from "./searchRuntime.ts";
 
 export type ApiServerOptions = Partial<ApiHttpDependencies> & Pick<ApiHttpDependencies, "catalog" | "security"> & { stateDirectory?: string };

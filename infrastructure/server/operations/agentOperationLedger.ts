@@ -4,15 +4,16 @@ import { randomUUID } from "node:crypto";
 import {
   AgentOperationAuditEntrySchema,
   type AgentOperationAuditEntryDto,
-} from "../../../contracts/agent/schemas.ts";
-import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
+  parseAgentSchema,
+} from "../../../contracts/agent/index.ts";
+
 import {
   AgentOperationIdempotencyError,
   AgentOperationIndeterminateError,
   type AgentOperationAttempt,
   type AgentOperationIdentity,
   OperationAuditFinalizeError,
-} from "../../../application/operations/operationLedgerPort.ts";
+} from "../../../application/operations/index.ts";
 import {
   operationLedgerKey,
   projectAgentOperationAudit,

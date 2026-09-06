@@ -2,7 +2,7 @@
 
 import type {
   VersionedRepositoryBackend,
-} from "../versionedRepository";
+} from "../versionedRepository.ts";
 import type {
   LocalFirstRepositoryProjectionPort,
 } from "./localFirstRepositoryProjectionPort.ts";
@@ -10,7 +10,7 @@ import { canUseVersionedRepositoryCachedSnapshot } from "./localFirstRepositoryP
 import type {
   LocalFirstRepositoryRemoteReconciliationPort,
 } from "./localFirstRepositoryRemoteReconciliation.ts";
-import type { VersionedRepositoryCache } from "../versionedRepositoryCache";
+import type { VersionedRepositoryCache } from "../versionedRepositoryCache.ts";
 
 export type VersionedRepositoryLoadPolicy =
   | Readonly<{ mode: "cache-first" }>

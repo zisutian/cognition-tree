@@ -8,15 +8,15 @@ import {
   analyzeCtnSource,
   reprojectCtnAnalysisPresentation,
   type CtnEditableSourceAnalysis,
-} from "../../core/ctn/analysis/sourceAnalysis";
+} from "../../core/ctn/index.ts";
 import type {
   CtnEditorParsedContentMode,
-} from "./ctnEditorContentMode";
+} from "./ctnEditorContentMode.ts";
 import {
   ctnEditorRuntimeConfigFacet,
   requireCtnEditorRuntimeConfig,
   type CtnEditorRuntimeConfig,
-} from "./ctnEditorRuntime";
+} from "./ctnEditorRuntime.ts";
 
 export type CtnEditorAnalysisState = {
   analysis: CtnEditableSourceAnalysis | null;

@@ -1,17 +1,23 @@
 import { useCallback, useRef, useState } from "react";
-import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
-import { findWorkspaceNote } from "../../../core/workspace/queries/workspaceQueries";
-import type { UiEditorFocusTarget } from "../../../application/workspace/projection/viewEditor";
+import type {
+  WorkspaceStructureIndex,
+  WorkspaceParseIndex,
+} from "../../../core/workspace/index.ts";
+import { findWorkspaceNote } from "../../../core/workspace/index.ts";
+import type {
+  UiEditorFocusTarget,
+  UiNoteId,
+} from "../../../application/workspace/index.ts";
 import type {
   SyntaxFieldId,
   SyntaxFocusTarget,
-} from "../../../application/syntax/syntaxProjection";
-import type { UiNoteId } from "../../../application/workspace/projection/viewTree";
-import type { WorkspaceSelection } from "../selection/useWorkspaceSelection";
-import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
+} from "../../../application/syntax/index.ts";
+
+import type { WorkspaceSelection } from "../selection/useWorkspaceSelection.ts";
+
 import {
   findCtnEditableBlockLineNumber,
-} from "../../../core/ctn/analysis/editableProjection";
+} from "../../../core/ctn/index.ts";
 
 export type WorkspaceNoteFocusRequest = UiEditorFocusTarget & {
   noteId: UiNoteId;

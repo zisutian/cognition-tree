@@ -1,9 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { ScopedSearchService, SearchAccessError, type SearchAccess } from "../../../application/search/scopedSearch.ts";
-import { searchDomains, SearchRequestError, type SearchResponse } from "../../../application/search/searchTypes.ts";
-import type { ApiPrincipalDto, ApiSearchRequestDto, ApiSearchResponseDto } from "../../../contracts/api/types.ts";
-import { ApiRequestError } from "./protocol/requestError.ts";
+import {
+  ScopedSearchService,
+  SearchAccessError,
+  type SearchAccess,
+  searchDomains,
+  SearchRequestError,
+  type SearchResponse,
+} from "../../../application/search/index.ts";
+
+import type { ApiPrincipalDto, ApiSearchRequestDto, ApiSearchResponseDto } from "../../../contracts/api/index.ts";
+import { ApiRequestError } from "./protocol/index.ts";
 
 function projectApiSearchResponse(
   response: SearchResponse,

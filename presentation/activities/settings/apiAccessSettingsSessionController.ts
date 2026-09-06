@@ -5,7 +5,7 @@ import type {
   AutomationApiToken,
   CreateAutomationApiTokenRequest,
   TrustedClientToken,
-} from "../../../application/apiAccess/apiAccessAdministration";
+} from "../../../application/apiAccess/index.ts";
 
 export type ApiAccessSettingsSnapshot = Readonly<{
   errorMessage: string | null;

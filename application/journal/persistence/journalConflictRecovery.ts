@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createMyersTextEdits } from "../../../core/ctn/metadata/myersTextEdits.ts";
+import { createMyersTextEdits } from "../../../core/ctn/index.ts";
 import {
   createJournalEntry,
   updateJournalEntryBody,
-} from "../../../core/journal/commands/journalCommands.ts";
-import {
   createJournalParseIndex,
   type JournalParseIndex,
-} from "../../../core/journal/indexes/journalParseIndex.ts";
+  createJournalEntryBodyProjection,
+} from "../../../core/journal/index.ts";
+
 import type {
   JournalContent,
   JournalEntryId,
-} from "../../../core/journal/model/journalContent.ts";
-import { createJournalEntryBodyProjection } from "../../../core/journal/model/journalEntryProjection.ts";
-import type { PreparedVersionedContent } from "../../persistence/versionedRepository.ts";
+} from "../../../core/journal/index.ts";
+
+import type { PreparedVersionedContent } from "../../persistence/index.ts";
 
 export type JournalConflictRecoveryDependencies = {
   createBlockId(): string;

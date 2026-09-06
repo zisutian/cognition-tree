@@ -1,19 +1,21 @@
 import { Plus, Trash2 } from "lucide-react";
 import type {
   AvailableSyntaxViewModel,
-} from "../../../application/syntax/syntaxViewModel";
-import type {
   SyntaxTone,
-} from "../../../application/syntax/syntaxProjection";
+} from "../../../application/syntax/index.ts";
+
 import {
   createSyntaxRuleFieldId,
   syntaxFieldIds,
-} from "../../../application/syntax/syntaxProjection";
-import { Button } from "../../ui/shared/primitives";
-import { InputControl } from "../../ui/shared/controls";
-import { SyntaxKindPicker } from "./SyntaxKindPicker";
-import { SyntaxRuleSpacer } from "./SyntaxRuleLayout";
-import { TonePicker } from "./TonePicker";
+} from "../../../application/syntax/index.ts";
+import {
+  Button,
+  InputControl,
+} from "../../ui/index.ts";
+
+import { SyntaxKindPicker } from "./SyntaxKindPicker.tsx";
+import { SyntaxRuleSpacer } from "./SyntaxRuleLayout.tsx";
+import { TonePicker } from "./TonePicker.tsx";
 
 function SyntaxToneCells({
   backgroundOptions,

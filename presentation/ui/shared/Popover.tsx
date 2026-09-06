@@ -6,7 +6,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { Overlay, type OverlayAnchorAlign } from "./Overlay";
+import { Overlay, type OverlayAnchorAlign } from "./Overlay.tsx";
 
 const focusableSelector = [
   "button:not(:disabled)",

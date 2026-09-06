@@ -6,21 +6,28 @@ import {
   type AgentRuntimeToolCall,
   type AgentScope,
 } from "../agent/index.ts";
-import type { AgentSessionSnapshot } from "../agent/agentTypes.ts";
-import type { AgentHostRuntime } from "./runtimePorts.ts";
+import type { AgentSessionSnapshot } from "../agent/index.ts";
+import type {
+  AgentHostRuntime,
+  AgentAuditAvailabilityPort,
+  AgentPrivateToolsPort,
+  AgentRuntimeFactory,
+  AgentHostTools,
+  AgentToolProtocolPort,
+} from "./runtimePorts.ts";
 import { readAgentHostTimestamp } from "./runtimePorts.ts";
-import type { AgentAuditAvailabilityPort } from "./runtimePorts.ts";
+
 import type { AgentConfigurationProfileUse } from "./configurationAccess.ts";
 import type { AgentConfigurationPort } from "./configurationPort.ts";
 import { AgentServiceError } from "./errors.ts";
-import type { AgentPrivateToolsPort } from "./runtimePorts.ts";
-import type { AgentRuntimeFactory } from "./runtimePorts.ts";
+
+
 import { createAgentRuntimeProfile } from "./runtimeProfiles.ts";
 import { AgentSessionEventStream } from "./sessionEventStream.ts";
 import type { AgentSessionRecord } from "./sessionRecord.ts";
 import type { AgentServicePolicy } from "./servicePolicy.ts";
-import type { AgentHostTools } from "./runtimePorts.ts";
-import type { AgentToolProtocolPort } from "./runtimePorts.ts";
+
+
 
 type AgentSessionResidency = {
   disposeRecord(record: AgentSessionRecord): Promise<void>;

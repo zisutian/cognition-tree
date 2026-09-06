@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createHash } from "node:crypto";
-import { serializeJsonIteratively } from "../../../../../contracts/common/json.ts";
-import { WorkspaceRepositoryContractError } from "../../../../../contracts/workspace/contractValue.ts";
+import { serializeJsonIteratively } from "../../../../../contracts/common/index.ts";
+import {
+  WorkspaceRepositoryContractError,
+  repositorySyntaxIndexFileName,
+  workspaceRepositorySchemaVersion,
+} from "../../../../../contracts/workspace/index.ts";
 import type {
   RepositoryTreeNodeDto,
   WorkspaceRepositoryContentDto,
-} from "../../../../../contracts/workspace/types.ts";
-import {
-  repositorySyntaxIndexFileName,
-  workspaceRepositorySchemaVersion,
-} from "../../../../../contracts/workspace/types.ts";
-import type { WorkspaceRepositoryPreparation } from "../../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
+} from "../../../../../contracts/workspace/index.ts";
+
+import type { WorkspaceRepositoryPreparation } from "../../../../../application/workspace/index.ts";
 import { createWorkspaceRepositoryRevision } from "../revision.ts";
 import { validateWorkspaceRepositorySyntax } from "../contentValidation.ts";
 import {

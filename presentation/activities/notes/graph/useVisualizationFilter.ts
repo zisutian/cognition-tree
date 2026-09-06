@@ -3,13 +3,12 @@ import type {
   ReferenceGraphLocalDepth,
   ReferenceGraphMode,
   VisualizationFilterController,
-} from "../../../../application/workspace/notes/graph/visualizationViewModel";
+} from "../../../../application/workspace/index.ts";
 import {
   useRepositorySessionState,
-} from "../../../ui/workbench/useRepositorySessionState";
-import {
   createRepositorySessionKey,
-} from "../../../ui/workbench/repositorySessionStore";
+} from "../../../ui/index.ts";
+
 
 type VisualizationFilterState = VisualizationFilterController["filter"];
 

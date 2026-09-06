@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnSyntaxDraftRuntimeSource } from "../../application/syntax/syntaxDraftPersistence.ts";
-import { createCtnSyntaxDraftSource, isCurrentSyntaxPersistenceCompletion, resolveCtnSyntaxDraftAfterSourceChange, startCtnSyntaxDraftPersistence } from "../../application/syntax/syntaxDraftPersistence.ts";
+import type { CtnSyntaxDraftRuntimeSource } from "../../application/syntax/index.ts";
+import { createCtnSyntaxDraftSource, isCurrentSyntaxPersistenceCompletion, resolveCtnSyntaxDraftAfterSourceChange, startCtnSyntaxDraftPersistence } from "../../application/syntax/index.ts";
 import {
   useCallback,
   useEffect,
@@ -12,10 +12,10 @@ import {
 import {
   createCtnSyntaxDraft,
   type CtnSyntaxDraft,
-} from "../../core/ctn/syntax/draft";
+} from "../../core/ctn/index.ts";
 import type {
   CtnSyntaxOwner,
-} from "../../core/ctn/syntax/types";
+} from "../../core/ctn/index.ts";
 
 export function useCtnSyntaxDraftRuntime({
   canPersist = true,

@@ -5,13 +5,13 @@ import type {
   VersionedRepository,
   VersionedRepositorySnapshot,
   VersionedRepositorySnapshotTransition,
-} from "./versionedRepository";
-import { finalVersionedRepositoryTransition } from "./versionedRepository";
+} from "./versionedRepository.ts";
+import { finalVersionedRepositoryTransition } from "./versionedRepository.ts";
 import {
   createVersionedRepositoryTransitionAuthority,
-} from "./versionedRepositoryTransitionAuthority";
-import type { ApplicationScheduler } from "../runtime/applicationScheduler";
-import { areMergeValuesEqual } from "./threeWayMerge";
+} from "./versionedRepositoryTransitionAuthority.ts";
+import type { ApplicationScheduler } from "../runtime/index.ts";
+import { areMergeValuesEqual } from "./threeWayMerge.ts";
 
 export type VersionedRepositoryPersistenceState<Revision extends string> =
   | { status: "saved" }

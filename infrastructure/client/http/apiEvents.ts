@@ -1,13 +1,16 @@
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
+import {
+  buildApiOperationPath,
+  parseApiEvent,
+} from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
   DomainChangeEventSource,
   DomainChangeNotification,
-} from "../../../application/sync/domainChangeEvents";
-import { parseApiEvent } from "../../../contracts/api/parse";
-import { resolveApiUrl } from "./apiTransport";
-import { readHttpSseData } from "./sseTransport";
+} from "../../../application/sync/index.ts";
+
+import { resolveApiUrl } from "./apiTransport.ts";
+import { readHttpSseData } from "./sseTransport.ts";
 
 export const apiEventInitialReconnectDelayMs = 1_000;
 export const apiEventMaximumReconnectDelayMs = 30_000;

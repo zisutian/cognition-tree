@@ -1,17 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { TodoParseIndex } from "../../core/todo/indexes/todoParseIndex.ts";
-import type { TodoContent } from "../../core/todo/model/todoContent.ts";
-import { createTodoCollectionBodyProjection } from "../../core/todo/model/todoCollectionProjection.ts";
-import { isTodoCollectionId } from "../../core/todo/model/todoIdentity.ts";
-import type { TodoCollectionId } from "../../core/todo/model/todoContent.ts";
-import type { DomainChangeSet } from "../../core/sync/domainChangeSet.ts";
+import type {
+  TodoParseIndex,
+  TodoContent,
+  TodoCollectionId,
+} from "../../core/todo/index.ts";
+
+import {
+  createTodoCollectionBodyProjection,
+  isTodoCollectionId,
+} from "../../core/todo/index.ts";
+
+
+import type { DomainChangeSet } from "../../core/sync/index.ts";
 import {
   projectAgentProposalLineDiff,
   summarizeAgentProposalBlocks,
   type AgentProposalReview,
   type AgentProposalReviewAction,
-} from "../commands/agentProposalReview.ts";
+} from "../commands/index.ts";
 import type { TodoDomainVersions } from "./todoDomainCommands.ts";
 import { projectTodoMutation } from "./todoDomainProjection.ts";
 

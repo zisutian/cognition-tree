@@ -1,12 +1,13 @@
 import { Copy } from "lucide-react";
 import type { RepositoryLocationRow } from
-  "../../../application/repository/repositoryViewTypes";
-import { Button } from "../../ui/shared/primitives";
+  "../../../application/repository/index.ts";
 import {
+  Button,
   ToolPropertyList,
   ToolPropertyRow,
   ToolSection,
-} from "../../ui/shared/ToolSurface";
+} from "../../ui/index.ts";
+
 
 export function RepositoryMetadata({
   rows,

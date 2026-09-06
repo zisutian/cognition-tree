@@ -3,7 +3,7 @@
 import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 import path from "node:path";
-import { AgentRuntimeProtocolError } from "../../../application/agent/agentRuntimePort.ts";
+import { AgentRuntimeProtocolError } from "../../../application/agent/index.ts";
 
 export const maximumCodexPackageMetadataBytes = 1024 * 1024;
 export const pinnedCodexVersion = "0.148.0";

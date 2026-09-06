@@ -8,8 +8,8 @@ import {
   type VersionedContentPreparationPolicy,
   type VersionedRepositorySnapshot,
   type VersionedRepositorySyncResult,
-} from "../versionedRepository";
-import type { VersionedRepositoryCache } from "../versionedRepositoryCache";
+} from "../versionedRepository.ts";
+import type { VersionedRepositoryCache } from "../versionedRepositoryCache.ts";
 import {
   LocalFirstRepositoryConflictResolution,
 } from "./localFirstRepositoryConflictResolution.ts";

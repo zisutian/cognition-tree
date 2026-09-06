@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createMyersTextEdits } from "../../../core/ctn/metadata/myersTextEdits.ts";
-import { createPortableNameKey } from "../../../core/naming/portableName.ts";
+import { createMyersTextEdits } from "../../../core/ctn/index.ts";
+import { createPortableNameKey } from "../../../core/naming/index.ts";
 import {
   createTodoCollection,
   updateTodoCollectionBody,
-} from "../../../core/todo/commands/todoCollectionCommands.ts";
-import {
   createTodoParseIndex,
   type TodoParseIndex,
-} from "../../../core/todo/indexes/todoParseIndex.ts";
+  createTodoCollectionBodyProjection,
+} from "../../../core/todo/index.ts";
+
 import type {
   TodoCollectionId,
   TodoContent,
-} from "../../../core/todo/model/todoContent.ts";
-import { createTodoCollectionBodyProjection } from "../../../core/todo/model/todoCollectionProjection.ts";
-import type { PreparedVersionedContent } from "../../persistence/versionedRepository.ts";
+} from "../../../core/todo/index.ts";
+
+import type { PreparedVersionedContent } from "../../persistence/index.ts";
 
 export type TodoConflictRecoveryDependencies = {
   createBlockId(): string;

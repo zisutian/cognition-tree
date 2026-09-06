@@ -1,29 +1,30 @@
 import {
   isAvailableSyntaxViewModel,
   type SyntaxViewModel,
-} from "../../../application/syntax/syntaxViewModel";
+  syntaxFieldIds,
+} from "../../../application/syntax/index.ts";
 import { RotateCcw } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { syntaxFieldIds } from "../../../application/syntax/syntaxProjection";
+
 import {
   Button,
   EmptyState,
-} from "../../ui/shared/primitives";
-import { InputControl } from "../../ui/shared/controls";
-import {
+  InputControl,
   ToolPanel,
   ToolPanelBody,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
+} from "../../ui/index.ts";
+
+
 import {
   BlockRuleRows,
   TitleAndRootRows,
-} from "./SyntaxBlockRuleRows";
-import { InlineRuleRows } from "./SyntaxInlineRuleRows";
+} from "./SyntaxBlockRuleRows.tsx";
+import { InlineRuleRows } from "./SyntaxInlineRuleRows.tsx";
 import {
   SyntaxRuleHeader,
-} from "./SyntaxRuleLayout";
+} from "./SyntaxRuleLayout.tsx";
 
 export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
   const syntax = view;

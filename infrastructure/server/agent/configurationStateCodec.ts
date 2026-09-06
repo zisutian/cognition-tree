@@ -5,11 +5,11 @@ import type {
   AgentProfileConformance,
   AgentProfileParameters,
   AgentProviderKind,
-} from "../../../application/agent/agentConfiguration.ts";
+} from "../../../application/agent/index.ts";
 import {
   assertStateFields,
   requireStateRecord,
-} from "../state/secureJsonPartition.ts";
+} from "../state/index.ts";
 import type {
   AgentCredentialReference,
 } from "./credentialManifest.ts";

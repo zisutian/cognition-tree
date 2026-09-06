@@ -1,10 +1,10 @@
 import type {
   RepositoryViewModel,
-} from "../../../application/repository/repositoryViewModel";
-import type { BuiltInId } from
-  "../../../application/repository/builtInCatalog";
-import type { RepositorySelection } from
-  "../../../application/repository/repositorySelection";
+  BuiltInId,
+  RepositorySelection,
+} from "../../../application/repository/index.ts";
+
+
 
 export const builtInIds = [
   "journal",

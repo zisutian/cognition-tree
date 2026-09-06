@@ -4,13 +4,19 @@ import {
   createAgentClientController,
   createAgentConfigurationController,
   type AgentScope,
-} from "../../../application/agent";
-import { createHttpAgentClient } from "../http/agentClient";
-import { createHttpAgentConfigurationClient } from "../http/agentConfigurationClient";
-import { clientApplicationScheduler } from "../platform/applicationServices";
-import { createClientAgentProfilePreference } from "../platform/agentProfilePreference";
-import type { OfficialClientApi } from "../http/apiTransport";
-import type { ProblemReporter } from "../../../application/problems/problemCenter";
+} from "../../../application/agent/index.ts";
+import {
+  createHttpAgentClient,
+  createHttpAgentConfigurationClient,
+} from "../http/index.ts";
+
+import {
+  clientApplicationScheduler,
+  createClientAgentProfilePreference,
+} from "../platform/index.ts";
+
+import type { OfficialClientApi } from "../http/index.ts";
+import type { ProblemReporter } from "../../../application/problems/index.ts";
 
 export function createClientAgentRuntime(
   api: OfficialClientApi,

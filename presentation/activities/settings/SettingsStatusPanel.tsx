@@ -1,24 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentApplication } from "../../../application/agent";
-import type { SystemConfigurationState } from "../../../application/system";
-import { EmptyState } from "../../ui/shared/primitives";
+import type { AgentApplication } from "../../../application/agent/index.ts";
+import type { SystemConfigurationState } from "../../../application/system/index.ts";
 import {
+  EmptyState,
   ToolDetailPanel,
   ToolPanelBody,
-} from "../../ui/shared/ToolSurface";
-import { AgentSettingsStatus } from "./AgentSettingsStatus";
-import { ApiAccessSettingsStatus } from "./ApiAccessSettingsStatus";
-import { OperationsSettingsStatus } from "./OperationsSettingsStatus";
+} from "../../ui/index.ts";
+
+import { AgentSettingsStatus } from "./AgentSettingsStatus.tsx";
+import { ApiAccessSettingsStatus } from "./ApiAccessSettingsStatus.tsx";
+import { OperationsSettingsStatus } from "./OperationsSettingsStatus.tsx";
 import type {
   AgentSettingsRoute,
   ApiAccessSelection,
   SettingsSection,
-} from "./settingsTypes";
-import { SystemSettingsStatus } from "./SystemSettingsStatus";
-import type { ApiAccessSettingsStatusView } from "./useApiAccessSettingsSession";
-import type { OperationsSettingsStatusView } from "./useOperationsSettingsSession";
-import type { SystemOwnerCredentialStatusView } from "./useSystemOwnerCredentialSession";
+} from "./settingsTypes.ts";
+import { SystemSettingsStatus } from "./SystemSettingsStatus.tsx";
+import type { ApiAccessSettingsStatusView } from "./useApiAccessSettingsSession.ts";
+import type { OperationsSettingsStatusView } from "./useOperationsSettingsSession.ts";
+import type { SystemOwnerCredentialStatusView } from "./useSystemOwnerCredentialSession.ts";
 
 export function SettingsStatusPanel({
   agent,

@@ -1,13 +1,13 @@
-import type { StructureOperationActivityViewModel } from "../../../../application/workspace/notes/structure/structureOperationViewModel";
+import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
 import {
   EmptyState,
   Panel,
   PanelBody,
   PanelHeader,
   cx,
-} from "../../../ui/shared/primitives";
-import { StructureOperationPairView } from "./StructureOperationPairView";
-import { StructureOperationStructureView } from "./StructureOperationStructureView";
+} from "../../../ui/index.ts";
+import { StructureOperationPairView } from "./StructureOperationPairView.tsx";
+import { StructureOperationStructureView } from "./StructureOperationStructureView.tsx";
 
 export function StructureOperationMainPanel({
   view,

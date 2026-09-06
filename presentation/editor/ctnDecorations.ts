@@ -13,25 +13,25 @@ import type {
   CtnEditableBlock,
   CtnEditableDocument,
   CtnInlineSpan,
-} from "../../core/ctn/parser/types";
+} from "../../core/ctn/index.ts";
 import {
   getTextColorClassName,
   getTextColorStyleDeclaration,
   getToneClassName,
   getToneStyleDeclaration,
-} from "../ui/shared/tonePresentation";
+} from "../ui/index.ts";
 import {
   type CtnEditorAnalysisState,
   type CtnEditorAnalysisField,
-} from "./ctnEditorAnalysis";
+} from "./ctnEditorAnalysis.ts";
 import {
   createCtnEditorCheckableBlocksKey,
   type CtnEditorCheckableBlock,
-} from "./ctnEditorCheckableBlocks";
+} from "./ctnEditorCheckableBlocks.ts";
 import {
   ctnEditorRuntimeConfigFacet,
   requireCtnEditorRuntimeConfig,
-} from "./ctnEditorRuntime";
+} from "./ctnEditorRuntime.ts";
 
 export class CtnCheckboxWidget extends WidgetType {
   constructor(

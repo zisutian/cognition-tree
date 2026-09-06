@@ -9,7 +9,7 @@ import type {
   AgentProviderKind,
   AgentProviderView,
   AgentToolCallMode,
-} from "../../../application/agent";
+} from "../../../application/agent/index.ts";
 
 export type AgentProviderDraft = {
   apiKey: string;

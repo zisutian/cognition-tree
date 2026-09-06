@@ -2,33 +2,35 @@ import { useEffect, useState } from "react";
 import {
   createDefaultRepositorySelection,
   type RepositorySelection,
-} from "../../../application/repository/repositorySelection";
-import type { RepositoryOption } from
-  "../../../application/repository/ordinaryRepositoryViewModel";
-import type { RepositoryViewModel } from
-  "../../../application/repository/repositoryViewModel";
-import { RepositoryCreateForm } from "../../ui/RepositoryCreateForm";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
+} from "../../../application/repository/index.ts";
+import type {
+  RepositoryOption,
+  RepositoryViewModel,
+} from "../../../application/repository/index.ts";
+
 import {
+  RepositoryCreateForm,
+  useFeedback,
   Button,
   EmptyState,
-} from "../../ui/shared/primitives";
-import {
   ToolPanel,
   ToolPanelBody,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
-import { BuiltInRepositoryDetail } from "./BuiltInRepositoryDetail";
-import { OrdinaryRepositoryDetail } from "./OrdinaryRepositoryDetail";
+} from "../../ui/index.ts";
+
+
+
+import { BuiltInRepositoryDetail } from "./BuiltInRepositoryDetail.tsx";
+import { OrdinaryRepositoryDetail } from "./OrdinaryRepositoryDetail.tsx";
 import {
   RepositoryIssueDetail,
   type PendingRepositoryIssueAction,
-} from "./RepositoryIssueDetail";
+} from "./RepositoryIssueDetail.tsx";
 import {
   builtInLabel,
   selectedRepositoryTarget,
-} from "./repositoryViewHelpers";
+} from "./repositoryViewHelpers.ts";
 
 export function RepositoryPanel({
   selection,

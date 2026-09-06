@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentApplication } from "../../../application/agent";
+import type { AgentApplication } from "../../../application/agent/index.ts";
 import { useState } from "react";
-import type { ActivityControllerProps } from "../../ui/activityController";
-import { createAgentActivitySlots } from "./AgentActivitySlots";
+import type { ActivityControllerProps } from "../../ui/index.ts";
+import { createAgentActivitySlots } from "./AgentActivitySlots.tsx";
 
 export function AgentActivityController({
   active,

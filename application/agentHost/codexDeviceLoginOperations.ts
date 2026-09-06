@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { AgentDeviceLoginConfigurationPort, AgentDeviceLoginProcess, AgentDeviceLoginProcessPort, AgentDeviceLoginCompletion } from './deviceLoginPorts.ts';
-import type { ApplicationScheduler, CancelScheduledTask } from '../runtime/applicationScheduler.ts';
+import type { ApplicationScheduler, CancelScheduledTask } from '../runtime/index.ts';
 import type {
   AgentCodexDeviceLoginStatus,
-} from "../agent/agentConfiguration.ts";
-import type { CommandRuntime } from "../commands/commandRuntime.ts";
-import { readCommandRuntimeNow } from "../commands/commandRuntime.ts";
+} from "../agent/index.ts";
+import type { CommandRuntime } from "../commands/index.ts";
+import { readCommandRuntimeNow } from "../commands/index.ts";
 import type {
   AgentConfigurationProviderChange,
 } from "./configurationAccess.ts";
 import { AgentProviderOperationConflictError } from "./providerOperationErrors.ts";
-import { SecureStateCommitOutcomeUnknownError } from "../persistence/secureStateErrors.ts";
+import { SecureStateCommitOutcomeUnknownError } from "../persistence/index.ts";
 
 const codexDeviceLoginResultLimit = 100;
 

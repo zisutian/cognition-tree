@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Type } from "@sinclair/typebox";
-import { nullable, strictObject } from "../../common/schema.ts";
+import { nullable, strictObject } from "../../common/index.ts";
 import { ApiDataRootMigrationStatusSchema } from "../schemas/system.ts";
 import { apiBody, type ApiOperationDefinition } from "./definition.ts";
 

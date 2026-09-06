@@ -1,26 +1,35 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createClientJournalApplicationServices, createClientTodoApplicationServices } from "./contentServices.ts";
+import {
+  createClientJournalApplicationServices,
+  createClientTodoApplicationServices,
+  clientWorkspaceSessionCommandDependencies,
+  createClientInitialWorkspaceContent,
+} from "./contentServices.ts";
 import {
   createWorkbenchController,
   type WorkbenchController,
-} from "../../../application/workbench/workbenchController";
+} from "../../../application/workbench/index.ts";
 import type { ApiAccessAdministration } from
-  "../../../application/apiAccess/apiAccessAdministration";
+  "../../../application/apiAccess/index.ts";
 import type { OperationAdministration } from
-  "../../../application/operations/operationAdministration";
-import { clientApplicationScheduler } from "../platform/applicationServices";
-import { clientWorkspaceSessionCommandDependencies, createClientInitialWorkspaceContent } from "./contentServices";
-import type { OfficialClientApi } from "../http/apiTransport";
-import { createBuiltInRuntime } from "./builtInRuntime";
-import { createHttpApiEventSource } from "../http/apiEvents";
-import { createHttpApiAdministration } from "../http/apiAdmin";
-import { createHttpOperationAdministration } from "../http/apiOperations";
-import { createWorkspaceRepositoryRuntime } from "./workspaceRepositoryRuntime";
-import { serializeJsonIteratively } from "../../../contracts/common/json";
+  "../../../application/operations/index.ts";
+import { clientApplicationScheduler } from "../platform/index.ts";
+
+import type { OfficialClientApi } from "../http/index.ts";
+import { createBuiltInRuntime } from "./builtInRuntime.ts";
+import {
+  createHttpApiEventSource,
+  createHttpApiAdministration,
+  createHttpOperationAdministration,
+} from "../http/index.ts";
+
+
+import { createWorkspaceRepositoryRuntime } from "./workspaceRepositoryRuntime.ts";
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
 import {
   createVersionedContentRevision,
-} from "../repository/versionedContentRevision";
+} from "../repository/index.ts";
 
 export type ClientWorkbenchRuntime = Readonly<{
   apiAccessAdministration: ApiAccessAdministration;

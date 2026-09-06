@@ -88,6 +88,7 @@ describe("dependency boundaries", () => {
       "application",
       "infrastructure",
       "presentation",
+      "tooling",
     ]);
     expect(Object.isFrozen(sourceModulesByRoot)).toBe(true);
     expect(
@@ -120,11 +121,11 @@ describe("dependency boundaries", () => {
       readSourceImports(
         "../../presentation/shell/application/useWorkbenchApplicationBindings.ts",
       ).find(({ targetPath }) =>
-        targetPath.endsWith("application/workbench/workbenchController.ts")
+        targetPath.endsWith("application/workbench/index.ts")
       ),
     ).toMatchObject({
       targetRoot: "application",
-      targetPath: "../../application/workbench/workbenchController.ts",
+      targetPath: "../../application/workbench/index.ts",
     });
   });
 

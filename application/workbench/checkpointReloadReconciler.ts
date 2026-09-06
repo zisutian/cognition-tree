@@ -3,10 +3,10 @@
 import type {
   DomainChangeEventSource,
   DomainRevisionCheckpoint,
-} from "../sync/domainChangeEvents";
+} from "../sync/index.ts";
 import type {
   VersionedRepositoryPersistenceState,
-} from "../persistence/versionedRepositorySaveQueue";
+} from "../persistence/index.ts";
 
 type PersistenceStatus = VersionedRepositoryPersistenceState<string>["status"];
 

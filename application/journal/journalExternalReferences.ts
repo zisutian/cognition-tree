@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { JournalWorkspaceReference } from "../../core/journal/indexes/journalParseIndex";
+import type { JournalWorkspaceReference } from "../../core/journal/index.ts";
 import type {
   ContentDestinationOption,
-} from "../navigation/contentDestination";
+} from "../navigation/index.ts";
 
 export type JournalWorkspaceReferenceFaultCode =
   | "note-ambiguous"

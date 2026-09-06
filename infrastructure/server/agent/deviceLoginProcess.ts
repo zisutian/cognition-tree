@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { AgentDeviceLoginProcessPort } from "../../../application/agentHost/deviceLoginPorts.ts";
+import type { AgentDeviceLoginProcessPort } from "../../../application/agentHost/index.ts";
 import { CodexAppServerClient } from "./codexAppServerClient.ts";
 import { resolveCodexEntrypoint } from "./codexPackage.ts";
 import { withRuntimeTimeout } from "./runtimeTimeout.ts";

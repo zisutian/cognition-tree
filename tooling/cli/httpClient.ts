@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseApiError } from "../../contracts/api/parseError.ts";
-import type { ApiErrorDto } from "../../contracts/api/types.ts";
+import { parseApiError } from "../../contracts/api/index.ts";
+import type { ApiErrorDto } from "../../contracts/api/index.ts";
 
 const loopbackHosts = new Set(["127.0.0.1", "::1", "[::1]", "localhost"]);
 export const cliHttpRequestTimeoutMilliseconds = 30_000;

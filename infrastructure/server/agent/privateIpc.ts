@@ -5,13 +5,14 @@ import { chmod, mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
 import {
+  parseAgentSchema,
   AgentIpcRequestSchema,
   type AgentIpcRequestDto,
   type AgentIpcResponseDto,
   type AgentIpcToolCatalogDto,
-} from "../../../contracts/agent/ipc.ts";
+} from "../../../contracts/agent/index.ts";
+
 import { listenToAgentJsonLines } from "./jsonLineTransport.ts";
 
 type AgentIpcToolCallRequest = Extract<

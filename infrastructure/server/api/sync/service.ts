@@ -3,65 +3,69 @@
 import type {
   JournalContentDto,
   JournalSyncRequestDto,
-} from "../../../../contracts/journal/types.ts";
+} from "../../../../contracts/journal/index.ts";
 import type {
   TodoContentDto,
   TodoSyncRequestDto,
-} from "../../../../contracts/todo/types.ts";
-import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
+} from "../../../../contracts/todo/index.ts";
+import type { DomainChangeSetDto } from "../../../../contracts/common/index.ts";
 import type {
   WorkspaceRepositorySyncRequestDto,
-} from "../../../../contracts/workspace/types.ts";
+} from "../../../../contracts/workspace/index.ts";
 import type {
   VersionedContentStore,
-} from "../../repository/versioned/contentStore.ts";
-import type { JournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex.ts";
-import type { TodoParseIndex } from "../../../../core/todo/indexes/todoParseIndex.ts";
-import type {
   WorkspaceRepositoryStore,
-} from "../../repository/store.ts";
+} from "../../repository/index.ts";
+import type { JournalParseIndex } from "../../../../core/journal/index.ts";
+import type { TodoParseIndex } from "../../../../core/todo/index.ts";
+
 import {
   executeSnapshotSync,
   SnapshotSyncBaseRevisionError,
   SnapshotSyncMergeConflictError,
   SnapshotSyncRevisionConflictError,
   SnapshotSyncRetryExhaustedError,
-} from "../../../../application/sync/snapshotSync.ts";
+} from "../../../../application/sync/index.ts";
 import {
   prepareWorkspaceWriteContent,
-} from "../../repository/workspace/preparation.ts";
-import {
   prepareJournalWriteContent,
-} from "../../repository/built-ins/journalStore.ts";
-import {
   prepareTodoWriteContent,
-} from "../../repository/built-ins/todoStore.ts";
+  createWorkspaceRepositoryRevision,
+  createJournalRevision,
+  createTodoRevision,
+} from "../../repository/index.ts";
+
+
 import {
   projectJournalContentChanges,
-} from "../../../../application/journal/journalContentProjection.ts";
+  mergeJournalContent,
+} from "../../../../application/journal/index.ts";
 import type {
   JournalDomainVersions,
-} from "../../../../application/journal/journalDomainCommands.ts";
-import type { CommandRuntime } from "../../../../application/commands/commandRuntime.ts";
+} from "../../../../application/journal/index.ts";
+import type { CommandRuntime } from "../../../../application/commands/index.ts";
 import {
   projectTodoContentChanges,
-} from "../../../../application/todo/todoContentProjection.ts";
+  mergeTodoContent,
+} from "../../../../application/todo/index.ts";
 import type {
   TodoDomainVersions,
-} from "../../../../application/todo/todoDomainCommands.ts";
+} from "../../../../application/todo/index.ts";
 import {
   projectWorkspaceContentChanges,
-} from "../../../../application/workspace/commands/workspaceContentProjection.ts";
-import type { WorkspaceResourceVersionPolicy } from "../../../../application/workspace/commands/workspaceAgentCommandPreparation.ts";
-import { mergeWorkspaceContent } from "../../../../application/workspace/persistence/workspaceThreeWayMerge.ts";
-import { mergeJournalContent } from "../../../../application/journal/persistence/journalThreeWayMerge.ts";
-import { mergeTodoContent } from "../../../../application/todo/persistence/todoThreeWayMerge.ts";
-import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
-import { createJournalRevision } from "../../repository/built-ins/journalStore.ts";
-import { createTodoRevision } from "../../repository/built-ins/todoStore.ts";
-import { WorkspaceRevisionConflictError } from "../../../../application/workspace/persistence/workspaceCommitErrors.ts";
-import { VersionedContentRevisionConflictError } from "../../../../application/persistence/versionedCommitErrors.ts";
-import { ApiRequestError } from "../protocol/requestError.ts";
+  mergeWorkspaceContent,
+  WorkspaceRevisionConflictError,
+} from "../../../../application/workspace/index.ts";
+import type { WorkspaceResourceVersionPolicy } from "../../../../application/workspace/index.ts";
+
+
+
+
+
+
+
+import { VersionedContentRevisionConflictError } from "../../../../application/persistence/index.ts";
+import { ApiRequestError } from "../protocol/index.ts";
 
 export type ApiSyncResult = {
   audit: null | {

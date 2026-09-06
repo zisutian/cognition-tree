@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Type, type Static, type TProperties } from "@sinclair/typebox";
-import type { ContentRevisionDto } from "../../common/versionedContent.ts";
-import type { TodoLocalDateDto } from "../../todo/types.ts";
-import { strictObject, nullable, schemaAs, ApiResourceVersionSchema, ApiIdentifierSchema, ApiUuidSchema } from "../../common/schema.ts";
+import type { ContentRevisionDto } from "../../common/index.ts";
+import type { TodoLocalDateDto } from "../../todo/index.ts";
+import { strictObject, nullable, schemaAs, ApiResourceVersionSchema, ApiIdentifierSchema, ApiUuidSchema } from "../../common/index.ts";
 
 export const ApiLocalDateSchema = schemaAs<TodoLocalDateDto>(Type.String({format: "ctn-local-date"}));
 

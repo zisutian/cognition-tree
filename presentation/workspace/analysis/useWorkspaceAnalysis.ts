@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect, useMemo, useState } from "react";
-import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
-import { createUiWorkbenchDiagnostics } from "../../../application/workspace/projection/viewDiagnostics";
+import type { WorkspaceParseIndex } from "../../../core/workspace/index.ts";
 import {
+  createUiWorkbenchDiagnostics,
   createEmptyNoteReferenceGraph,
   type WorkspaceAnalysis,
-} from "../../../application/workspace/analysis/workspaceAnalysis";
-import { startWorkspaceAnalysisCollection } from "../../../application/workspace/analysis/workspaceAnalysisCollection";
-import type { ApplicationScheduler } from "../../../application/runtime/applicationScheduler";
+  startWorkspaceAnalysisCollection,
+} from "../../../application/workspace/index.ts";
+
+
+import type { ApplicationScheduler } from "../../../application/runtime/index.ts";
 
 function createIdleWorkspaceAnalysis(): WorkspaceAnalysis {
   return {

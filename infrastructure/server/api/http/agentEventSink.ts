@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { OutgoingHttpHeaders, ServerResponse } from 'node:http';
-import type { AgentEventSink } from '../../../../application/agentHost/sessionEventStream.ts';
-import { serializeJsonIteratively } from '../../../../contracts/common/json.ts';
-import { writeServerSentEvent, endServerSentEventResponse } from '../../transport/serverSentEventResponse.ts';
+import type { AgentEventSink } from '../../../../application/agentHost/index.ts';
+import { serializeJsonIteratively } from '../../../../contracts/common/index.ts';
+import { writeServerSentEvent, endServerSentEventResponse } from '../../transport/index.ts';
 
 export function createAgentEventSink(response: ServerResponse, headers: OutgoingHttpHeaders): AgentEventSink {
   return {

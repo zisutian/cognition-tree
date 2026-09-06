@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ConfiguredAgentRuntimeInput, AgentRuntimeFactory } from '../../../application/agentHost/runtimePorts.ts';
+import type { ConfiguredAgentRuntimeInput, AgentRuntimeFactory } from '../../../application/agentHost/index.ts';
 import path from "node:path";
-import type { AgentRuntimePort } from "../../../application/agent/agentRuntimePort.ts";
+import type { AgentRuntimePort } from "../../../application/agent/index.ts";
 import { CodexRuntime } from "./codexRuntime.ts";
 import { OllamaRuntime } from "./ollamaRuntime.ts";
 import { OpenAiChatRuntime } from "./openAiChatRuntime.ts";

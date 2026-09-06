@@ -2,11 +2,12 @@
 
 import {
   compileCtnSyntaxDefinition,
-} from "../../ctn/syntax/compiler.ts";
-import { formatCtnSyntaxV2 } from "../../ctn/syntax/formatter.ts";
+  formatCtnSyntaxV2,
+} from "../../ctn/index.ts";
+
 import type {
   CtnSyntaxDefinition,
-} from "../../ctn/syntax/types.ts";
+} from "../../ctn/index.ts";
 
 export const defaultJournalSyntaxDefinition = {
   blocks: [

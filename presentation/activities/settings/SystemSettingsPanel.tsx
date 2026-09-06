@@ -12,27 +12,30 @@ import type {
   SystemConfigurationController,
   SystemConfigurationInput,
   SystemConfigurationState,
-} from "../../../application/system";
-import { Button } from "../../ui/shared/primitives";
-import { ChoiceGroup, InputControl } from "../../ui/shared/controls";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
+} from "../../../application/system/index.ts";
 import {
+  Button,
+  ChoiceGroup,
+  InputControl,
+  useFeedback,
   FieldRow,
   FormActions,
   FormLayout,
-} from "../../ui/shared/FormLayout";
-import {
   ToolPanel,
   ToolPanelBody,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
+} from "../../ui/index.ts";
+
+
+
+
 import type {
   SystemOwnerCredentialPanelView,
-} from "./useSystemOwnerCredentialSession";
+} from "./useSystemOwnerCredentialSession.ts";
 import {
   useSystemConfigurationDraft,
-} from "./useSystemConfigurationDraft";
+} from "./useSystemConfigurationDraft.ts";
 
 export type SystemSettingsPanelApplication = Readonly<{
   authenticationController: Pick<OwnerAuthenticationController, "logout">;

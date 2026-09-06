@@ -3,7 +3,7 @@
 import type {
   NoteTreeNode,
   WorkspaceData,
-} from "../../core/workspace/model/workspaceData.ts";
+} from "../../core/workspace/index.ts";
 import type { AgentScope } from "./agentTypes.ts";
 
 export class AgentScopeUnavailableError extends Error {

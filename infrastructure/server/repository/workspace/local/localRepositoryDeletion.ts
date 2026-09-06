@@ -4,8 +4,11 @@ import { randomUUID } from "node:crypto";
 import { lstat, realpath, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { RepositoryCatalogError } from "../../catalog.ts";
-import { fsyncDirectory } from "../../../persistence/fileSystemPersistence.ts";
-import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
+import {
+  fsyncDirectory,
+  hasFileSystemErrorCode,
+} from "../../../persistence/index.ts";
+
 import { assertLocalRepositoryContainsOnlyManagedData } from "./localManagedDataGuard.ts";
 
 export const localRepositoryDeletionPhases = {

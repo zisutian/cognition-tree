@@ -1,4 +1,4 @@
-import { buildApiOperationPath, resolveApiRoute, getApiRouteOperation, parseApiOperationRequest, parseApiOperationResponse } from "../../contracts/api/registry.ts";
+import { buildApiOperationPath, resolveApiRoute, getApiRouteOperation, parseApiOperationRequest, parseApiOperationResponse } from "../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ReadStream, WriteStream } from "node:tty";

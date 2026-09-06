@@ -1,5 +1,5 @@
-import type { UiVisualizationView } from "../../projection/viewGraph";
-import type { UiNoteId } from "../../projection/viewTree";
+import type { UiVisualizationView } from "../../projection/viewGraph.ts";
+import type { UiNoteId } from "../../projection/viewTree.ts";
 
 export type ReferenceGraphMode = "global" | "local";
 export type ReferenceGraphLocalDepth = 1 | 2;

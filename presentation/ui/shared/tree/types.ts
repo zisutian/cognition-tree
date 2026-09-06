@@ -2,7 +2,7 @@ import type {
   ButtonHTMLAttributes,
   ReactNode,
 } from "react";
-import type { DisplayText } from "../blockText";
+import type { DisplayText } from "../blockText.tsx";
 
 export type StructureTreeNode = {
   children: StructureTreeNode[];

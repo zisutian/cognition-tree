@@ -1,8 +1,8 @@
-import type { CtnCanonicalBlock } from "../../../core/ctn/parser/types";
+import type { CtnCanonicalBlock } from "../../../core/ctn/index.ts";
 import {
   createUiTextDisplay,
   type UiTextDisplay,
-} from "./viewText";
+} from "./viewText.ts";
 
 export type UiNodeId = string;
 

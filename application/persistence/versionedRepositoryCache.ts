@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { VersionedRepositoryConflictRecord, VersionedRemoteSnapshot } from "./versionedRepository";
+import type { VersionedRepositoryConflictRecord, VersionedRemoteSnapshot } from "./versionedRepository.ts";
 
 export type VersionedRepositoryLocalState<
   Content,

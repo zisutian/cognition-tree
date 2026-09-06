@@ -9,13 +9,13 @@ import {
   type VersionedRemoteSnapshot,
   type VersionedRemoteSyncRequest,
   type VersionedRemoteSyncResult,
-} from "../../../application/persistence/versionedRepository";
+} from "../../../application/persistence/index.ts";
 import {
   HttpApiResponseError,
   HttpApiUnavailableError,
   requestApiJson,
   type HttpApiTransportOptions,
-} from "./apiTransport";
+} from "./apiTransport.ts";
 
 export type HttpVersionedContentCodec<Content, Revision extends string> = {
   parseSyncRequest(

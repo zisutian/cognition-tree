@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { DomainChangeSet } from "../../core/sync/domainChangeSet.ts";
-import type { DomainTextEdit } from "../../core/sync/domainTransition.ts";
-import type { AgentProposalReview } from "../commands/agentProposalReview.ts";
+import type {
+  DomainChangeSet,
+  DomainTextEdit,
+} from "../../core/sync/index.ts";
+
+import type { AgentProposalReview } from "../commands/index.ts";
 
 export type AgentRuntimeKind = "codex" | "ollama" | "openai-chat";
 

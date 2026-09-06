@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import type {
   RepositoryFocusRequest,
   RepositoryFocusTarget,
-} from "../../../application/repository/repositoryNavigation";
+} from "../../../application/repository/index.ts";
 
 export function useRepositoryNavigation() {
   const nextRequestIdRef = useRef(1);

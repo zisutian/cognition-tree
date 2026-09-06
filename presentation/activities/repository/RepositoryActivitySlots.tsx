@@ -1,13 +1,15 @@
-import type { RepositoryViewModel } from
-  "../../../application/repository/repositoryViewModel";
-import type { RepositorySelection } from
-  "../../../application/repository/repositorySelection";
-import type { RepositoryFocusRequest } from "../../../application/repository/repositoryNavigation";
+import type {
+  RepositoryViewModel,
+  RepositorySelection,
+  RepositoryFocusRequest,
+} from "../../../application/repository/index.ts";
+
+
 import "./repository.css";
-import type { ActivitySlots } from "../../ui/activityTypes";
-import { RepositoryContext } from "./RepositoryContext";
-import { RepositoryPanel } from "./RepositoryPanel";
-import { RepositoryStatusPanel } from "./RepositoryStatusPanel";
+import type { ActivitySlots } from "../../ui/index.ts";
+import { RepositoryContext } from "./RepositoryContext.tsx";
+import { RepositoryPanel } from "./RepositoryPanel.tsx";
+import { RepositoryStatusPanel } from "./RepositoryStatusPanel.tsx";
 
 export function createRepositoryActivitySlots({
   focusRequest,

@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect } from "react";
-import type { JournalApplication } from "../../../application/journal";
-import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
-import type { TodoApplication } from "../../../application/todo";
-import type { ApiAccessApplication } from "../../../application/apiAccess/apiAccessAdministration";
-import type { AgentApplication } from "../../../application/agent";
-import type { SystemApplication } from "../../../application/system";
-import type { OperationApplication } from "../../../application/operations/operationAdministration";
+import type { JournalApplication } from "../../../application/journal/index.ts";
+import type { RepositoryApplication } from "../../../application/repository/index.ts";
+import type { TodoApplication } from "../../../application/todo/index.ts";
+import type { ApiAccessApplication } from "../../../application/apiAccess/index.ts";
+import type { AgentApplication } from "../../../application/agent/index.ts";
+import type { SystemApplication } from "../../../application/system/index.ts";
+import type { OperationApplication } from "../../../application/operations/index.ts";
 import type {
   WorkbenchController,
   WorkbenchControllerSnapshot,
-} from "../../../application/workbench/workbenchController";
-import type { ProblemCenterController } from "../../../application/problems/problemCenter";
-import type { ActiveWorkspaceSession } from "../../../application/workspace/session/workspaceSessionApplication";
-import type { WorkbenchApplication } from "../application/workbenchApplication";
-import { useWorkspaceApplication } from "../../workspace/runtime/useWorkspaceApplication";
-import type { ActivityId } from "../../ui/activityTypes";
-import { WorkspaceWorkbench } from "./WorkspaceWorkbench";
+} from "../../../application/workbench/index.ts";
+import type { ProblemCenterController } from "../../../application/problems/index.ts";
+import type { ActiveWorkspaceSession } from "../../../application/workspace/index.ts";
+import type { WorkbenchApplication } from "../application/workbenchApplication.ts";
+import { useWorkspaceApplication } from "../../workspace/index.ts";
+import type { ActivityId } from "../../ui/index.ts";
+import { WorkspaceWorkbench } from "./WorkspaceWorkbench.tsx";
 
 export function ReadyWorkspaceWorkbench({
   scheduler,
@@ -36,7 +36,7 @@ export function ReadyWorkspaceWorkbench({
   system,
   todo,
 }: {
-  scheduler: import("../../../application/runtime/applicationScheduler").ApplicationScheduler;
+  scheduler: import("../../../application/runtime/index.ts").ApplicationScheduler;
   activeActivityId: ActivityId;
   agent: AgentApplication;
   apiAccess: ApiAccessApplication;

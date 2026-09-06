@@ -2,19 +2,20 @@
 
 import type {
   CtnCanonicalSourceAnalysis,
-} from "../../ctn/analysis/sourceAnalysis.ts";
+  CtnCompiledSyntax,
+} from "../../ctn/index.ts";
 import {
   analyzeCtnSource,
   reprojectCtnAnalysisPresentation,
-} from "../../ctn/analysis/sourceAnalysis.ts";
-import {
   createCtnBlockIdRegistry,
   updateCtnBlockIdRegistry,
   type CtnBlockIdRegistry,
   type CtnBlockIdRegistryChange,
-} from "../../ctn/analysis/blockIdRegistry.ts";
-import { requireCtnSyntax } from "../../ctn/syntax/compiler.ts";
-import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
+  requireCtnSyntax,
+} from "../../ctn/index.ts";
+
+
+
 import {
   validateTodoContentAnalysis,
   type ValidatedTodoContentAnalysis,

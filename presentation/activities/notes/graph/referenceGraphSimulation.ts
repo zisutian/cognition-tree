@@ -12,8 +12,8 @@ import {
 import type {
   GraphSimulationLink,
   GraphSimulationNode,
-} from "./referenceGraphCanvasModel";
-import type { GraphForceSettings } from "./referenceGraphSettings";
+} from "./referenceGraphCanvasModel.ts";
+import type { GraphForceSettings } from "./referenceGraphSettings.ts";
 
 export function createReferenceGraphSimulation({
   height,

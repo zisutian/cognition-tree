@@ -1,12 +1,14 @@
 import { Check, Settings2 } from "lucide-react";
 import { useId } from "react";
-import { Popover } from "../../../ui/shared/Popover";
 import {
+  Popover,
   Button,
   ToggleButton,
-} from "../../../ui/shared/primitives";
-import { RangeControl } from "../../../ui/shared/controls";
-import type { ReferenceGraphSettings } from "./referenceGraphSettings";
+  RangeControl,
+} from "../../../ui/index.ts";
+
+
+import type { ReferenceGraphSettings } from "./referenceGraphSettings.ts";
 
 function GraphRangeSetting({
   label,

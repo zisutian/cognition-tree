@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
-import type { TodoApplication } from "../../../application/todo";
-import { createTodoActivitySlots } from "./TodoActivitySlots";
-import type { ActivityControllerProps } from "../../ui/activityController";
+import type { RepositoryApplication } from "../../../application/repository/index.ts";
+import type { TodoApplication } from "../../../application/todo/index.ts";
+import { createTodoActivitySlots } from "./TodoActivitySlots.tsx";
+import type { ActivityControllerProps } from "../../ui/index.ts";
 import {
   BuiltInUnavailableActivity,
   resolveBuiltInActivityRetry,
-} from "../unavailable/BuiltInUnavailableActivity";
+} from "../unavailable/index.ts";
 
 type TodoBuiltInsApplication = ActivityControllerProps<TodoActivityApplication>[
   "application"

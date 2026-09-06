@@ -3,8 +3,8 @@
 import {
   createLocalFirstVersionedRepository,
   type VersionedRepositoryLoadPolicy,
-} from "../../../application/persistence/localFirst/localFirstRepository";
-import type { WorkspaceRepositoryCache } from "./workspaceRepositoryCache";
+} from "../../../application/persistence/index.ts";
+import type { WorkspaceRepositoryCache } from "./workspaceRepositoryCache.ts";
 import {
   createLocalDraftRevision,
   type LocalDraftRevision,
@@ -12,10 +12,9 @@ import {
   type WorkspaceRepositoryBackend,
   type WorkspaceRepositoryPreparationPolicy,
   WorkspaceRepositoryRemoteError,
-} from "../../../application/workspace/persistence/workspaceRepository";
-import {
   mergeWorkspaceContent,
-} from "../../../application/workspace/persistence/workspaceThreeWayMerge";
+} from "../../../application/workspace/index.ts";
+
 
 type LocalFirstWorkspaceRepositoryOptions = {
   backend: WorkspaceRepositoryBackend;

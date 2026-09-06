@@ -1,11 +1,13 @@
-import type { WorkspaceParseIndex } from "../../../../core/workspace/indexes/workspaceParseIndex";
 import type {
+  WorkspaceParseIndex,
   MoveWorkspaceStructureBlockBetweenNotesFailureReason,
   MoveWorkspaceStructureBlockWithinNoteFailureReason,
-} from "../../../../core/workspace/commands/structureBlockCommands";
-import type { NoteId } from "../../../../core/workspace/model/workspaceData";
-import type { SessionCommands } from "../../session/sessionCommands";
-import { parseUiStructureOperationTargetPosition } from "./targetPosition";
+  NoteId,
+} from "../../../../core/workspace/index.ts";
+
+
+import type { SessionCommands } from "../../session/sessionCommands.ts";
+import { parseUiStructureOperationTargetPosition } from "./targetPosition.ts";
 
 export type StructureMoveFailureReason =
   | MoveWorkspaceStructureBlockBetweenNotesFailureReason

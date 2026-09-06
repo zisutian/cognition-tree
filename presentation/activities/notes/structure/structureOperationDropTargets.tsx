@@ -2,18 +2,19 @@ import { useMemo, type DragEvent } from "react";
 import {
   flattenUiBlockSubtree,
   type UiBlockNode,
-} from "../../../../application/workspace/projection/viewBlocks";
-import { cx } from "../../../ui/shared/primitives";
-import type { ContextMenuPosition } from "../../../ui/shared/ContextMenu";
+} from "../../../../application/workspace/index.ts";
 import {
+  cx,
   StructureTree,
   type StructureTreeRowProps,
-} from "../../../ui/shared/tree";
+} from "../../../ui/index.ts";
+import type { ContextMenuPosition } from "../../../ui/index.ts";
+
 import {
   blockLineDragDataType,
   createBlockLineDragPayload,
   readBlockLineDragPayload,
-} from "./blockLineDrag";
+} from "./blockLineDrag.ts";
 
 export type StructureRowDropPlacement =
   | "inside"

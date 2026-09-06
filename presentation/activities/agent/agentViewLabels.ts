@@ -3,7 +3,7 @@
 import type {
   AgentScope,
   AgentSessionState,
-} from "../../../application/agent";
+} from "../../../application/agent/index.ts";
 
 export const agentSessionStateLabels: Record<AgentSessionState, string> = {
   idle: "空闲",

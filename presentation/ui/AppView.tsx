@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ActivityNavigationItem } from "./activityTypes";
 import type {
+  ActivityNavigationItem,
   ActivityId,
   CreateActivitySlots,
-} from "./activityTypes";
+} from "./activityTypes.ts";
+
 import type { ReactNode } from "react";
-import { AppFrame } from "./AppFrame";
-import { useWorkbenchFocusShortcuts } from "./workbench/useWorkbenchFocusShortcuts";
-import type { WorkbenchController } from "./workbench/useWorkbenchLayout";
+import { AppFrame } from "./AppFrame.tsx";
+import { useWorkbenchFocusShortcuts } from "./workbench/useWorkbenchFocusShortcuts.ts";
+import type { WorkbenchController } from "./workbench/useWorkbenchLayout.ts";
 import "./styles/index.css";
 
 type AppViewProps = {

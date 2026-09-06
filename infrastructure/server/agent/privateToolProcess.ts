@@ -2,7 +2,7 @@
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { AgentPrivateToolsPort } from '../../../application/agentHost/runtimePorts.ts';
+import type { AgentPrivateToolsPort } from '../../../application/agentHost/index.ts';
 import type { AgentPrivateIpcServer } from './privateIpc.ts';
 
 export function createPrivateAgentTools(ipc: AgentPrivateIpcServer): AgentPrivateToolsPort {

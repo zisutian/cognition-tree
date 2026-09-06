@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { WorkspaceRepositoryContent } from '../workspace/persistence/workspaceRepository.ts';
+import type {
+  WorkspaceRepositoryContent,
+  WorkspaceAgentCommandIntent,
+} from '../workspace/index.ts';
 import type { WorkspaceAgentToolPorts } from './workspaceToolPorts.ts';
-import type { SearchResponse } from '../search/searchTypes.ts';
-import { readCommandRuntimeNow } from '../commands/commandRuntime.ts';
-import type { WorkspaceAgentCommandIntent } from '../workspace/commands/workspaceAgentCommandPreparation.ts';
+import type { SearchResponse } from '../search/index.ts';
+import { readCommandRuntimeNow } from '../commands/index.ts';
+
 import {
   AgentScopeViolationError,
   agentSyntaxKnowledgeMatches,
@@ -14,12 +17,13 @@ import {
   type AgentProposal,
   type AgentScope,
 } from "../agent/index.ts";
-import { prepareAgentWorkspaceCommand } from "../workspace/commands/workspaceAgentCommandPreparation.ts";
 import {
+  prepareAgentWorkspaceCommand,
   projectWorkspaceAgentProposalReview,
   projectWorkspaceContentChanges,
-} from "../workspace/commands/workspaceContentProjection.ts";
-import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types.ts";
+} from "../workspace/index.ts";
+
+import type { CtnCompiledSyntax } from "../../core/ctn/index.ts";
 import { AgentServiceError } from "./errors.ts";
 import { syntaxRequiredResult } from "./toolRequest.ts";
 import {

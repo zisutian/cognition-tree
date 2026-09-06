@@ -1,15 +1,16 @@
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
+import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 import {
   parseWorkspaceRepositorySnapshot,
   parseWorkspaceRepositorySyncRequest,
   parseWorkspaceRepositorySyncResult,
-} from "../../../contracts/workspace/parseRepository";
-import { parseRepositoryRevision } from "../../../contracts/workspace/revision";
-import { serializeJsonIteratively } from "../../../contracts/common/json";
-import type { WorkspaceRepositoryBackend } from "../../../application/workspace/persistence/workspaceRepository";
-import type { HttpApiTransportOptions } from "./apiTransport";
-import { createHttpVersionedContentRepositoryBackend } from "./versionedContentRepository";
-import { withWorkspaceApiAdapterErrors } from "./workspaceApiAdapter";
+  parseRepositoryRevision,
+} from "../../../contracts/workspace/index.ts";
+
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
+import type { WorkspaceRepositoryBackend } from "../../../application/workspace/index.ts";
+import type { HttpApiTransportOptions } from "./apiTransport.ts";
+import { createHttpVersionedContentRepositoryBackend } from "./versionedContentRepository.ts";
+import { withWorkspaceApiAdapterErrors } from "./workspaceApiAdapter.ts";
 
 type HttpWorkspaceRepositoryOptions = HttpApiTransportOptions & {
   repositoryId: string;

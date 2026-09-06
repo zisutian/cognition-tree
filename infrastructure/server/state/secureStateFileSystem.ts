@@ -2,14 +2,15 @@
 
 import { chmod, lstat, mkdir } from "node:fs/promises";
 import path from "node:path";
-import { hasFileSystemErrorCode } from "../persistence/fileSystemError.ts";
 import {
+  hasFileSystemErrorCode,
   fsyncDirectory,
   isSecureDirectory,
   isSecureRegularFile,
   readSecureFileUtf8,
   writeFileDurably,
-} from "../persistence/fileSystemPersistence.ts";
+} from "../persistence/index.ts";
+
 
 async function findExistingAncestor(directory: string) {
   let current = path.dirname(path.resolve(directory));

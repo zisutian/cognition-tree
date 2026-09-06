@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
+import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 import { once } from "node:events";
 import http, { type ServerResponse } from "node:http";
-import { SystemConfigurationValidationError } from "../../../application/system/systemConfigurationModel.ts";
-import { isLocalRecoveryRequest } from "../network/localRecoveryRequest.ts";
+import { SystemConfigurationValidationError } from "../../../application/system/index.ts";
+import { isLocalRecoveryRequest } from "../network/index.ts";
 import type { BootstrapConfigurationStore } from "./bootstrapConfigurationStore.ts";
 import {
   recoveryPageHtml,

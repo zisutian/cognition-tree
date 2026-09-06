@@ -2,13 +2,13 @@
 
 import { lstat, unlink } from "node:fs/promises";
 import path from "node:path";
-import type { ApiOperationAuditPageDto } from "../../../contracts/api/schemas/operations.ts";
-import { SecureJsonPartition, type SecureStateFileReplacer } from "../state/secureJsonPartition.ts";
-import { SecureStatePartitionError } from "../../../application/persistence/secureStateErrors.ts";
+import type { ApiOperationAuditPageDto } from "../../../contracts/api/index.ts";
+import { SecureJsonPartition, type SecureStateFileReplacer } from "../state/index.ts";
+import { SecureStatePartitionError } from "../../../application/persistence/index.ts";
 import {
   type OperationAuditStatus,
   OperationAuditUnavailableError,
-} from "../../../application/operations/operationLedgerPort.ts";
+} from "../../../application/operations/index.ts";
 import {
   createInitialOperationLedgerState,
   type OperationLedgerState,

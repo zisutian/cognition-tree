@@ -23,26 +23,26 @@ import {
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
-import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
-import { createCtnDecorationPlugin } from "./ctnDecorations";
-import { createCtnDiagnosticTooltip } from "./ctnDiagnosticTooltip";
+import type { CtnEditableSourceChange } from "../../core/ctn/index.ts";
+import { createCtnDecorationPlugin } from "./ctnDecorations.ts";
+import { createCtnDiagnosticTooltip } from "./ctnDiagnosticTooltip.ts";
 import {
   createCtnReferenceNavigationExtension,
   type CtnEditorReferenceTarget,
-} from "./ctnReferenceNavigation";
-import { createEditorCompositionChange } from "./editorCompositionChange";
-import { ctnExternalValueSync } from "./editorValueSync";
-import type { CtnEditorContentMode } from "./ctnEditorContentMode";
+} from "./ctnReferenceNavigation.ts";
+import { createEditorCompositionChange } from "./editorCompositionChange.ts";
+import { ctnExternalValueSync } from "./editorValueSync.ts";
+import type { CtnEditorContentMode } from "./ctnEditorContentMode.ts";
 import {
   createCtnEditorAnalysisField,
   type CtnEditorAnalysisField,
-} from "./ctnEditorAnalysis";
+} from "./ctnEditorAnalysis.ts";
 import {
   createCtnEditorRuntimeConfig,
   ctnEditorRuntimeCompartment,
   ctnEditorRuntimeConfigFacet,
   type CtnEditorRuntimeOptions,
-} from "./ctnEditorRuntime";
+} from "./ctnEditorRuntime.ts";
 
 export function createCtnIndentUnit() {
   return "\t";

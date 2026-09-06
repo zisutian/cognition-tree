@@ -3,7 +3,7 @@
 import type {
   OwnerCredentialRotationActivation,
   OwnerCredentialRotationPreparation,
-} from "../../../application/system";
+} from "../../../application/system/index.ts";
 
 export type SystemOwnerCredentialPreparation = OwnerCredentialRotationActivation;
 

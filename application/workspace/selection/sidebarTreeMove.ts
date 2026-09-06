@@ -1,8 +1,8 @@
-import type { FolderId } from "../../../core/workspace/model/workspaceData";
+import type { FolderId } from "../../../core/workspace/index.ts";
 import type {
   UiTreeMoveDestination,
   UiTreeNodeReference,
-} from "../projection/viewTree";
+} from "../projection/viewTree.ts";
 
 export function createWorkspaceTreeNodeReference(
   reference: UiTreeNodeReference,

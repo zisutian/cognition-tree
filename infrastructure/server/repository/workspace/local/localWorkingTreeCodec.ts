@@ -3,10 +3,14 @@
 import {
   isCtnBlockId,
   isCtnBlockTimestamp,
-} from "../../../../../core/ctn/metadata/blockMetadata.ts";
-import { UnsupportedRepositoryVersionError } from "../../../../../contracts/workspace/contractValue.ts";
-import { parseRepositoryRevision } from "../../../../../contracts/workspace/revision.ts";
-import { workspaceRepositorySchemaVersion } from "../../../../../contracts/workspace/types.ts";
+} from "../../../../../core/ctn/index.ts";
+import {
+  UnsupportedRepositoryVersionError,
+  parseRepositoryRevision,
+  workspaceRepositorySchemaVersion,
+} from "../../../../../contracts/workspace/index.ts";
+
+
 import { RepositoryCorruptError } from "../../store.ts";
 import {
   localLayoutVersion,

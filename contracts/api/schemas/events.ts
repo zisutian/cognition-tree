@@ -1,8 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Type, type Static } from "@sinclair/typebox";
-import { ApiNonNegativeIntegerSchema, ApiResourceVersionSchema, ApiUuidSchema, nullable, strictObject } from "../../common/schema.ts";
-import { DomainChangeSetSchema } from "../../common/domainChanges.ts";
+import {
+  ApiNonNegativeIntegerSchema,
+  ApiResourceVersionSchema,
+  ApiUuidSchema,
+  nullable,
+  strictObject,
+  DomainChangeSetSchema,
+} from "../../common/index.ts";
+
 
 export const ApiRevisionCheckpointSchema = strictObject({
   journal: nullable(ApiResourceVersionSchema),

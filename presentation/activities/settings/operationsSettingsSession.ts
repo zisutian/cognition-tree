@@ -3,7 +3,7 @@
 import type {
   OperationAuditEntry,
   OperationAuditStatus,
-} from "../../../application/operations/operationAdministration";
+} from "../../../application/operations/index.ts";
 
 export type OperationsSettingsSnapshot = Readonly<{
   entries: readonly OperationAuditEntry[];

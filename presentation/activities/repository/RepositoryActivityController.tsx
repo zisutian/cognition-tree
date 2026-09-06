@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
+import type { RepositoryApplication } from "../../../application/repository/index.ts";
 import { useEffect, useState } from "react";
 import {
   createRepositoryViewModel,
-} from "../../../application/repository/repositoryViewModel";
-import {
   createDefaultRepositorySelection,
   projectRepositoryFocusSelection,
   repositorySelectionExists,
   type RepositorySelection,
-} from "../../../application/repository/repositorySelection";
-import { createRepositoryActivitySlots } from "./RepositoryActivitySlots";
-import type { ActivityControllerProps } from "../../ui/activityController";
+} from "../../../application/repository/index.ts";
+
+import { createRepositoryActivitySlots } from "./RepositoryActivitySlots.tsx";
+import type { ActivityControllerProps } from "../../ui/index.ts";
 
 export function RepositoryActivityController({
   active,

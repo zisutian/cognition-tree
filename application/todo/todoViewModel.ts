@@ -1,36 +1,39 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnBlockMetadata } from "../../core/ctn/metadata/blockMetadata";
-import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
-import type { CtnCanonicalBlock } from "../../core/ctn/parser/types";
-import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types";
-import type { TodoParseIndex } from "../../core/todo/indexes/todoParseIndex";
+import type {
+  CtnBlockMetadata,
+  CtnEditableSourceChange,
+  CtnCanonicalBlock,
+  CtnCompiledSyntax,
+} from "../../core/ctn/index.ts";
+
+
+
+import type {
+  TodoParseIndex,
+  TodoLocalDate,
+  TodoRecurrenceRule,
+} from "../../core/todo/index.ts";
 import {
   todoItemSemanticType,
   type TodoCollectionId,
   type TodoContent,
-} from "../../core/todo/model/todoContent";
-import {
   createTodoCollectionBodyProjection,
-} from "../../core/todo/model/todoCollectionProjection";
-import {
   projectTodoRecurrence,
-} from "../../core/todo/recurrence/todoRecurrenceProjection";
-import type {
-  TodoLocalDate,
-} from "../../core/todo/recurrence/todoLocalDate";
-import type {
-  TodoRecurrenceRule,
-} from "../../core/todo/recurrence/todoRecurrenceRule";
-import type { TodoPersistenceState } from "./todoSessionController";
-import type { TodoMutationActions } from "./todoApplication";
+} from "../../core/todo/index.ts";
+
+
+
+
+import type { TodoPersistenceState } from "./todoSessionController.ts";
+import type { TodoMutationActions } from "./todoApplication.ts";
 import {
   createTodoDiagnostics,
   type TodoDiagnostics,
-} from "./todoDiagnostics";
+} from "./todoDiagnostics.ts";
 import {
   findCtnEditableBlockLineNumber,
-} from "../../core/ctn/analysis/editableProjection";
+} from "../../core/ctn/index.ts";
 
 export type TodoFocusRequest = {
   collectionId: TodoCollectionId;

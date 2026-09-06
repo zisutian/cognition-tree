@@ -1,4 +1,4 @@
-import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
+import type { CtnCompiledSyntax } from "../../ctn/index.ts";
 import type {
   WorkspaceStructureIndex,
 } from "../indexes/workspaceStructureIndex.ts";

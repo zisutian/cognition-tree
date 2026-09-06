@@ -2,7 +2,7 @@
 
 import { Type, type Static } from "@sinclair/typebox";
 import { apiAutomationScopeSchema } from "./foundation.ts";
-import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, nullable, strictObject } from "../../common/schema.ts";
+import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, nullable, strictObject } from "../../common/index.ts";
 
 export const ApiTokenSchema = strictObject({
   createdAt: ApiCanonicalTimestampSchema,

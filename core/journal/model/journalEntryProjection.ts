@@ -2,7 +2,7 @@
 
 import {
   getCtnEditableLineNumber,
-} from "../../ctn/metadata/editableSource.ts";
+} from "../../ctn/index.ts";
 import { JournalContentValidationError } from "./journalErrors.ts";
 import type { ParsedJournalEntry } from "./journalValidation.ts";
 

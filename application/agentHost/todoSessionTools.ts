@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { TodoAgentToolPorts } from './todoToolPorts.ts';
-import type { SearchResponse } from '../search/searchTypes.ts';
-import { readCommandRuntimeNow } from '../commands/commandRuntime.ts';
-import type { TodoAgentCommandIntent } from '../todo/todoAgentCommandPreparation.ts';
+import type { SearchResponse } from '../search/index.ts';
+import { readCommandRuntimeNow } from '../commands/index.ts';
+import type { TodoAgentCommandIntent } from '../todo/index.ts';
 import {
   AgentScopeUnavailableError,
   AgentScopeViolationError,
@@ -15,13 +15,12 @@ import {
 } from "../agent/index.ts";
 import {
   prepareAgentTodoCommand,
-} from "../todo/todoAgentCommandPreparation.ts";
-import {
   projectTodoAgentProposalReview,
   projectTodoContentChanges,
-} from "../todo/todoContentProjection.ts";
-import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types.ts";
-import { isTodoCollectionId } from "../../core/todo/model/todoIdentity.ts";
+} from "../todo/index.ts";
+
+import type { CtnCompiledSyntax } from "../../core/ctn/index.ts";
+import { isTodoCollectionId } from "../../core/todo/index.ts";
 import { AgentServiceError } from "./errors.ts";
 import { syntaxRequiredResult } from "./toolRequest.ts";
 import {

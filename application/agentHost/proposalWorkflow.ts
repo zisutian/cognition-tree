@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { OperationAuditFinalizeError } from '../operations/operationLedgerPort.ts';
+import { OperationAuditFinalizeError } from '../operations/index.ts';
 import {
   confirmAgentProposalDestruction,
   decideAgentProposal,
@@ -8,15 +8,16 @@ import {
   type AgentProposal,
   type AgentRuntimePort,
   type AgentSessionController,
+  toAgentProposalView,
 } from "../agent/index.ts";
-import type { AgentOperationReceipt } from "../operations/agentOperationReceipt.ts";
+import type { AgentOperationReceipt } from "../operations/index.ts";
 import type { ResolvedAgentConfiguration } from "./configurationPort.ts";
 import {
   AgentProposalCommitIndeterminateError,
   AgentServiceError,
 } from "./errors.ts";
 import { type AgentProposalCommitOutcome, type AgentProposalCommitPort, type AgentProposalCommitRoute } from "./proposalCommitPort.ts";
-import { toAgentProposalView } from "../agent/agentTypes.ts";
+
 import type { AgentRuntimeProfile } from "./runtimeProfiles.ts";
 
 export type AgentProposalWorkflowRecord = {

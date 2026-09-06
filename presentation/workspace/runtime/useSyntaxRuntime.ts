@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types";
+import type { CtnCompiledSyntax } from "../../../core/ctn/index.ts";
 import {
   attachWorkspaceSyntax,
-} from "../../../core/workspace/context/workspaceContext";
-import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
-import { normalizeWorkspaceSyntaxName } from "../../../core/workspace/model/workspaceSyntaxCatalog";
+  normalizeWorkspaceSyntaxName,
+} from "../../../core/workspace/index.ts";
+import type { WorkspaceStructureIndex } from "../../../core/workspace/index.ts";
+
 import {
   useCtnSyntaxDraftRuntime,
-} from "../../syntax/useCtnSyntaxDraftRuntime";
+} from "../../syntax/index.ts";
 
 type WorkspaceSyntaxRuntimeFile = {
   id: string;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { DataRootDirectoryIdentity, DataRootMigrationFiles } from "../../../application/system/dataRootMigrationPorts.ts";
+import type { DataRootDirectoryIdentity, DataRootMigrationFiles } from "../../../application/system/index.ts";
 import { createHash } from "node:crypto";
 import { constants, type Stats } from "node:fs";
 import {
@@ -14,9 +14,12 @@ import {
   type FileHandle,
 } from "node:fs/promises";
 import path from "node:path";
-import { SystemMigrationValidationError } from "../../../application/system/systemConfigurationModel.ts";
-import { hasFileSystemErrorCode } from "../persistence/fileSystemError.ts";
-import { fsyncDirectory } from "../persistence/fileSystemPersistence.ts";
+import { SystemMigrationValidationError } from "../../../application/system/index.ts";
+import {
+  hasFileSystemErrorCode,
+  fsyncDirectory,
+} from "../persistence/index.ts";
+
 
 const authoritativePartitions = [
   "repositories",

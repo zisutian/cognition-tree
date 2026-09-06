@@ -5,19 +5,20 @@ import path from "node:path";
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
-} from "../../../../../contracts/workspace/contractValue.ts";
-import { isRepositoryId } from "../../../../../contracts/workspace/parseCatalog.ts";
+  isRepositoryId,
+} from "../../../../../contracts/workspace/index.ts";
+
 import type {
   RepositoryCatalogDto,
   RepositoryCatalogIssueDto,
   RepositoryDescriptorDto,
-} from "../../../../../contracts/workspace/types.ts";
+} from "../../../../../contracts/workspace/index.ts";
 import {
   createPortableNameKey,
   getPortableNameIssue,
-} from "../../../../../core/naming/portableName.ts";
+} from "../../../../../core/naming/index.ts";
 import { RepositoryCorruptError } from "../../store.ts";
-import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
+import { hasFileSystemErrorCode } from "../../../persistence/index.ts";
 import { readLocalJson } from "./localWorkingTree.ts";
 import { parseLocalRepositoryMetadata } from "./localWorkingTreeCodec.ts";
 import {

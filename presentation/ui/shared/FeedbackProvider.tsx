@@ -8,8 +8,8 @@ import {
   type ReactNode,
 } from "react";
 import type { ProblemCenterController } from
-  "../../../application/problems/problemCenter";
-import type { ActivityId } from "../activityTypes";
+  "../../../application/problems/index.ts";
+import type { ActivityId } from "../activityTypes.ts";
 
 type FeedbackActions = {
   notify: (message: string) => void;

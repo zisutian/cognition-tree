@@ -2,15 +2,14 @@
 
 import type {
   CtnSyntaxDraft,
-} from "../../core/ctn/syntax/draft";
-import {
-  ctnSyntaxSchema,
-} from "../../core/ctn/syntax/schema";
-import type {
   CtnBlockKind,
   CtnSyntaxOwner,
   CtnSyntaxTone,
-} from "../../core/ctn/syntax/types";
+} from "../../core/ctn/index.ts";
+import {
+  ctnSyntaxSchema,
+} from "../../core/ctn/index.ts";
+
 
 export type SyntaxTone = CtnSyntaxTone;
 

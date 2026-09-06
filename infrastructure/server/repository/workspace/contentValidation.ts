@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { WorkspaceRepositoryContractError } from "../../../../contracts/workspace/contractValue.ts";
-import type { RepositorySyntaxCatalogDto } from "../../../../contracts/workspace/types.ts";
+import { WorkspaceRepositoryContractError } from "../../../../contracts/workspace/index.ts";
+import type { RepositorySyntaxCatalogDto } from "../../../../contracts/workspace/index.ts";
 import {
   prepareWorkspaceSyntaxCatalog,
   type WorkspaceSyntaxCatalogPreparation,
-} from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
+} from "../../../../application/workspace/index.ts";
 
 /**
  * Server-side semantic validation for untrusted HTTP and persisted repository

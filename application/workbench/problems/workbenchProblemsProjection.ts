@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { JournalDiagnostics } from "../../journal/journalDiagnostics";
+import type { JournalDiagnostics } from "../../journal/index.ts";
 import {
   projectBuiltInCatalogFailure,
   projectBuiltInRuntimeIssues,
   type BuiltInRuntimeIssue,
-} from "../../repository/projectBuiltInIssues";
-import {
   projectWorkspaceRepositoryRuntimeIssues,
   type WorkspaceRepositoryRuntimeIssue,
-} from "../../repository/projectWorkspaceRepositoryIssues";
-import type { RepositoryApplication } from
-  "../../repository/repositoryApplication";
+} from "../../repository/index.ts";
+
 import type {
+  RepositoryApplication,
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
-} from "../../repository/workspaceRepositoryCatalog";
-import type { TodoDiagnostics } from "../../todo/todoDiagnostics";
-import type { OperationalProblem } from "../../problems/problemCenter";
+} from "../../repository/index.ts";
+
+import type { TodoDiagnostics } from "../../todo/index.ts";
+import type { OperationalProblem } from "../../problems/index.ts";
 import type { UiWorkbenchDiagnostics } from
-  "../../workspace/projection/viewDiagnostics";
+  "../../workspace/index.ts";
 import {
   createUiWorkbenchProblems,
   projectUiOperationalProblems,
@@ -28,7 +27,7 @@ import {
   type UiWorkbenchProblems,
   type WorkbenchAgentProblemInput,
   type WorkbenchDiagnostics,
-} from "./workbenchProblems";
+} from "./workbenchProblems.ts";
 
 export function selectWorkbenchProblems({
   builtInIssues,

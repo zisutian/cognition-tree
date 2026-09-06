@@ -9,27 +9,27 @@ import {
 } from "react";
 import {
   type TodoParseIndex,
-} from "../../../core/todo/indexes/todoParseIndex";
+  resolveTodoCollectionSelection,
+} from "../../../core/todo/index.ts";
 import type {
   TodoCollectionId,
   TodoContent,
-} from "../../../core/todo/model/todoContent";
-import { resolveTodoCollectionSelection } from "../../../core/todo/queries/todoQueries";
+} from "../../../core/todo/index.ts";
+
 import {
   createTodoMutationActions,
   resolveRequestedTodoSelectionAfterDelete,
   type TodoApplicationServices,
   type TodoDeleteCollectionMutationResult,
   type TodoRepositorySession,
-} from "../../../application/todo/todoApplication";
-import type { TodoApplication } from "../../../application/todo/todoApplicationState";
-import {
   createTodoViewModel,
   type TodoActiveBodyPosition,
   type TodoFocusRequest,
-} from "../../../application/todo/todoViewModel";
+} from "../../../application/todo/index.ts";
+import type { TodoApplication } from "../../../application/todo/index.ts";
 
-export type { TodoApplication } from "../../../application/todo/todoApplicationState";
+
+export type { TodoApplication } from "../../../application/todo/index.ts";
 
 type PreparedTodoState = {
   content: TodoContent;

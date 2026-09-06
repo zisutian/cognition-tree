@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { BuiltInCatalogData } from "../../../application/repository/builtInCatalog";
+import type { BuiltInCatalogData } from "../../../application/repository/index.ts";
 
 export type BuiltInCatalogCache = {
   load(identity: string): Promise<BuiltInCatalogData | null>;

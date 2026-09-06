@@ -3,13 +3,13 @@
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
-} from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
+} from "../../../../application/workspace/index.ts";
 import {
   WorkspaceRepositoryContractError,
-} from "../../../../contracts/workspace/contractValue.ts";
+} from "../../../../contracts/workspace/index.ts";
 import type {
   WorkspaceRepositoryContentDto,
-} from "../../../../contracts/workspace/types.ts";
+} from "../../../../contracts/workspace/index.ts";
 
 export function prepareWorkspaceWriteContent(
   content: WorkspaceRepositoryContentDto,

@@ -3,17 +3,15 @@
 import {
   createTodoParseIndex,
   type TodoParseIndex,
-} from "../../../core/todo/indexes/todoParseIndex.ts";
-import type { TodoContent } from "../../../core/todo/model/todoContent.ts";
-import {
   TodoContentValidationError,
-} from "../../../core/todo/model/todoErrors.ts";
-import {
   validateTodoContentAnalysisTransition,
-} from "../../../core/todo/model/todoValidation.ts";
+} from "../../../core/todo/index.ts";
+import type { TodoContent } from "../../../core/todo/index.ts";
+
+
 import type {
   PreparedVersionedContent,
-} from "../../persistence/versionedRepository.ts";
+} from "../../persistence/index.ts";
 
 export function prepareTodoRepositoryContent(
   content: TodoContent,

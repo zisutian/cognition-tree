@@ -11,7 +11,7 @@ import {
   type VersionedRepositoryConflictProof,
   type VersionedRepositoryConflictRecord,
   type VersionedRepositorySyncResult,
-} from "../versionedRepository";
+} from "../versionedRepository.ts";
 import type {
   LocalFirstRepositoryProjectionPort,
 } from "./localFirstRepositoryProjectionPort.ts";
@@ -23,7 +23,7 @@ import {
 import type {
   LocalFirstRepositorySynchronizationPort,
 } from "./localFirstRepositorySynchronization.ts";
-import type { VersionedRepositoryCache } from "../versionedRepositoryCache";
+import type { VersionedRepositoryCache } from "../versionedRepositoryCache.ts";
 
 type ConflictResolutionProjectionPort<
   Content,

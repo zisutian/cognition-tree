@@ -1,4 +1,4 @@
-import type { StructureTreeNode } from "./types";
+import type { StructureTreeNode } from "./types.ts";
 
 export type StructureTreeRow = {
   depth: number;

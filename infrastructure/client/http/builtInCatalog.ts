@@ -1,22 +1,22 @@
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
+import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
   parseBuiltInCatalog,
   parseBuiltInId,
   parseBuiltInRetryResult,
-} from "../../../contracts/built-ins/parseBuiltIns";
+} from "../../../contracts/built-ins/index.ts";
 import {
   type BuiltInCatalog,
-} from "../../../application/repository/builtInCatalog";
-import type { BuiltInCatalogCache } from "../repository/builtInCatalogCache";
+} from "../../../application/repository/index.ts";
+import type { BuiltInCatalogCache } from "../repository/index.ts";
 import {
   HttpApiResponseError,
   HttpApiUnavailableError,
   requestApiJson,
   type HttpApiTransportOptions,
-} from "./apiTransport";
-import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity";
+} from "./apiTransport.ts";
+import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity.ts";
 
 export function createMemoryBuiltInCatalogCache(): BuiltInCatalogCache {
   const values = new Map<string, ReturnType<typeof parseBuiltInCatalog>>();

@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import type {
   RepositoryConflictResolutionView,
-} from "../../../application/repository/repositoryViewTypes";
-import { Button } from "../../ui/shared/primitives";
+} from "../../../application/repository/index.ts";
 import {
+  Button,
   ToolPropertyList,
   ToolPropertyRow,
   ToolSection,
-} from "../../ui/shared/ToolSurface";
+} from "../../ui/index.ts";
+
 
 export function RepositoryConflictStatus({
   resolution,

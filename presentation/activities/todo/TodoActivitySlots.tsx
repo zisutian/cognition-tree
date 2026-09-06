@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { TodoViewModel } from "../../../application/todo";
-import type { ActivitySlots } from "../../ui/activityTypes";
+import type { TodoViewModel } from "../../../application/todo/index.ts";
+import type { ActivitySlots } from "../../ui/index.ts";
 import "./todo.css";
-import { TodoContext } from "./TodoContext";
-import { TodoDetailPanel } from "./TodoDetailPanel";
-import { TodoEditorPanel } from "./TodoEditorPanel";
+import { TodoContext } from "./TodoContext.tsx";
+import { TodoDetailPanel } from "./TodoDetailPanel.tsx";
+import { TodoEditorPanel } from "./TodoEditorPanel.tsx";
 
 export function createTodoActivitySlots({
   focusMode,

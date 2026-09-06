@@ -1,19 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { FormEvent } from "react";
-import { ChoiceGroup, InputControl } from "../../ui/shared/controls";
 import {
+  ChoiceGroup,
+  InputControl,
   FieldRow,
   FormActions,
   FormLayout,
-} from "../../ui/shared/FormLayout";
-import { Button, ToggleButton } from "../../ui/shared/primitives";
+  Button,
+  ToggleButton,
+} from "../../ui/index.ts";
+
+
 import {
   changeAgentProviderDraftAuthentication,
   changeAgentProviderDraftBaseUrl,
   changeAgentProviderDraftKind,
   type AgentProviderDraft,
-} from "./agentSettingsDraft";
+} from "./agentSettingsDraft.ts";
 
 export function AgentProviderSettingsForm({
   busy,

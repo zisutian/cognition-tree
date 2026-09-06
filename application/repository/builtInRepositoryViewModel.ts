@@ -5,13 +5,13 @@ import type {
   BuiltInId,
   BuiltInIssue,
   BuiltInLocation,
-} from "./builtInCatalog";
-import type { RepositoryApplication } from "./repositoryApplication";
+} from "./builtInCatalog.ts";
+import type { RepositoryApplication } from "./repositoryApplication.ts";
 import type {
   RepositoryConflictResolutionView,
   RepositoryLocationRow,
   RepositoryRecoveryAction,
-} from "./repositoryViewTypes";
+} from "./repositoryViewTypes.ts";
 
 export type BuiltInOption = BuiltInDescriptor & {
   conflictResolution?: RepositoryConflictResolutionView | null;

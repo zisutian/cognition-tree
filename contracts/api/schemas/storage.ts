@@ -4,17 +4,17 @@ import { Type } from "@sinclair/typebox";
 import type {
   BuiltInCatalogDto,
   BuiltInRetryResultDto,
-} from "../../built-ins/types.ts";
+} from "../../built-ins/index.ts";
 import type {
   JournalSnapshotDto,
   JournalSyncRequestDto,
   JournalSyncResultDto,
-} from "../../journal/types.ts";
+} from "../../journal/index.ts";
 import type {
   TodoSnapshotDto,
   TodoSyncRequestDto,
   TodoSyncResultDto,
-} from "../../todo/types.ts";
+} from "../../todo/index.ts";
 import type {
   CreateRepositoryDto,
   RenameRepositoryDto,
@@ -23,9 +23,9 @@ import type {
   WorkspaceRepositorySnapshotDto,
   WorkspaceRepositorySyncRequestDto,
   WorkspaceRepositorySyncResultDto,
-} from "../../workspace/types.ts";
+} from "../../workspace/index.ts";
 import { ApiLocalDateSchema } from "./foundation.ts";
-import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiResourceVersionSchema, ApiUuidSchema, nullable, schemaAs, strictObject } from "../../common/schema.ts";
+import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiResourceVersionSchema, ApiUuidSchema, nullable, schemaAs, strictObject } from "../../common/index.ts";
 import { ApiRecurrenceRuleSchema } from "./resources.ts";
 
 const workspaceTreeNodeSchema = Type.Recursive((Self) =>

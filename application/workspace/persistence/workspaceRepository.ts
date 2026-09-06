@@ -1,13 +1,20 @@
-import type { WorkspaceSyntaxCatalog } from "../../../core/workspace/model/workspaceSyntaxCatalog.ts";
-import type { WorkspaceData } from "../../../core/workspace/model/workspaceData.ts";
-import type { WorkspaceContext } from "../../../core/workspace/context/workspaceContext.ts";
-import type { WorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax.ts";
-import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex.ts";
-import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex.ts";
+import type {
+  WorkspaceSyntaxCatalog,
+  WorkspaceData,
+  WorkspaceContext,
+  WorkspaceSyntax,
+  WorkspaceParseIndex,
+  WorkspaceStructureIndex,
+} from "../../../core/workspace/index.ts";
+
+
+
+
+
 import type {
   RepositoryApiErrorCode,
   RepositoryLocation,
-} from "../../repository/workspaceRepositoryCatalog.ts";
+} from "../../repository/index.ts";
 import {
   createVersionedLocalDraftRevision,
   VersionedRepositoryBackendConflictError,
@@ -23,7 +30,7 @@ import {
   type VersionedContentPreparationPolicy,
   type VersionedRepositorySnapshot,
   type VersionedRepositorySyncResult,
-} from "../../persistence/versionedRepository.ts";
+} from "../../persistence/index.ts";
 
 export type WorkspaceRepositoryContent = {
   schemaVersion: 4;

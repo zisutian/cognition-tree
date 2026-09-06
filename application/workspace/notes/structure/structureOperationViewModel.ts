@@ -1,7 +1,7 @@
-import type { UiStructureOperationView } from "../../projection/viewStructureOperation";
-import type { UiNoteId } from "../../projection/viewTree";
-import type { WorkspaceDirectoryMutations } from "../../selection/workspaceSelection";
-import type { StructureOperationPairSelectionPhase } from "./directorySelection";
+import type { UiStructureOperationView } from "../../projection/viewStructureOperation.ts";
+import type { UiNoteId } from "../../projection/viewTree.ts";
+import type { WorkspaceDirectoryMutations } from "../../selection/workspaceSelection.ts";
+import type { StructureOperationPairSelectionPhase } from "./directorySelection.ts";
 
 export type StructureOperationActivityViewModel =
   UiStructureOperationView &

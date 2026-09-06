@@ -1,19 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { SearchCatalogPort } from "../../../application/search/scopedSearch.ts";
-import { projectJournalSearchDocuments, projectTodoSearchDocuments, projectWorkspaceSearchDocuments } from "../../../application/workbench/searchCorpus.ts";
-import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
-import type { ApiBuiltInCatalog } from "../repository/built-ins/catalogPort.ts";
-import { createApiResourceVersion } from "./resources/versions.ts";
-import { RepositoryAdapterError } from "../repository/store.ts";
-import { WorkspacePayloadValidationError } from "../repository/workspace/layout.ts";
-import { WireContractError } from "../../../contracts/common/contractValue.ts";
-import { CtnBlockMetadataSyntaxError } from "../../../core/ctn/metadata/blockMetadata.ts";
-import { CtnDocumentMetadataError } from "../../../core/ctn/parser/parseCtnDocument.ts";
-import { JournalContentValidationError } from "../../../core/journal/model/journalErrors.ts";
-import { TodoContentValidationError } from "../../../core/todo/model/todoErrors.ts";
-import { WorkspaceBlockMetadataError } from "../../../core/workspace/context/workspaceBlockMetadata.ts";
-import { WorkspaceNoteHeaderError } from "../../../core/workspace/model/workspaceData.ts";
+import type { SearchCatalogPort } from "../../../application/search/index.ts";
+import { projectJournalSearchDocuments, projectTodoSearchDocuments, projectWorkspaceSearchDocuments } from "../../../application/workbench/index.ts";
+import type {
+  WorkspaceRepositoryCatalog,
+  ApiBuiltInCatalog,
+} from "../repository/index.ts";
+
+import { createApiResourceVersion } from "./resources/index.ts";
+import {
+  RepositoryAdapterError,
+  WorkspacePayloadValidationError,
+} from "../repository/index.ts";
+
+import { WireContractError } from "../../../contracts/common/index.ts";
+import {
+  CtnBlockMetadataSyntaxError,
+  CtnDocumentMetadataError,
+} from "../../../core/ctn/index.ts";
+
+import { JournalContentValidationError } from "../../../core/journal/index.ts";
+import { TodoContentValidationError } from "../../../core/todo/index.ts";
+import {
+  WorkspaceBlockMetadataError,
+  WorkspaceNoteHeaderError,
+} from "../../../core/workspace/index.ts";
+
 
 function isInvalidServerSearchSource(error: unknown) {
   if (error instanceof RepositoryAdapterError) {

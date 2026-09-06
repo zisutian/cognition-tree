@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
-import type { NotesViewModel } from "../../../../application/workspace/notes/edit/notesViewModel";
-import { CtnEditor } from "../../../editor/CtnEditor";
-import { CtnEditorPanel } from "../../../editor/CtnEditorPanel";
-import { rawCtnEditorTabDisplayWidth } from "../../../editor/ctnEditorRuntime";
+import type { NotesViewModel } from "../../../../application/workspace/index.ts";
+import {
+  CtnEditor,
+  CtnEditorPanel,
+  rawCtnEditorTabDisplayWidth,
+} from "../../../editor/index.ts";
+
+
 import {
   Button,
   EmptyState,
   Panel,
-} from "../../../ui/shared/primitives";
-import { useFeedback } from "../../../ui/shared/FeedbackProvider";
-import { useReferenceNavigation } from "../../../ui/shared/useReferenceNavigation";
+  useFeedback,
+  useReferenceNavigation,
+} from "../../../ui/index.ts";
+
+
 
 export function submitNotesEditorChange({
   authoritativeSource,

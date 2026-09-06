@@ -10,19 +10,19 @@ import type {
   UiWorkbenchOperationalProblem,
   UiWorkbenchProblem,
   UiWorkbenchProblems,
-} from "../../../application/workbench/problems/workbenchProblems";
-import { SymbolSlot, cx } from "../shared/primitives";
-import { ChoiceGroup } from "../shared/controls";
+} from "../../../application/workbench/index.ts";
+import { SymbolSlot, cx } from "../shared/primitives.tsx";
+import { ChoiceGroup } from "../shared/controls.tsx";
 import {
   ToolList,
   ToolListRow,
   ToolToolbar,
-} from "../shared/ToolSurface";
+} from "../shared/ToolSurface.tsx";
 import {
   shouldVirtualizeUiRows,
   uiVirtualOverscan,
   uiVirtualRowHeightPx,
-} from "../shared/virtualListMetrics";
+} from "../shared/virtualListMetrics.ts";
 
 function isOperationalProblem(
   problem: UiWorkbenchProblem,

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { SystemConfigurationValidationError } from "../../../application/system/systemConfigurationModel.ts";
+import { SystemConfigurationValidationError } from "../../../application/system/index.ts";
 import {
   assertStateFields,
   requireStateRecord,
-} from "../state/secureJsonPartition.ts";
+} from "../state/index.ts";
 
 const credentialDigestPattern = /^[0-9a-f]{64}$/;
 const ownerSecretPattern = /^ctn_owner_[A-Za-z0-9_-]{43}$/;

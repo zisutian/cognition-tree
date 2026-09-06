@@ -4,27 +4,29 @@ import { useEffect, useMemo, useState } from "react";
 import type {
   AgentApplication,
   AgentProposalView,
-} from "../../../application/agent";
+} from "../../../application/agent/index.ts";
 import {
   Button,
   EmptyState,
   PanelBody,
-} from "../../ui/shared/primitives";
-import { SelectControl } from "../../ui/shared/controls";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
-import {
-  AgentProposalReview,
-  proposalStoreLabel,
-} from "./AgentProposalReview";
-import { StatusBadge } from "../../ui/shared/StatusPresentation";
-import {
+  SelectControl,
+  useFeedback,
+  StatusBadge,
   ToolDivider,
   ToolDetailPanel,
   ToolPropertyList,
   ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
+} from "../../ui/index.ts";
+
+
+import {
+  AgentProposalReview,
+  proposalStoreLabel,
+} from "./AgentProposalReview.tsx";
+
+
 
 const proposalStatusLabels: Record<AgentProposalView["status"], string> = {
   approved: "已批准",

@@ -2,7 +2,7 @@ import type { SourceModules } from "./moduleImports";
 import type { SourceRoot } from "./sourceArchitecture";
 
 export const coreModules: SourceModules = Object.freeze(
-  import.meta.glob("../../core/**/*.ts", {
+  import.meta.glob("../../core/**/*.{ts,tsx,js,mjs,cjs,mts,cts}", {
     eager: true,
     import: "default",
     query: "?raw",
@@ -10,7 +10,7 @@ export const coreModules: SourceModules = Object.freeze(
 );
 
 export const contractModules: SourceModules = Object.freeze(
-  import.meta.glob("../../contracts/**/*.ts", {
+  import.meta.glob("../../contracts/**/*.{ts,tsx,js,mjs,cjs,mts,cts}", {
     eager: true,
     import: "default",
     query: "?raw",
@@ -19,23 +19,33 @@ export const contractModules: SourceModules = Object.freeze(
 
 export const applicationModules: SourceModules = Object.freeze(
   import.meta.glob(
-    "../../application/**/*.{ts,tsx}",
+    "../../application/**/*.{ts,tsx,js,mjs,cjs,mts,cts}",
     { eager: true, import: "default", query: "?raw" },
   ) as SourceModules,
 );
 
 export const infrastructureModules: SourceModules = Object.freeze(
   import.meta.glob(
-    "../../infrastructure/**/*.ts",
+    "../../infrastructure/**/*.{ts,tsx,js,mjs,cjs,mts,cts}",
     { eager: true, import: "default", query: "?raw" },
   ) as SourceModules,
 );
 
 export const presentationModules: SourceModules = Object.freeze(
   import.meta.glob(
-    "../../presentation/**/*.{ts,tsx}",
+    "../../presentation/**/*.{ts,tsx,js,mjs,cjs,mts,cts}",
     { eager: true, import: "default", query: "?raw" },
   ) as SourceModules,
+);
+
+export const toolingModules: SourceModules = Object.freeze(
+  import.meta.glob("../../tooling/**/*.{ts,tsx,js,mjs,cjs,mts,cts}",
+    { eager: true, import: "default", query: "?raw" }) as SourceModules,
+);
+
+export const sourceAssets: SourceModules = Object.freeze(
+  import.meta.glob("../../{application,contracts,core,infrastructure,presentation,tooling}/**/*.{css,json}",
+    { eager: true, import: "default", query: "?raw" }) as SourceModules,
 );
 
 export const sourceModulesByRoot: Readonly<
@@ -46,6 +56,7 @@ export const sourceModulesByRoot: Readonly<
   application: applicationModules,
   infrastructure: infrastructureModules,
   presentation: presentationModules,
+  tooling: toolingModules,
 });
 
 export const sourceModules: SourceModules = Object.freeze(

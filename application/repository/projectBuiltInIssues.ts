@@ -3,8 +3,8 @@
 import type {
   BuiltInDescriptor,
   BuiltInIssue,
-} from "./builtInCatalog";
-import type { BuiltInSessionSummary } from "./repositoryApplication";
+} from "./builtInCatalog.ts";
+import type { BuiltInSessionSummary } from "./repositoryApplication.ts";
 
 export type BuiltInRuntimeIssue =
   | {

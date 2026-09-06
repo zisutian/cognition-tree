@@ -8,13 +8,13 @@ import {
 import path from "node:path";
 import type {
   RepositoryRevisionDto,
-} from "../../../../../contracts/workspace/types.ts";
+} from "../../../../../contracts/workspace/index.ts";
 import { RepositoryAdapterError, RepositoryCorruptError } from "../../store.ts";
-import { WorkspaceRevisionConflictError } from "../../../../../application/workspace/persistence/workspaceCommitErrors.ts";
+import { WorkspaceRevisionConflictError } from "../../../../../application/workspace/index.ts";
 import {
   fsyncDirectory,
   writeFileDurably,
-} from "../../../persistence/fileSystemPersistence.ts";
+} from "../../../persistence/index.ts";
 import {
   localControlDirectoryName,
   localTransactionsDirectoryName,

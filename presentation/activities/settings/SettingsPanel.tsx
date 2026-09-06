@@ -1,39 +1,39 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Bot, ClipboardList, KeyRound, PanelLeft, ServerCog } from "lucide-react";
-import type { AgentApplication } from "../../../application/agent";
+import type { AgentApplication } from "../../../application/agent/index.ts";
 import {
   CompactContextList,
   CompactContextRow,
-} from "../../ui/shared/CompactContextList";
-import { ApiAccessSettingsPanel } from "./ApiAccessSettingsPanel";
-import { AgentSettingsPanel } from "./AgentSettingsPanel";
+} from "../../ui/index.ts";
+import { ApiAccessSettingsPanel } from "./ApiAccessSettingsPanel.tsx";
+import { AgentSettingsPanel } from "./AgentSettingsPanel.tsx";
 import type {
   AgentSettingsRoute,
   ApiAccessSelection,
   SettingsSection,
-} from "./settingsTypes";
+} from "./settingsTypes.ts";
 import type {
   ApiAccessSettingsPanelView,
-} from "./useApiAccessSettingsSession";
+} from "./useApiAccessSettingsSession.ts";
 import {
   SystemSettingsPanel,
   type SystemSettingsPanelApplication,
-} from "./SystemSettingsPanel";
-import { OperationsSettingsPanel } from "./OperationsSettingsPanel";
+} from "./SystemSettingsPanel.tsx";
+import { OperationsSettingsPanel } from "./OperationsSettingsPanel.tsx";
 import type {
   OperationsSettingsPanelView,
-} from "./useOperationsSettingsSession";
+} from "./useOperationsSettingsSession.ts";
 import {
   InterfaceSettingsPanel,
   type SettingsWorkbenchPreferences,
-} from "./InterfaceSettingsPanel";
+} from "./InterfaceSettingsPanel.tsx";
 import type {
   SystemOwnerCredentialPanelView,
-} from "./useSystemOwnerCredentialSession";
+} from "./useSystemOwnerCredentialSession.ts";
 
-export type { SettingsSection } from "./settingsTypes";
-export type { SettingsWorkbenchPreferences } from "./InterfaceSettingsPanel";
+export type { SettingsSection } from "./settingsTypes.ts";
+export type { SettingsWorkbenchPreferences } from "./InterfaceSettingsPanel.tsx";
 
 const settingsSections = [
   { icon: PanelLeft, id: "interface", label: "界面" },

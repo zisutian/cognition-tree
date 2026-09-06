@@ -3,12 +3,13 @@
 import {
   analyzeCtnSource,
   type CtnCanonicalSourceAnalysis,
-} from "../../ctn/analysis/sourceAnalysis.ts";
-import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator.ts";
-import {
+  createCtnBlockIdAllocator,
   recanonicalizeCtnSourceBlockMetadata,
-} from "../../ctn/metadata/reconcileSourceMetadata.ts";
-import { requireCtnSyntax } from "../../ctn/syntax/compiler.ts";
+  requireCtnSyntax,
+} from "../../ctn/index.ts";
+
+
+
 import type { TodoParseIndex } from "../indexes/todoParseIndex.ts";
 import type {
   TodoCollectionId,

@@ -1,16 +1,19 @@
 import { FolderPlus, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { NotesViewModel } from "../../../../application/workspace/notes/edit/notesViewModel";
-import { Button } from "../../../ui/shared/primitives";
-import { InputControl } from "../../../ui/shared/controls";
+import type { NotesViewModel } from "../../../../application/workspace/index.ts";
 import {
+  Button,
+  InputControl,
   NoteTree,
   TreeMoveQuickPick,
   type TreeNode,
-} from "../../../ui/shared/tree";
-import { useFeedback } from "../../../ui/shared/FeedbackProvider";
-import { useExclusiveAsyncAction } from
-  "../../../ui/shared/useExclusiveAsyncAction";
+  useFeedback,
+  useExclusiveAsyncAction,
+} from "../../../ui/index.ts";
+
+
+
+
 
 export function submitNotesFolderCreation({
   directory,

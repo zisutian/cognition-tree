@@ -4,19 +4,19 @@ import type { FormEvent } from "react";
 import type {
   AgentProviderKind,
   AgentProviderView,
-} from "../../../application/agent";
+} from "../../../application/agent/index.ts";
 import {
   ChoiceGroup,
   InputControl,
   SelectControl,
-} from "../../ui/shared/controls";
-import {
   FieldRow,
   FormActions,
   FormLayout,
-} from "../../ui/shared/FormLayout";
-import { Button } from "../../ui/shared/primitives";
-import type { AgentProfileDraft } from "./agentSettingsDraft";
+  Button,
+} from "../../ui/index.ts";
+
+
+import type { AgentProfileDraft } from "./agentSettingsDraft.ts";
 
 export function AgentProfileSettingsForm({
   busy,

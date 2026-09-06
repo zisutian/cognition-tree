@@ -1,5 +1,8 @@
-import type { CtnCanonicalDocument } from "../../../core/ctn/parser/types";
-import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types";
+import type {
+  CtnCanonicalDocument,
+  CtnCompiledSyntax,
+} from "../../../core/ctn/index.ts";
+
 
 export type UiEditorFocusTarget = {
   lineNumber: number;

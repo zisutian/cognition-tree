@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentOperationReceipt } from '../operations/agentOperationReceipt.ts';
-import type { AgentOperationLedgerPort } from '../operations/operationLedgerPort.ts';
+import type {
+  AgentOperationReceipt,
+  AgentOperationLedgerPort,
+} from '../operations/index.ts';
+
 import type { AgentHostRuntime } from './runtimePorts.ts';
 import { readAgentHostTimestamp } from './runtimePorts.ts';
 import type { AgentCommitStorePort, AgentCommitEventsPort } from './commitPorts.ts';
@@ -15,8 +18,8 @@ import {
 import {
   AgentOperationIndeterminateError,
   type AgentOperationAttempt,
-} from "../operations/operationLedgerPort.ts";
-import { VersionedContentCommitOutcomeUnknownError, VersionedContentRevisionConflictError } from "../persistence/versionedCommitErrors.ts";
+} from "../operations/index.ts";
+import { VersionedContentCommitOutcomeUnknownError, VersionedContentRevisionConflictError } from "../persistence/index.ts";
 import {
   AgentProposalCommitIndeterminateError,
   AgentServiceError,

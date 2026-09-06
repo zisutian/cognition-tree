@@ -4,22 +4,22 @@ import {
   VersionedRepositoryBackendConflictError,
   VersionedRepositoryRemoteError,
   VersionedRepositoryUnavailableError,
-} from "../../../application/persistence/versionedRepository";
+} from "../../../application/persistence/index.ts";
 import type {
   RepositoryApiErrorCode,
-} from "../../../application/repository/workspaceRepositoryCatalog";
+} from "../../../application/repository/index.ts";
 import {
   WorkspaceRepositoryBackendConflictError,
   WorkspaceRepositoryRemoteError,
   WorkspaceRepositoryUnavailableError,
-} from "../../../application/workspace/persistence/workspaceRepository";
-import { parseRepositoryRevision } from "../../../contracts/workspace/revision";
+} from "../../../application/workspace/index.ts";
+import { parseRepositoryRevision } from "../../../contracts/workspace/index.ts";
 import {
   HttpApiResponseError,
   HttpApiUnavailableError,
   requestApiNoContent,
   requestApiJson,
-} from "./apiTransport";
+} from "./apiTransport.ts";
 
 function mapWorkspaceApiErrorCode(
   code: string | null,

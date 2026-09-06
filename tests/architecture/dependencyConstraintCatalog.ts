@@ -21,10 +21,12 @@ export const sourceLayerImports: Readonly<
   core: ["core"],
   infrastructure: ["infrastructure", "application", "contracts", "core"],
   presentation: ["presentation", "infrastructure", "application", "core"],
+  tooling: ["tooling", "contracts", "application", "core", "infrastructure"],
 };
 
 const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   platform: ["platform"],
+  client: ["client"],
   transport: ["transport"],
   "api/protocol": ["api/protocol"],
   runtime: ["runtime", "api/protocol", "transport", "platform", "access", "agent", "api", "api/http", "api/resources", "api/sync", "network", "operations", "persistence", "repository", "state", "system"],
@@ -72,6 +74,7 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
 const clientAreaImports: Readonly<Record<string, readonly string[]>> = {
   http: ["http", "repository"],
   platform: ["platform"],
+  client: ["client"],
   repository: ["repository"],
   runtime: ["http", "platform", "repository", "runtime"],
 };
@@ -430,7 +433,8 @@ export function createDependencyImportPolicies({
     {
       allows: () => false,
       applies: ({ filePath, targetPath }) =>
-        !filePath.startsWith("../../infrastructure/server/") &&
+        (filePath.startsWith("../../infrastructure/client/") ||
+          filePath.startsWith("../../presentation/")) &&
         targetPath.startsWith("../../infrastructure/server/"),
       name: "browser-to-server API boundary",
     },
@@ -499,7 +503,7 @@ export function createDependencyTextPolicies({
       pattern: /^react(?:-dom)?(?:\/|$)/m,
     },
     {
-      allowedPath: /^infrastructure\//,
+      allowedPath: /^(?:infrastructure|tooling)\//,
       corpus: sourceImportCorpus,
       matches: { min: 1 },
       name: "Node runtime ownership",

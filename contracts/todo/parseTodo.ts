@@ -10,7 +10,7 @@ import {
   readWireObject,
   readWireString,
   UnsupportedWireVersionError,
-} from "../common/contractValue.ts";
+} from "../common/index.ts";
 import type {
   TodoCollectionDto,
   TodoCompletionDto,

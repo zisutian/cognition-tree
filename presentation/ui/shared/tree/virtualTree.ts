@@ -13,7 +13,7 @@ import {
 import {
   uiVirtualOverscan,
   uiVirtualRowHeightPx,
-} from "../virtualListMetrics";
+} from "../virtualListMetrics.ts";
 
 const emptyPinnedIndexes: ReadonlySet<number> = new Set();
 

@@ -3,17 +3,15 @@
 import {
   createJournalParseIndex,
   type JournalParseIndex,
-} from "../../../core/journal/indexes/journalParseIndex.ts";
-import type { JournalContent } from "../../../core/journal/model/journalContent.ts";
-import {
   JournalContentValidationError,
-} from "../../../core/journal/model/journalErrors.ts";
-import {
   validateJournalContentAnalysisTransition,
-} from "../../../core/journal/model/journalValidation.ts";
+} from "../../../core/journal/index.ts";
+import type { JournalContent } from "../../../core/journal/index.ts";
+
+
 import type {
   PreparedVersionedContent,
-} from "../../persistence/versionedRepository.ts";
+} from "../../persistence/index.ts";
 
 export function prepareJournalRepositoryContent(
   content: JournalContent,

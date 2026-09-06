@@ -9,8 +9,8 @@ import type {
   MouseEvent,
   ReactNode,
 } from "react";
-import { SymbolSlot, cx } from "./primitives";
-import { InputControl } from "./controls";
+import { SymbolSlot, cx } from "./primitives.tsx";
+import { InputControl } from "./controls.tsx";
 
 export function CompactContextStatusIcon({
   children,

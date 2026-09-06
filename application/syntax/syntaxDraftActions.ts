@@ -6,12 +6,11 @@ import {
   type CtnSyntaxDraftBlock,
   type CtnSyntaxDraftDisplayRule,
   type CtnSyntaxDraftInline,
-} from "../../core/ctn/syntax/draft";
-import {
   normalizeCtnSyntaxTabDisplayWidthInput,
   ctnSyntaxSchema,
-} from "../../core/ctn/syntax/schema";
-import type { CtnSyntaxOwner } from "../../core/ctn/syntax/types";
+} from "../../core/ctn/index.ts";
+
+import type { CtnSyntaxOwner } from "../../core/ctn/index.ts";
 
 export function createSyntaxDraftActions({
   owner,

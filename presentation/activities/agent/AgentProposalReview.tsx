@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Copy } from "lucide-react";
-import type { AgentProposalView } from "../../../application/agent";
-import { Button } from "../../ui/shared/primitives";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
+import type { AgentProposalView } from "../../../application/agent/index.ts";
 import {
+  Button,
+  useFeedback,
   ToolPropertyList,
   ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
+} from "../../ui/index.ts";
+
+
 
 type ReviewResource = AgentProposalView["review"]["resources"][number];
 

@@ -5,45 +5,48 @@ import type {
   RepositoryRevision,
   WorkspaceRepository,
   WorkspaceRepositoryContent,
-} from "../persistence/workspaceRepository";
+} from "../persistence/workspaceRepository.ts";
 import {
   createVersionedSessionController,
   type VersionedSessionState,
-} from "../../persistence/versionedSessionController";
+} from "../../persistence/index.ts";
 import type {
   VersionedRepositoryPersistenceState,
-} from "../../persistence/versionedRepositorySaveQueue";
-import type {
   VersionedRepositoryConflictDetails,
-} from "../../persistence/versionedRepository";
+} from "../../persistence/index.ts";
+
 import {
   createInitialWorkspaceSyntax,
   type WorkspaceSyntax,
-} from "../../../core/workspace/context/workspaceSyntax";
-import type { WorkspaceContext } from "../../../core/workspace/context/workspaceContext";
-import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
-import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
+} from "../../../core/workspace/index.ts";
+import type {
+  WorkspaceContext,
+  WorkspaceStructureIndex,
+  WorkspaceParseIndex,
+} from "../../../core/workspace/index.ts";
+
+
 import {
   createSessionCommands,
   type SessionCommandDependencies,
   type SessionCommands,
-} from "./sessionCommands";
+} from "./sessionCommands.ts";
 import {
   type WorkspaceSessionProjection,
-} from "./sessionRepositorySnapshot";
-import { prepareWorkspaceRepositoryContent } from "../persistence/workspaceRepositoryPreparation";
-import type { ApplicationScheduler } from "../../runtime/applicationScheduler";
+} from "./sessionRepositorySnapshot.ts";
+import { prepareWorkspaceRepositoryContent } from "../persistence/workspaceRepositoryPreparation.ts";
+import type { ApplicationScheduler } from "../../runtime/index.ts";
 import {
   createWorkspaceSyntaxCatalogMutationService,
   type WorkspaceSyntaxCatalogMutation,
-} from "./workspaceSyntaxCatalogMutationService";
+} from "./workspaceSyntaxCatalogMutationService.ts";
 import {
   recoverWorkspaceLocalConflictCopies,
-} from "../persistence/workspaceConflictRecovery";
+} from "../persistence/workspaceConflictRecovery.ts";
 import {
   createWorkspaceSyntaxCatalogReadModel,
   type WorkspaceSyntaxCatalogReadModel,
-} from "../projection/workspaceSyntaxCatalogReadModel";
+} from "../projection/workspaceSyntaxCatalogReadModel.ts";
 
 export type WorkspacePersistenceState = VersionedRepositoryPersistenceState<
   RepositoryRevision

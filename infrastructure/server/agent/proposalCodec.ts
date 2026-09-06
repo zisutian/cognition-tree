@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createHash } from "node:crypto";
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
 
 export function digestAgentProposal(value: unknown): `sha256:${string}` {
   return `sha256:${createHash("sha256")

@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
-import type {
-  OwnerAuthenticationPort,
-  SystemAdministrationPort,
-} from "../../../application/system/systemConfiguration.ts";
-import { parseApiSchema } from "../../../contracts/api/parse.ts";
 import {
+  buildApiOperationPath,
+  parseApiSchema,
   ApiDataRootMigrationStatusSchema,
   ApiOwnerCredentialRotationPreparationSchema,
   ApiOwnerSessionSchema,
   ApiSystemConfigurationSnapshotSchema,
-} from "../../../contracts/api/schemas/system.ts";
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
+} from "../../../contracts/api/index.ts";
+import type {
+  OwnerAuthenticationPort,
+  SystemAdministrationPort,
+} from "../../../application/system/index.ts";
+
+
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
 import {
   requestApiJson,
   requestApiNoContent,

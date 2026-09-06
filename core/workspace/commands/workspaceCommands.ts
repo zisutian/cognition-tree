@@ -13,20 +13,21 @@ import {
   initializeCtnSourceBlockMetadata,
   replaceCtnSourceTitle,
   touchCtnSourceTitleMetadata,
-} from "../../ctn/metadata/sourceMetadata.ts";
-import { reconcileCtnSourceBlockMetadata } from "../../ctn/metadata/reconcileSourceMetadata.ts";
-import {
+  reconcileCtnSourceBlockMetadata,
   assertCtnEditableSourceChange,
   type CtnEditableSourceChange,
-} from "../../ctn/metadata/textEdits.ts";
-import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator.ts";
-import { readCtnCanonicalTitleHeader } from "../../ctn/parser/parseCtnDocument.ts";
-import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
-import {
+  createCtnBlockIdAllocator,
+  readCtnCanonicalTitleHeader,
   analyzeCtnSource,
   type CtnCanonicalSourceAnalysis,
-} from "../../ctn/analysis/sourceAnalysis.ts";
-import { parsePortableName } from "../../naming/portableName.ts";
+} from "../../ctn/index.ts";
+
+
+
+
+import type { CtnCompiledSyntax } from "../../ctn/index.ts";
+
+import { parsePortableName } from "../../naming/index.ts";
 import {
   createNoteRecord,
   createCanonicalNoteSource,
@@ -39,7 +40,7 @@ import {
 import {
   DomainNotFoundError,
   DomainValidationError,
-} from "../../errors/domainErrors.ts";
+} from "../../errors/index.ts";
 
 function hasWorkspaceNote(workspace: WorkspaceStructureIndex, noteId: NoteId) {
   return workspace.noteEntryById.has(noteId);

@@ -1,15 +1,15 @@
 import type { CSSProperties } from "react";
 import { useCallback, useMemo, useRef } from "react";
-import { cx } from "../primitives";
-import { DirectoryTreeRow } from "./DirectoryTreeRow";
-import type { DirectoryTreeRow as DirectoryTreeRowModel } from "./directoryRows";
+import { cx } from "../primitives.tsx";
+import { DirectoryTreeRow } from "./DirectoryTreeRow.tsx";
+import type { DirectoryTreeRow as DirectoryTreeRowModel } from "./directoryRows.ts";
 import {
   isActiveDirectoryTreeNode,
   type DirectoryTreeRenderContext,
-} from "./directoryTreeRender";
-import { getTreeNodeReference, getTreeNodeReferenceKey } from "./drag";
-import type { TreeNode } from "./types";
-import { useVirtualTreeRows } from "./virtualTree";
+} from "./directoryTreeRender.ts";
+import { getTreeNodeReference, getTreeNodeReferenceKey } from "./drag.ts";
+import type { TreeNode } from "./types.ts";
+import { useVirtualTreeRows } from "./virtualTree.ts";
 
 type VirtualDirectoryTreeItemStyle = CSSProperties & {
   "--ui-directory-depth": string;

@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { FieldRow, FormLayout } from "../../ui/shared/FormLayout";
-import { InputControl } from "../../ui/shared/controls";
 import {
+  FieldRow,
+  FormLayout,
+  InputControl,
   ToolPanel,
   ToolPanelBody,
   ToolSection,
-} from "../../ui/shared/ToolSurface";
+} from "../../ui/index.ts";
+
+
 
 export type SettingsWorkbenchPreferences = {
   contextWidth: number;

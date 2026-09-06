@@ -1,25 +1,28 @@
 import type {
   JournalDiagnostic,
   JournalDiagnostics,
-} from "../../journal/journalDiagnostics";
+} from "../../journal/index.ts";
 import type {
   TodoDiagnostic,
   TodoDiagnostics,
-} from "../../todo/todoDiagnostics";
-import type { BuiltInRuntimeIssue } from "../../repository/projectBuiltInIssues";
-import type { WorkspaceRepositoryRuntimeIssue } from "../../repository/projectWorkspaceRepositoryIssues";
+} from "../../todo/index.ts";
+import type {
+  BuiltInRuntimeIssue,
+  WorkspaceRepositoryRuntimeIssue,
+  BuiltInId,
+  WorkspaceRepositoryCatalogIssue,
+  WorkspaceRepositoryDescriptor,
+} from "../../repository/index.ts";
+
 import type {
   UiWorkbenchDiagnostic,
   UiWorkbenchDiagnostics,
-} from "../../workspace/projection/viewDiagnostics";
+} from "../../workspace/index.ts";
 import { projectRepositoryIssueMessage } from
-  "../../repository/repositoryIssueProjection";
-import type { BuiltInId } from "../../repository/builtInCatalog";
-import type {
-  WorkspaceRepositoryCatalogIssue,
-  WorkspaceRepositoryDescriptor,
-} from "../../repository/workspaceRepositoryCatalog";
-import type { OperationalProblem } from "../../problems/problemCenter";
+  "../../repository/index.ts";
+
+
+import type { OperationalProblem } from "../../problems/index.ts";
 
 export type WorkbenchAgentProblemInput = Readonly<{
   code: string;

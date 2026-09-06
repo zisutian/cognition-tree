@@ -3,9 +3,9 @@
 import {
   moveCtnBlockWithinText,
   type CtnBlockTextTargetPosition,
-} from "../../ctn/parser/blockTextEdit.ts";
-import type { CtnCanonicalBlock } from "../../ctn/parser/types.ts";
-import { DomainNotFoundError } from "../../errors/domainErrors.ts";
+} from "../../ctn/index.ts";
+import type { CtnCanonicalBlock } from "../../ctn/index.ts";
+import { DomainNotFoundError } from "../../errors/index.ts";
 import type { TodoParseIndex } from "../indexes/todoParseIndex.ts";
 import type {
   TodoCollectionId,

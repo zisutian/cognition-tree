@@ -3,7 +3,7 @@
 import type {
   CtnCanonicalBlock,
   CtnCanonicalDocument,
-} from "../ctn/parser/types.ts";
+} from "../ctn/index.ts";
 
 export type CtnResourceDomain = "journal" | "todo" | "workspace";
 

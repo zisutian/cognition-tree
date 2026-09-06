@@ -4,7 +4,7 @@ import { mkdir, readdir, realpath, rm } from "node:fs/promises";
 import path from "node:path";
 import { lock } from "proper-lockfile";
 import { RepositoryCatalogError } from "../../catalog.ts";
-import { fsyncDirectory } from "../../../persistence/fileSystemPersistence.ts";
+import { fsyncDirectory } from "../../../persistence/index.ts";
 import { localRepositoryWriterLockName } from "../../repositoryRuntimeLayout.ts";
 
 const catalogCreateStagingPattern =

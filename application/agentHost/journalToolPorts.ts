@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { AgentStagingFor } from './sessionToolState.ts';
-import type { JournalAgentCommandRuntime } from '../journal/journalAgentCommandPreparation.ts';
-import type { JournalDomainVersions } from '../journal/journalDomainCommands.ts';
-import type { ParsedJournalIndexEntry } from '../../core/journal/indexes/journalParseIndex.ts';
+import type {
+  JournalAgentCommandRuntime,
+  JournalDomainVersions,
+} from '../journal/index.ts';
+
+import type { ParsedJournalIndexEntry } from '../../core/journal/index.ts';
 
 type Snapshot = AgentStagingFor<'journal'>['base'];
 export type JournalAgentToolPorts = {

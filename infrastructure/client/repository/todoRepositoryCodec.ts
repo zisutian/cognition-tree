@@ -1,23 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseContentRevision } from "../../../contracts/common/contractValue";
-import { parseTodoContent, parseTodoSnapshot } from "../../../contracts/todo/parseTodo";
+import { parseContentRevision } from "../../../contracts/common/index.ts";
+import { parseTodoContent, parseTodoSnapshot } from "../../../contracts/todo/index.ts";
 import {
   validateTodoContent,
   validateTodoContentTransition,
-} from "../../../core/todo/model/todoValidation";
-import { TodoContentValidationError } from "../../../core/todo/model/todoErrors";
-import type { TodoContent } from "../../../core/todo/model/todoContent";
-import type { TodoParseIndex } from "../../../core/todo/indexes/todoParseIndex";
-import type { TodoRevision } from "../../../application/todo/persistence/todoRepository";
+  TodoContentValidationError,
+} from "../../../core/todo/index.ts";
+
+import type {
+  TodoContent,
+  TodoParseIndex,
+} from "../../../core/todo/index.ts";
+
+import type { TodoRevision } from "../../../application/todo/index.ts";
 import {
   prepareTodoRepositoryContent,
   validateTodoRepositoryPreparedTransition,
-} from "../../../application/todo/persistence/todoRepositoryPreparation";
+} from "../../../application/todo/index.ts";
 import type {
   VersionedContentPreparationPolicy,
   VersionedRepositoryCodec,
-} from "../../../application/persistence/versionedRepository";
+} from "../../../application/persistence/index.ts";
 
 export const todoRepositoryCodec: VersionedRepositoryCodec<
   TodoContent,

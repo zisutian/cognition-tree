@@ -5,7 +5,7 @@ import type {
   UiFolderId,
   UiNoteId,
   UiTreeMoveRequest,
-} from "../projection/viewTree";
+} from "../projection/viewTree.ts";
 
 export type WorkspaceDirectoryMutations = {
   deleteFolder: (folderId: UiFolderId) => void;

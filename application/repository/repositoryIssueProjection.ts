@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { WorkspaceRepositoryCatalogIssue } from
-  "./workspaceRepositoryCatalog";
+  "./workspaceRepositoryCatalog.ts";
 
 export const unsupportedLocalRepositoryMessage =
   "仓库格式不受支持，需要手工删除该目录。";

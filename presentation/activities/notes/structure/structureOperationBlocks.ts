@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import {
   flattenUiBlockSubtree,
   type UiBlockNode,
-} from "../../../../application/workspace/projection/viewBlocks";
+} from "../../../../application/workspace/index.ts";
 
 export function findBlockByLineNumber(
   blocks: UiBlockNode[],

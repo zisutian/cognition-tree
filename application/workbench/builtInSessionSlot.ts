@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { BuiltInDescriptor } from "../repository/builtInCatalog";
+import type { BuiltInDescriptor } from "../repository/index.ts";
 
 type BuiltInSessionController = {
   dispose(): void;

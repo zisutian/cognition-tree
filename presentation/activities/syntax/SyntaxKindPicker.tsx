@@ -1,7 +1,10 @@
 import { Check, ChevronDown } from "lucide-react";
-import type { SyntaxViewModel } from "../../../application/syntax/syntaxViewModel";
-import { Popover } from "../../ui/shared/Popover";
-import { Button } from "../../ui/shared/primitives";
+import type { SyntaxViewModel } from "../../../application/syntax/index.ts";
+import {
+  Popover,
+  Button,
+} from "../../ui/index.ts";
+
 
 type SyntaxKind = SyntaxViewModel["kindOptions"][number]["value"];
 

@@ -2,24 +2,23 @@
 
 import {
   type TodoContent,
-} from "../../core/todo/model/todoContent";
+  type TodoParseIndex,
+} from "../../core/todo/index.ts";
 import type {
   TodoLocalDraftRevision,
   TodoRevision,
   TodoRepository,
-} from "./persistence/todoRepository";
+} from "./persistence/todoRepository.ts";
 import {
   createVersionedSessionController,
   type VersionedSessionState,
-} from "../persistence/versionedSessionController";
-import type { ApplicationScheduler } from "../runtime/applicationScheduler";
-import {
-  type TodoParseIndex,
-} from "../../core/todo/indexes/todoParseIndex";
+} from "../persistence/index.ts";
+import type { ApplicationScheduler } from "../runtime/index.ts";
+
 import {
   recoverTodoLocalConflictCopies,
   type TodoConflictRecoveryDependencies,
-} from "./persistence/todoConflictRecovery";
+} from "./persistence/todoConflictRecovery.ts";
 
 export type TodoSessionState = VersionedSessionState<
   TodoContent,

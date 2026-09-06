@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { SecureStatePartitionError, SecureStateCommitOutcomeUnknownError } from '../../../application/persistence/secureStateErrors.ts';
+import { SecureStatePartitionError, SecureStateCommitOutcomeUnknownError } from '../../../application/persistence/index.ts';
 import path from "node:path";
 import { lock } from "proper-lockfile";
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
 import {
   confirmSecureFileDurably,
   readSecureFileUtf8,
   replaceFileDurably,
-} from "../persistence/fileSystemPersistence.ts";
+} from "../persistence/index.ts";
 import { ensureSecureStateDirectory } from "./secureStateFileSystem.ts";
 
 class SecureStateLockReleaseError extends SecureStatePartitionError {

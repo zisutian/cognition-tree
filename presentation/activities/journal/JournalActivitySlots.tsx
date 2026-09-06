@@ -1,11 +1,11 @@
-import type { JournalViewModel } from "../../../application/journal";
-import type { ActivitySlots } from "../../ui/activityTypes";
+import type { JournalViewModel } from "../../../application/journal/index.ts";
+import type { ActivitySlots } from "../../ui/index.ts";
 import "./journal.css";
 import {
   JournalContext,
   JournalDetailPanel,
   JournalEditorPanel,
-} from "./JournalPanels";
+} from "./JournalPanels.tsx";
 
 export function createJournalActivitySlots({
   focusMode,

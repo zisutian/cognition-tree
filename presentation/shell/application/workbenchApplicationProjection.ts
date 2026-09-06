@@ -3,8 +3,8 @@
 import type {
   WorkbenchController,
   WorkbenchControllerSnapshot,
-} from "../../../application/workbench/workbenchController";
-import type { WorkbenchApplication } from "./workbenchApplication";
+} from "../../../application/workbench/index.ts";
+import type { WorkbenchApplication } from "./workbenchApplication.ts";
 
 export function projectUnavailableWorkspace(
   controller: WorkbenchController,

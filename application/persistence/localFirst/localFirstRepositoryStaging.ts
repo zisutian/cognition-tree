@@ -7,8 +7,8 @@ import {
   type PreparedVersionedContentChange,
   type VersionedContentMergePolicy,
   type VersionedContentPreparationPolicy,
-} from "../versionedRepository";
-import type { VersionedRepositoryCache } from "../versionedRepositoryCache";
+} from "../versionedRepository.ts";
+import type { VersionedRepositoryCache } from "../versionedRepositoryCache.ts";
 import type {
   LocalFirstRepositoryProjectionPort,
 } from "./localFirstRepositoryProjectionPort.ts";

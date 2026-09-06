@@ -1,28 +1,29 @@
 import {
   createDefaultRepositorySelection,
   type RepositorySelection,
-} from "../../../application/repository/repositorySelection";
+  projectRepositoryLabelIssueMessage,
+} from "../../../application/repository/index.ts";
 import type { RepositoryViewModel } from
-  "../../../application/repository/repositoryViewModel";
-import { projectRepositoryLabelIssueMessage } from
-  "../../../application/repository/ordinaryRepositoryViewModel";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
+  "../../../application/repository/index.ts";
+
 import {
+  useFeedback,
   ToolDetailPanel,
   ToolPanelBody,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
+} from "../../ui/index.ts";
+
 import {
   RepositoryLocations,
   RepositoryMetadata,
-} from "./RepositoryDetailShared";
-import { RepositoryConflictStatus } from "./RepositoryConflictResolution";
+} from "./RepositoryDetailShared.tsx";
+import { RepositoryConflictStatus } from "./RepositoryConflictResolution.tsx";
 import {
   builtInLabel,
   copyRepositoryLocation,
   selectedRepositoryTarget,
-} from "./repositoryViewHelpers";
+} from "./repositoryViewHelpers.ts";
 
 export function RepositoryStatusPanel({
   onCollapseDetail,

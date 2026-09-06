@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { AgentStagingFor } from './sessionToolState.ts';
-import type { CommandRuntime } from '../commands/commandRuntime.ts';
-import type { WorkspaceResourceVersionPolicy } from '../workspace/commands/workspaceAgentCommandPreparation.ts';
+import type { CommandRuntime } from '../commands/index.ts';
+import type { WorkspaceResourceVersionPolicy } from '../workspace/index.ts';
 
 type Snapshot = AgentStagingFor<'workspace'>['base'];
 type WorkspaceResource = {kind: 'note'; noteId: string} | {kind: 'folder'; folderId: string};

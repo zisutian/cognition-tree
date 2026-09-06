@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { WorkspaceRepositoryDescriptor } from
-  "../../repository/workspaceRepositoryCatalog";
+  "../../repository/index.ts";
 import type {
   WorkspaceRepository,
   WorkspaceRepositoryContent,
-} from "./workspaceRepository";
+} from "./workspaceRepository.ts";
 
 export type ProvisionWorkspaceRepositoryInput = {
   content: WorkspaceRepositoryContent;

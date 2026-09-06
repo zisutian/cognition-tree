@@ -2,19 +2,17 @@ import {
   analyzeCtnSource,
   reprojectCtnAnalysisPresentation,
   type CtnCanonicalSourceAnalysis,
-} from "../../ctn/analysis/sourceAnalysis.ts";
-import {
   createCtnBlockIdRegistry,
   updateCtnBlockIdRegistry,
   type CtnBlockIdRegistry,
   type CtnBlockIdRegistryChange,
-} from "../../ctn/analysis/blockIdRegistry.ts";
-import {
   collectCtnInlineReferences,
   ctnGlobalReferenceType,
   normalizeCtnReferenceText,
-} from "../../ctn/parser/inlineReferences.ts";
-import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
+} from "../../ctn/index.ts";
+
+
+import type { CtnCompiledSyntax } from "../../ctn/index.ts";
 import type { NoteId, WorkspaceNote } from "../model/workspaceData.ts";
 import type { WorkspaceStructureIndex } from "./workspaceStructureIndex.ts";
 

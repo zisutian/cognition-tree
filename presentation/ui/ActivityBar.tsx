@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ActivityId, ActivityNavigationItem } from "./activityTypes";
+import type { ActivityId, ActivityNavigationItem } from "./activityTypes.ts";
 
 function ActivityGroup({
   activeActivityId,

@@ -32,11 +32,16 @@ export function auditTextPolicies(policies: readonly TextPolicy[]) {
   const violations: string[] = [];
 
   for (const policy of policies) {
-    const matches = Object.entries(policy.corpus)
+    const scoped = Object.entries(policy.corpus)
       .map(([filePath, source]) =>
         [filePath.replace(/^(?:\.\.\/)+/, ""), source] as const
       )
-      .filter(([filePath]) => test(filePath, policy.scope))
+      .filter(([filePath]) => test(filePath, policy.scope));
+    if (scoped.length === 0) {
+      violations.push(`${policy.name}: scan scope is empty`);
+      continue;
+    }
+    const matches = scoped
       .filter(([, source]) => test(source, policy.pattern))
       .map(([filePath]) => filePath)
       .sort();

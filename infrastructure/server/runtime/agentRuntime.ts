@@ -1,26 +1,45 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { serverApplicationScheduler } from '../platform/applicationScheduler.ts';
-import type { ApiBuiltInCatalog } from '../repository/built-ins/catalogPort.ts';
-import type { ApiRuntime } from '../api/http/runtime.ts';
-import type { WorkspaceRepositoryCatalog } from '../repository/catalog.ts';
-import type { ApiEventHub } from '../api/sync/events.ts';
-import type { DomainRevisionTracker } from '../../../application/sync/domainRevisionTracker.ts';
-import type { OperationLedger } from '../operations/operationLedger.ts';
-import { AgentService } from '../../../application/agentHost/service.ts';
-import type { AgentRuntimeFactory, AgentToolProtocolPort } from '../../../application/agentHost/runtimePorts.ts';
-import type { AgentServicePolicy } from '../../../application/agentHost/servicePolicy.ts';
-import { serializeJsonIteratively } from '../../../contracts/common/json.ts';
-import type { AgentConfigurationStore } from '../agent/configurationStore.ts';
-import { ConfiguredAgentRuntimeFactory } from '../agent/configuredAgentRuntimeFactory.ts';
-import { AgentPrivateIpcServer } from '../agent/privateIpc.ts';
-import { createPrivateAgentTools } from '../agent/privateToolProcess.ts';
-import { AgentProposalCommitter } from '../../../application/agentHost/proposalCommitter.ts';
-import { AgentProviderTargetPolicy } from '../agent/providerTargetPolicy.ts';
+import { serverApplicationScheduler } from '../platform/index.ts';
+import type {
+  ApiBuiltInCatalog,
+  WorkspaceRepositoryCatalog,
+} from '../repository/index.ts';
+import type { ApiRuntime } from '../api/http/index.ts';
+
+import type { ApiEventHub } from '../api/sync/index.ts';
+import type { DomainRevisionTracker } from '../../../application/sync/index.ts';
+import type { OperationLedger } from '../operations/index.ts';
+import {
+  AgentService,
+  AgentProposalCommitter,
+} from '../../../application/agentHost/index.ts';
+import type {
+  AgentRuntimeFactory,
+  AgentToolProtocolPort,
+  AgentServicePolicy,
+} from '../../../application/agentHost/index.ts';
+
+import { serializeJsonIteratively } from '../../../contracts/common/index.ts';
+import type { AgentConfigurationStore } from '../agent/index.ts';
+import {
+  ConfiguredAgentRuntimeFactory,
+  AgentPrivateIpcServer,
+  createPrivateAgentTools,
+  AgentProviderTargetPolicy,
+  agentRuntimeToolsForScope,
+} from '../agent/index.ts';
+
+
+
+
 import { createServerAgentTools } from "./agentToolRuntime.ts";
-import { agentRuntimeToolsForScope } from '../agent/sessionToolProtocol.ts';
-import type { SearchQuery } from "../../../application/search/searchTypes.ts";
-import type { SearchAccess } from "../../../application/search/scopedSearch.ts";
+
+import type {
+  SearchQuery,
+  SearchAccess,
+} from "../../../application/search/index.ts";
+
 
 type CommitDependencies = {
   builtInCatalog: ApiBuiltInCatalog;

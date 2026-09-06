@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
-import { createStateDigest } from "../state/stateDigest.ts";
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
 import {
+  createStateDigest,
   assertStateFields,
   requireStateRecord,
-} from "../state/secureJsonPartition.ts";
+} from "../state/index.ts";
+
 
 export const agentCredentialFormatVersion = 1;
 const agentCredentialProviderIdPattern =

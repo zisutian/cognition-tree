@@ -3,30 +3,29 @@
 import {
   projectCtnEditableText,
   projectRawCanonicalCtnBody,
-} from "../../core/ctn/analysis/editableProjection.ts";
+} from "../../core/ctn/index.ts";
 import {
   createJournalEntryBodyProjection,
-} from "../../core/journal/model/journalEntryProjection.ts";
+} from "../../core/journal/index.ts";
 import type {
   JournalParseIndex,
-} from "../../core/journal/indexes/journalParseIndex.ts";
+} from "../../core/journal/index.ts";
 import {
   createTodoCollectionBodyProjection,
-} from "../../core/todo/model/todoCollectionProjection.ts";
+} from "../../core/todo/index.ts";
 import type {
   TodoParseIndex,
-} from "../../core/todo/indexes/todoParseIndex.ts";
+} from "../../core/todo/index.ts";
 import type {
   WorkspaceParseIndex,
-} from "../../core/workspace/indexes/workspaceParseIndex.ts";
-import type {
   WorkspaceStructureIndex,
-} from "../../core/workspace/indexes/workspaceStructureIndex.ts";
-import { createCtnSearchDocument } from "../search/searchDocuments.ts";
+} from "../../core/workspace/index.ts";
+
+import { createCtnSearchDocument } from "../search/index.ts";
 import type {
   SearchDocument,
   SearchResourceVersion,
-} from "../search/searchTypes.ts";
+} from "../search/index.ts";
 
 export type CreateSearchResourceVersion = (
   value: unknown,

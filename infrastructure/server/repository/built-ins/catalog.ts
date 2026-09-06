@@ -12,31 +12,33 @@ import path from "node:path";
 import {
   WireContractError,
   UnsupportedWireVersionError,
-} from "../../../../contracts/common/contractValue.ts";
-import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
-import { builtInLabel, parseBuiltInId } from "../../../../contracts/built-ins/parseBuiltIns.ts";
+  serializeJsonIteratively,
+} from "../../../../contracts/common/index.ts";
+
+import { builtInLabel, parseBuiltInId } from "../../../../contracts/built-ins/index.ts";
 import type {
   BuiltInCatalogDto,
   BuiltInDescriptorDto,
   BuiltInIdDto,
   BuiltInIssueDto,
   BuiltInRetryResultDto,
-} from "../../../../contracts/built-ins/types.ts";
-import { journalStorageEpoch } from "../../../../contracts/journal/storageEpoch.ts";
-import type { JournalContentDto } from "../../../../contracts/journal/types.ts";
-import type { JournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex.ts";
-import { createEmptyJournalContent } from "../../../../core/journal/model/journalContent.ts";
-import { createEmptyTodoContent } from "../../../../core/todo/model/todoContent.ts";
-import { todoStorageEpoch } from "../../../../contracts/todo/storageEpoch.ts";
-import type { TodoContentDto } from "../../../../contracts/todo/types.ts";
-import type { TodoParseIndex } from "../../../../core/todo/indexes/todoParseIndex.ts";
-import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
+} from "../../../../contracts/built-ins/index.ts";
+import { journalStorageEpoch } from "../../../../contracts/journal/index.ts";
+import type { JournalContentDto } from "../../../../contracts/journal/index.ts";
+import type { JournalParseIndex } from "../../../../core/journal/index.ts";
+import { createEmptyJournalContent } from "../../../../core/journal/index.ts";
+import { createEmptyTodoContent } from "../../../../core/todo/index.ts";
+import { todoStorageEpoch } from "../../../../contracts/todo/index.ts";
+import type { TodoContentDto } from "../../../../contracts/todo/index.ts";
+import type { TodoParseIndex } from "../../../../core/todo/index.ts";
 import {
+  hasFileSystemErrorCode,
   isSecureDirectory,
   isSecureRegularFile,
   readFileHandleUtf8,
   replaceFileDurably,
-} from "../../persistence/fileSystemPersistence.ts";
+} from "../../persistence/index.ts";
+
 import {
   createFileSystemJournalContentStore,
 } from "./journalStore.ts";

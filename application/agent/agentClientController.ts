@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ApplicationScheduler } from "../runtime/applicationScheduler.ts";
+import type { ApplicationScheduler } from "../runtime/index.ts";
 import type {
   AgentClientEvent,
   AgentClientEventStream,
@@ -15,7 +15,7 @@ import type {
 import type {
   AgentProfilePreferencePort,
 } from "./agentProfilePreference.ts";
-import type { ProblemReporter } from "../problems/problemCenter.ts";
+import type { ProblemReporter } from "../problems/index.ts";
 
 export type AgentClientState = Readonly<{
   activeSessionId: string | null;

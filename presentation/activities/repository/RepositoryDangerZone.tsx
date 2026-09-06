@@ -1,12 +1,16 @@
 import { Trash2 } from "lucide-react";
 import type {
   RepositoryOption,
-} from "../../../application/repository/ordinaryRepositoryViewModel";
-import type { RepositoryViewModel } from
-  "../../../application/repository/repositoryViewModel";
-import { Button, cx } from "../../ui/shared/primitives";
-import { ToolSection } from "../../ui/shared/ToolSurface";
-import { RepositoryDeleteConfirmation } from "./RepositoryDeleteConfirmation";
+  RepositoryViewModel,
+} from "../../../application/repository/index.ts";
+
+import {
+  Button,
+  cx,
+  ToolSection,
+} from "../../ui/index.ts";
+
+import { RepositoryDeleteConfirmation } from "./RepositoryDeleteConfirmation.tsx";
 
 export function RepositoryDangerZone({
   busy,

@@ -1,48 +1,57 @@
-import { JournalContentValidationError } from "../../core/journal/model/journalErrors";
-import { TodoContentValidationError } from "../../core/todo/model/todoErrors";
-import { CtnDocumentMetadataError } from "../../core/ctn/parser/parseCtnDocument";
-import { CtnBlockMetadataSyntaxError } from "../../core/ctn/metadata/blockMetadata";
-import { WorkspaceBlockMetadataError } from "../../core/workspace/context/workspaceBlockMetadata";
-import { WorkspaceNoteHeaderError } from "../../core/workspace/model/workspaceData";
+import { JournalContentValidationError } from "../../core/journal/index.ts";
+import { TodoContentValidationError } from "../../core/todo/index.ts";
+import {
+  CtnDocumentMetadataError,
+  CtnBlockMetadataSyntaxError,
+} from "../../core/ctn/index.ts";
+
+import {
+  WorkspaceBlockMetadataError,
+  WorkspaceNoteHeaderError,
+} from "../../core/workspace/index.ts";
+
 import type {
   WorkspaceSessionControllerState,
-} from "../workspace/session/workspaceSessionController";
+  WorkspaceRepositoryProvider,
+} from "../workspace/index.ts";
 import type {
   JournalSessionState,
-} from "../journal/journalSessionController";
-import type { TodoSessionState } from "../todo/todoSessionController";
+  JournalRepositoryProvider,
+} from "../journal/index.ts";
+import type {
+  TodoSessionState,
+  TodoRepositoryProvider,
+} from "../todo/index.ts";
 import type {
   BuiltInCatalog,
   BuiltInDescriptor,
-} from "../repository/builtInCatalog";
-import type { JournalRepositoryProvider } from "../journal/persistence/journalRepository";
-import type { TodoRepositoryProvider } from "../todo/persistence/todoRepository";
-import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,
-} from "../repository/workspaceRepositoryCatalog";
-import { WorkspaceRepositoryRemoteError } from "../workspace/persistence/workspaceRepository";
-import type { WorkspaceRepositoryProvider } from "../workspace/persistence/workspaceRepositoryProvider";
+} from "../repository/index.ts";
+
+
+
+import { WorkspaceRepositoryRemoteError } from "../workspace/index.ts";
+
 import {
   VersionedRepositoryRemoteError,
-} from "../persistence/versionedRepository";
+} from "../persistence/index.ts";
 import {
   projectJournalSearchDocuments,
   projectTodoSearchDocuments,
   projectWorkspaceSearchDocuments,
   type CreateSearchResourceVersion,
-} from "./searchCorpus";
+} from "./searchCorpus.ts";
 import {
   createSearchQuery,
-} from "../search/searchIndex";
-import {
   searchDomains,
   type SearchDomain,
   type SearchFault,
   type SearchQuery,
   type SearchRequest,
   type SearchSource,
-} from "../search/searchTypes";
+} from "../search/index.ts";
+
 
 type WorkbenchSearchState = {
   activeRepositoryId: string | null;

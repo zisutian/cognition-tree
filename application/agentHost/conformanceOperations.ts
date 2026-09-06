@@ -2,13 +2,14 @@
 
 import type { AgentConformanceConfigurationPort } from './configurationPort.ts';
 import type { AgentRuntimeFactory } from './runtimePorts.ts';
-import type { ApplicationScheduler } from '../runtime/applicationScheduler.ts';
+import type { ApplicationScheduler } from '../runtime/index.ts';
 import type {
   AgentConformanceCheckStatus,
-} from "../agent/agentConfiguration.ts";
-import type { AgentRuntimeTool } from "../agent/agentRuntimePort.ts";
-import type { CommandRuntime } from "../commands/commandRuntime.ts";
-import { readCommandRuntimeNow } from "../commands/commandRuntime.ts";
+  AgentRuntimeTool,
+} from "../agent/index.ts";
+
+import type { CommandRuntime } from "../commands/index.ts";
+import { readCommandRuntimeNow } from "../commands/index.ts";
 import { AgentConfigurationConflictError, AgentConfigurationValidationError } from "./configurationErrors.ts";
 import { AgentProviderOperationConflictError } from "./providerOperationErrors.ts";
 import { createAgentRuntimeProfile } from "./runtimeProfiles.ts";

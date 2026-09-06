@@ -3,15 +3,18 @@
 import type {
   PreparedVersionedCommitReceipt,
   PreparedVersionedStore,
-} from "../persistence/versionedRepository.ts";
+} from "../persistence/index.ts";
 import type {
   AgentProposal,
   AgentProposalStatus,
   AgentStoreReference,
 } from "./agentTypes.ts";
-import type { DomainChangeSet } from "../../core/sync/domainChangeSet.ts";
-import type { DomainTextEdit } from "../../core/sync/domainTransition.ts";
-import type { AgentProposalReview } from "../commands/agentProposalReview.ts";
+import type {
+  DomainChangeSet,
+  DomainTextEdit,
+} from "../../core/sync/index.ts";
+
+import type { AgentProposalReview } from "../commands/index.ts";
 
 export class AgentProposalStateError extends Error {
   constructor(message: string) {

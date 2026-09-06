@@ -3,12 +3,12 @@
 import type {
   RepositoryCatalogDto,
   RepositoryDescriptorDto,
-} from "../../../contracts/workspace/types";
+} from "../../../contracts/workspace/index.ts";
 import {
   createPortableNameKey,
   getPortableNameIssue,
   parsePortableName,
-} from "../../../core/naming/portableName";
+} from "../../../core/naming/index.ts";
 
 const reservedLabelKeys = new Set([
   createPortableNameKey("日记"),

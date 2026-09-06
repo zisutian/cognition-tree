@@ -3,24 +3,27 @@
 import { randomUUID } from "node:crypto";
 import { lstat, realpath, rename, rm } from "node:fs/promises";
 import path from "node:path";
-import { isRepositoryId } from "../../../../../contracts/workspace/parseCatalog.ts";
+import { isRepositoryId } from "../../../../../contracts/workspace/index.ts";
 import {
   createPortableNameKey,
   parsePortableName,
-} from "../../../../../core/naming/portableName.ts";
+} from "../../../../../core/naming/index.ts";
 import type {
   CreateRepositoryDto,
   RepositoryCatalogDto,
   RepositoryDescriptorDto,
   RenameRepositoryDto,
   WorkspaceRepositoryContentDto,
-} from "../../../../../contracts/workspace/types.ts";
+} from "../../../../../contracts/workspace/index.ts";
 import {
   RepositoryCatalogError,
   type WorkspaceRepositoryCatalog,
 } from "../../catalog.ts";
-import { fsyncDirectory } from "../../../persistence/fileSystemPersistence.ts";
-import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
+import {
+  fsyncDirectory,
+  hasFileSystemErrorCode,
+} from "../../../persistence/index.ts";
+
 import {
   WorkspaceFileStore,
 } from "./workspaceFileStore.ts";

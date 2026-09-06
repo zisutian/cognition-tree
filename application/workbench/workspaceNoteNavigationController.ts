@@ -2,8 +2,8 @@
 
 import type {
   WorkspaceContentDestination,
-} from "../navigation/contentDestination";
-import type { RepositoryCatalogControllerSnapshot } from "../repository/repositoryCatalogController";
+} from "../navigation/index.ts";
+import type { RepositoryCatalogControllerSnapshot } from "../repository/index.ts";
 
 type NavigationWorkspaceSession =
   | { status: "absent" | "loading" }

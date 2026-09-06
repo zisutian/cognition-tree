@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { JournalAgentToolPorts } from './journalToolPorts.ts';
-import type { SearchResponse } from '../search/searchTypes.ts';
-import { readCommandRuntimeNow } from '../commands/commandRuntime.ts';
-import type { JournalAgentCommandIntent } from '../journal/journalAgentCommandPreparation.ts';
+import type { SearchResponse } from '../search/index.ts';
+import { readCommandRuntimeNow } from '../commands/index.ts';
+import type { JournalAgentCommandIntent } from '../journal/index.ts';
 import {
   AgentScopeUnavailableError,
   AgentScopeViolationError,
@@ -13,13 +13,14 @@ import {
   type AgentProposal,
   type AgentScope,
 } from "../agent/index.ts";
-import { prepareAgentJournalCommand } from "../journal/journalAgentCommandPreparation.ts";
 import {
+  prepareAgentJournalCommand,
   projectJournalAgentProposalReview,
   projectJournalContentChanges,
-} from "../journal/journalContentProjection.ts";
-import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types.ts";
-import { isJournalEntryId } from "../../core/journal/model/journalIdentity.ts";
+} from "../journal/index.ts";
+
+import type { CtnCompiledSyntax } from "../../core/ctn/index.ts";
+import { isJournalEntryId } from "../../core/journal/index.ts";
 import { AgentServiceError } from "./errors.ts";
 import { syntaxRequiredResult } from "./toolRequest.ts";
 import {

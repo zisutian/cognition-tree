@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createUiSystemSyntaxDiagnostics, createUiSyntaxDiagnostics } from "../../../application/syntax/syntaxDiagnostics";
-import { createSyntaxProjection } from "../../../application/syntax/syntaxProjection";
-import type { SyntaxRuntime } from "../../workspace/runtime/useSyntaxRuntime";
-import { createSyntaxDraftActions } from "../../../application/syntax/syntaxDraftActions";
 import {
+  createUiSystemSyntaxDiagnostics,
+  createUiSyntaxDiagnostics,
+  createSyntaxProjection,
+  createSyntaxDraftActions,
   createSyntaxFileViews,
   isSameSyntaxTarget,
   type SyntaxTarget,
   type SyntaxViewModel,
-} from "../../../application/syntax/syntaxViewModel";
-import { useCtnSyntaxDraftRuntime } from "../../syntax/useCtnSyntaxDraftRuntime";
-import { type CtnSyntaxDraftRuntimeSource } from "../../../application/syntax/syntaxDraftPersistence";
+  type CtnSyntaxDraftRuntimeSource,
+} from "../../../application/syntax/index.ts";
+
+import type { SyntaxRuntime } from "../../workspace/index.ts";
+
+
+import { useCtnSyntaxDraftRuntime } from "../../syntax/index.ts";
+
 
 type SystemSyntaxSource = CtnSyntaxDraftRuntimeSource & {
   updateSource: (source: string) => void | Promise<void>;

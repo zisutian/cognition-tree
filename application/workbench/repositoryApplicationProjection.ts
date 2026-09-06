@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { RepositoryNavigation } from "../repository/repositoryNavigation";
+import type { RepositoryNavigation } from "../repository/index.ts";
 import type {
   VersionedRepositoryConflictDetails,
-} from "../persistence/versionedRepository";
+} from "../persistence/index.ts";
 import {
   createRepositoryApplication,
   type BuiltInSessionSummary,
   type RepositoryApplication,
   type RepositoryPersistenceState,
   type RepositorySessionState,
-} from "../repository/repositoryApplication";
+} from "../repository/index.ts";
 import type {
   WorkbenchController,
   WorkbenchControllerSnapshot,
-} from "./workbenchController";
+} from "./workbenchController.ts";
 
 type VersionedSessionProjectionState<AbsentStatus extends string> =
   | { status: AbsentStatus }

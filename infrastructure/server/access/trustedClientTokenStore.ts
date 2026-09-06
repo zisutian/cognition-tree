@@ -7,16 +7,21 @@ import type {
   ApiCreateTrustedClientTokenRequestDto,
   ApiPrincipalDto,
   ApiTrustedClientTokenDto,
-} from "../../../contracts/api/types.ts";
-import { ApiTrustedClientTokenListSchema } from "../../../contracts/api/schemas/admin.ts";
-import { parseApiSchema } from "../../../contracts/api/parse.ts";
+} from "../../../contracts/api/index.ts";
+import {
+  ApiTrustedClientTokenListSchema,
+  parseApiSchema,
+} from "../../../contracts/api/index.ts";
+
 import {
   assertStateFields,
   requireStateRecord,
   SecureJsonPartition,
   type SecureStateFileReplacer,
-} from "../state/secureJsonPartition.ts";
-import { createStateDigest, stateDigestsEqual } from "../state/stateDigest.ts";
+  createStateDigest,
+  stateDigestsEqual,
+} from "../state/index.ts";
+
 import {
   AccessTokenUsageSession,
   type AccessTokenUsageResult,

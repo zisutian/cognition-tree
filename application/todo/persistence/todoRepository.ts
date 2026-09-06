@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { TodoParseIndex } from "../../../core/todo/indexes/todoParseIndex.ts";
-import type { TodoContent } from "../../../core/todo/model/todoContent.ts";
+import type {
+  TodoParseIndex,
+  TodoContent,
+} from "../../../core/todo/index.ts";
+
 import type {
   VersionedRepository,
   VersionedRepositoryBackend,
   VersionedRepositorySnapshot,
-} from "../../persistence/versionedRepository.ts";
+} from "../../persistence/index.ts";
 import type {
   BuiltInDescriptor,
   BuiltInLocation,
-} from "../../repository/builtInCatalog.ts";
+} from "../../repository/index.ts";
 
 export type TodoRevision = `sha256:${string}`;
 export type TodoLocalDraftRevision = `draft:${string}`;

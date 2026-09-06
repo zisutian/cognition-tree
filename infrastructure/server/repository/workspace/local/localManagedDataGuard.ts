@@ -2,7 +2,7 @@
 
 import { lstat, readdir } from "node:fs/promises";
 import path from "node:path";
-import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
+import { hasFileSystemErrorCode } from "../../../persistence/index.ts";
 import { RepositoryAdapterError } from "../../store.ts";
 import {
   localControlDirectoryName,

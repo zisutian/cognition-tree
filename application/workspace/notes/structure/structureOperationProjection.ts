@@ -1,15 +1,19 @@
-import type { WorkspaceAnalysis } from "../../analysis/workspaceAnalysis";
-import { createUiBlockNodes } from "../../projection/viewBlocks";
-import type { UiStructureOperationView } from "../../projection/viewStructureOperation";
-import { createUiNoteTree, type UiNoteId } from "../../projection/viewTree";
-import type { ParsedWorkspaceNote } from "../../../../core/workspace/indexes/workspaceParseIndex";
-import type { WorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
-import type { WorkspaceNote } from "../../../../core/workspace/model/workspaceData";
+import type { WorkspaceAnalysis } from "../../analysis/workspaceAnalysis.ts";
+import { createUiBlockNodes } from "../../projection/viewBlocks.ts";
+import type { UiStructureOperationView } from "../../projection/viewStructureOperation.ts";
+import { createUiNoteTree, type UiNoteId } from "../../projection/viewTree.ts";
+import type {
+  ParsedWorkspaceNote,
+  WorkspaceStructureIndex,
+  WorkspaceNote,
+} from "../../../../core/workspace/index.ts";
+
+
 import {
   findWorkspaceNote,
   getParsedWorkspaceNote,
   getWorkspaceTree,
-} from "../../../../core/workspace/queries/workspaceQueries";
+} from "../../../../core/workspace/index.ts";
 
 type StructureOperationAnalysis = Pick<
   WorkspaceAnalysis,

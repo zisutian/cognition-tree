@@ -1,4 +1,4 @@
-import type { RepositoryApplication } from "./repositoryApplication";
+import type { RepositoryApplication } from "./repositoryApplication.ts";
 
 export type WorkspaceRepositoryRuntimeIssue =
   | {

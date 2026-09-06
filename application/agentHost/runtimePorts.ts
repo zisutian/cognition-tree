@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentRuntimePort, AgentPrivateToolProcess, AgentRuntimeTool, AgentRuntimeToolCall } from '../agent/agentRuntimePort.ts';
-import type { AgentScope } from '../agent/agentTypes.ts';
+import type {
+  AgentRuntimePort,
+  AgentPrivateToolProcess,
+  AgentRuntimeTool,
+  AgentRuntimeToolCall,
+  AgentScope,
+} from '../agent/index.ts';
+
 import type { ResolvedAgentConfiguration } from './configurationPort.ts';
 import type { AgentRuntimeProfile } from './runtimeProfiles.ts';
 import type { AgentToolSession, AgentToolExecution } from './sessionToolState.ts';
-import type { AgentOperationReceipt } from '../operations/agentOperationReceipt.ts';
+import type { AgentOperationReceipt } from '../operations/index.ts';
 
 export type ConfiguredAgentRuntimeInput = Readonly<{
   configuration: ResolvedAgentConfiguration;

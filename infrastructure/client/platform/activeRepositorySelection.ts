@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ActiveRepositorySelection } from "../../../application/repository/activeRepositorySelection";
+import type { ActiveRepositorySelection } from "../../../application/repository/index.ts";
 
 const activeRepositoryStorageKey = "cognition-tree.active-repository";
 

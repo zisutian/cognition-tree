@@ -1,26 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createMyersTextEdits } from "../../core/ctn/metadata/myersTextEdits.ts";
-import type { TodoParseIndex } from "../../core/todo/indexes/todoParseIndex.ts";
+import { createMyersTextEdits } from "../../core/ctn/index.ts";
+import type { TodoParseIndex } from "../../core/todo/index.ts";
 import {
   type TodoCollection,
   type TodoCollectionId,
   type TodoContent,
-} from "../../core/todo/model/todoContent.ts";
-import {
   createTodoCollectionBodyProjection,
-} from "../../core/todo/model/todoCollectionProjection.ts";
-import {
   isTodoCollectionId,
-} from "../../core/todo/model/todoIdentity.ts";
+} from "../../core/todo/index.ts";
+
+
 import {
   createDomainChangeSet,
   type DomainResourceChange,
-} from "../../core/sync/domainChangeSet.ts";
+} from "../../core/sync/index.ts";
 import {
   projectDomainTextEdits,
   type DomainMutationProjection,
-} from "../commands/domainCommand.ts";
+} from "../commands/index.ts";
 import type { TodoDomainVersions } from "./todoDomainCommands.ts";
 
 function todoBody(index: TodoParseIndex, collectionId: string) {

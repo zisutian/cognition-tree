@@ -4,13 +4,20 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import type { UiStructureOperationView } from "../../../../application/workspace/projection/viewStructureOperation";
-import type { UiNoteId } from "../../../../application/workspace/projection/viewTree";
-import type { WorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
-import type { NoteRecord } from "../../../../core/workspace/model/workspaceData";
-import { hasWorkspaceNote } from "../../../../core/workspace/queries/workspaceQueries";
-import { resolveDifferentNoteId } from "../../../../application/workspace/selection/viewSelection";
-import type { StructureOperationPairSelectionPhase } from "../../../../application/workspace/notes/structure/directorySelection";
+import type {
+  UiStructureOperationView,
+  UiNoteId,
+  StructureOperationPairSelectionPhase,
+} from "../../../../application/workspace/index.ts";
+
+import type {
+  WorkspaceStructureIndex,
+  NoteRecord,
+} from "../../../../core/workspace/index.ts";
+
+import { hasWorkspaceNote } from "../../../../core/workspace/index.ts";
+import { resolveDifferentNoteId } from "../../../../application/workspace/index.ts";
+
 
 export type StructureOperationState = {
   mode: UiStructureOperationView["mode"];

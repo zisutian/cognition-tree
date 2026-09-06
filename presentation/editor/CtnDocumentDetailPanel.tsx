@@ -3,11 +3,10 @@ import type { ReactNode } from "react";
 import {
   DetailPanel,
   PanelBody,
-} from "../ui/shared/primitives";
-import {
   StructureTree,
   type StructureTreeProps,
-} from "../ui/shared/tree";
+} from "../ui/index.ts";
+
 import "./CtnDocumentDetailPanel.css";
 
 type CtnTimestampMetadata = {

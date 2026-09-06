@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomUUID } from "node:crypto";
-import type { TodoLocalDate } from "../../../../core/todo/recurrence/todoLocalDate.ts";
+import type { TodoLocalDate } from "../../../../core/todo/index.ts";
 
 export type ApiRuntime = {
   createId(): string;

@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentApplication } from "../../../application/agent";
-import { InputControl, SelectControl } from "../../ui/shared/controls";
+import type { AgentApplication } from "../../../application/agent/index.ts";
 import {
+  InputControl,
+  SelectControl,
   FieldRow,
   FormActions,
   FormLayout,
-} from "../../ui/shared/FormLayout";
-import { Button } from "../../ui/shared/primitives";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
-import {
+  Button,
+  useFeedback,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
-import type { AgentSettingsRoute } from "./settingsTypes";
+} from "../../ui/index.ts";
+
+
+
+
+import type { AgentSettingsRoute } from "./settingsTypes.ts";
 
 type ManagementPage = Exclude<AgentSettingsRoute["page"], "overview">;
 

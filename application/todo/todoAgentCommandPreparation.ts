@@ -1,29 +1,37 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentPreparedCommand } from "../commands/agentCommandPreparation.ts";
+import type { AgentPreparedCommand } from "../commands/index.ts";
 import {
   readCommandRuntimeNow,
   type CommandRuntime,
-} from "../commands/commandRuntime.ts";
+} from "../commands/index.ts";
 import {
   createTodoBodyReplacement,
   prepareTodoMutation,
   type TodoDomainCommand,
   type TodoDomainVersions,
 } from "./todoDomainCommands.ts";
-import { DomainNotFoundError, DomainValidationError } from "../../core/errors/domainErrors.ts";
-import type { TodoCommandOutcome } from "../../core/todo/commands/todoCommandOutcome.ts";
-import type { TodoBlockMoveTarget } from "../../core/todo/commands/todoBlockCommands.ts";
-import type { TodoParseIndex } from "../../core/todo/indexes/todoParseIndex.ts";
+import { DomainNotFoundError, DomainValidationError } from "../../core/errors/index.ts";
 import type {
+  TodoCommandOutcome,
+  TodoBlockMoveTarget,
+  TodoParseIndex,
   TodoCollectionId,
   TodoContent,
-} from "../../core/todo/model/todoContent.ts";
-import { createTodoCollectionBodyProjection } from "../../core/todo/model/todoCollectionProjection.ts";
-import { isTodoCollectionId } from "../../core/todo/model/todoIdentity.ts";
-import type { TodoLocalDate } from "../../core/todo/recurrence/todoLocalDate.ts";
-import type { TodoRecurrenceRule } from "../../core/todo/recurrence/todoRecurrenceRule.ts";
-import type { PreparedVersionedSnapshot } from "../persistence/versionedRepository.ts";
+  TodoLocalDate,
+  TodoRecurrenceRule,
+} from "../../core/todo/index.ts";
+
+
+
+import {
+  createTodoCollectionBodyProjection,
+  isTodoCollectionId,
+} from "../../core/todo/index.ts";
+
+
+
+import type { PreparedVersionedSnapshot } from "../persistence/index.ts";
 import type { TodoRevision } from "./persistence/todoRepository.ts";
 
 export type TodoAgentCommandIntent =

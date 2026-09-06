@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { AgentProposal } from '../agent/index.ts';
-import type { AgentOperationReceipt } from '../operations/agentOperationReceipt.ts';
+import type { AgentOperationReceipt } from '../operations/index.ts';
 import type { ResolvedAgentConfiguration } from './configurationPort.ts';
 import type { AgentRuntimeProfile } from './runtimeProfiles.ts';
 

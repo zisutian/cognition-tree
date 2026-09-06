@@ -1,25 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import type { WorkbenchDiagnostics } from "../../../application/workbench/problems/workbenchProblems";
-import type { SyntaxFocusTarget } from "../../../application/syntax/syntaxProjection";
-import type { WorkbenchApplication } from "../application/workbenchApplication";
+import type { WorkbenchDiagnostics } from "../../../application/workbench/index.ts";
+import type { SyntaxFocusTarget } from "../../../application/syntax/index.ts";
+import type { WorkbenchApplication } from "../application/workbenchApplication.ts";
 import {
   activityDescriptors,
   getActivityLabel,
-} from "./activityCatalog";
-import type { RenderActivity } from "../../ui/activityController";
-import AppView from "../../ui/AppView";
-import type { ActivityId } from "../../ui/activityTypes";
+} from "./activityCatalog.tsx";
+import type {
+  RenderActivity,
+  ActivityId,
+} from "../../ui/index.ts";
+import AppView from "../../ui/index.ts";
+
 import {
   FeedbackProvider,
   type WorkbenchActivityFeedbackController,
-} from "../../ui/shared/FeedbackProvider";
-import { globalWorkbenchSessionId } from "../../ui/workbench/repositorySessionStore";
-import { useWorkbenchLayout } from "../../ui/workbench/useWorkbenchLayout";
-import { PlaceholderPanel } from "./PlaceholderPanel";
-import { WorkbenchProblemsController } from "./WorkbenchProblemsController";
-import { canChangeActivityWithSyntaxDraft } from "./syntaxNavigationGuard";
+  globalWorkbenchSessionId,
+  useWorkbenchLayout,
+} from "../../ui/index.ts";
+
+
+import { PlaceholderPanel } from "./PlaceholderPanel.tsx";
+import { WorkbenchProblemsController } from "./WorkbenchProblemsController.tsx";
+import { canChangeActivityWithSyntaxDraft } from "./syntaxNavigationGuard.ts";
 
 function ActivityLoadingView({
   activeActivityId,

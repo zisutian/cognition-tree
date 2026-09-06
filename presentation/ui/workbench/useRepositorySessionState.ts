@@ -14,7 +14,7 @@ import {
   globalWorkbenchSessionId,
   type RepositorySessionKey,
   RepositorySessionStoreRegistry,
-} from "./repositorySessionStore";
+} from "./repositorySessionStore.ts";
 
 const RepositorySessionStoreContext =
   createContext<RepositorySessionStoreRegistry | null>(null);

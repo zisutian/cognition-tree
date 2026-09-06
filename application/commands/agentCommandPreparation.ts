@@ -2,7 +2,7 @@
 
 import type {
   PreparedVersionedSnapshot,
-} from "../persistence/versionedRepository.ts";
+} from "../persistence/index.ts";
 
 export type AgentPreparedCommand<
   Content,

@@ -5,18 +5,18 @@ import type {
   ServerResponse,
 } from "node:http";
 import { randomUUID } from "node:crypto";
-import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
+import { serializeJsonIteratively } from "../../../../contracts/common/index.ts";
 import type {
   ApiChangeEventDto,
   ApiCheckpointEventDto,
   ApiPrincipalDto,
   ApiRevisionCheckpointDto,
-} from "../../../../contracts/api/types.ts";
-import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
+} from "../../../../contracts/api/index.ts";
+import type { DomainChangeSetDto } from "../../../../contracts/common/index.ts";
 import {
   endServerSentEventResponse,
   writeServerSentEvent,
-} from "../../transport/serverSentEventResponse.ts";
+} from "../../transport/index.ts";
 
 type EventConnection = {
   principal: ApiPrincipalDto;

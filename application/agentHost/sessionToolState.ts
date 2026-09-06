@@ -6,13 +6,22 @@ import {
   type AgentSessionController,
   type AgentSyntaxKnowledge,
 } from "../agent/index.ts";
-import type { PreparedVersionedSnapshot } from "../persistence/versionedRepository.ts";
-import type { WorkspaceRepositoryPreparation } from "../workspace/persistence/workspaceRepositoryPreparation.ts";
-import type { JournalParseIndex } from "../../core/journal/indexes/journalParseIndex.ts";
-import type { TodoParseIndex } from "../../core/todo/indexes/todoParseIndex.ts";
-import type { JournalContent } from "../../core/journal/model/journalContent.ts";
-import type { TodoContent } from "../../core/todo/model/todoContent.ts";
-import type { WorkspaceRepositoryContent } from "../workspace/persistence/workspaceRepository.ts";
+import type { PreparedVersionedSnapshot } from "../persistence/index.ts";
+import type {
+  WorkspaceRepositoryPreparation,
+  WorkspaceRepositoryContent,
+} from "../workspace/index.ts";
+import type {
+  JournalParseIndex,
+  JournalContent,
+} from "../../core/journal/index.ts";
+import type {
+  TodoParseIndex,
+  TodoContent,
+} from "../../core/todo/index.ts";
+
+
+
 
 type WorkspaceSnapshot = PreparedVersionedSnapshot<
   WorkspaceRepositoryContent,

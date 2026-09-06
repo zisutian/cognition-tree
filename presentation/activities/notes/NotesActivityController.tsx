@@ -1,32 +1,34 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
-import type { WorkbenchWorkspaceState } from "../../workspace/workspaceApplicationState";
-import { useNotesActivity } from "./edit/useNotesActivity";
+import type { RepositoryApplication } from "../../../application/repository/index.ts";
+import type {
+  WorkbenchWorkspaceState,
+  WorkspaceApplication,
+} from "../../workspace/index.ts";
+import { useNotesActivity } from "./edit/useNotesActivity.ts";
 import {
   createNotesActivitySlots,
   createNotesWorkspaceActivitySlots,
   type NotesMode,
-} from "./edit/NotesActivitySlots";
-import { useStructureOperationActivity } from "./structure/useStructureOperationActivity";
-import { useStructureOperationState } from "./structure/useStructureOperationState";
-import { createStructureOperationActivitySlots } from "./structure/StructureOperationActivitySlots";
-import { useVisualizationActivity } from "./graph/useVisualizationActivity";
-import { useVisualizationFilter } from "./graph/useVisualizationFilter";
-import { createVisualizationActivitySlots } from "./graph/VisualizationActivitySlots";
+} from "./edit/NotesActivitySlots.tsx";
+import { useStructureOperationActivity } from "./structure/useStructureOperationActivity.ts";
+import { useStructureOperationState } from "./structure/useStructureOperationState.ts";
+import { createStructureOperationActivitySlots } from "./structure/StructureOperationActivitySlots.tsx";
+import { useVisualizationActivity } from "./graph/useVisualizationActivity.ts";
+import { useVisualizationFilter } from "./graph/useVisualizationFilter.ts";
+import { createVisualizationActivitySlots } from "./graph/VisualizationActivitySlots.tsx";
 import {
   useReferenceGraphSession,
   type ReferenceGraphSession,
-} from "./graph/useReferenceGraphSession";
-import type { WorkspaceApplication } from "../../workspace/runtime/useWorkspaceApplication";
-import type { ActivityControllerProps } from "../../ui/activityController";
-import { renderWorkspaceUnavailableActivity } from "../unavailable/WorkspaceUnavailableActivityController";
+} from "./graph/useReferenceGraphSession.ts";
+
+import type { ActivityControllerProps } from "../../ui/index.ts";
+import { renderWorkspaceUnavailableActivity } from "../unavailable/index.ts";
 import {
   useRepositorySessionState,
-} from "../../ui/workbench/useRepositorySessionState";
-import {
   createRepositorySessionKey,
-} from "../../ui/workbench/repositorySessionStore";
+} from "../../ui/index.ts";
+
 
 const notesModeSessionKey = createRepositorySessionKey<NotesMode>(
   "notes-mode",

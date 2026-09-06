@@ -1,19 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { toAgentProposalView } from '../agent/agentTypes.ts';
-import type { SearchQuery } from '../search/searchTypes.ts';
-import { searchDomains } from '../search/searchTypes.ts';
-import type { SearchAccess } from '../search/scopedSearch.ts';
-import type { CommandRuntime } from '../commands/commandRuntime.ts';
-import type { AgentToolDecoder, AgentToolRequest } from './toolRequest.ts';
 import {
+  toAgentProposalView,
   AgentScopeViolationError,
   createAgentSyntaxKnowledge,
   projectAgentSyntaxGuide,
   type AgentProposal,
   type AgentRuntimeToolCall,
   type AgentScope,
-} from "../agent/index.ts";
+} from '../agent/index.ts';
+import type {
+  SearchQuery,
+  SearchAccess,
+} from '../search/index.ts';
+import { searchDomains } from '../search/index.ts';
+
+import type { CommandRuntime } from '../commands/index.ts';
+import type { AgentToolDecoder, AgentToolRequest } from './toolRequest.ts';
+
 import { AgentServiceError } from "./errors.ts";
 import { JournalAgentSessionTools } from "./journalSessionTools.ts";
 import type {

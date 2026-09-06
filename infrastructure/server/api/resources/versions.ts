@@ -1,26 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createHash } from "node:crypto";
-import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
-import type { ApiResourceVersionDto } from "../../../../contracts/api/types.ts";
-import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/types.ts";
-import type { JournalContent } from "../../../../core/journal/model/journalContent.ts";
-import type { ParsedTodoIndexCollection } from "../../../../core/todo/indexes/todoParseIndex.ts";
+import { serializeJsonIteratively } from "../../../../contracts/common/index.ts";
+import type { ApiResourceVersionDto } from "../../../../contracts/api/index.ts";
+import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/index.ts";
+import type { JournalContent } from "../../../../core/journal/index.ts";
+import type { ParsedTodoIndexCollection } from "../../../../core/todo/index.ts";
 import {
   type TodoContent,
-} from "../../../../core/todo/model/todoContent.ts";
-import {
   createTodoCollectionBodyProjection,
-} from "../../../../core/todo/model/todoCollectionProjection.ts";
+} from "../../../../core/todo/index.ts";
+
 import type {
   WorkspaceResourceVersionPolicy,
-} from "../../../../application/workspace/commands/workspaceAgentCommandPreparation.ts";
+} from "../../../../application/workspace/index.ts";
 import type {
   JournalDomainVersions,
-} from "../../../../application/journal/journalDomainCommands.ts";
+} from "../../../../application/journal/index.ts";
 import type {
   TodoDomainVersions,
-} from "../../../../application/todo/todoDomainCommands.ts";
+} from "../../../../application/todo/index.ts";
 
 export function createApiResourceVersion(
   value: unknown,

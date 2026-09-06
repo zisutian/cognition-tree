@@ -1,20 +1,33 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentProfileSummary, AgentStatus } from '../agent/agentClientPort.ts';
-import type { AgentScope, AgentSessionSnapshot } from '../agent/agentTypes.ts';
+import type {
+  AgentProfileSummary,
+  AgentStatus,
+  AgentScope,
+  AgentSessionSnapshot,
+  AgentProposal,
+} from '../agent/index.ts';
+
 import type { AgentProposalCommitPort } from './proposalCommitPort.ts';
-import type { AgentRuntimeFactory, AgentPrivateToolsPort, AgentHostTools, AgentToolProtocolPort } from './runtimePorts.ts';
-import type { ApplicationScheduler } from '../runtime/applicationScheduler.ts';
+import type {
+  AgentRuntimeFactory,
+  AgentPrivateToolsPort,
+  AgentHostTools,
+  AgentToolProtocolPort,
+  AgentHostRuntime,
+  AgentAuditAvailabilityPort,
+} from './runtimePorts.ts';
+import type { ApplicationScheduler } from '../runtime/index.ts';
 import type { AgentEventSink } from './sessionEventStream.ts';
-import type { AgentProposal } from "../agent/index.ts";
-import type { AgentHostRuntime } from "./runtimePorts.ts";
+
+
 import type { AgentConfigurationPort } from "./configurationPort.ts";
-import type { AgentAuditAvailabilityPort } from "./runtimePorts.ts";
+
 import type { AgentServicePolicy } from "./servicePolicy.ts";
 import { AgentServiceError } from "./errors.ts";
 import { AgentProposalWorkflow } from "./proposalWorkflow.ts";
 import { AgentConversationRunner } from "./conversationRunner.ts";
-import { toAgentProposalView } from "../agent/agentTypes.ts";
+import { toAgentProposalView } from "../agent/index.ts";
 import { AgentSessionPool } from "./sessionPool.ts";
 import { AgentSessionOpener } from "./sessionOpener.ts";
 import type { AgentSessionRecord } from "./sessionRecord.ts";

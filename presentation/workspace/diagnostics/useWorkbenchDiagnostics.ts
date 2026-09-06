@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import type {
   CtnSyntaxDraft,
   CtnSyntaxDraftBuildResult,
-} from "../../../core/ctn/syntax/draft";
-import type { WorkspaceAnalysis } from "../../../application/workspace/analysis/workspaceAnalysis";
-import { createUiWorkbenchDiagnostics, type UiWorkbenchDiagnostic, type UiWorkbenchDiagnostics } from "../../../application/workspace/projection/viewDiagnostics";
-import { createUiSyntaxDiagnostics } from "../../../application/syntax/syntaxDiagnostics";
+} from "../../../core/ctn/index.ts";
+import type { WorkspaceAnalysis } from "../../../application/workspace/index.ts";
+import { createUiWorkbenchDiagnostics, type UiWorkbenchDiagnostic, type UiWorkbenchDiagnostics } from "../../../application/workspace/index.ts";
+import { createUiSyntaxDiagnostics } from "../../../application/syntax/index.ts";
 
 export function selectWorkbenchDiagnostics({
   analysisDiagnostics,

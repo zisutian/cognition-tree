@@ -1,10 +1,13 @@
 import { useState } from "react";
 import type { RepositoryOption } from
-  "../../../application/repository/ordinaryRepositoryViewModel";
-import { Button } from "../../ui/shared/primitives";
-import { InputControl } from "../../ui/shared/controls";
-import { useExclusiveAsyncAction } from
-  "../../ui/shared/useExclusiveAsyncAction";
+  "../../../application/repository/index.ts";
+import {
+  Button,
+  InputControl,
+  useExclusiveAsyncAction,
+} from "../../ui/index.ts";
+
+
 
 export function canDeleteManagedRepositoryData(
   repository: RepositoryOption,

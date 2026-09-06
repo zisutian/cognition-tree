@@ -1,4 +1,4 @@
-import { Button, EmptyState, Panel } from "./shared/primitives";
+import { Button, EmptyState, Panel } from "./shared/primitives.tsx";
 
 export function SyntaxUnavailablePanel({
   featureName,

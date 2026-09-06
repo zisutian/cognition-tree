@@ -2,24 +2,23 @@
 
 import {
   type JournalContent,
-} from "../../core/journal/model/journalContent";
+  type JournalParseIndex,
+} from "../../core/journal/index.ts";
 import type {
   JournalLocalDraftRevision,
   JournalRevision,
   JournalRepository,
-} from "./persistence/journalRepository";
+} from "./persistence/journalRepository.ts";
 import {
   createVersionedSessionController,
   type VersionedSessionState,
-} from "../persistence/versionedSessionController";
-import type { ApplicationScheduler } from "../runtime/applicationScheduler";
-import {
-  type JournalParseIndex,
-} from "../../core/journal/indexes/journalParseIndex";
+} from "../persistence/index.ts";
+import type { ApplicationScheduler } from "../runtime/index.ts";
+
 import {
   recoverJournalLocalConflictCopies,
   type JournalConflictRecoveryDependencies,
-} from "./persistence/journalConflictRecovery";
+} from "./persistence/journalConflictRecovery.ts";
 
 export type JournalSessionState = VersionedSessionState<
   JournalContent,

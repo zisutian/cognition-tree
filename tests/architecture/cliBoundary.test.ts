@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { readModuleImports, type SourceModules } from "./moduleImports.ts";
+import { readModuleImports } from "./moduleImports.ts";
 
-const cliModules = import.meta.glob("../../tooling/cli/**/*.ts", {
-  eager: true,
-  import: "default",
-  query: "?raw",
-}) as SourceModules;
+import { toolingModules } from "./sourceCorpus.ts";
+
+const cliModules = Object.fromEntries(Object.entries(toolingModules)
+  .filter(([filePath]) => filePath.startsWith("../../tooling/cli/")));
 
 describe("trusted-client CLI boundary", () => {
   it("uses the public API contract without importing server or content owners", () => {

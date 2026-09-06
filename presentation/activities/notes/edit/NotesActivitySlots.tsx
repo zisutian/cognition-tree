@@ -1,10 +1,10 @@
-import type { NotesViewModel } from "../../../../application/workspace/notes/edit/notesViewModel";
+import type { NotesViewModel } from "../../../../application/workspace/index.ts";
 import "./notes.css";
-import type { ActivitySlots } from "../../../ui/activityTypes";
-import { ChoiceGroup } from "../../../ui/shared/controls";
-import { NoteDetailPanel } from "./NoteDetailPanel";
-import { NoteEditorPanel } from "./NoteEditorPanel";
-import { NotesContext } from "./NotesContext";
+import type { ActivitySlots } from "../../../ui/index.ts";
+import { ChoiceGroup } from "../../../ui/index.ts";
+import { NoteDetailPanel } from "./NoteDetailPanel.tsx";
+import { NoteEditorPanel } from "./NoteEditorPanel.tsx";
+import { NotesContext } from "./NotesContext.tsx";
 
 export type NotesMode = "edit" | "graph" | "structure";
 

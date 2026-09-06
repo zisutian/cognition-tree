@@ -6,7 +6,7 @@ import {
   readRequiredWireString,
   readWireArray,
   readWireObject,
-} from "../common/contractValue.ts";
+} from "../common/index.ts";
 import type {
   BuiltInCatalogDto,
   BuiltInDescriptorDto,

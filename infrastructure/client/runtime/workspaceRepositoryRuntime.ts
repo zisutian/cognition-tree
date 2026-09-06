@@ -1,14 +1,20 @@
-import { createClientActiveRepositorySelection } from "../platform/activeRepositorySelection";
-import type { OfficialClientApi } from "../http/apiTransport";
-import { createHttpWorkspaceRepositoryCatalog } from "../http/workspaceRepositoryCatalog";
-import type { ActiveRepositorySelection } from "../../../application/repository/activeRepositorySelection";
-import type { WorkspaceRepositoryCatalog } from "../../../application/repository/workspaceRepositoryCatalog";
+import { createClientActiveRepositorySelection } from "../platform/index.ts";
+import type { OfficialClientApi } from "../http/index.ts";
+import { createHttpWorkspaceRepositoryCatalog } from "../http/index.ts";
+import type {
+  ActiveRepositorySelection,
+  WorkspaceRepositoryCatalog,
+} from "../../../application/repository/index.ts";
+
 import type {
   WorkspaceRepositoryProvider,
   WorkspaceRepositoryProvisioner,
-} from "../../../application/workspace/persistence/workspaceRepositoryProvider";
-import { createMemoryRepositoryClientCache } from "../repository/repositoryClientCache";
-import { workspaceRepositoryPreparation } from "../repository/workspaceRepositoryContentValidation";
+} from "../../../application/workspace/index.ts";
+import {
+  createMemoryRepositoryClientCache,
+  workspaceRepositoryPreparation,
+} from "../repository/index.ts";
+
 
 export type WorkspaceRepositoryRuntime = {
   activeRepositorySelection: ActiveRepositorySelection;

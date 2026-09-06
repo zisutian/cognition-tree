@@ -1,4 +1,4 @@
-import type { ActivityId } from "../../ui/activityTypes";
+import type { ActivityId } from "../../ui/index.ts";
 
 export function canChangeActivityWithSyntaxDraft({
   activeActivityId,

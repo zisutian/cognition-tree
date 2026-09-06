@@ -20,7 +20,7 @@ export type {
   DomainChangeSetDto,
   DomainResourceChangeDto,
   DomainTextDiffHunkDto,
-} from "../common/domainChanges.ts";
+} from "../common/index.ts";
 export type {
   ApiCtnBlockDto,
   ApiCtnDiagnosticDto,

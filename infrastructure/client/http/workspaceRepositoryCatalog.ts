@@ -1,38 +1,39 @@
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
+import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 import {
   isRepositoryId,
   parseCreateRepository,
   parseRepositoryCatalog,
   parseRepositoryDescriptor,
   parseRenameRepository,
-} from "../../../contracts/workspace/parseCatalog";
-import { serializeJsonIteratively } from "../../../contracts/common/json";
-import { createHttpWorkspaceRepositoryBackend } from "./workspaceRepository";
+} from "../../../contracts/workspace/index.ts";
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
+import { createHttpWorkspaceRepositoryBackend } from "./workspaceRepository.ts";
 import {
   subscribeClientReconnect,
   type HttpApiTransportOptions,
-} from "./apiTransport";
-import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity";
+} from "./apiTransport.ts";
+import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity.ts";
 import {
   requestWorkspaceApiJson,
   requestWorkspaceApiNoContent,
-} from "./workspaceApiAdapter";
-import type { WorkspaceRepositoryCatalog } from "../../../application/repository/workspaceRepositoryCatalog";
+} from "./workspaceApiAdapter.ts";
+import type { WorkspaceRepositoryCatalog } from "../../../application/repository/index.ts";
 import type {
   WorkspaceRepositoryProvider,
   WorkspaceRepositoryProvisioner,
-} from "../../../application/workspace/persistence/workspaceRepositoryProvider";
+} from "../../../application/workspace/index.ts";
 import {
   createMemoryRepositoryClientCache,
   type RepositoryClientCache,
-} from "../repository/repositoryClientCache";
-import { createLocalFirstWorkspaceRepository } from "../repository/resilientWorkspaceRepository";
+  createLocalFirstWorkspaceRepository,
+} from "../repository/index.ts";
+
 import {
   type WorkspaceRepositoryPreparationPolicy,
   WorkspaceRepositoryRemoteError,
   WorkspaceRepositoryUnavailableError,
-} from "../../../application/workspace/persistence/workspaceRepository";
-import { parsePortableName } from "../../../core/naming/portableName.ts";
+} from "../../../application/workspace/index.ts";
+import { parsePortableName } from "../../../core/naming/index.ts";
 
 type HttpWorkspaceRepositoryCatalogOptions = HttpApiTransportOptions & {
   cache?: RepositoryClientCache;

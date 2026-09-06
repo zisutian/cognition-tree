@@ -1,5 +1,8 @@
-import type { FolderId } from "../../../core/workspace/model/workspaceData";
-import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
+import type {
+  FolderId,
+  WorkspaceStructureIndex,
+} from "../../../core/workspace/index.ts";
+
 
 export function resolveFolderSelection(
   workspace: WorkspaceStructureIndex,

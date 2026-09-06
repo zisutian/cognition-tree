@@ -3,7 +3,7 @@
 import type {
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
-} from "./workspaceRepositoryCatalog";
+} from "./workspaceRepositoryCatalog.ts";
 
 export type CreateRepositoryRequest = { name: string };
 

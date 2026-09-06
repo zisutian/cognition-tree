@@ -3,13 +3,16 @@ import {
   projectRepositoryIssueActions,
   type RepositoryIssueActionView,
   type RepositoryIssueView,
-} from "../../../application/repository/ordinaryRepositoryViewModel";
-import { requiresManualLocalDeletion } from
-  "../../../application/repository/repositoryIssueProjection";
+  requiresManualLocalDeletion,
+} from "../../../application/repository/index.ts";
+
 import type { RepositoryViewModel } from
-  "../../../application/repository/repositoryViewModel";
-import { Button } from "../../ui/shared/primitives";
-import { ToolSection } from "../../ui/shared/ToolSurface";
+  "../../../application/repository/index.ts";
+import {
+  Button,
+  ToolSection,
+} from "../../ui/index.ts";
+
 
 export type PendingRepositoryIssueAction = {
   action: RepositoryIssueActionView;

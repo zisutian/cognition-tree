@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { WorkspaceAgentCommandIntent } from '../workspace/commands/workspaceAgentCommandPreparation.ts';
-import type { JournalAgentCommandIntent } from '../journal/journalAgentCommandPreparation.ts';
-import type { TodoAgentCommandIntent } from '../todo/todoAgentCommandPreparation.ts';
-import type { AgentRuntimeToolCall } from '../agent/agentRuntimePort.ts';
+import type { WorkspaceAgentCommandIntent } from '../workspace/index.ts';
+import type { JournalAgentCommandIntent } from '../journal/index.ts';
+import type { TodoAgentCommandIntent } from '../todo/index.ts';
+import type { AgentRuntimeToolCall } from '../agent/index.ts';
 
 export type AgentToolRequest =
   | { kind: 'list' | 'describe-syntax' | 'submit-proposal' }

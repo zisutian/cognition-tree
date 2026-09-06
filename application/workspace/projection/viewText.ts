@@ -1,5 +1,8 @@
-import type { CtnCanonicalBlock } from "../../../core/ctn/parser/types";
-import type { CtnSyntaxTone } from "../../../core/ctn/syntax/types";
+import type {
+  CtnCanonicalBlock,
+  CtnSyntaxTone,
+} from "../../../core/ctn/index.ts";
+
 
 export type UiTextSegment =
   | {

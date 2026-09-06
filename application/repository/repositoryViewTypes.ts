@@ -2,7 +2,7 @@
 
 import type {
   VersionedRepositoryConflictDetails,
-} from "../persistence/versionedRepository";
+} from "../persistence/index.ts";
 
 export type RepositoryLocationRow = {
   copyValue: string;

@@ -8,24 +8,27 @@ import path from "node:path";
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
-} from "../../../../../contracts/workspace/contractValue.ts";
-import { serializeJsonIteratively } from "../../../../../contracts/common/json.ts";
+  repositorySyntaxIndexFileName,
+} from "../../../../../contracts/workspace/index.ts";
+import { serializeJsonIteratively } from "../../../../../contracts/common/index.ts";
 import {
   prepareWorkspaceRepositoryContent,
-} from "../../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
-import { repositorySyntaxIndexFileName } from "../../../../../contracts/workspace/types.ts";
-import { parsePortableName } from "../../../../../core/naming/portableName.ts";
+  WorkspaceRevisionConflictError,
+} from "../../../../../application/workspace/index.ts";
+
+import { parsePortableName } from "../../../../../core/naming/index.ts";
 import { RepositoryAdapterError, RepositoryCorruptError, type PreparedWorkspaceRepositoryCommit, type PreparedWorkspaceRepositorySnapshot, type WorkspaceRepositoryCommitReceipt, type WorkspaceRepositoryStore } from "../../store.ts";
-import { WorkspaceRevisionConflictError } from "../../../../../application/workspace/persistence/workspaceCommitErrors.ts";
-import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
+
+import {
+  hasFileSystemErrorCode,
+  removeDurableWriteTemporaryFiles,
+  replaceFileDurably,
+} from "../../../persistence/index.ts";
 import {
   createRepositorySyntaxFileName,
   loadSyntaxFromSnapshot,
 } from "../layout.ts";
-import {
-  removeDurableWriteTemporaryFiles,
-  replaceFileDurably,
-} from "../../../persistence/fileSystemPersistence.ts";
+
 import type {
   WorkspaceCommitPhase,
 } from "./workingTreeTransaction.ts";

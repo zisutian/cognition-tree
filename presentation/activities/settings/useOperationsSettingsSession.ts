@@ -9,12 +9,12 @@ import {
 } from "react";
 import type {
   OperationAdministration,
-} from "../../../application/operations/operationAdministration";
+} from "../../../application/operations/index.ts";
 import {
   createInitialOperationsSettingsSnapshot,
   reduceOperationsSettings,
   type OperationsSettingsSnapshot,
-} from "./operationsSettingsSession";
+} from "./operationsSettingsSession.ts";
 
 export type OperationsSettingsPanelView = Readonly<{
   load(): Promise<void>;

@@ -1,5 +1,5 @@
-import type { UiStructureOperationView } from "../../projection/viewStructureOperation";
-import type { UiNoteId } from "../../projection/viewTree";
+import type { UiStructureOperationView } from "../../projection/viewStructureOperation.ts";
+import type { UiNoteId } from "../../projection/viewTree.ts";
 
 export type StructureOperationPairSelectionPhase =
   | "selectSource"

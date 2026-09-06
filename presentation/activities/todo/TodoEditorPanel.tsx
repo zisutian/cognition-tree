@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { TodoViewModel } from "../../../application/todo";
-import { CtnEditor } from "../../editor/CtnEditor";
-import { CtnEditorPanel } from "../../editor/CtnEditorPanel";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
+import type { TodoViewModel } from "../../../application/todo/index.ts";
 import {
+  CtnEditor,
+  CtnEditorPanel,
+} from "../../editor/index.ts";
+
+import {
+  useFeedback,
   Button,
   EmptyState,
   Panel,
-} from "../../ui/shared/primitives";
+} from "../../ui/index.ts";
+
 
 export function TodoEditorPanel({
   focusMode,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnTextEdit } from "../ctn/metadata/textEdits.ts";
+import type { CtnTextEdit } from "../ctn/index.ts";
 import type { DomainChangeSet } from "./domainChangeSet.ts";
 
 export type DomainTextEdit = CtnTextEdit & {

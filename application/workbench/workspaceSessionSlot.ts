@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { WorkspaceRepositoryProvider } from "../workspace/persistence/workspaceRepositoryProvider";
-import type { WorkspaceRepositoryDescriptor } from "../repository/workspaceRepositoryCatalog";
-import type { ApplicationScheduler } from "../runtime/applicationScheduler";
-import type { SessionCommandDependencies } from "../workspace/session/sessionCommands";
+import type {
+  WorkspaceRepositoryProvider,
+  SessionCommandDependencies,
+} from "../workspace/index.ts";
+import type { WorkspaceRepositoryDescriptor } from "../repository/index.ts";
+import type { ApplicationScheduler } from "../runtime/index.ts";
+
 import {
   createWorkspaceSessionController,
   type WorkspaceSessionController,
   type WorkspaceSessionControllerState,
-} from "../workspace/session/workspaceSessionController";
+} from "../workspace/index.ts";
 
 export type WorkbenchWorkspaceSession =
   | { status: "absent" }

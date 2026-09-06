@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentRuntimeKind, AgentStoreReference } from '../agent/agentTypes.ts';
+import type { AgentRuntimeKind, AgentStoreReference } from '../agent/index.ts';
 
 export type AgentOperationReceipt = Readonly<{
   afterRevision: string | null;

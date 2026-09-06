@@ -2,7 +2,7 @@
 
 import { Type, type Static } from "@sinclair/typebox";
 import { apiDomainSchema } from "./foundation.ts";
-import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiResourceVersionSchema, nullable, strictObject } from "../../common/schema.ts";
+import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiResourceVersionSchema, nullable, strictObject } from "../../common/index.ts";
 
 export const ApiSearchRequestSchema = strictObject({
   cursor: Type.Optional(Type.String()),

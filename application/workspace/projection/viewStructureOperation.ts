@@ -1,9 +1,9 @@
-import type { UiBlockNode } from "./viewBlocks";
+import type { UiBlockNode } from "./viewBlocks.ts";
 import type {
   UiNoteId,
   UiNoteSummary,
   UiTreeNode,
-} from "./viewTree";
+} from "./viewTree.ts";
 
 export type UiStructureOperationView = {
   mode: "betweenNotes" | "withinNote";

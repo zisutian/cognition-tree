@@ -2,46 +2,41 @@
 
 import type {
   CtnCanonicalSourceAnalysis,
-} from "../../core/ctn/analysis/sourceAnalysis.ts";
+  CtnEditableSourceChange,
+} from "../../core/ctn/index.ts";
 import {
   createMyersTextEdits,
-} from "../../core/ctn/metadata/myersTextEdits.ts";
-import type {
-  CtnEditableSourceChange,
-} from "../../core/ctn/metadata/textEdits.ts";
-import { DomainNotFoundError } from "../../core/errors/domainErrors.ts";
+} from "../../core/ctn/index.ts";
+
+import { DomainNotFoundError } from "../../core/errors/index.ts";
 import {
   createJournalEntry,
   deleteJournalEntry,
   updateJournalEntryBody,
-} from "../../core/journal/commands/journalCommands.ts";
-import type {
-  JournalCommandOutcome,
-} from "../../core/journal/commands/journalCommandOutcome.ts";
-import {
   createJournalParseIndex,
   type JournalParseIndex,
-} from "../../core/journal/indexes/journalParseIndex.ts";
-import {
   listJournalEntries,
   type JournalContent,
   type JournalEntryId,
-} from "../../core/journal/model/journalContent.ts";
-import {
   createJournalEntryBodyProjection,
-} from "../../core/journal/model/journalEntryProjection.ts";
-import {
   isJournalEntryId,
-} from "../../core/journal/model/journalIdentity.ts";
+} from "../../core/journal/index.ts";
+import type {
+  JournalCommandOutcome,
+} from "../../core/journal/index.ts";
+
+
+
+
 import {
   createDomainChangeSet,
   type DomainResourceChange,
-} from "../../core/sync/domainChangeSet.ts";
+} from "../../core/sync/index.ts";
 import {
   assertDomainResourceVersion,
   projectDomainTextEdits,
   type DomainMutationProjection,
-} from "../commands/domainCommand.ts";
+} from "../commands/index.ts";
 
 export type JournalDomainVersions = {
   entries(content: JournalContent): `sha256:${string}`;

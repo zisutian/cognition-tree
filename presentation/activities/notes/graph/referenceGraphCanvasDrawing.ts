@@ -2,9 +2,9 @@ import type {
   GraphSimulationLink,
   GraphSimulationNode,
   GraphTransform,
-} from "./referenceGraphCanvasModel";
-import { resolveLinkedNodeId } from "./referenceGraphCanvasModel";
-import type { GraphDisplaySettings } from "./referenceGraphSettings";
+} from "./referenceGraphCanvasModel.ts";
+import { resolveLinkedNodeId } from "./referenceGraphCanvasModel.ts";
+import type { GraphDisplaySettings } from "./referenceGraphSettings.ts";
 
 function readCanvasColor(canvas: HTMLCanvasElement, name: string) {
   return getComputedStyle(canvas).getPropertyValue(name).trim();

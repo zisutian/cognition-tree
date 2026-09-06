@@ -1,10 +1,10 @@
 import { hoverTooltip } from "@codemirror/view";
 import {
   getCtnEditorParsedDocument,
-} from "./ctnDecorations";
+} from "./ctnDecorations.ts";
 import type {
   CtnEditorAnalysisField,
-} from "./ctnEditorAnalysis";
+} from "./ctnEditorAnalysis.ts";
 
 export function createCtnDiagnosticTooltip(
   analysisField: CtnEditorAnalysisField,

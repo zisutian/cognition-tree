@@ -4,8 +4,8 @@ import {
   Hash,
 } from "lucide-react";
 import { useMemo } from "react";
-import type { UiReferenceGraphView } from "../../../../application/workspace/projection/viewGraph";
-import { Button, SymbolSlot } from "../../../ui/shared/primitives";
+import type { UiReferenceGraphView } from "../../../../application/workspace/index.ts";
+import { Button, SymbolSlot } from "../../../ui/index.ts";
 
 type VisualizationGraph = UiReferenceGraphView;
 

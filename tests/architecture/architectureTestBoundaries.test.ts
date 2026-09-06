@@ -34,7 +34,7 @@ describe("architecture test infrastructure boundaries", () => {
 
   it("keeps production raw globs in the source corpus owner", () => {
     const productionSourceGlob =
-      /["']\.\.\/\.\.\/(?:core|contracts|application|infrastructure|presentation)\/\*\*\/\*\.(?:ts|\{ts,tsx\})["']/;
+      /["']\.\.\/\.\.\/(?:core|contracts|application|infrastructure|presentation|tooling)\/\*\*\/\*\.(?:ts|\{[a-z,]+\})["']/;
 
     expect(
       Object.entries(architectureTestModules)

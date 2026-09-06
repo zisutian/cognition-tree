@@ -4,24 +4,29 @@ import {
   getParsedWorkspaceNote,
   getWorkspaceTree,
   listWorkspaceNotes,
-} from "../../../../core/workspace/queries/workspaceQueries";
+  resolveWorkspaceReferenceNavigation,
+} from "../../../../core/workspace/index.ts";
 import {
   createUiOutlineNodes,
   findUiOutlineNodeAtLine,
-} from "../../../../application/workspace/projection/viewBlocks";
-import { createUiEditorView } from "../../../../application/workspace/projection/viewEditor";
-import { createUiNoteTree } from "../../../../application/workspace/projection/viewTree";
-import type { WorkspaceRuntime } from "../../../workspace/runtime/useWorkspaceApplication";
-import type { WorkspaceSelection } from "../../../workspace/selection/useWorkspaceSelection";
-import type { WorkspaceNavigation } from "../../../workspace/navigation/useWorkspaceNavigation";
-import type { NotesViewModel } from "../../../../application/workspace/notes/edit/notesViewModel";
-import {
-  resolveWorkspaceReferenceNavigation,
-} from "../../../../core/workspace/queries/workspaceReferenceNavigation";
+  createUiEditorView,
+  createUiNoteTree,
+} from "../../../../application/workspace/index.ts";
+
+
+import type {
+  WorkspaceRuntime,
+  WorkspaceSelection,
+  WorkspaceNavigation,
+} from "../../../workspace/index.ts";
+
+
+import type { NotesViewModel } from "../../../../application/workspace/index.ts";
+
 import {
   getCtnEditableLineNumber,
   type CtnEditableSource,
-} from "../../../../core/ctn/metadata/editableSource";
+} from "../../../../core/ctn/index.ts";
 
 export function useNotesActivity({
   navigation,

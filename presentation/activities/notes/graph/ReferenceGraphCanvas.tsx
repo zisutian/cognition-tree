@@ -1,7 +1,7 @@
 import {
   useReferenceGraphCanvasRuntime,
   type ReferenceGraphCanvasProps,
-} from "./useReferenceGraphCanvasRuntime";
+} from "./useReferenceGraphCanvasRuntime.ts";
 
 export function ReferenceGraphCanvas(props: ReferenceGraphCanvasProps) {
   const runtime = useReferenceGraphCanvasRuntime(props);

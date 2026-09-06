@@ -3,7 +3,7 @@
 import type {
   SystemConfigurationInput,
   SystemConfigurationSnapshot,
-} from "../../../application/system";
+} from "../../../application/system/index.ts";
 
 export type SystemConfigurationDraftSource = Readonly<{
   input: SystemConfigurationInput;

@@ -1,14 +1,15 @@
 import type {
   SearchControllerView,
   SearchControllerState,
-} from "../../../application/search/searchController";
-import type { SearchResult } from "../../../application/search/searchTypes";
+  SearchResult,
+} from "../../../application/search/index.ts";
+
 import "./search.css";
-import type { ActivitySlots } from "../../ui/activityTypes";
-import { SearchContext } from "./SearchContext";
-import { SearchPanel } from "./SearchPanel";
-import { SearchStatusPanel } from "./SearchStatusPanel";
-import type { SearchRepositoryOption } from "./searchViewTypes";
+import type { ActivitySlots } from "../../ui/index.ts";
+import { SearchContext } from "./SearchContext.tsx";
+import { SearchPanel } from "./SearchPanel.tsx";
+import { SearchStatusPanel } from "./SearchStatusPanel.tsx";
+import type { SearchRepositoryOption } from "./searchViewTypes.ts";
 
 export function createSearchActivitySlots({
   controller,

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { CodexDeviceLoginOperations } from "../../../application/agentHost/codexDeviceLoginOperations.ts";
-import { createDeviceLoginProcessPort } from "../agent/deviceLoginProcess.ts";
-import { serverApplicationScheduler } from "../platform/applicationScheduler.ts";
+import { CodexDeviceLoginOperations } from "../../../application/agentHost/index.ts";
+import { createDeviceLoginProcessPort } from "../agent/index.ts";
+import { serverApplicationScheduler } from "../platform/index.ts";
 
 type ApplicationInput = ConstructorParameters<typeof CodexDeviceLoginOperations>[0];
 

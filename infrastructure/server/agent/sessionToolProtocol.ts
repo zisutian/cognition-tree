@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseAgentSchema } from '../../../contracts/agent/parse.ts';
-import type { AgentToolDecoder } from '../../../application/agentHost/toolRequest.ts';
-import type { TodoAgentCommandIntent } from '../../../application/todo/todoAgentCommandPreparation.ts';
 import {
-  AgentScopeViolationError,
-  type AgentRuntimeTool,
-  type AgentScope,
-} from "../../../application/agent/index.ts";
-import {
+  parseAgentSchema,
   agentToolDefinitions,
   agentToolDefinitionsForDomain,
   type AgentJournalCommandIntentDto,
   type AgentTodoCommandIntentDto,
   type AgentWorkspaceCommandIntentDto,
-} from "../../../contracts/agent/tools.ts";
+} from '../../../contracts/agent/index.ts';
+import type { AgentToolDecoder } from '../../../application/agentHost/index.ts';
+import type { TodoAgentCommandIntent } from '../../../application/todo/index.ts';
+import {
+  AgentScopeViolationError,
+  type AgentRuntimeTool,
+  type AgentScope,
+} from "../../../application/agent/index.ts";
+
 
 function toRuntimeTool(definition: typeof agentToolDefinitions[number]) {
   return {

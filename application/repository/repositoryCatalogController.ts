@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parsePortableName } from "../../core/naming/portableName";
-import type { ActiveRepositorySelection } from "./activeRepositorySelection";
+import { parsePortableName } from "../../core/naming/index.ts";
+import type { ActiveRepositorySelection } from "./activeRepositorySelection.ts";
 import {
   reuseUnchangedRepositoryDescriptors,
   selectRepositoryAfterDeletion,
@@ -10,12 +10,12 @@ import {
   type RenameRepositoryRequest,
   type RepositoryCatalogOperation,
   type RepositoryCatalogState,
-} from "./repositoryCatalog";
+} from "./repositoryCatalog.ts";
 import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryCatalogData,
   WorkspaceRepositoryDescriptor,
-} from "./workspaceRepositoryCatalog";
+} from "./workspaceRepositoryCatalog.ts";
 
 export type RepositoryCatalogControllerSnapshot = {
   activeDescriptor: WorkspaceRepositoryDescriptor | null;

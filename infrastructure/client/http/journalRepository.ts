@@ -1,34 +1,40 @@
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
+import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
   parseJournalSnapshot,
   parseJournalSyncRequest,
   parseJournalSyncResult,
-} from "../../../contracts/journal/parseJournal";
-import { parseBuiltInDescriptor } from "../../../contracts/built-ins/parseBuiltIns";
-import { serializeJsonIteratively } from "../../../contracts/common/json";
+} from "../../../contracts/journal/index.ts";
+import { parseBuiltInDescriptor } from "../../../contracts/built-ins/index.ts";
+import {
+  serializeJsonIteratively,
+  parseContentRevision,
+} from "../../../contracts/common/index.ts";
 import type {
   JournalRepository,
   JournalRepositoryBackend,
   JournalRepositoryProvider,
-} from "../../../application/journal/persistence/journalRepository";
+} from "../../../application/journal/index.ts";
 import type {
   JournalContentDto,
   JournalRevisionDto,
-} from "../../../contracts/journal/types";
-import { parseContentRevision } from "../../../contracts/common/contractValue";
-import { createVersionedLocalDraftRevision } from "../../../application/persistence/versionedRepository";
-import { mergeJournalContent } from "../../../application/journal/persistence/journalThreeWayMerge";
-import { journalRepositoryPreparation } from "../repository/journalRepositoryCodec";
-import { createLocalFirstVersionedRepository } from "../../../application/persistence/localFirst/localFirstRepository";
-import type { VersionedRepositoryCache } from "../../../application/persistence/versionedRepositoryCache";
+} from "../../../contracts/journal/index.ts";
+
+import {
+  createVersionedLocalDraftRevision,
+  createLocalFirstVersionedRepository,
+} from "../../../application/persistence/index.ts";
+import { mergeJournalContent } from "../../../application/journal/index.ts";
+import { journalRepositoryPreparation } from "../repository/index.ts";
+
+import type { VersionedRepositoryCache } from "../../../application/persistence/index.ts";
 import {
   subscribeClientReconnect,
   type HttpApiTransportOptions,
-} from "./apiTransport";
-import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity";
-import { createHttpVersionedContentRepositoryBackend } from "./versionedContentRepository";
+} from "./apiTransport.ts";
+import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity.ts";
+import { createHttpVersionedContentRepositoryBackend } from "./versionedContentRepository.ts";
 
 type JournalRepositoryCache = VersionedRepositoryCache<
   JournalContentDto,

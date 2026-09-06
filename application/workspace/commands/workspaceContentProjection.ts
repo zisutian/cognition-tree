@@ -4,16 +4,16 @@ import { projectWorkspaceMutation } from "./workspaceDomainProjection.ts";
 import {
   projectCtnEditableText,
   projectRawCanonicalCtnBody,
-} from "../../../core/ctn/analysis/editableProjection.ts";
-import type { NoteTreeNode } from "../../../core/workspace/model/workspaceData.ts";
+} from "../../../core/ctn/index.ts";
+import type { NoteTreeNode } from "../../../core/workspace/index.ts";
 import {
   projectAgentProposalLineDiff,
   summarizeAgentProposalBlocks,
   type AgentProposalReview,
   type AgentProposalReviewAction,
   type AgentProposalReviewResourceType,
-} from "../../commands/agentProposalReview.ts";
-import type { DomainChangeSet } from "../../../core/sync/domainChangeSet.ts";
+} from "../../commands/index.ts";
+import type { DomainChangeSet } from "../../../core/sync/index.ts";
 import type {
   WorkspaceRepositoryContent,
   WorkspaceRepositoryPreparation,

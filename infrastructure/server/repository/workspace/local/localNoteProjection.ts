@@ -3,19 +3,22 @@
 import {
   analyzeCtnSource,
   type CtnCanonicalSourceAnalysis,
-} from "../../../../../core/ctn/analysis/sourceAnalysis.ts";
-import { createCtnBlockIdAllocator } from "../../../../../core/ctn/metadata/blockIdAllocator.ts";
-import { formatCtnBlockMetadataLine } from "../../../../../core/ctn/metadata/blockMetadata.ts";
-import { createMyersTextEdits } from "../../../../../core/ctn/metadata/myersTextEdits.ts";
-import { reconcileCtnSourceBlockMetadata } from "../../../../../core/ctn/metadata/reconcileSourceMetadata.ts";
-import {
+  createCtnBlockIdAllocator,
+  formatCtnBlockMetadataLine,
+  createMyersTextEdits,
+  reconcileCtnSourceBlockMetadata,
   initializeCtnSourceBlockMetadataAnalysis,
-} from "../../../../../core/ctn/metadata/sourceMetadata.ts";
-import {
   readCtnCanonicalTitleHeader,
-} from "../../../../../core/ctn/parser/parseCtnDocument.ts";
-import { compileCtnSyntaxSource } from "../../../../../core/ctn/syntax/compiler.ts";
-import type { CtnCompiledSyntax } from "../../../../../core/ctn/syntax/types.ts";
+  compileCtnSyntaxSource,
+} from "../../../../../core/ctn/index.ts";
+
+
+
+
+
+
+
+import type { CtnCompiledSyntax } from "../../../../../core/ctn/index.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,

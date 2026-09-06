@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { BuiltInId } from "./builtInCatalog";
+import type { BuiltInId } from "./builtInCatalog.ts";
 import type { OrdinaryRepositoryViewModel } from
-  "./ordinaryRepositoryViewModel";
+  "./ordinaryRepositoryViewModel.ts";
 
 export type RepositorySelection =
   | { kind: "create" }

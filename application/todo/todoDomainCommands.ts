@@ -2,59 +2,50 @@
 
 import type {
   CtnCanonicalSourceAnalysis,
-} from "../../core/ctn/analysis/sourceAnalysis.ts";
+  CtnEditableSourceChange,
+} from "../../core/ctn/index.ts";
 import {
   createMyersTextEdits,
-} from "../../core/ctn/metadata/myersTextEdits.ts";
-import type {
-  CtnEditableSourceChange,
-} from "../../core/ctn/metadata/textEdits.ts";
-import { DomainNotFoundError } from "../../core/errors/domainErrors.ts";
+} from "../../core/ctn/index.ts";
+
+import { DomainNotFoundError } from "../../core/errors/index.ts";
 import {
   createTodoCollection,
   deleteTodoCollection,
   moveTodoCollection,
   renameTodoCollection,
   updateTodoCollectionBody,
-} from "../../core/todo/commands/todoCollectionCommands.ts";
-import {
   moveTodoBlock,
   type TodoBlockMoveTarget,
-} from "../../core/todo/commands/todoBlockCommands.ts";
-import {
   setTodoBlockCompletion,
   setTodoBlockRecurrence,
   stopTodoBlockRecurrence,
   toggleTodoBlock,
-} from "../../core/todo/commands/todoCompletionRecurrenceCommands.ts";
-import type {
-  TodoCommandOutcome,
-} from "../../core/todo/commands/todoCommandOutcome.ts";
-import {
   createTodoParseIndex,
   type ParsedTodoIndexCollection,
   type TodoParseIndex,
-} from "../../core/todo/indexes/todoParseIndex.ts";
-import {
   type TodoCollection,
   type TodoCollectionId,
   type TodoContent,
-} from "../../core/todo/model/todoContent.ts";
-import {
   isTodoCollectionId,
-} from "../../core/todo/model/todoIdentity.ts";
+} from "../../core/todo/index.ts";
+
+
 import type {
+  TodoCommandOutcome,
   TodoLocalDate,
-} from "../../core/todo/recurrence/todoLocalDate.ts";
-import type {
   TodoRecurrenceRule,
-} from "../../core/todo/recurrence/todoRecurrenceRule.ts";
-import type {
   TodoRecurrenceStageId,
-} from "../../core/todo/recurrence/todoRecurrenceSchedule.ts";
+} from "../../core/todo/index.ts";
+
+
+
+
+
+
 import {
   assertDomainResourceVersion,
-} from "../commands/domainCommand.ts";
+} from "../commands/index.ts";
 
 type ResourceVersion = `sha256:${string}`;
 

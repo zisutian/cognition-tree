@@ -2,13 +2,14 @@
 
 import type {
   CtnCanonicalSourceAnalysis,
-} from "../../ctn/analysis/sourceAnalysis.ts";
-import { touchCtnSourceBlockMetadata } from "../../ctn/metadata/sourceMetadata.ts";
-import type { CtnCanonicalBlock } from "../../ctn/parser/types.ts";
+  CtnCanonicalBlock,
+} from "../../ctn/index.ts";
+import { touchCtnSourceBlockMetadata } from "../../ctn/index.ts";
+
 import {
   DomainNotFoundError,
   DomainValidationError,
-} from "../../errors/domainErrors.ts";
+} from "../../errors/index.ts";
 import type { TodoParseIndex } from "../indexes/todoParseIndex.ts";
 import {
   todoItemSemanticType,

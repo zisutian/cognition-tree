@@ -2,25 +2,25 @@
 
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { serializeJsonIteratively } from "../../../../../contracts/common/json.ts";
+import { serializeJsonIteratively } from "../../../../../contracts/common/index.ts";
 import type {
   RepositorySyntaxCatalogDto,
   RepositoryTreeNodeDto,
   WorkspaceRepositoryContentDto,
-} from "../../../../../contracts/workspace/types.ts";
+} from "../../../../../contracts/workspace/index.ts";
 import {
   repositorySyntaxIndexFileName,
   workspaceRepositorySchemaVersion,
-} from "../../../../../contracts/workspace/types.ts";
-import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
+} from "../../../../../contracts/workspace/index.ts";
+import { hasFileSystemErrorCode } from "../../../persistence/index.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,
 } from "../../store.ts";
 import { validateWorkspaceRepositorySyntax } from "../contentValidation.ts";
 import { createWorkspaceRepositoryRevision } from "../revision.ts";
-import type { CtnCanonicalSourceAnalysis } from "../../../../../core/ctn/analysis/sourceAnalysis.ts";
-import type { WorkspaceRepositoryPreparation } from "../../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
+import type { CtnCanonicalSourceAnalysis } from "../../../../../core/ctn/index.ts";
+import type { WorkspaceRepositoryPreparation } from "../../../../../application/workspace/index.ts";
 import {
   createCanonicalSourceFromLocalNoteMetadata,
   createLocalNoteMetadataFromAnalysis,

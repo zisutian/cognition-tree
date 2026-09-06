@@ -6,7 +6,7 @@ import {
   type AgentRuntimeSession,
   type AgentRuntimeToolCall,
   type AgentRuntimeTurnRequest,
-} from "../../../application/agent/agentRuntimePort.ts";
+} from "../../../application/agent/index.ts";
 import {
   appendNativeToolCorrection,
   appendOpenAiToolDelta,
@@ -24,7 +24,7 @@ import {
 import type {
   OllamaAgentProfile,
   OpenAiChatAgentProfile,
-} from "../../../application/agentHost/runtimeProfiles.ts";
+} from "../../../application/agentHost/index.ts";
 
 type CompatibleChatProfile = OllamaAgentProfile | OpenAiChatAgentProfile;
 

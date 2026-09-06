@@ -6,7 +6,7 @@ import {
   type TProperties,
   type TUnsafe,
 } from "@sinclair/typebox";
-import type { TodoLocalDateDto } from "../todo/types.ts";
+import type { TodoLocalDateDto } from "../todo/index.ts";
 
 function strictObject<T extends TProperties>(properties: T) {
   return Type.Object(properties, { additionalProperties: false });

@@ -1,20 +1,45 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { AgentSessionTools } from "../../../application/agentHost/sessionTools.ts";
-import { JournalAgentSessionTools } from "../../../application/agentHost/journalSessionTools.ts";
-import { TodoAgentSessionTools } from "../../../application/agentHost/todoSessionTools.ts";
-import { WorkspaceAgentSessionTools } from "../../../application/agentHost/workspaceSessionTools.ts";
-import type { SearchQuery } from "../../../application/search/searchTypes.ts";
-import type { SearchAccess } from "../../../application/search/scopedSearch.ts";
-import { digestAgentProposal } from "../agent/proposalCodec.ts";
-import { agentToolDecoder } from "../agent/sessionToolProtocol.ts";
-import type { ApiBuiltInCatalog } from "../repository/built-ins/catalogPort.ts";
-import type { ApiRuntime } from "../api/http/runtime.ts";
-import { projectApiJournalEntries, projectApiJournalEntry } from "../api/resources/journal.ts";
-import { projectApiTodoCollection, projectApiTodoCollections } from "../api/resources/todo.ts";
-import { projectApiWorkspaceAnalysis, projectApiWorkspaceNote, projectApiWorkspaceTree } from "../api/resources/workspace.ts";
-import { journalResourceVersions, todoResourceVersions, workspaceResourceVersions } from "../api/resources/versions.ts";
-import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
+import {
+  AgentSessionTools,
+  JournalAgentSessionTools,
+  TodoAgentSessionTools,
+  WorkspaceAgentSessionTools,
+} from "../../../application/agentHost/index.ts";
+
+
+
+import type {
+  SearchQuery,
+  SearchAccess,
+} from "../../../application/search/index.ts";
+
+import {
+  digestAgentProposal,
+  agentToolDecoder,
+} from "../agent/index.ts";
+
+import type {
+  ApiBuiltInCatalog,
+  WorkspaceRepositoryCatalog,
+} from "../repository/index.ts";
+import type { ApiRuntime } from "../api/http/index.ts";
+import {
+  projectApiJournalEntries,
+  projectApiJournalEntry,
+  projectApiTodoCollection,
+  projectApiTodoCollections,
+  projectApiWorkspaceAnalysis,
+  projectApiWorkspaceNote,
+  projectApiWorkspaceTree,
+  journalResourceVersions,
+  todoResourceVersions,
+  workspaceResourceVersions,
+} from "../api/resources/index.ts";
+
+
+
+
 
 export function createServerAgentTools({ builtInCatalog, catalog, runtime, search }: {
   builtInCatalog: ApiBuiltInCatalog;

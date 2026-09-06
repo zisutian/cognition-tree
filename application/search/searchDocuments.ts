@@ -1,9 +1,9 @@
 import type {
   CtnCanonicalSourceAnalysis,
-} from "../../core/ctn/analysis/sourceAnalysis.ts";
+} from "../../core/ctn/index.ts";
 import {
   projectCtnCanonicalBlockBody,
-} from "../../core/ctn/analysis/editableProjection.ts";
+} from "../../core/ctn/index.ts";
 import type {
   SearchDocument,
   SearchDocumentBlock,

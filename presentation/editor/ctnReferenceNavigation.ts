@@ -2,11 +2,11 @@ import { EditorView } from "@codemirror/view";
 import {
   ctnGlobalReferenceType,
   ctnLocalReferenceType,
-} from "../../core/ctn/parser/inlineReferences";
-import type { CtnEditableDocument } from "../../core/ctn/parser/types";
+} from "../../core/ctn/index.ts";
+import type { CtnEditableDocument } from "../../core/ctn/index.ts";
 import type {
   CtnEditorAnalysisField,
-} from "./ctnEditorAnalysis";
+} from "./ctnEditorAnalysis.ts";
 
 export type CtnEditorReferenceTarget = {
   lineNumber: number;

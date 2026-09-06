@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/analysis/sourceAnalysis.ts";
-import { initializeCtnSourceBlockMetadataAnalysis } from "../../../core/ctn/metadata/sourceMetadata.ts";
-import { appendNoteToWorkspaceTree } from "../../../core/workspace/model/noteTree/mutations.ts";
+import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/index.ts";
+import { initializeCtnSourceBlockMetadataAnalysis } from "../../../core/ctn/index.ts";
 import {
+  appendNoteToWorkspaceTree,
   createCanonicalNoteSource,
   createNoteRecord,
   type NoteId,
-} from "../../../core/workspace/model/workspaceData.ts";
-import type { PreparedVersionedContent } from "../../persistence/versionedRepository.ts";
+} from "../../../core/workspace/index.ts";
+
+import type { PreparedVersionedContent } from "../../persistence/index.ts";
 import type {
   WorkspaceRepositoryContent,
   WorkspaceRepositoryPreparation,

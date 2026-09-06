@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { CtnCompiledSyntax } from
-  "../../../core/ctn/syntax/types";
-import type { WorkspaceSyntax } from
-  "../../../core/workspace/context/workspaceSyntax";
-import type { WorkspaceSyntaxCatalog } from
-  "../../../core/workspace/model/workspaceSyntaxCatalog";
+  "../../../core/ctn/index.ts";
+import type {
+  WorkspaceSyntax,
+  WorkspaceSyntaxCatalog,
+} from "../../../core/workspace/index.ts";
+
 
 export type WorkspaceSyntaxFileReadModel = {
   id: string;

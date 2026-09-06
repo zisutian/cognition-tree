@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Type, type Static } from "@sinclair/typebox";
-import type { TodoRecurrenceRuleDto } from "../../todo/types.ts";
+import type { TodoRecurrenceRuleDto } from "../../todo/index.ts";
 import { ApiLocalDateSchema } from "./foundation.ts";
-import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiNonNegativeIntegerSchema, ApiResourceVersionSchema, nullable, schemaAs, strictObject } from "../../common/schema.ts";
+import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiNonNegativeIntegerSchema, ApiResourceVersionSchema, nullable, schemaAs, strictObject } from "../../common/index.ts";
 
 export const ApiCtnDiagnosticSchema = strictObject({
   code: Type.String(),

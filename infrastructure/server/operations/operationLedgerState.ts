@@ -3,18 +3,20 @@
 import {
   AgentOperationAuditEntrySchema,
   type AgentOperationAuditEntryDto,
-} from "../../../contracts/agent/schemas.ts";
-import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
+  parseAgentSchema,
+} from "../../../contracts/agent/index.ts";
+
 import {
   ApiOperationAuditEntrySchema,
   type ApiOperationAuditEntryDto,
-} from "../../../contracts/api/schemas/operations.ts";
-import { parseApiSchema } from "../../../contracts/api/parse.ts";
+  parseApiSchema,
+} from "../../../contracts/api/index.ts";
+
 import {
   assertStateFields,
   requireStateRecord,
-} from "../state/secureJsonPartition.ts";
-import type { AgentOperationAttempt } from "../../../application/operations/operationLedgerPort.ts";
+} from "../state/index.ts";
+import type { AgentOperationAttempt } from "../../../application/operations/index.ts";
 
 const operationLedgerFormatVersion = 2;
 

@@ -2,8 +2,8 @@
 
 import {
   createMyersLineDiff,
-} from "../../core/ctn/metadata/myersTextEdits.ts";
-import type { DomainBlockChange } from "../../core/sync/domainChangeSet.ts";
+} from "../../core/ctn/index.ts";
+import type { DomainBlockChange } from "../../core/sync/index.ts";
 
 export type AgentProposalReviewAction =
   | "content-updated"

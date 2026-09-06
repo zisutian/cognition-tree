@@ -2,10 +2,10 @@
 
 import type {
   VersionedRepositoryPersistenceState,
-} from "../../../application/persistence/versionedRepositorySaveQueue";
+} from "../../../application/persistence/index.ts";
 import type { WorkbenchApplication } from
-  "../application/workbenchApplication";
-import type { ActivityId } from "../../ui/activityTypes";
+  "../application/workbenchApplication.ts";
+import type { ActivityId } from "../../ui/index.ts";
 
 export function projectPersistenceStatus(
   label: "代办" | "日记" | "笔记",

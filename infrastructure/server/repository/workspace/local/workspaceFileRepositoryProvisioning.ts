@@ -4,15 +4,15 @@ import { mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import {
   parseWorkspaceRepositoryContent,
-} from "../../../../../contracts/workspace/parseRepository.ts";
+} from "../../../../../contracts/workspace/index.ts";
 import type {
   WorkspaceRepositoryContentDto,
-} from "../../../../../contracts/workspace/types.ts";
-import { parsePortableName } from "../../../../../core/naming/portableName.ts";
+} from "../../../../../contracts/workspace/index.ts";
+import { parsePortableName } from "../../../../../core/naming/index.ts";
 import {
   fsyncDirectory,
   replaceFileDurably,
-} from "../../../persistence/fileSystemPersistence.ts";
+} from "../../../persistence/index.ts";
 import { RepositoryAdapterError } from "../../store.ts";
 import {
   createLocalProjectionFromContent,

@@ -8,7 +8,7 @@ import {
   type VersionedRepositoryBackend,
   type VersionedRepositorySnapshotTransition,
   type VersionedRepositorySyncResult,
-} from "../versionedRepository";
+} from "../versionedRepository.ts";
 import type {
   LocalFirstRepositoryProjectionPort,
 } from "./localFirstRepositoryProjectionPort.ts";
@@ -19,7 +19,7 @@ import {
   isRetryableVersionedRepositoryRemoteError,
   versionedRepositoryErrorMessage,
 } from "./localFirstRepositoryPolicy.ts";
-import type { VersionedRepositoryCache } from "../versionedRepositoryCache";
+import type { VersionedRepositoryCache } from "../versionedRepositoryCache.ts";
 
 type SynchronizationProjectionPort<
   Content,

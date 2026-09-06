@@ -1,4 +1,4 @@
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
+import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
@@ -6,20 +6,21 @@ import type {
   AgentConformanceCheckStatus,
   AgentConfigurationPort,
   AgentConfigurationSnapshot,
-} from "../../../application/agent";
+} from "../../../application/agent/index.ts";
 import {
   AgentConfigurationSnapshotSchema,
   AgentCodexDeviceLoginStatusSchema,
   AgentConformanceCheckStatusSchema,
   AgentOllamaDiscoveryResultSchema,
   AgentProviderProbeResultSchema,
-} from "../../../contracts/agent/configurationSchemas";
-import { parseAgentSchema } from "../../../contracts/agent/parse";
-import { serializeJsonIteratively } from "../../../contracts/common/json";
+  parseAgentSchema,
+} from "../../../contracts/agent/index.ts";
+
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
 import {
   requestApiJson,
   type HttpApiTransportOptions,
-} from "./apiTransport";
+} from "./apiTransport.ts";
 
 function jsonRequest(body: unknown, method: "DELETE" | "PATCH" | "POST") {
   return {

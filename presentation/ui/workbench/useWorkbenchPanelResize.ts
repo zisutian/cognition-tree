@@ -13,7 +13,7 @@ import {
   getAppContextKeyboardResizeWidth,
   getAppDetailKeyboardResizeWidth,
   getAppProblemsKeyboardResizeHeight,
-} from "./frameResize";
+} from "./frameResize.ts";
 
 type WidthSetter = (width: number) => void;
 

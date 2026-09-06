@@ -1,27 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseJournalContent, parseJournalSnapshot } from "../../../contracts/journal/parseJournal";
-import { parseContentRevision } from "../../../contracts/common/contractValue";
+import { parseJournalContent, parseJournalSnapshot } from "../../../contracts/journal/index.ts";
+import { parseContentRevision } from "../../../contracts/common/index.ts";
 import {
   type JournalContent,
-} from "../../../core/journal/model/journalContent";
-import {
   JournalContentValidationError,
-} from "../../../core/journal/model/journalErrors";
-import {
   validateJournalContent,
   validateJournalContentTransition,
-} from "../../../core/journal/model/journalValidation";
-import type { JournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
-import type { JournalRevision } from "../../../application/journal/persistence/journalRepository";
+} from "../../../core/journal/index.ts";
+
+
+import type { JournalParseIndex } from "../../../core/journal/index.ts";
+import type { JournalRevision } from "../../../application/journal/index.ts";
 import {
   prepareJournalRepositoryContent,
   validateJournalRepositoryPreparedTransition,
-} from "../../../application/journal/persistence/journalRepositoryPreparation";
+} from "../../../application/journal/index.ts";
 import type {
   VersionedContentPreparationPolicy,
   VersionedRepositoryCodec,
-} from "../../../application/persistence/versionedRepository";
+} from "../../../application/persistence/index.ts";
 
 export const journalRepositoryCodec: VersionedRepositoryCodec<
   JournalContent,

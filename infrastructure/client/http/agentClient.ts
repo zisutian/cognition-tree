@@ -1,14 +1,13 @@
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
+import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
   AgentClientEvent,
   AgentClientPort,
-} from "../../../application/agent/agentClientPort";
-import type {
   AgentProposalView,
   AgentSessionSnapshot,
-} from "../../../application/agent/agentTypes";
+} from "../../../application/agent/index.ts";
+
 import {
   AgentAcceptedTurnSchema,
   AgentCancelledSchema,
@@ -18,15 +17,16 @@ import {
   AgentSessionListSchema,
   AgentSessionSnapshotSchema,
   AgentStatusSchema,
-} from "../../../contracts/agent/schemas";
-import { parseAgentSchema } from "../../../contracts/agent/parse";
-import { serializeJsonIteratively } from "../../../contracts/common/json";
+  parseAgentSchema,
+} from "../../../contracts/agent/index.ts";
+
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
 import {
   requestApiJson,
   resolveApiUrl,
   type HttpApiTransportOptions,
-} from "./apiTransport";
-import { readHttpSseData } from "./sseTransport";
+} from "./apiTransport.ts";
+import { readHttpSseData } from "./sseTransport.ts";
 
 function sessionPath(sessionId: string) {
   return buildApiOperationPath("getAgentSession", { sessionId: sessionId });

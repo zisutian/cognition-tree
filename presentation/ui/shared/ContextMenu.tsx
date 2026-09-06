@@ -1,5 +1,5 @@
 import { useRef, type KeyboardEvent } from "react";
-import { Overlay } from "./Overlay";
+import { Overlay } from "./Overlay.tsx";
 
 export type ContextMenuItem = {
   disabled?: boolean;

@@ -1,5 +1,5 @@
-import type { NotesViewModel } from "../../../../application/workspace/notes/edit/notesViewModel";
-import { CtnDocumentDetailPanel } from "../../../editor/CtnDocumentDetailPanel";
+import type { NotesViewModel } from "../../../../application/workspace/index.ts";
+import { CtnDocumentDetailPanel } from "../../../editor/index.ts";
 
 export function NoteDetailPanel({
   onCollapseDetail,

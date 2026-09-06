@@ -1,9 +1,12 @@
 import {
   flattenUiBlockSubtree,
   type UiBlockNode,
-} from "../../../../application/workspace/projection/viewBlocks";
-import { QuickPick } from "../../../ui/shared/QuickPick";
-import { useFeedback } from "../../../ui/shared/FeedbackProvider";
+} from "../../../../application/workspace/index.ts";
+import {
+  QuickPick,
+  useFeedback,
+} from "../../../ui/index.ts";
+
 
 type StructureBlockMoveOption = {
   description: string;

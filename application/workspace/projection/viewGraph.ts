@@ -1,5 +1,5 @@
-import type { NoteReferenceGraph } from "../../../core/workspace/indexes/workspaceParseIndex";
-import type { UiNoteId } from "./viewTree";
+import type { NoteReferenceGraph } from "../../../core/workspace/index.ts";
+import type { UiNoteId } from "./viewTree.ts";
 
 export type UiReferenceGraphNode = {
   id: UiNoteId;

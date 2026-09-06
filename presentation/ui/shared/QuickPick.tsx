@@ -6,9 +6,9 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { Overlay } from "./Overlay";
-import { cx } from "./primitives";
-import { InputControl } from "./controls";
+import { Overlay } from "./Overlay.tsx";
+import { cx } from "./primitives.tsx";
+import { InputControl } from "./controls.tsx";
 
 export type QuickPickOption = {
   description?: string;

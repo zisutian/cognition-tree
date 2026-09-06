@@ -4,16 +4,16 @@ import type {
   RepositoryApiErrorCodeDto,
   RepositoryRevisionDto,
   WorkspaceRepositoryContentDto,
-} from "../../../contracts/workspace/types.ts";
+} from "../../../contracts/workspace/index.ts";
 import type {
   PreparedVersionedCommit,
   PreparedVersionedCommitReceipt,
   PreparedVersionedSnapshot,
   PreparedVersionedStore,
-} from "../../../application/persistence/versionedRepository.ts";
+} from "../../../application/persistence/index.ts";
 import type {
   WorkspaceRepositoryPreparation,
-} from "../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
+} from "../../../application/workspace/index.ts";
 
 export type PreparedWorkspaceRepositorySnapshot = PreparedVersionedSnapshot<
   WorkspaceRepositoryContentDto,

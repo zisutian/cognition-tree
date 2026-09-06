@@ -3,12 +3,12 @@
 import {
   analyzeCtnSource,
   type CtnCanonicalSourceAnalysis,
-} from "../../ctn/analysis/sourceAnalysis.ts";
-import {
   readCtnCanonicalTitleHeader,
-} from "../../ctn/parser/parseCtnDocument.ts";
-import { compileCtnSyntaxSource } from "../../ctn/syntax/compiler.ts";
-import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
+  compileCtnSyntaxSource,
+} from "../../ctn/index.ts";
+
+
+import type { CtnCompiledSyntax } from "../../ctn/index.ts";
 import {
   journalRepositorySchemaVersion,
   type JournalContent,

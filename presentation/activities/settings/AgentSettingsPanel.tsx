@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
-import type { AgentApplication } from "../../../application/agent";
-import { Button } from "../../ui/shared/primitives";
-import { SubsectionTabs } from "../../ui/shared/SubsectionTabs";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
+import type { AgentApplication } from "../../../application/agent/index.ts";
 import {
+  Button,
+  SubsectionTabs,
+  useFeedback,
   ToolPanel,
   ToolPanelBody,
-} from "../../ui/shared/ToolSurface";
-import { AgentProfileSettingsSection } from "./AgentProfileSettingsSection";
-import { AgentProviderSettingsSection } from "./AgentProviderSettingsSection";
-import { AgentSettingsOverview } from "./AgentSettingsOverview";
-import type { AgentSettingsRoute } from "./settingsTypes";
+} from "../../ui/index.ts";
+
+
+
+import { AgentProfileSettingsSection } from "./AgentProfileSettingsSection.tsx";
+import { AgentProviderSettingsSection } from "./AgentProviderSettingsSection.tsx";
+import { AgentSettingsOverview } from "./AgentSettingsOverview.tsx";
+import type { AgentSettingsRoute } from "./settingsTypes.ts";
 
 const agentSettingsTabs = [
   { label: "概览", value: "overview" },

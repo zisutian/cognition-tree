@@ -1,21 +1,22 @@
 import type {
   AvailableSyntaxViewModel,
-} from "../../../application/syntax/syntaxViewModel";
-import type { SyntaxTone } from "../../../application/syntax/syntaxProjection";
+  SyntaxTone,
+} from "../../../application/syntax/index.ts";
+
 import {
   PanelBody,
   cx,
-} from "../../ui/shared/primitives";
-import { ToolDetailPanel } from "../../ui/shared/ToolSurface";
-import {
+  ToolDetailPanel,
   createToneStyle,
   getTextColorClassName,
   getToneClassName,
-} from "../../ui/shared/tonePresentation";
+} from "../../ui/index.ts";
+
+
 import {
   getInlinePreviewMarker,
   getInlinePreviewValue,
-} from "./syntaxPreview";
+} from "./syntaxPreview.ts";
 
 function SyntaxRenderLine({
   inline = false,

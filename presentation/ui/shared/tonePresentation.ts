@@ -1,10 +1,10 @@
 import type { CSSProperties } from "react";
 import {
   isCustomSyntaxTone,
-} from "../../../core/ctn/syntax/tones";
+} from "../../../core/ctn/index.ts";
 import type {
   CtnSyntaxTone,
-} from "../../../core/ctn/syntax/types";
+} from "../../../core/ctn/index.ts";
 
 type ToneStyle = CSSProperties & {
   "--ctn-text-color"?: string;

@@ -1,14 +1,14 @@
-import type { VisualizationViewModel } from "../../../../application/workspace/notes/graph/visualizationViewModel";
+import type { VisualizationViewModel } from "../../../../application/workspace/index.ts";
 import "./graph.css";
-import type { WorkspaceShell } from "../../../workspace/runtime/useWorkspaceApplication";
-import type { ActivitySlots } from "../../../ui/activityTypes";
-import { SyntaxUnavailablePanel } from "../../../ui/SyntaxUnavailablePanel";
-import { VisualizationContext } from "./VisualizationContext";
-import { VisualizationDetailPanel } from "./VisualizationDetailPanel";
-import { VisualizationPanel } from "./VisualizationPanel";
+import type { WorkspaceShell } from "../../../workspace/index.ts";
+import type { ActivitySlots } from "../../../ui/index.ts";
+import { SyntaxUnavailablePanel } from "../../../ui/index.ts";
+import { VisualizationContext } from "./VisualizationContext.tsx";
+import { VisualizationDetailPanel } from "./VisualizationDetailPanel.tsx";
+import { VisualizationPanel } from "./VisualizationPanel.tsx";
 import type {
   ReferenceGraphSession,
-} from "./useReferenceGraphSession";
+} from "./useReferenceGraphSession.ts";
 
 export function createVisualizationActivitySlots({
   onCollapseDetail,

@@ -3,22 +3,22 @@
 import {
   createPortableNameKey,
   getPortableNameIssue,
-} from "../../core/naming/portableName";
-import type { JournalWorkspaceReference } from "../../core/journal/indexes/journalParseIndex";
+} from "../../core/naming/index.ts";
+import type { JournalWorkspaceReference } from "../../core/journal/index.ts";
 import {
   readWorkspaceNoteHeader,
   type WorkspaceData,
-} from "../../core/workspace/model/workspaceData";
+} from "../../core/workspace/index.ts";
 import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,
-} from "../repository/workspaceRepositoryCatalog";
-import type { WorkspaceRepositoryProvider } from "../workspace/persistence/workspaceRepositoryProvider";
+} from "../repository/index.ts";
+import type { WorkspaceRepositoryProvider } from "../workspace/index.ts";
 import type {
   JournalWorkspaceReferenceFaultCode,
   JournalWorkspaceReferenceResolution,
   JournalWorkspaceReferenceResolver,
-} from "../journal/journalExternalReferences";
+} from "../journal/index.ts";
 
 export type JournalWorkspaceReferenceSnapshot = {
   repositoryId: string;

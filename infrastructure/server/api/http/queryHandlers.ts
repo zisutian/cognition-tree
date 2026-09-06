@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { isJournalEntryId } from "../../../../core/journal/model/journalIdentity.ts";
-import { isTodoCollectionId } from "../../../../core/todo/model/todoIdentity.ts";
-import { apiNotFound } from "../protocol/requestError.ts";
+import { isJournalEntryId } from "../../../../core/journal/index.ts";
+import { isTodoCollectionId } from "../../../../core/todo/index.ts";
+import { apiNotFound } from "../protocol/index.ts";
 import {
   assertRepositoryAllowed,
   observeBuiltInRevision,
@@ -14,16 +14,14 @@ import {
 import {
   projectApiJournalEntries,
   projectApiJournalEntry,
-} from "../resources/journal.ts";
-import {
   projectApiTodoCollection,
   projectApiTodoCollections,
-} from "../resources/todo.ts";
-import {
   projectApiWorkspaceAnalysis,
   projectApiWorkspaceNote,
   projectApiWorkspaceTree,
-} from "../resources/workspace.ts";
+} from "../resources/index.ts";
+
+
 import { readApiRuntimeNow } from "./runtime.ts";
 
 export async function handleWorkspaceQuery(context: ApiHandlerContext) {

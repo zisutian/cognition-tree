@@ -2,10 +2,10 @@ import type {
   LocalDraftRevision,
   RepositoryRevision,
   WorkspaceRepositoryContent,
-} from "../../../application/workspace/persistence/workspaceRepository";
-import { WorkspaceRepositoryLocalConflictError } from "../../../application/workspace/persistence/workspaceRepository";
-import { createMemoryVersionedRepositoryCache } from "./versionedRepositoryCache";
-import { type VersionedRepositoryCache, type VersionedRepositoryLocalState } from "../../../application/persistence/versionedRepositoryCache";
+} from "../../../application/workspace/index.ts";
+import { WorkspaceRepositoryLocalConflictError } from "../../../application/workspace/index.ts";
+import { createMemoryVersionedRepositoryCache } from "./versionedRepositoryCache.ts";
+import { type VersionedRepositoryCache, type VersionedRepositoryLocalState } from "../../../application/persistence/index.ts";
 
 export type WorkspaceRepositoryLocalState = VersionedRepositoryLocalState<
   WorkspaceRepositoryContent,

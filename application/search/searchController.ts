@@ -6,7 +6,7 @@ import {
   type SearchQuery,
   type SearchRequest,
   type SearchResult,
-} from "./searchTypes";
+} from "./searchTypes.ts";
 
 export type SearchDraft = {
   domains: SearchDomain[];

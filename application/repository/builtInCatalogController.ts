@@ -4,7 +4,7 @@ import type {
   BuiltInCatalog,
   BuiltInCatalogData,
   BuiltInId,
-} from "./builtInCatalog";
+} from "./builtInCatalog.ts";
 
 export type BuiltInCatalogState =
   | { status: "loading" }

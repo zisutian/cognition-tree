@@ -8,20 +8,20 @@ import {
 import {
   BlockText,
   type DisplayText,
-} from "../blockText";
-import { cx } from "../primitives";
-import { shouldVirtualizeUiRows } from "../virtualListMetrics";
-import { getStructureTreeRowStyle } from "./structureIndent";
+} from "../blockText.tsx";
+import { cx } from "../primitives.tsx";
+import { shouldVirtualizeUiRows } from "../virtualListMetrics.ts";
+import { getStructureTreeRowStyle } from "./structureIndent.ts";
 import {
   flattenStructureTreeRows,
   type StructureTreeRow as FlatStructureTreeRow,
-} from "./structureRows";
+} from "./structureRows.ts";
 import type {
   StructureTreeProps,
-} from "./types";
+} from "./types.ts";
 import {
   useVirtualTreeRows,
-} from "./virtualTree";
+} from "./virtualTree.ts";
 
 const emptyKeepMountedLineNumbers: ReadonlySet<number> = new Set();
 

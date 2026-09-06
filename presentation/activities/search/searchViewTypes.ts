@@ -1,4 +1,4 @@
-import type { SearchDomain } from "../../../application/search/searchTypes";
+import type { SearchDomain } from "../../../application/search/index.ts";
 
 export type SearchRepositoryOption = {
   id: string;

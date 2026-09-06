@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
-import type { JournalApplication } from "../../../application/journal";
-import { createJournalActivitySlots } from "./JournalActivitySlots";
-import type { ActivityControllerProps } from "../../ui/activityController";
+import type { RepositoryApplication } from "../../../application/repository/index.ts";
+import type { JournalApplication } from "../../../application/journal/index.ts";
+import { createJournalActivitySlots } from "./JournalActivitySlots.tsx";
+import type { ActivityControllerProps } from "../../ui/index.ts";
 import {
   BuiltInUnavailableActivity,
   resolveBuiltInActivityRetry,
-} from "../unavailable/BuiltInUnavailableActivity";
+} from "../unavailable/index.ts";
 
 type JournalBuiltInsApplication = ActivityControllerProps<JournalActivityApplication>[
   "application"

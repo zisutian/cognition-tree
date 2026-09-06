@@ -4,17 +4,20 @@ import type {
   ApiCtnDocumentDto,
   ApiWorkspaceTreeDto,
   ApiWorkspaceTreeNodeDto,
-} from "../../../../contracts/api/types.ts";
-import type { ContentRevisionDto } from "../../../../contracts/common/versionedContent.ts";
-import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/types.ts";
+} from "../../../../contracts/api/index.ts";
+import type { ContentRevisionDto } from "../../../../contracts/common/index.ts";
+import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/index.ts";
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
-} from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
-import { projectRawCanonicalCtnBody } from "../../../../core/ctn/analysis/editableProjection.ts";
-import type { CtnCompiledSyntax } from "../../../../core/ctn/syntax/types.ts";
-import type { WorkspaceParseIndex } from "../../../../core/workspace/indexes/workspaceParseIndex.ts";
-import type { WorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex.ts";
+} from "../../../../application/workspace/index.ts";
+import { projectRawCanonicalCtnBody } from "../../../../core/ctn/index.ts";
+import type { CtnCompiledSyntax } from "../../../../core/ctn/index.ts";
+import type {
+  WorkspaceParseIndex,
+  WorkspaceStructureIndex,
+} from "../../../../core/workspace/index.ts";
+
 import { projectApiCtnDocument } from "./ctn.ts";
 import {
   createWorkspaceFolderVersion,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { WorkspaceApplication } from "./runtime/useWorkspaceApplication";
+import type { WorkspaceApplication } from "./runtime/useWorkspaceApplication.ts";
 
 export type WorkbenchWorkspaceState =
   | { status: "absent" }

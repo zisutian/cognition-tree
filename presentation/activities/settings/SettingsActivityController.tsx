@@ -1,29 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentApplication } from "../../../application/agent";
-import type { ApiAccessApplication } from "../../../application/apiAccess/apiAccessAdministration";
-import type { OperationApplication } from "../../../application/operations/operationAdministration";
-import type { SystemApplication } from "../../../application/system";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import type { AgentApplication } from "../../../application/agent/index.ts";
+import type { ApiAccessApplication } from "../../../application/apiAccess/index.ts";
+import type { OperationApplication } from "../../../application/operations/index.ts";
 import type {
+  SystemApplication,
   OwnerCredentialRotationActivation,
-} from "../../../application/system";
-import { createSettingsActivitySlots } from "./SettingsActivitySlots";
+} from "../../../application/system/index.ts";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+
+import { createSettingsActivitySlots } from "./SettingsActivitySlots.tsx";
 import type {
   AgentSettingsRoute,
   ApiAccessSelection,
   SettingsSection,
-} from "./settingsTypes";
-import type { ActivityControllerProps } from "../../ui/activityController";
+} from "./settingsTypes.ts";
+import type { ActivityControllerProps } from "../../ui/index.ts";
 import {
   useApiAccessSettingsSession,
-} from "./useApiAccessSettingsSession";
+} from "./useApiAccessSettingsSession.ts";
 import {
   useSystemOwnerCredentialSession,
-} from "./useSystemOwnerCredentialSession";
+} from "./useSystemOwnerCredentialSession.ts";
 import {
   useOperationsSettingsSession,
-} from "./useOperationsSettingsSession";
+} from "./useOperationsSettingsSession.ts";
 
 export function SettingsActivityController({
   active,

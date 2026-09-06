@@ -2,7 +2,7 @@
 
 import {
   getCtnEditableLineNumber,
-} from "../../ctn/metadata/editableSource.ts";
+} from "../../ctn/index.ts";
 import { TodoContentValidationError } from "./todoErrors.ts";
 import type { ParsedTodoCollection } from "./todoValidation.ts";
 

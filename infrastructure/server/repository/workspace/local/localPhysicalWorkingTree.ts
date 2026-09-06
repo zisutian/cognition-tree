@@ -4,9 +4,12 @@ import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, open, readdir } from "node:fs/promises";
 import path from "node:path";
-import { WorkspaceRepositoryContractError } from "../../../../../contracts/workspace/contractValue.ts";
-import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
-import { readFileHandleUtf8 } from "../../../persistence/fileSystemPersistence.ts";
+import { WorkspaceRepositoryContractError } from "../../../../../contracts/workspace/index.ts";
+import {
+  hasFileSystemErrorCode,
+  readFileHandleUtf8,
+} from "../../../persistence/index.ts";
+
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,

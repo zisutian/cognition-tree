@@ -4,39 +4,39 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type {
   WorkbenchController,
   WorkbenchControllerSnapshot,
-} from "../../../application/workbench/workbenchController";
-import type { ProblemCenterController } from "../../../application/problems/problemCenter";
-import type { JournalApplicationServices } from "../../../application/journal/journalApplication.ts";
-import type { TodoApplicationServices } from "../../../application/todo/todoApplication.ts";
-import type { ActivityId } from "../../ui/activityTypes";
-import { useJournalApplication } from "./useJournalApplication";
-import { useRepositoryNavigation } from "./useRepositoryNavigation";
-import { useTodoApplication } from "./useTodoApplication";
-import { createRepositoryProjection } from "../../../application/workbench/repositoryApplicationProjection";
-import type { SearchResult } from "../../../application/search/searchTypes";
+} from "../../../application/workbench/index.ts";
+import type { ProblemCenterController } from "../../../application/problems/index.ts";
+import type { JournalApplicationServices } from "../../../application/journal/index.ts";
+import type { TodoApplicationServices } from "../../../application/todo/index.ts";
+import type { ActivityId } from "../../ui/index.ts";
+import { useJournalApplication } from "./useJournalApplication.ts";
+import { useRepositoryNavigation } from "./useRepositoryNavigation.ts";
+import { useTodoApplication } from "./useTodoApplication.ts";
+import { createRepositoryProjection } from "../../../application/workbench/index.ts";
+import type { SearchResult } from "../../../application/search/index.ts";
 import {
   isJournalEntryId,
-} from "../../../core/journal/model/journalIdentity";
+} from "../../../core/journal/index.ts";
 import {
   isTodoCollectionId,
-} from "../../../core/todo/model/todoIdentity";
+} from "../../../core/todo/index.ts";
 import type {
   AgentClientController,
   AgentClientState,
   AgentConfigurationController,
   AgentConfigurationState,
   AgentScopeCatalog,
-} from "../../../application/agent";
+} from "../../../application/agent/index.ts";
 import type {
   OwnerAuthenticationController,
   OwnerAuthenticationState,
   SystemConfigurationController,
   SystemConfigurationState,
-} from "../../../application/system";
+} from "../../../application/system/index.ts";
 import type { ApiAccessAdministration } from
-  "../../../application/apiAccess/apiAccessAdministration";
+  "../../../application/apiAccess/index.ts";
 import type { OperationAdministration } from
-  "../../../application/operations/operationAdministration";
+  "../../../application/operations/index.ts";
 
 const workspaceFeedbackActivities = [
   "notes",

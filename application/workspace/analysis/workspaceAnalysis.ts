@@ -2,12 +2,11 @@ import type {
   NoteReferenceGraph,
   ParsedWorkspaceNote,
   WorkspaceParseIndex,
-} from "../../../core/workspace/indexes/workspaceParseIndex";
-import type {
   NoteId,
   WorkspaceNote,
-} from "../../../core/workspace/model/workspaceData";
-import type { UiWorkbenchDiagnostics } from "../projection/viewDiagnostics";
+} from "../../../core/workspace/index.ts";
+
+import type { UiWorkbenchDiagnostics } from "../projection/viewDiagnostics.ts";
 
 export type WorkspaceAnalysisStatus = "collecting" | "ready";
 

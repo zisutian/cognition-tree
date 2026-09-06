@@ -1,23 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState, type FormEvent } from "react";
-import type { AgentApplication } from "../../../application/agent";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
+import type { AgentApplication } from "../../../application/agent/index.ts";
 import {
+  useFeedback,
   ManagementList,
   ManagementRow,
-} from "../../ui/shared/ManagementList";
-import { Button, EmptyState } from "../../ui/shared/primitives";
-import { StatusBadge } from "../../ui/shared/StatusPresentation";
-import { ToolSection } from "../../ui/shared/ToolSurface";
+  Button,
+  EmptyState,
+  StatusBadge,
+  ToolSection,
+} from "../../ui/index.ts";
+
+
+
+
 import {
   agentProviderDraftFrom,
   agentProviderInput,
   createAgentProviderDraft,
   type AgentProviderDraft,
-} from "./agentSettingsDraft";
-import { AgentProviderSettingsForm } from "./AgentProviderSettingsForm";
-import type { AgentSettingsRoute } from "./settingsTypes";
+} from "./agentSettingsDraft.ts";
+import { AgentProviderSettingsForm } from "./AgentProviderSettingsForm.tsx";
+import type { AgentSettingsRoute } from "./settingsTypes.ts";
 
 type ProviderRoute = Extract<AgentSettingsRoute, { page: "providers" }>;
 

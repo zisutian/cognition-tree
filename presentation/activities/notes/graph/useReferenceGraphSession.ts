@@ -1,18 +1,17 @@
 import { useCallback, useMemo } from "react";
 import {
   useRepositorySessionState,
-} from "../../../ui/workbench/useRepositorySessionState";
-import {
   createRepositorySessionKey,
-} from "../../../ui/workbench/repositorySessionStore";
+} from "../../../ui/index.ts";
+
 import {
   ReferenceGraphControllerCache,
   type ReferenceGraphController,
-} from "./referenceGraphController";
+} from "./referenceGraphController.ts";
 import {
   createDefaultReferenceGraphSettings,
   type ReferenceGraphSettings,
-} from "./referenceGraphSettings";
+} from "./referenceGraphSettings.ts";
 
 export type ReferenceGraphSession = {
   getController: (

@@ -2,20 +2,20 @@
 
 import type {
   JournalViewModel,
-} from "../../../application/journal";
+} from "../../../application/journal/index.ts";
 import type {
   TodoViewModel,
-} from "../../../application/todo";
+} from "../../../application/todo/index.ts";
 import type {
   UiWorkbenchProblem,
-} from "../../../application/workbench/problems/workbenchProblems";
+} from "../../../application/workbench/index.ts";
 import type {
   RepositoryNavigation,
-} from "../../../application/repository/repositoryNavigation";
+} from "../../../application/repository/index.ts";
 import type { WorkspaceApplication } from
-  "../../workspace/runtime/useWorkspaceApplication";
-import type { ActivityId } from "../../ui/activityTypes";
-import { isActivityId } from "./activityCatalog";
+  "../../workspace/index.ts";
+import type { ActivityId } from "../../ui/index.ts";
+import { isActivityId } from "./activityCatalog.tsx";
 
 export type WorkbenchProblemOpenContext = {
   agentNavigation?: {

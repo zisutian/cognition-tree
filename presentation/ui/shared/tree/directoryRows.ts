@@ -1,4 +1,4 @@
-import type { TreeNode } from "./types";
+import type { TreeNode } from "./types.ts";
 
 export type DirectoryTreeRow = {
   depth: number;

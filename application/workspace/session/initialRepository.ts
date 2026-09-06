@@ -1,7 +1,12 @@
-import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
-import { createInitialWorkspaceData } from "../../../core/workspace/model/workspaceData";
-import { createWorkspaceNote } from "../../../core/workspace/commands/workspaceCommands";
-import { createInitialWorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax";
+import {
+  createWorkspaceStructureIndex,
+  createInitialWorkspaceData,
+  createWorkspaceNote,
+  createInitialWorkspaceSyntax,
+} from "../../../core/workspace/index.ts";
+
+
+
 
 export function createInitialRepositoryContent({
   createBlockId,

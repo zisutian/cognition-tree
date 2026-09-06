@@ -12,14 +12,14 @@ import {
   listJournalEntries,
   type JournalContent,
   type JournalEntryId,
-} from "../../../core/journal/model/journalContent";
-import {
   formatJournalEntryDate,
-} from "../../../core/journal/model/journalIdentity";
+  resolveJournalSelection,
+} from "../../../core/journal/index.ts";
+
 import type {
   JournalParseIndex,
-} from "../../../core/journal/indexes/journalParseIndex";
-import { resolveJournalSelection } from "../../../core/journal/queries/journalQueries";
+} from "../../../core/journal/index.ts";
+
 import {
   consumeJournalFocusRequest,
   createJournalFocusRequest,
@@ -30,18 +30,16 @@ import {
   type JournalApplicationServices,
   type JournalDeleteMutationResult,
   type JournalRepositorySession,
-} from "../../../application/journal/journalApplication";
-import {
   createJournalViewModel,
   type JournalActiveBodyPosition,
   type JournalFocusRequest,
-} from "../../../application/journal/journalViewModel";
-import {
   startJournalWorkspaceReferenceResolution,
   type JournalWorkspaceReferenceDestination,
   type JournalWorkspaceReferenceResolver,
   type JournalWorkspaceReferenceResolutionState,
-} from "../../../application/journal/journalExternalReferences";
+} from "../../../application/journal/index.ts";
+
+
 
 type PreparedJournalState = {
   content: JournalContent;

@@ -9,9 +9,9 @@ import type {
   DragEvent,
   ReactNode,
 } from "react";
-import { cx } from "../primitives";
-import { InputControl } from "../controls";
-import { CompactContextActionButtons } from "../CompactContextList";
+import { cx } from "../primitives.tsx";
+import { InputControl } from "../controls.tsx";
+import { CompactContextActionButtons } from "../CompactContextList.tsx";
 import {
   canDropTreeNode,
   createTreeMoveRequest,
@@ -23,12 +23,12 @@ import {
   getTreeNodeReferenceKey,
   readTreeNodeDragPayload,
   treeNodeDragDataType,
-} from "./drag";
+} from "./drag.ts";
 import {
   isActiveDirectoryTreeNode,
   type DirectoryTreeRenderContext,
-} from "./directoryTreeRender";
-import type { TreeNode, TreeNodeReference } from "./types";
+} from "./directoryTreeRender.ts";
+import type { TreeNode, TreeNodeReference } from "./types.ts";
 
 type DirectoryTreeRowProps = {
   children?: ReactNode;

@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentOperationAuditEntryDto } from "../../../contracts/agent/schemas.ts";
-import { parseApiSchema } from "../../../contracts/api/parse.ts";
+import type { AgentOperationAuditEntryDto } from "../../../contracts/agent/index.ts";
 import {
+  parseApiSchema,
   ApiOperationAuditEntrySchema,
   type ApiOperationAuditEntryDto,
-} from "../../../contracts/api/schemas/operations.ts";
+} from "../../../contracts/api/index.ts";
+
 import type {
   AgentOperationAttempt,
   AgentOperationIdentity,
   BeginTrustedClientOperationInput,
-} from "../../../application/operations/operationLedgerPort.ts";
+} from "../../../application/operations/index.ts";
 
 type AgentReceiptProjectionInput = Readonly<{
   attempt: AgentOperationAttempt;

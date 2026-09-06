@@ -8,22 +8,27 @@ import { useEffect, useState } from "react";
 import type {
   JournalEntryListItem,
   JournalViewModel,
-} from "../../../application/journal";
-import { CtnEditor } from "../../editor/CtnEditor";
-import { CtnDocumentDetailPanel } from "../../editor/CtnDocumentDetailPanel";
-import { CtnEditorPanel } from "../../editor/CtnEditorPanel";
+} from "../../../application/journal/index.ts";
+import {
+  CtnEditor,
+  CtnDocumentDetailPanel,
+  CtnEditorPanel,
+} from "../../editor/index.ts";
+
+
 import {
   CompactContextList,
   CompactContextActionButtons,
   CompactContextRow,
-} from "../../ui/shared/CompactContextList";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
-import {
+  useFeedback,
   Button,
   EmptyState,
   Panel,
-} from "../../ui/shared/primitives";
-import { useReferenceNavigation } from "../../ui/shared/useReferenceNavigation";
+  useReferenceNavigation,
+} from "../../ui/index.ts";
+
+
+
 
 type JournalViewProps = {
   view: JournalViewModel;

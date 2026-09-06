@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/analysis/sourceAnalysis.ts";
+import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/index.ts";
 import {
   createJournalParseIndex,
   type JournalParseIndex,
-} from "../../../core/journal/indexes/journalParseIndex.ts";
+} from "../../../core/journal/index.ts";
 import type {
   JournalContent,
   JournalEntryId,
-} from "../../../core/journal/model/journalContent.ts";
+} from "../../../core/journal/index.ts";
 import {
   createThreeWayContentMergeResult,
   crossesSyntaxMergeBarrier,
@@ -16,12 +16,12 @@ import {
   mergeThreeWayValue,
   reusePreparedMergeContent,
   type ThreeWayContentMergeResult,
-} from "../../persistence/threeWayMerge.ts";
+} from "../../persistence/index.ts";
 import type {
   PreparedVersionedContent,
   VersionedContentConflictPreference,
   VersionedContentMergePolicy,
-} from "../../persistence/versionedRepository.ts";
+} from "../../persistence/index.ts";
 
 function collectJournalAnalysisOverrides(
   content: JournalContent,

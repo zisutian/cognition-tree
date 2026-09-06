@@ -1,26 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentPreparedCommand } from "../commands/agentCommandPreparation.ts";
+import type { AgentPreparedCommand } from "../commands/index.ts";
 import {
   readCommandRuntimeNow,
   type CommandRuntime,
-} from "../commands/commandRuntime.ts";
+} from "../commands/index.ts";
 import {
   createJournalBodyReplacement,
   prepareJournalMutation,
   type JournalDomainCommand,
   type JournalDomainVersions,
 } from "./journalDomainCommands.ts";
-import type { JournalCommandOutcome } from "../../core/journal/commands/journalCommandOutcome.ts";
-import type { JournalParseIndex } from "../../core/journal/indexes/journalParseIndex.ts";
 import type {
+  JournalCommandOutcome,
+  JournalParseIndex,
   JournalContent,
   JournalEntryId,
-} from "../../core/journal/model/journalContent.ts";
-import { createJournalEntryBodyProjection } from "../../core/journal/model/journalEntryProjection.ts";
-import { isJournalEntryId } from "../../core/journal/model/journalIdentity.ts";
-import { DomainNotFoundError } from "../../core/errors/domainErrors.ts";
-import type { PreparedVersionedSnapshot } from "../persistence/versionedRepository.ts";
+} from "../../core/journal/index.ts";
+
+
+import {
+  createJournalEntryBodyProjection,
+  isJournalEntryId,
+} from "../../core/journal/index.ts";
+
+import { DomainNotFoundError } from "../../core/errors/index.ts";
+import type { PreparedVersionedSnapshot } from "../persistence/index.ts";
 import type { JournalRevision } from "./persistence/journalRepository.ts";
 
 export type JournalAgentCommandIntent =

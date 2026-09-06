@@ -1,8 +1,11 @@
-import type { CtnSyntaxDraft } from "../../core/ctn/syntax/draft";
-import type { CtnSyntaxOwner } from "../../core/ctn/syntax/types";
-import type { SyntaxDiagnostic } from "./syntaxDiagnostics";
-import type { createSyntaxDraftActions } from "./syntaxDraftActions";
-import type { SyntaxProjection } from "./syntaxProjection";
+import type {
+  CtnSyntaxDraft,
+  CtnSyntaxOwner,
+} from "../../core/ctn/index.ts";
+
+import type { SyntaxDiagnostic } from "./syntaxDiagnostics.ts";
+import type { createSyntaxDraftActions } from "./syntaxDraftActions.ts";
+import type { SyntaxProjection } from "./syntaxProjection.ts";
 
 export type SyntaxSystemOwner = "journal" | "todo";
 

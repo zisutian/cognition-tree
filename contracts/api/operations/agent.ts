@@ -14,7 +14,7 @@ import {
   AgentSessionListSchema,
   AgentSessionSnapshotSchema,
   AgentStatusSchema,
-} from "../../agent/schemas.ts";
+} from "../../agent/index.ts";
 import { apiBody, ownerAccess, type ApiOperationDefinition } from "./definition.ts";
 
 export const agentApiOperations = [

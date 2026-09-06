@@ -8,27 +8,29 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { createProblemCenter } from "../../application/problems/problemCenter";
+import { createProblemCenter } from "../../application/problems/index.ts";
 import type {
   OwnerAuthenticationController,
   OwnerAuthenticationState,
-} from "../../application/system";
-import { projectWorkspaceSessionApplication } from "../../application/workspace/session/workspaceSessionApplication";
-import type { OfficialClientApi } from "../../infrastructure/client/http/apiTransport";
-import { createClientAgentRuntime } from "../../infrastructure/client/runtime/agentRuntime";
+} from "../../application/system/index.ts";
+import { projectWorkspaceSessionApplication } from "../../application/workspace/index.ts";
+import type { OfficialClientApi } from "../../infrastructure/client/http/index.ts";
 import {
+  createClientAgentRuntime,
   createClientSystemConfigurationRuntime,
-} from "../../infrastructure/client/runtime/systemRuntime";
-import { createWorkbenchRuntime } from "../../infrastructure/client/runtime/workbenchRuntime";
-import { clientApplicationScheduler } from "../../infrastructure/client/platform/applicationServices";
-import type { ActivityId } from "../ui/activityTypes";
+  createWorkbenchRuntime,
+} from "../../infrastructure/client/runtime/index.ts";
+
+
+import { clientApplicationScheduler } from "../../infrastructure/client/platform/index.ts";
+import type { ActivityId } from "../ui/index.ts";
 import {
   RepositorySessionStateProvider,
-} from "../ui/workbench/useRepositorySessionState";
-import { useWorkbenchApplicationBindings } from "./application/useWorkbenchApplicationBindings";
-import { projectUnavailableWorkspace } from "./application/workbenchApplicationProjection";
-import { ReadyWorkspaceWorkbench } from "./workbench/ReadyWorkspaceWorkbench";
-import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench";
+} from "../ui/index.ts";
+import { useWorkbenchApplicationBindings } from "./application/useWorkbenchApplicationBindings.ts";
+import { projectUnavailableWorkspace } from "./application/workbenchApplicationProjection.ts";
+import { ReadyWorkspaceWorkbench } from "./workbench/ReadyWorkspaceWorkbench.tsx";
+import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench.tsx";
 
 export function AuthenticatedWorkbenchRoot({
   api,

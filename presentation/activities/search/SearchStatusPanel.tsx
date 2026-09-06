@@ -1,6 +1,6 @@
 import type {
   SearchControllerState,
-} from "../../../application/search/searchController";
+} from "../../../application/search/index.ts";
 import {
   ToolDetailPanel,
   ToolPanelBody,
@@ -8,9 +8,9 @@ import {
   ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
-import { groupSearchResults } from "./SearchPanel";
-import { searchDomainLabels } from "./searchViewTypes";
+} from "../../ui/index.ts";
+import { groupSearchResults } from "./SearchPanel.tsx";
+import { searchDomainLabels } from "./searchViewTypes.ts";
 
 function searchStatusLabel(state: SearchControllerState) {
   if (state.status === "loading") return "搜索中";

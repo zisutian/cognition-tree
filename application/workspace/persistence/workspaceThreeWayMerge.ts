@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/analysis/sourceAnalysis.ts";
-import type { WorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax.ts";
-import type { NoteId } from "../../../core/workspace/model/workspaceData.ts";
+import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/index.ts";
+import type {
+  WorkspaceSyntax,
+  NoteId,
+} from "../../../core/workspace/index.ts";
+
 import {
   createThreeWayContentMergeResult,
   crossesSyntaxMergeBarrier,
@@ -10,12 +13,12 @@ import {
   mergeThreeWayValue,
   reusePreparedMergeContent,
   type ThreeWayContentMergeResult,
-} from "../../persistence/threeWayMerge.ts";
+} from "../../persistence/index.ts";
 import type {
   PreparedVersionedContent,
   VersionedContentConflictPreference,
   VersionedContentMergePolicy,
-} from "../../persistence/versionedRepository.ts";
+} from "../../persistence/index.ts";
 import type {
   WorkspaceRepositoryContent,
   WorkspaceRepositoryPreparation,

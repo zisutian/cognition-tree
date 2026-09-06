@@ -3,12 +3,12 @@
 import {
   createOwnerAuthenticationController,
   createSystemConfigurationController,
-} from "../../../application/system/systemConfiguration.ts";
-import type { OfficialClientApi } from "../http/apiTransport.ts";
+} from "../../../application/system/index.ts";
+import type { OfficialClientApi } from "../http/index.ts";
 import {
   createHttpOwnerAuthenticationClient,
   createHttpSystemAdministrationClient,
-} from "../http/systemAdministrationClient.ts";
+} from "../http/index.ts";
 
 export function createClientOwnerAuthenticationRuntime(
   api: OfficialClientApi,

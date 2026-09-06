@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { TSchema } from "@sinclair/typebox";
-import { failWireContract } from "../common/contractValue.ts";
+import { failWireContract } from "../common/index.ts";
 import { parseApiSchema } from "./parse.ts";
 import { ApiErrorSchema } from "./schemas/foundation.ts";
 import { adminApiOperations } from "./operations/admin.ts";

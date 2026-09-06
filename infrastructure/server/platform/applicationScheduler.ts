@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ApplicationScheduler } from '../../../application/runtime/applicationScheduler.ts';
+import type { ApplicationScheduler } from '../../../application/runtime/index.ts';
 
 export const serverApplicationScheduler: ApplicationScheduler = {
   now: () => Date.now(),

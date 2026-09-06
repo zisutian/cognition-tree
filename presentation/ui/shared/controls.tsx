@@ -10,7 +10,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
-import { cx } from "./primitives";
+import { cx } from "./primitives.tsx";
 
 export type ControlSizing = "container" | "content";
 

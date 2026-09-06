@@ -2,7 +2,7 @@ import {
   ctnGlobalReferenceType,
   ctnLocalReferenceType,
   normalizeCtnReferenceText,
-} from "../../ctn/parser/inlineReferences.ts";
+} from "../../ctn/index.ts";
 import type { WorkspaceParseIndex } from "../indexes/workspaceParseIndex.ts";
 import type { NoteId } from "../model/workspaceData.ts";
 

@@ -3,8 +3,12 @@
 import type { SystemAdministrationServerPort } from "./systemConfiguration.ts";
 import type { AgentAuditCapacityPort, SystemConfiguration, SystemConfigurationInput, SystemConfigurationSnapshot } from "./systemConfigurationModel.ts";
 import type { DataRootMigrationStatus } from "./dataRootMigrationPorts.ts";
-import type { SystemBootstrapPort } from "./systemConfigurationPorts.ts";
-import type { BootstrapOwnerCredentialActivation, BootstrapConfigurationSnapshot } from "./systemConfigurationPorts.ts";
+import type {
+  SystemBootstrapPort,
+  BootstrapOwnerCredentialActivation,
+  BootstrapConfigurationSnapshot,
+} from "./systemConfigurationPorts.ts";
+
 
 export type DataRootMigrationPort = {
   current(): Promise<DataRootMigrationStatus | null>;

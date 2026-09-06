@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Button } from "../../ui/shared/primitives";
 import {
+  Button,
   ToolPropertyList,
   ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
-import type { ApiAccessSelection } from "./settingsTypes";
-import type { ApiAccessSettingsStatusView } from "./useApiAccessSettingsSession";
+} from "../../ui/index.ts";
+
+import type { ApiAccessSelection } from "./settingsTypes.ts";
+import type { ApiAccessSettingsStatusView } from "./useApiAccessSettingsSession.ts";
 
 export function ApiAccessSettingsStatus({ selection, session }: {
   selection: ApiAccessSelection;

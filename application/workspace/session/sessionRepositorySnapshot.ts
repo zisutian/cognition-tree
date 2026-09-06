@@ -2,17 +2,21 @@ import type {
   WorkspaceRepository,
   WorkspaceRepositoryContent,
   WorkspaceRepositorySnapshot,
-} from "../persistence/workspaceRepository";
-import type { WorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax";
-import type { NoteId } from "../../../core/workspace/model/workspaceData";
+} from "../persistence/workspaceRepository.ts";
+import type {
+  WorkspaceSyntax,
+  NoteId,
+  WorkspaceParseIndex,
+} from "../../../core/workspace/index.ts";
+
 import {
   type CtnCanonicalSourceAnalysis,
-} from "../../../core/ctn/analysis/sourceAnalysis";
-import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
+} from "../../../core/ctn/index.ts";
+
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
-} from "../persistence/workspaceRepositoryPreparation";
+} from "../persistence/workspaceRepositoryPreparation.ts";
 
 export type WorkspaceSessionSnapshot = WorkspaceRepositorySnapshot & {
   workspaceSyntax: WorkspaceSyntax | null;

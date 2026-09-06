@@ -1,11 +1,15 @@
-import type { BuiltInId } from "../../../application/repository/builtInCatalog";
-import type { BuiltInCatalogApplication } from "../../../application/repository/builtInCatalogController";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
+import type {
+  BuiltInId,
+  BuiltInCatalogApplication,
+} from "../../../application/repository/index.ts";
+
 import {
+  useFeedback,
   Button,
   EmptyState,
   Panel,
-} from "../../ui/shared/primitives";
+} from "../../ui/index.ts";
+
 
 type BuiltInUnavailableApplication =
   | { status: "loading" }

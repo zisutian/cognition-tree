@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { AgentConfigurationConflictError } from "../../../application/agentHost/configurationErrors.ts";
+import { AgentConfigurationConflictError } from "../../../application/agentHost/index.ts";
 import type { AgentConfigurationState } from "./configurationStateCodec.ts";
 import { stateRevision } from "./configurationViews.ts";
 

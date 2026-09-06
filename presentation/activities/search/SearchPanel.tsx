@@ -3,13 +3,11 @@ import {
   searchDraftsEqual,
   type SearchControllerView,
   type SearchControllerState,
-} from "../../../application/search/searchController";
-import type { SearchDomain, SearchResult } from "../../../application/search/searchTypes";
+} from "../../../application/search/index.ts";
+import type { SearchDomain, SearchResult } from "../../../application/search/index.ts";
 import {
   Button,
   EmptyState,
-} from "../../ui/shared/primitives";
-import {
   ToolDivider,
   ToolList,
   ToolListRow,
@@ -17,12 +15,14 @@ import {
   ToolPanelBody,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
+  StatusBadge,
+} from "../../ui/index.ts";
+
 import {
   searchDomainLabels,
   type SearchRepositoryOption,
-} from "./searchViewTypes";
-import { StatusBadge } from "../../ui/shared/StatusPresentation";
+} from "./searchViewTypes.ts";
+
 
 export type SearchResultGroup = {
   domain: SearchDomain;

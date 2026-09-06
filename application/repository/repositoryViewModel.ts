@@ -3,12 +3,12 @@
 import {
   projectBuiltInRepositoryViewModel,
   type BuiltInRepositoryViewModel,
-} from "./builtInRepositoryViewModel";
+} from "./builtInRepositoryViewModel.ts";
 import {
   projectOrdinaryRepositoryViewModel,
   type OrdinaryRepositoryViewModel,
-} from "./ordinaryRepositoryViewModel";
-import type { RepositoryApplication } from "./repositoryApplication";
+} from "./ordinaryRepositoryViewModel.ts";
+import type { RepositoryApplication } from "./repositoryApplication.ts";
 
 export type RepositoryViewModel = OrdinaryRepositoryViewModel &
   BuiltInRepositoryViewModel;

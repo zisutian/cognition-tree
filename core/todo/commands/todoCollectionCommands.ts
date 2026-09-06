@@ -2,28 +2,24 @@
 
 import {
   analyzeCtnSource,
-} from "../../ctn/analysis/sourceAnalysis.ts";
-import {
   reconcileCtnSourceBlockMetadata,
-} from "../../ctn/metadata/reconcileSourceMetadata.ts";
-import {
   initializeCtnSourceBlockMetadataAnalysis,
   replaceCtnSourceTitle,
-} from "../../ctn/metadata/sourceMetadata.ts";
-import {
   assertCtnEditableSourceChange,
   type CtnEditableSourceChange,
-} from "../../ctn/metadata/textEdits.ts";
-import {
   readCtnCanonicalTitleHeader,
-} from "../../ctn/parser/parseCtnDocument.ts";
+} from "../../ctn/index.ts";
+
+
+
+
 import {
   DomainValidationError,
-} from "../../errors/domainErrors.ts";
+} from "../../errors/index.ts";
 import {
   createPortableNameKey,
   parsePortableName,
-} from "../../naming/portableName.ts";
+} from "../../naming/index.ts";
 import type { TodoParseIndex } from "../indexes/todoParseIndex.ts";
 import type {
   TodoCollectionId,

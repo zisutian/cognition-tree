@@ -5,14 +5,14 @@ import type {
   OutgoingHttpHeaders,
   ServerResponse,
 } from "node:http";
-import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
-import { apiAllowedMethods } from "../../../../contracts/api/registry.ts";
+import { serializeJsonIteratively } from "../../../../contracts/common/index.ts";
+import { apiAllowedMethods } from "../../../../contracts/api/index.ts";
 import {
   JsonRequestBodyError,
   readJsonRequestBody,
   readSingleHttpHeader,
-} from "../../network/jsonRequestBody.ts";
-import { ApiRequestError } from "../protocol/requestError.ts";
+} from "../../network/index.ts";
+import { ApiRequestError } from "../protocol/index.ts";
 
 export const defaultMaximumBodyBytes = 20 * 1024 * 1024;
 

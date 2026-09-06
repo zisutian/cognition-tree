@@ -1,41 +1,67 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createServerProviderOperations } from "./runtime/providerRuntime.ts";
-import { createServerAgentService } from "./runtime/agentRuntime.ts";
-import { createServerSearchQuery } from "./runtime/searchRuntime.ts";
-import { runDataRootMigrationRecoveryServer } from "./system/dataRootMigrationRecoveryServer.ts";
+import {
+  createServerProviderOperations,
+  createServerAgentService,
+  createServerSearchQuery,
+  createApiServer,
+} from "./runtime/index.ts";
+
+
+import {
+  runDataRootMigrationRecoveryServer,
+  FileDataRootMigrationRecordStore,
+  createDataRootMigrationFileOperations,
+  BootstrapConfigurationStore,
+  runBootstrapRecoveryServer,
+} from "./system/index.ts";
 import { randomUUID } from "node:crypto";
-import { FileDataRootMigrationRecordStore } from "./system/dataRootMigrationRecordStore.ts";
-import { createDataRootMigrationFileOperations } from "./system/dataRootMigrationFiles.ts";
-import { localRepositoryWriterLockName } from "./repository/repositoryRuntimeLayout.ts";
+
+
+import {
+  localRepositoryWriterLockName,
+  BuiltInCatalog,
+  LocalRepositoryCatalog,
+} from "./repository/index.ts";
 import { once } from "node:events";
 import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import path from "node:path";
-import { AutomationTokenStore } from "./access/automationTokenStore.ts";
-import { AgentConfigurationStore } from "./agent/configurationStore.ts";
-import { OperationLedger } from "./operations/operationLedger.ts";
-import { TrustedClientTokenStore } from "./access/trustedClientTokenStore.ts";
-import { AgentProviderTargetPolicy } from "./agent/providerTargetPolicy.ts";
-import { agentServicePolicy } from "../../application/agentHost/servicePolicy.ts";
-import { createApiServer } from "./runtime/apiRuntime.ts";
-import { ApiMaintenanceGate } from "./api/http/maintenanceGate.ts";
 import {
+  AutomationTokenStore,
+  TrustedClientTokenStore,
+} from "./access/index.ts";
+import {
+  AgentConfigurationStore,
+  AgentProviderTargetPolicy,
+} from "./agent/index.ts";
+import { OperationLedger } from "./operations/index.ts";
+
+
+import { agentServicePolicy } from "../../application/agentHost/index.ts";
+
+import {
+  ApiMaintenanceGate,
   closeApiServer,
   settleApiServerLifecycleOperations,
   settleApiServerLifecyclePhases,
-} from "./api/http/serverLifecycle.ts";
-import { systemApiRuntime } from "./api/http/runtime.ts";
-import { createApiSecurityPolicy } from "./api/http/security.ts";
-import { ApiEventHub } from "./api/sync/events.ts";
-import { DomainRevisionTracker } from "../../application/sync/domainRevisionTracker.ts";
-import { createStaticClientRuntime } from "./client/staticClientRuntime.ts";
-import { BuiltInCatalog } from "./repository/built-ins/catalog.ts";
-import { LocalRepositoryCatalog } from
-  "./repository/workspace/local/localRepositoryCatalog.ts";
-import { BootstrapConfigurationStore } from "./system/bootstrapConfigurationStore.ts";
-import { DataRootMigrationCoordinator } from "../../application/system/dataRootMigrationCoordinator.ts";
-import { SystemAdministrationService } from "../../application/system/systemAdministrationService.ts";
-import { runBootstrapRecoveryServer } from "./system/recoveryServer.ts";
+  systemApiRuntime,
+  createApiSecurityPolicy,
+} from "./api/http/index.ts";
+
+
+
+import { ApiEventHub } from "./api/sync/index.ts";
+import { DomainRevisionTracker } from "../../application/sync/index.ts";
+import { createStaticClientRuntime } from "./client/index.ts";
+
+
+
+import {
+  DataRootMigrationCoordinator,
+  SystemAdministrationService,
+} from "../../application/system/index.ts";
+
+
 
 const dataRootMigrationFileOperations = createDataRootMigrationFileOperations(localRepositoryWriterLockName);
 

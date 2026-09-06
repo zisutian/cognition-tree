@@ -2,30 +2,30 @@ import { useMemo, useState } from "react";
 import {
   ContextMenu,
   type ContextMenuPosition,
-} from "../ContextMenu";
-import { useFeedback } from "../FeedbackProvider";
-import { cx } from "../primitives";
-import { shouldVirtualizeUiRows } from "../virtualListMetrics";
+} from "../ContextMenu.tsx";
+import { useFeedback } from "../FeedbackProvider.tsx";
+import { cx } from "../primitives.tsx";
+import { shouldVirtualizeUiRows } from "../virtualListMetrics.ts";
 import {
   DirectoryTreeContent,
   VirtualDirectoryTreeContent,
-} from "./DirectoryTreeContent";
+} from "./DirectoryTreeContent.tsx";
 import type {
   DirectoryTreeEditingNode,
   DirectoryTreeRenderContext,
-} from "./directoryTreeRender";
+} from "./directoryTreeRender.ts";
 import {
   canDropTreeNode,
   createTreeMoveRequest,
   readTreeNodeDragPayload,
   treeNodeDragDataType,
-} from "./drag";
-import { flattenVisibleDirectoryTreeRows } from "./directoryRows";
+} from "./drag.ts";
+import { flattenVisibleDirectoryTreeRows } from "./directoryRows.ts";
 import type {
   NoteTreeProps,
   TreeDragState,
   TreeNode,
-} from "./types";
+} from "./types.ts";
 
 const rootDestination = { kind: "root" } as const;
 

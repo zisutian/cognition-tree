@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { AgentStagingFor } from './sessionToolState.ts';
-import type { TodoAgentCommandRuntime } from '../todo/todoAgentCommandPreparation.ts';
-import type { TodoDomainVersions } from '../todo/todoDomainCommands.ts';
-import type { ParsedTodoIndexCollection } from '../../core/todo/indexes/todoParseIndex.ts';
-import type { TodoLocalDate } from '../../core/todo/recurrence/todoLocalDate.ts';
+import type {
+  TodoAgentCommandRuntime,
+  TodoDomainVersions,
+} from '../todo/index.ts';
+
+import type {
+  ParsedTodoIndexCollection,
+  TodoLocalDate,
+} from '../../core/todo/index.ts';
+
 
 type Snapshot = AgentStagingFor<'todo'>['base'];
 export type TodoAgentToolPorts = {

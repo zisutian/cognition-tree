@@ -3,9 +3,9 @@
 import {
   AgentRuntimeProtocolError,
   type AgentRuntimeTool,
-} from "../../../application/agent/agentRuntimePort.ts";
+} from "../../../application/agent/index.ts";
 import type { TSchema } from "@sinclair/typebox";
-import { inspectWireSchema } from "../../../contracts/common/schemaValidation.ts";
+import { inspectWireSchema } from "../../../contracts/common/index.ts";
 
 export type ChatMessage =
   | {

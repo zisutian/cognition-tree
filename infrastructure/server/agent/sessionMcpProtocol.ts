@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
-import { AgentIpcResponseSchema } from "../../../contracts/agent/ipc.ts";
+import {
+  parseAgentSchema,
+  AgentIpcResponseSchema,
+} from "../../../contracts/agent/index.ts";
+
 
 export type SessionMcpRequestParseResult =
   | { kind: "notification" }

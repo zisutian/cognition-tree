@@ -4,7 +4,7 @@ import {
   ctnGlobalReferenceType,
   ctnLocalReferenceType,
   normalizeCtnReferenceText,
-} from "../../ctn/parser/inlineReferences.ts";
+} from "../../ctn/index.ts";
 import type { JournalParseIndex } from "../indexes/journalParseIndex.ts";
 import {
   type JournalEntryId,

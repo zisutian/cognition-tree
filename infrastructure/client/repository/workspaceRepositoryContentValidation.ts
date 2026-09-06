@@ -1,10 +1,10 @@
-import { parseWorkspaceRepositoryContent } from "../../../contracts/workspace/parseRepository";
-import type { WorkspaceRepositoryContent } from "../../../application/workspace/persistence/workspaceRepository";
+import { parseWorkspaceRepositoryContent } from "../../../contracts/workspace/index.ts";
+import type { WorkspaceRepositoryContent } from "../../../application/workspace/index.ts";
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
-} from "../../../application/workspace/persistence/workspaceRepositoryPreparation";
-import type { VersionedContentPreparationPolicy } from "../../../application/persistence/versionedRepository";
+} from "../../../application/workspace/index.ts";
+import type { VersionedContentPreparationPolicy } from "../../../application/persistence/index.ts";
 
 /**
  * Application-owned semantic validation composed at the storage runtime edge.

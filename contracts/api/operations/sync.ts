@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseJournalSyncRequest } from "../../journal/parseJournal.ts";
-import { parseTodoSyncRequest } from "../../todo/parseTodo.ts";
-import { parseWorkspaceRepositorySyncRequest } from "../../workspace/parseRepository.ts";
+import { parseJournalSyncRequest } from "../../journal/index.ts";
+import { parseTodoSyncRequest } from "../../todo/index.ts";
+import { parseWorkspaceRepositorySyncRequest } from "../../workspace/index.ts";
 import {
   ApiJournalSnapshotSchema,
   ApiJournalSyncRequestSchema,

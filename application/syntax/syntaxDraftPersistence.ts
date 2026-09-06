@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { buildCtnSyntaxDraft, createCtnSyntaxDraft, type CtnSyntaxDraft } from "../../core/ctn/syntax/draft.ts";
-import { formatCtnSyntaxV2 } from "../../core/ctn/syntax/formatter.ts";
-import type { CtnCompiledSyntax, CtnSyntaxOwner } from "../../core/ctn/syntax/types.ts";
+import {
+  buildCtnSyntaxDraft,
+  createCtnSyntaxDraft,
+  type CtnSyntaxDraft,
+  formatCtnSyntaxV2,
+} from "../../core/ctn/index.ts";
+
+import type { CtnCompiledSyntax, CtnSyntaxOwner } from "../../core/ctn/index.ts";
 
 export function createCtnSyntaxDraftSource(
   draft: CtnSyntaxDraft,

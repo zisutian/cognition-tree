@@ -2,22 +2,24 @@
 
 import type {
   OperationAuditEntry,
-} from "../../../application/operations/operationAdministration";
-import { Button, EmptyState } from "../../ui/shared/primitives";
+} from "../../../application/operations/index.ts";
 import {
+  Button,
+  EmptyState,
   ManagementList,
   ManagementRow,
-} from "../../ui/shared/ManagementList";
-import { StatusBadge } from "../../ui/shared/StatusPresentation";
-import {
+  StatusBadge,
   ToolPanel,
   ToolPanelBody,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
+} from "../../ui/index.ts";
+
+
+
 import type {
   OperationsSettingsPanelView,
-} from "./useOperationsSettingsSession";
+} from "./useOperationsSettingsSession.ts";
 
 function sourceLabel(source: OperationAuditEntry["source"]) {
   return source === "agent" ? "智能体" : "可信客户端";

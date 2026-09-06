@@ -1,34 +1,39 @@
 import { useCallback, useEffect, useReducer } from "react";
-import type { FolderId } from "../../../core/workspace/model/workspaceData";
+import type {
+  FolderId,
+  WorkspaceStructureIndex,
+} from "../../../core/workspace/index.ts";
 import {
   collectWorkspaceNoteIdsInFolder,
   findWorkspaceNote,
   listWorkspaceNotes,
-} from "../../../core/workspace/queries/workspaceQueries";
-import type { SessionCommands } from "../../../application/workspace/session/sessionCommands";
+} from "../../../core/workspace/index.ts";
 import type {
+  SessionCommands,
   UiDirectoryActiveNode,
   UiFolderId,
   UiNoteId,
   UiTreeMoveRequest,
-} from "../../../application/workspace/projection/viewTree";
-import type { WorkspaceSelection } from "../../../application/workspace/selection/workspaceSelection";
-import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
-import { resolveFolderSelection } from "../../../application/workspace/selection/resolveFolderSelection";
+  WorkspaceSelection,
+} from "../../../application/workspace/index.ts";
+
+
+
 import {
+  resolveFolderSelection,
   createWorkspaceTreeMoveDestination,
   createWorkspaceTreeNodeReference,
-} from "../../../application/workspace/selection/sidebarTreeMove";
-import {
   resolveActiveNoteId,
   resolveActiveNoteIdAfterRemovingNote,
   resolveActiveNoteIdAfterRemovingNotes,
-} from "../../../application/workspace/selection/viewSelection";
+} from "../../../application/workspace/index.ts";
+
+
 
 export type {
   WorkspaceDirectoryMutations,
   WorkspaceSelection,
-} from "../../../application/workspace/selection/workspaceSelection";
+} from "../../../application/workspace/index.ts";
 
 type SelectionState = {
   activeNode: UiDirectoryActiveNode | null;

@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { removeCtnBlockMetadataLines } from "../../../core/ctn/metadata/blockMetadata.ts";
-import { createMyersTextEdits } from "../../../core/ctn/metadata/myersTextEdits.ts";
-import type { WorkspaceData } from "../../../core/workspace/model/workspaceData.ts";
+import {
+  removeCtnBlockMetadataLines,
+  createMyersTextEdits,
+} from "../../../core/ctn/index.ts";
+
+import type { WorkspaceData } from "../../../core/workspace/index.ts";
 import {
   createDomainChangeSet,
   type DomainResourceChange,
-} from "../../../core/sync/domainChangeSet.ts";
+} from "../../../core/sync/index.ts";
 import {
   projectDomainTextEdits,
   type DomainMutationProjection,
-} from "../../commands/domainCommand.ts";
+} from "../../commands/index.ts";
 import {
   type WorkspaceDomainContext,
   type WorkspaceDomainVersions,

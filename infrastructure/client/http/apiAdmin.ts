@@ -1,4 +1,11 @@
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
+import {
+  buildApiOperationPath,
+  parseApiCreatedToken,
+  parseApiTokenList,
+  ApiCreatedTrustedClientTokenSchema,
+  ApiTrustedClientTokenListSchema,
+  parseApiSchema,
+} from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
@@ -7,21 +14,15 @@ import type {
   AutomationApiScope,
   CreateAutomationApiTokenRequest,
   TrustedClientToken,
-} from "../../../application/apiAccess/apiAccessAdministration";
-import { serializeJsonIteratively } from "../../../contracts/common/json";
-import {
-  parseApiCreatedToken,
-  parseApiTokenList,
-} from "../../../contracts/api/parse";
-import {
-  ApiCreatedTrustedClientTokenSchema,
-  ApiTrustedClientTokenListSchema,
-} from "../../../contracts/api/schemas/admin";
-import { parseApiSchema } from "../../../contracts/api/parse";
+} from "../../../application/apiAccess/index.ts";
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
+
+
+
 import {
   requestApiJson,
   type HttpApiTransportOptions,
-} from "./apiTransport";
+} from "./apiTransport.ts";
 
 function projectToken(
   token: ReturnType<typeof parseApiTokenList>[number],

@@ -1,30 +1,33 @@
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types";
-import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
+import type {
+  CtnCompiledSyntax,
+  CtnEditableSourceChange,
+} from "../../core/ctn/index.ts";
+
 import {
   createCtnEditorReadOnlyExtensions,
   createCtnEditorExtensions,
   createCtnEditorRuntimeExtensions,
   ctnEditorReadOnlyCompartment,
   getCtnEditorActiveLineNumber,
-} from "./ctnEditorExtensions";
-import type { CtnEditorParsedContentMode } from "./ctnEditorContentMode";
+} from "./ctnEditorExtensions.ts";
+import type { CtnEditorParsedContentMode } from "./ctnEditorContentMode.ts";
 import {
   ctnEditorRuntimeCompartment,
   type CtnEditorRuntimeOptions,
-} from "./ctnEditorRuntime";
-import { createEditorValueSyncTransaction } from "./editorValueSync";
-import type { CtnEditorReferenceTarget } from "./ctnReferenceNavigation";
+} from "./ctnEditorRuntime.ts";
+import { createEditorValueSyncTransaction } from "./editorValueSync.ts";
+import type { CtnEditorReferenceTarget } from "./ctnReferenceNavigation.ts";
 import {
   createCtnEditorCheckableBlocksKey,
   type CtnEditorCheckableBlock,
-} from "./ctnEditorCheckableBlocks";
+} from "./ctnEditorCheckableBlocks.ts";
 import "./CtnEditor.css";
 
 export type CtnEditorSyntax = CtnCompiledSyntax;
-export type { CtnEditorContentMode } from "./ctnEditorContentMode";
+export type { CtnEditorContentMode } from "./ctnEditorContentMode.ts";
 
 type CtnEditorBaseProps = {
   checkableBlocks?: readonly CtnEditorCheckableBlock[];
@@ -51,7 +54,7 @@ type CtnEditorProps = CtnEditorBaseProps & (
     }
 );
 
-export type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks";
+export type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks.ts";
 
 export type CtnEditorFocusTarget = {
   lineNumber: number;

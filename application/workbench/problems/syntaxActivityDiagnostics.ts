@@ -1,11 +1,11 @@
-import type { JournalDiagnostics } from "../../journal/journalDiagnostics";
-import type { TodoDiagnostics } from "../../todo/todoDiagnostics";
-import type { SyntaxTarget } from "../../syntax/syntaxViewModel";
+import type { JournalDiagnostics } from "../../journal/index.ts";
+import type { TodoDiagnostics } from "../../todo/index.ts";
+import type { SyntaxTarget } from "../../syntax/index.ts";
 import type {
   UiWorkbenchDiagnostic,
   UiWorkbenchDiagnostics,
-} from "../../workspace/projection/viewDiagnostics";
-import type { WorkbenchDiagnostics } from "./workbenchProblems";
+} from "../../workspace/index.ts";
+import type { WorkbenchDiagnostics } from "./workbenchProblems.ts";
 
 const readyEmptyDiagnostics = {
   diagnostics: [],

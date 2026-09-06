@@ -8,7 +8,7 @@ import {
   type InternalModuleImport,
   type SourceImport,
 } from "./sourceArchitecture";
-import { sourceModules } from "./sourceCorpus";
+import { sourceAssets, sourceModules } from "./sourceCorpus";
 
 function normalizePath(segments: string[]) {
   return segments.reduce<string[]>((normalized, segment) => {
@@ -27,6 +27,11 @@ function resolveModuleFilePath(modules: SourceModules, targetPath: string) {
     targetPath,
     `${targetPath}.ts`,
     `${targetPath}.tsx`,
+    `${targetPath}.js`,
+    `${targetPath}.mjs`,
+    `${targetPath}.cjs`,
+    `${targetPath}.mts`,
+    `${targetPath}.cts`,
     `${targetPath}/index.ts`,
     `${targetPath}/index.tsx`,
   ].find((candidate) => candidate in modules) ?? null;
@@ -44,7 +49,9 @@ function resolveInternalModuleImports(
       ...filePath.split("/").slice(0, -1),
       ...importPath.split("/"),
     ]).join("/");
-    const targetPath = resolveModuleFilePath(modules, unresolved);
+    const targetPath = resolveModuleFilePath(modules, unresolved) ??
+      (modules === sourceModules && unresolved in sourceAssets ? unresolved : null);
+    if (!targetPath) throw new Error(`Unresolved import: ${filePath} imports ${importPath}`);
 
     return targetPath?.startsWith(rootPrefix)
       ? [{ filePath, importPath, targetPath }]
@@ -110,7 +117,8 @@ function copySourceImport(sourceImport: Readonly<SourceImport>): SourceImport {
 }
 
 export function readSourceImports(filePath: string): readonly SourceImport[] {
-  return (sourceImportIndex[filePath]?.sourceImports ?? []).map(
+  if (!(filePath in sourceImportIndex)) throw new Error(`Missing source imports: ${filePath}`);
+  return sourceImportIndex[filePath]!.sourceImports.map(
     copySourceImport,
   );
 }

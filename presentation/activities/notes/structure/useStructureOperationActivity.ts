@@ -1,21 +1,29 @@
 import { useMemo } from "react";
-import { hasWorkspaceNote } from "../../../../core/workspace/queries/workspaceQueries";
-import type { UiStructureOperationView } from "../../../../application/workspace/projection/viewStructureOperation";
-import type { UiNoteId } from "../../../../application/workspace/projection/viewTree";
-import type { WorkspaceRuntime } from "../../../workspace/runtime/useWorkspaceApplication";
-import type { WorkspaceSelection } from "../../../workspace/selection/useWorkspaceSelection";
-import { resolveDifferentNoteId } from "../../../../application/workspace/selection/viewSelection";
+import { hasWorkspaceNote } from "../../../../core/workspace/index.ts";
+import type {
+  UiStructureOperationView,
+  UiNoteId,
+  StructureOperationActivityViewModel,
+} from "../../../../application/workspace/index.ts";
+
+import type {
+  WorkspaceRuntime,
+  WorkspaceSelection,
+} from "../../../workspace/index.ts";
+
 import {
+  resolveDifferentNoteId,
   resolveStructureOperationDirectorySelection,
   resolveSwappedStructureOperationPair,
-} from "../../../../application/workspace/notes/structure/directorySelection";
-import { createStructureOperationProjection } from "../../../../application/workspace/notes/structure/structureOperationProjection";
-import type { StructureOperationActivityViewModel } from "../../../../application/workspace/notes/structure/structureOperationViewModel";
-import {
+  createStructureOperationProjection,
   executeStructureBlockMoveBetweenNotes,
   executeStructureBlockMoveWithinNote,
-} from "../../../../application/workspace/notes/structure/structureOperationWorkflow";
-import type { StructureOperationState } from "./useStructureOperationState";
+} from "../../../../application/workspace/index.ts";
+
+
+
+
+import type { StructureOperationState } from "./useStructureOperationState.ts";
 
 export function useStructureOperationActivity({
   runtime,

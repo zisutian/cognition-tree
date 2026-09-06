@@ -1,9 +1,9 @@
-import { canDropTreeNode, getTreeNodeReference } from "./drag";
+import { canDropTreeNode, getTreeNodeReference } from "./drag.ts";
 import type {
   TreeMoveDestination,
   TreeNode,
   TreeNodeReference,
-} from "./types";
+} from "./types.ts";
 
 export type TreeMoveOption = {
   description: string;

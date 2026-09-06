@@ -3,15 +3,14 @@
 import {
   createPortableNameKey,
   getPortableNameIssue,
-} from "../../core/naming/portableName";
-import type { TodoParseIndex } from "../../core/todo/indexes/todoParseIndex";
+} from "../../core/naming/index.ts";
+import type { TodoParseIndex } from "../../core/todo/index.ts";
 import {
   todoItemSemanticType,
   type TodoCollectionId,
-} from "../../core/todo/model/todoContent";
-import {
   createTodoCollectionBodyProjection,
-} from "../../core/todo/model/todoCollectionProjection";
+} from "../../core/todo/index.ts";
+
 
 export type TodoDiagnostic = {
   code: string;

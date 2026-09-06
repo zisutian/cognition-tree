@@ -2,15 +2,23 @@
 
 import { createServerDeviceLoginOperations } from "./deviceLoginRuntime.ts";
 import path from 'node:path';
-import { AgentProviderOperations } from '../../../application/agentHost/providerOperations.ts';
-import { AgentConformanceOperations } from '../../../application/agentHost/conformanceOperations.ts';
-import type { CommandRuntime } from '../../../application/commands/commandRuntime.ts';
-import { ConfiguredAgentRuntimeFactory } from '../agent/configuredAgentRuntimeFactory.ts';
-import type { AgentConfigurationStore } from '../agent/configurationStore.ts';
-import { AgentProviderProbeService } from '../agent/providerProbe.ts';
-import { AgentProviderTargetPolicy } from '../agent/providerTargetPolicy.ts';
-import { agentRuntimeToolsForScope } from '../agent/sessionToolProtocol.ts';
-import { serverApplicationScheduler } from '../platform/applicationScheduler.ts';
+import {
+  AgentProviderOperations,
+  AgentConformanceOperations,
+} from '../../../application/agentHost/index.ts';
+
+import type { CommandRuntime } from '../../../application/commands/index.ts';
+import {
+  ConfiguredAgentRuntimeFactory,
+  AgentProviderProbeService,
+  AgentProviderTargetPolicy,
+  agentRuntimeToolsForScope,
+} from '../agent/index.ts';
+import type { AgentConfigurationStore } from '../agent/index.ts';
+
+
+
+import { serverApplicationScheduler } from '../platform/index.ts';
 
 export function createServerProviderOperations({
   configurationStore,

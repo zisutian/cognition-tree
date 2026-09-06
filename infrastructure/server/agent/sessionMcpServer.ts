@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
-import type {
-  AgentIpcRequestDto,
-} from "../../../contracts/agent/ipc.ts";
 import {
+  parseAgentSchema,
   AgentIpcToolCatalogSchema,
   type AgentIpcToolCatalogDto,
-} from "../../../contracts/agent/ipc.ts";
+} from "../../../contracts/agent/index.ts";
+import type {
+  AgentIpcRequestDto,
+} from "../../../contracts/agent/index.ts";
+
 import {
   parseSessionMcpRequestLine,
 } from "./sessionMcpProtocol.ts";

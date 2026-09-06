@@ -1,18 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useMemo } from "react";
-import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
-import type { WorkspaceNote } from "../../../core/workspace/model/workspaceData";
-import { listWorkspaceNotes } from "../../../core/workspace/queries/workspaceQueries";
-import type { SessionCommands } from "../../../application/workspace/session/sessionCommands";
-import type { ActiveWorkspaceSession } from "../../../application/workspace/session/workspaceSessionApplication";
-import { useWorkspaceSelection } from "../selection/useWorkspaceSelection";
-import { useWorkspaceNavigation } from "../navigation/useWorkspaceNavigation";
-import { useSyntaxRuntime } from "./useSyntaxRuntime";
-import { useWorkbenchDiagnostics } from "../diagnostics/useWorkbenchDiagnostics";
-import type { WorkspaceAnalysis } from "../../../application/workspace/analysis/workspaceAnalysis";
-import { useWorkspaceAnalysis } from "../analysis/useWorkspaceAnalysis";
-import { createUiWorkspacePortableNameDiagnostics } from "../../../application/workspace/projection/viewDiagnostics";
+import type {
+  WorkspaceStructureIndex,
+  WorkspaceNote,
+} from "../../../core/workspace/index.ts";
+
+import { listWorkspaceNotes } from "../../../core/workspace/index.ts";
+import type {
+  SessionCommands,
+  ActiveWorkspaceSession,
+  WorkspaceAnalysis,
+} from "../../../application/workspace/index.ts";
+
+import { useWorkspaceSelection } from "../selection/useWorkspaceSelection.ts";
+import { useWorkspaceNavigation } from "../navigation/useWorkspaceNavigation.ts";
+import { useSyntaxRuntime } from "./useSyntaxRuntime.ts";
+import { useWorkbenchDiagnostics } from "../diagnostics/useWorkbenchDiagnostics.ts";
+
+import { useWorkspaceAnalysis } from "../analysis/useWorkspaceAnalysis.ts";
+import { createUiWorkspacePortableNameDiagnostics } from "../../../application/workspace/index.ts";
 
 export type WorkspaceShell = {
   hasConfiguredSyntax: boolean;
@@ -29,7 +36,7 @@ export type WorkspaceRuntime = {
 
 export function useWorkspaceApplication(
   session: ActiveWorkspaceSession,
-  scheduler: import("../../../application/runtime/applicationScheduler").ApplicationScheduler,
+  scheduler: import("../../../application/runtime/index.ts").ApplicationScheduler,
 ) {
   const {
     activateSyntaxFile,

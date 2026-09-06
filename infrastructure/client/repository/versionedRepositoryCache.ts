@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { VersionedRepositoryLocalConflictError, type VersionedRepositoryConflictRecord } from "../../../application/persistence/versionedRepository";
-import type { VersionedRepositoryCache, VersionedRepositoryLocalState } from "../../../application/persistence/versionedRepositoryCache";
+import { VersionedRepositoryLocalConflictError, type VersionedRepositoryConflictRecord } from "../../../application/persistence/index.ts";
+import type { VersionedRepositoryCache, VersionedRepositoryLocalState } from "../../../application/persistence/index.ts";
 
 function cloneState<Content, Revision extends string, LocalRevision extends string>(
   state: VersionedRepositoryLocalState<Content, Revision, LocalRevision>,

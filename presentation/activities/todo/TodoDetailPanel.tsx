@@ -6,16 +6,18 @@ import type {
   TodoBlockView,
   TodoCollectionListItem,
   TodoViewModel,
-} from "../../../application/todo";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
+} from "../../../application/todo/index.ts";
 import {
+  useFeedback,
   Button,
   DetailPanel,
   PanelBody,
   cx,
-} from "../../ui/shared/primitives";
-import { getStructureTreeRowStyle } from "../../ui/shared/tree";
-import { TodoRecurrenceEditor } from "./TodoRecurrenceEditor";
+  getStructureTreeRowStyle,
+} from "../../ui/index.ts";
+
+
+import { TodoRecurrenceEditor } from "./TodoRecurrenceEditor.tsx";
 
 function TodoStructureNodes({
   collectionId,

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { JournalApplication } from "../../../application/journal";
-import type { TodoApplication } from "../../../application/todo";
-import type { WorkbenchWorkspaceState } from "../../workspace/workspaceApplicationState";
-import type { WorkbenchDiagnostics } from "../../../application/workbench/problems/workbenchProblems";
-import type { SyntaxFocusTarget } from "../../../application/syntax/syntaxProjection";
+import type { JournalApplication } from "../../../application/journal/index.ts";
+import type { TodoApplication } from "../../../application/todo/index.ts";
+import type { WorkbenchWorkspaceState } from "../../workspace/index.ts";
+import type { WorkbenchDiagnostics } from "../../../application/workbench/index.ts";
+import type { SyntaxFocusTarget } from "../../../application/syntax/index.ts";
 import { useEffect } from "react";
-import { useSyntaxActivity } from "./useSyntaxActivity";
-import { createSyntaxActivityDiagnostics } from "../../../application/workbench/problems/syntaxActivityDiagnostics";
-import { createSyntaxActivitySlots } from "./SyntaxActivitySlots";
-import type { ActivityControllerProps } from "../../ui/activityController";
+import { useSyntaxActivity } from "./useSyntaxActivity.ts";
+import { createSyntaxActivityDiagnostics } from "../../../application/workbench/index.ts";
+import { createSyntaxActivitySlots } from "./SyntaxActivitySlots.tsx";
+import type { ActivityControllerProps } from "../../ui/index.ts";
 
 export function SyntaxActivityController({
   active,

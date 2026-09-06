@@ -7,32 +7,41 @@ import type {
 import type {
   ApiPrincipalDto,
   ApiRevisionCheckpointDto,
-} from "../../../../contracts/api/types.ts";
-import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
+} from "../../../../contracts/api/index.ts";
+import type { DomainChangeSetDto } from "../../../../contracts/common/index.ts";
 import {
   type ApiOperationDefinition,
   type ResolvedApiRoute,
-} from "../../../../contracts/api/registry.ts";
-import type { WorkspaceRepositoryCatalog } from "../../repository/catalog.ts";
-import type { ApiBuiltInCatalog } from "../../repository/built-ins/catalogPort.ts";
-import { ApiRequestError } from "../protocol/requestError.ts";
-import { ApiEventHub } from "../sync/events.ts";
+} from "../../../../contracts/api/index.ts";
+import type {
+  WorkspaceRepositoryCatalog,
+  ApiBuiltInCatalog,
+} from "../../repository/index.ts";
+
+import { ApiRequestError } from "../protocol/index.ts";
+import { ApiEventHub } from "../sync/index.ts";
 import {
   DomainRevisionTracker,
   type TrackedContentDomain,
-} from "../../../../application/sync/domainRevisionTracker.ts";
+} from "../../../../application/sync/index.ts";
 import {
   readApiRuntimeNow,
   type ApiRuntime,
 } from "./runtime.ts";
-import type { ApiSearchService } from "../search.ts";
-import type { AutomationTokenStore } from "../../access/automationTokenStore.ts";
-import type { TrustedClientTokenStore } from "../../access/trustedClientTokenStore.ts";
-import type { OperationLedger } from "../../operations/operationLedger.ts";
-import type { AgentService } from "../../../../application/agentHost/service.ts";
-import type { AgentConfigurationStore } from "../../agent/configurationStore.ts";
-import type { AgentProviderOperations } from "../../../../application/agentHost/providerOperations.ts";
-import type { SystemAdministrationServerPort } from "../../../../application/system/systemConfiguration.ts";
+import type { ApiSearchService } from "../index.ts";
+import type {
+  AutomationTokenStore,
+  TrustedClientTokenStore,
+} from "../../access/index.ts";
+
+import type { OperationLedger } from "../../operations/index.ts";
+import type {
+  AgentService,
+  AgentProviderOperations,
+} from "../../../../application/agentHost/index.ts";
+import type { AgentConfigurationStore } from "../../agent/index.ts";
+
+import type { SystemAdministrationServerPort } from "../../../../application/system/index.ts";
 import type { ApiOwnerSessionAuthority } from "./security.ts";
 
 export type HandlerResult = {

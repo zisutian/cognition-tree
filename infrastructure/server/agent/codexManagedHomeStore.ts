@@ -13,7 +13,7 @@ import {
   fsyncDirectory,
   hasFileSystemErrorCode,
   isSecureRegularFile,
-} from "../state/secureStateFileSystem.ts";
+} from "../state/index.ts";
 import {
   agentCodexManagedHomeReference,
   assertAgentManagedCredentialIdentity,

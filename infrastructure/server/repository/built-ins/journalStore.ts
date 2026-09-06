@@ -4,24 +4,26 @@ import { createHash } from "node:crypto";
 import {
   WireContractError,
   UnsupportedWireVersionError,
-} from "../../../../contracts/common/contractValue.ts";
-import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
+  serializeJsonIteratively,
+} from "../../../../contracts/common/index.ts";
+
 import {
   parseJournalContent,
-} from "../../../../contracts/journal/parseJournal.ts";
-import { serializeJournalRevisionContent } from "../../../../contracts/journal/revision.ts";
+  serializeJournalRevisionContent,
+} from "../../../../contracts/journal/index.ts";
+
 import type {
   JournalContentDto,
   JournalRevisionDto,
-} from "../../../../contracts/journal/types.ts";
+} from "../../../../contracts/journal/index.ts";
 import {
   JournalContentValidationError,
-} from "../../../../core/journal/model/journalErrors.ts";
-import type { JournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex.ts";
+} from "../../../../core/journal/index.ts";
+import type { JournalParseIndex } from "../../../../core/journal/index.ts";
 import {
   prepareJournalRepositoryContent,
   validateJournalRepositoryPreparedTransition,
-} from "../../../../application/journal/persistence/journalRepositoryPreparation.ts";
+} from "../../../../application/journal/index.ts";
 import { RepositoryCorruptError } from "../store.ts";
 import {
   FileSystemVersionedContentStore,

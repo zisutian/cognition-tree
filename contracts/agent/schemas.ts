@@ -9,7 +9,7 @@ import {
 import {
   DomainChangeSetSchema,
   DomainTextDiffHunkSchema,
-} from "../common/domainChanges.ts";
+} from "../common/index.ts";
 
 function strictObject<T extends TProperties>(properties: T) {
   return Type.Object(properties, { additionalProperties: false });

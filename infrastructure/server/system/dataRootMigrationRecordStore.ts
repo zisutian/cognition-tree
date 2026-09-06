@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import path from "node:path";
-import type { DataRootMigrationRecord, DataRootMigrationRecordStore } from "../../../application/system/dataRootMigrationPorts.ts";
-import { assertStateFields, requireStateRecord, SecureJsonPartition, type SecureStateFileReplacer } from "../state/secureJsonPartition.ts";
+import type { DataRootMigrationRecord, DataRootMigrationRecordStore } from "../../../application/system/index.ts";
+import { assertStateFields, requireStateRecord, SecureJsonPartition, type SecureStateFileReplacer } from "../state/index.ts";
 
 type MigrationState = { formatVersion: 1; current: DataRootMigrationRecord | null };
 

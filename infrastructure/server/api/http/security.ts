@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { IncomingMessage } from "node:http";
-import type { ApiPrincipalDto } from "../../../../contracts/api/types.ts";
-import { isLoopbackAddress } from "../../network/loopbackAddress.ts";
+import type { ApiPrincipalDto } from "../../../../contracts/api/index.ts";
+import { isLoopbackAddress } from "../../network/index.ts";
 
 export const ownerSessionCookieName = "ctn_owner_session";
 export const ownerSessionMaxAgeSeconds = 12 * 60 * 60;

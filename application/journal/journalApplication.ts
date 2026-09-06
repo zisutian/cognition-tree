@@ -1,39 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
 import type {
+  CtnEditableSourceChange,
   CtnCanonicalSourceAnalysis,
-} from "../../core/ctn/analysis/sourceAnalysis";
+} from "../../core/ctn/index.ts";
+
 import {
   updateJournalSyntaxSource,
-} from "../../core/journal/commands/journalCommands";
-import {
   type JournalContent,
   type JournalEntryId,
-} from "../../core/journal/model/journalContent";
-import {
   getJournalCreationTimezoneOffsetMinutes,
-} from "../../core/journal/model/journalIdentity";
-import {
   resolveJournalSelection,
   resolveJournalSelectionAfterDelete,
-} from "../../core/journal/queries/journalQueries";
-import type { JournalSessionState } from "./journalSessionController";
-import {
   createJournalParseIndex,
   type JournalParseIndex,
-} from "../../core/journal/indexes/journalParseIndex";
+} from "../../core/journal/index.ts";
+
+
+
+import type { JournalSessionState } from "./journalSessionController.ts";
+
 import type {
   PreparedVersionedContent,
-} from "../persistence/versionedRepository";
+} from "../persistence/index.ts";
 import type {
   JournalFocusRequest,
   JournalViewModel,
-} from "./journalViewModel";
+} from "./journalViewModel.ts";
 import {
   prepareJournalMutation,
   type PreparedJournalMutation,
-} from "./journalDomainCommands";
+} from "./journalDomainCommands.ts";
 
 export type JournalApplicationServices = {
   createBlockId: () => string;

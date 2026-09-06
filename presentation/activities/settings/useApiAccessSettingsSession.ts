@@ -10,13 +10,13 @@ import type {
   AutomationApiToken,
   CreateAutomationApiTokenRequest,
   TrustedClientToken,
-} from "../../../application/apiAccess/apiAccessAdministration";
+} from "../../../application/apiAccess/index.ts";
 import {
   createApiAccessSettingsSessionController,
   type ApiAccessSettingsSnapshot,
-} from "./apiAccessSettingsSessionController";
+} from "./apiAccessSettingsSessionController.ts";
 
-export type { ApiAccessSettingsSnapshot } from "./apiAccessSettingsSessionController";
+export type { ApiAccessSettingsSnapshot } from "./apiAccessSettingsSessionController.ts";
 
 export type ApiAccessSettingsPanelSnapshot = Pick<
   ApiAccessSettingsSnapshot,

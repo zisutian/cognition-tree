@@ -5,15 +5,15 @@ import {
   appProblemsDefaultHeight,
   clampAppContextWidth,
   clampAppProblemsHeight,
-} from "./frameResize";
+} from "./frameResize.ts";
 import {
   useWorkbenchPanelResize,
   type WorkbenchPanelResizeController,
-} from "./useWorkbenchPanelResize";
-import { useRepositorySessionState } from "./useRepositorySessionState";
+} from "./useWorkbenchPanelResize.ts";
+import { useRepositorySessionState } from "./useRepositorySessionState.ts";
 import {
   createRepositorySessionKey,
-} from "./repositorySessionStore";
+} from "./repositorySessionStore.ts";
 
 type RepositoryProblemsLayout = {
   expanded: boolean;

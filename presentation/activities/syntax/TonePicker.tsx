@@ -3,11 +3,16 @@ import type { CSSProperties } from "react";
 import type {
   SyntaxTone,
   SyntaxToneOption,
-} from "../../../application/syntax/syntaxProjection";
-import { Popover } from "../../ui/shared/Popover";
-import { ColorControl } from "../../ui/shared/controls";
-import { Button } from "../../ui/shared/primitives";
-import { isCustomTone } from "../../ui/shared/tonePresentation";
+} from "../../../application/syntax/index.ts";
+import {
+  Popover,
+  ColorControl,
+  Button,
+  isCustomTone,
+} from "../../ui/index.ts";
+
+
+
 
 const defaultCustomTone = "#397c72";
 

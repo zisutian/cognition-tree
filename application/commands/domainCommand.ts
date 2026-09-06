@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnTextEdit } from "../../core/ctn/metadata/textEdits.ts";
-import type { DomainChangeSet } from "../../core/sync/domainChangeSet.ts";
+import type { CtnTextEdit } from "../../core/ctn/index.ts";
 import type {
+  DomainChangeSet,
   DomainTextEdit,
   DomainTransition,
-} from "../../core/sync/domainTransition.ts";
+} from "../../core/sync/index.ts";
+
 
 export type {
   DomainTextEdit,
   DomainTransition,
-} from "../../core/sync/domainTransition.ts";
+} from "../../core/sync/index.ts";
 
 export type DomainMutation<Content, Outcome> = {
   content: Content;

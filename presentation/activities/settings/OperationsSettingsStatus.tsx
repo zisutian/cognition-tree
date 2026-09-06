@@ -5,8 +5,8 @@ import {
   ToolPropertyRow,
   ToolSection,
   ToolSectionStack,
-} from "../../ui/shared/ToolSurface";
-import type { OperationsSettingsStatusView } from "./useOperationsSettingsSession";
+} from "../../ui/index.ts";
+import type { OperationsSettingsStatusView } from "./useOperationsSettingsSession.ts";
 
 export function OperationsSettingsStatus({ session }: {
   session: OperationsSettingsStatusView;

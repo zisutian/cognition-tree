@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { WorkbenchWorkspaceState } from "../../workspace/workspaceApplicationState";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
-import { Button, EmptyState, Panel } from "../../ui/shared/primitives";
+import type { WorkbenchWorkspaceState } from "../../workspace/index.ts";
+import {
+  useFeedback,
+  Button,
+  EmptyState,
+  Panel,
+} from "../../ui/index.ts";
+
 
 export function WorkspaceUnavailablePanel({
   onOpenRepository,

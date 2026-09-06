@@ -16,7 +16,7 @@ import {
   readSecureFileUtf8,
   secureStateDirectoryExists,
   writeFileDurably,
-} from "../state/secureStateFileSystem.ts";
+} from "../state/index.ts";
 import {
   agentApiKeyCredentialReference,
   agentCodexManagedCredentialReference,

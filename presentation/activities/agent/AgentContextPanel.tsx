@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { MessageSquare, Plus } from "lucide-react";
-import type { AgentApplication } from "../../../application/agent";
-import { Button } from "../../ui/shared/primitives";
-import { useFeedback } from "../../ui/shared/FeedbackProvider";
+import type { AgentApplication } from "../../../application/agent/index.ts";
 import {
+  Button,
+  useFeedback,
   CompactContextActionButtons,
   CompactContextList,
   CompactContextRow,
-} from "../../ui/shared/CompactContextList";
+} from "../../ui/index.ts";
+
+
 import {
   agentSessionStateLabels,
   formatAgentScopeLabel,
-} from "./agentViewLabels";
+} from "./agentViewLabels.ts";
 
 export function AgentContextPanel({
   agent,

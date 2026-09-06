@@ -9,13 +9,13 @@ import {
 } from "react";
 import type {
   SystemConfigurationController,
-} from "../../../application/system";
+} from "../../../application/system/index.ts";
 import {
   activateSystemOwnerCredentialRotation,
   createInitialSystemOwnerCredentialSnapshot,
   prepareSystemOwnerCredentialRotation,
   type SystemOwnerCredentialSnapshot,
-} from "./systemOwnerCredentialSession";
+} from "./systemOwnerCredentialSession.ts";
 
 type SystemOwnerCredentialController = Pick<
   SystemConfigurationController,
@@ -27,7 +27,7 @@ type SystemOwnerCredentialController = Pick<
 export type {
   SystemOwnerCredentialPreparation,
   SystemOwnerCredentialSnapshot,
-} from "./systemOwnerCredentialSession";
+} from "./systemOwnerCredentialSession.ts";
 
 export type SystemOwnerCredentialPanelView = Readonly<{
   activatePreparedOwnerCredential(): Promise<void>;

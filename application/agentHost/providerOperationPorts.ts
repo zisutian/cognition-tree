@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentCodexDeviceLoginStatus, AgentConformanceCheckStatus, AgentOllamaDiscovery, AgentProviderProbe } from '../agent/agentConfiguration.ts';
+import type { AgentCodexDeviceLoginStatus, AgentConformanceCheckStatus, AgentOllamaDiscovery, AgentProviderProbe } from '../agent/index.ts';
 
 export type AgentDeviceLoginPort = {
   start(baseRevision: string, providerId: string): Promise<AgentCodexDeviceLoginStatus>;

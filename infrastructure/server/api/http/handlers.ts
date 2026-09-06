@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createApiOpenApiDocument } from "../../../../contracts/api/openApi.ts";
-import type { ApiSearchRequestDto } from "../../../../contracts/api/types.ts";
-import { ApiRequestError } from "../protocol/requestError.ts";
+import { createApiOpenApiDocument } from "../../../../contracts/api/index.ts";
+import type { ApiSearchRequestDto } from "../../../../contracts/api/index.ts";
+import { ApiRequestError } from "../protocol/index.ts";
 import {
   assertOperationAccess,
   createCheckpoint,
@@ -22,7 +22,7 @@ import {
   journalResourceVersions,
   todoResourceVersions,
   workspaceResourceVersions,
-} from "../resources/versions.ts";
+} from "../resources/index.ts";
 import {
   handleAgentConfigurationAdmin,
   handleRepositoryAdmin,
