@@ -127,6 +127,6 @@ export function SettingsPanel({
         />
       );
     case "audit":
-      return <OperationsSettingsPanel session={operations} />;
+      return <OperationsSettingsPanel report={report} session={operations} />;
   }
 }
