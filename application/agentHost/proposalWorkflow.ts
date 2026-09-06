@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { OperationAuditFinalizeError } from '../operations/operationLedgerPort.ts';
 import {
   confirmAgentProposalDestruction,
   decideAgentProposal,
@@ -168,6 +169,11 @@ export class AgentProposalWorkflow<
         route,
       });
     } catch (error) {
+      if (error instanceof OperationAuditFinalizeError) {
+        const committed = { ...proposal, status: 'committed' as const };
+        record.controller.putProposal(committed);
+        if (!this.#isClosing()) this.#emitProposal(record, committed);
+      }
       if (error instanceof AgentProposalCommitIndeterminateError) {
         const indeterminate = markAgentProposalIndeterminate(proposal);
 

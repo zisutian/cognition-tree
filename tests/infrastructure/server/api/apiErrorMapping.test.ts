@@ -5,9 +5,7 @@ import { mapApiError } from "../../../../infrastructure/server/api/http/errors.t
 import {
   AgentProposalCommitIndeterminateError,
 } from "../../../../application/agentHost/errors.ts";
-import {
-  VersionedContentCommitOutcomeUnknownError,
-} from "../../../../infrastructure/server/repository/versioned/contentStore.ts";
+import { VersionedContentCommitOutcomeUnknownError } from "../../../../application/persistence/versionedCommitErrors.ts";
 
 describe("API error mapping", () => {
   it("exposes an indeterminate content commit without declaring it retryable", () => {

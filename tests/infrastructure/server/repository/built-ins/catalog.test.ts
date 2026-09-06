@@ -27,10 +27,8 @@ import {
 } from "../../../../../application/todo/persistence/todoRepositoryPreparation.ts";
 import { BuiltInCatalog } from "../../../../../infrastructure/server/repository/built-ins/catalog.ts";
 import { createFileSystemTodoContentStore } from "../../../../../infrastructure/server/repository/built-ins/todoStore.ts";
-import {
-  VersionedContentRevisionConflictError,
-  type VersionedContentStore,
-} from "../../../../../infrastructure/server/repository/versioned/contentStore.ts";
+import { type VersionedContentStore } from "../../../../../infrastructure/server/repository/versioned/contentStore.ts";
+import { VersionedContentRevisionConflictError } from "../../../../../application/persistence/versionedCommitErrors.ts";
 import {
   appendJournalTestEntry,
   createEmptyJournalContent,

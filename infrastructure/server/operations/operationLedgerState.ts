@@ -14,7 +14,7 @@ import {
   assertStateFields,
   requireStateRecord,
 } from "../state/secureJsonPartition.ts";
-import type { AgentOperationAttempt } from "./operationLedgerContract.ts";
+import type { AgentOperationAttempt } from "../../../application/operations/operationLedgerPort.ts";
 
 const operationLedgerFormatVersion = 2;
 

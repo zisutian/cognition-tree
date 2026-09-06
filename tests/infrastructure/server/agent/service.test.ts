@@ -20,6 +20,7 @@ import type {
   WorkspaceRepositoryCatalog,
 } from "../../../../infrastructure/server/repository/catalog.ts";
 import { OperationLedger } from "../../../../infrastructure/server/operations/operationLedger.ts";
+import { OperationAuditFinalizeError } from "../../../../application/operations/operationLedgerPort.ts";
 import { AgentConfigurationStore } from "../../../../infrastructure/server/agent/configurationStore.ts";
 import {
   AgentService,
@@ -753,6 +754,39 @@ describe("Agent service proposal lifecycle", () => {
       await vi.waitFor(() => expect(fixture.runTurn).toHaveBeenCalledTimes(2));
       expect((await fixture.ledger.list({ cursor: 0, limit: 10 })).entries)
         .toHaveLength(1);
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  it("retains a known committed proposal when audit finalization fails", async () => {
+    const fixture = await createFixture(createTwoEntries);
+
+    try {
+      const session = await fixture.service.createSession({ profileId, scope: journalScope });
+      fixture.service.sendMessage(session.id, "Create two entries");
+      const proposal = await waitForProposal(fixture.service, session.id);
+      const finalize = vi.spyOn(fixture.ledger, "runAgentIdempotent")
+        .mockImplementation(async (_identity, _attempt, execute) => {
+          const receipt = await execute();
+          throw new OperationAuditFinalizeError(receipt.afterRevision as `sha256:${string}`);
+        });
+      const request = {
+        decision: "approve" as const,
+        ownerId: "local-owner",
+        proposalId: proposal.id,
+        requestId: uuid(303),
+        sessionId: session.id,
+      };
+
+      await expect(fixture.service.decideProposal(request)).rejects.toThrow(/audit/i);
+      expect(fixture.service.getSession(session.id).proposals[0]?.status).toBe("committed");
+      const store = await fixture.builtInCatalog.getStore("journal");
+      const committed = await store.loadSnapshot();
+      expect(listJournalEntries(committed.content)).toHaveLength(2);
+      expect((await fixture.service.decideProposal(request)).status).toBe("committed");
+      expect(finalize).toHaveBeenCalledTimes(1);
+      expect((await store.loadSnapshot()).revision).toBe(committed.revision);
     } finally {
       await fixture.cleanup();
     }

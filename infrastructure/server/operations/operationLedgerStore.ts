@@ -11,7 +11,7 @@ import {
 import {
   type OperationAuditStatus,
   OperationAuditUnavailableError,
-} from "./operationLedgerContract.ts";
+} from "../../../application/operations/operationLedgerPort.ts";
 import {
   createInitialOperationLedgerState,
   type OperationLedgerState,

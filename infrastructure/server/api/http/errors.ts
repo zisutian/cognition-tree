@@ -36,20 +36,15 @@ import {
 import {
   RepositoryCatalogError,
 } from "../../repository/catalog.ts";
-import {
-  RepositoryAdapterError,
-  WorkspaceRevisionConflictError,
-} from "../../repository/store.ts";
-import {
-  VersionedContentCommitOutcomeUnknownError,
-  VersionedContentRevisionConflictError,
-} from "../../repository/versioned/contentStore.ts";
+import { RepositoryAdapterError } from "../../repository/store.ts";
+import { WorkspaceRevisionConflictError } from "../../../../application/workspace/persistence/workspaceCommitErrors.ts";
+import { VersionedContentCommitOutcomeUnknownError, VersionedContentRevisionConflictError } from "../../../../application/persistence/versionedCommitErrors.ts";
 import {
   AgentOperationIdempotencyError,
   AgentOperationIndeterminateError,
   OperationAuditFinalizeError,
   OperationAuditUnavailableError,
-} from "../../operations/operationLedgerContract.ts";
+} from "../../../../application/operations/operationLedgerPort.ts";
 import {
   AgentProposalCommitIndeterminateError,
   AgentServiceError,

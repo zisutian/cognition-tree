@@ -2,7 +2,6 @@
 
 import { createHash } from "node:crypto";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
-
 import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
 import type {
   WorkspaceResourceVersionPolicy,
@@ -29,11 +28,9 @@ import {
   OperationAuditFinalizeError,
   OperationAuditUnavailableError,
   type TrustedClientOperationStore,
-} from "../../operations/operationLedgerContract.ts";
+} from "../../../../application/operations/operationLedgerPort.ts";
 import { readApiRuntimeNow } from "../http/runtime.ts";
-import {
-  VersionedContentCommitOutcomeUnknownError,
-} from "../../repository/versioned/contentStore.ts";
+import { VersionedContentCommitOutcomeUnknownError } from "../../../../application/persistence/versionedCommitErrors.ts";
 
 async function publishApiChanges(
   context: ApiHandlerContext,

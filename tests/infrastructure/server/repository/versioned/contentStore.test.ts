@@ -4,11 +4,8 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import {
-  FileSystemVersionedContentStore,
-  VersionedContentCommitOutcomeUnknownError,
-  VersionedContentRevisionConflictError,
-} from "../../../../../infrastructure/server/repository/versioned/contentStore.ts";
+import { FileSystemVersionedContentStore } from "../../../../../infrastructure/server/repository/versioned/contentStore.ts";
+import { VersionedContentCommitOutcomeUnknownError, VersionedContentRevisionConflictError } from "../../../../../application/persistence/versionedCommitErrors.ts";
 import {
   replaceFileDurably,
 } from "../../../../../infrastructure/server/persistence/fileSystemPersistence.ts";

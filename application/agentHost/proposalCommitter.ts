@@ -1,72 +1,46 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentProposalCommitRoute, AgentProposalCommitContext, AgentProposalCommitOutcome, AgentProposalCommitRequest, AgentProposalCommitPort } from '../../../application/agentHost/proposalCommitPort.ts';
+import type { AgentOperationReceipt } from '../operations/agentOperationReceipt.ts';
+import type { AgentOperationLedgerPort } from '../operations/operationLedgerPort.ts';
+import type { AgentHostRuntime } from './runtimePorts.ts';
+import { readAgentHostTimestamp } from './runtimePorts.ts';
+import type { AgentCommitStorePort, AgentCommitEventsPort } from './commitPorts.ts';
+import type { AgentProposalCommitRoute, AgentProposalCommitContext, AgentProposalCommitOutcome, AgentProposalCommitRequest, AgentProposalCommitPort } from './proposalCommitPort.ts';
 import {
   commitAgentProposalExactly,
   markAgentProposalFailed,
   markAgentProposalStale,
   type AgentProposal,
-} from "../../../application/agent/index.ts";
-import type {
-  AgentOperationAuditEntryDto,
-} from "../../../contracts/agent/schemas.ts";
-import type { ApiBuiltInCatalog } from "../api/http/ports.ts";
-import type { ApiRuntime } from "../api/http/runtime.ts";
-import { readApiRuntimeNow } from "../api/http/runtime.ts";
-import type { ApiEventHub } from "../api/sync/events.ts";
-import type { ApiRevisionTracker } from "../api/sync/revisionTracker.ts";
+} from "../agent/index.ts";
 import {
   AgentOperationIndeterminateError,
   type AgentOperationAttempt,
-} from "../operations/operationLedgerContract.ts";
-import type { OperationLedger } from "../operations/operationLedger.ts";
-import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
-import type { WorkspaceRepositoryStore } from "../repository/store.ts";
-import { WorkspaceRevisionConflictError } from "../repository/store.ts";
-import type {
-  VersionedContentStore,
-} from "../repository/versioned/contentStore.ts";
-import {
-  VersionedContentCommitOutcomeUnknownError,
-  VersionedContentRevisionConflictError,
-} from "../repository/versioned/contentStore.ts";
+} from "../operations/operationLedgerPort.ts";
+import { VersionedContentCommitOutcomeUnknownError, VersionedContentRevisionConflictError } from "../persistence/versionedCommitErrors.ts";
 import {
   AgentProposalCommitIndeterminateError,
   AgentServiceError,
-} from "../../../application/agentHost/errors.ts";
+} from "./errors.ts";
 
 function unique(values: readonly string[]) {
   return [...new Set(values)];
 }
 
 export class AgentProposalCommitter implements AgentProposalCommitPort {
-  readonly #builtInCatalog: ApiBuiltInCatalog;
-  readonly #catalog: WorkspaceRepositoryCatalog;
-  readonly #eventHub: ApiEventHub;
-  readonly #ledger: OperationLedger | null;
-  readonly #revisionTracker: ApiRevisionTracker;
-  readonly #runtime: ApiRuntime;
+  readonly #stores: AgentCommitStorePort;
+  readonly #events: AgentCommitEventsPort;
+  readonly #ledger: AgentOperationLedgerPort | null;
+  readonly #runtime: AgentHostRuntime;
 
-  constructor({
-    builtInCatalog,
-    catalog,
-    eventHub,
-    ledger,
-    revisionTracker,
-    runtime,
-  }: {
-    builtInCatalog: ApiBuiltInCatalog;
-    catalog: WorkspaceRepositoryCatalog;
-    eventHub: ApiEventHub;
-    ledger: OperationLedger | null;
-    revisionTracker: ApiRevisionTracker;
-    runtime: ApiRuntime;
+  constructor({ stores, events, ledger, runtime }: {
+    stores: AgentCommitStorePort;
+    events: AgentCommitEventsPort;
+    ledger: AgentOperationLedgerPort | null;
+    runtime: AgentHostRuntime;
   }) {
-    this.#builtInCatalog = builtInCatalog;
-    this.#catalog = catalog;
-    this.#eventHub = eventHub;
+    this.#stores = stores;
+    this.#events = events;
     this.#ledger = ledger;
-    this.#revisionTracker = revisionTracker;
     this.#runtime = runtime;
   }
 
@@ -93,10 +67,10 @@ export class AgentProposalCommitter implements AgentProposalCommitPort {
       this.#auditAttempt(context, proposal, ownerId, requestId, route),
       async () => {
         let afterRevision: `sha256:${string}` | null = null;
-        let result: AgentOperationAuditEntryDto["result"] = "failed";
+        let result: AgentOperationReceipt["result"] = "failed";
 
         try {
-          const store = await this.#proposalStore(proposal);
+          const store = await this.#stores.getStore(proposal.store);
           const committed = await commitAgentProposalExactly({
             proposal,
             store,
@@ -105,13 +79,12 @@ export class AgentProposalCommitter implements AgentProposalCommitPort {
           afterRevision = committed.receipt.revision;
           result = "committed";
           proposal = committed.proposal;
-          this.#publishCommittedProposal(proposal, afterRevision);
+          this.#events.publish(proposal.store, afterRevision, proposal.changes);
         } catch (error) {
           if (error instanceof VersionedContentCommitOutcomeUnknownError) {
             throw error;
           }
           if (
-            error instanceof WorkspaceRevisionConflictError ||
             error instanceof VersionedContentRevisionConflictError
           ) {
             afterRevision = error.currentRevision;
@@ -153,23 +126,13 @@ export class AgentProposalCommitter implements AgentProposalCommitPort {
     };
   }
 
-  async #proposalStore(proposal: AgentProposal) {
-    if (proposal.store.domain === "workspace") {
-      return await this.#catalog.getStore(
-        proposal.store.repositoryId,
-      ) as WorkspaceRepositoryStore;
-    }
-    return await this.#builtInCatalog.getStore(proposal.store.domain) as
-      VersionedContentStore<unknown, unknown>;
-  }
-
   #auditEntry(
     context: AgentProposalCommitContext,
     proposal: AgentProposal,
     ownerId: string,
     afterRevision: `sha256:${string}` | null,
-    result: AgentOperationAuditEntryDto["result"],
-  ): AgentOperationAuditEntryDto {
+    result: AgentOperationReceipt["result"],
+  ): AgentOperationReceipt {
     return {
       afterRevision,
       approvingOwnerId: ownerId,
@@ -181,7 +144,7 @@ export class AgentProposalCommitter implements AgentProposalCommitPort {
         ),
       },
       digest: proposal.digest,
-      occurredAt: readApiRuntimeNow(this.#runtime).timestamp,
+      occurredAt: readAgentHostTimestamp(this.#runtime),
       profileDigest: context.configuration.profile.digest,
       profileId: context.profile.id,
       profileVersion: context.configuration.profile.version,
@@ -207,7 +170,7 @@ export class AgentProposalCommitter implements AgentProposalCommitPort {
     return {
       approvingOwnerId: ownerId,
       beforeRevision: proposal.base.revision,
-      occurredAt: readApiRuntimeNow(this.#runtime).timestamp,
+      occurredAt: readAgentHostTimestamp(this.#runtime),
       profileDigest: context.configuration.profile.digest,
       profileId: context.profile.id,
       profileVersion: context.configuration.profile.version,
@@ -222,20 +185,4 @@ export class AgentProposalCommitter implements AgentProposalCommitPort {
     };
   }
 
-  #publishCommittedProposal(
-    proposal: AgentProposal,
-    revision: `sha256:${string}`,
-  ) {
-    if (proposal.store.domain === "workspace") {
-      this.#revisionTracker.observeWorkspace(proposal.store.repositoryId, revision);
-    } else {
-      this.#revisionTracker.observeDomain(proposal.store.domain, revision);
-    }
-    const checkpoint = this.#revisionTracker.checkpoint({
-      sequence: this.#eventHub.sequence,
-      streamId: this.#eventHub.streamId,
-    });
-
-    this.#eventHub.publish(checkpoint, proposal.changes);
-  }
 }

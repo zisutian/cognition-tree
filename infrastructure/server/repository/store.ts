@@ -70,13 +70,3 @@ export class RepositoryCorruptError extends RepositoryAdapterError {
     this.name = "RepositoryCorruptError";
   }
 }
-
-export class WorkspaceRevisionConflictError extends Error {
-  currentRevision: RepositoryRevisionDto;
-
-  constructor(currentRevision: RepositoryRevisionDto) {
-    super("Repository content changed outside the current session");
-    this.name = "WorkspaceRevisionConflictError";
-    this.currentRevision = currentRevision;
-  }
-}

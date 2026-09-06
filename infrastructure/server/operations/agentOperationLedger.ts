@@ -12,7 +12,7 @@ import {
   type AgentOperationAttempt,
   type AgentOperationIdentity,
   OperationAuditFinalizeError,
-} from "./operationLedgerContract.ts";
+} from "../../../application/operations/operationLedgerPort.ts";
 import {
   operationLedgerKey,
   projectAgentOperationAudit,

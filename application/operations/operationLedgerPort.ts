@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentOperationAuditEntryDto } from "../../../contracts/agent/schemas.ts";
+import type { AgentOperationReceipt } from "./agentOperationReceipt.ts";
 
 export type AgentOperationIdentity = Readonly<{
   digest: `sha256:${string}`;
@@ -20,9 +20,9 @@ export type AgentOperationAttempt = Readonly<{
   providerVersion: number;
   requestId: string;
   route: "destructive-confirmation" | "proposal-decision";
-  runtimeKind: AgentOperationAuditEntryDto["runtimeKind"];
+  runtimeKind: AgentOperationReceipt["runtimeKind"];
   sessionId: string;
-  store: AgentOperationAuditEntryDto["store"];
+  store: AgentOperationReceipt["store"];
 }>;
 
 export class AgentOperationIdempotencyError extends Error {
@@ -73,9 +73,7 @@ export class OperationAuditFinalizeError extends Error {
   }
 }
 
-export type OperationAuditStatus =
-  | Readonly<{ status: "available" }>
-  | Readonly<{ message: string; status: "unavailable" }>;
+export type { OperationAuditStatus } from "./operationAdministration.ts";
 
 export type TrustedClientOperationStore =
   | { domain: "journal" }
@@ -110,3 +108,11 @@ export type FinalizeTrustedClientOperationInput = Readonly<{
   result: TrustedClientOperationResult;
   updatedAt: string;
 }>;
+
+export type AgentOperationLedgerPort = {
+  runAgentIdempotent(
+    identity: AgentOperationIdentity,
+    attempt: AgentOperationAttempt,
+    execute: () => Promise<AgentOperationReceipt>,
+  ): Promise<{ entry: AgentOperationReceipt; replayed: boolean }>;
+};

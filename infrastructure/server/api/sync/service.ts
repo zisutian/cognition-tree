@@ -61,8 +61,8 @@ import { mergeTodoContent } from "../../../../application/todo/persistence/todoT
 import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
 import { createJournalRevision } from "../../repository/built-ins/journalStore.ts";
 import { createTodoRevision } from "../../repository/built-ins/todoStore.ts";
-import { WorkspaceRevisionConflictError } from "../../repository/store.ts";
-import { VersionedContentRevisionConflictError } from "../../repository/versioned/contentStore.ts";
+import { WorkspaceRevisionConflictError } from "../../../../application/workspace/persistence/workspaceCommitErrors.ts";
+import { VersionedContentRevisionConflictError } from "../../../../application/persistence/versionedCommitErrors.ts";
 import { ApiRequestError } from "../http/errors.ts";
 
 export type ApiSyncResult = {

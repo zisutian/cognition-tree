@@ -17,7 +17,7 @@ import {
   AgentOperationIdempotencyError,
   AgentOperationIndeterminateError,
   type AgentOperationAttempt,
-} from "../../../../infrastructure/server/operations/operationLedgerContract.ts";
+} from "../../../../application/operations/operationLedgerPort.ts";
 import { OperationLedger } from "../../../../infrastructure/server/operations/operationLedger.ts";
 import {
   replaceFileDurably,

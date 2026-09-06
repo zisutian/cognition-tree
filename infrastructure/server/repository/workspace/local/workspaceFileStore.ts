@@ -15,15 +15,8 @@ import {
 } from "../../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import { repositorySyntaxIndexFileName } from "../../../../../contracts/workspace/types.ts";
 import { parsePortableName } from "../../../../../core/naming/portableName.ts";
-import {
-  RepositoryAdapterError,
-  RepositoryCorruptError,
-  WorkspaceRevisionConflictError,
-  type PreparedWorkspaceRepositoryCommit,
-  type PreparedWorkspaceRepositorySnapshot,
-  type WorkspaceRepositoryCommitReceipt,
-  type WorkspaceRepositoryStore,
-} from "../../store.ts";
+import { RepositoryAdapterError, RepositoryCorruptError, type PreparedWorkspaceRepositoryCommit, type PreparedWorkspaceRepositorySnapshot, type WorkspaceRepositoryCommitReceipt, type WorkspaceRepositoryStore } from "../../store.ts";
+import { WorkspaceRevisionConflictError } from "../../../../../application/workspace/persistence/workspaceCommitErrors.ts";
 import { hasFileSystemErrorCode } from "../../../persistence/fileSystemError.ts";
 import {
   createRepositorySyntaxFileName,

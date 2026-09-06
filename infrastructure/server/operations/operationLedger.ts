@@ -9,7 +9,7 @@ import type {
   AttachTrustedClientOperationIntentInput,
   BeginTrustedClientOperationInput,
   FinalizeTrustedClientOperationInput,
-} from "./operationLedgerContract.ts";
+} from "../../../application/operations/operationLedgerPort.ts";
 import { OperationLedgerStore } from "./operationLedgerStore.ts";
 import { TrustedClientOperationLedger } from "./trustedClientOperationLedger.ts";
 

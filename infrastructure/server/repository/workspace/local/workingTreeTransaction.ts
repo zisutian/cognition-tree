@@ -9,11 +9,8 @@ import path from "node:path";
 import type {
   RepositoryRevisionDto,
 } from "../../../../../contracts/workspace/types.ts";
-import {
-  RepositoryAdapterError,
-  RepositoryCorruptError,
-  WorkspaceRevisionConflictError,
-} from "../../store.ts";
+import { RepositoryAdapterError, RepositoryCorruptError } from "../../store.ts";
+import { WorkspaceRevisionConflictError } from "../../../../../application/workspace/persistence/workspaceCommitErrors.ts";
 import {
   fsyncDirectory,
   writeFileDurably,

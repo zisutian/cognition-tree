@@ -10,7 +10,7 @@ import type {
   AgentOperationAttempt,
   AgentOperationIdentity,
   BeginTrustedClientOperationInput,
-} from "./operationLedgerContract.ts";
+} from "../../../application/operations/operationLedgerPort.ts";
 
 type AgentReceiptProjectionInput = Readonly<{
   attempt: AgentOperationAttempt;

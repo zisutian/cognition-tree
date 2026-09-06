@@ -5,7 +5,7 @@ import {
   type BeginTrustedClientOperationInput,
   type FinalizeTrustedClientOperationInput,
   OperationAuditFinalizeError,
-} from "./operationLedgerContract.ts";
+} from "../../../application/operations/operationLedgerPort.ts";
 import { createTrustedClientAuditEntry } from "./operationLedgerProjection.ts";
 import type { OperationLedgerStore } from "./operationLedgerStore.ts";
 
