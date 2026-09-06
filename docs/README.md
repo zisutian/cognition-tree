@@ -12,6 +12,7 @@
 | [界面规范](ui-guidelines.md) | Activity 布局、交互、Problems、尺度、颜色和共享 UI 结构 |
 | [使用与部署](getting-started.md) | 环境准备、启动、设置、认证、迁移、API/CLI 入口、容器路径约定和验证命令 |
 | [工程原则](engineering-principles.md) | 修改方式、代码组织、测试策略和生成产物约束 |
+| [2026-09-06 重整记录](restructure-progress.md) | 本轮实施、模块核对与验证证据快照；不替代当前架构规则 |
 
 同一主题可以被多份文档引用，但约束性细节只能由一份文档拥有：
 

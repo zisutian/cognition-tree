@@ -23,7 +23,7 @@ core/
 
 application/
 
-    框架无关的用例、端口、session controller、read model 和问题投影。application/persistence 持有通用 VersionedRepository、保存队列和 VersionedSessionController；application/syntax 独占 UI-neutral 的 syntax draft projection，包括选项、约束、稳定 field ID、focus target 与诊断位置。跨内容领域协调只允许两个显式且互不导入的根：application/workbench 拥有工作台、跨仓导航、保存前 flush 和搜索组合；application/agent 拥有硬范围、runtime port、staging、proposal、审批状态机与 exact commit 用例。application/system 只拥有启动配置用例、端口和状态机，不感知内容领域。
+    框架无关的用例、端口、session controller、read model 和问题投影。application/persistence 持有通用 VersionedRepository、保存队列和 VersionedSessionController；application/syntax 独占 UI-neutral 的 syntax draft projection，包括选项、约束、稳定 field ID、focus target 与诊断位置。跨内容领域协调集中于 application/workbench 的工作台流程和 application/agentHost 的服务端 Agent 工具流程。application/agent 拥有中立会话、硬范围与提案模型以及客户端状态；application/agentHost 拥有服务端会话生命周期、暂存、审批、exact CAS、Provider 登录、符合性检查和探测用例。application/system 只拥有启动配置用例、端口和状态机，不感知内容领域。
 
 infrastructure/
 
@@ -65,13 +65,20 @@ tooling 不属于运行时源码层，只持有工程脚本和专用配置。tes
     presentation/activities 不依赖 presentation/shell。
     application/workbench 与 application/agent 互不导入；领域不得依赖 Agent。
     infrastructure/client 内部依赖方向固定为：platform 只依赖 platform；repository
-    只依赖 repository；http 可依赖 http 与 repository；runtime 作为组合根可依赖
+    只依赖 repository；http 只依赖 http；runtime 作为组合根可依赖
     runtime、http、platform 与 repository。
     presentation 与其它浏览器侧源码不得导入 infrastructure/server；所有后端能力
     必须通过 infrastructure/client 的 HTTP/SSE adapter 调用 registry 声明的公开
     `/api/v4` 契约。是否同源、同端口或同一进程不改变该边界。
     Workspace 本地 repository 实现只依赖 repository 与 persistence 基础设施。
-    生产依赖图无环；相对 import 必须能由 NodeNext 处理。
+    相对 import 使用显式扩展名，直接 Node 入口与编译后入口使用同一模块边界。
+
+每个稳定模块有公开入口，跨模块只导入其公开入口；可执行根不作为库被其它模块导入。
+`tests/architecture/moduleRegistry.ts` 登记模块职责、公开文件和允许依赖。检查同时验证
+生产文件与模块依赖图，包含类型导入、重导出与动态导入，并对照真实文件系统核对
+源码和资源的唯一归属。解析失败、非字面量动态导入、未解析的相对路径、遗漏文件、
+重复归属、空扫描范围、内部路径越界和依赖循环都会失败；没有临时边界豁免。
+工程工具也进入模块检查，CLI 仅通过 Contracts 访问 API。
 
 
 ## 4. 内容 contract
@@ -247,6 +254,10 @@ completion 和 recurrence 为单元三方合并；不同单元可自动合并，
 返回 `merge_conflict`。通用 merge equality 与本地优先 pending 判定共享同一结构比较
 策略：对象键插入顺序不构成内容变化，数组顺序仍是领域事实；不得以原始
 `JSON.stringify` 字节顺序制造伪冲突。
+CTN 层依据已解析的 metadata 位置比较内容，仅忽略修改时间；块 ID、创建时间、
+层级与正文差异仍参与判断。正文改回原样后可消除冲突，最终选择的内容保留同一身份的
+最新修改时间。Journal 同日序号碰撞按所选一侧保留冲突条目身份，非冲突条目保留，
+序号上界不回退，不重编号或改写既有标题。偏好本身不是已解决证明。
 语法变化是 barrier，不能跨 grammar 自动合并。
 
 浏览器发起同步时固定已提交内容 `L` 与 local revision `R`。响应 snapshot `S` 到达后，
@@ -266,9 +277,11 @@ exact proof。repository 在同一解决操作中校验证明、rebase 并继续
 失败，新的本地权威 snapshot 与明确 sync error 一并交接，不能退回旧 conflict；若远端
 再次形成重叠修改，则必须返回另一份完整 conflict snapshot。
 
-完整 conflict 一经发布，普通编辑与 save-queue enqueue 均关闭，直到显式解决完成；
-同步期间已经进入 stage 的 mutation 仍由 local-revision CAS 串行化，并原子重算当前
-local 与 conflict units，不能把旧 unit list 绑定到新正文。“远端并另存本地”的领域
+完整 conflict 发布后仍允许普通编辑与 stage；repository 接受后的 snapshot 是内容、
+revision、pending 和 conflict 的唯一权威。每次 stage 在 local-revision CAS 下重新计算
+仍未处理的单元；只有未处理集合为空才恢复同步。保存队列只负责调度和按 transition
+顺序安装结果，不保留独立旧冲突判断；过期 stage、sync 或远端事件不能重新发布旧冲突。
+“远端并另存本地”的领域
 transform 必须返回 covered unit ids，repository 在任何 rebase 前验证其与当前全部冲突
 单元完全相等；syntax、tree、identity、order、completion、recurrence、删除或混合单元
 只要无法无损表达，就整体拒绝，不允许以部分正文副本冒充成功。
@@ -332,21 +345,29 @@ pending rotation；配置使用 exact CAS，v1 摘要/version 无损迁入 v2 �
 提交的配置，而应保留旧 effective 值，并通过快照的 `runtimeApplyErrorMessage` 与
 `restartRequired` 显式暴露。
 
-数据根迁移由 application/workbench 的 loaded-content flush、application/system 的
-迁移用例和 infrastructure/system 的迁移状态协调器共同完成。状态协调器只编排维护
-租约、copy/verify/bootstrap CAS 与重启；独立文件事务是目标路径校验、权威分区清单、
-复制、指纹校验和失败清理的唯一 owner。状态协调器在任何异步预检之前先取得唯一迁移
-reservation，预检失败才释放，不能让并发请求同时准备两个目标。maintenance gate
-在 start 结果可见前通过微任务交接关闭新 mutation 入口，再等待已有 mutation 结束；
-读取请求不参与排空，也不能使迁移饥饿。状态协调器只保留当前一次可轮询迁移，不承担
-无界历史账本；下一次失败后重试会取代上一终态。文件事务只复制
-[使用与部署](getting-started.md#4-数据控制区与迁移)列出的当前
-权威分区，拒绝符号链接与路径重叠；源文件通过 `O_NOFOLLOW` 句柄读取并在复制前后
-核对稳定身份，目标文件排他创建，文件和目录完成 fsync 后再验证目录/文件清单、
-mode、atime、mtime、文件大小与 SHA-256，最后才 CAS 更新 bootstrap 指针。失败不
-切换指针；目标清理失败会附加到失败状态，但不能阻止维护租约释放和 active 状态归零。
-成功通过专用退出状态由根 supervisor 重启。
-旧数据根不删除。
+数据根迁移状态机由 application/system 独占，客户端通过 application/workbench
+排空已加载内容。基础设施分别实现 bootstrap、持久记录和文件事务端口，接线位于
+server 根。固定控制区的迁移记录在不可逆步骤前持久化 ID、源与目标、前后 revision、
+目录身份、校验摘要和阶段；阶段与提交结果（未提交、已提交、不确定）分别保存。
+
+维护先关闭新内容请求和会话入口，排空已接纳请求，再检查 resident Agent、设备登录
+和实际仍运行的后台操作。读请求也可能写入认证使用时间或惰性初始化数据，因此参与
+排空。application/runtime 的写入租约由 server/platform 的异步上下文适配；请求内派生
+写入持有独立租约，父请求结束不能提前释放子任务。Agent 内容 CAS 与审计收尾、
+Provider 凭据安装与配置提交、符合性结果记录共享同一写入范围。结束请求中尚未开始的
+延迟任务不能借用旧租约。仍驻留的模型或设备登录进程会阻止复制。
+
+文件事务通过排他创建取得目标所有权，拒绝已占用路径、符号链接和路径重叠；文件句柄
+读取核对稳定身份，复制保留 mode、atime、mtime，并校验目录、大小与 SHA-256 后 fsync。
+只复制[部署文档](getting-started.md#4-数据控制区与迁移)列出的权威分区；
+仓库根的运行时 writer lock 不属于业务数据。失败保留已分配目标，源始终保留，自动清理
+仅针对本次拥有的临时文件。
+
+指针提交结果不确定时保持维护，在 bootstrap 锁内重读并确认持久性。证明仍是原 revision
+才恢复源服务；证明是目标 revision 且目标完整才继续重启；无法证明则保持维护并提供
+诊断及重新对账。启动在初始化内容服务之前先恢复未结束迁移。已完成记录不再用旧摘要
+约束正常编辑。迁移恢复不调用重置 bootstrap 的函数；权限、磁盘或锁问题处理后可重新
+对账，不提供绕过校验的强制入口。专用退出状态 75 交由 supervisor 重启。
 
 Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前
 周期。inactive recurrence 保留 completedCount/totalCount，但完成状态与写入按
@@ -359,7 +380,7 @@ currentOccurrenceDate。
 每个内容领域拥有独立 session 和状态，但统一复用 application/persistence 的
 VersionedSessionController 与保存队列。Session controller 负责页面内 ready 内容、
 并发 reload、discard 失败恢复、乐观 draft、dispose 和删除前冻结/恢复；保存队列负责
-debounce、本地 stage、远端 sync/retry 与 persistence state。独立 transition authority
+debounce、本地 stage 与远端 sync/retry 的调度；persistence state 来自已接受 snapshot。独立 transition authority
 按 local revision 拼接并发返回的 transition chain、丢弃过期分支并在空闲时压缩历史，
 保存队列只决定何时接受和发布。冲突详情读取失败与整仓冲突是不同状态，解决动作只消费
 完整冲突快照。Workspace、Journal、Todo wrapper 只注入 preparation policy 与领域命令。
@@ -392,11 +413,11 @@ Workbench dispose 是不可恢复终态：它终结全部 session slot、搜索�
 清空订阅者，并拒绝后续内容 facade 与协调命令；start 与终态订阅不重建内部状态。
 Versioned session 与 HTTP 变更事件源同样不得在 dispose 后重新积累 listener。
 
-application/agent 独立提供 AgentRuntimePort、AgentSessionController、scope policy、
-staging 与 proposal state machine。它只依赖三个领域公开的 Agent preparation 入口
-和通用 persistence 端口，不依赖 contracts、infrastructure、presentation 或
-application/workbench；AgentRuntimePort 同时定义与 provider 无关的上下文预算耗尽
-语义。浏览器的 AgentClientController 只消费 wire-neutral port；
+application/agent 提供 AgentRuntimePort、AgentSessionController、scope policy 与通用
+proposal state machine；application/agentHost 通过三个领域公开的 preparation 入口
+实现服务端暂存、审批与提交。二者不依赖 contracts、infrastructure、presentation 或
+application/workbench；AgentRuntimePort 定义与 Provider 无关的上下文预算耗尽语义。
+浏览器的 AgentClientController 只消费 wire-neutral port；
 发送、批准和 destructive confirmation 前所需的已加载 draft 同步由
 `AuthenticatedWorkbenchRoot` 在 presentation composition root 注入，避免任一应用协调根
 反向调用另一个。
@@ -451,20 +472,21 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 
     client/platform 只拥有 UUID、时间、调度，以及当前仓库和默认 Agent Profile 的
     localStorage 偏好；
-    client/repository 拥有内存 catalog/content cache、revision 与 local-first repository。
-    resilientVersionedRepository 只作为显式组合 façade，独占初始化与 load/sync 请求
+    client/repository 仅拥有内存 catalog/content cache。application/persistence/localFirst
+    拥有加载、暂存、远端协调和冲突策略；localFirstRepository 只作为显式组合 façade，独占初始化与 load/sync 请求
     去重；loading 独占 cache-first/remote-refresh 策略、首次安装与显式丢弃重载，staging
     独占 prepared change 延续、冲突态合并和本地 CAS 重试，remoteReconciliation 独占
     远端 snapshot 安装、pending rebase 和并发草稿交接，synchronization 独占提交、后端
     冲突恢复、结果分类与 transition 汇总，conflictResolution 独占 proof、人工偏好、恢复
-    覆盖校验和 rebase 后同步。resilientVersionedRepositoryProjection 独占 prepared
+    覆盖校验和 rebase 后同步。localFirstRepositoryProjection 独占 prepared
     local/remote projection cache、merge-base 复用和 snapshot/transition 投影；各协作者
-    只消费 projection port，不导入该具体状态实现。resilientVersionedRepositoryPolicy
+    只消费 projection port，不导入该具体状态实现。localFirstRepositoryPolicy
     独占远端错误分类、cache fallback、内容等价和冲突单元规范化；client/http 只实现
     /api/v4 transport 与两类 SSE；client/runtime 只负责把
     这些实现注入 application 端口。源码中不存在 IndexedDB 或存储模式分支。
-    HTTP catalog adapter 串行投影内存 cache，并以远端观察 epoch 拒绝陈旧 list
-    回写；cache 始终是离线投影，任何写入或清理失败都不能改写已完成的远端 mutation。
+    application/workspace 的 localFirstWorkspaceCatalog 串行投影内存 cache，
+    并以远端观察 epoch 拒绝陈旧 list 回写；application/repository 的 cachedBuiltInCatalog
+    拥有内置目录的离线回退，client/runtime 组合 HTTP、缓存端口和领域 preparation；cache 始终是离线投影，任何写入或清理失败都不能改写已完成的远端 mutation。
     server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
     repository/workspace/local 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。localRepositoryRootLease 独占 canonical root、writer lock、丢失检测与启动时 staging/tombstone 清理；localRepositoryInventory 独占目录枚举、metadata/identity 校验、问题分类与 label issue 投影；LocalRepositoryCatalog 独占稳定 ID 分配、名称约束与 store 组合。catalog dispose 在调用时关闭新操作入口，排空已接纳操作后释放 store 与 root lease；catalog 和 root lease 都是不可重启终态。
     localRepositoryDeletion 独占普通仓库删除的 managed-data 校验、durable tombstone
@@ -477,7 +499,7 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     伪装成 API 500；
     error mapping 与响应 envelope 仍是 handler 的权威事实，日志仅为经脱敏的
     非权威观测，logger 失败不得替换或拒绝既定 API 响应；
-    api/http 独占 SSE socket 的失败与 backpressure 隔离，单个慢连接直接断开
+    server/transport 独占 SSE socket 的失败与 backpressure 隔离，单个慢连接直接断开
     并依赖 checkpoint/replay 重同步，不得反向改变提交、Agent turn 或其他订阅者；
     serverLifecycle 将关闭拆成停止接收、结束两类长连接、等待活动请求或限时强制断连、
     最后释放请求依赖资源四个有序阶段；多项关闭失败必须全部保留，不能让资源清理与
@@ -486,21 +508,21 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     向上逐级 fsync 至原有祖先，不能只同步最终状态文件所在目录；每个安全 JSON 文件
     通过独立跨实例锁串行，持锁后刷新磁盘 authority 再执行 read/mutate，解锁失败后
     分区 fail closed；
-    api/resources、api/sync 分别拥有只读资源投影与 merge-aware snapshot 同步，search
-    保持独立查询入口。server/access 独占 automation 与 trusted-client token；
+    api/resources、api/sync 分别拥有只读 wire 资源投影与同步协议适配；application/sync
+    执行普通同步用例。application/search 通过查询端口协调各来源，HTTP 仅转换协议。server/access 独占 automation 与 trusted-client token；
     server/operations 独占统一账本、审计状态和 Agent receipt；其中
-    operationLedgerContract 独占公开错误与命令类型，operationLedgerState 独占
+    application/operations 的 operationLedgerPort 独占公开错误与命令类型；operationLedgerState 独占
     operations-v1 严格解析与初始状态，operationLedgerProjection 独占 Agent/trusted
     审计 wire 投影与稳定 operation key，operationLedgerStore 独占安全分区、串行化、
     可用性、容量与旧文件清理，trustedClientOperationLedger 独占 trusted-client 的
     begin/attach/finalize 事务，agentOperationLedger 独占 in-flight 去重、持久 receipt、
     retention 与 terminal/indeterminate 流程，operationLedger 只作为显式组合根和公开
     façade；
-    server/agent 拥有
-    store 组合、runtime adapter、私有 IPC 与内存会话，不重写领域 command；其中
-    providerOperations 只显式组合无状态 providerProbe、Codex 设备码登录状态机和
-    conformance 状态机，并统一拒绝关闭后启动的新操作；后两者分别独占自身记录、
-    启动预留、执行任务与幂等释放；
+    server/agent 拥有模型 runtime adapter、Provider 配置和凭据存储、私有 IPC 与子进程
+    协议；内存会话和 Provider 操作状态由 application/agentHost 拥有。
+    application/agentHost/providerOperations 组合探测、设备码登录与 conformance 用例，
+    拒绝关闭后的新操作；各用例拥有自身记录、预留、执行任务和幂等释放，通过端口访问
+    配置、时钟和进程。server/runtime 负责三领域工具及平台端口的构造与接线；
     configurationErrors、configurationInput 与 configurationViews 分别独占配置错误、
     stored input 归一化和 digest/read-model 投影，configurationStore 只组合事务、
     credential/access 生命周期与这些纯策略；configurationRevision 独占 revision CAS
@@ -514,7 +536,7 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     JSONL framing，拒绝超长行、非法 UTF-8 和 EOF 残行；privateIpc 独占 capability
     与本地监听器，并线性化并发启动和幂等关闭，client 只接受一个匹配 correlation 的
     完整响应终态；
-    Agent service 关闭门统一阻止新 session 与 owner mutation，并协调 owner 操作、
+    application/agentHost 的 Agent service 关闭门统一阻止新 session 与 owner mutation，并协调 owner 操作、
     session pool、turn queue 与 IPC 的关闭顺序；sessionOpener 独占配置租约、启动校验、
     Profile 容量 reservation 的持有/释放、private IPC capability、runtime open、发布和
     失败回滚；sessionPool 独占驻留表、Profile 容量计数、过期驱逐、runtime
@@ -528,13 +550,13 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     revision/event 发布，并把存储提交未知或既有 indeterminate receipt 统一投影为
     workflow 可识别的提交边界错误；service 只定位 session、跟踪 owner operation 并
     转发参数；
-    sessionEventStream 独占 session SSE sequence、重放窗口和终态关闭，关闭后不再接收
-    事件或连接；
-    sessionToolProtocol、sessionToolState 与 proposalCodec 分别独占模型工具映射、会话
-    staging 形态和 Proposal wire/digest，Workspace/Journal/Todo session tool adapter
-    分别独占本领域资源读取、scope 校验、staging 与 review 投影；sessionTools 只负责
-    公共工具执行和三者的显式组合；AgentRuntimeProtocolError 由 application runtime
-    port 独占，基础设施 adapter 只消费这个中立失败语义；providerProbe 独占带
+    application/agentHost 的 sessionEventStream 独占事件 sequence、重放窗口和终态关闭；
+    HTTP 层把中立事件 sink 适配到 SSE，应用层不持有 socket。
+    基础设施 sessionToolProtocol 解码模型工具请求，proposalCodec 只计算摘要；
+    application/agentHost 的 sessionToolState 和三领域 sessionTools 拥有暂存、scope 与 review；
+    公共工具协调器通过端口调用它们，三者在 server/runtime 中显式构造与接线；AgentRuntimeProtocolError 由 application runtime
+    port 独占，基础设施 adapter 只消费这个中立失败语义。application/agentHost/providerProbe
+    协调配置与结果时间；基础设施 providerProbeTransport 独占带
     SSRF policy、超时、禁止重定向、1 MiB 严格 JSON 响应的模型元数据探测；
     openAiChatProtocol 独占要求 text/event-stream、fatal UTF-8、有界 frame 的
     OpenAI-compatible SSE，以及 tool envelope 与 correction 的纯协议规则，
@@ -647,7 +669,10 @@ Ollama Provider 的显式 probe 复用 SSRF、超时、重定向和响应体限�
 configuration 与 ProblemCenter，订阅快照并维护当前 Activity；退出登录会终结整组
 controller，重新登录不得复用终态实例。领域 session 到 view application 的组合位于
 `presentation/shell/application`；Activity descriptor catalog 是 ID、标签、图标、分组与
-懒加载元数据的唯一 owner。
+懒加载元数据的唯一 owner，位于 presentation/shell/workbench。ActivityBar 接收描述
+数据；各 Activity 只接收所需接口。共享 UI 不依赖 Activity 或编辑器实现，通用 React hook
+通过注入取得 scheduler。Todo 本地日期端口由 application/todo 拥有，平台只实现适配；
+初始领域内容由显式内容组合入口创建。
 
 每个 Activity 采用纵向切片：controller、context、view、局部 hook 和样式位于
 `presentation/activities/<activity>/`。跨 Activity 的组合只存在于 shell，共享交互
