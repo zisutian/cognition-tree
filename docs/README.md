@@ -27,6 +27,7 @@
 
 - [2026-09-06 结构重整记录](restructure-progress.md)
 - [2026-09-06 UI 优化记录](ui-optimization-progress.md)
+- [Dark Modern 样板与验证记录](ui-appearance-progress.md)
 
 历史报告保留当时证据，不替代当前行为或架构规范。新增事实先写入对应专题，其他文档链接引用；
 不复制 HTTP 路径或结构清单。精确操作由 [API registry](../contracts/api/registry.ts)

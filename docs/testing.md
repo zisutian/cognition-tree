@@ -11,7 +11,7 @@
 | 结构检查 | 唯一归属、公开入口、依赖图、样式所有权 | `tests/architecture`、`tests/presentation/designContract.test.ts` |
 | 文档检查 | 本地链接、锚点、脚本及命令入口 | `tests/documentation` |
 | 浏览器流程 | 点击、键盘、焦点、导航、保存、冲突、认证 | `e2e/workbench-*.pw.ts` |
-| 浏览器布局 | 实际宽高、对齐、滚动、遮挡与长内容 | `e2e/workbench-layout.pw.ts` |
+| 浏览器布局 | 实际宽高、对齐、滚动、遮挡与长内容 | `e2e/workbench-layout.pw.ts`、`e2e/workbench-appearance.pw.ts` |
 | 容量 | 同配置的时间、内存、分析复用与数据完整性 | `tooling/benchmark/workspaceCapacity.ts` |
 
 纯规则直接测试输入输出。SSR 只保留有独立意义的可访问输出或内容脱敏契约，不用静态 HTML 证明点击、焦点或滚动。
@@ -35,6 +35,10 @@
 
     pnpm test tests/presentation/activities/settings tests/presentation/shell/workbench tests/application/agent/agentConfigurationController.test.ts
     pnpm exec playwright test e2e/workbench-settings.pw.ts e2e/workbench-settings-drafts.pw.ts
+
+Dark Modern 样板、控件与问题面板：
+
+    pnpm exec playwright test e2e/workbench-appearance.pw.ts
 
 迁移与桌面布局：
 
@@ -66,4 +70,4 @@ E2E 并发数可用 `CTN_E2E_WORKERS` 调整；同一结果应记录采用的配
 容量对照在修改前后各运行一次相同命令，保留输出中的 dataset、timings、memory、verification 和 validationCounts。
 若修改了容量参数或同时运行其他重负载任务，不能把结果作为同配置的性能对照。时间和内存会受环境波动影响，复用次数和内容完整性需分别判断。
 
-本轮实际结果记入[UI 优化记录](ui-optimization-progress.md)。进程终止恢复仅是进程恢复证据；真实断电、真实模型、其他浏览器和平台的状态分别记录。
+早期验收见[UI 优化记录](ui-optimization-progress.md)，本轮样板和验证状态见[Dark Modern 样板记录](ui-appearance-progress.md)。进程终止恢复仅是进程恢复证据；真实断电、真实模型、其他浏览器和平台的状态分别记录。
