@@ -28,8 +28,8 @@ type ProviderRoute = Extract<AgentSettingsRoute, { page: "providers" }>;
 
 type ProviderDraftSession =
   | { status: "closed" }
-  | { draft: AgentProviderDraft; status: "creating" }
-  | { draft: AgentProviderDraft; providerId: string; status: "editing" };
+  | { baseRevision: string; draft: AgentProviderDraft; status: "creating" }
+  | { baseRevision: string; draft: AgentProviderDraft; providerId: string; status: "editing" };
 
 const authenticationLabels = {
   configured: "认证已配置",
@@ -63,6 +63,7 @@ export function AgentProviderSettingsSection({
     void feedback.runAction(async () => {
       if (draftSession.status === "editing") {
         await agent.configurationController.updateProvider(
+          draftSession.baseRevision,
           draftSession.providerId,
           input,
         );
@@ -72,7 +73,7 @@ export function AgentProviderSettingsSection({
         });
       } else {
         const previousIds = new Set(providers.map(({ id }) => id));
-        await agent.configurationController.createProvider(input);
+        await agent.configurationController.createProvider(draftSession.baseRevision, input);
         const created = agent.configurationController.getSnapshot().configuration
           ?.providers.find(({ id }) => !previousIds.has(id));
 
@@ -111,6 +112,7 @@ export function AgentProviderSettingsSection({
       actions={(
         <Button
           onClick={() => setDraftSession({
+            baseRevision: agent.configurationState.configuration?.revision ?? "",
             draft: createAgentProviderDraft(),
             status: "creating",
           })}
@@ -191,8 +193,9 @@ export function AgentProviderSettingsSection({
                       onClick={() => {
                         onRouteChange({ page: "providers", selectedProviderId: provider.id });
                         setDraftSession({
+                          baseRevision: agent.configurationState.configuration?.revision ?? "",
                           draft: agentProviderDraftFrom(provider),
-                        providerId: provider.id,
+                          providerId: provider.id,
                           status: "editing",
                         });
                       }}

@@ -164,6 +164,25 @@ function port(): AgentConfigurationPort {
 }
 
 describe("Agent configuration controller", () => {
+  it("submits the form's frozen revision after a newer configuration was loaded", async () => {
+    const adapter = port();
+    const controller = createAgentConfigurationController({
+      onConfigurationChanged: vi.fn(),
+      pollConformance: async () => undefined,
+      pollConformanceIntervalMilliseconds: 1,
+      port: adapter,
+    });
+    await controller.load();
+    const formRevision = controller.getSnapshot().configuration!.revision;
+    vi.mocked(adapter.load).mockResolvedValueOnce(snapshot("2"));
+    await controller.load();
+    vi.mocked(adapter.updateProvider).mockRejectedValueOnce(new Error("revision changed"));
+    await expect(controller.updateProvider(formRevision, "provider-1", providerInput()))
+      .rejects.toThrow("revision changed");
+    expect(adapter.updateProvider).toHaveBeenCalledExactlyOnceWith(revision("1"), "provider-1", providerInput());
+    expect(controller.getSnapshot().configuration?.revision).toBe(revision("2"));
+  });
+
   it("owns exact-revision mutations and explicit discovery state", async () => {
     const adapter = port();
     const changed = vi.fn();
@@ -176,7 +195,7 @@ describe("Agent configuration controller", () => {
 
     await controller.load();
     await controller.discoverOllama("http://127.0.0.1:11434");
-    await controller.createProvider(providerInput());
+    await controller.createProvider(revision("1"), providerInput());
 
     expect(adapter.createProvider).toHaveBeenCalledWith(
       revision("1"),
@@ -204,7 +223,7 @@ describe("Agent configuration controller", () => {
     });
 
     await controller.load();
-    await expect(controller.createProvider(providerInput())).rejects.toThrow(
+    await expect(controller.createProvider(revision("1"), providerInput())).rejects.toThrow(
       "revision changed",
     );
     expect(controller.getSnapshot()).toMatchObject({
@@ -537,7 +556,7 @@ describe("Agent configuration controller", () => {
     vi.mocked(adapter.load).mockImplementationOnce(() => staleLoad.promise);
     const loading = controller.load();
 
-    await controller.createProvider(providerInput());
+    await controller.createProvider(revision("1"), providerInput());
     staleLoad.resolve(snapshot("1"));
     await loading;
 
@@ -634,7 +653,7 @@ describe("Agent configuration controller", () => {
     vi.mocked(adapter.createProvider).mockImplementationOnce(
       () => delayedMutation.promise,
     );
-    const firstMutation = controller.createProvider(providerInput());
+    const firstMutation = controller.createProvider(revision("1"), providerInput());
 
     vi.mocked(adapter.load).mockResolvedValueOnce(snapshot("2"));
     await controller.load();

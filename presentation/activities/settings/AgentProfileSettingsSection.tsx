@@ -28,8 +28,8 @@ type ProfileRoute = Extract<AgentSettingsRoute, { page: "profiles" }>;
 
 type ProfileDraftSession =
   | { status: "closed" }
-  | { draft: AgentProfileDraft; status: "creating" }
-  | { draft: AgentProfileDraft; profileId: string; status: "editing" };
+  | { baseRevision: string; draft: AgentProfileDraft; status: "creating" }
+  | { baseRevision: string; draft: AgentProfileDraft; profileId: string; status: "editing" };
 
 export function AgentProfileSettingsSection({
   agent,
@@ -70,6 +70,7 @@ export function AgentProfileSettingsSection({
     void feedback.runAction(async () => {
       if (draftSession.status === "editing") {
         await agent.configurationController.updateProfile(
+          draftSession.baseRevision,
           draftSession.profileId,
           input,
         );
@@ -79,7 +80,7 @@ export function AgentProfileSettingsSection({
         });
       } else {
         const previousIds = new Set(profiles.map(({ id }) => id));
-        await agent.configurationController.createProfile(input);
+        await agent.configurationController.createProfile(draftSession.baseRevision, input);
         const created = agent.configurationController.getSnapshot().configuration
           ?.profiles.find(({ id }) => !previousIds.has(id));
 
@@ -121,6 +122,7 @@ export function AgentProfileSettingsSection({
       actions={(
         <Button
           onClick={() => setDraftSession({
+            baseRevision: agent.configurationState.configuration?.revision ?? "",
             draft: createAgentProfileDraft(),
             status: "creating",
           })}
@@ -178,8 +180,9 @@ export function AgentProfileSettingsSection({
                       onClick={() => {
                         onRouteChange({ page: "profiles", selectedProfileId: profile.id });
                         setDraftSession({
+                          baseRevision: agent.configurationState.configuration?.revision ?? "",
                           draft: agentProfileDraftFrom(profile),
-                        profileId: profile.id,
+                          profileId: profile.id,
                           status: "editing",
                         });
                       }}

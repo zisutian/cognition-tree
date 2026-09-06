@@ -75,8 +75,8 @@ export type AgentConfigurationController = {
   cancelConformance(profileId: string): Promise<void>;
   checkConformance(profileId: string): Promise<void>;
   clearProviderAuthentication(providerId: string): Promise<void>;
-  createProfile(profile: AgentProfileInput): Promise<void>;
-  createProvider(provider: AgentProviderInput): Promise<void>;
+  createProfile(baseRevision: string, profile: AgentProfileInput): Promise<AgentConfigurationSnapshot>;
+  createProvider(baseRevision: string, provider: AgentProviderInput): Promise<AgentConfigurationSnapshot>;
   deleteProfile(profileId: string): Promise<void>;
   deleteProvider(providerId: string): Promise<void>;
   dispose(): void;
@@ -86,8 +86,8 @@ export type AgentConfigurationController = {
   probeProvider(providerId: string): Promise<void>;
   subscribe(listener: () => void): () => void;
   startCodexDeviceLogin(providerId: string): Promise<void>;
-  updateProfile(profileId: string, profile: AgentProfileInput): Promise<void>;
-  updateProvider(providerId: string, provider: AgentProviderInput): Promise<void>;
+  updateProfile(baseRevision: string, profileId: string, profile: AgentProfileInput): Promise<AgentConfigurationSnapshot>;
+  updateProvider(baseRevision: string, providerId: string, provider: AgentProviderInput): Promise<AgentConfigurationSnapshot>;
 };
 
 function message(error: unknown) {
@@ -233,12 +233,13 @@ export function createAgentConfigurationController({
   };
   const mutate = (
     operation: (revision: string) => Promise<AgentConfigurationSnapshot>,
+    expectedRevision?: string,
   ) =>
     runOperation(async () => {
-      const baseRevision = requireRevision();
+      const baseRevision = expectedRevision ?? requireRevision();
       const configuration = await operation(baseRevision);
 
-      if (disposed) return;
+      if (disposed) return configuration;
       const currentRevision = state.configuration?.revision ?? null;
 
       if (
@@ -248,6 +249,7 @@ export function createAgentConfigurationController({
         installConfiguration(configuration);
       }
       await onConfigurationChanged();
+      return configuration;
     });
 
   return {
@@ -400,19 +402,19 @@ export function createAgentConfigurationController({
     },
     clearProviderAuthentication: (providerId) => mutate((revision) =>
       port.clearProviderAuthentication(revision, providerId)
+    ).then(() => undefined),
+    createProfile: (baseRevision, profile) => mutate((revision) =>
+      port.createProfile(revision, profile), baseRevision
     ),
-    createProfile: (profile) => mutate((revision) =>
-      port.createProfile(revision, profile)
-    ),
-    createProvider: (provider) => mutate((revision) =>
-      port.createProvider(revision, provider)
+    createProvider: (baseRevision, provider) => mutate((revision) =>
+      port.createProvider(revision, provider), baseRevision
     ),
     deleteProfile: (profileId) => mutate((revision) =>
       port.deleteProfile(revision, profileId)
-    ),
+    ).then(() => undefined),
     deleteProvider: (providerId) => mutate((revision) =>
       port.deleteProvider(revision, providerId)
-    ),
+    ).then(() => undefined),
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -533,11 +535,11 @@ export function createAgentConfigurationController({
         })();
       });
     },
-    updateProfile: (profileId, profile) => mutate((revision) =>
-      port.updateProfile(revision, profileId, profile)
+    updateProfile: (baseRevision, profileId, profile) => mutate((revision) =>
+      port.updateProfile(revision, profileId, profile), baseRevision
     ),
-    updateProvider: (providerId, provider) => mutate((revision) =>
-      port.updateProvider(revision, providerId, provider)
+    updateProvider: (baseRevision, providerId, provider) => mutate((revision) =>
+      port.updateProvider(revision, providerId, provider), baseRevision
     ),
   };
 }
