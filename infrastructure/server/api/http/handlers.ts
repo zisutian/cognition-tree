@@ -2,7 +2,7 @@
 
 import { createApiOpenApiDocument } from "../../../../contracts/api/openApi.ts";
 import type { ApiSearchRequestDto } from "../../../../contracts/api/types.ts";
-import { ApiRequestError } from "./errors.ts";
+import { ApiRequestError } from "../protocol/requestError.ts";
 import {
   assertOperationAccess,
   createCheckpoint,
@@ -17,7 +17,7 @@ import {
   handleTodoQuery,
   handleWorkspaceQuery,
 } from "./queryHandlers.ts";
-import { handleApiSync } from "../sync/handlers.ts";
+import { handleApiSync } from "./syncHandlers.ts";
 import {
   journalResourceVersions,
   todoResourceVersions,

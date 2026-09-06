@@ -27,7 +27,7 @@ import {
 import { systemApiRuntime } from "./api/http/runtime.ts";
 import { createApiSecurityPolicy } from "./api/http/security.ts";
 import { ApiEventHub } from "./api/sync/events.ts";
-import { ApiRevisionTracker } from "./api/sync/revisionTracker.ts";
+import { DomainRevisionTracker } from "../../application/sync/domainRevisionTracker.ts";
 import { createStaticClientRuntime } from "./client/staticClientRuntime.ts";
 import { BuiltInCatalog } from "./repository/built-ins/catalog.ts";
 import { LocalRepositoryCatalog } from
@@ -197,7 +197,7 @@ const operationLedger = new OperationLedger(
 );
 await operationLedger.initialize();
 const eventHub = new ApiEventHub();
-const revisionTracker = new ApiRevisionTracker();
+const revisionTracker = new DomainRevisionTracker();
 const search = createServerSearchQuery({ builtInCatalog, catalog });
 const agentService = createServerAgentService({
   builtInCatalog,

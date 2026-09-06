@@ -3,7 +3,7 @@
 import type { SearchCatalogPort } from "../../../application/search/scopedSearch.ts";
 import { projectJournalSearchDocuments, projectTodoSearchDocuments, projectWorkspaceSearchDocuments } from "../../../application/workbench/searchCorpus.ts";
 import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
-import type { ApiBuiltInCatalog } from "./http/ports.ts";
+import type { ApiBuiltInCatalog } from "../repository/built-ins/catalogPort.ts";
 import { createApiResourceVersion } from "./resources/versions.ts";
 import { RepositoryAdapterError } from "../repository/store.ts";
 import { WorkspacePayloadValidationError } from "../repository/workspace/layout.ts";

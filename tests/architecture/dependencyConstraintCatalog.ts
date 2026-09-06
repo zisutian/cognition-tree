@@ -25,7 +25,9 @@ export const sourceLayerImports: Readonly<
 
 const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   platform: ["platform"],
-  runtime: ["runtime", "platform", "access", "agent", "api", "api/http", "api/resources", "api/sync", "network", "operations", "persistence", "repository", "state", "system"],
+  transport: ["transport"],
+  "api/protocol": ["api/protocol"],
+  runtime: ["runtime", "api/protocol", "transport", "platform", "access", "agent", "api", "api/http", "api/resources", "api/sync", "network", "operations", "persistence", "repository", "state", "system"],
   access: ["access", "state"],
   agent: [
     "agent",
@@ -38,8 +40,9 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
     "repository",
     "state",
   ],
-  api: ["api", "api/http", "api/resources", "repository"],
+  api: ["api", "api/protocol", "api/resources", "repository"],
   "api/http": [
+    "api/protocol", "transport",
     "access",
     "agent",
     "api",
@@ -52,7 +55,7 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   ],
   "api/resources": ["api/resources"],
   "api/sync": [
-    "api/http",
+    "api/protocol", "transport",
     "api/sync",
     "operations",
     "repository",

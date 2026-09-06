@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { ApiRequestError } from '../protocol/requestError.ts';
 import { createHash } from "node:crypto";
 import {
   UnsupportedWireVersionError,
@@ -9,11 +10,6 @@ import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
 } from "../../../../contracts/workspace/contractValue.ts";
-import type {
-  ApiErrorCodeDto,
-  ApiErrorDto,
-} from "../../../../contracts/api/types.ts";
-import { parseApiError } from "../../../../contracts/api/parseError.ts";
 import {
   TodoOccurrenceConflictError,
 } from "../../../../core/todo/recurrence/todoOccurrenceConflict.ts";
@@ -66,81 +62,12 @@ import {
 } from "../../repository/workspace/layout.ts";
 import { SystemConfigurationConflictError, SystemConfigurationValidationError, SystemMigrationConflictError, SystemMigrationNotFoundError, SystemMigrationValidationError } from "../../../../application/system/systemConfigurationModel.ts";
 
-export const ApiErrorCatalog = {
-  adapter_unavailable: { retryable: true, statusCode: 503 },
-  content_commit_indeterminate: { retryable: false, statusCode: 500 },
-  domain_validation_failed: { retryable: false, statusCode: 422 },
-  forbidden: { retryable: false, statusCode: 403 },
-  idempotency_conflict: { retryable: false, statusCode: 409 },
-  insufficient_storage: { retryable: false, statusCode: 507 },
-  internal_error: { retryable: false, statusCode: 500 },
-  invalid_request: { retryable: false, statusCode: 400 },
-  merge_conflict: { retryable: false, statusCode: 409 },
-  not_found: { retryable: false, statusCode: 404 },
-  occurrence_conflict: { retryable: false, statusCode: 409 },
-  operation_audit_finalize_failed: { retryable: false, statusCode: 500 },
-  operation_audit_unavailable: { retryable: false, statusCode: 503 },
-  profile_unavailable: { retryable: true, statusCode: 503 },
-  proposal_stale: { retryable: false, statusCode: 409 },
-  repository_busy: { retryable: true, statusCode: 423 },
-  repository_corrupt: { retryable: false, statusCode: 500 },
-  resource_conflict: { retryable: false, statusCode: 409 },
-  session_capacity_reached: { retryable: true, statusCode: 429 },
-  session_unavailable: { retryable: false, statusCode: 409 },
-  unauthorized: { retryable: false, statusCode: 401 },
-} as const satisfies Record<
-  ApiErrorCodeDto,
-  { retryable: boolean; statusCode: number }
->;
-
 function createConflictId(kind: string, currentVersion: string) {
   const digest = createHash("sha256")
     .update(`${kind}\u0000${currentVersion}`, "utf8")
     .digest("hex");
 
   return `conflict-${digest}`;
-}
-
-export class ApiRequestError extends Error {
-  readonly code: ApiErrorCodeDto;
-  readonly details: Record<string, unknown>;
-  readonly retryable: boolean;
-  readonly statusCode: number;
-
-  constructor(
-    code: ApiErrorCodeDto,
-    message: string,
-    {
-      details,
-      retryable = ApiErrorCatalog[code].retryable,
-      statusCode = ApiErrorCatalog[code].statusCode,
-    }: {
-      details?: Record<string, unknown>;
-      retryable?: boolean;
-      statusCode?: number;
-    } = {},
-  ) {
-    super(message);
-    this.name = "ApiRequestError";
-    this.code = code;
-    this.details = details ?? {};
-    this.retryable = retryable;
-    this.statusCode = statusCode;
-  }
-
-  toDto(requestId: string): ApiErrorDto {
-    return parseApiError({
-      code: this.code,
-      details: this.details,
-      message: this.message,
-      requestId,
-      retryable: this.retryable,
-    });
-  }
-}
-
-export function apiNotFound(message = "Resource does not exist"): never {
-  throw new ApiRequestError("not_found", message);
 }
 
 export function mapApiError(error: unknown): ApiRequestError {

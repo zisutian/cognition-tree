@@ -12,7 +12,7 @@ import {
   readJsonRequestBody,
   readSingleHttpHeader,
 } from "../../network/jsonRequestBody.ts";
-import { ApiRequestError } from "./errors.ts";
+import { ApiRequestError } from "../protocol/requestError.ts";
 
 export const defaultMaximumBodyBytes = 20 * 1024 * 1024;
 

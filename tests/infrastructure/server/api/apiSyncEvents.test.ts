@@ -14,9 +14,9 @@ import { createApiRequestHandler } from "../../../../infrastructure/server/runti
 import {
   createApiSecurityPolicy,
 } from "../../../../infrastructure/server/api/http/security.ts";
-import type { ApiBuiltInCatalog } from "../../../../infrastructure/server/api/http/ports.ts";
+import type { ApiBuiltInCatalog } from "../../../../infrastructure/server/repository/built-ins/catalogPort.ts";
 import { workspaceResourceVersions } from "../../../../infrastructure/server/api/resources/versions.ts";
-import { ApiRevisionTracker } from "../../../../infrastructure/server/api/sync/revisionTracker.ts";
+import { DomainRevisionTracker } from "../../../../application/sync/domainRevisionTracker.ts";
 import { synchronizeApiWorkspace } from "../../../../infrastructure/server/api/sync/service.ts";
 import type {
   WorkspaceRepositoryCatalog,
@@ -36,7 +36,7 @@ import { createWorkspaceRepositoryRevision } from "../../../../infrastructure/se
 describe("CTN API v4", () => {
   it("keeps SSE checkpoints lightweight and derives sync changes from the CAS payload", async () => {
     const trackedRevision = revision("a");
-    const tracker = new ApiRevisionTracker();
+    const tracker = new DomainRevisionTracker();
     let catalogReads = 0;
     let storeReads = 0;
     const unavailableCatalog = {

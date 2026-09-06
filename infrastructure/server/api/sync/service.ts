@@ -42,9 +42,7 @@ import {
 import type {
   JournalDomainVersions,
 } from "../../../../application/journal/journalDomainCommands.ts";
-import {
-  type ApiRuntime,
-} from "../http/runtime.ts";
+import type { CommandRuntime } from "../../../../application/commands/commandRuntime.ts";
 import {
   projectTodoContentChanges,
 } from "../../../../application/todo/todoContentProjection.ts";
@@ -63,7 +61,7 @@ import { createJournalRevision } from "../../repository/built-ins/journalStore.t
 import { createTodoRevision } from "../../repository/built-ins/todoStore.ts";
 import { WorkspaceRevisionConflictError } from "../../../../application/workspace/persistence/workspaceCommitErrors.ts";
 import { VersionedContentRevisionConflictError } from "../../../../application/persistence/versionedCommitErrors.ts";
-import { ApiRequestError } from "../http/errors.ts";
+import { ApiRequestError } from "../protocol/requestError.ts";
 
 export type ApiSyncResult = {
   audit: null | {
@@ -80,7 +78,7 @@ type ApiSyncContext = {
   observeRevision(revision: `sha256:${string}`): void;
   publish(changes: DomainChangeSetDto): Promise<void>;
   readJsonBody(): Promise<unknown>;
-  runtime: ApiRuntime;
+  runtime: CommandRuntime;
 };
 
 function syncStore<Content, Projection, Revision extends string>(store: {

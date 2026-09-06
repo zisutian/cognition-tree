@@ -3,7 +3,7 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'node:http';
 import type { AgentEventSink } from '../../../../application/agentHost/sessionEventStream.ts';
 import { serializeJsonIteratively } from '../../../../contracts/common/json.ts';
-import { writeServerSentEvent, endServerSentEventResponse } from './serverSentEventResponse.ts';
+import { writeServerSentEvent, endServerSentEventResponse } from '../../transport/serverSentEventResponse.ts';
 
 export function createAgentEventSink(response: ServerResponse, headers: OutgoingHttpHeaders): AgentEventSink {
   return {

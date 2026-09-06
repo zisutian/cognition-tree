@@ -27,7 +27,7 @@ import {
   AgentServiceError,
 } from "../../../../application/agentHost/service.ts";
 import { ApiEventHub } from "../../../../infrastructure/server/api/sync/events.ts";
-import { ApiRevisionTracker } from "../../../../infrastructure/server/api/sync/revisionTracker.ts";
+import { DomainRevisionTracker } from "../../../../application/sync/domainRevisionTracker.ts";
 import { journalResourceVersions } from "../../../../infrastructure/server/api/resources/versions.ts";
 import type { ApiRuntime } from "../../../../infrastructure/server/api/http/runtime.ts";
 import {
@@ -159,7 +159,7 @@ async function createFixture(
     configurationStore,
     eventHub: new ApiEventHub(uuid(900)),
     ledger,
-    revisionTracker: new ApiRevisionTracker(),
+    revisionTracker: new DomainRevisionTracker(),
     runtime,
     runtimeFactory: { create: () => runtimePort },
     search: createServerSearchQuery({

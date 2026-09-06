@@ -8,7 +8,7 @@ import type { SearchQuery } from "../../../application/search/searchTypes.ts";
 import type { SearchAccess } from "../../../application/search/scopedSearch.ts";
 import { digestAgentProposal } from "../agent/proposalCodec.ts";
 import { agentToolDecoder } from "../agent/sessionToolProtocol.ts";
-import type { ApiBuiltInCatalog } from "../api/http/ports.ts";
+import type { ApiBuiltInCatalog } from "../repository/built-ins/catalogPort.ts";
 import type { ApiRuntime } from "../api/http/runtime.ts";
 import { projectApiJournalEntries, projectApiJournalEntry } from "../api/resources/journal.ts";
 import { projectApiTodoCollection, projectApiTodoCollections } from "../api/resources/todo.ts";

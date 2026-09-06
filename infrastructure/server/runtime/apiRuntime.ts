@@ -7,7 +7,7 @@ import { AgentConfigurationStore } from "../agent/configurationStore.ts";
 import { AutomationTokenStore } from "../access/automationTokenStore.ts";
 import { TrustedClientTokenStore } from "../access/trustedClientTokenStore.ts";
 import { ApiEventHub } from "../api/sync/events.ts";
-import { ApiRevisionTracker } from "../api/sync/revisionTracker.ts";
+import { DomainRevisionTracker } from "../../../application/sync/domainRevisionTracker.ts";
 import { ApiMaintenanceGate } from "../api/http/maintenanceGate.ts";
 import { systemApiRuntime } from "../api/http/runtime.ts";
 import { createServerSearchService } from "./searchRuntime.ts";
@@ -30,7 +30,7 @@ function composeApiDependencies(options: ApiServerOptions): ApiHttpDependencies 
     maintenanceGate: options.maintenanceGate ?? new ApiMaintenanceGate(),
     operationLedger: options.operationLedger ?? null,
     requestRestart: options.requestRestart ?? (() => undefined),
-    revisionTracker: options.revisionTracker ?? new ApiRevisionTracker(),
+    revisionTracker: options.revisionTracker ?? new DomainRevisionTracker(),
     runtime,
     search: options.search ?? (options.builtInCatalog ? createServerSearchService({ builtInCatalog: options.builtInCatalog, catalog: options.catalog }) : null),
     security: options.security,

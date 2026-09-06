@@ -3,7 +3,7 @@
 import { ScopedSearchService, SearchAccessError, type SearchAccess } from "../../../application/search/scopedSearch.ts";
 import { searchDomains, SearchRequestError, type SearchResponse } from "../../../application/search/searchTypes.ts";
 import type { ApiPrincipalDto, ApiSearchRequestDto, ApiSearchResponseDto } from "../../../contracts/api/types.ts";
-import { ApiRequestError } from "./http/errors.ts";
+import { ApiRequestError } from "./protocol/requestError.ts";
 
 function projectApiSearchResponse(
   response: SearchResponse,

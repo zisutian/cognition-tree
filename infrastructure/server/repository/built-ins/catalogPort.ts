@@ -11,7 +11,7 @@ import type { JournalParseIndex } from "../../../../core/journal/indexes/journal
 import type { TodoParseIndex } from "../../../../core/todo/indexes/todoParseIndex.ts";
 import type {
   VersionedContentStore,
-} from "../../repository/versioned/contentStore.ts";
+} from "../versioned/contentStore.ts";
 
 export type ApiBuiltInCatalog = {
   getStore(id: "journal"): Promise<

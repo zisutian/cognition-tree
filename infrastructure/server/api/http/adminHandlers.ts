@@ -18,7 +18,7 @@ import type {
   AgentProfileMutationRequestDto,
   AgentProviderMutationRequestDto,
 } from "../../../../contracts/agent/configurationSchemas.ts";
-import { ApiRequestError, apiNotFound } from "./errors.ts";
+import { ApiRequestError, apiNotFound } from "../protocol/requestError.ts";
 import {
   publishTrackedChanges,
   type ApiHandlerContext,

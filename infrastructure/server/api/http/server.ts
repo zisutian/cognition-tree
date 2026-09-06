@@ -20,11 +20,9 @@ import type {
 } from "../../repository/catalog.ts";
 import type {
   ApiBuiltInCatalog,
-} from "./ports.ts";
-import {
-  ApiRequestError,
-  mapApiError,
-} from "./errors.ts";
+} from "../../repository/built-ins/catalogPort.ts";
+import { mapApiError } from "./errors.ts";
+import { ApiRequestError } from "../protocol/requestError.ts";
 import {
   handleApiRoute,
 } from "./handlers.ts";
@@ -49,8 +47,8 @@ import {
   type ApiRuntime,
 } from "./runtime.ts";
 import {
-  ApiRevisionTracker,
-} from "../sync/revisionTracker.ts";
+  DomainRevisionTracker,
+} from "../../../../application/sync/domainRevisionTracker.ts";
 import { AutomationTokenStore } from "../../access/automationTokenStore.ts";
 import { TrustedClientTokenStore } from "../../access/trustedClientTokenStore.ts";
 import type { AgentService } from "../../../../application/agentHost/service.ts";
@@ -79,7 +77,7 @@ export type ApiHttpDependencies = {
   operationLedger: OperationLedger | null;
   requestRestart: () => void;
   runtime: ApiRuntime;
-  revisionTracker: ApiRevisionTracker;
+  revisionTracker: DomainRevisionTracker;
   security: ApiSecurityPolicy;
   systemAdministration: SystemAdministrationServerPort | null;
   trustedClientTokenStore: TrustedClientTokenStore;

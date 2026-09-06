@@ -12,24 +12,24 @@ import type {
 import type {
   TodoDomainVersions,
 } from "../../../../application/todo/todoDomainCommands.ts";
-import { ApiRequestError, apiNotFound } from "../http/errors.ts";
+import { ApiRequestError, apiNotFound } from "../protocol/requestError.ts";
 import {
   assertRepositoryAllowed,
   publishTrackedChanges,
   requireBuiltInCatalog,
   type ApiHandlerContext,
-} from "../http/handlerContext.ts";
+} from "./handlerContext.ts";
 import {
   synchronizeApiJournal,
   synchronizeApiTodo,
   synchronizeApiWorkspace,
-} from "./service.ts";
+} from "../sync/service.ts";
 import {
   OperationAuditFinalizeError,
   OperationAuditUnavailableError,
   type TrustedClientOperationStore,
 } from "../../../../application/operations/operationLedgerPort.ts";
-import { readApiRuntimeNow } from "../http/runtime.ts";
+import { readApiRuntimeNow } from "./runtime.ts";
 import { VersionedContentCommitOutcomeUnknownError } from "../../../../application/persistence/versionedCommitErrors.ts";
 
 async function publishApiChanges(

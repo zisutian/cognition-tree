@@ -2,7 +2,7 @@
 
 import { isJournalEntryId } from "../../../../core/journal/model/journalIdentity.ts";
 import { isTodoCollectionId } from "../../../../core/todo/model/todoIdentity.ts";
-import { apiNotFound } from "./errors.ts";
+import { apiNotFound } from "../protocol/requestError.ts";
 import {
   assertRepositoryAllowed,
   observeBuiltInRevision,

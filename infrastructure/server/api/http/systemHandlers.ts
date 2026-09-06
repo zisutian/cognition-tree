@@ -7,7 +7,7 @@ import type {
   ApiSystemConfigurationMutationDto,
   ApiSystemConfigurationRevisionDto,
 } from "../../../../contracts/api/schemas/system.ts";
-import { ApiRequestError } from "./errors.ts";
+import { ApiRequestError } from "../protocol/requestError.ts";
 import type {
   ApiHandlerContext,
   ApiRouteHandlerContext,

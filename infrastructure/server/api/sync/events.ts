@@ -16,7 +16,7 @@ import type { DomainChangeSetDto } from "../../../../contracts/common/domainChan
 import {
   endServerSentEventResponse,
   writeServerSentEvent,
-} from "../http/serverSentEventResponse.ts";
+} from "../../transport/serverSentEventResponse.ts";
 
 type EventConnection = {
   principal: ApiPrincipalDto;

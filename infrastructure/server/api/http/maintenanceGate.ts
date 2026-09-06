@@ -2,7 +2,7 @@
 
 import { ApplicationWriteBarrier } from "../../../../application/runtime/writeBarrier.ts";
 import type { SystemMaintenancePort } from "../../../../application/system/systemConfiguration.ts";
-import { ApiRequestError } from "./errors.ts";
+import { ApiRequestError } from "../protocol/requestError.ts";
 
 // These control operations read established control state and never enter a
 // data-root store. Bearer authentication is disabled while the gate is closed.

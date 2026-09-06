@@ -29,7 +29,7 @@ import { OperationLedger } from "../../infrastructure/server/operations/operatio
 import { AgentService } from "../../application/agentHost/service.ts";
 import { agentServicePolicy } from "../../application/agentHost/servicePolicy.ts";
 import { ApiEventHub } from "../../infrastructure/server/api/sync/events.ts";
-import { ApiRevisionTracker } from "../../infrastructure/server/api/sync/revisionTracker.ts";
+import { DomainRevisionTracker } from "../../application/sync/domainRevisionTracker.ts";
 import { systemApiRuntime } from "../../infrastructure/server/api/http/runtime.ts";
 import {
   createE2EAgentRuntime,
@@ -129,7 +129,7 @@ export async function startE2EWorkspaceServer({
     await catalog.initialize();
     await builtInCatalog.initialize();
     const eventHub = new ApiEventHub();
-    const revisionTracker = new ApiRevisionTracker();
+    const revisionTracker = new DomainRevisionTracker();
     const operationLedger = new OperationLedger(
       serverStateDirectory,
       bootstrapSnapshot.configuration.maxAuditEntries,

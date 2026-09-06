@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { serverApplicationScheduler } from '../platform/applicationScheduler.ts';
-import type { ApiBuiltInCatalog } from '../api/http/ports.ts';
+import type { ApiBuiltInCatalog } from '../repository/built-ins/catalogPort.ts';
 import type { ApiRuntime } from '../api/http/runtime.ts';
 import type { WorkspaceRepositoryCatalog } from '../repository/catalog.ts';
 import type { ApiEventHub } from '../api/sync/events.ts';
-import type { ApiRevisionTracker } from '../api/sync/revisionTracker.ts';
+import type { DomainRevisionTracker } from '../../../application/sync/domainRevisionTracker.ts';
 import type { OperationLedger } from '../operations/operationLedger.ts';
 import { AgentService } from '../../../application/agentHost/service.ts';
 import type { AgentRuntimeFactory, AgentToolProtocolPort } from '../../../application/agentHost/runtimePorts.ts';
@@ -26,7 +26,7 @@ type CommitDependencies = {
   builtInCatalog: ApiBuiltInCatalog;
   catalog: WorkspaceRepositoryCatalog;
   eventHub: ApiEventHub;
-  revisionTracker: ApiRevisionTracker;
+  revisionTracker: DomainRevisionTracker;
   ledger: OperationLedger | null;
   runtime: ApiRuntime;
 };

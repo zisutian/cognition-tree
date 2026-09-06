@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-export type DomainRevisionCheckpoint = {
-  journal: string | null;
+
+
+export type DomainRevisionCheckpoint<Revision extends string = string> = {
+  journal: Revision | null;
   sequence: number;
   streamId: string;
-  todo: string | null;
-  workspaces: Readonly<Record<string, string>>;
+  todo: Revision | null;
+  workspaces: Readonly<Record<string, Revision>>;
 };
 
 export type DomainChangeNotification = {

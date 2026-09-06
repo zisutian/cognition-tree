@@ -7,7 +7,7 @@ import type {
   AgentMessageRequestDto,
   AgentProposalDecisionRequestDto,
 } from "../../../../contracts/agent/schemas.ts";
-import { ApiRequestError, apiNotFound } from "./errors.ts";
+import { ApiRequestError, apiNotFound } from "../protocol/requestError.ts";
 import { isOwnerPrincipal, type ApiHandlerContext } from "./handlerContext.ts";
 
 function requireAgent(context: ApiHandlerContext) {

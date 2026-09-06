@@ -14,13 +14,13 @@ import {
   type ResolvedApiRoute,
 } from "../../../../contracts/api/registry.ts";
 import type { WorkspaceRepositoryCatalog } from "../../repository/catalog.ts";
-import type { ApiBuiltInCatalog } from "./ports.ts";
-import { ApiRequestError } from "./errors.ts";
+import type { ApiBuiltInCatalog } from "../../repository/built-ins/catalogPort.ts";
+import { ApiRequestError } from "../protocol/requestError.ts";
 import { ApiEventHub } from "../sync/events.ts";
 import {
-  ApiRevisionTracker,
-  type ApiTrackedDomain,
-} from "../sync/revisionTracker.ts";
+  DomainRevisionTracker,
+  type TrackedContentDomain,
+} from "../../../../application/sync/domainRevisionTracker.ts";
 import {
   readApiRuntimeNow,
   type ApiRuntime,
@@ -159,7 +159,7 @@ export function createCheckpoint({
   revisionTracker,
 }: {
   eventHub: ApiEventHub;
-  revisionTracker: ApiRevisionTracker;
+  revisionTracker: DomainRevisionTracker;
 }): ApiRevisionCheckpointDto {
   return revisionTracker.checkpoint({
     sequence: eventHub.sequence,
@@ -185,7 +185,7 @@ export type ApiHandlerContext = {
   requestId: string;
   response: ServerResponse;
   responseHeaders: OutgoingHttpHeaders;
-  revisionTracker: ApiRevisionTracker;
+  revisionTracker: DomainRevisionTracker;
   route: ResolvedApiRoute;
   runtime: ApiRuntime;
   search: ApiSearchService | null;
@@ -236,7 +236,7 @@ export function observeWorkspaceRevision(
 
 export function observeBuiltInRevision(
   context: ApiHandlerContext,
-  domain: ApiTrackedDomain,
+  domain: TrackedContentDomain,
   revision: `sha256:${string}`,
 ) {
   if (
