@@ -2,16 +2,8 @@
 
 import { Type, type Static } from "@sinclair/typebox";
 import type { TodoRecurrenceRuleDto } from "../../todo/types.ts";
-import {
-  ApiCanonicalTimestampSchema,
-  ApiIdentifierSchema,
-  ApiLocalDateSchema,
-  ApiNonNegativeIntegerSchema,
-  ApiResourceVersionSchema,
-  nullable,
-  schemaAs,
-  strictObject,
-} from "./foundation.ts";
+import { ApiLocalDateSchema } from "./foundation.ts";
+import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiNonNegativeIntegerSchema, ApiResourceVersionSchema, nullable, schemaAs, strictObject } from "../../common/schema.ts";
 
 export const ApiCtnDiagnosticSchema = strictObject({
   code: Type.String(),

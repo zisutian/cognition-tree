@@ -1,14 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Type, type Static } from "@sinclair/typebox";
-import {
-  ApiCanonicalTimestampSchema,
-  ApiIdentifierSchema,
-  ApiResourceVersionSchema,
-  apiDomainSchema,
-  nullable,
-  strictObject,
-} from "./foundation.ts";
+import { apiDomainSchema } from "./foundation.ts";
+import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiResourceVersionSchema, nullable, strictObject } from "../../common/schema.ts";
 
 export const ApiSearchRequestSchema = strictObject({
   cursor: Type.Optional(Type.String()),

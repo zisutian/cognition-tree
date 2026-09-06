@@ -1,13 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Type, type Static } from "@sinclair/typebox";
-import {
-  ApiCanonicalTimestampSchema,
-  ApiIdentifierSchema,
-  apiAutomationScopeSchema,
-  nullable,
-  strictObject,
-} from "./foundation.ts";
+import { apiAutomationScopeSchema } from "./foundation.ts";
+import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, nullable, strictObject } from "../../common/schema.ts";
 
 export const ApiTokenSchema = strictObject({
   createdAt: ApiCanonicalTimestampSchema,

@@ -24,16 +24,8 @@ import type {
   WorkspaceRepositorySyncRequestDto,
   WorkspaceRepositorySyncResultDto,
 } from "../../workspace/types.ts";
-import {
-  ApiCanonicalTimestampSchema,
-  ApiIdentifierSchema,
-  ApiLocalDateSchema,
-  ApiResourceVersionSchema,
-  ApiUuidSchema,
-  nullable,
-  schemaAs,
-  strictObject,
-} from "./foundation.ts";
+import { ApiLocalDateSchema } from "./foundation.ts";
+import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiResourceVersionSchema, ApiUuidSchema, nullable, schemaAs, strictObject } from "../../common/schema.ts";
 import { ApiRecurrenceRuleSchema } from "./resources.ts";
 
 const workspaceTreeNodeSchema = Type.Recursive((Self) =>
