@@ -144,13 +144,32 @@ test("keeps inputs when the saved configuration advances or the object is remove
   await expect(
     panel.getByRole("button", { name: "保存 Provider" }),
   ).toBeDisabled();
+  await name.fill("E2E provider");
+  const newest = await api.patch(providerPath, {
+    data: {
+      baseRevision: (await updated.json()).revision,
+      provider: {
+        kind: "openai-chat",
+        label: "Newest external provider",
+        baseUrl: "https://e2e-runtime.invalid/v1",
+        authenticationType: "api-key",
+        privateNetworkAccessConfirmed: false,
+      },
+    },
+  });
+  expect(newest.ok()).toBe(true);
+  await page.getByRole("button", { name: "刷新设置状态", exact: true }).click();
+  await expect(panel.getByRole("alert")).toContainText("配置已更新");
+  await expect(name).toHaveValue("E2E provider");
+  await getActivityButton(page, "笔记").click();
+  await expect(panel).toBeVisible();
   await panel.getByRole("button", { name: "放弃修改" }).click();
-  await expect(name).toHaveValue("External provider");
+  await expect(name).toHaveValue("Newest external provider");
   await name.fill("Keep removed input");
   // Delete a separate unreferenced provider, preserving valid Profile relationships.
   const created = await api.post(buildApiOperationPath("createAgentProvider"), {
     data: {
-      baseRevision: (await updated.json()).revision,
+      baseRevision: (await newest.json()).revision,
       provider: {
         kind: "ollama",
         label: "Temporary provider",

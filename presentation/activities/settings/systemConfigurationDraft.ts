@@ -70,9 +70,7 @@ function inputFromSnapshot(
 export function projectSystemConfigurationDraftSource(
   snapshot: SystemConfigurationSnapshot,
 ): SystemConfigurationDraftSource;
-export function projectSystemConfigurationDraftSource(
-  snapshot: null,
-): null;
+export function projectSystemConfigurationDraftSource(snapshot: null): null;
 export function projectSystemConfigurationDraftSource(
   snapshot: SystemConfigurationSnapshot | null,
 ): SystemConfigurationDraftSource | null;
@@ -92,11 +90,13 @@ export function systemConfigurationInputsEqual(
   left: SystemConfigurationInput,
   right: SystemConfigurationInput,
 ) {
-  return left.listenMode === right.listenMode &&
+  return (
+    left.listenMode === right.listenMode &&
     Object.is(left.maxAuditEntries, right.maxAuditEntries) &&
     Object.is(left.port, right.port) &&
     left.publicOrigin === right.publicOrigin &&
-    left.repositoryHostRoot === right.repositoryHostRoot;
+    left.repositoryHostRoot === right.repositoryHostRoot
+  );
 }
 
 export function createSystemConfigurationDraftState(
@@ -114,10 +114,7 @@ export function createSystemConfigurationDraftState(
 }
 
 function observedVersion(state: SystemConfigurationDraftState) {
-  return Math.max(
-    state.baseline?.version ?? -1,
-    state.conflict?.version ?? -1,
-  );
+  return Math.max(state.baseline?.version ?? -1, state.conflict?.version ?? -1);
 }
 
 export function reduceSystemConfigurationDraft(
@@ -126,18 +123,6 @@ export function reduceSystemConfigurationDraft(
 ): SystemConfigurationDraftState {
   if (action.type === "draft-changed") {
     if (!state.baseline || !state.draft) return state;
-    if (
-      state.conflict &&
-      systemConfigurationInputsEqual(action.draft, state.conflict.input)
-    ) {
-      return {
-        ...state,
-        baseline: state.conflict,
-        conflict: null,
-        draft: action.draft,
-        generation: action.generation,
-      };
-    }
     return {
       ...state,
       draft: action.draft,
@@ -193,6 +178,7 @@ export function reduceSystemConfigurationDraft(
       draft: source.input,
     };
   }
+  if (state.conflict) return { ...state, conflict: source };
   if (source.revision === state.baseline.revision) return state;
   const submission = state.activeSubmission;
 
@@ -212,10 +198,7 @@ export function reduceSystemConfigurationDraft(
   if (systemConfigurationInputsEqual(source.input, state.baseline.input)) {
     return { ...state, baseline: source, conflict: null };
   }
-  if (
-    systemConfigurationInputsEqual(source.input, state.draft) ||
-    systemConfigurationInputsEqual(state.draft, state.baseline.input)
-  ) {
+  if (systemConfigurationInputsEqual(state.draft, state.baseline.input)) {
     return {
       ...state,
       baseline: source,

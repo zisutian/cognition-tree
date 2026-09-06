@@ -56,10 +56,12 @@ describe("system configuration draft", () => {
       type: "source-observed",
     });
     const afterOlderSource = reduceSystemConfigurationDraft(state, {
-      source: projectSystemConfigurationDraftSource(snapshot(1, {
-        ...baseInput,
-        port: 9_001,
-      })),
+      source: projectSystemConfigurationDraftSource(
+        snapshot(1, {
+          ...baseInput,
+          port: 9_001,
+        }),
+      ),
       type: "source-observed",
     });
 
@@ -82,9 +84,7 @@ describe("system configuration draft", () => {
     const dirty = change(local, 1, clean);
     const conflicting = { ...external, port: 5_001 };
     const stale = reduceSystemConfigurationDraft(dirty, {
-      source: projectSystemConfigurationDraftSource(
-        snapshot(3, conflicting),
-      ),
+      source: projectSystemConfigurationDraftSource(snapshot(3, conflicting)),
       type: "source-observed",
     });
 
@@ -92,6 +92,45 @@ describe("system configuration draft", () => {
     expect(stale.draft).toEqual(local);
     expect(stale.baseline?.input).toEqual(external);
     expect(stale.conflict?.input).toEqual(conflicting);
+  });
+
+  it("keeps an expired baseline until explicit reload even when input matches saved values", () => {
+    const edited = { ...baseInput, maxAuditEntries: 2_000 };
+    const external = { ...baseInput, port: 4_001 };
+    const remote = projectSystemConfigurationDraftSource(snapshot(2, external));
+    let state = reduceSystemConfigurationDraft(change(edited, 1), {
+      source: remote,
+      type: "source-observed",
+    });
+    state = change(external, 2, state);
+    expect(state.conflict).toEqual(remote);
+    state = change(baseInput, 3, state);
+    const newest = projectSystemConfigurationDraftSource(snapshot(3, edited));
+    state = reduceSystemConfigurationDraft(state, {
+      source: newest,
+      type: "source-observed",
+    });
+    expect(state.baseline?.input).toEqual(baseInput);
+    expect(state.draft).toEqual(baseInput);
+    expect(state.conflict).toEqual(newest);
+    state = reduceSystemConfigurationDraft(state, {
+      source: newest,
+      generation: 4,
+      type: "latest-adopted",
+    });
+    expect(state.conflict).toBeNull();
+    expect(state.draft).toEqual(edited);
+  });
+
+  it("does not adopt an external update matching a dirty draft", () => {
+    const edited = { ...baseInput, port: 4_001 };
+    const external = projectSystemConfigurationDraftSource(snapshot(2, edited));
+    const state = reduceSystemConfigurationDraft(change(edited, 1), {
+      source: external,
+      type: "source-observed",
+    });
+    expect(state.baseline?.input).toEqual(baseInput);
+    expect(state.conflict).toEqual(external);
   });
 
   it("advances the baseline without losing edits made during submission", () => {

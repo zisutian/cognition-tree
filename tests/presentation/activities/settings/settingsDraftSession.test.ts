@@ -47,6 +47,25 @@ describe("settings draft lifecycle", () => {
     });
   });
 
+  it("requires explicit reload after a stale draft is reverted or its object reappears", () => {
+    const session = setup();
+    session.change({ name: "local" });
+    session.observe(source("b", "remote"));
+    session.change({ name: "original" });
+    session.observe(source("c", "newer remote"));
+    expect(session.getSnapshot()).toMatchObject({
+      baseline: source("a", "original"),
+      draft: { name: "original" },
+      dirty: false,
+      stale: true,
+    });
+    session.observe(null);
+    session.observe(source("a", "original"));
+    expect(session.getSnapshot().stale).toBe(true);
+    session.discard();
+    expect(session.getSnapshot().stale).toBe(false);
+  });
+
   it("does not lose edits made while a save is pending and submits only once", async () => {
     const session = setup();
     session.change({ name: "first" });

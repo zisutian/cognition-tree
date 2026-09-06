@@ -73,7 +73,7 @@ export function AgentProviderSettingsPanel({
     (draft.stale
       ? "配置已更新或对象已移除，请放弃修改并重新载入。"
       : state.errorMessage);
-  useSettingsInteraction(report, { ...draft, errorMessage });
+  useSettingsInteraction(report, { ...draft, submitting: busy, errorMessage });
   const discard = () => {
     draft.discard();
     if (id && !provider) onCompleted({ kind: "provider", id: null });

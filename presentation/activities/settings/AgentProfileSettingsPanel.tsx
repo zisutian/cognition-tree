@@ -72,7 +72,7 @@ export function AgentProfileSettingsPanel({
     (draft.stale
       ? "配置已更新或对象已移除，请放弃修改并重新载入。"
       : state.errorMessage);
-  useSettingsInteraction(report, { ...draft, errorMessage });
+  useSettingsInteraction(report, { ...draft, submitting: busy, errorMessage });
   const save = () =>
     feedback.runAction(async () => {
       if (!selectedProvider) return;

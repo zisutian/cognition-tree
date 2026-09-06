@@ -35,6 +35,9 @@ export function SettingsActivityController({
   renderActivity,
 }: SettingsActivityControllerProps) {
   const feedback = useFeedback();
+  const targetEpoch = useRef(0);
+  const activeRef = useRef(active);
+  const renderEpoch = targetEpoch.current;
   const [target, setTarget] = useState<SettingsTarget>({ kind: "interface" });
   const [interaction, setInteraction] = useState(idleSettingsInteraction);
   const currentInteraction = useRef(interaction);
@@ -75,12 +78,17 @@ export function SettingsActivityController({
     if (active && target.kind === "audit") void operations.load();
   }, [active, target.kind, operations.load]);
   useLayoutEffect(() => {
+    activeRef.current = active;
     if (!active) {
+      targetEpoch.current += 1;
       api.reset();
       owner.dismissSecret();
       operations.reset();
       report(idleSettingsInteraction);
     }
+    return () => {
+      activeRef.current = false;
+    };
   }, [active, api.reset, owner.dismissSecret, operations.reset, report]);
   const select = (next: SettingsTarget) => {
     if (settingsTargetKey(next) === settingsTargetKey(target)) return;
@@ -88,10 +96,13 @@ export function SettingsActivityController({
     api.dismissSecret();
     owner.dismissSecret();
     report(idleSettingsInteraction);
+    targetEpoch.current += 1;
     setTarget(next);
   };
   const completed = (next: SettingsTarget) => {
+    if (!activeRef.current || targetEpoch.current !== renderEpoch) return;
     report(idleSettingsInteraction);
+    targetEpoch.current += 1;
     setTarget(next);
   };
   return active

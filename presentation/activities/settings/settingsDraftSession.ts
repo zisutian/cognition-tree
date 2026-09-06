@@ -56,7 +56,9 @@ export function createSettingsDraftSession<Value>(initial: Value) {
       next.baseline?.value ?? initial,
     );
     next.stale =
-      !!next.baseline && next.baseline.revision !== next.source?.revision;
+      patch.stale ??
+      (state.stale ||
+        (!!next.baseline && next.baseline.revision !== next.source?.revision));
     state = next;
     listeners.forEach((listener) => listener());
   };
@@ -74,7 +76,7 @@ export function createSettingsDraftSession<Value>(initial: Value) {
         settingsValuesEqual(state.source?.value, source?.value)
       )
         return;
-      if (!state.submitting && !state.dirty && source) {
+      if (!state.submitting && !state.dirty && !state.stale && source) {
         publish({
           baseline: source,
           source,
@@ -93,6 +95,7 @@ export function createSettingsDraftSession<Value>(initial: Value) {
       publish({
         baseline: state.source,
         draft: state.source?.value ?? initial,
+        stale: false,
         errorMessage: null,
       });
     },
@@ -119,6 +122,7 @@ export function createSettingsDraftSession<Value>(initial: Value) {
         publish({
           baseline: receipt,
           source,
+          stale: receipt.revision !== source?.revision,
           submitting: false,
           draft:
             generation === submittedGeneration ? receipt.value : state.draft,

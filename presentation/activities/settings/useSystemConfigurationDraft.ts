@@ -106,7 +106,11 @@ export function useSystemConfigurationDraft({
     dispatch({ generation, source: latestSource, type: "latest-adopted" });
   }, [latestSource]);
   const submit = useCallback(async () => {
-    if (activeSubmissionRef.current || state.activeSubmission) {
+    if (
+      activeSubmissionRef.current ||
+      state.activeSubmission ||
+      state.conflict
+    ) {
       return submitResult();
     }
     if (!state.baseline || !state.draft || !latestSource) {
@@ -116,12 +120,7 @@ export function useSystemConfigurationDraft({
       latestSource.input,
       state.baseline.input,
     );
-    const sourceMatchesDraft = systemConfigurationInputsEqual(
-      latestSource.input,
-      state.draft,
-    );
-
-    if (!sourceMatchesBaseline && !sourceMatchesDraft) {
+    if (!sourceMatchesBaseline) {
       dispatch({ source: latestSource, type: "source-observed" });
       return submitResult();
     }
