@@ -231,6 +231,15 @@ export function createAgentConfigurationController({
       publish({ operationStatus: operationCount > 0 ? "working" : "idle" });
     }
   };
+  const refreshAfterConfigurationChange = async () => {
+    try {
+      await onConfigurationChanged();
+    } catch (error) {
+      // Persistence has already succeeded. A status refresh must not turn that
+      // receipt into a failed mutation or invite another content-changing call.
+      publish({ errorMessage: `配置已保存，状态刷新失败：${message(error)}` });
+    }
+  };
   const mutate = (
     operation: (revision: string) => Promise<AgentConfigurationSnapshot>,
     expectedRevision?: string,
@@ -248,7 +257,7 @@ export function createAgentConfigurationController({
       ) {
         installConfiguration(configuration);
       }
-      await onConfigurationChanged();
+      await refreshAfterConfigurationChange();
       return configuration;
     });
 
@@ -288,7 +297,7 @@ export function createAgentConfigurationController({
           publishCodexDeviceLogin(cancelled);
           if (cancelled.status === "succeeded") {
             if (await refreshConfiguration(isCurrent)) {
-              await onConfigurationChanged();
+              await refreshAfterConfigurationChange();
             }
           } else if (cancelled.status === "failed") {
             publish({
@@ -338,7 +347,7 @@ export function createAgentConfigurationController({
           publishConformance(cancelled);
           if (cancelled.status === "succeeded") {
             if (await refreshConfiguration(isCurrent)) {
-              await onConfigurationChanged();
+              await refreshAfterConfigurationChange();
             }
           } else if (cancelled.status === "failed") {
             publish({
@@ -393,7 +402,7 @@ export function createAgentConfigurationController({
           }
           if (check.status === "cancelled") return;
           if (await refreshConfiguration(isCurrent)) {
-            await onConfigurationChanged();
+            await refreshAfterConfigurationChange();
           }
         } finally {
           conformanceOperations.finish(profileId, token);
@@ -520,7 +529,7 @@ export function createAgentConfigurationController({
             }
             if (current.status === "succeeded") {
               if (await refreshConfiguration(isCurrent)) {
-                await onConfigurationChanged();
+                await refreshAfterConfigurationChange();
               }
             } else if (current.status === "failed") {
               publish({

@@ -164,6 +164,25 @@ function port(): AgentConfigurationPort {
 }
 
 describe("Agent configuration controller", () => {
+  it("returns a committed configuration when the dependent status refresh fails", async () => {
+    const adapter = port();
+    const saved = snapshot("2");
+    vi.mocked(adapter.updateProvider).mockResolvedValue(saved);
+    const controller = createAgentConfigurationController({
+      onConfigurationChanged: async () => { throw new Error("status unavailable"); },
+      pollConformance: async () => undefined,
+      pollConformanceIntervalMilliseconds: 1,
+      port: adapter,
+    });
+    await controller.load();
+    const baseRevision = controller.getSnapshot().configuration!.revision;
+    await expect(controller.updateProvider(baseRevision, "provider-1", providerInput())).resolves.toEqual(saved);
+    expect(adapter.updateProvider).toHaveBeenCalledOnce();
+    expect(controller.getSnapshot().configuration).toEqual(saved);
+    expect(controller.getSnapshot().errorMessage).toContain("配置已保存，状态刷新失败");
+    controller.dispose();
+  });
+
   it("submits the form's frozen revision after a newer configuration was loaded", async () => {
     const adapter = port();
     const controller = createAgentConfigurationController({
