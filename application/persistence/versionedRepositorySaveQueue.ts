@@ -141,13 +141,10 @@ export function createVersionedRepositorySaveQueue<
 >): VersionedRepositorySaveQueue<Content, Projection, LocalRevision> {
   let activeStage: Promise<void> | null = null;
   let activeSync: Promise<void> | null = null;
-  let conflictRevision: Revision | null =
-    initialPersistenceState?.status === "conflict"
-      ? initialPersistenceState.remoteRevision
-      : initialSnapshot.conflictRevision;
   const transitionAuthority = createVersionedRepositoryTransitionAuthority(
     initialSnapshot,
   );
+  const getConflictRevision = () => transitionAuthority.getSnapshot().conflictRevision;
   let desired: DesiredContentChange<
     Content,
     Projection,
@@ -168,7 +165,7 @@ export function createVersionedRepositorySaveQueue<
   let version = 0;
 
   const unsubscribeReconnect = repository.subscribeReconnect(() => {
-    if (disposed || conflictRevision || syncTerminalBlocked) {
+    if (disposed || getConflictRevision() || syncTerminalBlocked) {
       return;
     }
 
@@ -211,11 +208,12 @@ export function createVersionedRepositorySaveQueue<
       LocalRevision
     >[],
   ) => {
-    if (
-      transitionAuthority.accept(transitions) &&
-      !desired &&
-      stagedVersion === version
-    ) {
+    const hadConflict = getConflictRevision() !== null;
+    const accepted = transitionAuthority.accept(transitions);
+    if (accepted && hadConflict && !getConflictRevision()) {
+      syncDue = transitionAuthority.getSnapshot().pendingChanges;
+    }
+    if (accepted && !desired && stagedVersion === version) {
       onSnapshotChanged(transitionAuthority.getSnapshot());
     }
   };
@@ -224,7 +222,7 @@ export function createVersionedRepositorySaveQueue<
     transitionAuthority.compact();
   };
   const scheduleRetry = () => {
-    if (disposed || conflictRevision || cancelRemoteRetry) {
+    if (disposed || getConflictRevision() || cancelRemoteRetry) {
       return;
     }
 
@@ -240,7 +238,7 @@ export function createVersionedRepositorySaveQueue<
     }, delay);
   };
   const scheduleDebouncedSync = () => {
-    if (disposed || conflictRevision || syncTerminalBlocked) {
+    if (disposed || getConflictRevision() || syncTerminalBlocked) {
       return;
     }
 
@@ -290,15 +288,15 @@ export function createVersionedRepositorySaveQueue<
         }
         acceptAuthorityTransitions([transition]);
 
-        if (conflictRevision) {
+        if (getConflictRevision()) {
           onPersistenceChange({
-            remoteRevision: conflictRevision,
+            remoteRevision: getConflictRevision()!,
             status: "conflict",
           });
         } else if (offline) {
           onPersistenceChange({ pendingChanges: true, status: "offline" });
         } else {
-          onPersistenceChange({ status: "pending-sync" });
+          onPersistenceChange({ status: transitionAuthority.getSnapshot().pendingChanges ? "pending-sync" : "saved" });
         }
       } catch (error) {
         localStageBlocked = true;
@@ -316,7 +314,7 @@ export function createVersionedRepositorySaveQueue<
       }
     }
 
-    if (syncDue && !disposed && !conflictRevision) {
+    if (syncDue && !disposed && !getConflictRevision()) {
       void startSync();
     }
   };
@@ -333,7 +331,7 @@ export function createVersionedRepositorySaveQueue<
     return activeStage;
   };
   const runSync = async () => {
-    if (disposed || conflictRevision || syncTerminalBlocked || !syncDue) {
+    if (disposed || getConflictRevision() || syncTerminalBlocked || !syncDue) {
       return;
     }
 
@@ -343,7 +341,7 @@ export function createVersionedRepositorySaveQueue<
     if (
       desired ||
       disposed ||
-      conflictRevision ||
+      getConflictRevision() ||
       syncTerminalBlocked ||
       !syncDue
     ) {
@@ -375,6 +373,12 @@ export function createVersionedRepositorySaveQueue<
     acceptAuthorityTransitions(result.transitions);
     const reportedSnapshot = finalVersionedRepositoryTransition(result).snapshot;
 
+    const authoritativeConflict = getConflictRevision();
+    if (authoritativeConflict) {
+      clearRetryTimer();
+      onPersistenceChange({ remoteRevision: authoritativeConflict, status: "conflict" });
+      return;
+    }
     switch (result.status) {
       case "synced":
         offline = false;
@@ -404,28 +408,15 @@ export function createVersionedRepositorySaveQueue<
         break;
       }
       case "conflict": {
-        const reportedConflictRevision =
-          transitionAuthority.getSnapshot().conflictRevision ??
-          reportedSnapshot.conflictRevision;
-
-        if (!reportedConflictRevision) {
+        if (!reportedSnapshot.conflictRevision) {
           syncTerminalBlocked = true;
-          syncTerminalMessage =
-            "Repository reported a conflict without a conflict snapshot.";
-          onPersistenceChange({
-            localCopySafe: false,
-            message: syncTerminalMessage,
-            phase: "local",
-            status: "error",
-          });
+          syncTerminalMessage = "Repository reported a conflict without a conflict snapshot.";
+          onPersistenceChange({ localCopySafe: false, message: syncTerminalMessage, phase: "local", status: "error" });
           break;
         }
-        conflictRevision = reportedConflictRevision;
-        clearRetryTimer();
-        onPersistenceChange({
-          remoteRevision: reportedConflictRevision,
-          status: "conflict",
-        });
+        // A later accepted edit already resolved this reported conflict.
+        syncDue = desired !== null || transitionAuthority.getSnapshot().pendingChanges;
+        onPersistenceChange({ status: syncDue ? "pending-sync" : "saved" });
         break;
       }
       case "sync-error":
@@ -448,7 +439,7 @@ export function createVersionedRepositorySaveQueue<
       if (
         syncDue &&
         !disposed &&
-        !conflictRevision &&
+        !getConflictRevision() &&
         !syncTerminalBlocked &&
         !desired &&
         !activeStage
@@ -461,7 +452,7 @@ export function createVersionedRepositorySaveQueue<
     return activeSync;
   }
 
-  if (initialPersistenceState) {
+  if (initialPersistenceState && initialPersistenceState.status !== "conflict") {
     onPersistenceChange(initialPersistenceState);
     if (
       initialPersistenceState.status === "pending-sync" ||
@@ -477,7 +468,7 @@ export function createVersionedRepositorySaveQueue<
     });
   } else if (initialSnapshot.pendingChanges) {
     onPersistenceChange({ status: "pending-sync" });
-    if (!conflictRevision) {
+    if (!getConflictRevision()) {
       scheduleDebouncedSync();
     }
   } else {
@@ -573,7 +564,7 @@ export function createVersionedRepositorySaveQueue<
       await activeSync;
     },
     requestSync() {
-      if (!disposed && !conflictRevision) {
+      if (!disposed && !getConflictRevision()) {
         syncTerminalBlocked = false;
         syncTerminalMessage = null;
         syncDue = true;
@@ -594,7 +585,7 @@ export function createVersionedRepositorySaveQueue<
           localStageMessage ?? "Local changes could not be staged.",
         );
       }
-      if (conflictRevision) {
+      if (getConflictRevision()) {
         throw new VersionedRepositorySynchronizationBlockedError(
           "Repository conflict must be resolved before using Agent.",
         );
@@ -605,7 +596,7 @@ export function createVersionedRepositorySaveQueue<
       syncDue = true;
       while (true) {
         await startSync();
-        if (conflictRevision) {
+        if (getConflictRevision()) {
           throw new VersionedRepositorySynchronizationBlockedError(
             "Repository conflict must be resolved before using Agent.",
           );
