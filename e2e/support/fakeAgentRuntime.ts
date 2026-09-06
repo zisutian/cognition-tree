@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { randomUUID } from "node:crypto";
+
 import type {
   AgentRuntimePort,
   AgentRuntimeTurnRequest,
@@ -24,7 +26,7 @@ export async function createE2EAgentConfigurationStore(stateDirectory: string) {
     "e2e-agent-unavailable",
   ];
   const store = new AgentConfigurationStore(stateDirectory, {
-    createId: () => ids.shift()!,
+    createId: () => ids.shift() ?? randomUUID(),
   });
   let configuration = await store.readSnapshot();
   const provider = await store.createProvider(configuration.revision, {
@@ -57,11 +59,13 @@ export async function createE2EAgentConfigurationStore(stateDirectory: string) {
       timeoutMilliseconds: 5_000,
     });
 
-    configuration = (await store.setConformance(
-      created.configuration.revision,
-      created.profile.id,
-      { checkedAt: "2026-08-20T08:00:00.000Z", toolCallMode: "native" },
-    )).configuration;
+    configuration = (
+      await store.setConformance(
+        created.configuration.revision,
+        created.profile.id,
+        { checkedAt: "2026-08-20T08:00:00.000Z", toolCallMode: "native" },
+      )
+    ).configuration;
   }
   const missingProvider = await store.createProvider(configuration.revision, {
     authenticationType: "api-key",

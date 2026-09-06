@@ -237,7 +237,7 @@ test.describe("settings activity flows", () => {
 
     const secret = (await oneTimeSecret.locator("code").textContent()) ?? "";
 
-    expect(secret).toMatch(/^ctn_[A-Za-z0-9_-]+$/);
+    expect(/^ctn_[A-Za-z0-9_-]+$/.test(secret)).toBe(true);
     await oneTimeSecret.getByRole("button", { name: "关闭显示" }).click();
     await expect(oneTimeSecret).toHaveCount(0);
     const tokenRow = page
@@ -247,7 +247,12 @@ test.describe("settings activity flows", () => {
       .filter({ hasText: "E2E AI" });
 
     await expect(tokenRow).toBeVisible();
-    await expect(tokenRow).not.toContainText(secret);
+    await expect(
+      await tokenRow.evaluate(
+        (element, value) => element.textContent?.includes(value),
+        secret,
+      ),
+    ).toBe(false);
     await tokenRow.getByRole("button", { name: "E2E AI" }).click();
     await expect(panel).toContainText("workspace:read");
     await expect(panel).toContainText("todo:read");
@@ -261,7 +266,7 @@ test.describe("settings activity flows", () => {
     await page
       .getByRole("button", { name: "新建 自动化令牌", exact: true })
       .click();
-    await expect(page.getByText(secret, { exact: true })).toHaveCount(0);
+    await expect(page.locator("[data-sensitive]")).toHaveCount(0);
     await expect(page.getByRole("list", { name: "自动化令牌" })).toContainText(
       "E2E AI",
     );
@@ -343,7 +348,7 @@ test.describe("settings activity flows", () => {
     await expect(oneTimeSecret.locator("code")).toHaveCount(1);
     const secret = (await oneTimeSecret.locator("code").textContent()) ?? "";
 
-    expect(secret).toMatch(/^ctn_[A-Za-z0-9_-]+$/);
+    expect(/^ctn_[A-Za-z0-9_-]+$/.test(secret)).toBe(true);
     const secretObservation = await observeTextReappearance(page, secret);
     await settingsContext
       .getByRole("button", {
@@ -358,7 +363,7 @@ test.describe("settings activity flows", () => {
       })
       .click();
 
-    await expect(page.getByText(secret, { exact: true })).toHaveCount(0);
+    await expect(page.locator("[data-sensitive]")).toHaveCount(0);
     expect(await stopTextReappearanceObservation(secretObservation)).toBe(
       false,
     );

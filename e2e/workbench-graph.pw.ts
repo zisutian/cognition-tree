@@ -2,14 +2,9 @@
 
 import { expect } from "@playwright/test";
 import { readGraphCanvasNodes } from "./support/graphCanvas";
-import {
-  seedWorkbenchRepository,
-} from "./support/repositorySeeds";
+import { seedWorkbenchRepository } from "./support/repositorySeeds";
 import { test } from "./support/e2eTest";
-import {
-  openWorkbench,
-  selectNotesMode,
-} from "./support/workbenchPage";
+import { openWorkbench, selectNotesMode } from "./support/workbenchPage";
 
 const visualizationRepositoryId = "workbench-visualization-view";
 
@@ -36,15 +31,21 @@ async function waitForStableGraphSpan(
 ) {
   let previousSpan: number | null = null;
 
-  await expect.poll(async () => {
-    const span = await readGraphSpan(canvas);
-    const difference = previousSpan === null || span === 0
-      ? Number.POSITIVE_INFINITY
-      : Math.abs(span - previousSpan);
+  await expect
+    .poll(
+      async () => {
+        const span = await readGraphSpan(canvas);
+        const difference =
+          previousSpan === null || span === 0
+            ? Number.POSITIVE_INFINITY
+            : Math.abs(span - previousSpan);
 
-    previousSpan = span;
-    return difference;
-  }, { timeout: 10_000 }).toBeLessThan(0.5);
+        previousSpan = span;
+        return difference;
+      },
+      { timeout: 10_000 },
+    )
+    .toBeLessThan(0.5);
 
   return readGraphSpan(canvas);
 }
@@ -67,8 +68,9 @@ test.describe("graph activity flows", () => {
     });
 
     await expect(context).toHaveAccessibleName("浏览器回归仓库");
-    await expect(context.getByRole("radiogroup", { name: "笔记视图" }))
-      .toBeVisible();
+    await expect(
+      context.getByRole("radiogroup", { name: "笔记视图" }),
+    ).toBeVisible();
     await expect(context.locator('[aria-label="图谱控制"]')).toBeVisible();
     await expect(
       context.getByRole("textbox", { name: "搜索笔记标题" }),
@@ -84,7 +86,8 @@ test.describe("graph activity flows", () => {
 
     expect(initialBox).not.toBeNull();
 
-    await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
+    await expect
+      .poll(async () => (await readGraphCanvasNodes(canvas)).length)
       .toBe(3);
     await waitForStableGraphSpan(canvas);
     let nodeSamples = await readGraphCanvasNodes(canvas);
@@ -95,30 +98,36 @@ test.describe("graph activity flows", () => {
     expect(secondNode).toBeDefined();
     await canvas.click({ position: firstNode });
 
-    const activeTitle = page.locator(
-      ".app-detail .detail-primary-row > p",
-    );
+    const activeTitle = page.locator(".app-detail .detail-primary-row > p");
     const firstTitle = await activeTitle.textContent();
 
     expect(firstTitle).not.toBeNull();
-    await expect.poll(async () => {
-      const samples = await readGraphCanvasNodes(canvas);
+    await expect
+      .poll(async () => {
+        const samples = await readGraphCanvasNodes(canvas);
 
-      return (samples[0]?.selectedPixelCount ?? 0) >
-        (samples.at(-1)?.selectedPixelCount ?? 0);
-    }).toBe(true);
+        return (
+          (samples[0]?.selectedPixelCount ?? 0) >
+          (samples.at(-1)?.selectedPixelCount ?? 0)
+        );
+      })
+      .toBe(true);
 
     nodeSamples = await readGraphCanvasNodes(canvas);
     await canvas.click({ position: nodeSamples.at(-1) ?? secondNode });
     await expect(activeTitle).not.toHaveText(firstTitle ?? "");
     const secondTitle = await activeTitle.textContent();
 
-    await expect.poll(async () => {
-      const samples = await readGraphCanvasNodes(canvas);
+    await expect
+      .poll(async () => {
+        const samples = await readGraphCanvasNodes(canvas);
 
-      return (samples.at(-1)?.selectedPixelCount ?? 0) >
-        (samples[0]?.selectedPixelCount ?? 0);
-    }).toBe(true);
+        return (
+          (samples.at(-1)?.selectedPixelCount ?? 0) >
+          (samples[0]?.selectedPixelCount ?? 0)
+        );
+      })
+      .toBe(true);
 
     nodeSamples = await readGraphCanvasNodes(canvas);
     await canvas.click({ position: nodeSamples[0] ?? firstNode });
@@ -187,14 +196,16 @@ test.describe("graph activity flows", () => {
     for (let index = 0; index < 4; index += 1) {
       await localMode.click();
       await expect(localMode).toHaveAttribute("aria-checked", "true");
-      await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
+      await expect
+        .poll(async () => (await readGraphCanvasNodes(canvas)).length)
         .toBe(2);
-      await page.waitForTimeout(120);
+      await waitForStableGraphSpan(canvas);
       await globalMode.click();
       await expect(globalMode).toHaveAttribute("aria-checked", "true");
-      await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
+      await expect
+        .poll(async () => (await readGraphCanvasNodes(canvas)).length)
         .toBe(3);
-      await page.waitForTimeout(180);
+      await waitForStableGraphSpan(canvas);
     }
 
     const afterModeSwitches = await readGraphSpan(canvas);
@@ -204,14 +215,16 @@ test.describe("graph activity flows", () => {
     for (let index = 0; index < 4; index += 1) {
       await hideIsolated.click();
       await expect(hideIsolated).toHaveAttribute("aria-pressed", "true");
-      await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
+      await expect
+        .poll(async () => (await readGraphCanvasNodes(canvas)).length)
         .toBe(2);
-      await page.waitForTimeout(120);
+      await waitForStableGraphSpan(canvas);
       await hideIsolated.click();
       await expect(hideIsolated).toHaveAttribute("aria-pressed", "false");
-      await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
+      await expect
+        .poll(async () => (await readGraphCanvasNodes(canvas)).length)
         .toBe(3);
-      await page.waitForTimeout(180);
+      await waitForStableGraphSpan(canvas);
     }
 
     expect(await readGraphSpan(canvas)).toBeCloseTo(afterModeSwitches, 0);
@@ -232,18 +245,24 @@ test.describe("graph activity flows", () => {
     const settings = page.getByRole("dialog", { name: "图谱设置" });
 
     await expect(settings).toBeVisible();
-    await expect(settings.getByRole("slider", { name: "文字密度" }))
-      .toHaveValue("75");
-    await expect(settings.getByRole("slider", { name: "节点大小" }))
-      .toHaveValue("1");
-    await expect(settings.getByRole("slider", { name: "中心力" }))
-      .toHaveValue("0.8");
-    await expect(settings.getByRole("slider", { name: "排斥力" }))
-      .toHaveValue("260");
-    await expect(settings.getByRole("slider", { name: "连接力" }))
-      .toHaveValue("0.35");
-    await expect(settings.getByRole("slider", { name: "连接距离" }))
-      .toHaveValue("110");
+    await expect(
+      settings.getByRole("slider", { name: "文字密度" }),
+    ).toHaveValue("75");
+    await expect(
+      settings.getByRole("slider", { name: "节点大小" }),
+    ).toHaveValue("1");
+    await expect(settings.getByRole("slider", { name: "中心力" })).toHaveValue(
+      "0.8",
+    );
+    await expect(settings.getByRole("slider", { name: "排斥力" })).toHaveValue(
+      "260",
+    );
+    await expect(settings.getByRole("slider", { name: "连接力" })).toHaveValue(
+      "0.35",
+    );
+    await expect(
+      settings.getByRole("slider", { name: "连接距离" }),
+    ).toHaveValue("110");
 
     const arrows = settings.getByRole("button", { name: "显示箭头" });
 
@@ -261,25 +280,35 @@ test.describe("graph activity flows", () => {
 
     const restoredSettings = page.getByRole("dialog", { name: "图谱设置" });
 
-    await expect(restoredSettings.getByRole("button", { name: "显示箭头" }))
-      .toHaveAttribute("aria-pressed", "true");
-    await expect(restoredSettings.getByRole("slider", { name: "文字密度" }))
-      .toHaveValue("45");
-    await expect(restoredSettings.getByRole("slider", { name: "节点大小" }))
-      .toHaveValue("1.5");
-    await expect(restoredSettings.getByRole("slider", { name: "连接距离" }))
-      .toHaveValue("160");
+    await expect(
+      restoredSettings.getByRole("button", { name: "显示箭头" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      restoredSettings.getByRole("slider", { name: "文字密度" }),
+    ).toHaveValue("45");
+    await expect(
+      restoredSettings.getByRole("slider", { name: "节点大小" }),
+    ).toHaveValue("1.5");
+    await expect(
+      restoredSettings.getByRole("slider", { name: "连接距离" }),
+    ).toHaveValue("160");
 
-    await restoredSettings.getByRole("button", {
-      name: "恢复默认设置",
-    }).click();
-    await expect(restoredSettings.getByRole("button", { name: "显示箭头" }))
-      .toHaveAttribute("aria-pressed", "false");
-    await expect(restoredSettings.getByRole("slider", { name: "文字密度" }))
-      .toHaveValue("75");
-    await expect(restoredSettings.getByRole("slider", { name: "节点大小" }))
-      .toHaveValue("1");
-    await expect(restoredSettings.getByRole("slider", { name: "连接距离" }))
-      .toHaveValue("110");
+    await restoredSettings
+      .getByRole("button", {
+        name: "恢复默认设置",
+      })
+      .click();
+    await expect(
+      restoredSettings.getByRole("button", { name: "显示箭头" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    await expect(
+      restoredSettings.getByRole("slider", { name: "文字密度" }),
+    ).toHaveValue("75");
+    await expect(
+      restoredSettings.getByRole("slider", { name: "节点大小" }),
+    ).toHaveValue("1");
+    await expect(
+      restoredSettings.getByRole("slider", { name: "连接距离" }),
+    ).toHaveValue("110");
   });
 });

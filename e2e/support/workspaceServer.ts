@@ -10,17 +10,17 @@ import { createDataRootMigrationFileOperations } from "../../infrastructure/serv
 import { FileDataRootMigrationRecordStore } from "../../infrastructure/server/system/dataRootMigrationRecordStore.ts";
 import { ApiMaintenanceGate } from "../../infrastructure/server/api/http/maintenanceGate.ts";
 import { mkdtemp, rm } from "node:fs/promises";
-import http, {
-  type IncomingMessage,
-  type ServerResponse,
-} from "node:http";
+import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
-import { type ApiRequestHandler } from "../../infrastructure/server/api/http/server.ts";
-import { createApiRequestHandler } from "../../infrastructure/server/runtime/apiRuntime.ts";
 import {
-  createApiSecurityPolicy,
-} from "../../infrastructure/server/api/http/security.ts";
+  closeApiServer,
+  settleApiServerLifecycleOperations,
+  settleApiServerLifecyclePhases,
+  type ApiRequestHandler,
+} from "../../infrastructure/server/api/http/index.ts";
+import { createApiRequestHandler } from "../../infrastructure/server/runtime/apiRuntime.ts";
+import { createApiSecurityPolicy } from "../../infrastructure/server/api/http/security.ts";
 import {
   LocalRepositoryCatalog,
   type CreateLocalRepositoryWithId,
@@ -39,7 +39,9 @@ import {
 import { BootstrapConfigurationStore } from "../../infrastructure/server/system/bootstrapConfigurationStore.ts";
 import { SystemAdministrationService } from "../../application/system/systemAdministrationService.ts";
 
-const dataRootMigrationFileOperations = createDataRootMigrationFileOperations(localRepositoryWriterLockName);
+const dataRootMigrationFileOperations = createDataRootMigrationFileOperations(
+  localRepositoryWriterLockName,
+);
 
 const host = "127.0.0.1";
 
@@ -66,15 +68,18 @@ export async function startE2EWorkspaceServer({
   rootDirectory: string;
 }): Promise<E2EWorkspaceServer> {
   const repositoryDirectory = path.join(rootDirectory, "repositories");
-  const migrationParent = await mkdtemp(path.join(path.dirname(rootDirectory), "ctn-e2e-migration-"));
+  const migrationParent = await mkdtemp(
+    path.join(path.dirname(rootDirectory), "ctn-e2e-migration-"),
+  );
   const migrationDestination = path.join(migrationParent, "data");
-  const controlRoot = path.join(rootDirectory, ".cognition-tree", "bootstrap-v1");
+  const controlRoot = path.join(
+    rootDirectory,
+    ".cognition-tree",
+    "bootstrap-v1",
+  );
   const bootstrap = new BootstrapConfigurationStore(rootDirectory);
   const bootstrapInitial = await bootstrap.readSnapshot();
-  await bootstrap.setDataRoot(
-    bootstrapInitial.revision,
-    rootDirectory,
-  );
+  await bootstrap.setDataRoot(bootstrapInitial.revision, rootDirectory);
   const security = {
     ...createApiSecurityPolicy({
       ownerSessions: bootstrap,
@@ -84,20 +89,46 @@ export async function startE2EWorkspaceServer({
     allowedOrigins: [] as string[],
   };
 
+  let closing = false;
+  let restartTimer: ReturnType<typeof setTimeout> | null = null;
+  let restartError: unknown = null;
+  const requestRestart = async () => {
+    if (closing || restartTimer) return;
+    restartTimer = setTimeout(() => {
+      restartTimer = null;
+      void restartRuntime(false).catch((error) => {
+        restartError = error;
+      });
+    }, 0);
+  };
+
   async function createRuntime(): Promise<E2ERuntime> {
-    const maintenanceGate = new ApiMaintenanceGate(createServerDataRootWriteScope());
+    const maintenanceGate = new ApiMaintenanceGate(
+      createServerDataRootWriteScope(),
+    );
     let agentService: AgentService | null = null;
     const migrations = new DataRootMigrationCoordinator({
-      bootstrap, controlRoot, createId: randomUUID, files: dataRootMigrationFileOperations,
+      bootstrap,
+      controlRoot,
+      createId: randomUUID,
+      files: dataRootMigrationFileOperations,
       hasActiveAgentWork: () => agentService?.hasResidentSessions() ?? false,
-      maintenance: maintenanceGate, records: new FileDataRootMigrationRecordStore(controlRoot),
-      requestRestart: async () => { setTimeout(() => { void restartRuntime(false); }, 0); },
+      maintenance: maintenanceGate,
+      records: new FileDataRootMigrationRecordStore(controlRoot),
+      requestRestart,
     });
     const recovered = await migrations.recoverOnStartup();
-    if (recovered?.status === "recovery-required") throw new Error(recovered.errorMessage ?? "E2E migration needs recovery");
+    if (recovered?.status === "recovery-required")
+      throw new Error(recovered.errorMessage ?? "E2E migration needs recovery");
     const bootstrapSnapshot = await bootstrap.readSnapshot();
-    const activeRepositoryDirectory = path.join(bootstrapSnapshot.configuration.dataRoot, "repositories");
-    const serverStateDirectory = path.join(bootstrapSnapshot.configuration.dataRoot, "server");
+    const activeRepositoryDirectory = path.join(
+      bootstrapSnapshot.configuration.dataRoot,
+      "repositories",
+    );
+    const serverStateDirectory = path.join(
+      bootstrapSnapshot.configuration.dataRoot,
+      "server",
+    );
     const catalog = new LocalRepositoryCatalog(activeRepositoryDirectory, {
       hostRoot: repositoryHostRoot,
     });
@@ -111,9 +142,8 @@ export async function startE2EWorkspaceServer({
       serverStateDirectory,
       bootstrapSnapshot.configuration.maxAuditEntries,
     );
-    const agentConfigurationStore = await createE2EAgentConfigurationStore(
-      serverStateDirectory,
-    );
+    const agentConfigurationStore =
+      await createE2EAgentConfigurationStore(serverStateDirectory);
     agentService = createServerAgentService({
       writes: maintenanceGate.writes,
       builtInCatalog,
@@ -164,16 +194,22 @@ export async function startE2EWorkspaceServer({
   let runtime = await createRuntime();
   let resetQueue = Promise.resolve();
 
-  async function resetRuntime() { await restartRuntime(true); }
+  async function resetRuntime() {
+    if (closing) throw new Error("E2E server is closed");
+    if (restartError) throw restartError;
+    await restartRuntime(true);
+  }
 
   async function restartRuntime(clear: boolean) {
     const reset = resetQueue.then(async () => {
+      if (closing) return;
       runtime.eventHub.dispose();
       await runtime.agentService.dispose();
       await runtime.catalog.dispose();
       if (clear) {
         const current = await bootstrap.readSnapshot();
-        if (current.configuration.dataRoot !== rootDirectory) await bootstrap.setDataRoot(current.revision, rootDirectory);
+        if (current.configuration.dataRoot !== rootDirectory)
+          await bootstrap.setDataRoot(current.revision, rootDirectory);
         await clearState();
         await rm(migrationDestination, { force: true, recursive: true });
       }
@@ -191,8 +227,9 @@ export async function startE2EWorkspaceServer({
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
 
-    return JSON.parse(Buffer.concat(chunks).toString("utf8")) as
-      CreateLocalRepositoryWithId;
+    return JSON.parse(
+      Buffer.concat(chunks).toString("utf8"),
+    ) as CreateLocalRepositoryWithId;
   }
 
   async function handleSeedRequest(
@@ -214,9 +251,11 @@ export async function startE2EWorkspaceServer({
         "Cache-Control": "no-store",
         "Content-Type": "application/json; charset=utf-8",
       });
-      response.end(JSON.stringify({
-        message: error instanceof Error ? error.message : "Seed failed",
-      }));
+      response.end(
+        JSON.stringify({
+          message: error instanceof Error ? error.message : "Seed failed",
+        }),
+      );
     }
   }
 
@@ -230,9 +269,11 @@ export async function startE2EWorkspaceServer({
         "Cache-Control": "no-store",
         "Content-Type": "application/json; charset=utf-8",
       });
-      response.end(JSON.stringify({
-        message: error instanceof Error ? error.message : "Reset failed",
-      }));
+      response.end(
+        JSON.stringify({
+          message: error instanceof Error ? error.message : "Reset failed",
+        }),
+      );
     }
   }
 
@@ -304,14 +345,30 @@ export async function startE2EWorkspaceServer({
     migrationDestination,
     reset: resetRuntime,
     async close() {
+      closing = true;
+      if (restartTimer) clearTimeout(restartTimer);
+      restartTimer = null;
       await resetQueue;
-      await vite?.close();
-      await new Promise<void>((resolve, reject) => {
-        server.close((error) => error ? reject(error) : resolve());
-      });
-      await runtime.agentService.dispose();
-      await runtime.catalog.dispose();
-      await rm(migrationParent, { recursive: true, force: true });
+      await settleApiServerLifecyclePhases([
+        [
+          () =>
+            closeApiServer({
+              server,
+              closeLongLivedConnections: () => {
+                runtime.eventHub.dispose();
+                runtime.agentService.closeEventStreams();
+              },
+              closeOwnedResources: () =>
+                settleApiServerLifecycleOperations([
+                  () => runtime.agentService.dispose(),
+                  () => vite?.close() ?? Promise.resolve(),
+                ]),
+            }),
+        ],
+        [() => runtime.catalog.dispose()],
+        [() => rm(migrationParent, { recursive: true, force: true })],
+      ]);
+      if (restartError) throw restartError;
     },
   };
 }

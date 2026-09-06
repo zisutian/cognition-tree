@@ -45,15 +45,16 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
       const rootDirectory = await mkdtemp(
         path.join(os.tmpdir(), "cognition-tree-e2e-"),
       );
-      const server = await startE2EWorkspaceServer({
-        rootDirectory,
-      });
-
+      let server: E2EWorkspaceServer | undefined;
       try {
+        server = await startE2EWorkspaceServer({ rootDirectory });
         await use(server);
       } finally {
-        await server.close();
-        await rm(rootDirectory, { force: true, recursive: true });
+        try {
+          await server?.close();
+        } finally {
+          await rm(rootDirectory, { force: true, recursive: true });
+        }
       }
     },
     { scope: "worker" },
