@@ -26,20 +26,13 @@ export function createSearchActivitySlots({
 }): ActivitySlots {
   return {
     context: {
-      content: (
-        <SearchContext
-          controller={controller}
-          state={state}
-        />
-      ),
+      content: <SearchContext controller={controller} state={state} />,
       title: "搜索",
     },
-    detail: (
-      <SearchStatusPanel
-        onCollapseDetail={onCollapseDetail}
-        state={state}
-      />
-    ),
+    detail:
+      state.submitted || state.errorMessage ? (
+        <SearchStatusPanel onCollapseDetail={onCollapseDetail} state={state} />
+      ) : null,
     main: (
       <SearchPanel
         controller={controller}

@@ -88,6 +88,8 @@
 }
 
 .ui-button {
+  width: fit-content;
+  max-width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -162,9 +164,7 @@
   padding: 0 var(--ui-gap-tight);
   color: var(--color-fg-strong);
   font-size: var(--ui-body-font-size);
-  line-height: calc(
-    var(--ui-row-height) - var(--ui-border-width) * 2
-  );
+  line-height: calc(var(--ui-row-height) - var(--ui-border-width) * 2);
 }
 
 .ui-symbol-slot {

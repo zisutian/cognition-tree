@@ -33,14 +33,19 @@ export function createAgentActivitySlots({
       ),
       title: "智能体",
     },
-    detail: (
-      <AgentProposalPanel
-        agent={agent}
-        onCollapseDetail={onCollapseDetail}
-      />
+    detail:
+      !creatingSession &&
+      agent.state.sessions.some(
+        (session) =>
+          session.id === agent.state.activeSessionId &&
+          session.proposals.length > 0,
+      ) ? (
+        <AgentProposalPanel agent={agent} onCollapseDetail={onCollapseDetail} />
+      ) : null,
+    main: creatingSession ? (
+      <AgentSessionCreatePanel agent={agent} onCreated={onSelectSession} />
+    ) : (
+      <AgentConversationPanel agent={agent} />
     ),
-    main: creatingSession
-      ? <AgentSessionCreatePanel agent={agent} onCreated={onSelectSession} />
-      : <AgentConversationPanel agent={agent} />,
   };
 }

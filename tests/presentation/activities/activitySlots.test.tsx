@@ -119,6 +119,7 @@ function createSlots(
       });
     case "repository":
       return createRepositoryActivitySlots({
+        onOpen: async () => undefined,
         focusRequest: null,
         onCollapseDetail: controls.onCollapseDetail,
         onConsumeFocusRequest: () => undefined,
@@ -163,12 +164,12 @@ function createSlots(
 describe("activity slots", () => {
   it("maps every Activity to its context and detail shape", () => {
     const expected = [
-      ["agent", "智能体", true],
+      ["agent", "智能体", false],
       ["notes", "Primary", true],
       ["journal", "日记", true],
       ["todo", "代办", true],
       ["syntax", "语法", true],
-      ["search", "搜索", true],
+      ["search", "搜索", false],
       ["repository", "仓库", true],
       ["settings", "设置", false],
     ] as const satisfies ReadonlyArray<
@@ -478,7 +479,7 @@ describe("activity slots", () => {
         onCollapseDetail: controls.onCollapseDetail,
         onSelectSession: () => undefined,
       }).detail,
-    ).not.toBeNull();
+    ).toBeNull();
   });
 
   it("renders a human review before collapsed technical proposal facts", () => {

@@ -4,7 +4,6 @@ import type {
   RepositoryFocusRequest,
 } from "../../../application/repository/index.ts";
 
-
 import "./repository.css";
 import type { ActivitySlots } from "../../ui/index.ts";
 import { RepositoryContext } from "./RepositoryContext.tsx";
@@ -12,6 +11,7 @@ import { RepositoryPanel } from "./RepositoryPanel.tsx";
 import { RepositoryStatusPanel } from "./RepositoryStatusPanel.tsx";
 
 export function createRepositoryActivitySlots({
+  onOpen,
   focusRequest,
   onConsumeFocusRequest,
   onCollapseDetail,
@@ -19,6 +19,7 @@ export function createRepositoryActivitySlots({
   selection,
   view,
 }: {
+  onOpen(repositoryId: string): Promise<void>;
   focusRequest: RepositoryFocusRequest | null;
   onConsumeFocusRequest: (requestId: number) => void;
   onCollapseDetail: () => void;
@@ -46,11 +47,6 @@ export function createRepositoryActivitySlots({
         view={view}
       />
     ),
-    main: (
-      <RepositoryPanel
-        selection={selection}
-        view={view}
-      />
-    ),
+    main: <RepositoryPanel onOpen={onOpen} selection={selection} view={view} />,
   };
 }

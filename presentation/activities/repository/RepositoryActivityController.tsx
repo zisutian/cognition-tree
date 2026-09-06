@@ -16,11 +16,12 @@ import type { ActivityControllerProps } from "../../ui/index.ts";
 export function RepositoryActivityController({
   active,
   application,
+  onActiveActivityChange,
   renderActivity,
 }: RepositoryActivityControllerProps) {
   const view = createRepositoryViewModel(application.repository);
   const [selection, setSelection] = useState<RepositorySelection>(() =>
-    createDefaultRepositorySelection(view)
+    createDefaultRepositorySelection(view),
   );
   const [createdAfterRepositoryId, setCreatedAfterRepositoryId] = useState<
     string | null | undefined
@@ -42,12 +43,7 @@ export function RepositoryActivityController({
     if (!repositorySelectionExists(selection, view)) {
       setSelection(createDefaultRepositorySelection(view));
     }
-  }, [
-    selection,
-    view.activeRepositoryId,
-    view.issues,
-    view.repositories,
-  ]);
+  }, [selection, view.activeRepositoryId, view.issues, view.repositories]);
 
   useEffect(() => {
     if (
@@ -74,6 +70,13 @@ export function RepositoryActivityController({
   return active
     ? renderActivity(({ onCollapseDetail }) =>
         createRepositoryActivitySlots({
+          onOpen: async (repositoryId) => {
+            let opening: Promise<void> | null = null;
+            onActiveActivityChange("notes", () => {
+              opening = view.selectRepository(repositoryId);
+            });
+            await opening;
+          },
           focusRequest: application.repository.navigation.focusRequest,
           onCollapseDetail,
           onConsumeFocusRequest:
@@ -86,5 +89,8 @@ export function RepositoryActivityController({
     : null;
 }
 
-export type RepositoryActivityApplication = { repository: RepositoryApplication; };
-export type RepositoryActivityControllerProps = ActivityControllerProps<RepositoryActivityApplication>;
+export type RepositoryActivityApplication = {
+  repository: RepositoryApplication;
+};
+export type RepositoryActivityControllerProps =
+  ActivityControllerProps<RepositoryActivityApplication>;

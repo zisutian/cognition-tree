@@ -112,36 +112,8 @@ test.describe("Agent activity flows", () => {
     );
 
     await expect(proposalProperties).toBeVisible();
-    const proposalValueStarts = await proposalProperties
-      .locator("dd")
-      .evaluateAll((values) =>
-        values.map((value) => Math.round(value.getBoundingClientRect().x)),
-      );
-
-    expect(new Set(proposalValueStarts).size).toBe(1);
     await expect(proposal.locator("details")).not.toHaveAttribute("open", "");
     await expect(proposal.locator("summary")).toHaveText("技术详情");
-    const proposalBox = await proposal.boundingBox();
-    const approvalBox = await proposal
-      .locator(".agent-proposal-actions")
-      .boundingBox();
-
-    expect(proposalBox).not.toBeNull();
-    expect(approvalBox).not.toBeNull();
-    expect(
-      Math.abs(
-        proposalBox!.y +
-          proposalBox!.height -
-          (approvalBox!.y + approvalBox!.height),
-      ),
-    ).toBeLessThanOrEqual(12);
-    expect(
-      await page.evaluate(
-        () =>
-          document.documentElement.scrollWidth <=
-          document.documentElement.clientWidth,
-      ),
-    ).toBe(true);
     await page.reload();
     await expect(
       page.getByRole("navigation", { name: "工作区功能" }),

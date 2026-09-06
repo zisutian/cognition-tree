@@ -168,7 +168,7 @@ test.describe("workbench diagnostics", () => {
     await expect(apiSection).not.toHaveAttribute("aria-current", "page");
     await expect(auditSection).not.toHaveAttribute("aria-current", "page");
     await expect(
-      settingsPanel.getByRole("heading", { name: "界面" }),
+      settingsPanel.getByRole("heading", { name: "工作台布局" }),
     ).toBeVisible();
     await expect(
       settingsPanel.getByRole("spinbutton", { name: "左侧栏宽度" }),

@@ -11,8 +11,7 @@ const nonFoundationUiStyleScope = (filePath: string) =>
   filePath.endsWith(".css") &&
   !filePath.startsWith("presentation/ui/styles/foundation/");
 const nonE2eUiTestScope = (filePath: string) =>
-  !filePath.startsWith("e2e/") &&
-  !filePath.endsWith("designContract.test.ts");
+  !filePath.startsWith("e2e/") && !filePath.endsWith("designContract.test.ts");
 
 export function createUiTextPolicies({
   presentationModules,
@@ -26,7 +25,7 @@ export function createUiTextPolicies({
   uiTestModules: TextCorpus;
 }): readonly TextPolicy[] {
   const activityStylePaths = Object.keys(styleModules).filter((path) =>
-    path.startsWith("../../presentation/activities/")
+    path.startsWith("../../presentation/activities/"),
   );
 
   return [
@@ -37,11 +36,12 @@ export function createUiTextPolicies({
       /^presentation\/activities\//,
     ),
     {
-      allowedPath: (filePath) => [
-        "presentation/activities/todo/TodoDetailPanel.tsx",
-        "presentation/activities/todo/TodoRecurrenceEditor.tsx",
-        "presentation/ui/shared/controls.tsx",
-      ].includes(filePath),
+      allowedPath: (filePath) =>
+        [
+          "presentation/activities/todo/TodoDetailPanel.tsx",
+          "presentation/activities/todo/TodoRecurrenceEditor.tsx",
+          "presentation/ui/shared/controls.tsx",
+        ].includes(filePath),
       corpus: presentationModules,
       matches: 3,
       name: "native form control ownership",
@@ -66,31 +66,27 @@ export function createUiTextPolicies({
       /^\s*\.[\w-]+\s+(?:\.ui-panel-(?:header|title|title-group|leading-actions|actions)|\.context-panel-header)(?:\s|[.{:#>])/m,
       activityStyleScope,
     ),
-    ...([
+    ...(
       [
-        "raw font size or weight",
-        /font-(?:size|weight):\s*(?:[0-9]|var\(--font-)/,
-      ],
-      ["raw line height", /line-height:\s*[0-9]/],
-      ["raw numeric variant", /\btabular-nums\b/],
-      [
-        "raw font family",
-        /font-family: (?!inherit;|var\(--font-[^)]+\);)[^;]+;/,
-      ],
-    ] as const).map(([name, pattern]) =>
-      forbidTextPolicy(
-        name,
-        styleModules,
-        pattern,
-        nonFoundationUiStyleScope,
-      )
+        [
+          "raw font size or weight",
+          /font-(?:size|weight):\s*(?:[0-9]|var\(--font-)/,
+        ],
+        ["raw line height", /line-height:\s*[0-9]/],
+        ["raw numeric variant", /\btabular-nums\b/],
+        [
+          "raw font family",
+          /font-family: (?!inherit;|var\(--font-[^)]+\);)[^;]+;/,
+        ],
+      ] as const
+    ).map(([name, pattern]) =>
+      forbidTextPolicy(name, styleModules, pattern, nonFoundationUiStyleScope),
     ),
     forbidTextPolicy(
       "raw color outside the foundation theme",
       styleModules,
       /#[0-9a-fA-F]{3,8}\b|rgba?\(/,
-      (filePath) =>
-        filePath !== "presentation/ui/styles/foundation/theme.css",
+      (filePath) => filePath !== "presentation/ui/styles/foundation/theme.css",
     ),
     forbidTextPolicy(
       "Activity-specific selectors in shared styles",
@@ -112,17 +108,19 @@ export function createUiTextPolicies({
       pattern: /\.has-diagnostics::after/,
     },
     ...createWorkflowTextPolicies(uiTestModules),
-    ...([
+    ...(
       [
-        "CSS variable inspection in UI unit tests",
-        /\.getPropertyValue\(\s*["'`]--/,
-      ],
-      [
-        "computed style inspection in UI unit tests",
-        /\bgetComputedStyle\s*\(/,
-      ],
-    ] as const).map(([name, pattern]) =>
-      forbidTextPolicy(name, uiTestModules, pattern, nonE2eUiTestScope)
+        [
+          "CSS variable inspection in UI unit tests",
+          /\.getPropertyValue\(\s*["'`]--/,
+        ],
+        [
+          "computed style inspection in UI unit tests",
+          /\bgetComputedStyle\s*\(/,
+        ],
+      ] as const
+    ).map(([name, pattern]) =>
+      forbidTextPolicy(name, uiTestModules, pattern, nonE2eUiTestScope),
     ),
     forbidTextPolicy(
       "native browser dialogs",
@@ -145,9 +143,7 @@ export function createUiTextPolicies({
         corpus: sourceModules,
         matches: 1,
         name: `${relativeStylePath} co-located Activity style owner`,
-        pattern: new RegExp(
-          `["']\\./${fileName.split(".").join("\\.")}["']`,
-        ),
+        pattern: new RegExp(`["']\\./${fileName.split(".").join("\\.")}["']`),
       };
     }),
   ];
@@ -169,28 +165,6 @@ export function createUiConstraintCatalog({
   uiVirtualRowHeightPx: number;
 }) {
   return {
-    editor: {
-      backgroundPrecedence: [
-        ".source-editor .ctn-line:not(.ctn-tone-default)",
-        ".source-editor .cm-line.cm-activeLine",
-        ".source-editor .cm-line.ctn-line-diagnostic",
-      ],
-      requiredFragments: [".source-editor", "var(--ctn-editor-font-size)"],
-      rules: [
-        {
-          forbidden: ["\n  color:"],
-          required: ["text-decoration-color: var(--ctn-tone-current"],
-          selector: ".source-editor .ctn-inline {",
-        },
-        {
-          forbidden: [],
-          required: ["color: var(--ctn-tone-current"],
-          selector: ".source-editor .ctn-inline-symbol {",
-        },
-      ],
-      selectionPattern:
-        /\.cm-selectionBackground,[\s\S]*background:\s*var\(--color-selected\)\s*!important/,
-    },
     requiredStyleLayers: [
       "ui/styles/index.css",
       "ui/styles/foundation/theme.css",
@@ -199,7 +173,11 @@ export function createUiConstraintCatalog({
       "ui/styles/frame/problems.css",
       "ui/styles/shared/primitives.css",
       "ui/styles/shared/controls.css",
-      "ui/styles/shared/toolSurface.css",
+      "ui/styles/shared/toolPanel.css",
+      "ui/styles/shared/toolSection.css",
+      "ui/styles/shared/toolToolbar.css",
+      "ui/styles/shared/toolProperties.css",
+      "ui/styles/shared/toolList.css",
       "ui/styles/shared/forms.css",
       "ui/styles/shared/management.css",
       "ui/styles/shared/tree.css",

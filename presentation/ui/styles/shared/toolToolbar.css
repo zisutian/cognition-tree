@@ -1,0 +1,29 @@
+.ui-tool-toolbar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+  min-height: var(--ui-row-height);
+  padding: 0 var(--ui-gap-tight);
+  border-bottom: var(--ui-border-width) solid var(--color-border);
+}
+
+.ui-tool-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ui-gap-tight) / 2);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-body-font-size);
+  line-height: var(--ui-body-line-height);
+}
+
+.ui-tool-toolbar .ui-button,
+.ui-tool-toolbar .ui-control {
+  --ui-control-height: var(--ui-row-height);
+  --ui-control-font-size: var(--ui-body-font-size);
+
+  min-height: var(--ui-row-height);
+  font-size: var(--ui-body-font-size);
+}

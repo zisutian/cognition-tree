@@ -19,8 +19,6 @@ import {
   ToolSectionStack,
 } from "../../ui/index.ts";
 
-
-
 import { BuiltInRepositoryDetail } from "./BuiltInRepositoryDetail.tsx";
 import { OrdinaryRepositoryDetail } from "./OrdinaryRepositoryDetail.tsx";
 import {
@@ -33,9 +31,11 @@ import {
 } from "./repositoryViewHelpers.ts";
 
 export function RepositoryPanel({
+  onOpen,
   selection,
   view,
 }: {
+  onOpen(repositoryId: string): Promise<void>;
   selection?: RepositorySelection;
   view: RepositoryViewModel;
 }) {
@@ -46,9 +46,8 @@ export function RepositoryPanel({
     useState<PendingRepositoryIssueAction | null>(null);
   const currentSelection = selection ?? createDefaultRepositorySelection(view);
   const target = selectedRepositoryTarget(currentSelection, view);
-  const ordinaryRepository = target.kind === "ordinary-repository"
-    ? target.repository
-    : null;
+  const ordinaryRepository =
+    target.kind === "ordinary-repository" ? target.repository : null;
   const busy = view.operation !== "idle";
 
   useEffect(() => {
@@ -68,13 +67,14 @@ export function RepositoryPanel({
     }
   }, [currentSelection, deleteRepository, pendingIssueAction]);
 
-  const title = target.kind === "create"
-    ? "新建仓库"
-    : target.kind === "ordinary-repository"
-      ? target.repository?.label ?? "普通仓库"
-      : target.kind === "ordinary-issue"
-        ? target.issue?.id ?? "仓库问题"
-        : builtInLabel(target.id);
+  const title =
+    target.kind === "create"
+      ? "新建仓库"
+      : target.kind === "ordinary-repository"
+        ? (target.repository?.label ?? "普通仓库")
+        : target.kind === "ordinary-issue"
+          ? (target.issue?.id ?? "仓库问题")
+          : builtInLabel(target.id);
   const confirmIssueAction = async () => {
     const pending = pendingIssueAction;
 
@@ -93,11 +93,7 @@ export function RepositoryPanel({
   };
 
   return (
-    <ToolPanel
-      aria-label="仓库"
-      className="repository-panel"
-      title={title}
-    >
+    <ToolPanel aria-label="仓库" className="repository-panel" title={title}>
       <ToolPanelBody layout="form">
         <ToolSectionStack>
           {target.kind === "create" ? (
@@ -119,9 +115,9 @@ export function RepositoryPanel({
                   </p>
                   <Button
                     disabled={busy}
-                    onClick={() => void feedback.runAction(
-                      view.refreshRepositories,
-                    )}
+                    onClick={() =>
+                      void feedback.runAction(view.refreshRepositories)
+                    }
                     type="button"
                     variant="secondary"
                   >
@@ -134,16 +130,18 @@ export function RepositoryPanel({
 
           {ordinaryRepository ? (
             <OrdinaryRepositoryDetail
+              onOpen={onOpen}
               busy={busy}
               confirmingDelete={deleteRepository?.id === ordinaryRepository.id}
               repository={ordinaryRepository}
               view={view}
               onCancelDelete={() => setDeleteRepository(null)}
               onDelete={async () =>
-                await feedback.runAction(async () => {
+                (await feedback.runAction(async () => {
                   await view.deleteRepository({ id: ordinaryRepository.id });
                   return true;
-                }) === true}
+                })) === true
+              }
               onRunAction={runAction}
               onStartDelete={() => setDeleteRepository(ordinaryRepository)}
             />

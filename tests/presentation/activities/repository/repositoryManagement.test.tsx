@@ -10,14 +10,11 @@ import {
   canDeleteManagedRepositoryData,
   RepositoryDeleteConfirmation,
 } from "../../../../presentation/activities/repository/RepositoryDeleteConfirmation";
-import {
-  RepositoryContext,
-} from "../../../../presentation/activities/repository/RepositoryContext";
+import { RepositoryContext } from "../../../../presentation/activities/repository/RepositoryContext";
 import { RepositoryPanel } from "../../../../presentation/activities/repository/RepositoryPanel";
 import { RepositoryStatusPanel } from "../../../../presentation/activities/repository/RepositoryStatusPanel";
 import { copyRepositoryLocation } from "../../../../presentation/activities/repository/repositoryViewHelpers";
-import { TestFeedbackProvider as FeedbackProvider } from
-  "../../fixtures/TestFeedbackProvider";
+import { TestFeedbackProvider as FeedbackProvider } from "../../fixtures/TestFeedbackProvider";
 import {
   projectRepositoryIssues,
   type RepositoryOption,
@@ -63,9 +60,7 @@ const secondaryRepository: RepositoryOption = {
 describe("repository creation form", () => {
   it("does not expose a manual repository ID and hides a redundant adapter selector", () => {
     const markup = renderToStaticMarkup(
-      <RepositoryCreateForm
-        onCreate={async () => undefined}
-      />,
+      <RepositoryCreateForm onCreate={async () => undefined} />,
     );
 
     expectMarkupSemantics(markup, {
@@ -73,10 +68,12 @@ describe("repository creation form", () => {
       lacks: ['aria-label="仓库存储类型"', "仓库 ID"],
     });
     expect(markup.match(/<input/g) ?? []).toHaveLength(1);
-    expect(createRepositoryRequest({
-      ...createRepositoryCreateFormDraft(),
-      name: "  我的仓库  ",
-    })).toEqual({ name: "我的仓库" });
+    expect(
+      createRepositoryRequest({
+        ...createRepositoryCreateFormDraft(),
+        name: "  我的仓库  ",
+      }),
+    ).toEqual({ name: "我的仓库" });
   });
 
   it("clears the only repository field after success", () => {
@@ -94,11 +91,17 @@ describe("repository inline deletion confirmation", () => {
       />,
     );
 
-    expect(canDeleteManagedRepositoryData(localRepository, "本地笔记")).toBe(true);
-    expect(canDeleteManagedRepositoryData(localRepository, "本地笔记 ")).toBe(false);
+    expect(canDeleteManagedRepositoryData(localRepository, "本地笔记")).toBe(
+      true,
+    );
+    expect(canDeleteManagedRepositoryData(localRepository, "本地笔记 ")).toBe(
+      false,
+    );
     expectMarkupSemantics(markup, {
       has: [
-        "永久删除", "永久删除前请输入仓库名称", 'value=""',
+        "永久删除",
+        "永久删除前请输入仓库名称",
+        'value=""',
         /<button[^>]*disabled=""[^>]*>永久删除<\/button>/,
       ],
       lacks: ["仅移除连接", "删除远端数据前请输入仓库名称"],
@@ -142,6 +145,7 @@ describe("repository setup and management semantics", () => {
           view={view}
         />
         <RepositoryPanel
+          onOpen={async () => undefined}
           selection={{
             id: secondaryRepository.id,
             kind: "ordinary-repository",
@@ -161,26 +165,40 @@ describe("repository setup and management semantics", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        'aria-current="page"', "本地笔记", "第二仓库",
-        'data-tool-layout="form"', 'aria-label="仓库状态"',
-        "仓库 ID", secondaryRepository.id,
+        'aria-current="page"',
+        "本地笔记",
+        "第二仓库",
+        'data-tool-layout="form"',
+        'aria-label="仓库状态"',
+        "仓库 ID",
+        secondaryRepository.id,
         'aria-label="重命名仓库 第二仓库"',
         'aria-label="打开仓库 第二仓库"',
-        'aria-label="当前仓库"', "未打开", "危险区", "删除仓库",
+        'aria-label="当前仓库"',
+        "未打开",
+        "危险区",
+        "删除仓库",
       ],
       lacks: [
-        "<dt>名称</dt>", "新仓库 ID",
+        "<dt>名称</dt>",
+        "新仓库 ID",
         'aria-label="重命名仓库 本地笔记"',
-        ">当前</span>", ">打开此仓库<", ">新建仓库</span>",
+        ">当前</span>",
+        ">打开此仓库<",
+        ">新建仓库</span>",
       ],
       ordered: [
-        ">内置数据</span>", ">本地</span>", "本地笔记",
-        "第二仓库", 'aria-label="新建仓库"',
+        ">内置数据</span>",
+        ">本地</span>",
+        "本地笔记",
+        "第二仓库",
+        'aria-label="新建仓库"',
       ],
     });
     expect(markup.match(/aria-label="新建仓库"/g) ?? []).toHaveLength(1);
-    expect(markup.match(/data-repository-catalog="true"/g) ?? [])
-      .toHaveLength(1);
+    expect(markup.match(/data-repository-catalog="true"/g) ?? []).toHaveLength(
+      1,
+    );
   });
 
   it("removes rescan from a healthy active repository detail", () => {
@@ -193,6 +211,7 @@ describe("repository setup and management semantics", () => {
     const markup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          onOpen={async () => undefined}
           selection={{
             id: localRepository.id,
             kind: "ordinary-repository",
@@ -213,15 +232,17 @@ describe("repository setup and management semantics", () => {
       ...baseView,
       activeRepositoryId: null,
       activeRepositoryLabel: "尚未选择普通仓库",
-      issues: projectRepositoryIssues([{
-        code: "unsupported_repository_version",
-        id: "default",
-        location: {
-          hostPath: "/home/zisu/notes/default",
-          serverPath: "/data/repositories/default",
+      issues: projectRepositoryIssues([
+        {
+          code: "unsupported_repository_version",
+          id: "default",
+          location: {
+            hostPath: "/home/zisu/notes/default",
+            serverPath: "/data/repositories/default",
+          },
+          message: "Repository version is not supported",
         },
-        message: "Repository version is not supported",
-      }]),
+      ]),
       persistenceStatusLabel: "未挂载",
       repositories: [],
     };
@@ -238,6 +259,7 @@ describe("repository setup and management semantics", () => {
     const issueMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          onOpen={async () => undefined}
           selection={{ id: "default", kind: "ordinary-issue" }}
           view={view}
         />
@@ -250,19 +272,25 @@ describe("repository setup and management semantics", () => {
     );
     const createMarkup = renderToStaticMarkup(
       <FeedbackProvider>
-        <RepositoryPanel selection={{ kind: "create" }} view={view} />
+        <RepositoryPanel
+          onOpen={async () => undefined}
+          selection={{ kind: "create" }}
+          view={view}
+        />
       </FeedbackProvider>,
     );
 
     expectMarkupSemantics(contextMarkup, {
       has: [
-        ">本地</span>", 'aria-label="新建仓库"',
+        ">本地</span>",
+        'aria-label="新建仓库"',
         'data-repository-catalog="true"',
         'data-repository-issue-id="default"',
       ],
       lacks: [">新建仓库</span>", "手工删除", "主机路径"],
       ordered: [
-        ">本地</span>", 'data-repository-issue-id="default"',
+        ">本地</span>",
+        'data-repository-issue-id="default"',
         'aria-label="新建仓库"',
       ],
     });
@@ -270,14 +298,14 @@ describe("repository setup and management semantics", () => {
       has: [
         "仓库格式不受支持，需要手工删除该目录。",
         "请在文件系统中手工删除上述目录。",
-        "/home/zisu/notes/default", 'aria-label="复制主机路径"', ">重新检查<",
+        "/home/zisu/notes/default",
+        'aria-label="复制主机路径"',
+        ">重新检查<",
       ],
       lacks: ["/data/repositories/default", ">清理<", "危险区"],
     });
     expectMarkupSemantics(createMarkup, {
-      has: [
-        "新建普通仓库", "名称", 'type="submit"',
-      ],
+      has: ["新建普通仓库", "名称", 'type="submit"'],
       lacks: ['aria-label="仓库存储类型"'],
     });
   });
@@ -301,13 +329,18 @@ describe("repository setup and management semantics", () => {
     );
     const detailMarkup = renderToStaticMarkup(
       <FeedbackProvider>
-        <RepositoryPanel selection={{ kind: "create" }} view={view} />
+        <RepositoryPanel
+          onOpen={async () => undefined}
+          selection={{ kind: "create" }}
+          view={view}
+        />
       </FeedbackProvider>,
     );
 
     expectMarkupSemantics(contextMarkup, {
       has: [
-        ">本地</span>", 'aria-label="新建仓库"',
+        ">本地</span>",
+        'aria-label="新建仓库"',
         'data-repository-catalog="true"',
       ],
       lacks: [">新建仓库</span>", "无法读取普通仓库目录。"],
@@ -347,6 +380,7 @@ describe("repository setup and management semantics", () => {
     const panelMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          onOpen={async () => undefined}
           selection={{ id: "broken-second", kind: "ordinary-issue" }}
           view={view}
         />
@@ -376,52 +410,60 @@ describe("repository setup and management semantics", () => {
     const view = {
       ...baseView,
       repositories: [{ ...localRepository, labelIssue: "conflict" as const }],
-      builtInIssues: [{
-        code: "repository_corrupt" as const,
-        displayLabel: "代办 · 内置数据",
-        id: "todo" as const,
-        label: "代办" as const,
-        location: {
-          serverPath: "/state/built-ins/todo/content.json",
-          type: "server" as const,
+      builtInIssues: [
+        {
+          code: "repository_corrupt" as const,
+          displayLabel: "代办 · 内置数据",
+          id: "todo" as const,
+          label: "代办" as const,
+          location: {
+            serverPath: "/state/built-ins/todo/content.json",
+            type: "server" as const,
+          },
+          locationRows: [
+            {
+              copyValue: "/state/built-ins/todo/content.json",
+              label: "服务端路径",
+              value: "/state/built-ins/todo/content.json",
+            },
+          ],
+          message: "代办数据损坏。",
+          status: "fault" as const,
         },
-        locationRows: [{
-          copyValue: "/state/built-ins/todo/content.json",
-          label: "服务端路径",
-          value: "/state/built-ins/todo/content.json",
-        }],
-        message: "代办数据损坏。",
-        status: "fault" as const,
-      }],
-      builtIns: [{
-        conflictResolution: {
-          keepLocal: async () => undefined,
-          loadDetails: async () => ({
-            remoteRevision: `sha256:${"a".repeat(64)}`,
-            unitIds: ["journal:entry:entry-1"],
-          }),
-          recoverLocalCopy: async () => undefined,
-          useRemote: async () => undefined,
+      ],
+      builtIns: [
+        {
+          conflictResolution: {
+            keepLocal: async () => undefined,
+            loadDetails: async () => ({
+              remoteRevision: `sha256:${"a".repeat(64)}`,
+              unitIds: ["journal:entry:entry-1"],
+            }),
+            recoverLocalCopy: async () => undefined,
+            useRemote: async () => undefined,
+          },
+          errorMessage: "日记仓库存在同步冲突。",
+          hasProblem: true,
+          id: "journal" as const,
+          label: "日记" as const,
+          location: {
+            serverPath: "/state/built-ins/journal/content.json",
+            type: "server" as const,
+          },
+          locationRows: [
+            {
+              copyValue: "/state/built-ins/journal/content.json",
+              label: "服务端路径",
+              value: "/state/built-ins/journal/content.json",
+            },
+          ],
+          protected: true as const,
+          recoveryAction: null,
+          reload: async () => undefined,
+          sessionStatus: "ready" as const,
+          statusLabel: "同步冲突",
         },
-        errorMessage: "日记仓库存在同步冲突。",
-        hasProblem: true,
-        id: "journal" as const,
-        label: "日记" as const,
-        location: {
-          serverPath: "/state/built-ins/journal/content.json",
-          type: "server" as const,
-        },
-        locationRows: [{
-          copyValue: "/state/built-ins/journal/content.json",
-          label: "服务端路径",
-          value: "/state/built-ins/journal/content.json",
-        }],
-        protected: true as const,
-        recoveryAction: null,
-        reload: async () => undefined,
-        sessionStatus: "ready" as const,
-        statusLabel: "同步冲突",
-      }],
+      ],
     };
     const contextMarkup = renderToStaticMarkup(
       <FeedbackProvider>
@@ -439,6 +481,7 @@ describe("repository setup and management semantics", () => {
     const journalMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          onOpen={async () => undefined}
           selection={{
             id: "journal",
             kind: "built-in",
@@ -455,6 +498,7 @@ describe("repository setup and management semantics", () => {
     const todoMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          onOpen={async () => undefined}
           selection={{ id: "todo", kind: "built-in" }}
           view={view}
         />
@@ -468,27 +512,30 @@ describe("repository setup and management semantics", () => {
 
     expectMarkupSemantics(contextMarkup, {
       has: [
-        ">内置数据</span>", 'data-built-in-id="journal"',
-        'data-built-in-id="todo"', "同步冲突",
+        ">内置数据</span>",
+        'data-built-in-id="journal"',
+        'data-built-in-id="todo"',
+        "同步冲突",
       ],
       lacks: [
         "/state/built-ins/journal/content.json",
-        "/state/built-ins/todo/content.json", "放弃本地修改并重新加载",
+        "/state/built-ins/todo/content.json",
+        "放弃本地修改并重新加载",
       ],
     });
     expectMarkupSemantics(journalMarkup, {
       has: [
-        "保护", "内置数据", "/state/built-ins/journal/content.json",
-        "保留本地", "采用远端", "远端并另存本地",
+        "保护",
+        "内置数据",
+        "/state/built-ins/journal/content.json",
+        "保留本地",
+        "采用远端",
+        "远端并另存本地",
       ],
       lacks: ["删除仓库", "重命名仓库", "放弃本地修改并重新加载"],
     });
     expectMarkupSemantics(todoMarkup, {
-      has: [
-        "代办数据损坏。",
-        "/state/built-ins/todo/content.json",
-        ">重试<",
-      ],
+      has: ["代办数据损坏。", "/state/built-ins/todo/content.json", ">重试<"],
     });
   });
 
@@ -510,6 +557,7 @@ describe("repository setup and management semantics", () => {
     const panelMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          onOpen={async () => undefined}
           selection={{
             id: "journal",
             kind: "built-in",
@@ -528,9 +576,7 @@ describe("repository setup and management semantics", () => {
     );
 
     expectMarkupSemantics(contextMarkup, {
-      has: [
-        'aria-label="日记数据存在问题"', 'aria-label="代办数据存在问题"',
-      ],
+      has: ['aria-label="日记数据存在问题"', 'aria-label="代办数据存在问题"'],
       lacks: ['role="alert"', "内置数据目录不可用。", ">重试内置数据<"],
     });
     expect(contextMarkup.match(/>故障<\/span>/g)).toHaveLength(2);
@@ -543,36 +589,37 @@ describe("repository setup and management semantics", () => {
     ["conflict", "仓库名称与其他仓库冲突，请在左侧重命名。"],
     ["reserved", "仓库名称由内置仓库保留，请在左侧重命名。"],
     ["nonportable", "仓库名称包含不可移植字符，请在左侧重命名。"],
-  ] as const)("shows the %s repository label issue in the selected detail", (
-    labelIssue,
-    message,
-  ) => {
-    const view = {
-      ...createRepositoryView(),
-      repositories: [{ ...localRepository, labelIssue }],
-    };
-    const markup = renderToStaticMarkup(
-      <FeedbackProvider>
-        <RepositoryPanel
-          selection={{
-            id: localRepository.id,
-            kind: "ordinary-repository",
-          }}
-          view={view}
-        />
-        <RepositoryStatusPanel
-          onCollapseDetail={() => undefined}
-          selection={{
-            id: localRepository.id,
-            kind: "ordinary-repository",
-          }}
-          view={view}
-        />
-      </FeedbackProvider>,
-    );
+  ] as const)(
+    "shows the %s repository label issue in the selected detail",
+    (labelIssue, message) => {
+      const view = {
+        ...createRepositoryView(),
+        repositories: [{ ...localRepository, labelIssue }],
+      };
+      const markup = renderToStaticMarkup(
+        <FeedbackProvider>
+          <RepositoryPanel
+            onOpen={async () => undefined}
+            selection={{
+              id: localRepository.id,
+              kind: "ordinary-repository",
+            }}
+            view={view}
+          />
+          <RepositoryStatusPanel
+            onCollapseDetail={() => undefined}
+            selection={{
+              id: localRepository.id,
+              kind: "ordinary-repository",
+            }}
+            view={view}
+          />
+        </FeedbackProvider>,
+      );
 
-    expect(markup).toContain(message);
-  });
+      expect(markup).toContain(message);
+    },
+  );
 
   it("keeps ordinary runtime failures compact on the left and recoverable on the right", () => {
     const view = {
@@ -603,6 +650,7 @@ describe("repository setup and management semantics", () => {
     const activeMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          onOpen={async () => undefined}
           selection={{
             id: localRepository.id,
             kind: "ordinary-repository",
@@ -622,6 +670,7 @@ describe("repository setup and management semantics", () => {
     const inactiveMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          onOpen={async () => undefined}
           selection={{
             id: secondaryRepository.id,
             kind: "ordinary-repository",

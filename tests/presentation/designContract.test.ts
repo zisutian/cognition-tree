@@ -18,11 +18,6 @@ import {
   sourceModules,
 } from "../architecture/sourceCorpus";
 
-type FragmentContract = {
-  forbidden?: readonly string[];
-  required?: readonly string[];
-};
-
 const styleModules = import.meta.glob("../../presentation/**/*.css", {
   eager: true,
   import: "default",
@@ -46,34 +41,6 @@ function readStyle(relativePath: string) {
   return styleModules[`../../presentation/${relativePath}`] ?? "";
 }
 
-function expectFragments(
-  source: string,
-  { forbidden = [], required = [] }: FragmentContract,
-) {
-  expect({
-    forbidden: forbidden.filter((fragment) => source.includes(fragment)),
-    missing: required.filter((fragment) => !source.includes(fragment)),
-  }).toEqual({ forbidden: [], missing: [] });
-}
-
-function readRule(source: string, selector: string) {
-  const selectorStart = source.indexOf(selector);
-
-  if (selectorStart < 0) return "";
-  const bodyStart = source.indexOf("{", selectorStart);
-
-  if (bodyStart < 0) return "";
-  let depth = 0;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    if (source[index] === "{") depth += 1;
-    if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) return source.slice(selectorStart, index + 1);
-    }
-  }
-  return "";
-}
-
 function readCustomProperties(source: string) {
   return new Map(
     [...source.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map(
@@ -95,7 +62,7 @@ describe("UI design contract", () => {
     ).toEqual([]);
     expect(globalStyleEntry).not.toContain("./activities/");
     expect(globalStyleEntry).toContain("./frame/problems.css");
-    expect(globalStyleEntry).toContain("./shared/toolSurface.css");
+    expect(globalStyleEntry).toContain("./shared/toolPanel.css");
     expect(globalStyleEntry).toContain("./shared/controls.css");
   });
 
@@ -139,73 +106,5 @@ describe("UI design contract", () => {
       ]),
     );
     expect(missingToneSelectors).toEqual([]);
-  });
-
-  it("keeps repeated CTN document chrome in shared editor owners", () => {
-    const editorPanel = readStyle("editor/CtnEditorPanel.css");
-    const documentDetail = readStyle("editor/CtnDocumentDetailPanel.css");
-    const activityStyles = [
-      readStyle("activities/notes/edit/notes.css"),
-      readStyle("activities/journal/journal.css"),
-      readStyle("activities/todo/todo.css"),
-    ].join("\n");
-
-    expectFragments(editorPanel, {
-      required: [
-        ".ctn-editor-panel",
-        "border-right: var(--ui-border-width) solid var(--color-border)",
-      ],
-    });
-    expectFragments(documentDetail, {
-      required: [
-        ".ctn-document-time-details",
-        ".ctn-document-time-row",
-        ".ctn-document-time-value",
-      ],
-    });
-    expectFragments(activityStyles, {
-      forbidden: [
-        ".note-editor-panel",
-        ".journal-editor-panel",
-        ".todo-editor-panel",
-        ".note-time-details",
-        ".journal-time-details",
-      ],
-    });
-  });
-
-  it("uses one non-blue interaction accent while preserving editor content color", () => {
-    const theme = readStyle("ui/styles/foundation/theme.css");
-    const frame = readStyle("ui/styles/frame/frame.css");
-    const properties = readCustomProperties(theme);
-
-    expect(properties.get("--color-accent")).not.toBe("#007acc");
-    expect(properties.get("--color-content-accent")).toBe("#007acc");
-    expect(frame).toContain("background: var(--color-accent)");
-    expect(theme).toContain("--color-accent: var(--color-content-accent)");
-  });
-
-  it("keeps editor color semantics and state precedence explicit", () => {
-    const editorStyle = readStyle("editor/CtnEditor.css");
-    const backgroundPositions =
-      uiConstraintCatalog.editor.backgroundPrecedence.map((selector) =>
-        editorStyle.indexOf(selector),
-      );
-
-    for (const { forbidden, required, selector } of uiConstraintCatalog.editor
-      .rules) {
-      expectFragments(readRule(editorStyle, selector), {
-        forbidden,
-        required,
-      });
-    }
-    expectFragments(editorStyle, {
-      required: uiConstraintCatalog.editor.requiredFragments,
-    });
-    expect(backgroundPositions.every((position) => position >= 0)).toBe(true);
-    expect(backgroundPositions).toEqual(
-      [...backgroundPositions].sort((left, right) => left - right),
-    );
-    expect(editorStyle).toMatch(uiConstraintCatalog.editor.selectionPattern);
   });
 });

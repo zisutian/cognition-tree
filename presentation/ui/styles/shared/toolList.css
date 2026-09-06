@@ -1,0 +1,109 @@
+.ui-tool-list {
+  position: relative;
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-tool-list-row-frame {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.ui-tool-list-row-target {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--ui-radius);
+  color: var(--color-fg);
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--ui-body-font-size);
+  font-weight: var(--ui-body-weight);
+  line-height: var(--ui-body-line-height);
+  text-align: left;
+  min-height: var(--ui-row-height);
+  padding: 0 var(--ui-gap-tight);
+}
+
+.ui-tool-list-row-target.is-interactive {
+  cursor: pointer;
+}
+
+.ui-tool-list-row-target.is-interactive:hover,
+.ui-tool-list-row-target.is-interactive:focus-visible {
+  background: var(--color-hover);
+  outline: none;
+}
+
+.ui-tool-list-row-leading,
+.ui-tool-list-row-main,
+.ui-tool-list-row-meta {
+  min-width: 0;
+}
+
+.ui-tool-list-row-leading,
+.ui-tool-list-row-meta {
+  color: var(--color-fg-muted);
+  font-size: var(--ui-body-font-size);
+  line-height: var(--ui-body-line-height);
+}
+
+.ui-tool-list-row-wrap .ui-tool-list-row-main {
+  white-space: pre-wrap;
+}
+
+.ui-tool-list-row-single-line {
+  height: var(--ui-row-height);
+}
+
+.ui-tool-list-row-single-line .ui-tool-list-row-target {
+  height: var(--ui-row-height);
+}
+
+.ui-tool-list-row-single-line .ui-tool-list-row-leading,
+.ui-tool-list-row-single-line .ui-tool-list-row-main,
+.ui-tool-list-row-single-line .ui-tool-list-row-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-tool-list-row-wrap .ui-tool-list-row-target {
+  padding-top: calc(var(--ui-gap-tight) / 2);
+  padding-bottom: calc(var(--ui-gap-tight) / 2);
+}
+
+.ui-tool-list-row-actions {
+  display: inline-flex;
+  flex: none;
+  align-items: stretch;
+}
+
+.ui-tool-list-row-actions > button {
+  height: 100%;
+  padding: 0 var(--ui-gap-tight);
+  border: 0;
+  color: var(--color-fg-muted);
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--ui-body-font-size);
+  line-height: var(--ui-body-line-height);
+  cursor: pointer;
+}
+
+.ui-tool-list-row-actions > button:hover,
+.ui-tool-list-row-actions > button:focus-visible {
+  color: var(--color-fg-strong);
+  background: var(--color-hover);
+  outline: none;
+}

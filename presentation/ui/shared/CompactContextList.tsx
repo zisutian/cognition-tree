@@ -126,12 +126,7 @@ export function CompactContextList({
   className,
   ...props
 }: CompactContextListProps) {
-  return (
-    <ul
-      className={cx("ui-tree ui-compact-context-list", className)}
-      {...props}
-    />
-  );
+  return <ul className={cx("ui-compact-context-list", className)} {...props} />;
 }
 
 export type CompactContextGroupProps = {

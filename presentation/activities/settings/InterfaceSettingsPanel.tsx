@@ -9,8 +9,6 @@ import {
   ToolSection,
 } from "../../ui/index.ts";
 
-
-
 export type SettingsWorkbenchPreferences = {
   contextWidth: number;
   onContextWidthChange: (width: number) => void;
@@ -22,7 +20,11 @@ export function InterfaceSettingsPanel({
   workbench: SettingsWorkbenchPreferences;
 }) {
   return (
-    <ToolPanel aria-label="设置" className="settings-panel" title="界面">
+    <ToolPanel
+      aria-label="界面设置"
+      className="settings-panel"
+      title="工作台布局"
+    >
       <ToolPanelBody layout="form">
         <ToolSection aria-label="界面选项">
           <FormLayout>

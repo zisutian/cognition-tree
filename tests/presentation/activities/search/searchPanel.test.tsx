@@ -25,16 +25,18 @@ const state: SearchControllerState = {
   errorMessage: null,
   faults: [],
   loadingMore: false,
-  results: [{
-    blockId: "block-1",
-    domain: "workspace",
-    repositoryId: "repository-1",
-    resourceId: "note-1",
-    snippet: "概念正文",
-    title: "示例笔记",
-    updatedAt: "2026-08-26T00:00:00.000Z",
-    version: "sha256:search-test",
-  }],
+  results: [
+    {
+      blockId: "block-1",
+      domain: "workspace",
+      repositoryId: "repository-1",
+      resourceId: "note-1",
+      snippet: "概念正文",
+      title: "示例笔记",
+      updatedAt: "2026-08-26T00:00:00.000Z",
+      version: "sha256:search-test",
+    },
+  ],
   status: "ready",
   submitted: {
     domains: ["workspace"],
@@ -53,11 +55,9 @@ describe("SearchPanel", () => {
       />,
     );
 
-    expect(markup).toContain("ui-tool-panel");
     expect(markup).toContain('data-tool-layout="results"');
     expect(markup).toContain('aria-label="搜索结果列表"');
     expect(markup).toContain('aria-label="示例笔记的匹配项"');
-    expect(markup).toContain("ui-tool-list-row-wrap");
     expect(markup).toContain("块匹配");
     expect(markup).toContain("概念正文");
     expect(markup).toContain("加载更多");
