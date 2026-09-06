@@ -5,8 +5,8 @@ import type {
   VersionedContentPreparationPolicy,
   VersionedRepositorySnapshot,
   VersionedRepositorySnapshotTransition,
-} from "../../../application/persistence/versionedRepository.ts";
-import type { VersionedRepositoryLocalState } from "./versionedRepositoryCache.ts";
+} from "../versionedRepository.ts";
+import type { VersionedRepositoryLocalState } from "../versionedRepositoryCache.ts";
 import type {
   LocalFirstRepositoryProjectionPort,
 } from "./localFirstRepositoryProjectionPort.ts";

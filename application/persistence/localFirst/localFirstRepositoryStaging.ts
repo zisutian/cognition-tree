@@ -7,12 +7,12 @@ import {
   type PreparedVersionedContentChange,
   type VersionedContentMergePolicy,
   type VersionedContentPreparationPolicy,
-} from "../../../application/persistence/versionedRepository";
-import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
+} from "../versionedRepository";
+import type { VersionedRepositoryCache } from "../versionedRepositoryCache";
 import type {
   LocalFirstRepositoryProjectionPort,
 } from "./localFirstRepositoryProjectionPort.ts";
-import { versionedContentEqual } from "./resilientVersionedRepositoryPolicy.ts";
+import { versionedContentEqual } from "./localFirstRepositoryPolicy.ts";
 
 type LocalFirstRepositoryStagingOptions<
   Content,

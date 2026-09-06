@@ -4,10 +4,8 @@ import type {
   PreparedVersionedContent,
   VersionedRepositorySnapshot,
   VersionedRepositorySnapshotTransition,
-} from "../../../application/persistence/versionedRepository";
-import type {
-  VersionedRepositoryLocalState,
-} from "./versionedRepositoryCache";
+} from "../versionedRepository";
+import type { VersionedRepositoryLocalState } from "../versionedRepositoryCache";
 
 export interface LocalFirstRepositoryProjectionPort<
   Content,

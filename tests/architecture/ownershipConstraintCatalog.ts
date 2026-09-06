@@ -179,9 +179,9 @@ export function createOwnershipTextPolicies({
     ],
     [
       "local-first repository projection state",
-      infrastructureModules,
+      applicationModules,
       /\bclass LocalFirstRepositoryProjectionState\b/,
-      /^infrastructure\/client\/repository\/resilientVersionedRepositoryProjection\.ts$/,
+      /^application\/persistence\/localFirst\/localFirstRepositoryProjection\.ts$/,
     ],
     [
       "local repository deletion transaction",

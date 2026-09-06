@@ -19,9 +19,9 @@ import type {
 import { parseContentRevision } from "../../../contracts/common/contractValue";
 import { createVersionedLocalDraftRevision } from "../../../application/persistence/versionedRepository";
 import { mergeTodoContent } from "../../../application/todo/persistence/todoThreeWayMerge";
-import { createLocalFirstVersionedRepository } from "../repository/resilientVersionedRepository";
+import { createLocalFirstVersionedRepository } from "../../../application/persistence/localFirst/localFirstRepository";
 import { todoRepositoryPreparation } from "../repository/todoRepositoryCodec";
-import type { VersionedRepositoryCache } from "../repository/versionedRepositoryCache";
+import type { VersionedRepositoryCache } from "../../../application/persistence/versionedRepositoryCache";
 import {
   subscribeClientReconnect,
   type HttpApiTransportOptions,

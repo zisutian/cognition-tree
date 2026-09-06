@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createLocalFirstVersionedRepository } from "../../../../infrastructure/client/repository/resilientVersionedRepository";
+import { createLocalFirstVersionedRepository } from "../../../../application/persistence/localFirst/localFirstRepository";
 import { createMemoryVersionedRepositoryCache } from "../../../../infrastructure/client/repository/versionedRepositoryCache";
 import {
   VersionedRepositoryBackendConflictError,

@@ -3,7 +3,7 @@
 import {
   createLocalFirstVersionedRepository,
   type VersionedRepositoryLoadPolicy,
-} from "./resilientVersionedRepository";
+} from "../../../application/persistence/localFirst/localFirstRepository";
 import type { WorkspaceRepositoryCache } from "./workspaceRepositoryCache";
 import {
   createLocalDraftRevision,

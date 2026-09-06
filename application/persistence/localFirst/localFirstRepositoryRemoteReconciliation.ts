@@ -8,15 +8,12 @@ import {
   type VersionedRepositorySnapshot,
   type VersionedRepositorySnapshotTransition,
   type VersionedRemoteSnapshot,
-} from "../../../application/persistence/versionedRepository";
+} from "../versionedRepository";
 import type {
   LocalFirstRepositoryProjectionPort,
 } from "./localFirstRepositoryProjectionPort.ts";
-import type {
-  VersionedRepositoryCache,
-  VersionedRepositoryLocalState,
-} from "./versionedRepositoryCache";
-import { versionedContentEqual } from "./resilientVersionedRepositoryPolicy.ts";
+import type { VersionedRepositoryCache, VersionedRepositoryLocalState } from "../versionedRepositoryCache";
+import { versionedContentEqual } from "./localFirstRepositoryPolicy.ts";
 
 type RemoteProjectionPort<
   Content,

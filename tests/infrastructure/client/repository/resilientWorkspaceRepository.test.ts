@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createLocalFirstWorkspaceRepository } from "../../../../infrastructure/client/repository/resilientWorkspaceRepository";
-import type { VersionedRepositoryLoadPolicy } from "../../../../infrastructure/client/repository/resilientVersionedRepository";
+import type { VersionedRepositoryLoadPolicy } from "../../../../application/persistence/localFirst/localFirstRepository";
 import { VersionedRepositoryLocalMergeConflictError } from "../../../../application/persistence/versionedRepository";
 import {
   WorkspaceRepositoryBackendConflictError,

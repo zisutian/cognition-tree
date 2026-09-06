@@ -2,15 +2,15 @@
 
 import type {
   VersionedRepositoryBackend,
-} from "../../../application/persistence/versionedRepository";
+} from "../versionedRepository";
 import type {
   LocalFirstRepositoryProjectionPort,
 } from "./localFirstRepositoryProjectionPort.ts";
-import { canUseVersionedRepositoryCachedSnapshot } from "./resilientVersionedRepositoryPolicy.ts";
+import { canUseVersionedRepositoryCachedSnapshot } from "./localFirstRepositoryPolicy.ts";
 import type {
   LocalFirstRepositoryRemoteReconciliationPort,
-} from "./resilientVersionedRepositoryRemoteReconciliation.ts";
-import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
+} from "./localFirstRepositoryRemoteReconciliation.ts";
+import type { VersionedRepositoryCache } from "../versionedRepositoryCache";
 
 export type VersionedRepositoryLoadPolicy =
   | Readonly<{ mode: "cache-first" }>

@@ -536,24 +536,24 @@ describe("dependency boundaries", () => {
     const violations = auditImportPolicies([
       {
         filePath:
-          "../../infrastructure/client/repository/resilientVersionedRepository.ts",
-        importPath: "./resilientVersionedRepositoryProjection",
+          "../../application/persistence/localFirst/localFirstRepository.ts",
+        importPath: "./localFirstRepositoryProjection",
         targetPath:
-          "../../infrastructure/client/repository/resilientVersionedRepositoryProjection.ts",
-        targetRoot: "infrastructure",
+          "../../application/persistence/localFirst/localFirstRepositoryProjection.ts",
+        targetRoot: "application",
       },
       {
         filePath:
           "../../infrastructure/client/http/journalRepository.ts",
-        importPath: "../repository/resilientVersionedRepositoryProjection",
+        importPath: "../repository/localFirstRepositoryProjection",
         targetPath:
-          "../../infrastructure/client/repository/resilientVersionedRepositoryProjection.ts",
-        targetRoot: "infrastructure",
+          "../../application/persistence/localFirst/localFirstRepositoryProjection.ts",
+        targetRoot: "application",
       },
     ], dependencyImportPolicies);
 
     expect(violations).toEqual([
-      "local-first repository projection composition boundary: ../../infrastructure/client/http/journalRepository.ts imports ../repository/resilientVersionedRepositoryProjection",
+      "local-first repository projection composition boundary: ../../infrastructure/client/http/journalRepository.ts imports ../repository/localFirstRepositoryProjection",
     ]);
   });
 

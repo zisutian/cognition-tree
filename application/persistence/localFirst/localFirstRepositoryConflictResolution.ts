@@ -11,7 +11,7 @@ import {
   type VersionedRepositoryConflictProof,
   type VersionedRepositoryConflictRecord,
   type VersionedRepositorySyncResult,
-} from "../../../application/persistence/versionedRepository";
+} from "../versionedRepository";
 import type {
   LocalFirstRepositoryProjectionPort,
 } from "./localFirstRepositoryProjectionPort.ts";
@@ -19,11 +19,11 @@ import {
   normalizeVersionedConflictUnitIds,
   versionedContentEqual,
   versionedRepositoryErrorMessage,
-} from "./resilientVersionedRepositoryPolicy.ts";
+} from "./localFirstRepositoryPolicy.ts";
 import type {
   LocalFirstRepositorySynchronizationPort,
-} from "./resilientVersionedRepositorySynchronization.ts";
-import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
+} from "./localFirstRepositorySynchronization.ts";
+import type { VersionedRepositoryCache } from "../versionedRepositoryCache";
 
 type ConflictResolutionProjectionPort<
   Content,

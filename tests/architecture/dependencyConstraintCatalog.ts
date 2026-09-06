@@ -128,9 +128,9 @@ const operationLedgerProjectionConsumers: ReadonlySet<string> = new Set([
   trustedClientOperationLedgerPath,
 ]);
 const resilientVersionedRepositoryPath =
-  "../../infrastructure/client/repository/resilientVersionedRepository.ts";
+  "../../application/persistence/localFirst/localFirstRepository.ts";
 const resilientVersionedRepositoryProjectionPath =
-  "../../infrastructure/client/repository/resilientVersionedRepositoryProjection.ts";
+  "../../application/persistence/localFirst/localFirstRepositoryProjection.ts";
 const localRepositoryCatalogPath =
   "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
 const localRepositoryDeletionPath =

@@ -20,8 +20,8 @@ import { parseContentRevision } from "../../../contracts/common/contractValue";
 import { createVersionedLocalDraftRevision } from "../../../application/persistence/versionedRepository";
 import { mergeJournalContent } from "../../../application/journal/persistence/journalThreeWayMerge";
 import { journalRepositoryPreparation } from "../repository/journalRepositoryCodec";
-import { createLocalFirstVersionedRepository } from "../repository/resilientVersionedRepository";
-import type { VersionedRepositoryCache } from "../repository/versionedRepositoryCache";
+import { createLocalFirstVersionedRepository } from "../../../application/persistence/localFirst/localFirstRepository";
+import type { VersionedRepositoryCache } from "../../../application/persistence/versionedRepositoryCache";
 import {
   subscribeClientReconnect,
   type HttpApiTransportOptions,

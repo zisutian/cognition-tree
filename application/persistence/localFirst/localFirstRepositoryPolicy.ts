@@ -3,10 +3,10 @@
 import {
   VersionedRepositoryRemoteError,
   VersionedRepositoryUnavailableError,
-} from "../../../application/persistence/versionedRepository.ts";
+} from "../versionedRepository.ts";
 import {
   areMergeValuesEqual,
-} from "../../../application/persistence/threeWayMerge.ts";
+} from "../threeWayMerge.ts";
 
 export function versionedRepositoryErrorMessage(error: unknown) {
   return error instanceof Error

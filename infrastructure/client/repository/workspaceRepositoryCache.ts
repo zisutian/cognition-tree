@@ -4,11 +4,8 @@ import type {
   WorkspaceRepositoryContent,
 } from "../../../application/workspace/persistence/workspaceRepository";
 import { WorkspaceRepositoryLocalConflictError } from "../../../application/workspace/persistence/workspaceRepository";
-import {
-  createMemoryVersionedRepositoryCache,
-  type VersionedRepositoryCache,
-  type VersionedRepositoryLocalState,
-} from "./versionedRepositoryCache";
+import { createMemoryVersionedRepositoryCache } from "./versionedRepositoryCache";
+import { type VersionedRepositoryCache, type VersionedRepositoryLocalState } from "../../../application/persistence/versionedRepositoryCache";
 
 export type WorkspaceRepositoryLocalState = VersionedRepositoryLocalState<
   WorkspaceRepositoryContent,

@@ -8,23 +8,23 @@ import {
   type VersionedContentPreparationPolicy,
   type VersionedRepositorySnapshot,
   type VersionedRepositorySyncResult,
-} from "../../../application/persistence/versionedRepository";
-import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
+} from "../versionedRepository";
+import type { VersionedRepositoryCache } from "../versionedRepositoryCache";
 import {
   LocalFirstRepositoryConflictResolution,
-} from "./resilientVersionedRepositoryConflictResolution.ts";
+} from "./localFirstRepositoryConflictResolution.ts";
 import {
   LocalFirstRepositoryLoading,
   type VersionedRepositoryLoadPolicy,
-} from "./resilientVersionedRepositoryLoading.ts";
-import { LocalFirstRepositoryProjectionState } from "./resilientVersionedRepositoryProjection.ts";
+} from "./localFirstRepositoryLoading.ts";
+import { LocalFirstRepositoryProjectionState } from "./localFirstRepositoryProjection.ts";
 import {
   LocalFirstRepositoryRemoteReconciliation,
-} from "./resilientVersionedRepositoryRemoteReconciliation.ts";
-import { LocalFirstRepositoryStaging } from "./resilientVersionedRepositoryStaging.ts";
-import { LocalFirstRepositorySynchronization } from "./resilientVersionedRepositorySynchronization.ts";
+} from "./localFirstRepositoryRemoteReconciliation.ts";
+import { LocalFirstRepositoryStaging } from "./localFirstRepositoryStaging.ts";
+import { LocalFirstRepositorySynchronization } from "./localFirstRepositorySynchronization.ts";
 
-export type { VersionedRepositoryLoadPolicy } from "./resilientVersionedRepositoryLoading.ts";
+export type { VersionedRepositoryLoadPolicy } from "./localFirstRepositoryLoading.ts";
 
 type LocalFirstVersionedRepositoryOptions<
   Content,

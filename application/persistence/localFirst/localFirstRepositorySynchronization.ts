@@ -8,18 +8,18 @@ import {
   type VersionedRepositoryBackend,
   type VersionedRepositorySnapshotTransition,
   type VersionedRepositorySyncResult,
-} from "../../../application/persistence/versionedRepository";
+} from "../versionedRepository";
 import type {
   LocalFirstRepositoryProjectionPort,
 } from "./localFirstRepositoryProjectionPort.ts";
 import type {
   LocalFirstRepositoryRemoteReconciliationPort,
-} from "./resilientVersionedRepositoryRemoteReconciliation.ts";
+} from "./localFirstRepositoryRemoteReconciliation.ts";
 import {
   isRetryableVersionedRepositoryRemoteError,
   versionedRepositoryErrorMessage,
-} from "./resilientVersionedRepositoryPolicy.ts";
-import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
+} from "./localFirstRepositoryPolicy.ts";
+import type { VersionedRepositoryCache } from "../versionedRepositoryCache";
 
 type SynchronizationProjectionPort<
   Content,
