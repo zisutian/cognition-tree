@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AgentProfileTurnQueue,
-} from "../../../../infrastructure/server/agent/profileTurnQueue.ts";
+} from "../../../../application/agentHost/profileTurnQueue.ts";
 
 describe("Agent Profile turn queue", () => {
   it("serializes each Profile and waits for work appended during a turn", async () => {

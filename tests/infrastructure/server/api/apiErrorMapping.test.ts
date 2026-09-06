@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { mapApiError } from "../../../../infrastructure/server/api/http/errors.ts";
 import {
   AgentProposalCommitIndeterminateError,
-} from "../../../../infrastructure/server/agent/errors.ts";
+} from "../../../../application/agentHost/errors.ts";
 import {
   VersionedContentCommitOutcomeUnknownError,
 } from "../../../../infrastructure/server/repository/versioned/contentStore.ts";

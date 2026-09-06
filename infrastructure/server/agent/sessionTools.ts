@@ -17,7 +17,7 @@ import type { ApiBuiltInCatalog } from "../api/http/ports.ts";
 import type { ApiRuntime } from "../api/http/runtime.ts";
 import type { ApiSearchService } from "../api/search.ts";
 import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
-import { AgentServiceError } from "./errors.ts";
+import { AgentServiceError } from "../../../application/agentHost/errors.ts";
 import { JournalAgentSessionTools } from "./journalSessionTools.ts";
 import { toAgentProposalDto } from "./proposalCodec.ts";
 import {
@@ -28,7 +28,7 @@ import {
 import type {
   AgentToolExecution,
   AgentToolSession,
-} from "./sessionToolState.ts";
+} from "../../../application/agentHost/sessionToolState.ts";
 import { TodoAgentSessionTools } from "./todoSessionTools.ts";
 import { WorkspaceAgentSessionTools } from "./workspaceSessionTools.ts";
 

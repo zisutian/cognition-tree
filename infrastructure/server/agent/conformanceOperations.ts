@@ -15,7 +15,7 @@ import {
 import { ConfiguredAgentRuntimeFactory } from "./configuredAgentRuntimeFactory.ts";
 import { AgentProviderOperationConflictError } from "./providerOperationErrors.ts";
 import type { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
-import { createAgentRuntimeProfile } from "./runtimeProfiles.ts";
+import { createAgentRuntimeProfile } from "../../../application/agentHost/runtimeProfiles.ts";
 
 const conformanceResultLimit = 100;
 const conformanceOutputTokenLimit = 512;

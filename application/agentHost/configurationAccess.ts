@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+
+
 export class AgentConfigurationAccessConflictError extends Error {
   constructor(message = "Agent configuration is pinned by an active operation") {
     super(message);

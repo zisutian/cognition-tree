@@ -29,14 +29,14 @@ import {
   projectApiTodoCollections,
 } from "../api/resources/todo.ts";
 import { todoResourceVersions } from "../api/resources/versions.ts";
-import { AgentServiceError } from "./errors.ts";
+import { AgentServiceError } from "../../../application/agentHost/errors.ts";
 import { digestAgentProposal } from "./proposalCodec.ts";
 import { syntaxRequiredResult } from "./sessionToolProtocol.ts";
 import {
   resolveAgentStaging,
   type AgentStagingFor,
   type AgentToolSession,
-} from "./sessionToolState.ts";
+} from "../../../application/agentHost/sessionToolState.ts";
 
 type TodoScope = Extract<AgentScope, { domain: "todo" }>;
 type TodoStaging = AgentStagingFor<"todo">;

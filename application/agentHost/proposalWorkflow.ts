@@ -7,21 +7,15 @@ import {
   type AgentProposal,
   type AgentRuntimePort,
   type AgentSessionController,
-} from "../../../application/agent/index.ts";
-import type {
-  AgentOperationAuditEntryDto,
-} from "../../../contracts/agent/schemas.ts";
-import type { ResolvedAgentConfiguration } from "./configurationStore.ts";
+} from "../agent/index.ts";
+import type { AgentOperationReceipt } from "../operations/agentOperationReceipt.ts";
+import type { ResolvedAgentConfiguration } from "./configurationPort.ts";
 import {
   AgentProposalCommitIndeterminateError,
   AgentServiceError,
 } from "./errors.ts";
-import {
-  type AgentProposalCommitOutcome,
-  type AgentProposalCommitPort,
-  type AgentProposalCommitRoute,
-} from "./proposalCommitter.ts";
-import { toAgentProposalDto } from "./proposalCodec.ts";
+import { type AgentProposalCommitOutcome, type AgentProposalCommitPort, type AgentProposalCommitRoute } from "./proposalCommitPort.ts";
+import { toAgentProposalView } from "../agent/agentTypes.ts";
 import type { AgentRuntimeProfile } from "./runtimeProfiles.ts";
 
 export type AgentProposalWorkflowRecord = {
@@ -45,7 +39,7 @@ export class AgentProposalWorkflow<
   readonly #isClosing: () => boolean;
   readonly #scheduleReceiptSummary: (
     record: Record,
-    receipt: AgentOperationAuditEntryDto,
+    receipt: AgentOperationReceipt,
   ) => void;
 
   constructor({
@@ -61,7 +55,7 @@ export class AgentProposalWorkflow<
     isClosing: () => boolean;
     scheduleReceiptSummary: (
       record: Record,
-      receipt: AgentOperationAuditEntryDto,
+      receipt: AgentOperationReceipt,
     ) => void;
   }) {
     this.#assertScopeAvailable = assertScopeAvailable;
@@ -88,13 +82,13 @@ export class AgentProposalWorkflow<
     let proposal = record.controller.getProposal(proposalId);
 
     if (hasTerminalCommitStatus(proposal)) {
-      return toAgentProposalDto(proposal);
+      return toAgentProposalView(proposal);
     }
     if (proposal.status === "rejected") {
       if (decision !== "reject") {
         throw new AgentServiceError("invalid_request", "Proposal was rejected");
       }
-      return toAgentProposalDto(proposal);
+      return toAgentProposalView(proposal);
     }
     if (proposal.status === "pending") {
       proposal = decideAgentProposal(proposal, decision);
@@ -108,10 +102,10 @@ export class AgentProposalWorkflow<
           "Proposal has already been approved",
         );
       }
-      return toAgentProposalDto(proposal);
+      return toAgentProposalView(proposal);
     }
     if (proposal.status === "awaiting-destructive-confirmation") {
-      return toAgentProposalDto(proposal);
+      return toAgentProposalView(proposal);
     }
     return this.#commit(
       record,
@@ -137,7 +131,7 @@ export class AgentProposalWorkflow<
     let proposal = record.controller.getProposal(proposalId);
 
     if (hasTerminalCommitStatus(proposal)) {
-      return toAgentProposalDto(proposal);
+      return toAgentProposalView(proposal);
     }
     proposal = confirmAgentProposalDestruction(proposal);
     record.controller.putProposal(proposal);
@@ -189,7 +183,7 @@ export class AgentProposalWorkflow<
       if (!outcome.replayed && !this.#isClosing()) {
         this.#scheduleReceiptSummary(record, outcome.receipt);
       }
-      return toAgentProposalDto(outcome.proposal);
+      return toAgentProposalView(outcome.proposal);
     }
     if (outcome.receipt.result === "stale") {
       throw new AgentServiceError(

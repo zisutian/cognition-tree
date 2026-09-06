@@ -9,7 +9,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import { Type } from "@sinclair/typebox";
 import { OllamaRuntime } from "../../../../infrastructure/server/agent/ollamaRuntime.ts";
-import type { OllamaAgentProfile } from "../../../../infrastructure/server/agent/runtimeProfiles.ts";
+import type { OllamaAgentProfile } from "../../../../application/agentHost/runtimeProfiles.ts";
 
 function writeSse(response: ServerResponse, content: string) {
   response.writeHead(200, { "Content-Type": "text/event-stream" });

@@ -3,7 +3,7 @@
 import type { AgentRuntimePort } from "../../../application/agent/agentRuntimePort.ts";
 import type { AgentScope } from "../../../application/agent/agentTypes.ts";
 import { OpenAiCompatibleRuntimeSession } from "./openAiCompatibleSession.ts";
-import type { OpenAiChatAgentProfile } from "./runtimeProfiles.ts";
+import type { OpenAiChatAgentProfile } from "../../../application/agentHost/runtimeProfiles.ts";
 
 export class OpenAiChatRuntime implements AgentRuntimePort {
   readonly #apiKey: string;

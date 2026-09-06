@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerAgentService } from "../../infrastructure/server/runtime/agentRuntime.ts";
 import { createServerSearchService } from "../../infrastructure/server/runtime/searchRuntime.ts";
 import { localRepositoryWriterLockName } from "../../infrastructure/server/repository/repositoryRuntimeLayout.ts";
 import { randomUUID } from "node:crypto";
@@ -25,8 +26,8 @@ import {
 } from "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
 import { BuiltInCatalog } from "../../infrastructure/server/repository/built-ins/catalog.ts";
 import { OperationLedger } from "../../infrastructure/server/operations/operationLedger.ts";
-import { AgentService } from "../../infrastructure/server/agent/service.ts";
-import { agentServicePolicy } from "../../infrastructure/server/agent/servicePolicy.ts";
+import { AgentService } from "../../application/agentHost/service.ts";
+import { agentServicePolicy } from "../../application/agentHost/servicePolicy.ts";
 import { ApiEventHub } from "../../infrastructure/server/api/sync/events.ts";
 import { ApiRevisionTracker } from "../../infrastructure/server/api/sync/revisionTracker.ts";
 import { systemApiRuntime } from "../../infrastructure/server/api/http/runtime.ts";
@@ -136,7 +137,7 @@ export async function startE2EWorkspaceServer({
     const agentConfigurationStore = await createE2EAgentConfigurationStore(
       serverStateDirectory,
     );
-    agentService = new AgentService({
+    agentService = createServerAgentService({
       builtInCatalog,
       catalog,
       configurationStore: agentConfigurationStore,

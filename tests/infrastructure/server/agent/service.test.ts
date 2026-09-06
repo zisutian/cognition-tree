@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerAgentService } from "../../../../infrastructure/server/runtime/agentRuntime.ts";
 import { createServerSearchService } from "../../../../infrastructure/server/runtime/searchRuntime.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -23,14 +24,14 @@ import { AgentConfigurationStore } from "../../../../infrastructure/server/agent
 import {
   AgentService,
   AgentServiceError,
-} from "../../../../infrastructure/server/agent/service.ts";
+} from "../../../../application/agentHost/service.ts";
 import { ApiEventHub } from "../../../../infrastructure/server/api/sync/events.ts";
 import { ApiRevisionTracker } from "../../../../infrastructure/server/api/sync/revisionTracker.ts";
 import { journalResourceVersions } from "../../../../infrastructure/server/api/resources/versions.ts";
 import type { ApiRuntime } from "../../../../infrastructure/server/api/http/runtime.ts";
 import {
   agentServicePolicy,
-} from "../../../../infrastructure/server/agent/servicePolicy.ts";
+} from "../../../../application/agentHost/servicePolicy.ts";
 
 const journalScope = { domain: "journal" as const, entryIds: null };
 const profileId = "agent-profile-fake-openai";
@@ -151,7 +152,7 @@ async function createFixture(
     created.profile.id,
     { checkedAt: "2026-08-20T08:00:00.000Z", toolCallMode: "native" },
   );
-  const service = new AgentService({
+  const service = createServerAgentService({
     builtInCatalog,
     catalog: unavailableWorkspaceCatalog,
     configurationStore,

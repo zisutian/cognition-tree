@@ -13,7 +13,7 @@ import {
 } from "../../../../infrastructure/server/agent/openAiChatRuntime.ts";
 import type {
   OpenAiChatAgentProfile,
-} from "../../../../infrastructure/server/agent/runtimeProfiles.ts";
+} from "../../../../application/agentHost/runtimeProfiles.ts";
 
 async function readJson(request: IncomingMessage) {
   let source = "";

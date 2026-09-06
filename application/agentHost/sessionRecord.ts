@@ -5,9 +5,9 @@ import type {
   AgentRuntimeSession,
   AgentSessionController,
   AgentSyntaxKnowledge,
-} from "../../../application/agent/index.ts";
+} from "../agent/index.ts";
 import type { AgentConfigurationProfileUse } from "./configurationAccess.ts";
-import type { ResolvedAgentConfiguration } from "./configurationStore.ts";
+import type { ResolvedAgentConfiguration } from "./configurationPort.ts";
 import type { AgentRuntimeProfile } from "./runtimeProfiles.ts";
 import type { AgentSessionEventStream } from "./sessionEventStream.ts";
 import type { AgentStaging } from "./sessionToolState.ts";

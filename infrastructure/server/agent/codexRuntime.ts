@@ -18,7 +18,7 @@ import {
   type AgentRuntimeTurnRequest,
 } from "../../../application/agent/agentRuntimePort.ts";
 import type { AgentScope } from "../../../application/agent/agentTypes.ts";
-import type { CodexAgentProfile } from "./runtimeProfiles.ts";
+import type { CodexAgentProfile } from "../../../application/agentHost/runtimeProfiles.ts";
 import { CodexAppServerClient } from "./codexAppServerClient.ts";
 import { resolveCodexEntrypoint } from "./codexPackage.ts";
 import { withRuntimeTimeout } from "./runtimeTimeout.ts";

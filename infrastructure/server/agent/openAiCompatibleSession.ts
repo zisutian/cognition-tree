@@ -24,7 +24,7 @@ import {
 import type {
   OllamaAgentProfile,
   OpenAiChatAgentProfile,
-} from "./runtimeProfiles.ts";
+} from "../../../application/agentHost/runtimeProfiles.ts";
 
 type CompatibleChatProfile = OllamaAgentProfile | OpenAiChatAgentProfile;
 

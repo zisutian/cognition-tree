@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createAgentEventSink } from './agentEventSink.ts';
 import type {
   AgentCreateSessionRequestDto,
   AgentDestructiveConfirmationRequestDto,
@@ -74,8 +75,7 @@ export async function handleAgentOperation(context: ApiHandlerContext) {
 
     agent.connectEvents({
       afterSequence: query.afterSequence ?? 0,
-      headers: context.responseHeaders,
-      response: context.response,
+      sink: createAgentEventSink(context.response, context.responseHeaders),
       sessionId,
     });
     return null;

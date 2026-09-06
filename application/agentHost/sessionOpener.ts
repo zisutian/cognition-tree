@@ -1,31 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   createAgentRuntimeInstructions,
   AgentSessionController,
   type AgentRuntimeToolCall,
   type AgentScope,
-} from "../../../application/agent/index.ts";
-import type {
-  AgentCreateSessionRequestDto,
-  AgentSessionSnapshotDto,
-} from "../../../contracts/agent/schemas.ts";
-import type { ApiRuntime } from "../api/http/runtime.ts";
-import { readApiRuntimeNow } from "../api/http/runtime.ts";
-import type { OperationLedger } from "../operations/operationLedger.ts";
+} from "../agent/index.ts";
+import type { AgentSessionSnapshot } from "../agent/agentTypes.ts";
+import type { AgentHostRuntime } from "./runtimePorts.ts";
+import { readAgentHostTimestamp } from "./runtimePorts.ts";
+import type { AgentAuditAvailabilityPort } from "./runtimePorts.ts";
 import type { AgentConfigurationProfileUse } from "./configurationAccess.ts";
-import type { AgentConfigurationStore } from "./configurationStore.ts";
+import type { AgentConfigurationPort } from "./configurationPort.ts";
 import { AgentServiceError } from "./errors.ts";
-import type { AgentPrivateIpcServer } from "./privateIpc.ts";
-import type { AgentRuntimeFactory } from "./configuredAgentRuntimeFactory.ts";
+import type { AgentPrivateToolsPort } from "./runtimePorts.ts";
+import type { AgentRuntimeFactory } from "./runtimePorts.ts";
 import { createAgentRuntimeProfile } from "./runtimeProfiles.ts";
 import { AgentSessionEventStream } from "./sessionEventStream.ts";
 import type { AgentSessionRecord } from "./sessionRecord.ts";
 import type { AgentServicePolicy } from "./servicePolicy.ts";
-import type { AgentSessionTools } from "./sessionTools.ts";
-import { agentRuntimeToolsForScope } from "./sessionToolProtocol.ts";
+import type { AgentHostTools } from "./runtimePorts.ts";
+import type { AgentToolProtocolPort } from "./runtimePorts.ts";
 
 type AgentSessionResidency = {
   disposeRecord(record: AgentSessionRecord): Promise<void>;
@@ -35,31 +30,26 @@ type AgentSessionResidency = {
   unpublish(record: AgentSessionRecord): boolean;
 };
 
-function sessionMcpEntrypoint() {
-  const current = fileURLToPath(import.meta.url);
-  const extension = path.extname(current);
-
-  return path.join(path.dirname(current), `sessionMcpServer${extension}`);
-}
 
 export class AgentSessionOpener {
   readonly #assertOpen: () => void;
-  readonly #configurationStore: AgentConfigurationStore;
+  readonly #configurationStore: AgentConfigurationPort;
   readonly #createSnapshot: (
     record: AgentSessionRecord,
-  ) => AgentSessionSnapshotDto;
+  ) => AgentSessionSnapshot;
   readonly #emitSnapshot: (record: AgentSessionRecord) => void;
   readonly #executeTool: (
     sessionId: string,
     call: AgentRuntimeToolCall,
   ) => Promise<unknown>;
-  readonly #ipc: AgentPrivateIpcServer;
-  readonly #ledger: OperationLedger | null;
+  readonly #ipc: AgentPrivateToolsPort;
+  readonly #ledger: AgentAuditAvailabilityPort | null;
   readonly #residency: AgentSessionResidency;
-  readonly #runtime: ApiRuntime;
+  readonly #runtime: AgentHostRuntime;
   readonly #runtimeFactory: AgentRuntimeFactory;
   readonly #servicePolicy: AgentServicePolicy;
-  readonly #tools: AgentSessionTools;
+  readonly #protocol: AgentToolProtocolPort;
+  readonly #tools: AgentHostTools;
 
   constructor({
     assertOpen,
@@ -74,24 +64,26 @@ export class AgentSessionOpener {
     runtimeFactory,
     servicePolicy,
     tools,
+    protocol,
   }: {
     assertOpen: () => void;
-    configurationStore: AgentConfigurationStore;
+    configurationStore: AgentConfigurationPort;
     createSnapshot: (
       record: AgentSessionRecord,
-    ) => AgentSessionSnapshotDto;
+    ) => AgentSessionSnapshot;
     emitSnapshot: (record: AgentSessionRecord) => void;
     executeTool: (
       sessionId: string,
       call: AgentRuntimeToolCall,
     ) => Promise<unknown>;
-    ipc: AgentPrivateIpcServer;
-    ledger: OperationLedger | null;
+    ipc: AgentPrivateToolsPort;
+    ledger: AgentAuditAvailabilityPort | null;
     residency: AgentSessionResidency;
-    runtime: ApiRuntime;
+    runtime: AgentHostRuntime;
     runtimeFactory: AgentRuntimeFactory;
     servicePolicy: AgentServicePolicy;
-    tools: AgentSessionTools;
+    tools: AgentHostTools;
+    protocol: AgentToolProtocolPort;
   }) {
     this.#assertOpen = assertOpen;
     this.#configurationStore = configurationStore;
@@ -105,9 +97,10 @@ export class AgentSessionOpener {
     this.#runtimeFactory = runtimeFactory;
     this.#servicePolicy = servicePolicy;
     this.#tools = tools;
+    this.#protocol = protocol;
   }
 
-  async open(request: AgentCreateSessionRequestDto) {
+  async open(request: {profileId: string; scope: AgentScope}) {
     const configurationUse = this.#configurationStore.access.beginProfileUse(
       request.profileId,
     );
@@ -130,7 +123,7 @@ export class AgentSessionOpener {
   }
 
   async #createSession(
-    request: AgentCreateSessionRequestDto,
+    request: {profileId: string; scope: AgentScope},
     configurationUse: AgentConfigurationProfileUse,
     transferConfigurationUse: () => void,
   ) {
@@ -176,7 +169,7 @@ export class AgentSessionOpener {
         profileId: profile.id,
         runtime: {
           createId: () => this.#runtime.createId(),
-          now: () => readApiRuntimeNow(this.#runtime).timestamp,
+          now: () => readAgentHostTimestamp(this.#runtime),
         },
         scope,
       });
@@ -242,37 +235,12 @@ export class AgentSessionOpener {
   }
 
   async #createPrivateToolProcess(sessionId: string, scope: AgentScope) {
-    const endpoint = await this.#ipc.start();
     await this.#tools.assertScopeAvailable(scope);
-    const tools = agentRuntimeToolsForScope(scope);
-    const expiresAt = Date.parse(readApiRuntimeNow(this.#runtime).timestamp) +
-      this.#servicePolicy.absoluteTtlMilliseconds;
-    const capability = this.#ipc.register({
-      expiresAt,
-      handle: (request) => this.#executeTool(sessionId, {
-        arguments: request.tool.input,
-        callId: request.id,
-        name: request.tool.name,
-      }),
-      listTools: () => tools.map((tool) => ({
-        description: tool.description,
-        inputSchema: { ...tool.inputSchema },
-        name: tool.name,
-      })),
+    return this.#ipc.open({
+      expiresAt: Date.parse(readAgentHostTimestamp(this.#runtime)) + this.#servicePolicy.absoluteTtlMilliseconds,
       sessionId,
+      tools: this.#protocol.toolsForScope(scope),
+      execute: (call) => this.#executeTool(sessionId, call),
     });
-
-    return {
-      capability,
-      process: {
-        arguments: [sessionMcpEntrypoint()],
-        command: process.execPath,
-        environment: {
-          CTN_AGENT_IPC_ENDPOINT: endpoint,
-          CTN_AGENT_SESSION_CAPABILITY: capability,
-          CTN_AGENT_SESSION_ID: sessionId,
-        },
-      },
-    };
   }
 }

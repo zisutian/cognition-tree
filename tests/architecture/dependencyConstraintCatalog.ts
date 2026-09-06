@@ -84,13 +84,13 @@ const agentProviderOperationFacadeTargets: ReadonlySet<string> = new Set([
   "../../infrastructure/server/api/http/runtime.ts",
 ]);
 const agentConversationRunnerPath =
-  "../../infrastructure/server/agent/conversationRunner.ts";
+  "../../application/agentHost/conversationRunner.ts";
 const agentSessionPoolPath =
-  "../../infrastructure/server/agent/sessionPool.ts";
+  "../../application/agentHost/sessionPool.ts";
 const agentProposalWorkflowPath =
-  "../../infrastructure/server/agent/proposalWorkflow.ts";
+  "../../application/agentHost/proposalWorkflow.ts";
 const agentSessionOpenerPath =
-  "../../infrastructure/server/agent/sessionOpener.ts";
+  "../../application/agentHost/sessionOpener.ts";
 const agentProfileConfigurationPath =
   "../../infrastructure/server/agent/profileConfiguration.ts";
 const agentProviderConfigurationPath =
@@ -105,7 +105,7 @@ const agentOpenAiCompatibleSessionConsumers: ReadonlySet<string> = new Set([
   "../../infrastructure/server/agent/ollamaRuntime.ts",
   "../../infrastructure/server/agent/openAiChatRuntime.ts",
 ]);
-const agentServicePath = "../../infrastructure/server/agent/service.ts";
+const agentServicePath = "../../application/agentHost/service.ts";
 const operationLedgerStorePath =
   "../../infrastructure/server/operations/operationLedgerStore.ts";
 const operationLedgerStatePath =
@@ -473,7 +473,8 @@ export function auditApplicationCoordinationRoots(
     .filter(([filePath, domains]) =>
       domains.size > 1 &&
       !filePath.startsWith("../../application/workbench/") &&
-      !filePath.startsWith("../../application/agent/")
+      !filePath.startsWith("../../application/agent/") &&
+      !filePath.startsWith("../../application/agentHost/")
     )
     .map(([filePath, domains]) =>
       `cross-domain application coordination: ${filePath} imports ${

@@ -1,30 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { ConfiguredAgentRuntimeInput, AgentRuntimeFactory } from '../../../application/agentHost/runtimePorts.ts';
 import path from "node:path";
 import type { AgentRuntimePort } from "../../../application/agent/agentRuntimePort.ts";
 import { CodexRuntime } from "./codexRuntime.ts";
-import type { ResolvedAgentConfiguration } from "./configurationStore.ts";
 import { OllamaRuntime } from "./ollamaRuntime.ts";
 import { OpenAiChatRuntime } from "./openAiChatRuntime.ts";
 import {
   AgentProviderTargetPolicy,
 } from "./providerTargetPolicy.ts";
-import type { AgentRuntimeProfile } from "./runtimeProfiles.ts";
 
 type AgentProviderRequestTargetPolicy = Pick<
   AgentProviderTargetPolicy,
   "assertRequestTarget"
 >;
-
-export type ConfiguredAgentRuntimeInput = Readonly<{
-  configuration: ResolvedAgentConfiguration;
-  openAiAuthentication?: "allow-unauthenticated" | "require-api-key";
-  profile: AgentRuntimeProfile;
-}>;
-
-export type AgentRuntimeFactory = Readonly<{
-  create(input: ConfiguredAgentRuntimeInput): AgentRuntimePort;
-}>;
 
 export class ConfiguredAgentRuntimeFactory implements AgentRuntimeFactory {
   readonly #projectRoot: string;

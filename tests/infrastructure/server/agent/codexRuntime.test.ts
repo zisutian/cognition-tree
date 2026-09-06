@@ -14,7 +14,7 @@ import { CodexRuntime } from "../../../../infrastructure/server/agent/codexRunti
 import { pinnedCodexVersion } from "../../../../infrastructure/server/agent/codexPackage.ts";
 import type {
   CodexAgentProfile,
-} from "../../../../infrastructure/server/agent/runtimeProfiles.ts";
+} from "../../../../application/agentHost/runtimeProfiles.ts";
 
 const fakeAppServer = String.raw`
 const send = (value) => {

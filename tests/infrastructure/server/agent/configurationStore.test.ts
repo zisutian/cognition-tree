@@ -18,7 +18,7 @@ import {
 } from "../../../../infrastructure/server/agent/configurationStore.ts";
 import {
   AgentConfigurationAccessConflictError,
-} from "../../../../infrastructure/server/agent/configurationAccess.ts";
+} from "../../../../application/agentHost/configurationAccess.ts";
 import {
   replaceFileDurably,
 } from "../../../../infrastructure/server/persistence/fileSystemPersistence.ts";

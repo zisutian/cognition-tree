@@ -5,7 +5,7 @@ import {
   agentAbsoluteTtlMilliseconds,
   agentIdleTtlMilliseconds,
   agentServicePolicy,
-} from "../../../../infrastructure/server/agent/servicePolicy.ts";
+} from "../../../../application/agentHost/servicePolicy.ts";
 
 describe("Agent service policy", () => {
   it("keeps TTL fixed independently from user configuration", () => {

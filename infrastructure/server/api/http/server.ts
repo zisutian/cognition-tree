@@ -53,7 +53,7 @@ import {
 } from "../sync/revisionTracker.ts";
 import { AutomationTokenStore } from "../../access/automationTokenStore.ts";
 import { TrustedClientTokenStore } from "../../access/trustedClientTokenStore.ts";
-import type { AgentService } from "../../agent/service.ts";
+import type { AgentService } from "../../../../application/agentHost/service.ts";
 import type { OperationLedger } from "../../operations/operationLedger.ts";
 import { AgentConfigurationStore } from "../../agent/configurationStore.ts";
 import { AgentProviderOperations } from "../../agent/providerOperations.ts";

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerAgentService } from "./runtime/agentRuntime.ts";
 import { createServerSearchService } from "./runtime/searchRuntime.ts";
 import { runDataRootMigrationRecoveryServer } from "./system/dataRootMigrationRecoveryServer.ts";
 import { randomUUID } from "node:crypto";
@@ -15,8 +16,7 @@ import { OperationLedger } from "./operations/operationLedger.ts";
 import { TrustedClientTokenStore } from "./access/trustedClientTokenStore.ts";
 import { AgentProviderOperations } from "./agent/providerOperations.ts";
 import { AgentProviderTargetPolicy } from "./agent/providerTargetPolicy.ts";
-import { AgentService } from "./agent/service.ts";
-import { agentServicePolicy } from "./agent/servicePolicy.ts";
+import { agentServicePolicy } from "../../application/agentHost/servicePolicy.ts";
 import { createApiServer } from "./runtime/apiRuntime.ts";
 import { ApiMaintenanceGate } from "./api/http/maintenanceGate.ts";
 import {
@@ -199,7 +199,7 @@ await operationLedger.initialize();
 const eventHub = new ApiEventHub();
 const revisionTracker = new ApiRevisionTracker();
 const search = createServerSearchService({ builtInCatalog, catalog });
-const agentService = new AgentService({
+const agentService = createServerAgentService({
   builtInCatalog,
   catalog,
   configurationStore: agentConfigurationStore,

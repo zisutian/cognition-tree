@@ -3,8 +3,8 @@
 import type {
   AgentChatProfileParameters,
   AgentCodexProfileParameters,
-} from "../../../application/agent/agentConfiguration.ts";
-import type { ResolvedAgentConfiguration } from "./configurationStore.ts";
+} from "../agent/agentConfiguration.ts";
+import type { ResolvedAgentConfiguration } from "./configurationPort.ts";
 
 type AgentRuntimeProfileBase = {
   id: string;

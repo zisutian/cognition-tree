@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { AgentProposalCommitRoute, AgentProposalCommitContext, AgentProposalCommitOutcome, AgentProposalCommitRequest, AgentProposalCommitPort } from '../../../application/agentHost/proposalCommitPort.ts';
 import {
   commitAgentProposalExactly,
   markAgentProposalFailed,
@@ -29,41 +30,10 @@ import {
   VersionedContentCommitOutcomeUnknownError,
   VersionedContentRevisionConflictError,
 } from "../repository/versioned/contentStore.ts";
-import type { ResolvedAgentConfiguration } from "./configurationStore.ts";
 import {
   AgentProposalCommitIndeterminateError,
   AgentServiceError,
-} from "./errors.ts";
-import type { AgentRuntimeProfile } from "./runtimeProfiles.ts";
-
-export type AgentProposalCommitRoute = AgentOperationAttempt["route"];
-
-export type AgentProposalCommitContext = Readonly<{
-  configuration: ResolvedAgentConfiguration;
-  profile: AgentRuntimeProfile;
-  runtimeKind: AgentOperationAuditEntryDto["runtimeKind"];
-  sessionId: string;
-}>;
-
-export type AgentProposalCommitOutcome = Readonly<{
-  proposal: AgentProposal;
-  receipt: AgentOperationAuditEntryDto;
-  replayed: boolean;
-}>;
-
-export type AgentProposalCommitRequest = Readonly<{
-  context: AgentProposalCommitContext;
-  ownerId: string;
-  proposal: AgentProposal;
-  requestId: string;
-  route: AgentProposalCommitRoute;
-}>;
-
-export type AgentProposalCommitPort = Readonly<{
-  commit(
-    request: AgentProposalCommitRequest,
-  ): Promise<AgentProposalCommitOutcome>;
-}>;
+} from "../../../application/agentHost/errors.ts";
 
 function unique(values: readonly string[]) {
   return [...new Set(values)];

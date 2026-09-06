@@ -29,7 +29,7 @@ import type { ApiSearchService } from "../search.ts";
 import type { AutomationTokenStore } from "../../access/automationTokenStore.ts";
 import type { TrustedClientTokenStore } from "../../access/trustedClientTokenStore.ts";
 import type { OperationLedger } from "../../operations/operationLedger.ts";
-import type { AgentService } from "../../agent/service.ts";
+import type { AgentService } from "../../../../application/agentHost/service.ts";
 import type { AgentConfigurationStore } from "../../agent/configurationStore.ts";
 import type { AgentProviderOperations } from "../../agent/providerOperations.ts";
 import type { SystemAdministrationServerPort } from "../../../../application/system/systemConfiguration.ts";

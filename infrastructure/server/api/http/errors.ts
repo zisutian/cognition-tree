@@ -53,14 +53,14 @@ import {
 import {
   AgentProposalCommitIndeterminateError,
   AgentServiceError,
-} from "../../agent/errors.ts";
+} from "../../../../application/agentHost/errors.ts";
 import {
   AgentConfigurationConflictError,
   AgentConfigurationValidationError,
 } from "../../agent/configurationStore.ts";
 import {
   AgentConfigurationAccessConflictError,
-} from "../../agent/configurationAccess.ts";
+} from "../../../../application/agentHost/configurationAccess.ts";
 import { AgentProviderTargetValidationError } from "../../agent/providerTargetPolicy.ts";
 import { AgentProviderOperationConflictError } from "../../agent/providerOperationErrors.ts";
 import {

@@ -26,14 +26,14 @@ import {
   projectApiJournalEntry,
 } from "../api/resources/journal.ts";
 import { journalResourceVersions } from "../api/resources/versions.ts";
-import { AgentServiceError } from "./errors.ts";
+import { AgentServiceError } from "../../../application/agentHost/errors.ts";
 import { digestAgentProposal } from "./proposalCodec.ts";
 import { syntaxRequiredResult } from "./sessionToolProtocol.ts";
 import {
   resolveAgentStaging,
   type AgentStagingFor,
   type AgentToolSession,
-} from "./sessionToolState.ts";
+} from "../../../application/agentHost/sessionToolState.ts";
 
 type JournalScope = Extract<AgentScope, { domain: "journal" }>;
 type JournalStaging = AgentStagingFor<"journal">;

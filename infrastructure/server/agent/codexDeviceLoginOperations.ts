@@ -11,7 +11,7 @@ import type { ApiRuntime } from "../api/http/runtime.ts";
 import { readApiRuntimeNow } from "../api/http/runtime.ts";
 import type {
   AgentConfigurationProviderChange,
-} from "./configurationAccess.ts";
+} from "../../../application/agentHost/configurationAccess.ts";
 import type { AgentConfigurationStore } from "./configurationStore.ts";
 import { CodexAppServerClient } from "./codexAppServerClient.ts";
 import { resolveCodexEntrypoint } from "./codexPackage.ts";

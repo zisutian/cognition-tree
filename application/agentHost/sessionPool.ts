@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { ApplicationScheduler, CancelScheduledTask } from '../runtime/applicationScheduler.ts';
 import { AgentServiceError } from "./errors.ts";
-import type { AgentPrivateIpcServer } from "./privateIpc.ts";
+import type { AgentPrivateToolsPort } from "./runtimePorts.ts";
 import type { AgentRuntimeProfile } from "./runtimeProfiles.ts";
 import type { AgentSessionRecord } from "./sessionRecord.ts";
 import type { AgentServicePolicy } from "./servicePolicy.ts";
@@ -12,32 +13,42 @@ type SessionPoolRuntime = {
 
 export class AgentSessionPool {
   readonly #disposals = new Set<Promise<void>>();
-  readonly #ipc: AgentPrivateIpcServer;
+  readonly #ipc: AgentPrivateToolsPort;
   readonly #openingProfiles = new Map<string, number>();
   readonly #runtime: SessionPoolRuntime;
   readonly #servicePolicy: AgentServicePolicy;
   readonly #sessions = new Map<string, AgentSessionRecord>();
   readonly #starts = new Set<Promise<unknown>>();
-  readonly #sweeper: NodeJS.Timeout;
+  readonly #scheduler: ApplicationScheduler;
+  #cancelSweep: CancelScheduledTask | null = null;
   #closed = false;
   #disposePromise: Promise<void> | null = null;
 
   constructor({
     ipc,
+    scheduler,
     runtime,
     servicePolicy,
   }: {
-    ipc: AgentPrivateIpcServer;
+    ipc: AgentPrivateToolsPort;
+    scheduler: ApplicationScheduler;
     runtime: SessionPoolRuntime;
     servicePolicy: AgentServicePolicy;
   }) {
     this.#ipc = ipc;
     this.#runtime = runtime;
     this.#servicePolicy = servicePolicy;
-    this.#sweeper = setInterval(() => {
-      void this.#expireSessions();
+    this.#scheduler = scheduler;
+    this.#scheduleSweep();
+  }
+
+  #scheduleSweep() {
+    this.#cancelSweep = this.#scheduler.schedule(() => {
+      if (this.#closed) return;
+      void this.#expireSessions().finally(() => {
+        if (!this.#closed) this.#scheduleSweep();
+      });
     }, 60_000);
-    this.#sweeper.unref();
   }
 
   list() {
@@ -177,7 +188,8 @@ export class AgentSessionPool {
   dispose() {
     if (this.#disposePromise) return this.#disposePromise;
     this.#closed = true;
-    clearInterval(this.#sweeper);
+    this.#cancelSweep?.();
+    this.#cancelSweep = null;
     const records = [...this.#sessions.values()];
 
     this.#sessions.clear();

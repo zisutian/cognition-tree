@@ -5,14 +5,12 @@ import { CodexRuntime } from "../../../../infrastructure/server/agent/codexRunti
 import {
   ConfiguredAgentRuntimeFactory,
 } from "../../../../infrastructure/server/agent/configuredAgentRuntimeFactory.ts";
-import type {
-  ResolvedAgentConfiguration,
-} from "../../../../infrastructure/server/agent/configurationStore.ts";
+import type { ResolvedAgentConfiguration } from "../../../../application/agentHost/configurationPort.ts";
 import { OllamaRuntime } from "../../../../infrastructure/server/agent/ollamaRuntime.ts";
 import { OpenAiChatRuntime } from "../../../../infrastructure/server/agent/openAiChatRuntime.ts";
 import {
   createAgentRuntimeProfile,
-} from "../../../../infrastructure/server/agent/runtimeProfiles.ts";
+} from "../../../../application/agentHost/runtimeProfiles.ts";
 
 const digest = `sha256:${"a".repeat(64)}` as `sha256:${string}`;
 const scope = { domain: "journal" as const, entryIds: null };

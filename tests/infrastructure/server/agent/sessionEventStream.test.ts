@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createAgentEventSink } from '../../../../infrastructure/server/api/http/agentEventSink.ts';
 import type { OutgoingHttpHeaders, ServerResponse } from "node:http";
 import { describe, expect, it } from "vitest";
-import type {
-  AgentSessionSnapshotDto,
-} from "../../../../contracts/agent/schemas.ts";
+import type { AgentSessionSnapshot } from "../../../../application/agent/agentTypes.ts";
 import {
   AgentSessionEventStream,
-} from "../../../../infrastructure/server/agent/sessionEventStream.ts";
+} from "../../../../application/agentHost/sessionEventStream.ts";
 
 const sessionId = "00000000-0000-4000-8000-000000000001";
 const turnId = "00000000-0000-4000-8000-000000000002";
@@ -60,7 +59,7 @@ class RecordingResponse {
 }
 
 function createSnapshot(sequence: number) {
-  return { id: sessionId, sequence } as AgentSessionSnapshotDto;
+  return { id: sessionId, sequence } as AgentSessionSnapshot;
 }
 
 describe("Agent session event stream", () => {
@@ -78,8 +77,7 @@ describe("Agent session event stream", () => {
     events.connect({
       afterSequence: 1,
       createSnapshot,
-      headers: { "Access-Control-Allow-Origin": "https://ctn.example" },
-      response: response.response,
+      sink: createAgentEventSink(response.response, { "Access-Control-Allow-Origin": "https://ctn.example" }),
     });
 
     expect(snapshotSequences).toEqual([1]);
@@ -128,20 +126,17 @@ describe("Agent session event stream", () => {
     events.connect({
       afterSequence: 0,
       createSnapshot: snapshot,
-      headers: {},
-      response: stale.response,
+      sink: createAgentEventSink(stale.response, {}),
     });
     events.connect({
       afterSequence: 1,
       createSnapshot: snapshot,
-      headers: {},
-      response: retainedBoundary.response,
+      sink: createAgentEventSink(retainedBoundary.response, {}),
     });
     events.connect({
       afterSequence: 1_002,
       createSnapshot: snapshot,
-      headers: {},
-      response: ahead.response,
+      sink: createAgentEventSink(ahead.response, {}),
     });
 
     const resynchronization =
@@ -167,8 +162,7 @@ describe("Agent session event stream", () => {
     expect(() => events.connect({
       afterSequence: 1_001,
       createSnapshot,
-      headers: {},
-      response: new RecordingResponse().response,
+      sink: createAgentEventSink(new RecordingResponse().response, {}),
     })).toThrow("Agent session event stream is closed");
   });
 
@@ -180,14 +174,12 @@ describe("Agent session event stream", () => {
     events.connect({
       afterSequence: 0,
       createSnapshot,
-      headers: {},
-      response: backpressured.response,
+      sink: createAgentEventSink(backpressured.response, {}),
     });
     events.connect({
       afterSequence: 0,
       createSnapshot,
-      headers: {},
-      response: healthy.response,
+      sink: createAgentEventSink(healthy.response, {}),
     });
     backpressured.writeResult = false;
 

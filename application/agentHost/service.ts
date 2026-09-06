@@ -1,36 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { OutgoingHttpHeaders, ServerResponse } from "node:http";
-import type { AgentProposal } from "../../../application/agent/index.ts";
-import type {
-  AgentCreateSessionRequestDto,
-  AgentProfileSummaryDto,
-  AgentSessionSnapshotDto,
-  AgentStatusDto,
-} from "../../../contracts/agent/schemas.ts";
-import { AgentSessionSnapshotSchema } from "../../../contracts/agent/schemas.ts";
-import { parseAgentSchema } from "../../../contracts/agent/parse.ts";
-import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
-import type { ApiBuiltInCatalog } from "../api/http/ports.ts";
-import type { ApiRuntime } from "../api/http/runtime.ts";
-import type { ApiSearchService } from "../api/search.ts";
-import type { ApiEventHub } from "../api/sync/events.ts";
-import type { ApiRevisionTracker } from "../api/sync/revisionTracker.ts";
-import { AgentPrivateIpcServer } from "./privateIpc.ts";
-import type { AgentConfigurationStore } from "./configurationStore.ts";
-import type { OperationLedger } from "../operations/operationLedger.ts";
-import {
-  ConfiguredAgentRuntimeFactory,
-  type AgentRuntimeFactory,
-} from "./configuredAgentRuntimeFactory.ts";
+import type { AgentProfileSummary, AgentStatus } from '../agent/agentClientPort.ts';
+import type { AgentScope, AgentSessionSnapshot } from '../agent/agentTypes.ts';
+import type { AgentProposalCommitPort } from './proposalCommitPort.ts';
+import type { AgentRuntimeFactory, AgentPrivateToolsPort, AgentHostTools, AgentToolProtocolPort } from './runtimePorts.ts';
+import type { ApplicationScheduler } from '../runtime/applicationScheduler.ts';
+import type { AgentEventSink } from './sessionEventStream.ts';
+import type { AgentProposal } from "../agent/index.ts";
+import type { AgentHostRuntime } from "./runtimePorts.ts";
+import type { AgentConfigurationPort } from "./configurationPort.ts";
+import type { AgentAuditAvailabilityPort } from "./runtimePorts.ts";
 import type { AgentServicePolicy } from "./servicePolicy.ts";
 import { AgentServiceError } from "./errors.ts";
-import { AgentProposalCommitter } from "./proposalCommitter.ts";
 import { AgentProposalWorkflow } from "./proposalWorkflow.ts";
-import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import { AgentConversationRunner } from "./conversationRunner.ts";
-import { AgentSessionTools } from "./sessionTools.ts";
-import { toAgentProposalDto } from "./proposalCodec.ts";
+import { toAgentProposalView } from "../agent/agentTypes.ts";
 import { AgentSessionPool } from "./sessionPool.ts";
 import { AgentSessionOpener } from "./sessionOpener.ts";
 import type { AgentSessionRecord } from "./sessionRecord.ts";
@@ -39,10 +23,10 @@ export { AgentServiceError } from "./errors.ts";
 export type { AgentServiceErrorCode } from "./errors.ts";
 
 export class AgentService {
-  readonly #configurationStore: AgentConfigurationStore;
+  readonly #configurationStore: AgentConfigurationPort;
   readonly #conversation: AgentConversationRunner<AgentSessionRecord>;
-  readonly #ipc: AgentPrivateIpcServer;
-  readonly #ledger: OperationLedger | null;
+  readonly #ipc: AgentPrivateToolsPort;
+  readonly #ledger: AgentAuditAvailabilityPort | null;
   readonly #operations = new Set<Promise<unknown>>();
   readonly #proposalWorkflow: AgentProposalWorkflow<AgentSessionRecord>;
   readonly #servicePolicy: AgentServicePolicy;
@@ -52,62 +36,38 @@ export class AgentService {
   #disposePromise: Promise<void> | null = null;
 
   constructor({
-    builtInCatalog,
-    catalog,
     configurationStore,
-    eventHub,
-    ipc = new AgentPrivateIpcServer(),
+    ipc,
     ledger,
-    projectRoot = process.cwd(),
-    revisionTracker,
+    proposalCommitter,
     runtime,
     runtimeFactory,
-    search,
     servicePolicy,
-    targetPolicy = new AgentProviderTargetPolicy(),
+    tools,
+    protocol,
+    scheduler,
   }: {
-    builtInCatalog: ApiBuiltInCatalog;
-    catalog: WorkspaceRepositoryCatalog;
-    configurationStore: AgentConfigurationStore;
-    eventHub: ApiEventHub;
-    ipc?: AgentPrivateIpcServer;
-    ledger: OperationLedger | null;
-    projectRoot?: string;
-    revisionTracker: ApiRevisionTracker;
-    runtime: ApiRuntime;
-    runtimeFactory?: AgentRuntimeFactory;
-    search: ApiSearchService;
+    configurationStore: AgentConfigurationPort;
+    ipc: AgentPrivateToolsPort;
+    ledger: AgentAuditAvailabilityPort | null;
+    proposalCommitter: AgentProposalCommitPort;
+    runtime: AgentHostRuntime;
+    runtimeFactory: AgentRuntimeFactory;
     servicePolicy: AgentServicePolicy;
-    targetPolicy?: AgentProviderTargetPolicy;
+    tools: AgentHostTools;
+    protocol: AgentToolProtocolPort;
+    scheduler: ApplicationScheduler;
   }) {
     this.#configurationStore = configurationStore;
     this.#ipc = ipc;
     this.#ledger = ledger;
-    const proposalCommitter = new AgentProposalCommitter({
-      builtInCatalog,
-      catalog,
-      eventHub,
-      ledger,
-      revisionTracker,
-      runtime,
-    });
-    const resolvedRuntimeFactory = runtimeFactory ??
-      new ConfiguredAgentRuntimeFactory({
-        projectRoot,
-        targetPolicy,
-      });
     this.#servicePolicy = servicePolicy;
-    const tools = new AgentSessionTools({
-      builtInCatalog,
-      catalog,
-      runtime,
-      search,
-    });
     this.#conversation = new AgentConversationRunner({
       createId: () => runtime.createId(),
       emitProposal: (record, proposal) => this.#emitProposal(record, proposal),
       emitSnapshot: (record) => this.#emitSnapshot(record),
       tools,
+      protocol,
     });
     this.#proposalWorkflow = new AgentProposalWorkflow({
       assertScopeAvailable: (record) =>
@@ -120,6 +80,7 @@ export class AgentService {
     });
     this.#sessionPool = new AgentSessionPool({
       ipc,
+      scheduler,
       runtime,
       servicePolicy,
     });
@@ -136,13 +97,14 @@ export class AgentService {
       ledger,
       residency: this.#sessionPool,
       runtime,
-      runtimeFactory: resolvedRuntimeFactory,
+      runtimeFactory,
       servicePolicy,
       tools,
+      protocol,
     });
   }
 
-  async status(): Promise<AgentStatusDto> {
+  async status(): Promise<AgentStatus> {
     try {
       const auditStatus = this.#ledger
         ? await this.#ledger.status()
@@ -152,7 +114,7 @@ export class AgentService {
         provider.id,
         provider,
       ]));
-      const profiles: AgentProfileSummaryDto[] = configuration.profiles.map(
+      const profiles: AgentProfileSummary[] = configuration.profiles.map(
         (profile) => {
           const provider = providers.get(profile.providerId);
 
@@ -209,7 +171,7 @@ export class AgentService {
     return this.#operations.size > 0 || this.#sessionPool.hasResidentSessions();
   }
 
-  async createSession(request: AgentCreateSessionRequestDto) {
+  async createSession(request: {profileId: string; scope: AgentScope}) {
     this.#assertOpen();
     const execution = this.#sessionOpener.open(request);
 
@@ -262,13 +224,11 @@ export class AgentService {
 
   connectEvents({
     afterSequence,
-    headers,
-    response,
+    sink,
     sessionId,
   }: {
     afterSequence: number;
-    headers: OutgoingHttpHeaders;
-    response: ServerResponse;
+    sink: AgentEventSink;
     sessionId: string;
   }) {
     const record = this.#sessionPool.require(sessionId);
@@ -276,8 +236,7 @@ export class AgentService {
     record.events.connect({
       afterSequence,
       createSnapshot: (sequence) => this.#snapshot(record, sequence),
-      headers,
-      response,
+      sink,
     });
   }
 
@@ -372,10 +331,10 @@ export class AgentService {
   #snapshot(
     record: AgentSessionRecord,
     sequence = record.events.sequence,
-  ): AgentSessionSnapshotDto {
+  ): AgentSessionSnapshot {
     const snapshot = record.controller.snapshot();
 
-    return parseAgentSchema(AgentSessionSnapshotSchema, {
+    return {
       ...snapshot,
       profileDigest: record.configuration.profile.digest,
       profileLabel: record.configuration.profile.label,
@@ -397,12 +356,12 @@ export class AgentService {
       providerId: record.configuration.provider.id,
       providerVersion: record.configuration.provider.version,
       sequence,
-    });
+    };
   }
 
   #emitProposal(record: AgentSessionRecord, proposal: AgentProposal) {
     record.events.emit({
-      proposal: toAgentProposalDto(proposal),
+      proposal: toAgentProposalView(proposal),
       type: "proposal-updated",
     });
     this.#emitSnapshot(record);

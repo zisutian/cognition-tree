@@ -223,13 +223,13 @@ describe("dependency boundaries", () => {
   it("requires browser code to reach the server through the public API", () => {
     const violations = auditImportPolicies([{
       filePath: "../../presentation/shell/AppRoot.tsx",
-      importPath: "../../infrastructure/server/agent/service",
-      targetPath: "../../infrastructure/server/agent/service.ts",
-      targetRoot: "infrastructure",
+      importPath: "../../infrastructure/server/runtime/agentRuntime",
+      targetPath: "../../infrastructure/server/runtime/agentRuntime.ts",
+      targetRoot: "application",
     }], dependencyImportPolicies);
 
     expect(violations).toEqual([
-      "browser-to-server API boundary: ../../presentation/shell/AppRoot.tsx imports ../../infrastructure/server/agent/service",
+      "browser-to-server API boundary: ../../presentation/shell/AppRoot.tsx imports ../../infrastructure/server/runtime/agentRuntime",
     ]);
   });
 
@@ -261,18 +261,18 @@ describe("dependency boundaries", () => {
   it("keeps conversation turn orchestration behind Agent service", () => {
     const violations = auditImportPolicies([
       {
-        filePath: "../../infrastructure/server/agent/service.ts",
+        filePath: "../../application/agentHost/service.ts",
         importPath: "./conversationRunner",
         targetPath:
-          "../../infrastructure/server/agent/conversationRunner.ts",
-        targetRoot: "infrastructure",
+          "../../application/agentHost/conversationRunner.ts",
+        targetRoot: "application",
       },
       {
         filePath: "../../infrastructure/server/agent/privateIpc.ts",
         importPath: "./conversationRunner",
         targetPath:
-          "../../infrastructure/server/agent/conversationRunner.ts",
-        targetRoot: "infrastructure",
+          "../../application/agentHost/conversationRunner.ts",
+        targetRoot: "application",
       },
     ], dependencyImportPolicies);
 
@@ -284,37 +284,37 @@ describe("dependency boundaries", () => {
   it("keeps session residency behind Agent service", () => {
     const violations = auditImportPolicies([
       {
-        filePath: "../../infrastructure/server/agent/service.ts",
+        filePath: "../../application/agentHost/service.ts",
         importPath: "./sessionPool",
-        targetPath: "../../infrastructure/server/agent/sessionPool.ts",
-        targetRoot: "infrastructure",
+        targetPath: "../../application/agentHost/sessionPool.ts",
+        targetRoot: "application",
       },
       {
-        filePath: "../../infrastructure/server/agent/conversationRunner.ts",
+        filePath: "../../application/agentHost/conversationRunner.ts",
         importPath: "./sessionPool",
-        targetPath: "../../infrastructure/server/agent/sessionPool.ts",
-        targetRoot: "infrastructure",
+        targetPath: "../../application/agentHost/sessionPool.ts",
+        targetRoot: "application",
       },
     ], dependencyImportPolicies);
 
     expect(violations).toEqual([
-      "Agent session pool composition boundary: ../../infrastructure/server/agent/conversationRunner.ts imports ./sessionPool",
+      "Agent session pool composition boundary: ../../application/agentHost/conversationRunner.ts imports ./sessionPool",
     ]);
   });
 
   it("keeps Proposal owner decisions behind Agent service", () => {
     const violations = auditImportPolicies([
       {
-        filePath: "../../infrastructure/server/agent/service.ts",
+        filePath: "../../application/agentHost/service.ts",
         importPath: "./proposalWorkflow",
-        targetPath: "../../infrastructure/server/agent/proposalWorkflow.ts",
-        targetRoot: "infrastructure",
+        targetPath: "../../application/agentHost/proposalWorkflow.ts",
+        targetRoot: "application",
       },
       {
         filePath: "../../infrastructure/server/agent/sessionTools.ts",
         importPath: "./proposalWorkflow",
-        targetPath: "../../infrastructure/server/agent/proposalWorkflow.ts",
-        targetRoot: "infrastructure",
+        targetPath: "../../application/agentHost/proposalWorkflow.ts",
+        targetRoot: "application",
       },
     ], dependencyImportPolicies);
 
@@ -326,16 +326,16 @@ describe("dependency boundaries", () => {
   it("keeps session bootstrap behind Agent service", () => {
     const violations = auditImportPolicies([
       {
-        filePath: "../../infrastructure/server/agent/service.ts",
+        filePath: "../../application/agentHost/service.ts",
         importPath: "./sessionOpener",
-        targetPath: "../../infrastructure/server/agent/sessionOpener.ts",
-        targetRoot: "infrastructure",
+        targetPath: "../../application/agentHost/sessionOpener.ts",
+        targetRoot: "application",
       },
       {
         filePath: "../../infrastructure/server/agent/privateIpc.ts",
         importPath: "./sessionOpener",
-        targetPath: "../../infrastructure/server/agent/sessionOpener.ts",
-        targetRoot: "infrastructure",
+        targetPath: "../../application/agentHost/sessionOpener.ts",
+        targetRoot: "application",
       },
     ], dependencyImportPolicies);
 
@@ -415,7 +415,7 @@ describe("dependency boundaries", () => {
         targetRoot: "infrastructure",
       },
       {
-        filePath: "../../infrastructure/server/agent/service.ts",
+        filePath: "../../infrastructure/server/agent/privateIpc.ts",
         importPath: "./openAiCompatibleSession",
         targetPath:
           "../../infrastructure/server/agent/openAiCompatibleSession.ts",
@@ -425,7 +425,7 @@ describe("dependency boundaries", () => {
 
     expect(violations).toEqual([
       "Agent compatible chat protocol boundary: ../../infrastructure/server/agent/codexRuntime.ts imports ./openAiChatProtocol",
-      "Agent compatible chat session composition boundary: ../../infrastructure/server/agent/service.ts imports ./openAiCompatibleSession",
+      "Agent compatible chat session composition boundary: ../../infrastructure/server/agent/privateIpc.ts imports ./openAiCompatibleSession",
     ]);
   });
 

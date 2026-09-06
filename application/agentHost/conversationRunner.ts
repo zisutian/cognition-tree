@@ -8,15 +8,12 @@ import {
   type AgentRuntimeSession,
   type AgentRuntimeTool,
   type AgentRuntimeToolCall,
-} from "../../../application/agent/index.ts";
-import type {
-  AgentOperationAuditEntryDto,
-} from "../../../contracts/agent/schemas.ts";
-import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
+} from "../agent/index.ts";
+import type { AgentOperationReceipt } from "../operations/agentOperationReceipt.ts";
 import { AgentProfileTurnQueue } from "./profileTurnQueue.ts";
 import { AgentSessionEventStream } from "./sessionEventStream.ts";
-import type { AgentSessionTools } from "./sessionTools.ts";
-import { agentRuntimeToolsForScope } from "./sessionToolProtocol.ts";
+import type { AgentHostTools } from "./runtimePorts.ts";
+import type { AgentToolProtocolPort } from "./runtimePorts.ts";
 import type { AgentToolSession } from "./sessionToolState.ts";
 
 export type AgentConversationRecord = AgentToolSession & {
@@ -36,23 +33,27 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
   readonly #emitProposal: (record: Record, proposal: AgentProposal) => void;
   readonly #emitSnapshot: (record: Record) => void;
   readonly #profileTurns = new AgentProfileTurnQueue();
-  readonly #tools: AgentSessionTools;
+  readonly #protocol: AgentToolProtocolPort;
+  readonly #tools: AgentHostTools;
 
   constructor({
     createId,
     emitProposal,
     emitSnapshot,
     tools,
+    protocol,
   }: {
     createId: () => string;
     emitProposal: (record: Record, proposal: AgentProposal) => void;
     emitSnapshot: (record: Record) => void;
-    tools: AgentSessionTools;
+    tools: AgentHostTools;
+    protocol: AgentToolProtocolPort;
   }) {
     this.#createId = createId;
     this.#emitProposal = emitProposal;
     this.#emitSnapshot = emitSnapshot;
     this.#tools = tools;
+    this.#protocol = protocol;
   }
 
   sendMessage(record: Record, content: string) {
@@ -83,7 +84,7 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
 
   scheduleReceiptSummary(
     record: Record,
-    receipt: AgentOperationAuditEntryDto,
+    receipt: AgentOperationReceipt,
   ) {
     if (record.controller.snapshot().activeTurnId) return;
     const turnId = this.#createId();
@@ -110,7 +111,7 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
 
   async #runReceiptSummaryTurn(
     record: Record,
-    receipt: AgentOperationAuditEntryDto,
+    receipt: AgentOperationReceipt,
     turnId: string,
     signal: AbortSignal,
   ) {
@@ -122,14 +123,7 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
     const messageId = this.#createId();
 
     record.controller.startAssistantMessage(messageId);
-    const receiptMessage = serializeJsonIteratively({
-      afterRevision: receipt.afterRevision,
-      beforeRevision: receipt.beforeRevision,
-      changeMetadata: receipt.changeMetadata,
-      proposalId: receipt.proposalId,
-      result: receipt.result,
-      store: receipt.store,
-    }, { sortObjectKeys: true });
+    const receiptMessage = this.#protocol.serializeReceipt(receipt);
     try {
       const result = await record.runtimeSession.runTurn({
         executeTool: () => Promise.reject(
@@ -217,7 +211,7 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
         record,
         messageId,
         signal,
-        agentRuntimeToolsForScope(scope),
+        this.#protocol.toolsForScope(scope),
       );
       controller.discardEmptyAssistantMessage(messageId);
       controller.finishTurn(turnId);

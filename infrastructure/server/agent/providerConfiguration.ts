@@ -7,7 +7,7 @@ import { SecureStateCommitOutcomeUnknownError } from "../state/secureJsonPartiti
 import type {
   AgentConfigurationAccess,
   AgentConfigurationProviderChange,
-} from "./configurationAccess.ts";
+} from "../../../application/agentHost/configurationAccess.ts";
 import { AgentConfigurationValidationError } from "./configurationErrors.ts";
 import { normalizeProviderInput } from "./configurationInput.ts";
 import { assertAgentConfigurationRevision } from "./configurationRevision.ts";

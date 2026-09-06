@@ -27,14 +27,14 @@ import {
 } from "../api/resources/workspace.ts";
 import { workspaceResourceVersions } from "../api/resources/versions.ts";
 import type { WorkspaceRepositoryCatalog } from "../repository/catalog.ts";
-import { AgentServiceError } from "./errors.ts";
+import { AgentServiceError } from "../../../application/agentHost/errors.ts";
 import { digestAgentProposal } from "./proposalCodec.ts";
 import { syntaxRequiredResult } from "./sessionToolProtocol.ts";
 import {
   resolveAgentStaging,
   type AgentStagingFor,
   type AgentToolSession,
-} from "./sessionToolState.ts";
+} from "../../../application/agentHost/sessionToolState.ts";
 
 type WorkspaceScope = Extract<AgentScope, { domain: "workspace" }>;
 type WorkspaceStaging = AgentStagingFor<"workspace">;

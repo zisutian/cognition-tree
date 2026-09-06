@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { ResolvedAgentConfiguration, ResolvedAgentProvider } from '../../../application/agentHost/configurationPort.ts';
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type {
   AgentProfileInput,
-  AgentProfileView,
   AgentProviderInput,
-  AgentProviderView,
   AgentToolCallMode,
 } from "../../../application/agent/agentConfiguration.ts";
 import {
@@ -18,7 +17,7 @@ import {
   type AgentConfigurationProfileUse,
   type AgentConfigurationProviderChange,
   type AgentConfigurationProviderUse,
-} from "./configurationAccess.ts";
+} from "../../../application/agentHost/configurationAccess.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import {
   AgentProviderCredentialStore,
@@ -42,21 +41,6 @@ export {
   AgentConfigurationConflictError,
   AgentConfigurationValidationError,
 } from "./configurationErrors.ts";
-
-export type ResolvedAgentConfiguration = Readonly<{
-  apiKey: string | null;
-  codexHome: string | null;
-  privateNetworkOrigin: string | null;
-  profile: AgentProfileView;
-  provider: AgentProviderView;
-}>;
-
-export type ResolvedAgentProvider = Readonly<{
-  apiKey: string | null;
-  codexHome: string | null;
-  privateNetworkOrigin: string | null;
-  provider: AgentProviderView;
-}>;
 
 export class AgentConfigurationStore {
   readonly access = new AgentConfigurationAccess();
