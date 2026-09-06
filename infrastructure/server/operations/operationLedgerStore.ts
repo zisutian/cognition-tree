@@ -3,11 +3,8 @@
 import { lstat, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { ApiOperationAuditPageDto } from "../../../contracts/api/schemas/operations.ts";
-import {
-  SecureJsonPartition,
-  SecureStatePartitionError,
-  type SecureStateFileReplacer,
-} from "../state/secureJsonPartition.ts";
+import { SecureJsonPartition, type SecureStateFileReplacer } from "../state/secureJsonPartition.ts";
+import { SecureStatePartitionError } from "../../../application/persistence/secureStateErrors.ts";
 import {
   type OperationAuditStatus,
   OperationAuditUnavailableError,

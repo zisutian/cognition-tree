@@ -3,7 +3,7 @@
 import type {
   AgentProviderInput,
 } from "../../../application/agent/agentConfiguration.ts";
-import { SecureStateCommitOutcomeUnknownError } from "../state/secureJsonPartition.ts";
+import { SecureStateCommitOutcomeUnknownError } from "../../../application/persistence/secureStateErrors.ts";
 import type {
   AgentConfigurationAccess,
   AgentConfigurationProviderChange,

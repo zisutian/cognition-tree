@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerDeviceLoginOperations } from "../../../../infrastructure/server/runtime/deviceLoginRuntime.ts";
 import { createServerProviderOperations } from "../../../../infrastructure/server/runtime/providerRuntime.ts";
 import { once } from "node:events";
 import { createServer, type ServerResponse } from "node:http";
@@ -8,8 +9,8 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { AgentConfigurationStore } from "../../../../infrastructure/server/agent/configurationStore.ts";
-import { CodexDeviceLoginOperations } from "../../../../infrastructure/server/agent/codexDeviceLoginOperations.ts";
 import { pinnedCodexVersion } from "../../../../infrastructure/server/agent/codexPackage.ts";
+import { createDeviceLoginProcessPort } from "../../../../infrastructure/server/agent/deviceLoginProcess.ts";
 import type { ApiRuntime } from "../../../../infrastructure/server/api/http/runtime.ts";
 import {
   replaceFileDurably,
@@ -31,7 +32,7 @@ function writeSse(response: ServerResponse, content: string) {
   response.end("data: [DONE]\n\n");
 }
 
-async function createFakeCodexProject(completeLogin: boolean) {
+async function createFakeCodexProject(completeLogin: boolean, ignoreTermination = false) {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), "ctn-device-codex-"));
   const packageDirectory = path.join(
     projectRoot,
@@ -43,6 +44,7 @@ async function createFakeCodexProject(completeLogin: boolean) {
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 const send = (value) => process.stdout.write(JSON.stringify(value) + "\\n");
+if (${JSON.stringify(ignoreTermination)}) process.on("SIGTERM", () => undefined);
 setInterval(() => undefined, 1000);
 let source = "";
 const handle = (request) => {
@@ -102,6 +104,28 @@ process.stdin.on("data", (chunk) => {
 }
 
 describe("Agent provider operations", () => {
+  it("observes process exit before releasing a forcibly stopped login", async () => {
+    const projectRoot = await createFakeCodexProject(false, true);
+    const credentialHome = await mkdtemp(path.join(os.tmpdir(), "ctn-device-reaping-"));
+    const process = await createDeviceLoginProcessPort({ projectRoot }).create(credentialHome);
+
+    try {
+      await process.initialize();
+      await process.start();
+      let exited = false;
+      process.onExit(() => { exited = true; });
+      await process.stop();
+      expect(exited).toBe(true);
+      expect(process.hasExited()).toBe(true);
+      await process.stop();
+    } finally {
+      await process.stop();
+      await process.cleanup();
+      await rm(projectRoot, { recursive: true, force: true });
+      await rm(credentialHome, { recursive: true, force: true });
+    }
+  });
+
   it("completes and cancels isolated Codex device-code logins", async () => {
     const completedProject = await createFakeCodexProject(true);
     const cancelledProject = await createFakeCodexProject(false);
@@ -276,7 +300,7 @@ describe("Agent provider operations", () => {
     const cleanupDirectory = vi.fn(async () => {
       throw new Error("injected login cleanup failure");
     });
-    const operations = new CodexDeviceLoginOperations({
+    const operations = createServerDeviceLoginOperations({
       cleanupDirectory,
       configurationStore: store,
       projectRoot: project,

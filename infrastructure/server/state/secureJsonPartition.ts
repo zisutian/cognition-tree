@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { SecureStatePartitionError, SecureStateCommitOutcomeUnknownError } from '../../../application/persistence/secureStateErrors.ts';
 import path from "node:path";
 import { lock } from "proper-lockfile";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
@@ -9,27 +10,6 @@ import {
   replaceFileDurably,
 } from "../persistence/fileSystemPersistence.ts";
 import { ensureSecureStateDirectory } from "./secureStateFileSystem.ts";
-
-export class SecureStatePartitionError extends Error {
-  readonly partition: string;
-
-  constructor(partition: string, message: string) {
-    super(`CTN ${partition} state is unavailable: ${message}`);
-    this.name = "SecureStatePartitionError";
-    this.partition = partition;
-  }
-}
-
-export class SecureStateCommitOutcomeUnknownError extends SecureStatePartitionError {
-  readonly commitOutcome = "unknown" as const;
-  readonly cause: unknown;
-
-  constructor(partition: string, cause: unknown) {
-    super(partition, "durable write outcome could not be verified");
-    this.name = "SecureStateCommitOutcomeUnknownError";
-    this.cause = cause;
-  }
-}
 
 class SecureStateLockReleaseError extends SecureStatePartitionError {
   readonly cause: unknown;

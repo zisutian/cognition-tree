@@ -14,10 +14,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { SystemConfigurationConflictError, SystemConfigurationValidationError } from "../../../../application/system/systemConfigurationModel.ts";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import { replaceFileDurably } from "../../../../infrastructure/server/persistence/fileSystemPersistence.ts";
-import {
-  SecureStateCommitOutcomeUnknownError,
-  type SecureStateFileReplacer,
-} from "../../../../infrastructure/server/state/secureJsonPartition.ts";
+import { type SecureStateFileReplacer } from "../../../../infrastructure/server/state/secureJsonPartition.ts";
+import { SecureStateCommitOutcomeUnknownError } from "../../../../application/persistence/secureStateErrors.ts";
 import {
   BootstrapConfigurationStore,
   type BootstrapConfigurationStoreOptions,

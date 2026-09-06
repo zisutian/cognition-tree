@@ -1,38 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
+import type { AgentDeviceLoginConfigurationPort, AgentDeviceLoginProcess, AgentDeviceLoginProcessPort, AgentDeviceLoginCompletion } from './deviceLoginPorts.ts';
+import type { ApplicationScheduler, CancelScheduledTask } from '../runtime/applicationScheduler.ts';
 import type {
   AgentCodexDeviceLoginStatus,
-} from "../../../application/agent/agentConfiguration.ts";
-import type { CommandRuntime } from "../../../application/commands/commandRuntime.ts";
-import { readCommandRuntimeNow } from "../../../application/commands/commandRuntime.ts";
+} from "../agent/agentConfiguration.ts";
+import type { CommandRuntime } from "../commands/commandRuntime.ts";
+import { readCommandRuntimeNow } from "../commands/commandRuntime.ts";
 import type {
   AgentConfigurationProviderChange,
-} from "../../../application/agentHost/configurationAccess.ts";
-import type { AgentConfigurationStore } from "./configurationStore.ts";
-import { CodexAppServerClient } from "./codexAppServerClient.ts";
-import { resolveCodexEntrypoint } from "./codexPackage.ts";
-import { AgentProviderOperationConflictError } from "../../../application/agentHost/providerOperationErrors.ts";
-import { withRuntimeTimeout } from "./runtimeTimeout.ts";
-import { SecureStateCommitOutcomeUnknownError } from "../state/secureJsonPartition.ts";
+} from "./configurationAccess.ts";
+import { AgentProviderOperationConflictError } from "./providerOperationErrors.ts";
+import { SecureStateCommitOutcomeUnknownError } from "../persistence/secureStateErrors.ts";
 
-const codexAppServerRequestTimeoutMilliseconds = 5_000;
 const codexDeviceLoginResultLimit = 100;
 
 type CodexDeviceLoginRecord = {
   baseRevision: string;
-  child: ChildProcessWithoutNullStreams;
-  client: CodexAppServerClient;
+  process: AgentDeviceLoginProcess;
   codexLoginId: string;
   configurationChange: AgentConfigurationProviderChange;
   credentialVersion: number;
   finishing: boolean;
-  processDirectory: string;
   status: AgentCodexDeviceLoginStatus;
-  timeout: NodeJS.Timeout;
+  cancelTimeout: CancelScheduledTask;
 };
 
 function rejectedReasons(results: readonly PromiseSettledResult<unknown>[]) {
@@ -41,42 +32,15 @@ function rejectedReasons(results: readonly PromiseSettledResult<unknown>[]) {
   );
 }
 
-async function cleanupCodexLoginDirectory(directory: string) {
-  const resolved = path.resolve(directory);
-  const prefix = `${path.resolve(os.tmpdir())}${path.sep}ctn-codex-login-`;
-
-  if (!resolved.startsWith(prefix)) {
-    throw new Error("Refusing to clean an unexpected Codex login directory");
-  }
-  await rm(resolved, { force: true, recursive: true });
-}
-
-function verifiedDeviceLoginUrl(value: unknown) {
-  if (typeof value !== "string") {
-    throw new Error("Codex returned an invalid device login URL");
-  }
-  let url: URL;
-
-  try {
-    url = new URL(value);
-  } catch {
-    throw new Error("Codex returned an invalid device login URL");
-  }
-  if (url.protocol !== "https:" || url.username || url.password) {
-    throw new Error("Codex returned an invalid device login URL");
-  }
-  return url.toString();
-}
-
 export class CodexDeviceLoginOperations {
   readonly #backgroundFailures: unknown[] = [];
   readonly #cancellations = new Set<Promise<AgentCodexDeviceLoginStatus | null>>();
-  readonly #children = new Set<ChildProcessWithoutNullStreams>();
-  readonly #cleanupDirectory: (directory: string) => Promise<void>;
-  readonly #configurationStore: AgentConfigurationStore;
+  readonly #processes = new Set<AgentDeviceLoginProcess>();
+  readonly #processPort: AgentDeviceLoginProcessPort;
+  readonly #scheduler: ApplicationScheduler;
+  readonly #configurationStore: AgentDeviceLoginConfigurationPort;
   readonly #finishes = new Map<string, Promise<void>>();
   readonly #logins = new Map<string, CodexDeviceLoginRecord>();
-  readonly #projectRoot: string;
   readonly #reservations = new Set<string>();
   readonly #runtime: CommandRuntime;
   readonly #starts = new Set<Promise<AgentCodexDeviceLoginStatus>>();
@@ -84,22 +48,16 @@ export class CodexDeviceLoginOperations {
   #disposed = false;
   #disposePromise: Promise<void> | null = null;
 
-  constructor({
-    cleanupDirectory = cleanupCodexLoginDirectory,
-    configurationStore,
-    projectRoot,
-    runtime,
-    ttlMilliseconds,
-  }: {
-    cleanupDirectory?: (directory: string) => Promise<void>;
-    configurationStore: AgentConfigurationStore;
-    projectRoot: string;
+  constructor({configurationStore, processes, scheduler, runtime, ttlMilliseconds}: {
+    configurationStore: AgentDeviceLoginConfigurationPort;
+    processes: AgentDeviceLoginProcessPort;
+    scheduler: ApplicationScheduler;
     runtime: CommandRuntime;
     ttlMilliseconds: number;
   }) {
-    this.#cleanupDirectory = cleanupDirectory;
     this.#configurationStore = configurationStore;
-    this.#projectRoot = projectRoot;
+    this.#processPort = processes;
+    this.#scheduler = scheduler;
     this.#runtime = runtime;
     this.#ttlMilliseconds = ttlMilliseconds;
   }
@@ -143,7 +101,7 @@ export class CodexDeviceLoginOperations {
       );
       const finishResults = await Promise.allSettled(this.#finishes.values());
       const childResults = await Promise.allSettled(
-        [...this.#children].map((child) => this.#stopProcess(child)),
+        [...this.#processes].map((child) => this.#stopProcess(child)),
       );
       const failures = [
         ...rejectedReasons(cancellationResults),
@@ -172,10 +130,9 @@ export class CodexDeviceLoginOperations {
       );
     }
     this.#reservations.add(providerId);
-    let child: ChildProcessWithoutNullStreams | null = null;
+    let process: AgentDeviceLoginProcess | null = null;
     let configurationChange: AgentConfigurationProviderChange | null = null;
     let configurationChangeTransferred = false;
-    let processDirectory: string | null = null;
     let staging: Readonly<{
       credentialVersion: number;
       home: string;
@@ -203,89 +160,24 @@ export class CodexDeviceLoginOperations {
       );
 
       staging = { ...prepared, loginId: id };
-      processDirectory = await mkdtemp(
-        path.join(os.tmpdir(), "ctn-codex-login-"),
-      );
-      const entrypoint = await resolveCodexEntrypoint(this.#projectRoot);
-
-      child = spawn(process.execPath, [entrypoint, "app-server"], {
-        cwd: processDirectory,
-        env: {
-          CODEX_HOME: prepared.home,
-          HOME: prepared.home,
-          LANG: "C.UTF-8",
-          PATH: path.dirname(process.execPath),
-        },
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      this.#children.add(child);
-      child.once("exit", () => this.#children.delete(child!));
-      const client = new CodexAppServerClient(child);
-
-      await withRuntimeTimeout(
-        client.request("initialize", {
-          capabilities: { experimentalApi: true },
-          clientInfo: {
-            name: "cognition_tree",
-            title: "Cognition Tree",
-            version: "0.1.0",
-          },
-        }),
-        codexAppServerRequestTimeoutMilliseconds,
-        "Codex device login initialize timed out",
-      );
+      process = await this.#processPort.create(prepared.home);
+      const createdProcess = process;
+      this.#processes.add(createdProcess);
+      createdProcess.onExit(() => this.#processes.delete(createdProcess));
+      await createdProcess.initialize();
       this.#assertOpen();
-      client.notify("initialized", {});
       let activeRecord: CodexDeviceLoginRecord | null = null;
-      const completedNotifications: Array<Record<string, unknown>> = [];
-
-      client.subscribe((message) => {
-        if (message.method !== "account/login/completed") return;
-        const params = message.params && typeof message.params === "object" &&
-            !Array.isArray(message.params)
-          ? message.params as Record<string, unknown>
-          : null;
-
-        if (!params) return;
+      const completedNotifications: AgentDeviceLoginCompletion[] = [];
+      createdProcess.subscribe((params) => {
         if (!activeRecord) {
           completedNotifications.push(params);
           return;
         }
-        if (
-          params.loginId !== null &&
-          params.loginId !== activeRecord.codexLoginId
-        ) {
-          return;
-        }
-        this.#scheduleFinish(
-          activeRecord.status.id,
-          params.success === true,
-          typeof params.error === "string" ? params.error : null,
-        );
+        if (params.loginId !== null && params.loginId !== activeRecord.codexLoginId) return;
+        this.#scheduleFinish(activeRecord.status.id, params.success, params.error);
       });
-      const login = await withRuntimeTimeout(
-        client.request("account/login/start", { type: "chatgptDeviceCode" }),
-        codexAppServerRequestTimeoutMilliseconds,
-        "Codex device login start timed out",
-      );
-      const loginRecord = login && typeof login === "object" &&
-          !Array.isArray(login)
-        ? login as Record<string, unknown>
-        : null;
-
-      if (
-        loginRecord?.type !== "chatgptDeviceCode" ||
-        typeof loginRecord.loginId !== "string" ||
-        loginRecord.loginId.length === 0 ||
-        typeof loginRecord.userCode !== "string" ||
-        loginRecord.userCode.length === 0
-      ) {
-        throw new Error("Codex returned an invalid device login response");
-      }
-      const verificationUrl = verifiedDeviceLoginUrl(
-        loginRecord.verificationUrl,
-      );
-
+      const loginRecord = await createdProcess.start();
+      const verificationUrl = loginRecord.verificationUrl;
       this.#assertOpen();
       const startedAt = readCommandRuntimeNow(this.#runtime).timestamp;
       const status: AgentCodexDeviceLoginStatus = {
@@ -301,24 +193,21 @@ export class CodexDeviceLoginOperations {
         userCode: loginRecord.userCode,
         verificationUrl,
       };
-      const timeout = setTimeout(() => {
+      const cancelTimeout = this.#scheduler.schedule(() => {
         void this.#trackCancellation(id, "expired").catch((error: unknown) => {
           this.#backgroundFailures.push(error);
         });
       }, this.#ttlMilliseconds);
 
-      timeout.unref();
       const record: CodexDeviceLoginRecord = {
         baseRevision,
-        child,
-        client,
+        process: createdProcess,
         codexLoginId: loginRecord.loginId,
         configurationChange,
         credentialVersion: prepared.credentialVersion,
         finishing: false,
-        processDirectory,
         status,
-        timeout,
+        cancelTimeout,
       };
 
       configurationChangeTransferred = true;
@@ -349,11 +238,11 @@ export class CodexDeviceLoginOperations {
         }
       };
 
-      if (child.exitCode !== null) handleUnexpectedExit();
-      else child.once("exit", handleUnexpectedExit);
+      if (createdProcess.hasExited()) handleUnexpectedExit();
+      else createdProcess.onExit(handleUnexpectedExit);
       return status;
     } catch (error) {
-      if (child) await this.#stopProcess(child);
+      if (process) await this.#stopProcess(process);
       if (staging) {
         await this.#configurationStore.removeCodexDeviceLoginStaging(
           providerId,
@@ -361,7 +250,7 @@ export class CodexDeviceLoginOperations {
           staging.loginId,
         ).catch(() => undefined);
       }
-      if (processDirectory) await this.#cleanupDirectory(processDirectory);
+      if (process) await process.cleanup();
       throw error;
     } finally {
       this.#reservations.delete(providerId);
@@ -386,8 +275,8 @@ export class CodexDeviceLoginOperations {
 
     if (!record || record.status.status !== "pending" || record.finishing) return;
     record.finishing = true;
-    clearTimeout(record.timeout);
-    await this.#stopProcess(record.child);
+    record.cancelTimeout();
+    await this.#stopProcess(record.process);
     try {
       if (!succeeded) throw new Error("Codex device login failed");
       await this.#configurationStore.completeCodexDeviceLogin(
@@ -421,7 +310,7 @@ export class CodexDeviceLoginOperations {
     } finally {
       record.configurationChange.release();
       try {
-        await this.#cleanupDirectory(record.processDirectory);
+        await record.process.cleanup();
       } finally {
         record.finishing = false;
       }
@@ -465,27 +354,21 @@ export class CodexDeviceLoginOperations {
     if (record.status.status !== "pending") return record.status;
     if (record.finishing) return record.status;
     record.finishing = true;
-    clearTimeout(record.timeout);
-    await withRuntimeTimeout(
-      record.client.request("account/login/cancel", {
-        loginId: record.codexLoginId,
-      }),
-      codexAppServerRequestTimeoutMilliseconds,
-      "Codex device login cancellation timed out",
-    ).catch(() => undefined);
+    record.cancelTimeout();
+    await record.process.cancel(record.codexLoginId).catch(() => undefined);
     try {
       record.status = {
         ...record.status,
         completedAt: readCommandRuntimeNow(this.#runtime).timestamp,
         status: terminalStatus,
       };
-      await this.#stopProcess(record.child);
+      await this.#stopProcess(record.process);
       await this.#configurationStore.removeCodexDeviceLoginStaging(
         record.status.providerId,
         record.credentialVersion,
         record.status.id,
       ).catch(() => undefined);
-      await this.#cleanupDirectory(record.processDirectory);
+      await record.process.cleanup();
       return record.status;
     } finally {
       record.configurationChange.release();
@@ -493,25 +376,9 @@ export class CodexDeviceLoginOperations {
     }
   }
 
-  async #stopProcess(child: ChildProcessWithoutNullStreams) {
-    if (child.exitCode !== null) {
-      this.#children.delete(child);
-      return;
-    }
-    child.kill("SIGTERM");
-    await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => {
-        child.kill("SIGKILL");
-        resolve();
-      }, 2_000);
-
-      timeout.unref();
-      child.once("exit", () => {
-        clearTimeout(timeout);
-        resolve();
-      });
-    });
-    this.#children.delete(child);
+  async #stopProcess(process: AgentDeviceLoginProcess) {
+    await process.stop();
+    this.#processes.delete(process);
   }
 
   #prune() {

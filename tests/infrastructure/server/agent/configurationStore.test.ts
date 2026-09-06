@@ -19,9 +19,7 @@ import {
 import {
   replaceFileDurably,
 } from "../../../../infrastructure/server/persistence/fileSystemPersistence.ts";
-import {
-  SecureStateCommitOutcomeUnknownError,
-} from "../../../../infrastructure/server/state/secureJsonPartition.ts";
+import { SecureStateCommitOutcomeUnknownError } from "../../../../application/persistence/secureStateErrors.ts";
 
 const directories: string[] = [];
 

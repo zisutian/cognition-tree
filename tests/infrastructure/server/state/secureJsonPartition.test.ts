@@ -14,10 +14,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   replaceFileDurably,
 } from "../../../../infrastructure/server/persistence/fileSystemPersistence.ts";
-import {
-  SecureJsonPartition,
-  SecureStateCommitOutcomeUnknownError,
-} from "../../../../infrastructure/server/state/secureJsonPartition.ts";
+import { SecureJsonPartition } from "../../../../infrastructure/server/state/secureJsonPartition.ts";
+import { SecureStateCommitOutcomeUnknownError } from "../../../../application/persistence/secureStateErrors.ts";
 
 const requiresRewrite = Symbol("requiresRewrite");
 const legacySecret = Symbol("legacySecret");

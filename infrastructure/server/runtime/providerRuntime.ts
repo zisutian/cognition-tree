@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerDeviceLoginOperations } from "./deviceLoginRuntime.ts";
 import path from 'node:path';
 import { AgentProviderOperations } from '../../../application/agentHost/providerOperations.ts';
 import { AgentConformanceOperations } from '../../../application/agentHost/conformanceOperations.ts';
 import type { CommandRuntime } from '../../../application/commands/commandRuntime.ts';
 import { ConfiguredAgentRuntimeFactory } from '../agent/configuredAgentRuntimeFactory.ts';
 import type { AgentConfigurationStore } from '../agent/configurationStore.ts';
-import { CodexDeviceLoginOperations } from '../agent/codexDeviceLoginOperations.ts';
 import { AgentProviderProbeService } from '../agent/providerProbe.ts';
 import { AgentProviderTargetPolicy } from '../agent/providerTargetPolicy.ts';
 import { agentRuntimeToolsForScope } from '../agent/sessionToolProtocol.ts';
@@ -29,7 +29,7 @@ export function createServerProviderOperations({
 }) {
   const resolvedProjectRoot = path.resolve(projectRoot);
   return new AgentProviderOperations({
-    codexDeviceLogins: new CodexDeviceLoginOperations({configurationStore, projectRoot: resolvedProjectRoot, runtime, ttlMilliseconds: codexDeviceLoginTtlMilliseconds}),
+    codexDeviceLogins: createServerDeviceLoginOperations({configurationStore, projectRoot: resolvedProjectRoot, runtime, ttlMilliseconds: codexDeviceLoginTtlMilliseconds}),
     conformance: new AgentConformanceOperations({
       configurationStore, runtime,
       runtimeFactory: new ConfiguredAgentRuntimeFactory({projectRoot: resolvedProjectRoot, targetPolicy}),
