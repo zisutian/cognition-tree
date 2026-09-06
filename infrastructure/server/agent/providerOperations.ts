@@ -78,6 +78,10 @@ export class AgentProviderOperations {
     return this.#codexDeviceLogins.cancel(loginId);
   }
 
+  hasActiveOperations() {
+    return this.#codexDeviceLogins.hasPending() || this.#conformance.hasActiveOperations();
+  }
+
   hasPendingCodexLogin(providerId?: string) {
     return this.#codexDeviceLogins.hasPending(providerId);
   }

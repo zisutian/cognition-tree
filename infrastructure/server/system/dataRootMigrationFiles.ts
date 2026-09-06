@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { DataRootDirectoryIdentity, DataRootMigrationFiles } from "../../../application/system/dataRootMigrationPorts.ts";
 import { createHash } from "node:crypto";
 import { constants, type Stats } from "node:fs";
 import {
@@ -9,14 +10,11 @@ import {
   open,
   opendir,
   realpath,
-  rm,
   utimes,
   type FileHandle,
 } from "node:fs/promises";
 import path from "node:path";
-import {
-  SystemMigrationValidationError,
-} from "../../../application/system/systemConfiguration.ts";
+import { SystemMigrationValidationError } from "../../../application/system/systemConfigurationModel.ts";
 import { hasFileSystemErrorCode } from "../persistence/fileSystemError.ts";
 import { fsyncDirectory } from "../persistence/fileSystemPersistence.ts";
 
@@ -52,17 +50,6 @@ type StableFileIdentity = Readonly<{
   inode: string;
   modified: number;
   size: number;
-}>;
-
-export type DataRootMigrationFileOperations = Readonly<{
-  cleanup(destination: string): Promise<void>;
-  copy(source: string, destination: string): Promise<void>;
-  prepareDestination(
-    destination: string,
-    source: string,
-    control: string,
-  ): Promise<string>;
-  verify(source: string, destination: string): Promise<void>;
 }>;
 
 function overlaps(left: string, right: string) {
@@ -325,7 +312,7 @@ async function prepareDestination(
   return target;
 }
 
-async function copyTree(source: string, destination: string) {
+async function copyTree(source: string, destination: string, excludedRootEntry?: string) {
   const sourceStats = await lstat(source);
 
   if (sourceStats.isSymbolicLink()) {
@@ -337,6 +324,7 @@ async function copyTree(source: string, destination: string) {
       const directory = await opendir(source);
 
       for await (const entry of directory) {
+        if (entry.name === excludedRootEntry) continue;
         await copyTree(
           path.join(source, entry.name),
           path.join(destination, entry.name),
@@ -372,6 +360,7 @@ async function copyTree(source: string, destination: string) {
 async function fingerprints(
   root: string,
   relative = "",
+  excludedRootEntry?: string,
 ): Promise<EntryFingerprint[]> {
   const current = path.join(root, relative);
   const stats = await lstat(current);
@@ -394,6 +383,7 @@ async function fingerprints(
     }];
 
     for await (const entry of directory) {
+      if (relative === "" && entry.name === excludedRootEntry) continue;
       result.push(...await fingerprints(root, path.join(relative, entry.name)));
     }
     return result.sort((left, right) => left.path.localeCompare(right.path));
@@ -405,6 +395,8 @@ async function fingerprints(
 async function copyAuthoritativePartitions(
   source: string,
   destination: string,
+  allocated: (target: DataRootDirectoryIdentity) => Promise<void>,
+  localRepositoryWriterLockName: string,
 ) {
   const sourceStats = await lstat(source);
 
@@ -419,21 +411,22 @@ async function copyAuthoritativePartitions(
   } catch (error) {
     if (!hasFileSystemErrorCode(error, "ENOENT")) throw error;
   }
-  const firstCreated = await mkdir(destination, {
-    mode: sourceStats.mode & 0o777,
-    recursive: true,
-  });
-
-  if (firstCreated === undefined) {
-    throw new Error(
-      "Data-root destination appeared before copying: " + destination,
-    );
+  const firstCreated = await mkdir(path.dirname(destination), { mode: 0o700, recursive: true });
+  await assertDestinationDirectory(path.dirname(destination), "Data-root destination parent is invalid");
+  await mkdir(destination, { mode: sourceStats.mode & 0o777 });
+  const targetIdentity = await identify(destination);
+  await fsyncDirectory(destination);
+  await fsyncDirectory(path.dirname(destination));
+  if (firstCreated) {
+    let current = path.dirname(destination);
+    while (current !== path.dirname(firstCreated)) {
+      await fsyncDirectory(path.dirname(current));
+      current = path.dirname(current);
+    }
   }
-  await assertDestinationDirectory(
-    destination,
-    "Data-root destination is not a regular directory",
-  );
+  await allocated(targetIdentity);
   for (const relative of authoritativePartitions) {
+    await assertIdentity(targetIdentity);
     const from = path.join(source, relative);
 
     try {
@@ -454,7 +447,7 @@ async function copyAuthoritativePartitions(
         "Data-root destination parent is invalid",
       );
     }
-    await copyTree(from, to);
+    await copyTree(from, to, relative === "repositories" ? localRepositoryWriterLockName : undefined);
     await fsyncDirectory(parent);
   }
   const after = await lstat(source);
@@ -468,40 +461,66 @@ async function copyAuthoritativePartitions(
   ) {
     throw new Error("Data-root source changed during copying: " + source);
   }
+  await assertIdentity(targetIdentity);
   await chmod(destination, sourceStats.mode & 0o777);
   await utimes(destination, sourceStats.atime, sourceStats.mtime);
   await fsyncDirectory(destination);
 }
 
-async function verifyAuthoritativePartitions(
-  source: string,
-  destination: string,
-) {
-  for (const relative of authoritativePartitions) {
-    const from = path.join(source, relative);
-
-    try {
-      await lstat(from);
-    } catch (error) {
-      if (hasFileSystemErrorCode(error, "ENOENT")) continue;
-      throw error;
-    }
-    const [before, after] = await Promise.all([
-      fingerprints(from),
-      fingerprints(path.join(destination, relative)),
-    ]);
-
-    if (JSON.stringify(before) !== JSON.stringify(after)) {
-      throw new Error(`Data-root verification failed for ${relative}`);
-    }
-  }
+async function identify(directory: string): Promise<DataRootDirectoryIdentity> {
+  await assertDestinationDirectory(directory, "Data-root identity is invalid");
+  const stats = await lstat(directory);
+  return { path: directory, device: String(stats.dev), inode: String(stats.ino) };
 }
 
-export const dataRootMigrationFileOperations: DataRootMigrationFileOperations = {
-  cleanup: async (destination) => {
-    await rm(destination, { force: true, recursive: true });
-  },
-  copy: copyAuthoritativePartitions,
+async function assertIdentity(expected: DataRootDirectoryIdentity) {
+  const actual = await identify(expected.path);
+  if (actual.device !== expected.device || actual.inode !== expected.inode) throw new Error("Data-root directory identity changed");
+}
+
+async function manifest(root: string, localRepositoryWriterLockName: string) {
+  const result: Array<{ partition: string; entries: EntryFingerprint[] | null }> = [];
+  for (const partition of authoritativePartitions) {
+    let entries: EntryFingerprint[] | null;
+    try { await lstat(path.join(root, partition)); }
+    catch (error) {
+      if (!hasFileSystemErrorCode(error, "ENOENT")) throw error;
+      result.push({ partition, entries: null });
+      continue;
+    }
+    entries = await fingerprints(path.join(root, partition), "", partition === "repositories" ? localRepositoryWriterLockName : undefined);
+    result.push({ partition, entries });
+  }
+  return JSON.stringify(result);
+}
+
+function digestManifest(source: string) {
+  return `sha256:${createHash("sha256").update(source).digest("hex")}`;
+}
+
+export function createDataRootMigrationFileOperations(localRepositoryWriterLockName: string): DataRootMigrationFiles {
+  if (path.basename(localRepositoryWriterLockName) !== localRepositoryWriterLockName || !localRepositoryWriterLockName) throw new Error("Invalid repository runtime entry");
+  return {
+  identify,
   prepareDestination,
-  verify: verifyAuthoritativePartitions,
-};
+  async copy(source, destination, allocated) {
+    await assertIdentity(source);
+    await copyAuthoritativePartitions(source.path, destination, allocated, localRepositoryWriterLockName);
+    await assertIdentity(source);
+  },
+  async verify(source, target) {
+    await assertIdentity(source);
+    await assertIdentity(target);
+    const [before, after] = await Promise.all([manifest(source.path, localRepositoryWriterLockName), manifest(target.path, localRepositoryWriterLockName)]);
+    if (before !== after) throw new Error("Data-root verification failed");
+    await assertIdentity(source);
+    await assertIdentity(target);
+    return digestManifest(after);
+  },
+  async verifyTarget(target, digest) {
+    await assertIdentity(target);
+    if (digestManifest(await manifest(target.path, localRepositoryWriterLockName)) !== digest) throw new Error("Data-root verification failed during recovery");
+    await assertIdentity(target);
+  },
+  };
+}

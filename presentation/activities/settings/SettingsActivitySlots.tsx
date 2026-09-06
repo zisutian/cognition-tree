@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import "./settings.css";
 import type { ActivitySlots } from "../../ui/activityTypes";
 import {
@@ -64,7 +66,9 @@ export function createSettingsActivitySlots({
       logout: () => system.authenticationController.logout(),
     },
     configurationController: {
+      getSnapshot: () => system.configurationController.getSnapshot(),
       load: () => system.configurationController.load(),
+      reconcileMigration: () => system.configurationController.reconcileMigration(),
       migrateDataRoot: (destination: string) =>
         system.configurationController.migrateDataRoot(destination),
       update: (request) => system.configurationController.update(request),

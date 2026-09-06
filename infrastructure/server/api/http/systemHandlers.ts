@@ -56,6 +56,8 @@ export async function handleSystemAdministration(context: ApiHandlerContext) {
   const administration = requireSystemAdministration(context);
   const { operation } = context;
 
+  if (operation.operationId === "getCurrentDataRootMigration") return { body: await administration.getCurrentMigration(), statusCode: 200 };
+  if (operation.operationId === "reconcileDataRootMigration") return { body: await administration.reconcileMigration(context.route.migrationId ?? ""), statusCode: 202 };
   if (operation.operationId === "getSystemConfiguration") {
     return { body: await administration.load(), statusCode: 200 };
   }

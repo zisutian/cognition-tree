@@ -903,13 +903,16 @@ describe("Agent provider operations", () => {
       );
 
       await completionStarted;
+      expect(operations.hasActiveOperations()).toBe(true);
       expect(operations.cancelConformance(started.id)).toMatchObject({
         status: "cancelled",
       });
+      expect(operations.hasActiveOperations()).toBe(true);
       await vi.waitFor(() => {
         expect(operations.getConformance(started.id)?.status).toBe("cancelled");
       });
       expect((await store.readSnapshot()).profiles[0]?.conformance).toBeNull();
+      await vi.waitFor(() => expect(operations.hasActiveOperations()).toBe(false));
     } finally {
       await operations.dispose();
       server.close();

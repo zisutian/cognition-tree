@@ -5,8 +5,8 @@ import path from "node:path";
 import { lock } from "proper-lockfile";
 import { RepositoryCatalogError } from "../../catalog.ts";
 import { fsyncDirectory } from "../../../persistence/fileSystemPersistence.ts";
+import { localRepositoryWriterLockName } from "../../repositoryRuntimeLayout.ts";
 
-const writerLockFileName = ".ctn-writer.lock";
 const catalogCreateStagingPattern =
   /^\.create-.+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const repositoryDeletionTombstonePattern =
@@ -83,7 +83,7 @@ export class LocalRepositoryRootLease {
 
     try {
       this.#releaseWriterLock = await lock(this.#rootPath, {
-        lockfilePath: path.join(this.#rootPath, writerLockFileName),
+        lockfilePath: path.join(this.#rootPath, localRepositoryWriterLockName),
         onCompromised: () => {
           this.#lockCompromised = true;
         },

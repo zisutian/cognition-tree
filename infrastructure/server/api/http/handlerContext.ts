@@ -59,6 +59,7 @@ export function assertOperationAccess(
 ) {
   const { access } = operation;
 
+  if (access.kind === "local-recovery") throw new ApiRequestError("forbidden", "Recovery operations require the local startup recovery server");
   if (access.kind === "public") return;
   if (!principal) {
     throw new ApiRequestError("unauthorized", "Authentication is required");

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { parseApiSchema } from "../../../contracts/api/parse.ts";
+import { RecoveryBootstrapRequestSchema } from "../../../contracts/api/operations/recovery.ts";
 import type { IncomingMessage } from "node:http";
 import {
   JsonRequestBodyError,
@@ -29,21 +31,8 @@ export class RecoveryRequestError extends Error {
 }
 
 export function parseRecoveryRequestBody(value: unknown) {
-  if (
-    !value ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    Object.keys(value).length !== 1 ||
-    !Object.prototype.hasOwnProperty.call(value, "dataRoot")
-  ) {
-    throw new RecoveryRequestError("Recovery request is invalid", 422);
-  }
-  const dataRoot = (value as { dataRoot: unknown }).dataRoot;
-
-  if (dataRoot !== null && typeof dataRoot !== "string") {
-    throw new RecoveryRequestError("Recovery request is invalid", 422);
-  }
-  return dataRoot;
+  try { return parseApiSchema(RecoveryBootstrapRequestSchema, value).dataRoot; }
+  catch { throw new RecoveryRequestError("Recovery request is invalid", 422); }
 }
 
 export async function readRecoveryRequestDataRoot(request: IncomingMessage) {

@@ -1,20 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type {
-  DataRootMigrationStatus,
-  AgentAuditCapacityPort,
-  SystemAdministrationServerPort,
-  SystemConfiguration,
-  SystemConfigurationInput,
-  SystemConfigurationSnapshot,
-} from "../../../application/system/systemConfiguration.ts";
-import type {
-  BootstrapOwnerCredentialActivation,
-  BootstrapConfigurationSnapshot,
-  BootstrapConfigurationStore,
-} from "./bootstrapConfigurationStore.ts";
+import type { SystemAdministrationServerPort } from "./systemConfiguration.ts";
+import type { AgentAuditCapacityPort, SystemConfiguration, SystemConfigurationInput, SystemConfigurationSnapshot } from "./systemConfigurationModel.ts";
+import type { DataRootMigrationStatus } from "./dataRootMigrationPorts.ts";
+import type { SystemBootstrapPort } from "./systemConfigurationPorts.ts";
+import type { BootstrapOwnerCredentialActivation, BootstrapConfigurationSnapshot } from "./systemConfigurationPorts.ts";
 
-export type DataRootMigrationCoordinator = {
+export type DataRootMigrationPort = {
+  current(): Promise<DataRootMigrationStatus | null>;
+  reconcile(migrationId: string): Promise<DataRootMigrationStatus>;
   get(migrationId: string): Promise<DataRootMigrationStatus>;
   start(baseRevision: string, destination: string): Promise<DataRootMigrationStatus>;
 };
@@ -32,10 +26,10 @@ function sameConfiguration(
 }
 
 export class SystemAdministrationService implements SystemAdministrationServerPort {
-  readonly #bootstrap: BootstrapConfigurationStore;
+  readonly #bootstrap: SystemBootstrapPort;
   #effectiveConfiguration: SystemConfiguration;
   readonly #ledger: AgentAuditCapacityPort;
-  readonly #migrations: DataRootMigrationCoordinator;
+  readonly #migrations: DataRootMigrationPort;
   #runtimeApplyErrorMessage: string | null = null;
   #updateQueue: Promise<void> = Promise.resolve();
 
@@ -45,10 +39,10 @@ export class SystemAdministrationService implements SystemAdministrationServerPo
     ledger,
     migrations,
   }: {
-    bootstrap: BootstrapConfigurationStore;
+    bootstrap: SystemBootstrapPort;
     effectiveConfiguration: SystemConfiguration;
     ledger: AgentAuditCapacityPort;
-    migrations: DataRootMigrationCoordinator;
+    migrations: DataRootMigrationPort;
   }) {
     this.#bootstrap = bootstrap;
     this.#effectiveConfiguration = { ...effectiveConfiguration };
@@ -73,6 +67,10 @@ export class SystemAdministrationService implements SystemAdministrationServerPo
       this.#project(snapshot)
     );
   }
+
+  getCurrentMigration() { return this.#migrations.current(); }
+
+  reconcileMigration(migrationId: string) { return this.#migrations.reconcile(migrationId); }
 
   getMigration(migrationId: string) {
     return this.#migrations.get(migrationId);

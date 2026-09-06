@@ -1,98 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-export type SystemListenMode = "lan" | "loopback";
-
-export class SystemConfigurationConflictError extends Error {
-  readonly currentRevision: `sha256:${string}`;
-
-  constructor(currentRevision: `sha256:${string}`) {
-    super("System configuration revision changed");
-    this.name = "SystemConfigurationConflictError";
-    this.currentRevision = currentRevision;
-  }
-}
-
-export class SystemConfigurationValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "SystemConfigurationValidationError";
-  }
-}
-
-export class SystemMigrationConflictError extends Error {
-  readonly currentRevision?: `sha256:${string}`;
-
-  constructor(message: string, currentRevision?: `sha256:${string}`) {
-    super(message);
-    this.name = "SystemMigrationConflictError";
-    this.currentRevision = currentRevision;
-  }
-}
-
-export class SystemMigrationNotFoundError extends Error {
-  constructor() {
-    super("Data-root migration does not exist");
-    this.name = "SystemMigrationNotFoundError";
-  }
-}
-
-export class SystemMigrationValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "SystemMigrationValidationError";
-  }
-}
-
-export type AgentAuditCapacityPort = {
-  updateMaximumEntries(maxAuditEntries: number): Promise<void>;
-};
-
-export type SystemConfiguration = Readonly<{
-  dataRoot: string;
-  listenMode: SystemListenMode;
-  maxAuditEntries: number;
-  port: number;
-  publicOrigin: string | null;
-  repositoryHostRoot: string | null;
-}>;
-
-export type SystemConfigurationSnapshot = Readonly<{
-  configuration: SystemConfiguration;
-  effectiveConfiguration: SystemConfiguration;
-  ownerCredentialConfigured: boolean;
-  ownerCredentialRotationPending: boolean;
-  restartRequired: boolean;
-  revision: `sha256:${string}`;
-  runtimeApplyErrorMessage: string | null;
-  version: number;
-}>;
-
-export type SystemConfigurationInput = Omit<SystemConfiguration, "dataRoot">;
-
-export type SystemConfigurationUpdateRequest = Readonly<{
-  baseRevision: `sha256:${string}`;
-  configuration: SystemConfigurationInput;
-}>;
-
-export type OwnerCredentialRotationPreparation = Readonly<{
-  configuration: SystemConfigurationSnapshot;
-  rotationId: string;
-  secret: string;
-}>;
-
-export type OwnerCredentialRotationActivation = Readonly<{
-  baseRevision: `sha256:${string}`;
-  rotationId: string;
-  secret: string;
-}>;
-
-export type DataRootMigrationStatus = Readonly<{
-  destination: string;
-  errorMessage: string | null;
-  id: string;
-  source: string;
-  status: "copying" | "failed" | "restarting" | "verifying";
-}>;
+import type { DataRootMigrationStatus } from "./dataRootMigrationPorts.ts";
+import type { SystemConfigurationSnapshot, SystemConfigurationInput, SystemConfigurationUpdateRequest, OwnerCredentialRotationPreparation, OwnerCredentialRotationActivation } from "./systemConfigurationModel.ts";
 
 export type SystemAdministrationPort = {
   activateOwnerCredentialRotation(
@@ -101,6 +10,8 @@ export type SystemAdministrationPort = {
     secret: string,
   ): Promise<SystemConfigurationSnapshot>;
   clearOwnerCredential(baseRevision: string): Promise<SystemConfigurationSnapshot>;
+  getCurrentMigration(): Promise<DataRootMigrationStatus | null>;
+  reconcileMigration(migrationId: string): Promise<DataRootMigrationStatus>;
   getMigration(migrationId: string): Promise<DataRootMigrationStatus>;
   load(): Promise<SystemConfigurationSnapshot>;
   migrateDataRoot(
@@ -157,6 +68,7 @@ export type SystemConfigurationController = {
   getSnapshot(): SystemConfigurationState;
   load(): Promise<void>;
   migrateDataRoot(destination: string): Promise<void>;
+  reconcileMigration(): Promise<void>;
   prepareOwnerCredentialRotation(): Promise<OwnerCredentialRotationPreparation>;
   subscribe(listener: () => void): () => void;
   update(
@@ -211,6 +123,7 @@ export function createSystemConfigurationController(
   let configurationAuthorityVersion = 0;
   let disposed = false;
   let loadRequestVersion = 0;
+  let migrationRequestVersion = 0;
   let operationCount = 0;
   let state: SystemConfigurationState = {
     configuration: null,
@@ -275,6 +188,26 @@ export function createSystemConfigurationController(
     });
   };
 
+  const trackMigration = async (initial: DataRootMigrationStatus) => {
+    const requestVersion = ++migrationRequestVersion;
+    let migration = initial;
+    const publishCurrent = () => {
+      if (disposed || requestVersion !== migrationRequestVersion) return false;
+      publish({ migration });
+      return true;
+    };
+    if (!publishCurrent()) return;
+    while (["preparing", "copying", "verifying", "committing", "reconciling"].includes(migration.status)) {
+      await pollMigration(pollMigrationIntervalMilliseconds);
+      if (disposed || requestVersion !== migrationRequestVersion) return;
+      migration = await port.getMigration(migration.id);
+      if (!publishCurrent()) return;
+    }
+    if (migration.status === "failed" || migration.status === "recovery-required") {
+      throw new Error(migration.errorMessage ?? "Data-root migration needs attention.");
+    }
+  };
+
   return {
     async activateOwnerCredentialRotation({ baseRevision, rotationId, secret }) {
       await mutate(() =>
@@ -297,11 +230,12 @@ export function createSystemConfigurationController(
     async load() {
       requireActive();
       const requestVersion = ++loadRequestVersion;
+      const expectedMigrationVersion = migrationRequestVersion;
       const expectedAuthorityVersion = configurationAuthorityVersion;
 
       publish({ errorMessage: null, loadStatus: "loading" });
       try {
-        const configuration = await port.load();
+        const [configuration, migration] = await Promise.all([port.load(), port.getCurrentMigration()]);
 
         if (
           disposed ||
@@ -309,6 +243,10 @@ export function createSystemConfigurationController(
           expectedAuthorityVersion !== configurationAuthorityVersion
         ) return;
         installConfiguration(configuration);
+        if (expectedMigrationVersion === migrationRequestVersion) {
+          if (migration) void runOperation(() => trackMigration(migration)).catch(() => undefined);
+          else publish({ migration: null });
+        }
       } catch (error) {
         if (
           disposed ||
@@ -325,21 +263,15 @@ export function createSystemConfigurationController(
       await runOperation(async () => {
         await prepareMigration();
         if (disposed) return;
-        let migration = await port.migrateDataRoot(baseRevision, destination);
-
-        if (disposed) return;
-        publish({ migration });
-        while (migration.status === "copying" || migration.status === "verifying") {
-          await pollMigration(pollMigrationIntervalMilliseconds);
-          if (disposed) return;
-          migration = await port.getMigration(migration.id);
-          if (disposed) return;
-          publish({ migration });
-        }
-        if (migration.status === "failed") {
-          throw new Error(migration.errorMessage ?? "Data-root migration failed.");
-        }
+        const migration = await port.migrateDataRoot(baseRevision, destination);
+        if (!disposed) await trackMigration(migration);
       });
+    },
+    async reconcileMigration() {
+      requireActive();
+      const migration = state.migration;
+      if (!migration) throw new Error("No migration is available to reconcile");
+      await runOperation(async () => trackMigration(await port.reconcileMigration(migration.id)));
     },
     async prepareOwnerCredentialRotation() {
       requireActive();

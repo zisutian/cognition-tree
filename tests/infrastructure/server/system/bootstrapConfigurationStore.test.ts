@@ -11,10 +11,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  SystemConfigurationConflictError,
-  SystemConfigurationValidationError,
-} from "../../../../application/system/systemConfiguration.ts";
+import { SystemConfigurationConflictError, SystemConfigurationValidationError } from "../../../../application/system/systemConfigurationModel.ts";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import { replaceFileDurably } from "../../../../infrastructure/server/persistence/fileSystemPersistence.ts";
 import {

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
@@ -111,6 +113,7 @@ const system = {
     getSnapshot: () => configurationState,
     load: async () => undefined,
     migrateDataRoot: async () => undefined,
+    reconcileMigration: async () => undefined,
     prepareOwnerCredentialRotation: async () => ({
       configuration: systemConfiguration,
       rotationId: "rotation-1",

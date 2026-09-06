@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 import { once } from "node:events";
-import http, { type IncomingMessage, type ServerResponse } from "node:http";
-import { SystemConfigurationValidationError } from "../../../application/system/systemConfiguration.ts";
-import { isLoopbackAddress } from "../network/loopbackAddress.ts";
+import http, { type ServerResponse } from "node:http";
+import { SystemConfigurationValidationError } from "../../../application/system/systemConfigurationModel.ts";
+import { isLocalRecoveryRequest } from "../network/localRecoveryRequest.ts";
 import type { BootstrapConfigurationStore } from "./bootstrapConfigurationStore.ts";
 import {
   recoveryPageHtml,
@@ -15,17 +16,6 @@ import {
   RecoveryRequestAbortedError,
   RecoveryRequestError,
 } from "./recoveryRequest.ts";
-
-function hostIsLoopback(request: IncomingMessage) {
-  const host = request.headers.host;
-
-  if (!host) return false;
-  try {
-    return isLoopbackAddress(new URL(`http://${host}`).hostname);
-  } catch {
-    return false;
-  }
-}
 
 function sendJson(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, {
@@ -76,7 +66,7 @@ export async function runBootstrapRecoveryServer({
 }) {
   const server = http.createServer((request, response) => {
     void (async () => {
-      if (!isLoopbackAddress(request.socket.remoteAddress) || !hostIsLoopback(request)) {
+      if (!isLocalRecoveryRequest(request)) {
         sendJson(response, 403, { message: "Recovery is restricted to this machine" });
         return;
       }
@@ -109,7 +99,7 @@ export async function runBootstrapRecoveryServer({
         );
         return;
       }
-      if (request.method === "GET" && url.pathname === "/api/v4/recovery/status") {
+      if (request.method === "GET" && url.pathname === buildApiOperationPath("getBootstrapRecoveryStatus")) {
         sendJson(response, 200, {
           message: failure instanceof Error ? failure.message : "Bootstrap configuration is unavailable",
           recovery: true,
@@ -117,7 +107,7 @@ export async function runBootstrapRecoveryServer({
         return;
       }
       if (request.method === "POST" &&
-          url.pathname === "/api/v4/recovery/system-configuration") {
+          url.pathname === buildApiOperationPath("recoverBootstrapConfiguration")) {
         try {
           await bootstrap.recover(await readRecoveryRequestDataRoot(request));
           response.once("finish", () => {

@@ -7,6 +7,7 @@ export type ApiReadableDomain = "journal" | "todo" | "workspace";
 export type ApiAccessPolicy =
   | { kind: "public" }
   | { kind: "owner" }
+  | { kind: "local-recovery" }
   | { domain: ApiReadableDomain | "any"; kind: "content-read" }
   | { kind: "content-sync" };
 

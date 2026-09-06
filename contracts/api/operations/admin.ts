@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { nullable } from "../../common/schema.ts";
 import { Type } from "@sinclair/typebox";
 import {
   ApiOperationAuditPageSchema,
@@ -60,6 +61,8 @@ export const adminApiOperations = [
   { access: ownerAccess(), body: apiBody(ApiOwnerCredentialRotationActivationSchema), method: "POST", operationId: "activateOwnerCredentialRotation", path: "/api/v4/admin/system-configuration/owner-credential/activations", responses: { 200: ApiSystemConfigurationSnapshotSchema } },
   { access: ownerAccess(), body: apiBody(ApiSystemConfigurationRevisionSchema), method: "DELETE", operationId: "clearOwnerCredential", path: "/api/v4/admin/system-configuration/owner-credential", responses: { 200: ApiSystemConfigurationSnapshotSchema } },
   { access: ownerAccess(), body: apiBody(ApiDataRootMigrationRequestSchema), method: "POST", operationId: "createDataRootMigration", path: "/api/v4/admin/data-root-migrations", responses: { 202: ApiDataRootMigrationStatusSchema } },
+  { access: ownerAccess(), method: "GET", operationId: "getCurrentDataRootMigration", path: "/api/v4/admin/data-root-migration", responses: { 200: nullable(ApiDataRootMigrationStatusSchema) } },
+  { access: ownerAccess(), method: "POST", operationId: "reconcileDataRootMigration", path: "/api/v4/admin/data-root-migrations/{migrationId}/reconcile", responses: { 202: ApiDataRootMigrationStatusSchema } },
   { access: ownerAccess(), method: "GET", operationId: "getDataRootMigration", path: "/api/v4/admin/data-root-migrations/{migrationId}", responses: { 200: ApiDataRootMigrationStatusSchema } },
   { access: ownerAccess(), method: "GET", operationId: "getAgentConfiguration", path: "/api/v4/admin/agent-configuration", responses: { 200: AgentConfigurationSnapshotSchema } },
   { access: ownerAccess(), body: apiBody(AgentProviderMutationRequestSchema), method: "POST", operationId: "createAgentProvider", path: "/api/v4/admin/agent-providers", responses: { 201: AgentConfigurationSnapshotSchema } },

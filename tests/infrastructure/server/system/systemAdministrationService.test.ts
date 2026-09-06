@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { BootstrapConfigurationStore } from "../../../../infrastructure/server/system/bootstrapConfigurationStore.ts";
-import { SystemAdministrationService } from "../../../../infrastructure/server/system/systemAdministrationService.ts";
+import { SystemAdministrationService } from "../../../../application/system/systemAdministrationService.ts";
 
 describe("system administration runtime projection", () => {
   it("returns the committed configuration when applying the audit capacity fails", async () => {
@@ -23,6 +23,8 @@ describe("system administration runtime projection", () => {
         effectiveConfiguration: initial.configuration,
         ledger: { updateMaximumEntries },
         migrations: {
+            current: async () => null,
+            reconcile: async () => { throw new Error("No migration to reconcile"); },
           get: async () => { throw new Error("not used"); },
           start: async () => { throw new Error("not used"); },
         },

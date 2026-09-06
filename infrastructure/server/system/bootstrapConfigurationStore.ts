@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { BootstrapConfigurationSnapshot, BootstrapOwnerCredentialActivation } from "../../../application/system/systemConfigurationPorts.ts";
+import type { PreparedDataRootChange } from "../../../application/system/dataRootMigrationPorts.ts";
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { chmod, lstat, mkdir } from "node:fs/promises";
 import path from "node:path";
-import {
-  SystemConfigurationConflictError,
-  SystemConfigurationValidationError,
-} from "../../../application/system/systemConfiguration.ts";
-import type {
-  SystemConfiguration,
-  SystemConfigurationInput,
-} from "../../../application/system/systemConfiguration.ts";
+import { SystemConfigurationConflictError, SystemConfigurationValidationError } from "../../../application/system/systemConfigurationModel.ts";
+import type { SystemConfiguration, SystemConfigurationInput } from "../../../application/system/systemConfigurationModel.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import { hasFileSystemErrorCode } from "../persistence/fileSystemError.ts";
 import { replaceFileDurably } from "../persistence/fileSystemPersistence.ts";
@@ -39,13 +35,6 @@ import {
 
 const ownerSessionTtlMilliseconds = 12 * 60 * 60 * 1_000;
 
-export type BootstrapConfigurationSnapshot = Readonly<{
-  configuration: SystemConfiguration;
-  ownerCredentialConfigured: boolean;
-  ownerCredentialRotationPending: boolean;
-  revision: `sha256:${string}`;
-  version: number;
-}>;
 
 export type BootstrapConfigurationStoreOptions = Readonly<{
   createOwnerCredentialRotationId?: () => string;
@@ -54,10 +43,6 @@ export type BootstrapConfigurationStoreOptions = Readonly<{
   replaceConfigurationFile?: SecureStateFileReplacer;
 }>;
 
-export type BootstrapOwnerCredentialActivation = Readonly<{
-  configuration: BootstrapConfigurationSnapshot;
-  ownerSession: string;
-}>;
 
 function absolutePathOrNull(value: unknown, label: string) {
   if (value === null) return null;
@@ -96,6 +81,15 @@ function assertRevision(state: BootstrapState, baseRevision: string) {
   if (baseRevision !== state.digest) {
     throw new SystemConfigurationConflictError(state.digest);
   }
+}
+
+function applyDataRootChange(state: BootstrapState, baseRevision: string, dataRoot: string) {
+  consumeBootstrapFormatRewrite(state);
+  assertRevision(state, baseRevision);
+  const resolved = absolutePathOrNull(dataRoot, "dataRoot");
+  if (!resolved) throw new SystemConfigurationValidationError("Data root must be an absolute path.");
+  state.configuration = { ...state.configuration, dataRoot: resolved };
+  updateBootstrapStateDigest(state);
 }
 
 function createOwnerSession(state: BootstrapState, now: Date) {
@@ -301,16 +295,29 @@ export class BootstrapConfigurationStore {
 
   setDataRoot(baseRevision: string, dataRoot: string) {
     return this.#partition.mutate((state) => {
-      consumeBootstrapFormatRewrite(state);
-      assertRevision(state, baseRevision);
-      const resolved = absolutePathOrNull(dataRoot, "dataRoot");
-
-      if (!resolved) throw new SystemConfigurationValidationError(
-        "Data root must be an absolute path.",
-      );
-      state.configuration = { ...state.configuration, dataRoot: resolved };
-      updateBootstrapStateDigest(state);
+      applyDataRootChange(state, baseRevision, dataRoot);
       return { changed: true, result: project(state) };
+    });
+  }
+
+  prepareDataRootChange(baseRevision: string, destination: string): Promise<PreparedDataRootChange> {
+    return this.#partition.read((state) => {
+      const previousRevision = state.digest;
+      applyDataRootChange(state, baseRevision, destination);
+      return { baseRevision: previousRevision, destination: state.configuration.dataRoot, targetRevision: state.digest };
+    });
+  }
+
+  async commitDataRootChange(change: PreparedDataRootChange) {
+    const result = await this.setDataRoot(change.baseRevision, change.destination);
+    if (result.revision !== change.targetRevision) throw new Error("Data-root commit differs from its prepared revision");
+  }
+
+  reconcileDataRootChange(change: PreparedDataRootChange) {
+    return this.#partition.reconcile((state) => {
+      if (state.digest === change.baseRevision) return "not-committed" as const;
+      if (state.digest === change.targetRevision && state.configuration.dataRoot === change.destination) return "committed" as const;
+      throw new Error("Bootstrap revision does not match either migration outcome");
     });
   }
 

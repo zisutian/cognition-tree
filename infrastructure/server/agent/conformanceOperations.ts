@@ -119,6 +119,10 @@ export class AgentConformanceOperations {
     return this.#disposePromise;
   }
 
+  hasActiveOperations() {
+    return this.#starts.size > 0 || this.#executions.size > 0;
+  }
+
   async #start(baseRevision: string, profileId: string) {
     const hasRunningCheck = [...this.#checks.values()].some(({ status }) =>
       status.profileId === profileId && status.status === "running"

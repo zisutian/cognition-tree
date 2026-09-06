@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it, vi } from "vitest";
-import {
-  createSystemConfigurationController,
-  type DataRootMigrationStatus,
-  type OwnerCredentialRotationPreparation,
-  type SystemAdministrationPort,
-  type SystemConfigurationInput,
-  type SystemConfigurationSnapshot,
-} from "../../../application/system/systemConfiguration.ts";
+import { createSystemConfigurationController, type SystemAdministrationPort } from "../../../application/system/systemConfiguration.ts";
+import { type OwnerCredentialRotationPreparation, type SystemConfigurationInput, type SystemConfigurationSnapshot } from "../../../application/system/systemConfigurationModel.ts";
+import { type DataRootMigrationStatus } from "../../../application/system/dataRootMigrationPorts.ts";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 const configuration: SystemConfigurationSnapshot = {
@@ -86,6 +81,7 @@ function migration(
   errorMessage: string | null = null,
 ): DataRootMigrationStatus {
   return {
+    commitOutcome: "not-committed",
     destination: "/data/next",
     errorMessage,
     id: "migration-1",
@@ -100,6 +96,8 @@ function port(statuses: DataRootMigrationStatus[]): SystemAdministrationPort {
   return {
     activateOwnerCredentialRotation: vi.fn(async () => activatedConfiguration),
     clearOwnerCredential: vi.fn(async () => configuration),
+    getCurrentMigration: vi.fn(async () => null),
+    reconcileMigration: vi.fn(async () => statuses[0]!),
     getMigration: vi.fn(async () => statuses[nextStatus++]!),
     load: vi.fn(async () => configuration),
     migrateDataRoot: vi.fn(async () => statuses[0]!),

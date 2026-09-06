@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { runDataRootMigrationRecoveryServer } from "./system/dataRootMigrationRecoveryServer.ts";
+import { randomUUID } from "node:crypto";
+import { FileDataRootMigrationRecordStore } from "./system/dataRootMigrationRecordStore.ts";
+import { createDataRootMigrationFileOperations } from "./system/dataRootMigrationFiles.ts";
+import { localRepositoryWriterLockName } from "./repository/repositoryRuntimeLayout.ts";
 import { once } from "node:events";
 import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import path from "node:path";
@@ -28,9 +33,38 @@ import { BuiltInCatalog } from "./repository/built-ins/catalog.ts";
 import { LocalRepositoryCatalog } from
   "./repository/workspace/local/localRepositoryCatalog.ts";
 import { BootstrapConfigurationStore } from "./system/bootstrapConfigurationStore.ts";
-import { FileDataRootMigrationCoordinator } from "./system/dataRootMigrationCoordinator.ts";
-import { SystemAdministrationService } from "./system/systemAdministrationService.ts";
+import { DataRootMigrationCoordinator } from "../../application/system/dataRootMigrationCoordinator.ts";
+import { SystemAdministrationService } from "../../application/system/systemAdministrationService.ts";
 import { runBootstrapRecoveryServer } from "./system/recoveryServer.ts";
+
+const dataRootMigrationFileOperations = createDataRootMigrationFileOperations(localRepositoryWriterLockName);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 type ClientRuntime = {
   dispose(): Promise<void>;
@@ -82,12 +116,45 @@ if (commandArguments.length > 0 && !development) {
 
 const projectRoot = process.cwd();
 const bootstrapStore = new BootstrapConfigurationStore(projectRoot);
-const bootstrapSnapshot = await bootstrapStore.readSnapshot().catch(
-  async (failure: unknown) => {
-    await runBootstrapRecoveryServer({ bootstrap: bootstrapStore, failure });
-    return null;
+const maintenanceGate = new ApiMaintenanceGate();
+let shutdown: () => Promise<void> = async () => undefined;
+let hasActiveAgentWork = () => false;
+const migrationRecords = new FileDataRootMigrationRecordStore(path.join(projectRoot, ".cognition-tree", "bootstrap-v1"));
+const migrations = new DataRootMigrationCoordinator({
+  hasActiveAgentWork: () => hasActiveAgentWork(),
+  createId: randomUUID,
+  files: dataRootMigrationFileOperations,
+  records: migrationRecords,
+  bootstrap: bootstrapStore,
+  controlRoot: path.join(projectRoot, ".cognition-tree", "bootstrap-v1"),
+  maintenance: maintenanceGate,
+  requestRestart: async () => {
+    process.exitCode = 75;
+    await shutdown();
   },
-);
+});
+const bootstrapSnapshot = await (async () => {
+  let migrationObserved = false;
+  let migrationPending = false;
+  try {
+    const record = await migrationRecords.load();
+    migrationObserved = true;
+    migrationPending = record !== null && record.status !== "failed" && record.status !== "completed";
+    const recovered = await migrations.recoverOnStartup();
+    if (recovered?.status === "recovery-required") {
+      await runDataRootMigrationRecoveryServer({ migrations, failure: null });
+      return null;
+    }
+    return await bootstrapStore.readSnapshot();
+  } catch (failure) {
+    if (!migrationObserved || migrationPending) {
+      await runDataRootMigrationRecoveryServer({ migrations, failure });
+    } else {
+      await runBootstrapRecoveryServer({ bootstrap: bootstrapStore, failure });
+    }
+    return null;
+  }
+})();
 
 if (bootstrapSnapshot !== null) {
 const effectiveConfiguration = bootstrapSnapshot.configuration;
@@ -150,20 +217,9 @@ const agentProviderOperations = new AgentProviderOperations({
   runtime: systemApiRuntime,
   targetPolicy: agentTargetPolicy,
 });
+hasActiveAgentWork = () => agentService.hasResidentSessions() || agentProviderOperations.hasActiveOperations();
 let clientRuntime: ClientRuntime | null = null;
-const maintenanceGate = new ApiMaintenanceGate();
-let shutdown: () => Promise<void> = async () => undefined;
-const migrations = new FileDataRootMigrationCoordinator({
-  agentProviderOperations,
-  agentService,
-  bootstrap: bootstrapStore,
-  controlRoot: path.join(projectRoot, ".cognition-tree", "bootstrap-v1"),
-  maintenance: maintenanceGate,
-  requestRestart: async () => {
-    process.exitCode = 75;
-    await shutdown();
-  },
-});
+
 const systemAdministration = new SystemAdministrationService({
   bootstrap: bootstrapStore,
   effectiveConfiguration,

@@ -102,7 +102,7 @@ export function createApiOpenApiDocument() {
         ...queryParameters(operation.query),
       ],
       responses,
-      security: operation.access.kind === "public"
+      security: ["public", "local-recovery"].includes(operation.access.kind)
         ? []
         : [{ bearerAuth: [] }],
       tags: [operationTag(operation.path)],

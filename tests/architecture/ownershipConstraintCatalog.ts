@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { SourceModules } from "./moduleImports";
 import type {
   TextCorpus,
@@ -215,9 +217,9 @@ export function createOwnershipTextPolicies({
     ],
     [
       "data-root migration state coordinator",
-      infrastructureModules,
-      /\bclass FileDataRootMigrationCoordinator\b/,
-      /^infrastructure\/server\/system\/dataRootMigrationCoordinator\.ts$/,
+      applicationModules,
+      /\bclass DataRootMigrationCoordinator\b/,
+      /^application\/system\/dataRootMigrationCoordinator\.ts$/,
     ],
     [
       "Agent Profile turn queue",
@@ -340,7 +342,7 @@ export function createOwnershipTextPolicies({
     })),
     {
       allowedPath:
-        /^contracts\/api\/operations\/(?:admin|agent|auth|content|foundation|sync)\.ts$/,
+        /^contracts\/api\/operations\/(?:admin|agent|auth|content|foundation|sync|recovery)\.ts$/,
       corpus: contractModules,
       matches: { min: 1 },
       name: "CTN API v4 feature operation declarations",

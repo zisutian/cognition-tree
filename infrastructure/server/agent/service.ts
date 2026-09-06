@@ -206,7 +206,7 @@ export class AgentService {
   }
 
   hasResidentSessions() {
-    return this.#sessionPool.hasResidentSessions();
+    return this.#operations.size > 0 || this.#sessionPool.hasResidentSessions();
   }
 
   async createSession(request: AgentCreateSessionRequestDto) {

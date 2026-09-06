@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { randomUUID } from "node:crypto";
+import { FileDataRootMigrationRecordStore } from "../../../../infrastructure/server/system/dataRootMigrationRecordStore.ts";
+import type { DataRootMigrationFiles } from "../../../../application/system/dataRootMigrationPorts.ts";
+import { localRepositoryWriterLockName } from "../../../../infrastructure/server/repository/repositoryRuntimeLayout.ts";
 import {
   access,
   lstat,
@@ -15,17 +19,23 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  SystemMigrationConflictError,
-  SystemMigrationNotFoundError,
-  SystemMigrationValidationError,
-} from "../../../../application/system/systemConfiguration.ts";
+import { SystemMigrationConflictError, SystemMigrationNotFoundError, SystemMigrationValidationError } from "../../../../application/system/systemConfigurationModel.ts";
 import { BootstrapConfigurationStore } from "../../../../infrastructure/server/system/bootstrapConfigurationStore.ts";
-import { FileDataRootMigrationCoordinator } from "../../../../infrastructure/server/system/dataRootMigrationCoordinator.ts";
+import { DataRootMigrationCoordinator } from "../../../../application/system/dataRootMigrationCoordinator.ts";
 import {
-  dataRootMigrationFileOperations,
-  type DataRootMigrationFileOperations,
+  createDataRootMigrationFileOperations,
 } from "../../../../infrastructure/server/system/dataRootMigrationFiles.ts";
+
+const dataRootMigrationFileOperations = createDataRootMigrationFileOperations(localRepositoryWriterLockName);
+
+
+
+
+
+
+
+
+
 
 const roots: string[] = [];
 
@@ -41,7 +51,7 @@ function deferred<Value>() {
 async function fixture(
   hasResidentSessions = false,
   hasPendingCodexLogin = false,
-  fileOperations: DataRootMigrationFileOperations =
+  fileOperations: DataRootMigrationFiles =
     dataRootMigrationFileOperations,
 ) {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), "ctn-migration-project-"));
@@ -69,15 +79,15 @@ async function fixture(
     await mkdir(path.dirname(file), { mode: 0o700, recursive: true });
     await writeFile(file, relative, { mode: 0o600 });
   }
-  const coordinator = new FileDataRootMigrationCoordinator({
-    agentProviderOperations: { hasPendingCodexLogin: () => hasPendingCodexLogin },
-    agentService: { hasResidentSessions: () => hasResidentSessions },
+  const coordinator = new DataRootMigrationCoordinator({
+    hasActiveAgentWork: () => hasPendingCodexLogin || hasResidentSessions,
+    createId: randomUUID,
+    records: new FileDataRootMigrationRecordStore(path.join(projectRoot, ".cognition-tree", "bootstrap-v1")),
     bootstrap,
     controlRoot: path.join(projectRoot, ".cognition-tree", "bootstrap-v1"),
-    fileOperations,
+    files: fileOperations,
     maintenance: { begin: beginMaintenance },
     requestRestart,
-    restartDelayMilliseconds: 0,
   });
 
   return {
@@ -93,7 +103,7 @@ async function fixture(
 }
 
 async function waitForTerminal(
-  coordinator: FileDataRootMigrationCoordinator,
+  coordinator: DataRootMigrationCoordinator,
   id: string,
 ) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -225,12 +235,12 @@ describe("data-root migration coordinator", () => {
   it("releases a starting reservation after preflight failure", async () => {
     const prepareDestination = vi.fn(async () => "");
     const fixtureValue = await fixture(false, false, {
-      cleanup: vi.fn(async () => undefined),
+      ...dataRootMigrationFileOperations,
       copy: vi.fn(async () => {
         throw new Error("stop after reservation assertion");
       }),
       prepareDestination,
-      verify: vi.fn(async () => undefined),
+      verify: vi.fn(async () => "unused"),
     });
 
     prepareDestination
@@ -252,12 +262,12 @@ describe("data-root migration coordinator", () => {
 
   it("retains only the currently observable migration", async () => {
     const fixtureValue = await fixture(false, false, {
-      cleanup: vi.fn(async () => undefined),
+      ...dataRootMigrationFileOperations,
       copy: vi.fn(async () => {
         throw new Error("injected copy failure");
       }),
       prepareDestination: vi.fn(async (destination) => destination),
-      verify: vi.fn(async () => undefined),
+      verify: vi.fn(async () => "unused"),
     });
     const first = await fixtureValue.coordinator.start(
       fixtureValue.initial.revision,
@@ -277,7 +287,7 @@ describe("data-root migration coordinator", () => {
     await waitForTerminal(fixtureValue.coordinator, second.id);
   });
 
-  it("rolls back a failed copy without changing the bootstrap pointer", async () => {
+  it("retains a failed copy without changing the bootstrap pointer", async () => {
     const fixtureValue = await fixture();
 
     await symlink(
@@ -296,40 +306,23 @@ describe("data-root migration coordinator", () => {
     });
     expect((await fixtureValue.bootstrap.readSnapshot()).configuration.dataRoot)
       .toBe(fixtureValue.source);
-    await expect(access(fixtureValue.target)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(access(fixtureValue.target)).resolves.toBeUndefined();
     expect(fixtureValue.finish).toHaveBeenCalledOnce();
     expect(fixtureValue.requestRestart).not.toHaveBeenCalled();
   });
 
-  it("records cleanup failure and releases maintenance after a failed copy", async () => {
-    const cleanup = vi.fn(async () => {
-      throw new Error("injected cleanup failure");
-    });
+  it("preserves a foreign destination created after preflight", async () => {
     const fixtureValue = await fixture(false, false, {
       ...dataRootMigrationFileOperations,
-      cleanup,
+      async copy(source, destination, allocated) {
+        await mkdir(destination);
+        await writeFile(path.join(destination, "foreign.txt"), "owned by another operation");
+        await dataRootMigrationFileOperations.copy(source, destination, allocated);
+      },
     });
-
-    await symlink(
-      "note.ctn",
-      path.join(fixtureValue.source, "repositories/primary/link.ctn"),
-    );
-    const started = await fixtureValue.coordinator.start(
-      fixtureValue.initial.revision,
-      fixtureValue.target,
-    );
-    const terminal = await waitForTerminal(fixtureValue.coordinator, started.id);
-
-    expect(terminal).toMatchObject({
-      errorMessage: expect.stringContaining(
-        "Destination cleanup failed: injected cleanup failure",
-      ),
-      status: "failed",
-    });
-    expect(terminal.errorMessage).toContain("Symbolic link is not allowed");
-    expect(cleanup).toHaveBeenCalledWith(fixtureValue.target);
+    const started = await fixtureValue.coordinator.start(fixtureValue.initial.revision, fixtureValue.target);
+    expect((await waitForTerminal(fixtureValue.coordinator, started.id)).status).toBe("failed");
+    expect(await readFile(path.join(fixtureValue.target, "foreign.txt"), "utf8")).toBe("owned by another operation");
     expect(fixtureValue.finish).toHaveBeenCalledOnce();
-    expect((await fixtureValue.bootstrap.readSnapshot()).configuration.dataRoot)
-      .toBe(fixtureValue.source);
   });
 });

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
+
 export const recoveryPageHtml = `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -38,7 +40,7 @@ form.addEventListener("submit", async (event) => {
   const dataRoot = input.value.trim();
 
   try {
-    const response = await fetch("/api/v4/recovery/system-configuration", {
+    const response = await fetch("${buildApiOperationPath("recoverBootstrapConfiguration")}", {
       body: JSON.stringify({ dataRoot: dataRoot || null }),
       headers: { "Content-Type": "application/json" },
       method: "POST",

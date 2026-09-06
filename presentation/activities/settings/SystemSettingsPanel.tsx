@@ -38,7 +38,7 @@ export type SystemSettingsPanelApplication = Readonly<{
   authenticationController: Pick<OwnerAuthenticationController, "logout">;
   configurationController: Pick<
     SystemConfigurationController,
-    "load" | "migrateDataRoot" | "update"
+    "load" | "migrateDataRoot" | "update" | "reconcileMigration" | "getSnapshot"
   >;
   configurationState: SystemConfigurationState;
 }>;
@@ -222,6 +222,12 @@ export function SystemSettingsPanel({
                     reconnectAfterRestart(globalThis.location.origin);
                   });
                 }} type="button">开始迁移</Button>
+                {configurationState.migration && ["recovery-required", "restarting"].includes(configurationState.migration.status) ? (
+                  <Button disabled={busy} onClick={() => void feedback.runAction(async () => {
+                    await configurationController.reconcileMigration();
+                    if (configurationController.getSnapshot().migration?.status === "restarting") reconnectAfterRestart(globalThis.location.origin);
+                  })} type="button">重新对账</Button>
+                ) : null}
               </FormActions>
             </FormLayout>
           </ToolSection>

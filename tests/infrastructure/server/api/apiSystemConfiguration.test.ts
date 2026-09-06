@@ -13,7 +13,7 @@ import { createApiRequestHandler } from "../../../../infrastructure/server/api/h
 import { createApiSecurityPolicy } from "../../../../infrastructure/server/api/http/security.ts";
 import { LocalRepositoryCatalog } from "../../../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
 import { BootstrapConfigurationStore } from "../../../../infrastructure/server/system/bootstrapConfigurationStore.ts";
-import { SystemAdministrationService } from "../../../../infrastructure/server/system/systemAdministrationService.ts";
+import { SystemAdministrationService } from "../../../../application/system/systemAdministrationService.ts";
 import { dispatch } from "./support/apiServerTestHarness.ts";
 
 describe("system configuration API", () => {
@@ -36,6 +36,8 @@ describe("system configuration API", () => {
         effectiveConfiguration: initial.configuration,
         ledger,
         migrations: {
+            current: async () => null,
+            reconcile: async () => { throw new Error("No migration to reconcile"); },
           get: async () => { throw new Error("not used"); },
           start: async () => { throw new Error("not used"); },
         },

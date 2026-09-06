@@ -87,11 +87,17 @@ export type ApiDataRootMigrationRequestDto = Static<
 >;
 
 export const ApiDataRootMigrationStatusSchema = strictObject({
+  commitOutcome: Type.Union([Type.Literal("not-committed"), Type.Literal("committed"), Type.Literal("unknown")]),
   destination: Type.String({ minLength: 1 }),
   errorMessage: nullable(Type.String()),
   id: ApiIdentifierSchema,
   source: Type.String({ minLength: 1 }),
   status: Type.Union([
+    Type.Literal("preparing"),
+    Type.Literal("committing"),
+    Type.Literal("reconciling"),
+    Type.Literal("completed"),
+    Type.Literal("recovery-required"),
     Type.Literal("copying"),
     Type.Literal("failed"),
     Type.Literal("restarting"),

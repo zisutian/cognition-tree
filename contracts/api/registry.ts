@@ -10,6 +10,7 @@ import { authApiOperations } from "./operations/auth.ts";
 import { contentApiOperations } from "./operations/content.ts";
 import type { ApiOperationDefinition } from "./operations/definition.ts";
 import { foundationApiOperations } from "./operations/foundation.ts";
+import { recoveryApiOperations } from "./operations/recovery.ts";
 import { syncApiOperations } from "./operations/sync.ts";
 
 export type {
@@ -25,6 +26,7 @@ export const apiOperationCatalogs = {
   sync: syncApiOperations,
   agent: agentApiOperations,
   admin: adminApiOperations,
+  recovery: recoveryApiOperations,
 } as const;
 
 export const apiOperations: readonly ApiOperationDefinition[] =

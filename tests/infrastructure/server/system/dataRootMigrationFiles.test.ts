@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { localRepositoryWriterLockName } from "../../../../infrastructure/server/repository/repositoryRuntimeLayout.ts";
 import {
   access,
   chmod,
@@ -14,8 +15,16 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  dataRootMigrationFileOperations,
+  createDataRootMigrationFileOperations,
 } from "../../../../infrastructure/server/system/dataRootMigrationFiles.ts";
+
+const dataRootMigrationFileOperations = createDataRootMigrationFileOperations(localRepositoryWriterLockName);
+
+
+
+
+
+
 
 describe("data-root migration files", () => {
   it("streams authoritative content and metadata verification", async () => {
@@ -43,16 +52,16 @@ describe("data-root migration files", () => {
         source,
         control,
       );
-      await dataRootMigrationFileOperations.copy(source, destination);
+      await dataRootMigrationFileOperations.copy(await dataRootMigrationFileOperations.identify(source), destination, async () => undefined);
       await expect(dataRootMigrationFileOperations.verify(
-        source,
-        destination,
-      )).resolves.toBeUndefined();
+        await dataRootMigrationFileOperations.identify(source),
+        await dataRootMigrationFileOperations.identify(destination),
+      )).resolves.toMatch(/^sha256:/);
 
       await chmod(destinationFile, 0o644);
       await expect(dataRootMigrationFileOperations.verify(
-        source,
-        destination,
+        await dataRootMigrationFileOperations.identify(source),
+        await dataRootMigrationFileOperations.identify(destination),
       )).rejects.toThrow(/verification failed/i);
       await chmod(destinationFile, 0o600);
       await utimes(
@@ -61,14 +70,14 @@ describe("data-root migration files", () => {
         new Date("2026-08-02T01:02:03.000Z"),
       );
       await expect(dataRootMigrationFileOperations.verify(
-        source,
-        destination,
+        await dataRootMigrationFileOperations.identify(source),
+        await dataRootMigrationFileOperations.identify(destination),
       )).rejects.toThrow(/verification failed/i);
       await utimes(destinationFile, preservedTime, preservedTime);
       await writeFile(destinationFile, "changed");
       await expect(dataRootMigrationFileOperations.verify(
-        source,
-        destination,
+        await dataRootMigrationFileOperations.identify(source),
+        await dataRootMigrationFileOperations.identify(destination),
       )).rejects.toThrow(/verification failed/i);
     } finally {
       await rm(root, { force: true, recursive: true });
@@ -97,7 +106,7 @@ describe("data-root migration files", () => {
       );
       await symlink(redirected, destination);
 
-      await expect(dataRootMigrationFileOperations.copy(source, destination))
+      await expect(dataRootMigrationFileOperations.copy(await dataRootMigrationFileOperations.identify(source), destination, async () => undefined))
         .rejects.toThrow(/destination appeared/i);
       await expect(access(path.join(redirected, relative))).rejects
         .toMatchObject({ code: "ENOENT" });

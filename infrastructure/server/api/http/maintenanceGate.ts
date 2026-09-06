@@ -1,62 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type {
-  SystemMaintenanceLease,
-  SystemMaintenancePort,
-} from "../../../../application/system/systemConfiguration.ts";
+import { ApplicationWriteBarrier } from "../../../../application/runtime/writeBarrier.ts";
+import type { SystemMaintenancePort } from "../../../../application/system/systemConfiguration.ts";
 import { ApiRequestError } from "./errors.ts";
 
-function isMutation(method: string | undefined) {
-  return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
-}
+// These control operations read established control state and never enter a
+// data-root store. Bearer authentication is disabled while the gate is closed.
+const maintenanceControlOperations = new Set([
+  "getOwnerSession", "createOwnerSession", "getSystemConfiguration",
+  "getCurrentDataRootMigration", "getDataRootMigration", "reconcileDataRootMigration",
+]);
 
 export class ApiMaintenanceGate implements SystemMaintenancePort {
-  #activeMutations = 0;
-  #maintenance = false;
-  readonly #waiters = new Set<() => void>();
+  readonly #barrier = new ApplicationWriteBarrier();
 
-  async begin(): Promise<SystemMaintenanceLease> {
-    if (this.#maintenance) {
-      throw new ApiRequestError(
-        "resource_conflict",
-        "Data-root maintenance is already active",
-      );
+  begin() { return this.#barrier.begin(); }
+  isClosed() { return this.#barrier.isClosed(); }
+
+  enter(operationId: string | undefined) {
+    if (operationId && maintenanceControlOperations.has(operationId)) return () => undefined;
+    try { return this.#barrier.enter().finish; }
+    catch {
+      throw new ApiRequestError("repository_busy", "Cognition Tree is migrating its data root");
     }
-    this.#maintenance = true;
-    if (this.#activeMutations > 0) {
-      await new Promise<void>((resolve) => this.#waiters.add(resolve));
-    }
-    let finished = false;
-
-    return {
-      finish: () => {
-        if (finished) return;
-        finished = true;
-        this.#maintenance = false;
-      },
-    };
-  }
-
-  enter(method: string | undefined) {
-    const mutation = isMutation(method);
-
-    if (this.#maintenance && mutation) {
-      throw new ApiRequestError(
-        "repository_busy",
-        "Cognition Tree is migrating its data root",
-      );
-    }
-    if (!mutation) return () => undefined;
-    this.#activeMutations += 1;
-    let left = false;
-
-    return () => {
-      if (left) return;
-      left = true;
-      this.#activeMutations -= 1;
-      if (this.#activeMutations !== 0) return;
-      for (const resolve of this.#waiters) resolve();
-      this.#waiters.clear();
-    };
   }
 }

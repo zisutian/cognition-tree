@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import path from "node:path";
-import type {
-  SystemConfiguration,
-} from "../../../application/system/systemConfiguration.ts";
+import type { SystemConfiguration } from "../../../application/system/systemConfigurationModel.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import {
   assertStateFields,

@@ -15,6 +15,7 @@ export function SystemSettingsStatus({ ownerCredentialSession, state }: {
   ownerCredentialSession: SystemOwnerCredentialStatusView;
   state: SystemConfigurationState;
 }) {
+  const phaseLabels = { preparing: "准备", copying: "复制", verifying: "校验", committing: "切换指针", reconciling: "核对写入结果", restarting: "等待重启", completed: "已完成", failed: "未完成，源目录继续使用", "recovery-required": "需要恢复" } as const;
   const snapshot = state.configuration;
   const ownerCredentialPreparation = ownerCredentialSession.snapshot.preparation;
 
@@ -67,7 +68,9 @@ export function SystemSettingsStatus({ ownerCredentialSession, state }: {
       {state.migration ? (
         <ToolSection title="数据根迁移">
           <ToolPropertyList aria-label="数据根迁移状态">
-            <ToolPropertyRow label="状态" value={state.migration.status} />
+            <ToolPropertyRow label="状态" value={phaseLabels[state.migration.status]} />
+            <ToolPropertyRow label="源目录" value={<code>{state.migration.source}</code>} />
+            <ToolPropertyRow label="目标目录" value={<code>{state.migration.destination}</code>} />
             {state.migration.errorMessage ? <ToolPropertyRow label="错误" value={state.migration.errorMessage} /> : null}
           </ToolPropertyList>
         </ToolSection>

@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import {
-  SystemConfigurationValidationError,
-} from "../../../application/system/systemConfiguration.ts";
+import { SystemConfigurationValidationError } from "../../../application/system/systemConfigurationModel.ts";
 import {
   assertStateFields,
   requireStateRecord,

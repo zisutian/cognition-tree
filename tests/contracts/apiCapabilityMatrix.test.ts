@@ -41,6 +41,8 @@ const expectedCapabilities = [
   ["POST", "activateOwnerCredentialRotation"],
   ["DELETE", "clearOwnerCredential"],
   ["POST", "createDataRootMigration"],
+  ["GET", "getCurrentDataRootMigration"],
+  ["POST", "reconcileDataRootMigration"],
   ["GET", "getDataRootMigration"],
   ["GET", "getAgentConfiguration"],
   ["POST", "createAgentProvider"],
@@ -72,6 +74,10 @@ const expectedCapabilities = [
   ["DELETE", "revokeTrustedClientToken"],
   ["GET", "getOperationAuditStatus"],
   ["GET", "listOperations"],
+  ["GET", "getBootstrapRecoveryStatus"],
+  ["POST", "recoverBootstrapConfiguration"],
+  ["GET", "getMigrationRecoveryStatus"],
+  ["POST", "reconcileMigrationRecovery"],
 ] as const;
 
 describe("HTTP API capability matrix", () => {

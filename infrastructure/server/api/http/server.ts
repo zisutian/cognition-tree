@@ -124,9 +124,10 @@ export function createApiRequestHandler({
   const resolvedTrustedClientTokenStore = trustedClientTokenStore ??
     new TrustedClientTokenStore(stateDirectory);
   const bearerAuthenticator = {
-    authenticate: async (secret: string) =>
-      await resolvedAccessStore.authenticate(secret) ??
-      await resolvedTrustedClientTokenStore.authenticate(secret),
+    authenticate: async (secret: string) => maintenanceGate.isClosed()
+      ? null
+      : await resolvedAccessStore.authenticate(secret) ??
+        await resolvedTrustedClientTokenStore.authenticate(secret),
   };
   const resolvedAgentConfigurationStore = agentConfigurationStore ??
     new AgentConfigurationStore(stateDirectory);
@@ -146,7 +147,8 @@ export function createApiRequestHandler({
     let leaveRequest: (() => void) | null = null;
 
     try {
-      leaveRequest = maintenanceGate.enter(request.method);
+      const requestedRoute = resolveApiRoute(new URL(request.url ?? "/", "http://localhost").pathname);
+      leaveRequest = maintenanceGate.enter(requestedRoute?.operations.get(request.method ?? "")?.operationId);
       const authorized = await authorizeApiRequest(
         request,
         security,

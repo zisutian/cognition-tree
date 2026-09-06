@@ -72,13 +72,7 @@ import {
 import {
   WorkspacePayloadValidationError,
 } from "../../repository/workspace/layout.ts";
-import {
-  SystemConfigurationConflictError,
-  SystemConfigurationValidationError,
-  SystemMigrationConflictError,
-  SystemMigrationNotFoundError,
-  SystemMigrationValidationError,
-} from "../../../../application/system/systemConfiguration.ts";
+import { SystemConfigurationConflictError, SystemConfigurationValidationError, SystemMigrationConflictError, SystemMigrationNotFoundError, SystemMigrationValidationError } from "../../../../application/system/systemConfigurationModel.ts";
 
 export const ApiErrorCatalog = {
   adapter_unavailable: { retryable: true, statusCode: 503 },

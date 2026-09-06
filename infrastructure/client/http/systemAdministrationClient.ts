@@ -1,6 +1,6 @@
-import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 import type {
   OwnerAuthenticationPort,
   SystemAdministrationPort,
@@ -46,6 +46,15 @@ export function createHttpSystemAdministrationClient({
       return configuration(await request(
         buildApiOperationPath("clearOwnerCredential"),
         jsonRequest({ baseRevision }, "DELETE"),
+      ));
+    },
+    async getCurrentMigration() {
+      const value = await request(buildApiOperationPath("getCurrentDataRootMigration"));
+      return value === null ? null : parseApiSchema(ApiDataRootMigrationStatusSchema, value);
+    },
+    async reconcileMigration(migrationId) {
+      return parseApiSchema(ApiDataRootMigrationStatusSchema, await request(
+        buildApiOperationPath("reconcileDataRootMigration", { migrationId }), { method: "POST" },
       ));
     },
     async getMigration(migrationId) {

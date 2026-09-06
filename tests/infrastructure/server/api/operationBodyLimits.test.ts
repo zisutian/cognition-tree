@@ -33,7 +33,7 @@ function requestWithBody(body: Buffer) {
 describe("operation-specific API body limits", () => {
   it("expands only the three sync PUT operations", () => {
     const expanded = apiOperations.filter(({ maximumBodyBytes }) =>
-      maximumBodyBytes !== undefined
+      maximumBodyBytes !== undefined && maximumBodyBytes > defaultMaximumBodyBytes
     );
 
     expect(expanded.map(({ method, operationId, maximumBodyBytes }) => ({
