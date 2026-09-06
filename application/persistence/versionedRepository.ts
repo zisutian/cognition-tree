@@ -308,21 +308,6 @@ export type VersionedRepository<
   >;
 };
 
-export type VersionedRepositoryContentValidator<Content> = (
-  content: Content,
-) => void;
-
-export type VersionedRepositoryTransitionValidator<Content> = (
-  previous: Content,
-  next: Content,
-) => void;
-
-export type VersionedRepositoryCodec<Content, Revision extends string> = {
-  parseContent(value: unknown): Content;
-  parseRevision(value: unknown): Revision;
-  parseSnapshot(value: unknown): VersionedRemoteSnapshot<Content, Revision>;
-};
-
 export class VersionedRepositoryBackendConflictError<
   Revision extends string = string,
 > extends Error {

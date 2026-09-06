@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { describe, expect, it, vi } from "vitest";
 import { createMemoryRepositoryClientCache } from "../../../../infrastructure/client/repository/repositoryClientCache";
-import { createHttpWorkspaceRepositoryCatalog } from "../../../../infrastructure/client/http/workspaceRepositoryCatalog";
+import { createHttpWorkspaceRepositoryCatalog } from "../../../../infrastructure/client/runtime/index.ts";
 import { createHttpRepositoryCacheIdentity } from "../../../../infrastructure/client/http/httpRepositoryIdentity";
 import {
   createWorkspaceRepositoryContent,
@@ -264,7 +266,7 @@ describe("HTTP workspace repository catalog", () => {
         cache,
         fetch: fetchMock,
         token: "token-a",
-      preparation,
+        preparation,
       });
 
     await expect(createCatalog().listRepositories()).resolves.toEqual({
@@ -287,15 +289,15 @@ describe("HTTP workspace repository catalog", () => {
       fetch: async () =>
         corrupt
           ? jsonResponse(
-              {
-                code: "repository_corrupt",
-                details: {},
-                message: "catalog metadata is corrupt",
-                requestId: "request-9",
-                retryable: false,
-              },
-              500,
-            )
+            {
+              code: "repository_corrupt",
+              details: {},
+              message: "catalog metadata is corrupt",
+              requestId: "request-9",
+              retryable: false,
+            },
+            500,
+          )
           : jsonResponse({ issues: [], repositories: [descriptor] }),
       preparation,
     });

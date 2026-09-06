@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+
+
 export {
   consumeJournalFocusRequest,
   createJournalFocusRequest,
@@ -84,3 +86,5 @@ export {
   projectJournalAgentProposalReview,
   projectJournalContentChanges,
 } from "./journalContentProjection.ts";
+
+export { journalRepositoryPreparation } from "./persistence/journalRepositoryPreparation.ts";

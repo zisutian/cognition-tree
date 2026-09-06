@@ -36,10 +36,8 @@ export type {
   VersionedRemoteSyncResult,
   VersionedRepository,
   VersionedRepositoryBackend,
-  VersionedRepositoryCodec,
   VersionedRepositoryConflictDetails,
   VersionedRepositoryConflictRecord,
-  VersionedRepositoryContentValidator,
   VersionedRepositorySnapshot,
   VersionedRepositorySyncResult,
 } from "./versionedRepository.ts";

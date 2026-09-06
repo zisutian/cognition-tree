@@ -1,5 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { describe, expect, it, vi } from "vitest";
-import { createLocalFirstWorkspaceRepository } from "../../../../infrastructure/client/repository/resilientWorkspaceRepository";
+import { createLocalFirstWorkspaceRepository } from "../../../../application/workspace/index.ts";
 import type { VersionedRepositoryLoadPolicy } from "../../../../application/persistence/localFirst/localFirstRepository";
 import { VersionedRepositoryLocalMergeConflictError } from "../../../../application/persistence/versionedRepository";
 import {

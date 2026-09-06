@@ -1,20 +1,20 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { createClientActiveRepositorySelection } from "../platform/index.ts";
 import type { OfficialClientApi } from "../http/index.ts";
-import { createHttpWorkspaceRepositoryCatalog } from "../http/index.ts";
+import { createHttpWorkspaceRepositoryCatalog } from "./workspaceCatalogRuntime.ts";
 import type {
   ActiveRepositorySelection,
   WorkspaceRepositoryCatalog,
 } from "../../../application/repository/index.ts";
-
 import type {
   WorkspaceRepositoryProvider,
   WorkspaceRepositoryProvisioner,
 } from "../../../application/workspace/index.ts";
 import {
   createMemoryRepositoryClientCache,
-  workspaceRepositoryPreparation,
 } from "../repository/index.ts";
-
+import { workspaceRepositoryPreparation } from "../../../application/workspace/index.ts";
 
 export type WorkspaceRepositoryRuntime = {
   activeRepositorySelection: ActiveRepositorySelection;

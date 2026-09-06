@@ -3,8 +3,9 @@
 import {
   createLocalFirstVersionedRepository,
   type VersionedRepositoryLoadPolicy,
-} from "../../../application/persistence/index.ts";
-import type { WorkspaceRepositoryCache } from "./workspaceRepositoryCache.ts";
+} from "../../persistence/index.ts";
+import type { VersionedRepositoryCache } from "../../persistence/index.ts";
+import type { WorkspaceRepositoryContent, RepositoryRevision } from "./workspaceRepository.ts";
 import {
   createLocalDraftRevision,
   type LocalDraftRevision,
@@ -12,13 +13,12 @@ import {
   type WorkspaceRepositoryBackend,
   type WorkspaceRepositoryPreparationPolicy,
   WorkspaceRepositoryRemoteError,
-  mergeWorkspaceContent,
-} from "../../../application/workspace/index.ts";
-
+} from "./workspaceRepository.ts";
+import { mergeWorkspaceContent } from "./workspaceThreeWayMerge.ts";
 
 type LocalFirstWorkspaceRepositoryOptions = {
   backend: WorkspaceRepositoryBackend;
-  cache: WorkspaceRepositoryCache;
+  cache: VersionedRepositoryCache<WorkspaceRepositoryContent, RepositoryRevision, LocalDraftRevision>;
   createDraftId: () => string;
   label: string;
   loadPolicy: VersionedRepositoryLoadPolicy;
@@ -41,11 +41,4 @@ export function createLocalFirstWorkspaceRepository({
     createLocalRevision: () => createLocalDraftRevision(createDraftId),
     mergeContent: mergeWorkspaceContent,
   });
-}
-
-export function isSameLocalRevision(
-  left: LocalDraftRevision,
-  right: LocalDraftRevision,
-) {
-  return left === right;
 }

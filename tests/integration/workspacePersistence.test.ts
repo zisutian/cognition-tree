@@ -11,8 +11,8 @@ import {
   type WorkspaceSessionController,
 } from "../../application/workspace/session/workspaceSessionController";
 import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/client/http/workspaceRepository";
-import { createHttpWorkspaceRepositoryCatalog } from "../../infrastructure/client/http/workspaceRepositoryCatalog";
-import { workspaceRepositoryPreparation } from "../../infrastructure/client/repository/workspaceRepositoryContentValidation";
+import { createHttpWorkspaceRepositoryCatalog } from "../../infrastructure/client/runtime/index.ts";
+import { workspaceRepositoryPreparation } from "../../application/workspace/index.ts";
 import type {
   WorkspaceRepository,
 } from "../../application/workspace/persistence/workspaceRepository";

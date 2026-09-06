@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+
+
 export type {
   ActiveRepositorySelection,
 } from "./activeRepositorySelection.ts";
@@ -98,3 +100,7 @@ export type {
 export type {
   WorkspaceRepositoryRuntimeIssue,
 } from "./projectWorkspaceRepositoryIssues.ts";
+
+export { createCachedBuiltInCatalog } from "./cachedBuiltInCatalog.ts";
+
+export type { WorkspaceRepositoryCatalogData } from "./workspaceRepositoryCatalog.ts";

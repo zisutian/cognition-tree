@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+
+
 export {
   createTodoDiagnostics,
 } from "./todoDiagnostics.ts";
@@ -69,3 +71,5 @@ export type {
   TodoSessionController,
   TodoSessionState,
 } from "./todoSessionController.ts";
+
+export { todoRepositoryPreparation } from "./persistence/todoRepositoryPreparation.ts";

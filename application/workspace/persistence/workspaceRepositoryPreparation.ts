@@ -12,17 +12,13 @@ import {
   normalizeWorkspaceSyntaxName,
   type WorkspaceSyntaxCatalog,
 } from "../../../core/workspace/index.ts";
-
-
-
-
 import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/index.ts";
 import type { NoteId } from "../../../core/workspace/index.ts";
-
 import type {
   WorkspaceRepositoryContent,
   WorkspaceRepositoryPreparation,
 } from "./workspaceRepository.ts";
+import type { VersionedContentPreparationPolicy } from "../../persistence/index.ts";
 
 export type { WorkspaceRepositoryPreparation } from "./workspaceRepository.ts";
 
@@ -131,13 +127,13 @@ export function prepareWorkspaceRepositoryContent(
   const workspace = createWorkspaceStructureIndex(content.workspace);
   const analysisIndex = workspaceSyntax
     ? createWorkspaceParseIndex(
-        {
-          analysisOverrides,
-          syntax: workspaceSyntax.syntax,
-          workspace,
-        },
-        previous?.analysisIndex ?? previousAnalysisIndex,
-      )
+      {
+        analysisOverrides,
+        syntax: workspaceSyntax.syntax,
+        workspace,
+      },
+      previous?.analysisIndex ?? previousAnalysisIndex,
+    )
     : null;
 
   if (!workspaceSyntax) {
@@ -157,3 +153,15 @@ export function prepareWorkspaceRepositoryContent(
     workspaceSyntax,
   };
 }
+
+
+
+export const workspaceRepositoryPreparation:
+  VersionedContentPreparationPolicy<
+    WorkspaceRepositoryContent,
+    WorkspaceRepositoryPreparation
+  > = {
+  prepare(content, previous) {
+    return prepareWorkspaceRepositoryContent(content, { previous });
+  },
+};

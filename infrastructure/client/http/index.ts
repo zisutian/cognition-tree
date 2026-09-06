@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+
+
 export {
   createHttpAgentClient,
 } from "./agentClient.ts";
@@ -13,11 +15,10 @@ export {
   createHttpApiEventSource,
 } from "./apiEvents.ts";
 export {
-  createHttpBuiltInCatalog,
-  createMemoryBuiltInCatalogCache,
+  createHttpBuiltInCatalogBackend,
 } from "./builtInCatalog.ts";
 export {
-  createHttpJournalRepositoryProvider,
+  createHttpJournalRepositoryBackend,
 } from "./journalRepository.ts";
 export {
   createHttpOperationAdministration,
@@ -27,14 +28,18 @@ export {
   createHttpSystemAdministrationClient,
 } from "./systemAdministrationClient.ts";
 export {
-  createHttpTodoRepositoryProvider,
+  createHttpTodoRepositoryBackend,
 } from "./todoRepository.ts";
 export {
   createHttpWorkspaceRepositoryBackend,
 } from "./workspaceRepository.ts";
 export {
-  createHttpWorkspaceRepositoryCatalog,
+  createHttpWorkspaceCatalogBackend,
 } from "./workspaceRepositoryCatalog.ts";
 export type {
   OfficialClientApi,
 } from "./apiTransport.ts";
+
+export { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity.ts";
+export { subscribeClientReconnect, HttpApiResponseError, HttpApiUnavailableError } from "./apiTransport.ts";
+export type { HttpApiTransportOptions } from "./apiTransport.ts";

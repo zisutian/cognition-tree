@@ -2,16 +2,14 @@
 
 import type { OfficialClientApi } from "../http/index.ts";
 import {
-  createHttpBuiltInCatalog,
   createMemoryBuiltInCatalogCache,
-  createHttpJournalRepositoryProvider,
-  createHttpTodoRepositoryProvider,
-} from "../http/index.ts";
+} from "../repository/index.ts";
+import { createHttpBuiltInCatalog } from "./builtInCatalogRuntime.ts";
+import { createHttpJournalRepositoryProvider } from "./journalRepositoryRuntime.ts";
+import { createHttpTodoRepositoryProvider } from "./todoRepositoryRuntime.ts";
 import type { BuiltInCatalog } from "../../../application/repository/index.ts";
 import type { JournalRepositoryProvider } from "../../../application/journal/index.ts";
 import type { TodoRepositoryProvider } from "../../../application/todo/index.ts";
-
-
 import { createMemoryVersionedRepositoryCache } from "../repository/index.ts";
 
 export type BuiltInRuntime = {

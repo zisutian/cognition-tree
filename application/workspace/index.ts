@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+
+
 export type {
   ActiveWorkspaceSession,
 } from "./session/workspaceSessionApplication.ts";
@@ -159,3 +161,9 @@ export type {
   WorkspaceSessionController,
   WorkspaceSessionControllerState,
 } from "./session/workspaceSessionController.ts";
+
+export { workspaceRepositoryPreparation } from "./persistence/workspaceRepositoryPreparation.ts";
+
+export { createLocalFirstWorkspaceRepository } from "./persistence/localFirstWorkspaceRepository.ts";
+
+export { createLocalFirstWorkspaceCatalog } from "./persistence/localFirstWorkspaceCatalog.ts";

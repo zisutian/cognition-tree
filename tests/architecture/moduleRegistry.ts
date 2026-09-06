@@ -449,8 +449,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "contracts/journal",
       "contracts/todo",
       "contracts/workspace",
-      "core/naming",
-      "infrastructure/client/repository"
+      "core/naming"
     ]
   },
   {
@@ -481,6 +480,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "application/todo",
       "application/workspace",
       "contracts/common",
+      "contracts/built-ins",
       "contracts/journal",
       "contracts/todo",
       "contracts/workspace",
@@ -501,6 +501,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "application/apiAccess",
       "application/journal",
       "application/operations",
+      "application/persistence",
       "application/problems",
       "application/repository",
       "application/system",
@@ -508,6 +509,9 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "application/workbench",
       "application/workspace",
       "contracts/common",
+      "contracts/built-ins",
+      "contracts/journal",
+      "contracts/todo",
       "infrastructure/client/http",
       "infrastructure/client/platform",
       "infrastructure/client/repository"
@@ -515,7 +519,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     "id": "infrastructure/server/access",
-    "responsibility": "Persisted owner credentials, sessions and access tokens",
+    "responsibility": "Persisted automation and trusted-client access tokens",
     "scope": "tree",
     "publicEntries": [
       "infrastructure/server/access/index.ts"
@@ -663,7 +667,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     "id": "infrastructure/server/client",
-    "responsibility": "Static client and development client middleware adapters",
+    "responsibility": "Static client file serving adapter",
     "scope": "tree",
     "publicEntries": [
       "infrastructure/server/client/index.ts"
@@ -728,7 +732,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     "id": "infrastructure/server/platform",
-    "responsibility": "Node clock and application scheduler adapters",
+    "responsibility": "Node clock, scheduler and asynchronous write-lease adapters",
     "scope": "tree",
     "publicEntries": [
       "infrastructure/server/platform/index.ts"

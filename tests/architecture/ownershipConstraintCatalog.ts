@@ -365,6 +365,13 @@ export function createOwnershipTextPolicies({
       pattern: /\bprocess\.env\b/,
     },
     {
+      corpus: infrastructureModules,
+      matches: 0,
+      name: "HTTP adapters cannot own local-first or cache construction",
+      scope: /^infrastructure\/client\/http\//,
+      pattern: /\b(?:createLocalFirst\w*|createMemory\w*|cacheProjectionQueue|catalogAuthorityEpoch)\b/,
+    },
+    {
       corpus: applicationModules,
       matches: 0,
       name: "presentation contracts in application projections",

@@ -26,7 +26,6 @@ import {
   type VersionedRemoteSnapshot,
   type VersionedRepository,
   type VersionedRepositoryBackend,
-  type VersionedRepositoryContentValidator,
   type VersionedContentPreparationPolicy,
   type VersionedRepositorySnapshot,
   type VersionedRepositorySyncResult,
@@ -44,8 +43,6 @@ export type WorkspaceRepositoryPreparation = {
   workspace: WorkspaceStructureIndex;
   workspaceSyntax: WorkspaceSyntax | null;
 };
-export type WorkspaceRepositoryContentValidator =
-  VersionedRepositoryContentValidator<WorkspaceRepositoryContent>;
 export type WorkspaceRepositoryPreparationPolicy =
   VersionedContentPreparationPolicy<
     WorkspaceRepositoryContent,

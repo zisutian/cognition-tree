@@ -12,12 +12,10 @@ import type {
 } from "../../../../contracts/todo/types";
 import {
   createHttpBuiltInCatalog,
-  createMemoryBuiltInCatalogCache,
-} from "../../../../infrastructure/client/http/builtInCatalog";
+} from "../../../../infrastructure/client/runtime/index.ts";
 import {
-  createHttpJournalRepositoryBackend,
   createHttpJournalRepositoryProvider,
-} from "../../../../infrastructure/client/http/journalRepository";
+} from "../../../../infrastructure/client/runtime/index.ts";
 import {
   createHttpTodoRepositoryBackend,
 } from "../../../../infrastructure/client/http/todoRepository";
@@ -38,6 +36,8 @@ import {
   todoBlockId,
   todoTimestamp,
 } from "../../../core/todo/todoTestFixture";
+import { createMemoryBuiltInCatalogCache } from "../../../../infrastructure/client/repository/index.ts";
+import { createHttpJournalRepositoryBackend } from "../../../../infrastructure/client/http/index.ts";
 
 const journalRevisionA = `sha256:${"a".repeat(64)}` as JournalRevisionDto;
 const journalRevisionB = `sha256:${"b".repeat(64)}` as JournalRevisionDto;
@@ -275,9 +275,9 @@ describe("HTTP built-in catalog and data repositories", () => {
     const journalFetch = vi.fn<typeof fetch>(async (_input, init) =>
       init?.method === "PUT"
         ? jsonResponse({
-            outcome: "committed",
-            snapshot: { content: journalContent, revision: journalRevisionB },
-          })
+          outcome: "committed",
+          snapshot: { content: journalContent, revision: journalRevisionB },
+        })
         : jsonResponse({ content: journalContent, revision: journalRevisionA })
     );
     const journal = createHttpJournalRepositoryBackend({
@@ -313,9 +313,9 @@ describe("HTTP built-in catalog and data repositories", () => {
     const todoFetch = vi.fn<typeof fetch>(async (_input, init) =>
       init?.method === "PUT"
         ? jsonResponse({
-            outcome: "committed",
-            snapshot: { content: invalidTodo, revision: todoRevisionB },
-          })
+          outcome: "committed",
+          snapshot: { content: invalidTodo, revision: todoRevisionB },
+        })
         : jsonResponse({ content: todoContent, revision: todoRevisionA })
     );
     const todo = createHttpTodoRepositoryBackend({
@@ -351,8 +351,8 @@ describe("HTTP built-in catalog and data repositories", () => {
       baseUrl: "https://cached.test/api",
       fetch: async (input: RequestInfo | URL) =>
         String(input).endsWith("/sync/journal")
-        ? jsonResponse({ content: journalContent, revision: journalRevisionA })
-        : jsonResponse(serverCatalog("/cached")),
+          ? jsonResponse({ content: journalContent, revision: journalRevisionA })
+          : jsonResponse(serverCatalog("/cached")),
       token: "same-token",
     };
     const online = createHttpBuiltInCatalog({

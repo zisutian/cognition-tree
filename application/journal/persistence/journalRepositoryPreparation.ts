@@ -7,11 +7,10 @@ import {
   validateJournalContentAnalysisTransition,
 } from "../../../core/journal/index.ts";
 import type { JournalContent } from "../../../core/journal/index.ts";
-
-
 import type {
   PreparedVersionedContent,
 } from "../../persistence/index.ts";
+import type { VersionedContentPreparationPolicy } from "../../persistence/index.ts";
 
 export function prepareJournalRepositoryContent(
   content: JournalContent,
@@ -22,8 +21,7 @@ export function prepareJournalRepositoryContent(
   } catch (error) {
     if (error instanceof JournalContentValidationError) throw error;
     throw new JournalContentValidationError(
-      `Journal CTN preparation failed: ${
-        error instanceof Error ? error.message : "unknown CTN error"
+      `Journal CTN preparation failed: ${error instanceof Error ? error.message : "unknown CTN error"
       }`,
     );
   }
@@ -38,3 +36,31 @@ export function validateJournalRepositoryPreparedTransition(
     next.projection.validation,
   );
 }
+
+
+
+export const journalRepositoryPreparation: VersionedContentPreparationPolicy<
+  JournalContent,
+  JournalParseIndex
+> = {
+  prepare(content, previous) {
+    try {
+      return prepareJournalRepositoryContent(content, previous);
+    } catch (error) {
+      if (error instanceof JournalContentValidationError) {
+        throw new Error(`Journal content is invalid: ${error.message}`);
+      }
+      throw error;
+    }
+  },
+  validateTransition(previous, next) {
+    try {
+      validateJournalRepositoryPreparedTransition(previous, next);
+    } catch (error) {
+      if (error instanceof JournalContentValidationError) {
+        throw new Error(`Journal transition is invalid: ${error.message}`);
+      }
+      throw error;
+    }
+  },
+};
