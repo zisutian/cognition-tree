@@ -4,6 +4,7 @@ import path from "node:path";
 import { lock } from "proper-lockfile";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import {
+  confirmSecureFileDurably,
   readSecureFileUtf8,
   replaceFileDurably,
 } from "../persistence/fileSystemPersistence.ts";
@@ -211,6 +212,34 @@ export class SecureJsonPartition<Value> {
 
       return { ...await operation(candidate), candidate };
     });
+  }
+
+  // Recovery must validate a fresh observation under the same writer lock.
+  // It never repeats the failed mutation or initializes missing state.
+  reconcile<Result>(observe: (value: Value) => Result): Promise<Result> {
+    const pending = this.#operationQueue.then(async () => {
+      await ensureSecureStateDirectory(this.#directory);
+      const release = await this.#acquireLock();
+      try {
+        const source = await readSecureFileUtf8(this.#file, this.#maximumBytes);
+        const value = clonePartitionValue(this.#parse(JSON.parse(source) as unknown));
+        const result = observe(clonePartitionValue(value));
+        await confirmSecureFileDurably(this.#file, source, this.#maximumBytes);
+        this.#value = value;
+        this.#persistedSource = source;
+        this.#initializePromise = Promise.resolve();
+        this.#terminalError = null;
+        return result;
+      } finally {
+        try { await release(); }
+        catch (error) {
+          this.#terminalError = new SecureStateLockReleaseError(this.#name, error);
+          throw this.#terminalError;
+        }
+      }
+    });
+    this.#operationQueue = pending.then(() => undefined, () => undefined);
+    return pending;
   }
 
   async #initialize() {

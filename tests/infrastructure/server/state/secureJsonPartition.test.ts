@@ -437,6 +437,18 @@ describe("Secure JSON partition", () => {
       return { changed: true, result: candidate.revision };
     })).rejects.toThrow("durable write outcome could not be verified");
     expect(operationInvoked).toBe(false);
+    await expect(partition.reconcile((candidate) => {
+      if (candidate.revision !== 1) throw new Error("unexpected authority");
+      return candidate.revision;
+    })).rejects.toThrow("unexpected authority");
+    await expect(partition.read((state) => state.revision)).rejects.toThrow(
+      "durable write outcome could not be verified",
+    );
+    await expect(partition.reconcile((candidate) => {
+      if (candidate.revision !== 2 || candidate.records[0]?.value !== "visible candidate") throw new Error("unexpected authority");
+      return candidate.revision;
+    })).resolves.toBe(2);
+    await expect(partition.read((state) => state.revision)).resolves.toBe(2);
   });
 
   it("fails closed when a durable save outcome cannot be verified", async () => {

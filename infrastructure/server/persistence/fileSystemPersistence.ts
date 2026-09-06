@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { constants, type Dirent, type Stats } from "node:fs";
 import {
+  lstat,
   open,
   readdir,
   rename,
@@ -89,6 +90,25 @@ export async function fsyncDirectory(directory: string) {
 
   try {
     await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
+export async function confirmSecureFileDurably(filePath: string, expectedSource: string, maximumBytes: number) {
+  const handle = await open(filePath, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const before = await handle.stat();
+    if (!isSecureRegularFile(before) || await readFileHandleUtf8(handle, maximumBytes, "state file") !== expectedSource) {
+      throw new Error("State changed before durability confirmation");
+    }
+    await handle.sync();
+    await fsyncDirectory(path.dirname(filePath));
+    const after = await lstat(filePath);
+    if (after.dev !== before.dev || after.ino !== before.ino || !isSecureRegularFile(after) ||
+        await readSecureFileUtf8(filePath, maximumBytes) !== expectedSource) {
+      throw new Error("State changed during durability confirmation");
+    }
   } finally {
     await handle.close();
   }
