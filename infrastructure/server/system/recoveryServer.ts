@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { randomUUID } from "node:crypto";
+import { ApiRequestError } from "../api/protocol/index.ts";
 import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 import { once } from "node:events";
 import http, { type ServerResponse } from "node:http";
@@ -54,7 +56,7 @@ function sendUnexpectedRecoveryFailure(
     if (!response.destroyed) response.destroy();
     return;
   }
-  sendJson(response, 500, { message: "Recovery failed" });
+  sendJson(response, 500, new ApiRequestError("internal_error", "Recovery failed").toDto(randomUUID()));
 }
 
 export async function runBootstrapRecoveryServer({
@@ -67,7 +69,7 @@ export async function runBootstrapRecoveryServer({
   const server = http.createServer((request, response) => {
     void (async () => {
       if (!isLocalRecoveryRequest(request)) {
-        sendJson(response, 403, { message: "Recovery is restricted to this machine" });
+        sendJson(response, 403, new ApiRequestError("forbidden", "Recovery is restricted to this machine").toDto(randomUUID()));
         return;
       }
       const url = new URL(request.url ?? "/", "http://localhost");
@@ -121,18 +123,18 @@ export async function runBootstrapRecoveryServer({
             return;
           }
           if (error instanceof RecoveryRequestError) {
-            sendJson(response, error.statusCode, { message: error.message });
+            sendJson(response, error.statusCode, new ApiRequestError("invalid_request", error.message).toDto(randomUUID()));
             return;
           }
           if (error instanceof SystemConfigurationValidationError) {
-            sendJson(response, 422, { message: error.message });
+            sendJson(response, 422, new ApiRequestError("invalid_request", error.message).toDto(randomUUID()));
             return;
           }
           sendUnexpectedRecoveryFailure(response, error);
         }
         return;
       }
-      sendJson(response, 404, { message: "Recovery operation does not exist" });
+      sendJson(response, 404, new ApiRequestError("not_found", "Recovery operation does not exist").toDto(randomUUID()));
     })().catch((error: unknown) =>
       sendUnexpectedRecoveryFailure(response, error)
     );

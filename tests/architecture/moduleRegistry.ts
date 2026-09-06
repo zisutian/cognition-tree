@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+
+
 // Reviewed module capabilities. Tests never infer allowed dependencies from current imports.
 export type ModuleRegistration = {
   id: string;
@@ -804,6 +806,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "infrastructure/server/system/index.ts"
     ],
     "dependencies": [
+      "infrastructure/server/api/protocol",
       "application/system",
       "contracts/api",
       "contracts/common",

@@ -68,7 +68,7 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   persistence: ["persistence"],
   repository: ["persistence", "repository"],
   state: ["persistence", "state"],
-  system: ["network", "persistence", "state", "system"],
+  system: ["api/protocol", "network", "persistence", "state", "system"],
 };
 
 const clientAreaImports: Readonly<Record<string, readonly string[]>> = {
