@@ -9,7 +9,7 @@ describe("HTTP Agent client", () => {
   it("uses owner-only v3 message operations", async () => {
     const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe(
-        `https://ctn.example/api/v3/agent/sessions/${sessionId}/messages`,
+        `https://ctn.example/api/v4/agent/sessions/${sessionId}/messages`,
       );
       expect(init?.method).toBe("POST");
       expect(JSON.parse(String(init?.body))).toEqual({ content: "hello" });
@@ -71,7 +71,7 @@ describe("HTTP Agent client", () => {
 
     await expect(received).resolves.toEqual(event);
     expect(requestedUrl).toBe(
-      `https://ctn.example/api/v3/agent/sessions/${sessionId}/events?afterSequence=8`,
+      `https://ctn.example/api/v4/agent/sessions/${sessionId}/events?afterSequence=8`,
     );
   });
 

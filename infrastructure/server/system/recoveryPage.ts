@@ -38,7 +38,7 @@ form.addEventListener("submit", async (event) => {
   const dataRoot = input.value.trim();
 
   try {
-    const response = await fetch("/api/v3/recovery/system-configuration", {
+    const response = await fetch("/api/v4/recovery/system-configuration", {
       body: JSON.stringify({ dataRoot: dataRoot || null }),
       headers: { "Content-Type": "application/json" },
       method: "POST",

@@ -57,14 +57,14 @@ export async function handleApiRoute(
 
     return {
       body: {
-        apiVersion: 3,
+        apiVersion: 4,
         operationAuditStatus: auditStatus,
         principal: context.principal,
       },
       statusCode: 200,
     };
   }
-  if (operation.path === "/api/v3/auth/session") {
+  if (operation.path === "/api/v4/auth/session") {
     return handleOwnerSession(context);
   }
   if (operation.operationId === "getOpenApi") {
@@ -124,7 +124,7 @@ export async function handleApiRoute(
   )) {
     return handleTodoQuery(authorizedContext);
   }
-  if (operation.path.startsWith("/api/v3/agent/")) {
+  if (operation.path.startsWith("/api/v4/agent/")) {
     return handleAgentOperation(authorizedContext);
   }
   if ([

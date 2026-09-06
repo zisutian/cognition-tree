@@ -23,7 +23,7 @@ import {
   withHandler,
 } from "./support/apiServerTestHarness.ts";
 
-describe("CTN API v3 authorization", () => {
+describe("CTN API v4 authorization", () => {
   it("accepts only the local repository create and delete wire shapes", async () => {
     await withHandler(async (_handler, _rootDir, authenticated) => {
       const ownerToken = "owner-token-with-at-least-32-characters";
@@ -38,7 +38,7 @@ describe("CTN API v3 authorization", () => {
         },
         method: "POST",
         token: ownerToken,
-        url: "/api/v3/admin/repositories",
+        url: "/api/v4/admin/repositories",
       });
 
       expect(obsoleteCreate).toMatchObject({
@@ -49,12 +49,12 @@ describe("CTN API v3 authorization", () => {
         body: { content: createContent(), label: "本地仓库" },
         method: "POST",
         token: ownerToken,
-        url: "/api/v3/admin/repositories",
+        url: "/api/v4/admin/repositories",
       });
       const obsoleteDelete = await dispatch<{ code: string }>(handler, {
         method: "DELETE",
         token: ownerToken,
-        url: `/api/v3/admin/repositories/${created.body!.id}?mode=legacy`,
+        url: `/api/v4/admin/repositories/${created.body!.id}?mode=legacy`,
       });
 
       expect(obsoleteDelete).toMatchObject({
@@ -64,7 +64,7 @@ describe("CTN API v3 authorization", () => {
       const deleted = await dispatch<never>(handler, {
         method: "DELETE",
         token: ownerToken,
-        url: `/api/v3/admin/repositories/${created.body!.id}`,
+        url: `/api/v4/admin/repositories/${created.body!.id}`,
       });
 
       expect(deleted).toEqual({
@@ -84,7 +84,7 @@ describe("CTN API v3 authorization", () => {
           body: { content: createContent(), label },
           method: "POST",
           token: ownerToken,
-          url: "/api/v3/admin/repositories",
+          url: "/api/v4/admin/repositories",
         });
       const repository = await createRepository("受控仓库");
       const otherRepository = await createRepository("未授权仓库");
@@ -96,7 +96,7 @@ describe("CTN API v3 authorization", () => {
         },
         method: "POST",
         token: ownerToken,
-        url: "/api/v3/admin/automation-tokens",
+        url: "/api/v4/admin/automation-tokens",
       });
 
       expect(createdToken.statusCode).toBe(201);
@@ -107,31 +107,31 @@ describe("CTN API v3 authorization", () => {
       }>(handler, {
         method: "GET",
         token: secret,
-        url: "/api/v3/capabilities",
+        url: "/api/v4/capabilities",
       });
 
       expect(capabilities.body).toMatchObject({
-        apiVersion: 3,
+        apiVersion: 4,
         principal: { kind: "automation", name: "只读工具" },
       });
       const tree = await dispatch<ApiWorkspaceTreeDto>(handler, {
         method: "GET",
         token: secret,
-        url: `/api/v3/content/workspaces/${repository.body!.id}/tree`,
+        url: `/api/v4/content/workspaces/${repository.body!.id}/tree`,
       });
 
       expect(tree.statusCode).toBe(200);
       for (const request of [
         {
           method: "GET",
-          url: `/api/v3/content/workspaces/${otherRepository.body!.id}/tree`,
+          url: `/api/v4/content/workspaces/${otherRepository.body!.id}/tree`,
         },
         {
           method: "GET",
-          url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+          url: `/api/v4/sync/workspaces/${repository.body!.id}`,
         },
-        { method: "GET", url: "/api/v3/admin/repositories" },
-        { method: "GET", url: "/api/v3/agent/status" },
+        { method: "GET", url: "/api/v4/admin/repositories" },
+        { method: "GET", url: "/api/v4/agent/status" },
       ]) {
         const response = await dispatch<{ code: string }>(handler, {
           ...request,
@@ -151,7 +151,7 @@ describe("CTN API v3 authorization", () => {
         },
         method: "POST",
         token: ownerToken,
-        url: "/api/v3/admin/automation-tokens",
+        url: "/api/v4/admin/automation-tokens",
       });
 
       expect(writeScope).toMatchObject({
@@ -187,7 +187,7 @@ describe("CTN API v3 authorization", () => {
       const tokens = await dispatch<{ tokens: unknown[] }>(reopened, {
         method: "GET",
         token: ownerToken,
-        url: "/api/v3/admin/automation-tokens",
+        url: "/api/v4/admin/automation-tokens",
       });
 
       expect(tokens.statusCode).toBe(200);
@@ -195,14 +195,14 @@ describe("CTN API v3 authorization", () => {
       const revoked = await dispatch<{ revoked: boolean }>(reopened, {
         method: "DELETE",
         token: ownerToken,
-        url: `/api/v3/admin/automation-tokens/${createdToken.body!.token.id}`,
+        url: `/api/v4/admin/automation-tokens/${createdToken.body!.token.id}`,
       });
 
       expect(revoked).toMatchObject({ body: { revoked: true }, statusCode: 200 });
       const afterRevocation = await dispatch<{ code: string }>(reopened, {
         method: "GET",
         token: secret,
-        url: "/api/v3/capabilities",
+        url: "/api/v4/capabilities",
       });
 
       expect(afterRevocation).toMatchObject({
@@ -220,13 +220,13 @@ describe("CTN API v3 authorization", () => {
         body: { content: createContent(), label: "可信同步仓库" },
         method: "POST",
         token: ownerToken,
-        url: "/api/v3/admin/repositories",
+        url: "/api/v4/admin/repositories",
       });
       const created = await dispatch<ApiCreatedTrustedClientTokenDto>(handler, {
         body: { name: "每日 Codex" },
         method: "POST",
         token: ownerToken,
-        url: "/api/v3/admin/trusted-client-tokens",
+        url: "/api/v4/admin/trusted-client-tokens",
       });
 
       expect(created.statusCode).toBe(201);
@@ -238,7 +238,7 @@ describe("CTN API v3 authorization", () => {
       }>(handler, {
         method: "GET",
         token: secret,
-        url: "/api/v3/capabilities",
+        url: "/api/v4/capabilities",
       });
 
       expect(capabilities.body).toMatchObject({
@@ -248,12 +248,12 @@ describe("CTN API v3 authorization", () => {
       await expect(dispatch(handler, {
         method: "GET",
         token: secret,
-        url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+        url: `/api/v4/sync/workspaces/${repository.body!.id}`,
       })).resolves.toMatchObject({ statusCode: 200 });
       for (const url of [
-        "/api/v3/admin/repositories",
-        "/api/v3/agent/status",
-        "/api/v3/auth/session",
+        "/api/v4/admin/repositories",
+        "/api/v4/agent/status",
+        "/api/v4/auth/session",
       ]) {
         const response = await dispatch<{ code?: string; authenticated?: boolean }>(handler, {
           method: "GET",
@@ -261,7 +261,7 @@ describe("CTN API v3 authorization", () => {
           url,
         });
 
-        if (url === "/api/v3/auth/session") {
+        if (url === "/api/v4/auth/session") {
           expect(response).toMatchObject({
             body: { authenticated: false },
             statusCode: 200,
@@ -276,7 +276,7 @@ describe("CTN API v3 authorization", () => {
       const snapshot = await dispatch<{ content: unknown; revision: string }>(handler, {
         method: "GET",
         token: secret,
-        url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+        url: `/api/v4/sync/workspaces/${repository.body!.id}`,
       });
       await expect(dispatch<{ code: string }>(handler, {
         body: {
@@ -285,7 +285,7 @@ describe("CTN API v3 authorization", () => {
         },
         method: "PUT",
         token: secret,
-        url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+        url: `/api/v4/sync/workspaces/${repository.body!.id}`,
       })).resolves.toMatchObject({
         body: { code: "operation_audit_unavailable" },
         statusCode: 503,
@@ -300,12 +300,12 @@ describe("CTN API v3 authorization", () => {
       await expect(dispatch(handler, {
         method: "DELETE",
         token: ownerToken,
-        url: `/api/v3/admin/trusted-client-tokens/${created.body!.token.id}`,
+        url: `/api/v4/admin/trusted-client-tokens/${created.body!.token.id}`,
       })).resolves.toMatchObject({ statusCode: 200 });
       await expect(dispatch(handler, {
         method: "GET",
         token: secret,
-        url: "/api/v3/capabilities",
+        url: "/api/v4/capabilities",
       })).resolves.toMatchObject({ statusCode: 401 });
     });
   });
@@ -321,13 +321,13 @@ describe("CTN API v3 authorization", () => {
         body: { content: createContent(), label: "受审计同步" },
         method: "POST",
         token: ownerToken,
-        url: "/api/v3/admin/repositories",
+        url: "/api/v4/admin/repositories",
       });
       const created = await dispatch<ApiCreatedTrustedClientTokenDto>(handler, {
         body: { name: "可信 Codex" },
         method: "POST",
         token: ownerToken,
-        url: "/api/v3/admin/trusted-client-tokens",
+        url: "/api/v4/admin/trusted-client-tokens",
       });
       const snapshot = await dispatch<{
         content: WorkspaceRepositoryContentDto;
@@ -335,7 +335,7 @@ describe("CTN API v3 authorization", () => {
       }>(handler, {
         method: "GET",
         token: created.body!.secret,
-        url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+        url: `/api/v4/sync/workspaces/${repository.body!.id}`,
       });
       const content = {
         ...snapshot.body!.content,
@@ -351,7 +351,7 @@ describe("CTN API v3 authorization", () => {
         body: { base: snapshot.body, content },
         method: "PUT",
         token: created.body!.secret,
-        url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+        url: `/api/v4/sync/workspaces/${repository.body!.id}`,
       });
 
       expect(committed).toMatchObject({
@@ -371,7 +371,7 @@ describe("CTN API v3 authorization", () => {
         },
         method: "PUT",
         token: created.body!.secret,
-        url: `/api/v3/sync/workspaces/${repository.body!.id}`,
+        url: `/api/v4/sync/workspaces/${repository.body!.id}`,
       });
 
       expect(conflicted).toMatchObject({
@@ -388,7 +388,7 @@ describe("CTN API v3 authorization", () => {
       }>(handler, {
         method: "GET",
         token: ownerToken,
-        url: "/api/v3/admin/operations",
+        url: "/api/v4/admin/operations",
       });
 
       expect(operations.body!.entries).toEqual([

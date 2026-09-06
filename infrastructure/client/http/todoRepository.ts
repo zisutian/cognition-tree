@@ -1,3 +1,4 @@
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { serializeJsonIteratively } from "../../../contracts/common/json";
@@ -49,7 +50,7 @@ export function createHttpTodoRepositoryBackend({
       parseSnapshot: parseTodoSnapshot,
       serializeSyncRequest: serializeJsonIteratively,
     },
-    endpoint: "/api/v3/sync/todo",
+    endpoint: buildApiOperationPath("getTodoSyncSnapshot"),
     fetch: fetchFn,
     token,
   });

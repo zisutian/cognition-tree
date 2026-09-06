@@ -27,7 +27,7 @@ function createRequest({
     headers,
     method,
     socket: { remoteAddress },
-    url: "/api/v3/health",
+    url: "/api/v4/health",
   }) as IncomingMessage;
 }
 
@@ -39,7 +39,7 @@ function loopbackPolicy() {
   });
 }
 
-describe("CTN API v3 security", () => {
+describe("CTN API v4 security", () => {
   it("grants local owner only when both socket and Host are loopback", async () => {
     const policy = loopbackPolicy();
 

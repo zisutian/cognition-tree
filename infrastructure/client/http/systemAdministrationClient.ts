@@ -1,3 +1,4 @@
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
@@ -37,13 +38,13 @@ export function createHttpSystemAdministrationClient({
   return {
     async activateOwnerCredentialRotation(baseRevision, rotationId, secret) {
       return configuration(await request(
-        "/api/v3/admin/system-configuration/owner-credential/activations",
+        buildApiOperationPath("activateOwnerCredentialRotation"),
         jsonRequest({ baseRevision, rotationId, secret }, "POST"),
       ));
     },
     async clearOwnerCredential(baseRevision) {
       return configuration(await request(
-        "/api/v3/admin/system-configuration/owner-credential",
+        buildApiOperationPath("clearOwnerCredential"),
         jsonRequest({ baseRevision }, "DELETE"),
       ));
     },
@@ -51,20 +52,20 @@ export function createHttpSystemAdministrationClient({
       return parseApiSchema(
         ApiDataRootMigrationStatusSchema,
         await request(
-          `/api/v3/admin/data-root-migrations/${encodeURIComponent(migrationId)}`,
+          buildApiOperationPath("getDataRootMigration", { migrationId: migrationId }),
         ),
       );
     },
     async load() {
       return configuration(await request(
-        "/api/v3/admin/system-configuration",
+        buildApiOperationPath("getSystemConfiguration"),
       ));
     },
     async migrateDataRoot(baseRevision, destination) {
       return parseApiSchema(
         ApiDataRootMigrationStatusSchema,
         await request(
-          "/api/v3/admin/data-root-migrations",
+          buildApiOperationPath("createDataRootMigration"),
           jsonRequest({ baseRevision, destination }, "POST"),
         ),
       );
@@ -73,14 +74,14 @@ export function createHttpSystemAdministrationClient({
       return parseApiSchema(
         ApiOwnerCredentialRotationPreparationSchema,
         await request(
-          "/api/v3/admin/system-configuration/owner-credential/rotations",
+          buildApiOperationPath("prepareOwnerCredentialRotation"),
           jsonRequest({ baseRevision }, "POST"),
         ),
       );
     },
     async update(baseRevision, input) {
       return configuration(await request(
-        "/api/v3/admin/system-configuration",
+        buildApiOperationPath("getSystemConfiguration"),
         jsonRequest({ baseRevision, configuration: input }, "PATCH"),
       ));
     },
@@ -97,7 +98,7 @@ export function createHttpOwnerAuthenticationClient({
         await requestApiJson(
           globalThis.fetch.bind(globalThis),
           baseUrl,
-          "/api/v3/auth/session",
+          buildApiOperationPath("getOwnerSession"),
         ),
       );
 
@@ -107,7 +108,7 @@ export function createHttpOwnerAuthenticationClient({
       await requestApiJson(
         globalThis.fetch.bind(globalThis),
         baseUrl,
-        "/api/v3/auth/session",
+        buildApiOperationPath("getOwnerSession"),
         jsonRequest({ secret }, "POST"),
       );
     },
@@ -115,7 +116,7 @@ export function createHttpOwnerAuthenticationClient({
       await requestApiNoContent(
         globalThis.fetch.bind(globalThis),
         baseUrl,
-        "/api/v3/auth/session",
+        buildApiOperationPath("getOwnerSession"),
         { method: "DELETE" },
       );
     },

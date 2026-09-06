@@ -55,7 +55,7 @@ Vite 与仓库资源，不能在请求仍使用依赖时并发销毁它们。
 origin。TLS 证书仍由外部反向代理管理。
 
 浏览器不读取独立 JSON 配置，也不保存 owner token。官方客户端只调用相对
-`/api/v3`，请求携带同源 Cookie。仅 CI、E2E、测试进程变量，以及 Codex 私有 MCP
+`/api/v4`，请求携带同源 Cookie。仅 CI、E2E、测试进程变量，以及 Codex 私有 MCP
 子进程的短期 capability 属于非用户运行参数；它们不会出现在设置或公开 API 中。
 
 ## 3. Owner、automation 与 trusted-client 认证
@@ -72,7 +72,7 @@ origin。TLS 证书仍由外部反向代理管理。
 4. 远程浏览器输入已激活的 secret；服务换发最长 12 小时的
    `ctn_owner_session` Cookie。
 
-Cookie 使用 `HttpOnly`、`SameSite=Strict`、`Secure`、`Path=/api/v3`。Cookie 鉴权的
+Cookie 使用 `HttpOnly`、`SameSite=Strict`、`Secure`、`Path=/api/v4`。Cookie 鉴权的
 写请求必须带与设置完全相同的 Origin。准备轮换只以 exact CAS 替换一个 pending
 摘要；只有显式激活才提升 pending、递增 credential version、废止旧 session，并给执行
 激活的浏览器签发新 session。激活请求会把 secret 作为持有证明交回服务端；摘要验证、
@@ -207,9 +207,9 @@ Ollama chat Profile 的推理强度可选“模型默认、关闭、低、中、
 `agent-auth-v1`，不读取个人 `~/.codex`。每个 Cognition Tree 会话仍创建独立 app-server
 进程和 `ephemeral` thread，不导入或继续 Codex Desktop/CLI 历史。
 
-## 6. API v3
+## 6. API v4
 
-`GET /api/v3/openapi.json` 是 operation method、path、schema 和访问策略的机器可读
+`GET /api/v4/openapi.json` 是 operation method、path、schema 和访问策略的机器可读
 权威；根 CLI 的 `./ctn openapi` 输出同一份契约。健康、能力发现和 owner 登录无需已有
 owner session，其余操作按 registry 声明的 owner、automation 或 trusted-client policy
 授权。文档不手工维护 endpoint 清单。
@@ -227,7 +227,7 @@ proposal 不使用此合并路径。不存在 `/api/v2`、公开 command API、p
 
 ## 7. 外部可信客户端 CLI
 
-根入口 `./ctn` 只调用 `/api/v3`，不会读取 bootstrap、浏览器存储或直接修改仓库目录。
+根入口 `./ctn` 只调用 `/api/v4`，不会读取 bootstrap、浏览器存储或直接修改仓库目录。
 先在“设置 → API 访问”创建 trusted-client secret，再从 TTY 添加 profile：
 
     ./ctn auth add --profile daily --server https://tree.example.com
@@ -250,8 +250,8 @@ CLI 以 0700 目录、0600 文件、no-follow 打开与原子 fsync 替换保护
 通用调用：
 
     ./ctn openapi
-    ./ctn request GET /api/v3/capabilities
-    ./ctn request GET /api/v3/content/workspaces
+    ./ctn request GET /api/v4/capabilities
+    ./ctn request GET /api/v4/content/workspaces
 
 `request` 的完整形态是 `./ctn request <method> <path> [--body <file>]`；body 文件必须是
 JSON，实际路径与 schema 从 `openapi` 输出读取。

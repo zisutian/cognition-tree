@@ -279,7 +279,7 @@ test.describe("repository and capacity flows", () => {
     const rescanResponse = page.waitForResponse((response) =>
       response.request().method() === "GET" &&
       response.url().endsWith(
-        `/api/v3/sync/workspaces/${externalRepositoryId}`,
+        `/api/v4/sync/workspaces/${externalRepositoryId}`,
       )
     );
 
@@ -298,7 +298,7 @@ test.describe("repository and capacity flows", () => {
   }) => {
     await seedWorkbenchRepository(api, externalRepositoryId);
     await seedRawRepository(api, rawRepositoryId);
-    const catalogResponse = await api.get("/api/v3/admin/repositories");
+    const catalogResponse = await api.get("/api/v4/admin/repositories");
     const catalog = (await catalogResponse.json()) as RepositoryCatalogDto;
     const externalRepository = catalog.repositories.find(
       ({ id }) => id === externalRepositoryId,
@@ -376,7 +376,7 @@ test.describe("repository and capacity flows", () => {
 
     await expect.poll(async () => {
       const response = await api.get(
-        `/api/v3/sync/workspaces/${rawRepositoryId}`,
+        `/api/v4/sync/workspaces/${rawRepositoryId}`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
 
@@ -430,13 +430,13 @@ test.describe("repository and capacity flows", () => {
     apiBaseUrl,
     page,
   }) => {
-    await page.route(`${apiBaseUrl}/api/v3/content/events`, (route) =>
+    await page.route(`${apiBaseUrl}/api/v4/content/events`, (route) =>
       route.abort());
     await openWorkbench(page, repositoryId);
     await page.locator(".app-context").getByTitle("Alpha").click();
 
     const snapshotResponse = await api.get(
-      `/api/v3/sync/workspaces/${repositoryId}`,
+      `/api/v4/sync/workspaces/${repositoryId}`,
     );
     const snapshot = (await snapshotResponse.json()) as
       WorkspaceRepositorySnapshotDto;
@@ -453,7 +453,7 @@ test.describe("repository and capacity flows", () => {
 
     remoteNote.source = `${remoteNote.source}\n${remoteBlock}`;
     const commitResponse = await api.put(
-      `/api/v3/sync/workspaces/${repositoryId}`,
+      `/api/v4/sync/workspaces/${repositoryId}`,
       {
         data: {
           base: snapshot,
@@ -499,7 +499,7 @@ test.describe("repository and capacity flows", () => {
       .toBeVisible();
 
     const remoteResponse = await api.get(
-      `/api/v3/sync/workspaces/${repositoryId}`,
+      `/api/v4/sync/workspaces/${repositoryId}`,
     );
     const remoteSnapshot = (await remoteResponse.json()) as
       WorkspaceRepositorySnapshotDto;
@@ -527,7 +527,7 @@ test.describe("repository and capacity flows", () => {
       .not.toContainText("conflict-local-first");
     await expect.poll(async () => {
       const response = await api.get(
-        `/api/v3/sync/workspaces/${repositoryId}`,
+        `/api/v4/sync/workspaces/${repositoryId}`,
       );
       const current = (await response.json()) as WorkspaceRepositorySnapshotDto;
       const recovery = current.content.workspace.notes.find(({ source }) =>
@@ -666,7 +666,7 @@ test.describe("repository and capacity flows", () => {
     repositoryRoot,
   }) => {
     await seedLargeTreeRepository(api, largeRepositoryId);
-    const catalogResponse = await api.get("/api/v3/admin/repositories");
+    const catalogResponse = await api.get("/api/v4/admin/repositories");
     const catalog = (await catalogResponse.json()) as RepositoryCatalogDto;
     const remainingRepository = catalog.repositories.find(
       ({ id }) => id === largeRepositoryId,
@@ -679,7 +679,7 @@ test.describe("repository and capacity flows", () => {
         continue;
       }
       const deleteResponse = await api.delete(
-        `/api/v3/admin/repositories/${encodeURIComponent(repository.id)}`,
+        `/api/v4/admin/repositories/${encodeURIComponent(repository.id)}`,
       );
 
       expect(deleteResponse.ok()).toBe(true);

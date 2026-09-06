@@ -1,3 +1,4 @@
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 import {
   isRepositoryId,
   parseCreateRepository,
@@ -108,7 +109,7 @@ export function createHttpWorkspaceRepositoryCatalog({
         await requestWorkspaceApiJson(
           fetchFn,
           baseUrl,
-          "/api/v3/admin/repositories",
+          buildApiOperationPath("listAdminRepositories"),
           {
             body: serializeJsonIteratively(outbound),
             headers: { "Content-Type": "application/json" },
@@ -138,7 +139,7 @@ export function createHttpWorkspaceRepositoryCatalog({
       await requestWorkspaceApiNoContent(
         fetchFn,
         baseUrl,
-        `/api/v3/admin/repositories/${encodeURIComponent(id)}`,
+        buildApiOperationPath("renameAdminRepository", { repositoryId: id }),
         { method: "DELETE" },
         token,
       );
@@ -171,7 +172,7 @@ export function createHttpWorkspaceRepositoryCatalog({
           await requestWorkspaceApiJson(
             fetchFn,
             baseUrl,
-            "/api/v3/admin/repositories",
+            buildApiOperationPath("listAdminRepositories"),
             undefined,
             token,
           ),
@@ -263,7 +264,7 @@ export function createHttpWorkspaceRepositoryCatalog({
         await requestWorkspaceApiJson(
           fetchFn,
           baseUrl,
-          `/api/v3/admin/repositories/${encodeURIComponent(id)}`,
+          buildApiOperationPath("renameAdminRepository", { repositoryId: id }),
           {
             body: serializeJsonIteratively(outbound),
             headers: { "Content-Type": "application/json" },

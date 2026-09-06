@@ -35,15 +35,15 @@ describe("HTTP Agent configuration client", () => {
     expect(requests).toEqual([
       {
         method: "POST",
-        url: "https://ctn.example/api/v3/admin/agent-profiles/profile-1/conformance-checks",
+        url: "https://ctn.example/api/v4/admin/agent-profiles/profile-1/conformance-checks",
       },
       {
         method: "GET",
-        url: "https://ctn.example/api/v3/admin/agent-conformance-checks/check-1",
+        url: "https://ctn.example/api/v4/admin/agent-conformance-checks/check-1",
       },
       {
         method: "DELETE",
-        url: "https://ctn.example/api/v3/admin/agent-conformance-checks/check-1",
+        url: "https://ctn.example/api/v4/admin/agent-conformance-checks/check-1",
       },
     ]);
   });

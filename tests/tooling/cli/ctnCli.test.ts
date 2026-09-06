@@ -1,3 +1,4 @@
+import { createContent } from "../../application/workspace/session/workspaceSessionTestFixture.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
@@ -84,7 +85,7 @@ describe("trusted-client CLI security", () => {
     }
   });
 
-  it("does not follow redirects or allow a request path to escape API v3", async () => {
+  it("does not follow redirects or allow a request path to escape API v4", async () => {
     const fetch = vi.fn(async (
       _input: URL | RequestInfo,
       _init?: RequestInit,
@@ -98,7 +99,7 @@ describe("trusted-client CLI security", () => {
       secret: "ctt_secret",
     });
 
-    await expect(client.request("GET", "/api/v3/capabilities")).resolves.toEqual({
+    await expect(client.request("GET", "/api/v4/capabilities")).resolves.toEqual({
       ok: true,
     });
     const [, init] = fetch.mock.calls[0] ?? [];
@@ -107,8 +108,8 @@ describe("trusted-client CLI security", () => {
     expect(new Headers(init?.headers).get("Authorization")).toBe(
       "Bearer ctt_secret",
     );
-    await expect(client.request("GET", "/api/v3/../admin")).rejects.toThrow(
-      "cannot escape /api/v3",
+    await expect(client.request("GET", "/api/v4/../admin")).rejects.toThrow(
+      "cannot escape /api/v4",
     );
     expect(fetch).toHaveBeenCalledTimes(1);
   });
@@ -125,7 +126,7 @@ describe("trusted-client CLI security", () => {
       secret: "ctt_secret",
     });
 
-    await expect(client.request("GET", "/api/v3/capabilities"))
+    await expect(client.request("GET", "/api/v4/capabilities"))
       .rejects.toThrow(/exceeds the size limit/i);
   });
 
@@ -252,8 +253,8 @@ describe("trusted-client CLI security", () => {
     const store = await configuredStore(root);
     const checkoutFile = path.join(root, "workspace-checkout.json");
     const initial = {
-      base: { content: { notes: [] }, revision: revisionA },
-      content: { notes: [{ id: "note-1" }] },
+      base: { content: createContent("base"), revision: revisionA },
+      content: createContent("committed"),
     };
 
     await writeFile(checkoutFile, `${JSON.stringify(initial, null, 2)}\n`, {
@@ -274,7 +275,7 @@ describe("trusted-client CLI security", () => {
         });
       }
       return {
-        content: { notes: [{ id: "note-1" }] },
+        content: createContent("committed"),
         revision: revisionB,
       };
     });
@@ -302,10 +303,10 @@ describe("trusted-client CLI security", () => {
     expect(request.mock.calls.map(([method]) => method)).toEqual(["PUT", "GET"]);
     expect(JSON.parse(await readFile(checkoutFile, "utf8"))).toEqual({
       base: {
-        content: { notes: [{ id: "note-1" }] },
+        content: createContent("committed"),
         revision: revisionB,
       },
-      content: { notes: [{ id: "note-1" }] },
+      content: createContent("committed"),
     });
     expect(errors.join("\n")).toContain('"checkoutUpdated": true');
     expect(output).toEqual([]);

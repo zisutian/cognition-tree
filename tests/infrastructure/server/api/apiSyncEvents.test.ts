@@ -35,7 +35,7 @@ import {
 } from "./support/apiServerTestHarness.ts";
 import { createWorkspaceRepositoryRevision } from "../../../../infrastructure/server/repository/workspace/revision.ts";
 
-describe("CTN API v3", () => {
+describe("CTN API v4", () => {
   it("keeps SSE checkpoints lightweight and derives sync changes from the CAS payload", async () => {
     const trackedRevision = revision("a");
     const tracker = new ApiRevisionTracker();
@@ -91,7 +91,7 @@ describe("CTN API v3", () => {
     });
     const events = await dispatchRaw(handler, {
       method: "GET",
-      url: "/api/v3/content/events",
+      url: "/api/v4/content/events",
     });
 
     expect(catalogReads).toBe(0);

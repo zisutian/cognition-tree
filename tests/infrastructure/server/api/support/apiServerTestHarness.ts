@@ -241,7 +241,7 @@ export async function createRepository(handler: ApiRequestHandler) {
       label: "API 仓库",
     },
     method: "POST",
-    url: "/api/v3/admin/repositories",
+    url: "/api/v4/admin/repositories",
   });
 
   expect(response.statusCode).toBe(201);

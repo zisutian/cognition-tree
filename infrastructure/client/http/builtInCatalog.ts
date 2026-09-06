@@ -1,3 +1,4 @@
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
@@ -58,7 +59,7 @@ export function createHttpBuiltInCatalog({
           await requestApiJson(
             fetchFn,
             baseUrl,
-            "/api/v3/admin/built-ins",
+            buildApiOperationPath("listBuiltIns"),
             undefined,
             token,
           ),
@@ -81,7 +82,7 @@ export function createHttpBuiltInCatalog({
         await requestApiJson(
           fetchFn,
           baseUrl,
-          `/api/v3/admin/built-ins/${id}/retry`,
+          buildApiOperationPath("retryBuiltIn", { builtInId: id }),
           { method: "POST" },
           token,
         ),

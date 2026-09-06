@@ -1,3 +1,4 @@
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
@@ -74,7 +75,7 @@ export function createHttpApiEventSource({
 
       if (token) headers.set("Authorization", `Bearer ${token}`);
       const response = await fetchFn(
-        resolveApiUrl(baseUrl, "/api/v3/content/events"),
+        resolveApiUrl(baseUrl, buildApiOperationPath("streamContentEvents")),
         {
           cache: "no-store",
           headers,

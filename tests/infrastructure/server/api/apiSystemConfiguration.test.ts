@@ -53,11 +53,11 @@ describe("system configuration API", () => {
       });
       const auditStatus = await dispatch<{ status: string }>(handler, {
         method: "GET",
-        url: "/api/v3/admin/operations/status",
+        url: "/api/v4/admin/operations/status",
       });
       const operations = await dispatch<{ entries: unknown[] }>(handler, {
         method: "GET",
-        url: "/api/v3/admin/operations",
+        url: "/api/v4/admin/operations",
       });
 
       expect(auditStatus).toMatchObject({
@@ -70,18 +70,18 @@ describe("system configuration API", () => {
       });
       await expect(dispatch(handler, {
         method: "GET",
-        url: "/api/v3/admin/agent-operations",
+        url: "/api/v4/admin/agent-operations",
       })).resolves.toMatchObject({ statusCode: 404 });
       const loaded = await dispatch<ApiSystemConfigurationSnapshotDto>(handler, {
         method: "GET",
-        url: "/api/v3/admin/system-configuration",
+        url: "/api/v4/admin/system-configuration",
       });
       const preparation = await dispatch<
         ApiOwnerCredentialRotationPreparationDto
       >(handler, {
         body: { baseRevision: loaded.body!.revision },
         method: "POST",
-        url: "/api/v3/admin/system-configuration/owner-credential/rotations",
+        url: "/api/v4/admin/system-configuration/owner-credential/rotations",
       });
 
       expect(preparation.statusCode).toBe(201);
@@ -95,7 +95,7 @@ describe("system configuration API", () => {
       const pendingLogin = await dispatch<{ code: string }>(handler, {
         body: { secret: preparation.body!.secret },
         method: "POST",
-        url: "/api/v3/auth/session",
+        url: "/api/v4/auth/session",
       });
 
       expect(pendingLogin).toMatchObject({
@@ -111,7 +111,7 @@ describe("system configuration API", () => {
             secret: "not-the-prepared-secret",
           },
           method: "POST",
-          url: "/api/v3/admin/system-configuration/owner-credential/activations",
+          url: "/api/v4/admin/system-configuration/owner-credential/activations",
         },
       );
 
@@ -128,7 +128,7 @@ describe("system configuration API", () => {
             secret: preparation.body!.secret,
           },
           method: "POST",
-          url: "/api/v3/admin/system-configuration/owner-credential/activations",
+          url: "/api/v4/admin/system-configuration/owner-credential/activations",
         },
       );
 
@@ -140,11 +140,11 @@ describe("system configuration API", () => {
       expect(activated.headers["set-cookie"]).toContain("HttpOnly");
       expect(activated.headers["set-cookie"]).toContain("SameSite=Strict");
       expect(activated.headers["set-cookie"]).toContain("Secure");
-      expect(activated.headers["set-cookie"]).toContain("Path=/api/v3");
+      expect(activated.headers["set-cookie"]).toContain("Path=/api/v4");
       const invalidLogin = await dispatch<{ code: string }>(handler, {
         body: { secret: "wrong" },
         method: "POST",
-        url: "/api/v3/auth/session",
+        url: "/api/v4/auth/session",
       });
 
       expect(invalidLogin).toMatchObject({
@@ -154,7 +154,7 @@ describe("system configuration API", () => {
       const login = await dispatch<{ authenticated: boolean }>(handler, {
         body: { secret: preparation.body!.secret },
         method: "POST",
-        url: "/api/v3/auth/session",
+        url: "/api/v4/auth/session",
       });
 
       expect(login).toMatchObject({ body: { authenticated: true }, statusCode: 200 });
@@ -171,7 +171,7 @@ describe("system configuration API", () => {
           },
         },
         method: "PATCH",
-        url: "/api/v3/admin/system-configuration",
+        url: "/api/v4/admin/system-configuration",
       });
 
       expect(updated.body).toMatchObject({
@@ -192,7 +192,7 @@ describe("system configuration API", () => {
           },
         },
         method: "PATCH",
-        url: "/api/v3/admin/system-configuration",
+        url: "/api/v4/admin/system-configuration",
       });
 
       expect(stale).toMatchObject({ body: { code: "resource_conflict" }, statusCode: 409 });

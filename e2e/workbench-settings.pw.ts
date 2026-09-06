@@ -98,7 +98,7 @@ test.describe("settings activity flows", () => {
     await expect(page.getByText(secret, { exact: true })).toHaveCount(0);
     expect(await stopTextReappearanceObservation(secretObservation)).toBe(false);
     const ownerCredentialEndpoint =
-      "**/api/v3/admin/system-configuration/owner-credential/rotations";
+      "**/api/v4/admin/system-configuration/owner-credential/rotations";
     let markRotationResponseHeld!: () => void;
     let releaseRotationResponse!: () => void;
     const rotationResponseHeld = new Promise<void>((resolve) => {
@@ -159,7 +159,7 @@ test.describe("settings activity flows", () => {
     const original = Number(await auditLimit.inputValue());
     const submitted = original + 1;
     const continued = original + 2;
-    const configurationEndpoint = "**/api/v3/admin/system-configuration";
+    const configurationEndpoint = "**/api/v4/admin/system-configuration";
     let markResponseHeld!: () => void;
     let releaseResponse!: () => void;
     const responseHeld = new Promise<void>((resolve) => {
@@ -194,7 +194,7 @@ test.describe("settings activity flows", () => {
     await expect(auditLimit).toHaveValue(String(continued));
     const continuedResponse = page.waitForResponse((response) =>
       response.request().method() === "PATCH" &&
-      response.url().endsWith("/api/v3/admin/system-configuration")
+      response.url().endsWith("/api/v4/admin/system-configuration")
     );
 
     await save.click();
@@ -203,7 +203,7 @@ test.describe("settings activity flows", () => {
     await auditLimit.fill(String(original));
     const cleanupResponse = page.waitForResponse((response) =>
       response.request().method() === "PATCH" &&
-      response.url().endsWith("/api/v3/admin/system-configuration")
+      response.url().endsWith("/api/v4/admin/system-configuration")
     );
 
     await save.click();
@@ -270,15 +270,15 @@ test.describe("settings activity flows", () => {
       Authorization: `Bearer ${secret}`,
     };
     const allowed = await api.get(
-      `/api/v3/content/workspaces/${syntaxRepositoryId}/tree`,
+      `/api/v4/content/workspaces/${syntaxRepositoryId}/tree`,
       { headers: automationHeaders },
     );
 
     expect(allowed.status()).toBe(200);
     for (const path of [
-      `/api/v3/content/workspaces/${deniedRepositoryId}/tree`,
-      "/api/v3/admin/repositories",
-      "/api/v3/agent/status",
+      `/api/v4/content/workspaces/${deniedRepositoryId}/tree`,
+      "/api/v4/admin/repositories",
+      "/api/v4/agent/status",
     ]) {
       const denied = await api.get(path, { headers: automationHeaders });
 
@@ -301,7 +301,7 @@ test.describe("settings activity flows", () => {
     await expect(reloadedTokenRow).toHaveCount(0);
 
     const revoked = await api.get(
-      `/api/v3/content/workspaces/${syntaxRepositoryId}/tree`,
+      `/api/v4/content/workspaces/${syntaxRepositoryId}/tree`,
       { headers: automationHeaders },
     );
 

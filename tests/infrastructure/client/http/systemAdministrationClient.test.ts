@@ -71,7 +71,7 @@ describe("HTTP system administration client", () => {
     expect(requests).toEqual([{
       body: { baseRevision: `sha256:${"0".repeat(64)}` },
       method: "POST",
-      url: "https://ctn.example/api/v3/admin/system-configuration/owner-credential/rotations",
+      url: "https://ctn.example/api/v4/admin/system-configuration/owner-credential/rotations",
     }, {
       body: {
         baseRevision: preparedRevision,
@@ -79,7 +79,7 @@ describe("HTTP system administration client", () => {
         secret: "ctn_owner_once",
       },
       method: "POST",
-      url: "https://ctn.example/api/v3/admin/system-configuration/owner-credential/activations",
+      url: "https://ctn.example/api/v4/admin/system-configuration/owner-credential/activations",
     }]);
   });
 });

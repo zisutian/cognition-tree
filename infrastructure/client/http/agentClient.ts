@@ -1,3 +1,4 @@
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
@@ -28,7 +29,7 @@ import {
 import { readHttpSseData } from "./sseTransport";
 
 function sessionPath(sessionId: string) {
-  return `/api/v3/agent/sessions/${encodeURIComponent(sessionId)}`;
+  return buildApiOperationPath("getAgentSession", { sessionId: sessionId });
 }
 
 function jsonRequest(body: unknown, method: "POST") {
@@ -51,14 +52,14 @@ export function createHttpAgentClient({
     async cancel(sessionId) {
       parseAgentSchema(
         AgentCancelledSchema,
-        await request(`${sessionPath(sessionId)}/cancel`, { method: "POST" }),
+        await request(buildApiOperationPath("cancelAgentSession", { sessionId }), { method: "POST" }),
       );
     },
     async confirmDestruction(sessionId, proposalId) {
       return parseAgentSchema(
         AgentProposalSchema,
         await request(
-          `${sessionPath(sessionId)}/proposals/${encodeURIComponent(proposalId)}/destructive-confirmation`,
+          buildApiOperationPath("confirmAgentProposalDestruction", { sessionId, proposalId }),
           jsonRequest({ confirmed: true }, "POST"),
         ),
       ) as AgentProposalView;
@@ -67,7 +68,7 @@ export function createHttpAgentClient({
       return parseAgentSchema(
         AgentSessionSnapshotSchema,
         await request(
-          "/api/v3/agent/sessions",
+          buildApiOperationPath("listAgentSessions"),
           jsonRequest(input, "POST"),
         ),
       ) as AgentSessionSnapshot;
@@ -76,7 +77,7 @@ export function createHttpAgentClient({
       return parseAgentSchema(
         AgentProposalSchema,
         await request(
-          `${sessionPath(sessionId)}/proposals/${encodeURIComponent(proposalId)}/decision`,
+          buildApiOperationPath("decideAgentProposal", { sessionId, proposalId }),
           jsonRequest({ decision }, "POST"),
         ),
       ) as AgentProposalView;
@@ -96,13 +97,13 @@ export function createHttpAgentClient({
     async getStatus() {
       return parseAgentSchema(
         AgentStatusSchema,
-        await request("/api/v3/agent/status"),
+        await request(buildApiOperationPath("getAgentStatus")),
       );
     },
     async listSessions() {
       return parseAgentSchema(
         AgentSessionListSchema,
-        await request("/api/v3/agent/sessions"),
+        await request(buildApiOperationPath("listAgentSessions")),
       ).sessions as AgentSessionSnapshot[];
     },
     openEvents({ afterSequence, onClose, onEvent, sessionId }) {
@@ -120,7 +121,7 @@ export function createHttpAgentClient({
           const response = await fetchFn(
             resolveApiUrl(
               baseUrl,
-              `${sessionPath(sessionId)}/events?${query}`,
+              `${buildApiOperationPath("streamAgentEvents", { sessionId })}?${query}`,
             ),
             {
               cache: "no-store",
@@ -161,7 +162,7 @@ export function createHttpAgentClient({
       parseAgentSchema(
         AgentAcceptedTurnSchema,
         await request(
-          `${sessionPath(sessionId)}/messages`,
+          buildApiOperationPath("sendAgentMessage", { sessionId }),
           jsonRequest({ content }, "POST"),
         ),
       );

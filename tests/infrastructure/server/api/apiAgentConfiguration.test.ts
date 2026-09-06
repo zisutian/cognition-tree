@@ -12,7 +12,7 @@ describe("Agent configuration admin API", () => {
     await withHandler(async (handler, rootDirectory) => {
       const empty = await dispatch<AgentConfigurationSnapshot>(handler, {
         method: "GET",
-        url: "/api/v3/admin/agent-configuration",
+        url: "/api/v4/admin/agent-configuration",
       });
 
       expect(empty).toMatchObject({
@@ -32,7 +32,7 @@ describe("Agent configuration admin API", () => {
           },
         },
         method: "POST",
-        url: "/api/v3/admin/agent-providers",
+        url: "/api/v4/admin/agent-providers",
       });
 
       expect(legacyAuthentication).toMatchObject({
@@ -53,7 +53,7 @@ describe("Agent configuration admin API", () => {
           },
         },
         method: "POST",
-        url: "/api/v3/admin/agent-providers",
+        url: "/api/v4/admin/agent-providers",
       });
 
       expect(withProvider.statusCode).toBe(201);
@@ -82,7 +82,7 @@ describe("Agent configuration admin API", () => {
           },
         },
         method: "POST",
-        url: "/api/v3/admin/agent-profiles",
+        url: "/api/v4/admin/agent-profiles",
       });
 
       expect(legacyProfile).toMatchObject({
@@ -109,7 +109,7 @@ describe("Agent configuration admin API", () => {
           },
         },
         method: "POST",
-        url: "/api/v3/admin/agent-profiles",
+        url: "/api/v4/admin/agent-profiles",
       });
 
       expect(profile).toMatchObject({
@@ -142,7 +142,7 @@ describe("Agent configuration admin API", () => {
           },
         },
         method: "PATCH",
-        url: `/api/v3/admin/agent-profiles/${profile.body!.profiles[0]!.id}`,
+        url: `/api/v4/admin/agent-profiles/${profile.body!.profiles[0]!.id}`,
       });
 
       expect(stale).toMatchObject({
@@ -179,12 +179,12 @@ describe("Agent configuration admin API", () => {
       const created = await dispatch<ApiCreatedTokenDto>(handler, {
         body: { name: "reader", repositoryIds: null, scopes: ["journal:read"] },
         method: "POST",
-        url: "/api/v3/admin/automation-tokens",
+        url: "/api/v4/admin/automation-tokens",
       });
       const response = await dispatch<{ code: string }>(handler, {
         method: "GET",
         token: created.body!.secret,
-        url: "/api/v3/admin/agent-configuration",
+        url: "/api/v4/admin/agent-configuration",
       });
 
       expect(response).toMatchObject({
@@ -194,12 +194,12 @@ describe("Agent configuration admin API", () => {
       for (const request of [
         {
           method: "GET",
-          url: "/api/v3/admin/agent-codex-device-logins/missing",
+          url: "/api/v4/admin/agent-codex-device-logins/missing",
         },
         {
           body: { baseRevision: `sha256:${"0".repeat(64)}` },
           method: "POST",
-          url: "/api/v3/admin/agent-providers/missing/codex-device-logins",
+          url: "/api/v4/admin/agent-providers/missing/codex-device-logins",
         },
       ]) {
         await expect(dispatch<{ code: string }>(handler, {
@@ -217,7 +217,7 @@ describe("Agent configuration admin API", () => {
     await withHandler(async (handler, rootDirectory) => {
       const initial = await dispatch<AgentConfigurationSnapshot>(handler, {
         method: "GET",
-        url: "/api/v3/admin/agent-configuration",
+        url: "/api/v4/admin/agent-configuration",
       });
       const created = await dispatch<AgentConfigurationSnapshot>(handler, {
         body: {
@@ -232,7 +232,7 @@ describe("Agent configuration admin API", () => {
           },
         },
         method: "POST",
-        url: "/api/v3/admin/agent-providers",
+        url: "/api/v4/admin/agent-providers",
       });
       const provider = created.body!.providers[0]!;
       const credentialDirectory = path.join(
@@ -255,7 +255,7 @@ describe("Agent configuration admin API", () => {
           },
         },
         method: "PATCH",
-        url: `/api/v3/admin/agent-providers/${provider.id}`,
+        url: `/api/v4/admin/agent-providers/${provider.id}`,
       });
 
       expect(nullSecret).toMatchObject({
@@ -265,7 +265,7 @@ describe("Agent configuration admin API", () => {
       const cleared = await dispatch<AgentConfigurationSnapshot>(handler, {
         body: { baseRevision: created.body!.revision },
         method: "DELETE",
-        url: `/api/v3/admin/agent-providers/${provider.id}/authentication`,
+        url: `/api/v4/admin/agent-providers/${provider.id}/authentication`,
       });
 
       expect(cleared).toMatchObject({

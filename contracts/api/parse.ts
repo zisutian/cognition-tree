@@ -20,7 +20,7 @@ import {
   type ApiSearchRequestDto,
 } from "./schemas/search.ts";
 
-const contract = "CTN API v3";
+const contract = "CTN API v4";
 
 function jsonPointerPath(pointer: string) {
   if (pointer === "") return "$";

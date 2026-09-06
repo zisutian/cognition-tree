@@ -1,3 +1,4 @@
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 import {
   parseWorkspaceRepositorySnapshot,
   parseWorkspaceRepositorySyncRequest,
@@ -21,7 +22,7 @@ export function createHttpWorkspaceRepositoryBackend({
   token,
 }: HttpWorkspaceRepositoryOptions): WorkspaceRepositoryBackend {
   const endpoint =
-    `/api/v3/sync/workspaces/${encodeURIComponent(repositoryId)}`;
+    buildApiOperationPath("getWorkspaceSyncSnapshot", { repositoryId: repositoryId });
   const backend = createHttpVersionedContentRepositoryBackend({
     baseUrl,
     codec: {

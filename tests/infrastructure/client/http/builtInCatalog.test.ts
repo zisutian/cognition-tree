@@ -164,10 +164,10 @@ describe("HTTP built-in catalog and data repositories", () => {
       snapshot: { content: todoContent, revision: todoRevisionB },
     });
     expect(calls.map(({ method, url }) => ({ method, url }))).toEqual([
-      { method: "GET", url: "https://api.test/root/api/v3/sync/journal" },
-      { method: "PUT", url: "https://api.test/root/api/v3/sync/journal" },
-      { method: "GET", url: "https://api.test/root/api/v3/sync/todo" },
-      { method: "PUT", url: "https://api.test/root/api/v3/sync/todo" },
+      { method: "GET", url: "https://api.test/root/api/v4/sync/journal" },
+      { method: "PUT", url: "https://api.test/root/api/v4/sync/journal" },
+      { method: "GET", url: "https://api.test/root/api/v4/sync/todo" },
+      { method: "PUT", url: "https://api.test/root/api/v4/sync/todo" },
     ]);
     expect(JSON.parse(String(calls[1]?.body))).toEqual({
       base: { content: journalContent, revision: journalRevisionA },
@@ -262,9 +262,9 @@ describe("HTTP built-in catalog and data repositories", () => {
     expect(calls.at(-1)).toEqual({
       body: undefined,
       method: "POST",
-      url: "https://api.test/root/api/v3/admin/built-ins/journal/retry",
+      url: "https://api.test/root/api/v4/admin/built-ins/journal/retry",
     });
-    expect(calls[0]?.url).toBe("https://api.test/root/api/v3/admin/built-ins");
+    expect(calls[0]?.url).toBe("https://api.test/root/api/v4/admin/built-ins");
   });
 
   it("leaves Journal and Todo transition authority outside the HTTP backend", async () => {

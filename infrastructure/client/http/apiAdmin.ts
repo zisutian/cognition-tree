@@ -1,3 +1,4 @@
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
@@ -42,7 +43,7 @@ export function createHttpApiAdministration({
         await requestApiJson(
           fetchFn,
           baseUrl,
-          "/api/v3/admin/automation-tokens",
+          buildApiOperationPath("listApiTokens"),
           {
             body: serializeJsonIteratively(request),
             headers: { "Content-Type": "application/json" },
@@ -60,7 +61,7 @@ export function createHttpApiAdministration({
         await requestApiJson(
           fetchFn,
           baseUrl,
-          "/api/v3/admin/trusted-client-tokens",
+          buildApiOperationPath("listTrustedClientTokens"),
           {
             body: serializeJsonIteratively({ name }),
             headers: { "Content-Type": "application/json" },
@@ -78,7 +79,7 @@ export function createHttpApiAdministration({
         await requestApiJson(
           fetchFn,
           baseUrl,
-          "/api/v3/admin/trusted-client-tokens",
+          buildApiOperationPath("listTrustedClientTokens"),
           undefined,
           token,
         ),
@@ -89,7 +90,7 @@ export function createHttpApiAdministration({
         await requestApiJson(
           fetchFn,
           baseUrl,
-          "/api/v3/admin/automation-tokens",
+          buildApiOperationPath("listApiTokens"),
           undefined,
           token,
         ),
@@ -99,7 +100,7 @@ export function createHttpApiAdministration({
       await requestApiJson(
         fetchFn,
         baseUrl,
-        `/api/v3/admin/automation-tokens/${encodeURIComponent(tokenId)}`,
+        buildApiOperationPath("revokeToken", { tokenId: tokenId }),
         { method: "DELETE" },
         token,
       );
@@ -108,7 +109,7 @@ export function createHttpApiAdministration({
       await requestApiJson(
         fetchFn,
         baseUrl,
-        `/api/v3/admin/trusted-client-tokens/${encodeURIComponent(tokenId)}`,
+        buildApiOperationPath("revokeTrustedClientToken", { trustedClientTokenId: tokenId }),
         { method: "DELETE" },
         token,
       );

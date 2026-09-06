@@ -37,7 +37,7 @@ export function reportApiRequestFailure(
 ) {
   try {
     logger.error(
-      `[${requestId}] CTN API v3 request failed`,
+      `[${requestId}] CTN API v4 request failed`,
       createSafeApiLogError(error),
     );
   } catch {

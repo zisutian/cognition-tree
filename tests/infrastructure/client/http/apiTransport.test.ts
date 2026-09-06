@@ -19,8 +19,8 @@ function jsonResponse(body: unknown, status = 200) {
 
 describe("HTTP API transport", () => {
   it("resolves API endpoints without repository-specific path semantics", () => {
-    expect(resolveApiUrl("https://api.test/base", "/api/v3/content/events"))
-      .toBe("https://api.test/base/api/v3/content/events");
+    expect(resolveApiUrl("https://api.test/base", "/api/v4/content/events"))
+      .toBe("https://api.test/base/api/v4/content/events");
   });
 
   it("preserves structured API failure facts in a neutral response error", async () => {
@@ -33,7 +33,7 @@ describe("HTTP API transport", () => {
         retryable: true,
       }, 409),
       "https://api.test",
-      "/api/v3/content/resource",
+      "/api/v4/content/resource",
     );
 
     await expect(request).rejects.toEqual(
@@ -54,7 +54,7 @@ describe("HTTP API transport", () => {
         throw new TypeError("network unavailable");
       },
       "https://api.test",
-      "/api/v3/content/resource",
+      "/api/v4/content/resource",
     )).rejects.toBeInstanceOf(HttpApiUnavailableError);
   });
 
@@ -67,7 +67,7 @@ describe("HTTP API transport", () => {
         },
       }),
       "https://api.test",
-      "/api/v3/content/resource",
+      "/api/v4/content/resource",
     )).rejects.toThrow(/exceeds the size limit/i);
     await expect(requestApiJson(
       async () => new Response(
@@ -75,7 +75,7 @@ describe("HTTP API transport", () => {
         { headers: { "Content-Type": "application/json" } },
       ),
       "https://api.test",
-      "/api/v3/content/resource",
+      "/api/v4/content/resource",
     )).rejects.toThrow(/invalid UTF-8/i);
   });
 
@@ -93,7 +93,7 @@ describe("HTTP API transport", () => {
     await expect(requestApiNoContent(
       async () => new Response(body, { status: 200 }),
       "https://api.test",
-      "/api/v3/content/resource",
+      "/api/v4/content/resource",
     )).rejects.toThrow(/204 No Content/i);
     expect(cancelled).toBe(true);
   });

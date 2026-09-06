@@ -272,7 +272,7 @@ describe("operation ledger", () => {
         occurredAt: "2026-08-20T00:00:00.000Z",
         principalId: "trusted-client",
         requestId: "new-operation",
-        route: "/api/v3/content/workspace",
+        route: "/api/v4/content/workspace",
         store: { domain: "journal" },
       });
 
@@ -340,7 +340,7 @@ describe("operation ledger", () => {
         occurredAt: "2026-08-20T00:00:00.000Z",
         principalId: "trusted-client",
         requestId: "new-operation",
-        route: "/api/v3/content/workspace",
+        route: "/api/v4/content/workspace",
         store: { domain: "journal" },
       });
 
@@ -374,7 +374,7 @@ describe("operation ledger", () => {
         occurredAt: "2026-08-20T00:00:00.000Z",
         principalId: "trusted-client",
         requestId: "duplicate-operation",
-        route: "/api/v3/content/workspace",
+        route: "/api/v4/content/workspace",
         store: { domain: "journal" as const },
       };
 

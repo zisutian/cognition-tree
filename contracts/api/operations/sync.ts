@@ -17,10 +17,10 @@ import {
 import { apiBody, syncAccess, type ApiOperationDefinition } from "./definition.ts";
 
 export const syncApiOperations = [
-  { access: syncAccess(), method: "GET", operationId: "getWorkspaceSyncSnapshot", path: "/api/v3/sync/workspaces/{repositoryId}", responses: { 200: ApiWorkspaceSnapshotSchema } },
-  { access: syncAccess(), body: apiBody(ApiWorkspaceSyncRequestSchema, parseWorkspaceRepositorySyncRequest), maximumBodyBytes: 42 * 1024 * 1024, method: "PUT", operationId: "putWorkspaceSyncSnapshot", path: "/api/v3/sync/workspaces/{repositoryId}", responses: { 200: ApiWorkspaceSyncResultSchema } },
-  { access: syncAccess(), method: "GET", operationId: "getJournalSyncSnapshot", path: "/api/v3/sync/journal", responses: { 200: ApiJournalSnapshotSchema } },
-  { access: syncAccess(), body: apiBody(ApiJournalSyncRequestSchema, parseJournalSyncRequest), maximumBodyBytes: 42 * 1024 * 1024, method: "PUT", operationId: "putJournalSyncSnapshot", path: "/api/v3/sync/journal", responses: { 200: ApiJournalSyncResultSchema } },
-  { access: syncAccess(), method: "GET", operationId: "getTodoSyncSnapshot", path: "/api/v3/sync/todo", responses: { 200: ApiTodoSnapshotSchema } },
-  { access: syncAccess(), body: apiBody(ApiTodoSyncRequestSchema, parseTodoSyncRequest), maximumBodyBytes: 42 * 1024 * 1024, method: "PUT", operationId: "putTodoSyncSnapshot", path: "/api/v3/sync/todo", responses: { 200: ApiTodoSyncResultSchema } },
+  { access: syncAccess(), method: "GET", operationId: "getWorkspaceSyncSnapshot", path: "/api/v4/sync/workspaces/{repositoryId}", responses: { 200: ApiWorkspaceSnapshotSchema } },
+  { access: syncAccess(), body: apiBody(ApiWorkspaceSyncRequestSchema, parseWorkspaceRepositorySyncRequest), maximumBodyBytes: 42 * 1024 * 1024, method: "PUT", operationId: "putWorkspaceSyncSnapshot", path: "/api/v4/sync/workspaces/{repositoryId}", responses: { 200: ApiWorkspaceSyncResultSchema } },
+  { access: syncAccess(), method: "GET", operationId: "getJournalSyncSnapshot", path: "/api/v4/sync/journal", responses: { 200: ApiJournalSnapshotSchema } },
+  { access: syncAccess(), body: apiBody(ApiJournalSyncRequestSchema, parseJournalSyncRequest), maximumBodyBytes: 42 * 1024 * 1024, method: "PUT", operationId: "putJournalSyncSnapshot", path: "/api/v4/sync/journal", responses: { 200: ApiJournalSyncResultSchema } },
+  { access: syncAccess(), method: "GET", operationId: "getTodoSyncSnapshot", path: "/api/v4/sync/todo", responses: { 200: ApiTodoSnapshotSchema } },
+  { access: syncAccess(), body: apiBody(ApiTodoSyncRequestSchema, parseTodoSyncRequest), maximumBodyBytes: 42 * 1024 * 1024, method: "PUT", operationId: "putTodoSyncSnapshot", path: "/api/v4/sync/todo", responses: { 200: ApiTodoSyncResultSchema } },
 ] as const satisfies readonly ApiOperationDefinition[];

@@ -22,7 +22,7 @@ function entry(id: string): OperationAuditEntry {
     requestId: `request-${id}`,
     resourceIds: [],
     result: "committed",
-    route: "/api/v3/content/workspace",
+    route: "/api/v4/content/workspace",
     source: "trusted-client",
     store: { domain: "journal" },
     technical: { intentDigest: null },

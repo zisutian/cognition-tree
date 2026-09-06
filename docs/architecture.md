@@ -31,7 +31,7 @@ infrastructure/
     以及 Agent profile、模型 adapter、Codex 子进程、私有 IPC、内存会话和
     operation ledger。CAS 与保存队列策略属于 application，平台层只实现端口；
     client 不直接导入任何 Server 实现。Node 是开发与生产的唯一 HTTP composition
-    root；浏览器与 API 同源，客户端只使用相对 `/api/v3`，不存在独立启动配置或
+    root；浏览器与 API 同源，客户端只使用相对 `/api/v4`，不存在独立启动配置或
     客户端 owner token。同端口、同进程只是运行与部署事实，不授予前端调用服务端
     内部模块的能力。
 
@@ -69,7 +69,7 @@ tooling 不属于运行时源码层，只持有工程脚本和专用配置。tes
     runtime、http、platform 与 repository。
     presentation 与其它浏览器侧源码不得导入 infrastructure/server；所有后端能力
     必须通过 infrastructure/client 的 HTTP/SSE adapter 调用 registry 声明的公开
-    `/api/v3` 契约。是否同源、同端口或同一进程不改变该边界。
+    `/api/v4` 契约。是否同源、同端口或同一进程不改变该边界。
     Workspace 本地 repository 实现只依赖 repository 与 persistence 基础设施。
     生产依赖图无环；相对 import 必须能由 NodeNext 处理。
 
@@ -181,7 +181,7 @@ versioned store、session 和 API，也不获得普通仓库的创建、删除�
 runtime 重建后从 Server 重新加载，不恢复当前页面会话状态。旧 IndexedDB 不属于运行时
 输入，不读取、不迁移也不清理。
 
-唯一 HTTP 契约为 `/api/v3`。contracts/api 的唯一 registry composition root
+唯一 HTTP 契约为 `/api/v4`。contracts/api 的唯一 registry composition root
 组合并校验 foundation、auth、content、sync、agent、admin operation catalog 的
 operationId、method/path 与访问策略。`/api/v2`、公开 command endpoint、command
 envelope、preview/commit mode、resource precondition、公开 commandId 和兼容
@@ -221,7 +221,7 @@ secret。Cookie 写请求还必须精确匹配设置中的 HTTPS Origin。Bearer
 每个 operation 只声明 `public`、`owner`、`content-read(domain)` 或
 `content-sync`。授权矩阵穷举 principal 与 policy 的全部组合，未知 kind 默认拒绝；
 不得使用“不是 automation 就是 owner”一类隐式分支。automation 只能调用
-`/api/v3/content/*` 的已授权只读资源、搜索与无正文 change event；trusted-client
+`/api/v4/content/*` 的已授权只读资源、搜索与无正文 change event；trusted-client
 拥有全部内容读取与三个 sync operation，但不能取得 Agent、仓库管理、Provider、
 系统设置或 owner-session 能力。
 change event 的 resource 逐项鉴权；block 只在其 resourceId 的全部同名资源均可见时
@@ -283,7 +283,7 @@ SSE 只发送带
 内部有序，进程重启产生的新 stream 会使客户端重置去重状态。轻量 revision
 tracker 维护 checkpoint，建立连接不会扫描仓库正文。
 
-`/api/v3/agent/sessions/{sessionId}/events` 是另一条会话专属 SSE：message delta、
+`/api/v4/agent/sessions/{sessionId}/events` 是另一条会话专属 SSE：message delta、
 proposal、problem、turn completion 与必要的 snapshot 使用单调 sequence。浏览器
 只增量应用连续事件；发现缺口、越界 cursor 或刷新重连时重新读取
 AgentSessionSnapshot。两类 SSE 都不是正文真值来源。
@@ -461,7 +461,7 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     local/remote projection cache、merge-base 复用和 snapshot/transition 投影；各协作者
     只消费 projection port，不导入该具体状态实现。resilientVersionedRepositoryPolicy
     独占远端错误分类、cache fallback、内容等价和冲突单元规范化；client/http 只实现
-    /api/v3 transport 与两类 SSE；client/runtime 只负责把
+    /api/v4 transport 与两类 SSE；client/runtime 只负责把
     这些实现注入 application 端口。源码中不存在 IndexedDB 或存储模式分支。
     HTTP catalog adapter 串行投影内存 cache，并以远端观察 epoch 拒绝陈旧 list
     回写；cache 始终是离线投影，任何写入或清理失败都不能改写已完成的远端 mutation。

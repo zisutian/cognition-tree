@@ -125,7 +125,7 @@ export function createApiOpenApiDocument() {
       description:
         "Read-only automation resources, owner synchronization, and approval-gated in-application Agent operations.",
       title: "Cognition Tree API",
-      version: "3.0.0",
+      version: "4.0.0",
     },
     openapi: "3.1.0",
     paths,

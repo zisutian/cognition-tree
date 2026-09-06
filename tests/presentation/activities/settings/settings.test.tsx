@@ -501,7 +501,7 @@ describe("settings activity", () => {
         "现有令牌",
       ],
       lacks: [
-        "/api/v3/content/*",
+        "/api/v4/content/*",
         "sync、agent 或 admin",
         "令牌仅显示这一次",
         "为自动化工具创建独立令牌",

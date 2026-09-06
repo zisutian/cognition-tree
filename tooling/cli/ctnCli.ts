@@ -1,3 +1,4 @@
+import { buildApiOperationPath, resolveApiRoute, getApiRouteOperation, parseApiOperationRequest, parseApiOperationResponse } from "../../contracts/api/registry.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ReadStream, WriteStream } from "node:tty";
@@ -143,35 +144,28 @@ async function selectProfile(
 function syncPath(domain: string, repositoryId: string | null) {
   if (domain === "workspace") {
     if (!repositoryId) throw new CliInputError("Workspace sync requires --repository");
-    return `/api/v3/sync/workspaces/${encodeURIComponent(repositoryId)}`;
+    return buildApiOperationPath("getWorkspaceSyncSnapshot", { repositoryId });
   }
   if (repositoryId) throw new CliInputError("--repository is only valid for workspace");
   if (domain === "journal" || domain === "todo") {
-    return `/api/v3/sync/${domain}`;
+    return buildApiOperationPath(domain === "journal" ? "getJournalSyncSnapshot" : "getTodoSyncSnapshot");
   }
   throw new CliInputError(`Unsupported sync domain: ${domain}`);
 }
 
-function parseSnapshot(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("API snapshot is invalid");
-  }
-  const snapshot = value as Record<string, unknown>;
+type Snapshot = { content: unknown; revision: `sha256:${string}` };
 
-  if (
-    typeof snapshot.revision !== "string" ||
-    !/^sha256:[0-9a-f]{64}$/.test(snapshot.revision) ||
-    !("content" in snapshot)
-  ) {
-    throw new Error("API snapshot is invalid");
-  }
-  return {
-    content: snapshot.content,
-    revision: snapshot.revision as `sha256:${string}`,
-  };
+function syncOperation(path: string, method: "GET" | "PUT") {
+  const route = resolveApiRoute(path);
+  if (!route) throw new CliInputError("Unknown sync operation");
+  return getApiRouteOperation(route, method);
 }
 
-function parseCheckout(source: string) {
+function parseSnapshot(value: unknown, path: string): Snapshot {
+  return parseApiOperationResponse(syncOperation(path, "GET").operationId, 200, value) as Snapshot;
+}
+
+function parseCheckout(source: string, path: string) {
   let value: unknown;
 
   try {
@@ -179,15 +173,7 @@ function parseCheckout(source: string) {
   } catch {
     throw new CliInputError("Checkout file is not valid JSON");
   }
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new CliInputError("Checkout file must contain {base, content}");
-  }
-  const record = value as Record<string, unknown>;
-
-  if (Object.keys(record).sort().join(",") !== "base,content") {
-    throw new CliInputError("Checkout file must contain only {base, content}");
-  }
-  return { base: parseSnapshot(record.base), content: record.content };
+  return parseApiOperationRequest(syncOperation(path, "PUT"), value) as { base: Snapshot; content: unknown };
 }
 
 function checkoutSource(snapshot: { content: unknown; revision: string }) {
@@ -217,7 +203,7 @@ async function reconcileFinalizeFailure({
 
   if (afterRevision) {
     try {
-      const snapshot = parseSnapshot(await api.request("GET", path));
+      const snapshot = parseSnapshot(await api.request("GET", path), path);
 
       currentRevision = snapshot.revision;
       if (snapshot.revision === afterRevision) {
@@ -326,7 +312,7 @@ async function runSync(
     const output = requireOption(args, "--output");
 
     assertNoArguments(args);
-    const snapshot = parseSnapshot(await api.request("GET", path));
+    const snapshot = parseSnapshot(await api.request("GET", path), path);
 
     await writeCliFileAtomically(output, checkoutSource(snapshot));
     io.output(printJson({ output, revision: snapshot.revision }));
@@ -337,11 +323,12 @@ async function runSync(
 
     assertNoArguments(args);
     const original = await readCliFile(file);
-    const checkout = parseCheckout(original);
+    const checkout = parseCheckout(original, path);
 
     try {
-      const response = await api.request("PUT", path, checkout) as Record<string, unknown>;
-      const snapshot = parseSnapshot(response.snapshot);
+      const response = parseApiOperationResponse(syncOperation(path, "PUT").operationId, 200,
+        await api.request("PUT", path, checkout)) as { outcome: string; snapshot: Snapshot };
+      const snapshot = response.snapshot;
       const updated = await writeCliFileAtomically(
         file,
         checkoutSource(snapshot),
@@ -420,7 +407,7 @@ export async function runCtnCli(
 
     if (command === "openapi") {
       assertNoArguments(args);
-      io.output(printJson(await api.request("GET", "/api/v3/openapi.json")));
+      io.output(printJson(await api.request("GET", buildApiOperationPath("getOpenApi"))));
       return 0;
     }
     if (command === "request") {

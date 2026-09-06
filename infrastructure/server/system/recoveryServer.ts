@@ -109,7 +109,7 @@ export async function runBootstrapRecoveryServer({
         );
         return;
       }
-      if (request.method === "GET" && url.pathname === "/api/v3/recovery/status") {
+      if (request.method === "GET" && url.pathname === "/api/v4/recovery/status") {
         sendJson(response, 200, {
           message: failure instanceof Error ? failure.message : "Bootstrap configuration is unavailable",
           recovery: true,
@@ -117,7 +117,7 @@ export async function runBootstrapRecoveryServer({
         return;
       }
       if (request.method === "POST" &&
-          url.pathname === "/api/v3/recovery/system-configuration") {
+          url.pathname === "/api/v4/recovery/system-configuration") {
         try {
           await bootstrap.recover(await readRecoveryRequestDataRoot(request));
           response.once("finish", () => {

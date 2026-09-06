@@ -293,7 +293,7 @@ test.describe("Todo activity flows", () => {
   test("keeps Todo usable when the ordinary repository catalog is empty", async ({
     page,
   }) => {
-    await page.route("**/api/v3/admin/repositories", async (route) => {
+    await page.route("**/api/v4/admin/repositories", async (route) => {
       if (route.request().method() === "GET") {
         await route.fulfill({
           body: JSON.stringify({

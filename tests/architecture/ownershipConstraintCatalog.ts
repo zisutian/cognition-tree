@@ -343,8 +343,8 @@ export function createOwnershipTextPolicies({
         /^contracts\/api\/operations\/(?:admin|agent|auth|content|foundation|sync)\.ts$/,
       corpus: contractModules,
       matches: { min: 1 },
-      name: "CTN API v3 feature operation declarations",
-      pattern: /\bpath:\s*"\/api\/v3\//,
+      name: "CTN API v4 feature operation declarations",
+      pattern: /\bpath:\s*"\/api\/v4\//,
     },
     {
       allowedPath: /^core\/ctn\/(?:metadata|parser)\//,

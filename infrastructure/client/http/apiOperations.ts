@@ -1,3 +1,4 @@
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
@@ -73,7 +74,7 @@ export function createHttpOperationAdministration({
         await requestApiJson(
           fetchFn,
           baseUrl,
-          "/api/v3/admin/operations/status",
+          buildApiOperationPath("getOperationAuditStatus"),
           undefined,
           token,
         ),
@@ -86,7 +87,7 @@ export function createHttpOperationAdministration({
       const page = parsePage(await requestApiJson(
         fetchFn,
         baseUrl,
-        `/api/v3/admin/operations?${query}`,
+        `${buildApiOperationPath("listOperations")}?${query}`,
         undefined,
         token,
       ));

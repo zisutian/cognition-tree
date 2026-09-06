@@ -50,7 +50,7 @@ export const ApiPrincipalSchema = Type.Union([
 export type ApiPrincipalDto = Static<typeof ApiPrincipalSchema>;
 
 export const ApiCapabilitiesSchema = strictObject({
-  apiVersion: Type.Literal(3),
+  apiVersion: Type.Literal(4),
   operationAuditStatus: nullable(Type.Union([
     Type.Literal("available"),
     Type.Literal("unavailable"),

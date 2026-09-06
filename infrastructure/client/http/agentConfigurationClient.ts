@@ -1,3 +1,4 @@
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
@@ -60,65 +61,65 @@ export function createHttpAgentConfigurationClient({
   return {
     async cancelCodexDeviceLogin(loginId) {
       return codexDeviceLogin(await request(
-        `/api/v3/admin/agent-codex-device-logins/${encodeURIComponent(loginId)}`,
+        buildApiOperationPath("getAgentCodexDeviceLogin", { codexLoginId: loginId }),
         { method: "DELETE" },
       ));
     },
     async cancelConformance(checkId) {
       return conformanceCheck(await request(
-        `/api/v3/admin/agent-conformance-checks/${encodeURIComponent(checkId)}`,
+        buildApiOperationPath("getAgentProfileConformanceCheck", { conformanceCheckId: checkId }),
         { method: "DELETE" },
       ));
     },
     async clearProviderAuthentication(baseRevision, providerId) {
       return configuration(await request(
-        `/api/v3/admin/agent-providers/${encodeURIComponent(providerId)}/authentication`,
+        buildApiOperationPath("clearAgentProviderAuthentication", { providerId: providerId }),
         jsonRequest({ baseRevision }, "DELETE"),
       ));
     },
     async getConformance(checkId) {
       return conformanceCheck(await request(
-        `/api/v3/admin/agent-conformance-checks/${encodeURIComponent(checkId)}`,
+        buildApiOperationPath("getAgentProfileConformanceCheck", { conformanceCheckId: checkId }),
       ));
     },
     async getCodexDeviceLogin(loginId) {
       return codexDeviceLogin(await request(
-        `/api/v3/admin/agent-codex-device-logins/${encodeURIComponent(loginId)}`,
+        buildApiOperationPath("getAgentCodexDeviceLogin", { codexLoginId: loginId }),
       ));
     },
     async startConformance(baseRevision, profileId) {
       return conformanceCheck(await request(
-        `/api/v3/admin/agent-profiles/${encodeURIComponent(profileId)}/conformance-checks`,
+        buildApiOperationPath("startAgentProfileConformanceCheck", { profileId: profileId }),
         jsonRequest({ baseRevision }, "POST"),
       ));
     },
     async startCodexDeviceLogin(baseRevision, providerId) {
       return codexDeviceLogin(await request(
-        `/api/v3/admin/agent-providers/${encodeURIComponent(providerId)}/codex-device-logins`,
+        buildApiOperationPath("startAgentCodexDeviceLogin", { providerId: providerId }),
         jsonRequest({ baseRevision }, "POST"),
       ));
     },
     async createProfile(baseRevision, profile) {
       return configuration(await request(
-        "/api/v3/admin/agent-profiles",
+        buildApiOperationPath("createAgentProfile"),
         jsonRequest({ baseRevision, profile }, "POST"),
       ));
     },
     async createProvider(baseRevision, provider) {
       return configuration(await request(
-        "/api/v3/admin/agent-providers",
+        buildApiOperationPath("createAgentProvider"),
         jsonRequest({ baseRevision, provider }, "POST"),
       ));
     },
     async deleteProfile(baseRevision, profileId) {
       return configuration(await request(
-        `/api/v3/admin/agent-profiles/${encodeURIComponent(profileId)}`,
+        buildApiOperationPath("updateAgentProfile", { profileId: profileId }),
         jsonRequest({ baseRevision }, "DELETE"),
       ));
     },
     async deleteProvider(baseRevision, providerId) {
       return configuration(await request(
-        `/api/v3/admin/agent-providers/${encodeURIComponent(providerId)}`,
+        buildApiOperationPath("updateAgentProvider", { providerId: providerId }),
         jsonRequest({ baseRevision }, "DELETE"),
       ));
     },
@@ -126,34 +127,34 @@ export function createHttpAgentConfigurationClient({
       return parseAgentSchema(
         AgentOllamaDiscoveryResultSchema,
         await request(
-          "/api/v3/admin/agent-providers/discover-ollama",
+          buildApiOperationPath("discoverOllamaProvider"),
           jsonRequest({ endpoint }, "POST"),
         ),
       );
     },
     async load() {
       return configuration(await request(
-        "/api/v3/admin/agent-configuration",
+        buildApiOperationPath("getAgentConfiguration"),
       ));
     },
     async probeProvider(providerId) {
       return parseAgentSchema(
         AgentProviderProbeResultSchema,
         await request(
-          `/api/v3/admin/agent-providers/${encodeURIComponent(providerId)}/probe`,
+          buildApiOperationPath("probeAgentProvider", { providerId: providerId }),
           { method: "POST" },
         ),
       );
     },
     async updateProfile(baseRevision, profileId, profile) {
       return configuration(await request(
-        `/api/v3/admin/agent-profiles/${encodeURIComponent(profileId)}`,
+        buildApiOperationPath("updateAgentProfile", { profileId: profileId }),
         jsonRequest({ baseRevision, profile }, "PATCH"),
       ));
     },
     async updateProvider(baseRevision, providerId, provider) {
       return configuration(await request(
-        `/api/v3/admin/agent-providers/${encodeURIComponent(providerId)}`,
+        buildApiOperationPath("updateAgentProvider", { providerId: providerId }),
         jsonRequest({ baseRevision, provider }, "PATCH"),
       ));
     },

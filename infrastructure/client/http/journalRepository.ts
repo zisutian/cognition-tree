@@ -1,3 +1,4 @@
+import { buildApiOperationPath } from "../../../contracts/api/registry.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
@@ -49,7 +50,7 @@ export function createHttpJournalRepositoryBackend({
       parseSnapshot: parseJournalSnapshot,
       serializeSyncRequest: serializeJsonIteratively,
     },
-    endpoint: "/api/v3/sync/journal",
+    endpoint: buildApiOperationPath("getJournalSyncSnapshot"),
     fetch: fetchFn,
     token,
   });

@@ -186,16 +186,16 @@ export class CliHttpClient implements CliApiClient {
     requestPath: string,
     body?: unknown,
   ): Promise<unknown> {
-    if (!requestPath.startsWith("/api/v3/") || requestPath.includes("#")) {
-      throw new Error("CLI request path must start with /api/v3/");
+    if (!requestPath.startsWith("/api/v4/") || requestPath.includes("#")) {
+      throw new Error("CLI request path must start with /api/v4/");
     }
     const url = new URL(requestPath, this.#origin);
 
     if (
       url.origin !== this.#origin ||
-      !url.pathname.startsWith("/api/v3/")
+      !url.pathname.startsWith("/api/v4/")
     ) {
-      throw new Error("CLI request path cannot escape /api/v3 on the configured origin");
+      throw new Error("CLI request path cannot escape /api/v4 on the configured origin");
     }
     const controller = new AbortController();
     const timeout = setTimeout(

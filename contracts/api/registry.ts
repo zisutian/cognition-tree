@@ -50,7 +50,7 @@ function assertUniqueOperations() {
 
 assertUniqueOperations();
 
-type ApiRouteParameters = {
+export type ApiRouteParameters = {
   builtInId?: string;
   collectionId?: string;
   codexLoginId?: string;
@@ -66,6 +66,38 @@ type ApiRouteParameters = {
   tokenId?: string;
   trustedClientTokenId?: string;
 };
+
+export function getApiOperation(operationId: string): ApiOperationDefinition {
+  const operation = apiOperations.find((candidate) => candidate.operationId === operationId);
+  if (!operation) throw new Error(`Unknown API operation: ${operationId}`);
+  return operation;
+}
+
+export function buildApiOperationPath(
+  operationId: string,
+  parameters: ApiRouteParameters = {},
+) {
+  const operation = getApiOperation(operationId);
+  const used = new Set<string>();
+  const result = operation.path.replace(/\{([^}]+)\}/g, (_match, name: string) => {
+    const value = parameters[name as keyof ApiRouteParameters];
+    if (!value || value === "." || value === "..") {
+      throw new Error(`API operation ${operationId} requires a valid ${name}`);
+    }
+    used.add(name);
+    return encodeURIComponent(value);
+  });
+  if (Object.keys(parameters).some((name) => !used.has(name))) {
+    throw new Error(`API operation ${operationId} received an unexpected route parameter`);
+  }
+  return result;
+}
+
+export function parseApiOperationResponse(operationId: string, statusCode: number, input: unknown) {
+  const operation = getApiOperation(operationId);
+  assertApiOperationResponse(operation, statusCode, input);
+  return input;
+}
 
 export type ApiRouteDefinition = {
   methods: readonly ApiOperationDefinition["method"][];
@@ -173,7 +205,7 @@ export function parseApiOperationQuery(
   if (!operation.query) {
     if (entries.length > 0) {
       failWireContract(
-        "CTN API v3",
+        "CTN API v4",
         `$.${entries[0]![0]}`,
         "query parameters are not allowed",
       );
@@ -188,7 +220,7 @@ export function parseApiOperationQuery(
   for (const [key, value] of entries) {
     if (key in source) {
       failWireContract(
-        "CTN API v3",
+        "CTN API v4",
         `$.${key}`,
         "duplicate query parameter",
       );

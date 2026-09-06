@@ -38,7 +38,7 @@ describe("API server", () => {
       },
       method: "POST",
       socket: { remoteAddress: "127.0.0.1" },
-      url: "/api/v3/auth/session",
+      url: "/api/v4/auth/session",
     }) as IncomingMessage;
     let destroyed = false;
     let logged = false;

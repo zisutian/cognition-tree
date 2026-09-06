@@ -8,11 +8,11 @@ export const ownerSessionCookieName = "ctn_owner_session";
 export const ownerSessionMaxAgeSeconds = 12 * 60 * 60;
 
 export function createOwnerSessionCookie(session: string) {
-  return `${ownerSessionCookieName}=${encodeURIComponent(session)}; HttpOnly; SameSite=Strict; Secure; Path=/api/v3; Max-Age=${ownerSessionMaxAgeSeconds}`;
+  return `${ownerSessionCookieName}=${encodeURIComponent(session)}; HttpOnly; SameSite=Strict; Secure; Path=/api/v4; Max-Age=${ownerSessionMaxAgeSeconds}`;
 }
 
 export function clearOwnerSessionCookie() {
-  return `${ownerSessionCookieName}=; HttpOnly; SameSite=Strict; Secure; Path=/api/v3; Max-Age=0`;
+  return `${ownerSessionCookieName}=; HttpOnly; SameSite=Strict; Secure; Path=/api/v4; Max-Age=0`;
 }
 
 type HostPattern = {
