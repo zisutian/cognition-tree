@@ -31,7 +31,7 @@
     ./start.sh --production
 
 安装、验证、外部可信客户端、服务公开、数据迁移与容器持久化路径约定统一见
-[使用与部署](docs/getting-started.md)。
+[部署与恢复](docs/deployment.md)。
 
 ## 关键边界
 
@@ -42,7 +42,7 @@
   管理的专用认证目录，不读取个人 Codex 配置或会话。
 - UI 只通过 application 用例进入领域；wire 形态由 `contracts/` 统一拥有。
 
-精确的数据流、保存语义、权限边界与运行时所有权见[架构边界](docs/architecture.md)。
+源码职责见[模块边界](docs/architecture.md)，保存语义见[内容一致性](docs/content-consistency.md)，协议和进程见[服务运行](docs/service-runtime.md)。
 
 ## 源码层次
 
@@ -64,4 +64,7 @@
 - [界面规范](docs/ui-guidelines.md)
 - [CTN 分析流水线](docs/ctn-analysis-pipeline.md)
 - [工程原则](docs/engineering-principles.md)
-- [使用与部署](docs/getting-started.md)
+- [快速入门](docs/getting-started.md)
+- [设置操作](docs/settings.md)
+- [部署与恢复](docs/deployment.md)
+- [测试指南](docs/testing.md)

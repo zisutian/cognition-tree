@@ -3,7 +3,7 @@
 本文件只定义用户可见能力、安全承诺与明确不支持的范围。源码所有权和数据流见
 [架构边界](architecture.md)，CTN 编译与分析语义见
 [CTN 分析流水线](ctn-analysis-pipeline.md)，排布与视觉见
-[界面规范](ui-guidelines.md)，运行步骤见[使用与部署](getting-started.md)。
+[界面规范](ui-guidelines.md)，运行步骤见[快速入门](getting-started.md)。
 
 
 ## 1. 定位
@@ -164,7 +164,7 @@ Provider、Profile、模型参数与凭据只由应用内设置管理。发现�
 Provider；opening 与 resident session 都会阻止对应的危险删除或凭据变更。
 “会话历史预算（字符）”控制内存对话压缩，并限制单次模型响应与工具增量累计状态；
 它不代表 token 上限，也不修改 Ollama `num_ctx`。探测结果只读且不改变 Profile。
-具体操作见使用与部署。
+具体操作见[设置操作](settings.md)。
 
 Provider 认证是严格 union：`none`、API Key 或 Codex 专属 ChatGPT 设备码；同一
 Provider 只激活一种。API Key 与 Codex 托管登录态属于独立凭据分区，配置只保存引用，
@@ -180,6 +180,8 @@ chat runtime 必须区分 reasoning、最终正文、工具调用和终止原因
 
 
 ## 9. 服务设置与数据迁移
+
+设置按对象编辑；未保存、基线过期或提交中时阻止应用内导航。外部刷新和失败保留输入，保存或放弃后不自动重放导航。界面偏好和默认 Profile 保持即时生效。具体交互位置见[界面规范](ui-guidelines.md)，步骤见[设置操作](settings.md)。
 
 网页、API、开发 HMR 与生产静态资源必须由同一个 Node origin 提供。用户不能通过
 环境变量或客户端 JSON 配置监听、端口、路径、owner token、审计容量或 Provider

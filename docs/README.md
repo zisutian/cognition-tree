@@ -1,37 +1,33 @@
 # 文档索引
 
-`docs/` 保持扁平目录；当前文档数量不需要按技术名再分子目录。每份文档只拥有一种
-稳定事实，避免同一规则在多处分别演化。
+`docs/` 保持扁平目录。按使用、运维和开发选择入口；同一事实只在其所属专题详细维护。
 
-| 文档 | 唯一职责 |
-|---|---|
-| [项目 README](../README.md) | 项目入口、能力摘要和最短运行路径；不作为详细规格权威 |
-| [产品需求](product-requirements.md) | 产品定位、领域能力、用户可见行为和明确不支持的范围 |
-| [架构边界](architecture.md) | 源码所有权、依赖方向、数据流、持久化、API 与运行时边界 |
-| [CTN 分析流水线](ctn-analysis-pipeline.md) | CTN v2 编译、分析、失效和 multiline 语义 |
-| [界面规范](ui-guidelines.md) | Activity 布局、交互、Problems、尺度、颜色和共享 UI 结构 |
-| [使用与部署](getting-started.md) | 环境准备、启动、设置、认证、迁移、API/CLI 入口、容器路径约定和验证命令 |
-| [工程原则](engineering-principles.md) | 修改方式、代码组织、测试策略和生成产物约束 |
-| [2026-09-06 重整记录](restructure-progress.md) | 本轮实施、模块核对与验证证据快照；不替代当前架构规则 |
+## 使用
 
-同一主题可以被多份文档引用，但约束性细节只能由一份文档拥有：
+- [快速入门](getting-started.md)：首次启动、创建仓库与编辑。
+- [设置操作](settings.md)：对象目录、保存与放弃、认证、令牌及迁移入口。
+- [产品需求](product-requirements.md)：能力、用户可见承诺与不支持的范围。
 
-- “用户能否完成什么、失败时得到什么结果”进入产品需求。
-- “哪个模块负责、状态如何流动、边界如何校验”进入架构边界。
-- “信息出现在哪里、如何交互、使用什么尺度和视觉”进入界面规范。
-- CTN 编译、分析和 multiline 的精确语义进入 CTN 分析流水线。
-- 命令、路径、配置、迁移和验证步骤进入使用与部署；HTTP method、path 与 schema 的完整清单
-  不在文档中建立第二份权威。
+## 运维
 
-## 维护规则
+- [部署与恢复](deployment.md)：服务公开、数据位置、容器持久化、迁移及恢复。
+- [API 与 CLI 集成](api-integration.md)：权限、外部调用、同步与错误处理。
 
-- 新事实先写入拥有该事实的文档；其他文档最多保留一句上下文摘要并链接到权威说明，
-  不复制字段列表、像素值、协议形态或步骤清单。
-- 产品行为、架构实现、界面规则和操作步骤不得互相代替。发生冲突时必须修正文档，
-  不能把“以某一份为准”当作长期兼容状态。
-- API operation 的精确 method、path、schema 和访问策略以 `contracts/api` registry
-  生成的 `/api/v4/openapi.json` 为运行时权威；文档只解释使用边界和主要入口。
-- 同源、同端口和同进程只描述运行与部署，不改变浏览器必须经公开 API 使用后端的
-  架构契约。
-- 只有形成多个职责稳定的同类文档时才建立子目录；不得按一次性计划或历史技术建立
-  `legacy`、`unused` 或兼容文档区。
+## 开发
+
+- [模块边界](architecture.md)：源码职责、公开入口、依赖和组合根。
+- [内容一致性](content-consistency.md)：内容格式、可信边界、保存、合并和冲突。
+- [服务运行](service-runtime.md)：协议、认证、账本、迁移事务与进程生命周期。
+- [界面规范](ui-guidelines.md)：布局、交互、状态投影、尺度和共享组件。
+- [CTN 分析流水线](ctn-analysis-pipeline.md)：编译、分析、失效和 multiline 语义。
+- [工程原则](engineering-principles.md)：修改方式与工程组织。
+- [测试指南](testing.md)：分层、夹具、针对性验证和完整验收。
+
+## 历史证据
+
+- [2026-09-06 结构重整记录](restructure-progress.md)
+- [2026-09-06 UI 优化记录](ui-optimization-progress.md)
+
+历史报告保留当时证据，不替代当前行为或架构规范。新增事实先写入对应专题，其他文档链接引用；
+不复制 HTTP 路径或结构清单。精确操作由 [API registry](../contracts/api/registry.ts)
+及其 OpenAPI 输出提供，CLI `./ctn openapi` 读取同一契约。

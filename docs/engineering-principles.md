@@ -70,8 +70,8 @@ SSR 组件使用聚合的 has、lacks、ordered 语义契约；ordered 中的每
 E2E 按独立功能域造数。完整 repository、Journal、Todo 与 API 状态只由测试
 组合根在每个用例前重置；共享种子、页面入口和 Canvas 读取放入 e2e/support。
 测试文件不共享可变内容、不依赖执行顺序，也不以 serial 掩盖隔离问题。
-每个 Playwright worker 拥有独立的 Server 进程、随机端口、仓库根和服务状态
-目录；规格只通过 worker fixture 取得地址和造数入口，因此允许 fullyParallel，
+每个 Playwright worker 在自己的进程中拥有独立的 HTTP Server、随机端口、仓库根和服务状态
+目录；进程中断恢复另用真实子进程验证。规格只通过 worker fixture 取得地址和造数入口，因此允许 fullyParallel，
 不得用全局 reset 或固定端口重新引入 worker 间耦合。
 
 共享状态机只在其生产 owner 完整验证，领域 wrapper 只保留接线和领域差异。负向守卫只表达长期禁止的类别，不保存退役函数、选择器或路径的墓碑清单。浏览器 E2E 只承担跨层流程和浏览器特有事实，不重复纯解析、状态机或组件内部契约。
