@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentConfigurationSnapshot, AgentProfileView, AgentProviderView } from '../agent/agentConfiguration.ts';
+import type { AgentConfigurationSnapshot, AgentProfileView, AgentProviderView, AgentToolCallMode } from '../agent/agentConfiguration.ts';
 import type { AgentConfigurationProfileUse } from './configurationAccess.ts';
 
 export type ResolvedAgentProvider = Readonly<{
@@ -13,5 +13,9 @@ export type ResolvedAgentConfiguration = ResolvedAgentProvider & Readonly<{ prof
 export type AgentConfigurationPort = {
   access: { beginProfileUse(profileId: string): AgentConfigurationProfileUse };
   readSnapshot(): Promise<AgentConfigurationSnapshot>;
-  resolveProfile(profileId: string, use: AgentConfigurationProfileUse): Promise<ResolvedAgentConfiguration | null>;
+  resolveProfile(profileId: string, use?: AgentConfigurationProfileUse): Promise<ResolvedAgentConfiguration | null>;
+};
+
+export type AgentConformanceConfigurationPort = Pick<AgentConfigurationPort, 'readSnapshot' | 'resolveProfile'> & {
+  setConformance(baseRevision: string, profileId: string, input: {checkedAt: string; toolCallMode: AgentToolCallMode}): Promise<unknown>;
 };

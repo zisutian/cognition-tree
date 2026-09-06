@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerProviderOperations } from "./providerRuntime.ts";
 import path from "node:path";
 import { createHttpApiRequestHandler, createHttpApiServer, type ApiHttpDependencies, type ApiRequestHandler } from "../api/http/server.ts";
 import { AgentConfigurationStore } from "../agent/configurationStore.ts";
-import { AgentProviderOperations } from "../agent/providerOperations.ts";
 import { AutomationTokenStore } from "../access/automationTokenStore.ts";
 import { TrustedClientTokenStore } from "../access/trustedClientTokenStore.ts";
 import { ApiEventHub } from "../api/sync/events.ts";
@@ -21,7 +21,7 @@ function composeApiDependencies(options: ApiServerOptions): ApiHttpDependencies 
     accessStore: options.accessStore ?? new AutomationTokenStore(stateDirectory),
     trustedClientTokenStore: options.trustedClientTokenStore ?? new TrustedClientTokenStore(stateDirectory),
     agentConfigurationStore: configuration,
-    agentProviderOperations: options.agentProviderOperations ?? new AgentProviderOperations({ configurationStore: configuration, runtime }),
+    agentProviderOperations: options.agentProviderOperations ?? createServerProviderOperations({ configurationStore: configuration, runtime }),
     agentService: options.agentService ?? null,
     builtInCatalog: options.builtInCatalog,
     catalog: options.catalog,

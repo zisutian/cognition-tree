@@ -8,7 +8,7 @@ import type {
   AgentConfigurationAccess,
   AgentConfigurationProviderChange,
 } from "../../../application/agentHost/configurationAccess.ts";
-import { AgentConfigurationValidationError } from "./configurationErrors.ts";
+import { AgentConfigurationValidationError } from "../../../application/agentHost/configurationErrors.ts";
 import { normalizeProviderInput } from "./configurationInput.ts";
 import { assertAgentConfigurationRevision } from "./configurationRevision.ts";
 import type {

@@ -37,11 +37,6 @@ import { requireAgentConfigurationProvider } from "./configurationStateLookup.ts
 import { AgentProfileConfiguration } from "./profileConfiguration.ts";
 import { AgentProviderConfiguration } from "./providerConfiguration.ts";
 
-export {
-  AgentConfigurationConflictError,
-  AgentConfigurationValidationError,
-} from "./configurationErrors.ts";
-
 export class AgentConfigurationStore {
   readonly access = new AgentConfigurationAccess();
   readonly #credentialStore: AgentProviderCredentialStore;

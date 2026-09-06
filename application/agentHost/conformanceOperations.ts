@@ -1,36 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { AgentConformanceConfigurationPort } from './configurationPort.ts';
+import type { AgentRuntimeFactory } from './runtimePorts.ts';
+import type { ApplicationScheduler } from '../runtime/applicationScheduler.ts';
 import type {
   AgentConformanceCheckStatus,
-} from "../../../application/agent/agentConfiguration.ts";
-import type { AgentRuntimeTool } from "../../../application/agent/agentRuntimePort.ts";
-import { agentToolDefinitionsForDomain } from "../../../contracts/agent/tools.ts";
-import type { ApiRuntime } from "../api/http/runtime.ts";
-import { readApiRuntimeNow } from "../api/http/runtime.ts";
-import {
-  AgentConfigurationConflictError,
-  AgentConfigurationValidationError,
-  type AgentConfigurationStore,
-} from "./configurationStore.ts";
-import { ConfiguredAgentRuntimeFactory } from "./configuredAgentRuntimeFactory.ts";
+} from "../agent/agentConfiguration.ts";
+import type { AgentRuntimeTool } from "../agent/agentRuntimePort.ts";
+import type { CommandRuntime } from "../commands/commandRuntime.ts";
+import { readCommandRuntimeNow } from "../commands/commandRuntime.ts";
+import { AgentConfigurationConflictError, AgentConfigurationValidationError } from "./configurationErrors.ts";
 import { AgentProviderOperationConflictError } from "./providerOperationErrors.ts";
-import type { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
-import { createAgentRuntimeProfile } from "../../../application/agentHost/runtimeProfiles.ts";
+import { createAgentRuntimeProfile } from "./runtimeProfiles.ts";
 
 const conformanceResultLimit = 100;
 const conformanceOutputTokenLimit = 512;
-
-const conformanceTools: readonly AgentRuntimeTool[] =
-  agentToolDefinitionsForDomain("workspace")
-    .filter(({ name }) =>
-      name === "list" || name === "describe_syntax" ||
-      name === "stage_workspace_create_note"
-    )
-    .map(({ description, inputSchema, name }) => ({
-      description,
-      inputSchema: inputSchema as unknown as Readonly<Record<string, unknown>>,
-      name,
-    }));
 
 type AgentConformanceCheckRecord = Readonly<{
   baseRevision: string;
@@ -39,33 +23,30 @@ type AgentConformanceCheckRecord = Readonly<{
 }>;
 
 export class AgentConformanceOperations {
+  readonly #tools: readonly AgentRuntimeTool[];
+  readonly #scheduler: ApplicationScheduler;
   readonly #checks = new Map<string, AgentConformanceCheckRecord>();
-  readonly #configurationStore: AgentConfigurationStore;
+  readonly #configurationStore: AgentConformanceConfigurationPort;
   readonly #executions = new Map<string, Promise<void>>();
   readonly #reservations = new Set<string>();
-  readonly #runtime: ApiRuntime;
-  readonly #runtimeFactory: ConfiguredAgentRuntimeFactory;
+  readonly #runtime: CommandRuntime;
+  readonly #runtimeFactory: AgentRuntimeFactory;
   readonly #starts = new Set<Promise<AgentConformanceCheckStatus>>();
   #disposed = false;
   #disposePromise: Promise<void> | null = null;
 
-  constructor({
-    configurationStore,
-    projectRoot,
-    runtime,
-    targetPolicy,
-  }: {
-    configurationStore: AgentConfigurationStore;
-    projectRoot: string;
-    runtime: ApiRuntime;
-    targetPolicy: AgentProviderTargetPolicy;
+  constructor({configurationStore, runtime, runtimeFactory, tools, scheduler}: {
+    configurationStore: AgentConformanceConfigurationPort;
+    runtime: CommandRuntime;
+    runtimeFactory: AgentRuntimeFactory;
+    tools: readonly AgentRuntimeTool[];
+    scheduler: ApplicationScheduler;
   }) {
     this.#configurationStore = configurationStore;
     this.#runtime = runtime;
-    this.#runtimeFactory = new ConfiguredAgentRuntimeFactory({
-      projectRoot,
-      targetPolicy,
-    });
+    this.#runtimeFactory = runtimeFactory;
+    this.#tools = tools;
+    this.#scheduler = scheduler;
   }
 
   start(baseRevision: string, profileId: string) {
@@ -91,7 +72,7 @@ export class AgentConformanceOperations {
     record.controller.abort(new Error("Agent conformance check was cancelled"));
     const status: AgentConformanceCheckStatus = {
       ...record.status,
-      completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+      completedAt: readCommandRuntimeNow(this.#runtime).timestamp,
       status: "cancelled",
     };
 
@@ -154,7 +135,7 @@ export class AgentConformanceOperations {
         id,
         phase: "calling-tool",
         profileId,
-        startedAt: readApiRuntimeNow(this.#runtime).timestamp,
+        startedAt: readCommandRuntimeNow(this.#runtime).timestamp,
         status: "running",
       };
       const record: AgentConformanceCheckRecord = {
@@ -165,7 +146,7 @@ export class AgentConformanceOperations {
 
       this.#checks.set(id, record);
       const execution = new Promise<void>((resolve) => {
-        setTimeout(() => {
+        this.#scheduler.schedule(() => {
           void this.#execute(id).then(resolve, resolve);
         }, 0);
       });
@@ -300,7 +281,7 @@ export class AgentConformanceOperations {
         },
         scope,
         signal,
-        tools: conformanceTools,
+        tools: this.#tools,
       });
 
       if (
@@ -351,7 +332,7 @@ export class AgentConformanceOperations {
         record.baseRevision,
         record.status.profileId,
         {
-          checkedAt: readApiRuntimeNow(this.#runtime).timestamp,
+          checkedAt: readCommandRuntimeNow(this.#runtime).timestamp,
           toolCallMode,
         },
       );
@@ -359,7 +340,7 @@ export class AgentConformanceOperations {
         ...current,
         status: {
           ...current.status,
-          completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+          completedAt: readCommandRuntimeNow(this.#runtime).timestamp,
           status: "succeeded",
         },
       });
@@ -373,7 +354,7 @@ export class AgentConformanceOperations {
         ...current,
         status: {
           ...current.status,
-          completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+          completedAt: readCommandRuntimeNow(this.#runtime).timestamp,
           errorMessage: cancelled
             ? null
             : error instanceof Error

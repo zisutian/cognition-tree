@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+
+
 export class AgentConfigurationConflictError extends Error {
   readonly currentRevision: `sha256:${string}`;
 

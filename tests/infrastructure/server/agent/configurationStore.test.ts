@@ -11,11 +11,8 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  AgentConfigurationConflictError,
-  AgentConfigurationStore,
-  AgentConfigurationValidationError,
-} from "../../../../infrastructure/server/agent/configurationStore.ts";
+import { AgentConfigurationStore } from "../../../../infrastructure/server/agent/configurationStore.ts";
+import { AgentConfigurationConflictError, AgentConfigurationValidationError } from "../../../../application/agentHost/configurationErrors.ts";
 import {
   AgentConfigurationAccessConflictError,
 } from "../../../../application/agentHost/configurationAccess.ts";

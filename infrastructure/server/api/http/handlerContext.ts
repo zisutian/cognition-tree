@@ -31,7 +31,7 @@ import type { TrustedClientTokenStore } from "../../access/trustedClientTokenSto
 import type { OperationLedger } from "../../operations/operationLedger.ts";
 import type { AgentService } from "../../../../application/agentHost/service.ts";
 import type { AgentConfigurationStore } from "../../agent/configurationStore.ts";
-import type { AgentProviderOperations } from "../../agent/providerOperations.ts";
+import type { AgentProviderOperations } from "../../../../application/agentHost/providerOperations.ts";
 import type { SystemAdministrationServerPort } from "../../../../application/system/systemConfiguration.ts";
 import type { ApiOwnerSessionAuthority } from "./security.ts";
 

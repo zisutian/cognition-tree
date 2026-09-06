@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerProviderOperations } from "../../../../infrastructure/server/runtime/providerRuntime.ts";
 import { once } from "node:events";
 import { createServer, type ServerResponse } from "node:http";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -8,7 +9,6 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { AgentConfigurationStore } from "../../../../infrastructure/server/agent/configurationStore.ts";
 import { CodexDeviceLoginOperations } from "../../../../infrastructure/server/agent/codexDeviceLoginOperations.ts";
-import { AgentProviderOperations } from "../../../../infrastructure/server/agent/providerOperations.ts";
 import { pinnedCodexVersion } from "../../../../infrastructure/server/agent/codexPackage.ts";
 import type { ApiRuntime } from "../../../../infrastructure/server/api/http/runtime.ts";
 import {
@@ -124,17 +124,17 @@ describe("Agent provider operations", () => {
     const expiredStore = new AgentConfigurationStore(expiredDirectory, {
       createId: () => "codex-expired",
     });
-    const completedOperations = new AgentProviderOperations({
+    const completedOperations = createServerProviderOperations({
       configurationStore: completedStore,
       projectRoot: completedProject,
       runtime,
     });
-    const cancelledOperations = new AgentProviderOperations({
+    const cancelledOperations = createServerProviderOperations({
       configurationStore: cancelledStore,
       projectRoot: cancelledProject,
       runtime,
     });
-    const expiredOperations = new AgentProviderOperations({
+    const expiredOperations = createServerProviderOperations({
       codexDeviceLoginTtlMilliseconds: 10,
       configurationStore: expiredStore,
       projectRoot: expiredProject,
@@ -337,7 +337,7 @@ describe("Agent provider operations", () => {
         }
       },
     });
-    const operations = new AgentProviderOperations({
+    const operations = createServerProviderOperations({
       configurationStore: store,
       projectRoot: project,
       runtime,
@@ -441,7 +441,7 @@ describe("Agent provider operations", () => {
     const store = new AgentConfigurationStore(directory, {
       createId: () => ids.shift()!,
     });
-    const operations = new AgentProviderOperations({
+    const operations = createServerProviderOperations({
       configurationStore: store,
       runtime,
     });
@@ -551,7 +551,7 @@ describe("Agent provider operations", () => {
     const store = new AgentConfigurationStore(directory, {
       createId: () => "codex-probe",
     });
-    const operations = new AgentProviderOperations({
+    const operations = createServerProviderOperations({
       configurationStore: store,
       fetch: fetchFn,
       runtime,
@@ -594,7 +594,7 @@ describe("Agent provider operations", () => {
     const store = new AgentConfigurationStore(directory, {
       createId: () => "openai-probe",
     });
-    const operations = new AgentProviderOperations({
+    const operations = createServerProviderOperations({
       configurationStore: store,
       fetch: fetchFn,
       runtime,
@@ -657,7 +657,7 @@ describe("Agent provider operations", () => {
         headers: { "Content-Type": "text/plain" },
         status: 200,
       }));
-    const operations = new AgentProviderOperations({
+    const operations = createServerProviderOperations({
       configurationStore: new AgentConfigurationStore(directory),
       fetch: fetchFn,
       runtime,
@@ -692,7 +692,7 @@ describe("Agent provider operations", () => {
         signal.addEventListener("abort", () => reject(signal.reason), { once: true });
       })
     );
-    const operations = new AgentProviderOperations({
+    const operations = createServerProviderOperations({
       configurationStore: new AgentConfigurationStore(directory),
       fetch: fetchFn,
       runtime,
@@ -718,7 +718,7 @@ describe("Agent provider operations", () => {
   it("rejects metadata discovery before making a request", async () => {
     const fetchFn = vi.fn();
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
-    const operations = new AgentProviderOperations({
+    const operations = createServerProviderOperations({
       configurationStore: new AgentConfigurationStore(directory),
       fetch: fetchFn,
       runtime,
@@ -769,7 +769,7 @@ describe("Agent provider operations", () => {
     if (!address || typeof address === "string") throw new Error("Missing port");
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
     const store = new AgentConfigurationStore(directory);
-    const operations = new AgentProviderOperations({
+    const operations = createServerProviderOperations({
       configurationStore: store,
       runtime,
     });
@@ -867,7 +867,7 @@ describe("Agent provider operations", () => {
     const store = new AgentConfigurationStore(directory, {
       createId: () => ids.shift()!,
     });
-    const operations = new AgentProviderOperations({
+    const operations = createServerProviderOperations({
       configurationStore: store,
       runtime,
     });
@@ -924,7 +924,7 @@ describe("Agent provider operations", () => {
   it("serializes conformance starts for the same profile", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
     const store = new AgentConfigurationStore(directory);
-    const operations = new AgentProviderOperations({
+    const operations = createServerProviderOperations({
       configurationStore: store,
       runtime,
     });
@@ -979,7 +979,7 @@ describe("Agent provider operations", () => {
 
   it("rejects every new Provider operation after disposal", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
-    const operations = new AgentProviderOperations({
+    const operations = createServerProviderOperations({
       configurationStore: new AgentConfigurationStore(directory),
       runtime,
     });

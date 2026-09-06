@@ -24,7 +24,8 @@ export const sourceLayerImports: Readonly<
 };
 
 const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
-  runtime: ["runtime", "access", "agent", "api", "api/http", "api/resources", "api/sync", "network", "operations", "persistence", "repository", "state", "system"],
+  platform: ["platform"],
+  runtime: ["runtime", "platform", "access", "agent", "api", "api/http", "api/resources", "api/sync", "network", "operations", "persistence", "repository", "state", "system"],
   access: ["access", "state"],
   agent: [
     "agent",
@@ -73,15 +74,10 @@ const clientAreaImports: Readonly<Record<string, readonly string[]>> = {
 };
 
 const agentProviderOperationFacadePath =
-  "../../infrastructure/server/agent/providerOperations.ts";
+  "../../application/agentHost/providerOperations.ts";
 const agentProviderOperationFacadeTargets: ReadonlySet<string> = new Set([
-  "../../infrastructure/server/agent/codexDeviceLoginOperations.ts",
-  "../../infrastructure/server/agent/configurationStore.ts",
-  "../../infrastructure/server/agent/conformanceOperations.ts",
-  "../../infrastructure/server/agent/providerOperationErrors.ts",
-  "../../infrastructure/server/agent/providerProbe.ts",
-  "../../infrastructure/server/agent/providerTargetPolicy.ts",
-  "../../infrastructure/server/api/http/runtime.ts",
+  "../../application/agentHost/providerOperationPorts.ts",
+  "../../application/agentHost/providerOperationErrors.ts",
 ]);
 const agentConversationRunnerPath =
   "../../application/agentHost/conversationRunner.ts";

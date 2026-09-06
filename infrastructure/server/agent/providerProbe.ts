@@ -4,12 +4,10 @@ import type {
   AgentOllamaDiscovery,
   AgentProviderProbe,
 } from "../../../application/agent/agentConfiguration.ts";
-import type { ApiRuntime } from "../api/http/runtime.ts";
-import { readApiRuntimeNow } from "../api/http/runtime.ts";
-import {
-  AgentConfigurationStore,
-  AgentConfigurationValidationError,
-} from "./configurationStore.ts";
+import type { CommandRuntime } from "../../../application/commands/commandRuntime.ts";
+import { readCommandRuntimeNow } from "../../../application/commands/commandRuntime.ts";
+import { AgentConfigurationStore } from "./configurationStore.ts";
+import { AgentConfigurationValidationError } from "../../../application/agentHost/configurationErrors.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 
 const responseByteLimit = 1024 * 1024;
@@ -220,7 +218,7 @@ function parseModels(value: unknown) {
 export class AgentProviderProbeService {
   readonly #configurationStore: AgentConfigurationStore;
   readonly #fetch: typeof fetch;
-  readonly #runtime: ApiRuntime;
+  readonly #runtime: CommandRuntime;
   readonly #targetPolicy: AgentProviderTargetPolicy;
 
   constructor({
@@ -231,7 +229,7 @@ export class AgentProviderProbeService {
   }: {
     configurationStore: AgentConfigurationStore;
     fetch?: typeof fetch;
-    runtime: ApiRuntime;
+    runtime: CommandRuntime;
     targetPolicy?: AgentProviderTargetPolicy;
   }) {
     this.#configurationStore = configurationStore;
@@ -263,7 +261,7 @@ export class AgentProviderProbeService {
       return {
         modelContexts: [],
         models: [],
-        probedAt: readApiRuntimeNow(this.#runtime).timestamp,
+        probedAt: readCommandRuntimeNow(this.#runtime).timestamp,
         reachable: resolved.provider.authenticationStatus === "configured",
       };
     }
@@ -287,7 +285,7 @@ export class AgentProviderProbeService {
       return {
         modelContexts: [],
         models,
-        probedAt: readApiRuntimeNow(this.#runtime).timestamp,
+        probedAt: readCommandRuntimeNow(this.#runtime).timestamp,
         reachable: true,
       };
     }
@@ -345,7 +343,7 @@ export class AgentProviderProbeService {
     return {
       modelContexts,
       models,
-      probedAt: readApiRuntimeNow(this.#runtime).timestamp,
+      probedAt: readCommandRuntimeNow(this.#runtime).timestamp,
       reachable: true,
     };
   }

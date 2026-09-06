@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { serverApplicationScheduler } from '../platform/applicationScheduler.ts';
 import type { ApiBuiltInCatalog } from '../api/http/ports.ts';
 import type { ApiRuntime } from '../api/http/runtime.ts';
 import type { WorkspaceRepositoryCatalog } from '../repository/catalog.ts';
@@ -9,7 +10,6 @@ import type { OperationLedger } from '../operations/operationLedger.ts';
 import { AgentService } from '../../../application/agentHost/service.ts';
 import type { AgentRuntimeFactory, AgentToolProtocolPort } from '../../../application/agentHost/runtimePorts.ts';
 import type { AgentServicePolicy } from '../../../application/agentHost/servicePolicy.ts';
-import type { ApplicationScheduler } from '../../../application/runtime/applicationScheduler.ts';
 import { serializeJsonIteratively } from '../../../contracts/common/json.ts';
 import type { AgentConfigurationStore } from '../agent/configurationStore.ts';
 import { ConfiguredAgentRuntimeFactory } from '../agent/configuredAgentRuntimeFactory.ts';
@@ -29,14 +29,6 @@ type CommitDependencies = {
   revisionTracker: ApiRevisionTracker;
   ledger: OperationLedger | null;
   runtime: ApiRuntime;
-};
-const agentHostScheduler: ApplicationScheduler = {
-  now: () => Date.now(),
-  schedule(callback, delayMs) {
-    const timer = setTimeout(callback, delayMs);
-    timer.unref();
-    return () => clearTimeout(timer);
-  },
 };
 const protocol: AgentToolProtocolPort = {
   toolsForScope: agentRuntimeToolsForScope,
@@ -77,6 +69,6 @@ export function createServerAgentService(input: CommitDependencies & {
     servicePolicy: input.servicePolicy,
     tools: createServerAgentTools(input),
     protocol,
-    scheduler: agentHostScheduler,
+    scheduler: serverApplicationScheduler,
   });
 }

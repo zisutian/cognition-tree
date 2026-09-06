@@ -49,15 +49,12 @@ import {
   AgentProposalCommitIndeterminateError,
   AgentServiceError,
 } from "../../../../application/agentHost/errors.ts";
-import {
-  AgentConfigurationConflictError,
-  AgentConfigurationValidationError,
-} from "../../agent/configurationStore.ts";
+import { AgentConfigurationConflictError, AgentConfigurationValidationError } from "../../../../application/agentHost/configurationErrors.ts";
 import {
   AgentConfigurationAccessConflictError,
 } from "../../../../application/agentHost/configurationAccess.ts";
 import { AgentProviderTargetValidationError } from "../../agent/providerTargetPolicy.ts";
-import { AgentProviderOperationConflictError } from "../../agent/providerOperationErrors.ts";
+import { AgentProviderOperationConflictError } from "../../../../application/agentHost/providerOperationErrors.ts";
 import {
   AgentProposalStateError,
   AgentScopeUnavailableError,

@@ -237,24 +237,24 @@ describe("dependency boundaries", () => {
     const violations = auditImportPolicies([
       {
         filePath:
-          "../../infrastructure/server/agent/providerOperations.ts",
-        importPath: "./conformanceOperations",
+          "../../application/agentHost/providerOperations.ts",
+        importPath: "./providerOperationPorts",
         targetPath:
-          "../../infrastructure/server/agent/conformanceOperations.ts",
-        targetRoot: "infrastructure",
+          "../../application/agentHost/providerOperationPorts.ts",
+        targetRoot: "application",
       },
       {
         filePath:
-          "../../infrastructure/server/agent/providerOperations.ts",
-        importPath: "./configuredAgentRuntimeFactory",
+          "../../application/agentHost/providerOperations.ts",
+        importPath: "./conformanceOperations",
         targetPath:
-          "../../infrastructure/server/agent/configuredAgentRuntimeFactory.ts",
-        targetRoot: "infrastructure",
+          "../../application/agentHost/conformanceOperations.ts",
+        targetRoot: "application",
       },
     ], dependencyImportPolicies);
 
     expect(violations).toEqual([
-      "Agent Provider operation facade composition boundary: ../../infrastructure/server/agent/providerOperations.ts imports ./configuredAgentRuntimeFactory",
+      "Agent Provider operation facade composition boundary: ../../application/agentHost/providerOperations.ts imports ./conformanceOperations",
     ]);
   });
 

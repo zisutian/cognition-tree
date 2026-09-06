@@ -265,15 +265,15 @@ export function createOwnershipTextPolicies({
     ],
     [
       "Agent configuration conflict error",
-      infrastructureModules,
+      applicationModules,
       /\bclass AgentConfigurationConflictError\b/,
-      /^infrastructure\/server\/agent\/configurationErrors\.ts$/,
+      /^application\/agentHost\/configurationErrors\.ts$/,
     ],
     [
       "Agent configuration validation error",
-      infrastructureModules,
+      applicationModules,
       /\bclass AgentConfigurationValidationError\b/,
-      /^infrastructure\/server\/agent\/configurationErrors\.ts$/,
+      /^application\/agentHost\/configurationErrors\.ts$/,
     ],
     [
       "Agent Provider input normalization",

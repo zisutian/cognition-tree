@@ -56,7 +56,7 @@ import { TrustedClientTokenStore } from "../../access/trustedClientTokenStore.ts
 import type { AgentService } from "../../../../application/agentHost/service.ts";
 import type { OperationLedger } from "../../operations/operationLedger.ts";
 import { AgentConfigurationStore } from "../../agent/configurationStore.ts";
-import { AgentProviderOperations } from "../../agent/providerOperations.ts";
+import { AgentProviderOperations } from "../../../../application/agentHost/providerOperations.ts";
 import type { SystemAdministrationServerPort } from "../../../../application/system/systemConfiguration.ts";
 import { ApiMaintenanceGate } from "./maintenanceGate.ts";
 

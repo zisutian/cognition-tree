@@ -7,15 +7,15 @@ import path from "node:path";
 import type {
   AgentCodexDeviceLoginStatus,
 } from "../../../application/agent/agentConfiguration.ts";
-import type { ApiRuntime } from "../api/http/runtime.ts";
-import { readApiRuntimeNow } from "../api/http/runtime.ts";
+import type { CommandRuntime } from "../../../application/commands/commandRuntime.ts";
+import { readCommandRuntimeNow } from "../../../application/commands/commandRuntime.ts";
 import type {
   AgentConfigurationProviderChange,
 } from "../../../application/agentHost/configurationAccess.ts";
 import type { AgentConfigurationStore } from "./configurationStore.ts";
 import { CodexAppServerClient } from "./codexAppServerClient.ts";
 import { resolveCodexEntrypoint } from "./codexPackage.ts";
-import { AgentProviderOperationConflictError } from "./providerOperationErrors.ts";
+import { AgentProviderOperationConflictError } from "../../../application/agentHost/providerOperationErrors.ts";
 import { withRuntimeTimeout } from "./runtimeTimeout.ts";
 import { SecureStateCommitOutcomeUnknownError } from "../state/secureJsonPartition.ts";
 
@@ -78,7 +78,7 @@ export class CodexDeviceLoginOperations {
   readonly #logins = new Map<string, CodexDeviceLoginRecord>();
   readonly #projectRoot: string;
   readonly #reservations = new Set<string>();
-  readonly #runtime: ApiRuntime;
+  readonly #runtime: CommandRuntime;
   readonly #starts = new Set<Promise<AgentCodexDeviceLoginStatus>>();
   readonly #ttlMilliseconds: number;
   #disposed = false;
@@ -94,7 +94,7 @@ export class CodexDeviceLoginOperations {
     cleanupDirectory?: (directory: string) => Promise<void>;
     configurationStore: AgentConfigurationStore;
     projectRoot: string;
-    runtime: ApiRuntime;
+    runtime: CommandRuntime;
     ttlMilliseconds: number;
   }) {
     this.#cleanupDirectory = cleanupDirectory;
@@ -287,7 +287,7 @@ export class CodexDeviceLoginOperations {
       );
 
       this.#assertOpen();
-      const startedAt = readApiRuntimeNow(this.#runtime).timestamp;
+      const startedAt = readCommandRuntimeNow(this.#runtime).timestamp;
       const status: AgentCodexDeviceLoginStatus = {
         completedAt: null,
         errorMessage: null,
@@ -399,7 +399,7 @@ export class CodexDeviceLoginOperations {
       );
       record.status = {
         ...record.status,
-        completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+        completedAt: readCommandRuntimeNow(this.#runtime).timestamp,
         status: "succeeded",
       };
     } catch (error) {
@@ -412,7 +412,7 @@ export class CodexDeviceLoginOperations {
       }
       record.status = {
         ...record.status,
-        completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+        completedAt: readCommandRuntimeNow(this.#runtime).timestamp,
         errorMessage: error instanceof SecureStateCommitOutcomeUnknownError
           ? "Codex device login result is unknown; restart before retrying"
           : "Codex device login failed",
@@ -476,7 +476,7 @@ export class CodexDeviceLoginOperations {
     try {
       record.status = {
         ...record.status,
-        completedAt: readApiRuntimeNow(this.#runtime).timestamp,
+        completedAt: readCommandRuntimeNow(this.#runtime).timestamp,
         status: terminalStatus,
       };
       await this.#stopProcess(record.child);

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerProviderOperations } from "./runtime/providerRuntime.ts";
 import { createServerAgentService } from "./runtime/agentRuntime.ts";
 import { createServerSearchQuery } from "./runtime/searchRuntime.ts";
 import { runDataRootMigrationRecoveryServer } from "./system/dataRootMigrationRecoveryServer.ts";
@@ -14,7 +15,6 @@ import { AutomationTokenStore } from "./access/automationTokenStore.ts";
 import { AgentConfigurationStore } from "./agent/configurationStore.ts";
 import { OperationLedger } from "./operations/operationLedger.ts";
 import { TrustedClientTokenStore } from "./access/trustedClientTokenStore.ts";
-import { AgentProviderOperations } from "./agent/providerOperations.ts";
 import { AgentProviderTargetPolicy } from "./agent/providerTargetPolicy.ts";
 import { agentServicePolicy } from "../../application/agentHost/servicePolicy.ts";
 import { createApiServer } from "./runtime/apiRuntime.ts";
@@ -211,7 +211,7 @@ const agentService = createServerAgentService({
   servicePolicy: agentServicePolicy,
   targetPolicy: agentTargetPolicy,
 });
-const agentProviderOperations = new AgentProviderOperations({
+const agentProviderOperations = createServerProviderOperations({
   configurationStore: agentConfigurationStore,
   projectRoot,
   runtime: systemApiRuntime,
