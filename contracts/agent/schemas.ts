@@ -6,7 +6,6 @@ import {
   type TProperties,
   type TSchema,
 } from "@sinclair/typebox";
-import "../common/formats.ts";
 import {
   DomainChangeSetSchema,
   DomainTextDiffHunkSchema,

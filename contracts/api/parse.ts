@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Value } from "@sinclair/typebox/value";
+import { inspectWireSchema } from "../common/schemaValidation.ts";
 import type { Static, TSchema } from "@sinclair/typebox";
 import { failWireContract } from "../common/contractValue.ts";
 import {
@@ -44,7 +44,7 @@ export function parseApiSchema<T extends TSchema>(
   schema: T,
   input: unknown,
 ): Static<T> {
-  const error = Value.Errors(schema, input).First();
+  const error = inspectWireSchema(schema, input);
 
   if (error) {
     failWireContract(

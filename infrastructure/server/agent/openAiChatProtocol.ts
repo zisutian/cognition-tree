@@ -5,7 +5,7 @@ import {
   type AgentRuntimeTool,
 } from "../../../application/agent/agentRuntimePort.ts";
 import type { TSchema } from "@sinclair/typebox";
-import { Value } from "@sinclair/typebox/value";
+import { inspectWireSchema } from "../../../contracts/common/schemaValidation.ts";
 
 export type ChatMessage =
   | {
@@ -326,8 +326,8 @@ export function validateRuntimeToolCall(
   }
   const schema = tool.inputSchema as TSchema;
 
-  if (Value.Check(schema, argumentsValue)) return null;
-  const issue = Value.Errors(schema, argumentsValue).First();
+  const issue = inspectWireSchema(schema, argumentsValue);
+  if (!issue) return null;
 
   return {
     code: "invalid_tool_arguments",

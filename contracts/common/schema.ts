@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Type, type ObjectOptions, type TProperties, type TSchema, type TUnsafe } from "@sinclair/typebox";
-import "./formats.ts";
 import type { ContentRevisionDto } from "./versionedContent.ts";
 
 export function strictObject<T extends TProperties>(

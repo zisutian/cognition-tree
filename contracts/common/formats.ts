@@ -27,26 +27,28 @@ function isLocalDate(value: string) {
     date.getUTCDate() === day;
 }
 
-if (!FormatRegistry.Has("ctn-canonical-timestamp")) {
-  FormatRegistry.Set("ctn-canonical-timestamp", isCanonicalTimestamp);
-}
-if (!FormatRegistry.Has("ctn-local-date")) {
-  FormatRegistry.Set("ctn-local-date", isLocalDate);
-}
-if (!FormatRegistry.Has("uuid")) {
-  FormatRegistry.Set(
-    "uuid",
-    (value) =>
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-        .test(value),
-  );
-}
-if (!FormatRegistry.Has("uri")) {
-  FormatRegistry.Set("uri", (value) => {
-    try {
-      return new URL(value).toString() === value;
-    } catch {
-      return false;
-    }
-  });
+export function initializeContractFormats() {
+  if (!FormatRegistry.Has("ctn-canonical-timestamp")) {
+    FormatRegistry.Set("ctn-canonical-timestamp", isCanonicalTimestamp);
+  }
+  if (!FormatRegistry.Has("ctn-local-date")) {
+    FormatRegistry.Set("ctn-local-date", isLocalDate);
+  }
+  if (!FormatRegistry.Has("uuid")) {
+    FormatRegistry.Set(
+      "uuid",
+      (value) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+          .test(value),
+    );
+  }
+  if (!FormatRegistry.Has("uri")) {
+    FormatRegistry.Set("uri", (value) => {
+      try {
+        return new URL(value).toString() === value;
+      } catch {
+        return false;
+      }
+    });
+  }
 }
