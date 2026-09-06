@@ -16,8 +16,8 @@ import { ChoiceGroup } from "../shared/controls.tsx";
 import {
   ToolList,
   ToolListRow,
-  ToolToolbar,
-} from "../shared/ToolSurface.tsx";
+} from "../shared/ToolList.tsx";
+import { ToolToolbar } from "../shared/ToolToolbar.tsx";
 import {
   shouldVirtualizeUiRows,
   uiVirtualOverscan,

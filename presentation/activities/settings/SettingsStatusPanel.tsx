@@ -4,7 +4,7 @@ import type { AgentApplication } from "../../../application/agent/index.ts";
 import type { SystemConfigurationState } from "../../../application/system/index.ts";
 import {
   EmptyState,
-  ToolDetailPanel,
+  DetailPanel,
   ToolPanelBody,
 } from "../../ui/index.ts";
 
@@ -63,12 +63,12 @@ export function SettingsStatusPanel({
           : <EmptyState compact title="当前页面没有状态对象" />;
 
   return (
-    <ToolDetailPanel
+    <DetailPanel
       aria-label="设置状态"
       onCollapse={onCollapseDetail}
       title="状态"
     >
       <ToolPanelBody layout="detail">{content}</ToolPanelBody>
-    </ToolDetailPanel>
+    </DetailPanel>
   );
 }

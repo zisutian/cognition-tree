@@ -8,7 +8,7 @@ import type { RepositoryViewModel } from
 
 import {
   useFeedback,
-  ToolDetailPanel,
+  DetailPanel,
   ToolPanelBody,
   ToolSection,
   ToolSectionStack,
@@ -46,7 +46,7 @@ export function RepositoryStatusPanel({
   };
 
   return (
-    <ToolDetailPanel
+    <DetailPanel
       aria-label="仓库状态"
       onCollapse={onCollapseDetail}
       title="状态"
@@ -114,6 +114,6 @@ export function RepositoryStatusPanel({
           ) : null}
         </ToolSectionStack>
       </ToolPanelBody>
-    </ToolDetailPanel>
+    </DetailPanel>
   );
 }

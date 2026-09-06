@@ -169,7 +169,7 @@ CTN 文档：
     ToolPropertyList/ToolPropertyRow 统一呈现工具页面中的静态“属性名—属性值”：使用语义化定义列表，属性名左对齐且不附加冒号；属性名列固定为 88px，属性值列占据剩余空间，可选操作列按内容宽度排列。属性行最小高度 22px、左右内边距 4px、列间距 8px；长值、代码和路径在值列内自然换行。属性行不提供 hover，也不绘制行间分割线，页面不得覆盖共享列宽。
     ToolListRow 必须显式选择 single-line 或 wrap：前者固定 22px 并截断，供窗口化 Problems 使用；后者最小 22px 并自然换行，供搜索结果和静态信息使用。静态行不得渲染伪按钮。Activity 样式只保留匹配列、严重度、diff、危险状态和窗口化定位等领域表达。
     智能体对话使用平铺转录，不使用用户气泡、右对齐或角色背景；角色标题弱化，消息和 Proposal 正文遵守同一 13px/4px 节奏，diff 只保留等宽字体和增删颜色差异。
-    DetailPanel 是全部右侧详情栏壳与折叠按钮的唯一所有者，ToolDetailPanel 只在其上增加工具正文密度。笔记、日记、代办、语法、智能体、搜索、仓库和设置都通过 ActivitySlots.detail 组合该结构，并由 AppFrame 的同一 onCollapseDetail 控制折叠；Activity 不得实现私有折叠按钮或第二套详情壳。
+    DetailPanel 是全部右侧详情栏壳与折叠按钮的唯一所有者，工具正文密度由 ToolPanelBody 提供。笔记、日记、代办、语法、智能体、搜索、仓库和设置都通过 ActivitySlots.detail 组合该结构，并由 AppFrame 的同一 onCollapseDetail 控制折叠；Activity 不得实现私有折叠按钮或第二套详情壳。
 
 
 ## 7. 桌面验收边界

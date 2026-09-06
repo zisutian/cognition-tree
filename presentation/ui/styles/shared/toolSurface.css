@@ -109,14 +109,6 @@
   width: 100%;
 }
 
-.ui-tool-panel-body-form .ui-field-row {
-  grid-template-columns: 128px minmax(0, 1fr);
-}
-
-.ui-tool-panel-body-form .ui-form-actions {
-  margin-left: calc(128px + calc(var(--ui-gap-tight) * 2));
-}
-
 .ui-tool-toolbar {
   display: flex;
   flex: none;

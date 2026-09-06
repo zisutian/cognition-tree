@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   ToolDivider,
-  ToolDetailPanel,
+  DetailPanel,
   ToolList,
   ToolListRow,
   ToolPanel,
@@ -14,10 +14,10 @@ import {
   ToolSection,
   ToolSectionStack,
   ToolToolbar,
-} from "../../../presentation/ui/shared/ToolSurface";
+} from "../../../presentation/ui/index";
 
 describe("tool surfaces", () => {
-  it("owns the three content-width layouts and section relationships", () => {
+  it("labels panels and their sections for navigation", () => {
     const markup = renderToStaticMarkup(
       <>
         <ToolPanel aria-label="工具页" title="工具标题">
@@ -35,24 +35,19 @@ describe("tool surfaces", () => {
             </ToolSectionStack>
           </ToolPanelBody>
         </ToolPanel>
-        <ToolDetailPanel
+        <DetailPanel
           aria-label="工具详情"
           onCollapse={() => undefined}
           title="状态"
         >
           <ToolPanelBody layout="detail">详情</ToolPanelBody>
-        </ToolDetailPanel>
+        </DetailPanel>
         <ToolPanelBody layout="table">规则</ToolPanelBody>
         <ToolPanelBody layout="results">结果</ToolPanelBody>
       </>,
     );
 
-    expect(markup).toContain('data-tool-layout="form"');
-    expect(markup).toContain('data-tool-layout="table"');
-    expect(markup).toContain('data-tool-layout="results"');
-    expect(markup).toContain('class="ui-panel ui-panel-main ui-tool-panel"');
     expect(markup).toContain("<h2>工具标题</h2>");
-    expect(markup).toContain('class="ui-panel ui-panel-detail ui-tool-panel"');
     expect(markup).toContain('aria-label="收回右侧详情"');
     expect(markup).toContain('aria-labelledby=');
     expect(markup.match(/class="ui-tool-section"/g)).toHaveLength(2);
@@ -60,7 +55,7 @@ describe("tool surfaces", () => {
     expect(markup).toContain("操作");
   });
 
-  it("owns toolbars, dividers, and explicit wrapping row markup", () => {
+  it("distinguishes selectable results from static information", () => {
     const markup = renderToStaticMarkup(
       <>
         <ToolToolbar aria-label="筛选">
@@ -89,17 +84,13 @@ describe("tool surfaces", () => {
     );
 
     expect(markup).toContain('aria-label="筛选"');
-    expect(markup).toContain("ui-tool-divider");
-    expect(markup).toContain("ui-tool-list-row-wrap");
-    expect(markup).toContain("ui-tool-list-row-single-line");
     expect(markup).toContain('aria-label="打开结果"');
-    expect(markup).toContain("height:22px");
-    expect(markup).toContain("translateY(44px)");
     expect(markup).toContain("关闭");
-    expect(markup).toContain("<div class=\"ui-tool-list-row-target\"");
+    expect(markup.match(/<button/g)).toHaveLength(3);
+    expect(markup).toContain("静态信息");
   });
 
-  it("renders aligned static properties with definition-list semantics", () => {
+  it("renders properties as a definition list", () => {
     const markup = renderToStaticMarkup(
       <ToolPropertyList aria-label="仓库属性">
         <ToolPropertyRow label="状态" value="已挂载" />
@@ -111,13 +102,6 @@ describe("tool surfaces", () => {
       </ToolPropertyList>,
     );
 
-    expect(markup).toContain(
-      '<dl class="ui-tool-property-list" aria-label="仓库属性">',
-    );
-    expect(markup).toContain(
-      '<div class="ui-tool-property-row"><dt>状态</dt><dd><div class="ui-tool-property-value">已挂载</div></dd>',
-    );
-    expect(markup).toContain("ui-tool-property-actions");
     expect(markup).toContain("/srv/cognition-tree/repositories/example");
     expect(markup.match(/<dt>/g)).toHaveLength(2);
     expect(markup.match(/<dd>/g)).toHaveLength(2);

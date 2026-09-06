@@ -2,7 +2,7 @@ import type {
   SearchControllerState,
 } from "../../../application/search/index.ts";
 import {
-  ToolDetailPanel,
+  DetailPanel,
   ToolPanelBody,
   ToolPropertyList,
   ToolPropertyRow,
@@ -30,7 +30,7 @@ export function SearchStatusPanel({
   const groups = groupSearchResults(state.results);
 
   return (
-    <ToolDetailPanel
+    <DetailPanel
       aria-label="搜索状态"
       onCollapse={onCollapseDetail}
       title="状态"
@@ -69,6 +69,6 @@ export function SearchStatusPanel({
           ) : null}
         </ToolSectionStack>
       </ToolPanelBody>
-    </ToolDetailPanel>
+    </DetailPanel>
   );
 }

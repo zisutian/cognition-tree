@@ -6,7 +6,7 @@ import type {
 import {
   PanelBody,
   cx,
-  ToolDetailPanel,
+  DetailPanel,
   createToneStyle,
   getTextColorClassName,
   getToneClassName,
@@ -64,7 +64,7 @@ export function SyntaxDetailPanel({
   view: AvailableSyntaxViewModel;
 }) {
   return (
-    <ToolDetailPanel
+    <DetailPanel
       aria-label="语法预览"
       onCollapse={onCollapseDetail}
       title="语法预览"
@@ -108,6 +108,6 @@ export function SyntaxDetailPanel({
           ))}
         </div>
       </PanelBody>
-    </ToolDetailPanel>
+    </DetailPanel>
   );
 }

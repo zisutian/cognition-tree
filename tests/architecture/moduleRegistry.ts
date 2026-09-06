@@ -1037,7 +1037,6 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     ],
     "dependencies": [
       "application/problems",
-      "application/repository",
       "application/workbench",
       "core/ctn"
     ]

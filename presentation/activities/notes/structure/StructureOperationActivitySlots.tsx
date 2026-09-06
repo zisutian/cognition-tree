@@ -2,7 +2,7 @@ import type { StructureOperationActivityViewModel } from "../../../../applicatio
 import "./structure.css";
 import type { WorkspaceShell } from "../../../workspace/index.ts";
 import type { ActivitySlots } from "../../../ui/index.ts";
-import { SyntaxUnavailablePanel } from "../../../ui/index.ts";
+import { SyntaxUnavailablePanel } from "../SyntaxUnavailablePanel.tsx";
 import { StructureOperationContext } from "./StructureOperationContext.tsx";
 import { StructureOperationMainPanel } from "./StructureOperationPanels.tsx";
 

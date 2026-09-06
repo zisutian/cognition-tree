@@ -13,7 +13,7 @@ import {
   useFeedback,
   StatusBadge,
   ToolDivider,
-  ToolDetailPanel,
+  DetailPanel,
   ToolPropertyList,
   ToolPropertyRow,
   ToolSection,
@@ -105,7 +105,7 @@ export function AgentProposalPanel({
   ) : null;
 
   return (
-    <ToolDetailPanel
+    <DetailPanel
       aria-label="Agent Proposal"
       className="agent-proposal-panel"
       collapseLabel="折叠 Proposal"
@@ -163,7 +163,7 @@ export function AgentProposalPanel({
           </>
         )}
       </PanelBody>
-    </ToolDetailPanel>
+    </DetailPanel>
   );
 }
 

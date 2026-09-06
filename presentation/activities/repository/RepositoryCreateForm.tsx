@@ -1,14 +1,7 @@
 import { useState, type FormEvent } from "react";
 import type { CreateRepositoryRequest } from
-  "../../application/repository/index.ts";
-import { Button, cx } from "./shared/primitives.tsx";
-import { InputControl } from "./shared/controls.tsx";
-import {
-  FieldRow,
-  FormActions,
-  FormLayout,
-} from "./shared/FormLayout.tsx";
-import { useExclusiveAsyncAction } from "./shared/useExclusiveAsyncAction.ts";
+  "../../../application/repository/index.ts";
+import { Button, cx, InputControl, FieldRow, FormActions, FormLayout, useExclusiveAsyncAction } from "../../ui/index.ts";
 
 export type RepositoryCreateFormDraft = { name: string };
 

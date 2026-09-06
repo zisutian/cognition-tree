@@ -2,7 +2,7 @@ import type { VisualizationViewModel } from "../../../../application/workspace/i
 import "./graph.css";
 import type { WorkspaceShell } from "../../../workspace/index.ts";
 import type { ActivitySlots } from "../../../ui/index.ts";
-import { SyntaxUnavailablePanel } from "../../../ui/index.ts";
+import { SyntaxUnavailablePanel } from "../SyntaxUnavailablePanel.tsx";
 import { VisualizationContext } from "./VisualizationContext.tsx";
 import { VisualizationDetailPanel } from "./VisualizationDetailPanel.tsx";
 import { VisualizationPanel } from "./VisualizationPanel.tsx";

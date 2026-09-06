@@ -5,7 +5,7 @@ import {
   createRepositoryCreateFormDraft,
   createRepositoryRequest,
   RepositoryCreateForm,
-} from "../../../../presentation/ui/RepositoryCreateForm";
+} from "../../../../presentation/activities/repository/RepositoryCreateForm";
 import {
   canDeleteManagedRepositoryData,
   RepositoryDeleteConfirmation,

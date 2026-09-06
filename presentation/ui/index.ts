@@ -95,9 +95,6 @@ export {
   QuickPick,
 } from "./shared/QuickPick.tsx";
 export {
-  RepositoryCreateForm,
-} from "./RepositoryCreateForm.tsx";
-export {
   RepositorySessionStateProvider,
   useRepositorySessionState,
 } from "./workbench/useRepositorySessionState.ts";
@@ -112,22 +109,11 @@ export type {
 export {
   SubsectionTabs,
 } from "./shared/SubsectionTabs.tsx";
-export {
-  SyntaxUnavailablePanel,
-} from "./SyntaxUnavailablePanel.tsx";
-export {
-  ToolDetailPanel,
-  ToolDivider,
-  ToolList,
-  ToolListRow,
-  ToolPanel,
-  ToolPanelBody,
-  ToolPropertyList,
-  ToolPropertyRow,
-  ToolSection,
-  ToolSectionStack,
-  ToolToolbar,
-} from "./shared/ToolSurface.tsx";
+export { ToolPanel, ToolPanelBody } from "./shared/ToolPanel.tsx";
+export { ToolSection, ToolSectionStack } from "./shared/ToolSection.tsx";
+export { ToolDivider, ToolToolbar } from "./shared/ToolToolbar.tsx";
+export { ToolPropertyList, ToolPropertyRow } from "./shared/ToolPropertyList.tsx";
+export { ToolList, ToolListRow } from "./shared/ToolList.tsx";
 export {
   useExclusiveAsyncAction,
 } from "./shared/useExclusiveAsyncAction.ts";
