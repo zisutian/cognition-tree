@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useEffect, useMemo, useState } from "react";
 import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
 import { createUiWorkbenchDiagnostics } from "../../../application/workspace/projection/viewDiagnostics";
@@ -6,7 +8,7 @@ import {
   type WorkspaceAnalysis,
 } from "../../../application/workspace/analysis/workspaceAnalysis";
 import { startWorkspaceAnalysisCollection } from "../../../application/workspace/analysis/workspaceAnalysisCollection";
-import { clientApplicationScheduler } from "../../../infrastructure/client/platform/applicationServices";
+import type { ApplicationScheduler } from "../../../application/runtime/applicationScheduler";
 
 function createIdleWorkspaceAnalysis(): WorkspaceAnalysis {
   return {
@@ -38,9 +40,11 @@ type WorkspaceAnalysisState = {
 };
 
 export function useWorkspaceAnalysis({
+  scheduler,
   enabled,
   index,
 }: {
+  scheduler: ApplicationScheduler;
   enabled: boolean;
   index: WorkspaceParseIndex | null;
 }): WorkspaceAnalysis {
@@ -71,9 +75,9 @@ export function useWorkspaceAnalysis({
           current.token === token ? { analysis, token } : current,
         );
       },
-      scheduler: clientApplicationScheduler,
+      scheduler,
     });
-  }, [activeIndex, initialAnalysis, token]);
+  }, [activeIndex, initialAnalysis, token, scheduler]);
 
   return state.token === token ? state.analysis : initialAnalysis;
 }

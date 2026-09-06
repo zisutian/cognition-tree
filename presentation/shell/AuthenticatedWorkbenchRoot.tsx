@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import {
   useEffect,
   useMemo,
@@ -99,6 +101,7 @@ export function AuthenticatedWorkbenchRoot({
   const [activeActivityId, setActiveActivityId] =
     useState<ActivityId>("notes");
   const applications = useWorkbenchApplicationBindings({
+    applicationServices: workbenchRuntime.applicationServices,
     agentConfigurationController: agentRuntime.configuration,
     agentConfigurationState: agentConfigurationSnapshot,
     agentController: agentRuntime.session,
@@ -158,6 +161,7 @@ export function AuthenticatedWorkbenchRoot({
     }
     workbench = (
       <ReadyWorkspaceWorkbench
+        scheduler={workbenchRuntime.applicationServices.scheduler}
         activeActivityId={activeActivityId}
         agent={applications.agent}
         apiAccess={applications.apiAccess}

@@ -1,14 +1,20 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
+import type { WorkbenchSearchFacade } from "../../../application/workbench/workbenchController";
+import type { SearchControllerState } from "../../../application/search/searchController";
+import type { ContentOpenOutcome } from "../../../application/navigation/contentDestination";
 import type { SearchResult } from "../../../application/search/searchTypes";
 import { useWorkbenchFeedback } from "../../ui/shared/FeedbackProvider";
 import { createSearchActivitySlots } from "./SearchActivitySlots";
-import type { ActivityControllerProps } from "../activityController";
+import type { ActivityControllerProps } from "../../ui/activityController";
 
 export function SearchActivityController({
   active,
   application,
   onActiveActivityChange,
   renderActivity,
-}: ActivityControllerProps) {
+}: SearchActivityControllerProps) {
   const workbenchFeedback = useWorkbenchFeedback();
 
   if (!active) return null;
@@ -52,3 +58,6 @@ export function SearchActivityController({
     }),
   );
 }
+
+export type SearchActivityApplication = { repository: Pick<RepositoryApplication, "catalogState">; search: { controller: WorkbenchSearchFacade; state: SearchControllerState; openResult(result: SearchResult): ContentOpenOutcome }; };
+export type SearchActivityControllerProps = ActivityControllerProps<SearchActivityApplication>;

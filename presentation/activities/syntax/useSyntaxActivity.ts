@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createUiSystemSyntaxDiagnostics, createUiSyntaxDiagnostics } from "../../../application/syntax/syntaxDiagnostics";
 import { createSyntaxProjection } from "../../../application/syntax/syntaxProjection";
@@ -9,10 +11,8 @@ import {
   type SyntaxTarget,
   type SyntaxViewModel,
 } from "../../../application/syntax/syntaxViewModel";
-import {
-  useCtnSyntaxDraftRuntime,
-  type CtnSyntaxDraftRuntimeSource,
-} from "./syntaxDraftPersistence";
+import { useCtnSyntaxDraftRuntime } from "../../syntax/useCtnSyntaxDraftRuntime";
+import { type CtnSyntaxDraftRuntimeSource } from "../../../application/syntax/syntaxDraftPersistence";
 
 type SystemSyntaxSource = CtnSyntaxDraftRuntimeSource & {
   updateSource: (source: string) => void | Promise<void>;

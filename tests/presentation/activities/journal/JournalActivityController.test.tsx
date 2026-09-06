@@ -1,10 +1,12 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import {
   JournalActivityController,
   resolveJournalRetry,
 } from "../../../../presentation/activities/journal/JournalActivityController";
-import type { WorkbenchApplication } from "../../../../presentation/activities/workbenchApplication";
+import type { WorkbenchApplication } from "../../../../presentation/shell/application/workbenchApplication";
 import { createJournalView } from "../../fixtures/journalViewFixture";
 import { createAgentApplicationFixture } from "../../fixtures/agentApplicationFixture";
 

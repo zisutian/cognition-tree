@@ -1,8 +1,15 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { JournalApplication } from "../../../application/journal";
+import type { TodoApplication } from "../../../application/todo";
+import type { WorkbenchWorkspaceState } from "../../workspace/workspaceApplicationState";
+import type { WorkbenchDiagnostics } from "../../../application/workbench/problems/workbenchProblems";
+import type { SyntaxFocusTarget } from "../../../application/syntax/syntaxProjection";
 import { useEffect } from "react";
 import { useSyntaxActivity } from "./useSyntaxActivity";
 import { createSyntaxActivityDiagnostics } from "../../../application/workbench/problems/syntaxActivityDiagnostics";
 import { createSyntaxActivitySlots } from "./SyntaxActivitySlots";
-import type { ActivityControllerProps } from "../activityController";
+import type { ActivityControllerProps } from "../../ui/activityController";
 
 export function SyntaxActivityController({
   active,
@@ -12,7 +19,7 @@ export function SyntaxActivityController({
   onSyntaxProblemsChange = () => undefined,
   renderActivity,
   systemSyntaxFocusRequest,
-}: ActivityControllerProps) {
+}: SyntaxActivityControllerProps) {
   const workspace = application.workspace.status === "ready"
     ? application.workspace.application
     : null;
@@ -77,3 +84,13 @@ export function SyntaxActivityController({
     createSyntaxActivitySlots({ onCollapseDetail, view })
   );
 }
+
+export type SyntaxActivityApplication = { journal: SyntaxBuiltInState<JournalApplication>; todo: SyntaxBuiltInState<TodoApplication>; workspace: WorkbenchWorkspaceState; };
+export type SyntaxActivityControllerProps = ActivityControllerProps<SyntaxActivityApplication> & {
+  onSyntaxLeaveBlockedChange?: (blocked: boolean) => void;
+  onSyntaxProblemsChange?: (diagnostics: WorkbenchDiagnostics | null) => void;
+  systemSyntaxFocusRequest?: Extract<SyntaxFocusTarget, { systemOwner: "journal" | "todo" }> | null;
+  onConsumeSystemSyntaxFocusRequest?: (requestId: number) => void;
+};
+
+type SyntaxBuiltInState<App extends JournalApplication | TodoApplication> = { status: Exclude<App["status"], "ready"> } | { status: "ready"; view: Pick<Extract<App, { status: "ready" }>["view"], "syntax" | "diagnostics"> };

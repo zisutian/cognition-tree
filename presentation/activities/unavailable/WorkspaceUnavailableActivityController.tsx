@@ -1,6 +1,8 @@
-import type { WorkbenchWorkspaceState } from "../workbenchApplication";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { WorkbenchWorkspaceState } from "../../workspace/workspaceApplicationState";
 import { WorkspaceUnavailablePanel } from "./WorkspaceUnavailablePanel";
-import type { RenderActivity } from "../activityController";
+import type { RenderActivity } from "../../ui/activityController";
 
 export function renderWorkspaceUnavailableActivity({
   onOpenRepository,

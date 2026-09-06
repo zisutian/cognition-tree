@@ -4,7 +4,7 @@ import type {
   VersionedRepositoryPersistenceState,
 } from "../../../application/persistence/versionedRepositorySaveQueue";
 import type { WorkbenchApplication } from
-  "../../activities/workbenchApplication";
+  "../application/workbenchApplication";
 import type { ActivityId } from "../../ui/activityTypes";
 
 export function projectPersistenceStatus(

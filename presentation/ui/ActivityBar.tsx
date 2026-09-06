@@ -1,11 +1,6 @@
-import type { ActivityId } from "./activityTypes";
-import {
-  type ActivityDescriptor,
-  listActivityDescriptors,
-} from "../activities/activityCatalog";
+// SPDX-License-Identifier: GPL-3.0-or-later
 
-const primaryActivities = listActivityDescriptors("primary");
-const managementActivities = listActivityDescriptors("management");
+import type { ActivityId, ActivityNavigationItem } from "./activityTypes";
 
 function ActivityGroup({
   activeActivityId,
@@ -14,7 +9,7 @@ function ActivityGroup({
   onActivityChange,
 }: {
   activeActivityId: ActivityId;
-  activities: readonly ActivityDescriptor[];
+  activities: readonly ActivityNavigationItem[];
   className?: string;
   onActivityChange: (activityId: ActivityId) => void;
 }) {
@@ -42,22 +37,24 @@ function ActivityGroup({
 }
 
 export function ActivityBar({
+  activities,
   activeActivityId,
   onActivityChange,
 }: {
   activeActivityId: ActivityId;
+  activities: readonly ActivityNavigationItem[];
   onActivityChange: (activityId: ActivityId) => void;
 }) {
   return (
     <nav className="activity-bar" aria-label="工作区功能">
       <ActivityGroup
         activeActivityId={activeActivityId}
-        activities={primaryActivities}
+        activities={activities.filter(({ group }) => group === "primary")}
         onActivityChange={onActivityChange}
       />
       <ActivityGroup
         activeActivityId={activeActivityId}
-        activities={managementActivities}
+        activities={activities.filter(({ group }) => group === "management")}
         className="activity-group activity-group-bottom"
         onActivityChange={onActivityChange}
       />

@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { AgentApplication } from "../../../application/agent";
+import type { ApiAccessApplication } from "../../../application/apiAccess/apiAccessAdministration";
+import type { OperationApplication } from "../../../application/operations/operationAdministration";
+import type { SystemApplication } from "../../../application/system";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import type {
   OwnerCredentialRotationActivation,
@@ -8,7 +14,7 @@ import type {
   ApiAccessSelection,
   SettingsSection,
 } from "./settingsTypes";
-import type { ActivityControllerProps } from "../activityController";
+import type { ActivityControllerProps } from "../../ui/activityController";
 import {
   useApiAccessSettingsSession,
 } from "./useApiAccessSettingsSession";
@@ -23,7 +29,7 @@ export function SettingsActivityController({
   active,
   application,
   renderActivity,
-}: ActivityControllerProps) {
+}: SettingsActivityControllerProps) {
   const [section, setSection] = useState<SettingsSection>("interface");
   const [agentRoute, setAgentRoute] = useState<AgentSettingsRoute>({
     page: "overview",
@@ -182,3 +188,6 @@ export function SettingsActivityController({
       )
     : null;
 }
+
+export type SettingsActivityApplication = { agent: AgentApplication; apiAccess: ApiAccessApplication; operations: OperationApplication; system: SystemApplication; };
+export type SettingsActivityControllerProps = ActivityControllerProps<SettingsActivityApplication>;

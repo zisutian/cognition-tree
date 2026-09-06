@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   activityDescriptors,
   listActivityDescriptors,
-} from "../../../presentation/activities/activityCatalog";
+} from "../../../presentation/shell/workbench/activityCatalog";
 import { createJournalActivitySlots } from "../../../presentation/activities/journal/JournalActivitySlots";
 import {
   createNotesActivitySlots,

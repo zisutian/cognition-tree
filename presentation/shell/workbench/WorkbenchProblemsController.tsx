@@ -1,5 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { ReactNode } from "react";
-import type { WorkbenchApplication } from "../../activities/workbenchApplication";
+import type { WorkbenchApplication } from "../application/workbenchApplication";
 import {
   type WorkbenchDiagnostics,
   type UiWorkbenchProblem,
@@ -11,7 +13,7 @@ import type { ActivityId } from "../../ui/activityTypes";
 import {
   getActivityLabel,
   isActivityId,
-} from "../../activities/activityCatalog";
+} from "./activityCatalog";
 import { ProblemsPanel } from "../../ui/problems/ProblemsPanel";
 import {
   runActivityFeedbackAction,

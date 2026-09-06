@@ -7,7 +7,7 @@ import {
 import {
   createClientAgentProfilePreference,
 } from "../../../../infrastructure/client/platform/agentProfilePreference";
-import { createClientTodoApplicationServices } from "../../../../infrastructure/client/platform/applicationServices";
+import { createClientTodoApplicationServices } from "../../../../infrastructure/client/runtime/contentServices";
 
 function createMemoryStorage(): Storage {
   const values = new Map<string, string>();

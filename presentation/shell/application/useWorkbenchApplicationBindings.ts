@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type {
   WorkbenchController,
   WorkbenchControllerSnapshot,
 } from "../../../application/workbench/workbenchController";
 import type { ProblemCenterController } from "../../../application/problems/problemCenter";
-import {
-  createClientJournalApplicationServices,
-  createClientTodoApplicationServices,
-} from "../../../infrastructure/client/platform/applicationServices";
+import type { JournalApplicationServices } from "../../../application/journal/journalApplication.ts";
+import type { TodoApplicationServices } from "../../../application/todo/todoApplication.ts";
 import type { ActivityId } from "../../ui/activityTypes";
 import { useJournalApplication } from "./useJournalApplication";
 import { useRepositoryNavigation } from "./useRepositoryNavigation";
@@ -45,6 +45,7 @@ const workspaceFeedbackActivities = [
 ] as const;
 
 export function useWorkbenchApplicationBindings({
+  applicationServices,
   agentConfigurationController,
   agentConfigurationState,
   agentController,
@@ -59,6 +60,7 @@ export function useWorkbenchApplicationBindings({
   systemConfigurationController,
   systemConfigurationState,
 }: {
+  applicationServices: { journal: JournalApplicationServices; todo: TodoApplicationServices };
   agentConfigurationController: AgentConfigurationController;
   agentConfigurationState: AgentConfigurationState;
   agentController: AgentClientController;
@@ -88,11 +90,7 @@ export function useWorkbenchApplicationBindings({
     reload: controller.todo.reload,
     state: snapshot.builtIns.todo.state,
   }), [controller, snapshot.builtIns.todo.state]);
-  const journalServices = useMemo(
-    createClientJournalApplicationServices,
-    [],
-  );
-  const todoServices = useMemo(createClientTodoApplicationServices, []);
+  const { journal: journalServices, todo: todoServices } = applicationServices;
   const openWorkspaceNote = useCallback(
     (destination: Parameters<
       WorkbenchController["requestWorkspaceNoteDestination"]

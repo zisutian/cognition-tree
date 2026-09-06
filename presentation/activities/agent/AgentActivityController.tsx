@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { AgentApplication } from "../../../application/agent";
 import { useState } from "react";
-import type { ActivityControllerProps } from "../activityController";
+import type { ActivityControllerProps } from "../../ui/activityController";
 import { createAgentActivitySlots } from "./AgentActivitySlots";
 
 export function AgentActivityController({
   active,
   application,
   renderActivity,
-}: ActivityControllerProps) {
+}: AgentActivityControllerProps) {
   const [creatingSession, setCreatingSession] = useState(false);
 
   if (!active) return null;
@@ -23,3 +24,6 @@ export function AgentActivityController({
     }),
   );
 }
+
+export type AgentActivityApplication = { agent: AgentApplication; };
+export type AgentActivityControllerProps = ActivityControllerProps<AgentActivityApplication>;

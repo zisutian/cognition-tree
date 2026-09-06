@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
 import { useEffect, useState } from "react";
 import {
   createRepositoryViewModel,
@@ -9,13 +12,13 @@ import {
   type RepositorySelection,
 } from "../../../application/repository/repositorySelection";
 import { createRepositoryActivitySlots } from "./RepositoryActivitySlots";
-import type { ActivityControllerProps } from "../activityController";
+import type { ActivityControllerProps } from "../../ui/activityController";
 
 export function RepositoryActivityController({
   active,
   application,
   renderActivity,
-}: ActivityControllerProps) {
+}: RepositoryActivityControllerProps) {
   const view = createRepositoryViewModel(application.repository);
   const [selection, setSelection] = useState<RepositorySelection>(() =>
     createDefaultRepositorySelection(view)
@@ -83,3 +86,6 @@ export function RepositoryActivityController({
       )
     : null;
 }
+
+export type RepositoryActivityApplication = { repository: RepositoryApplication; };
+export type RepositoryActivityControllerProps = ActivityControllerProps<RepositoryActivityApplication>;

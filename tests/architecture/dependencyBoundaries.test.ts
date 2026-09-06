@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { describe, expect, it } from "vitest";
 import {
   listSourceDependencyCycles,
@@ -643,7 +645,7 @@ describe("dependency boundaries", () => {
       },
       {
         filePath:
-          "../../presentation/activities/syntax/syntaxDraftPersistence.ts",
+          "../../presentation/syntax/useCtnSyntaxDraftRuntime.ts",
         importPath: "../../../core/ctn/syntax/draft",
         targetPath: "../../core/ctn/syntax/draft.ts",
         targetRoot: "core",

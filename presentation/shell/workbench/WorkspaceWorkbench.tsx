@@ -1,12 +1,14 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { WorkbenchDiagnostics } from "../../../application/workbench/problems/workbenchProblems";
 import type { SyntaxFocusTarget } from "../../../application/syntax/syntaxProjection";
-import type { WorkbenchApplication } from "../../activities/workbenchApplication";
+import type { WorkbenchApplication } from "../application/workbenchApplication";
 import {
   activityDescriptors,
   getActivityLabel,
-} from "../../activities/activityCatalog";
-import type { RenderActivity } from "../../activities/activityController";
+} from "./activityCatalog";
+import type { RenderActivity } from "../../ui/activityController";
 import AppView from "../../ui/AppView";
 import type { ActivityId } from "../../ui/activityTypes";
 import {
@@ -126,6 +128,7 @@ export function WorkspaceWorkbench({
             createActivitySlots,
           ) => (
             <AppView
+              activityItems={activityDescriptors}
               activeActivityId={activeActivityId}
               createActivitySlots={createActivitySlots}
               onActiveActivityChange={requestActivityChange}

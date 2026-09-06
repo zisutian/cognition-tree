@@ -63,7 +63,7 @@ export function createOwnershipTextPolicies({
       "Activity descriptor catalog",
       presentationModules,
       /\bexport const activityDescriptors\b/,
-      /^presentation\/activities\/activityCatalog\.ts$/,
+      /^presentation\/shell\/workbench\/activityCatalog\.tsx$/,
     ],
     [
       "authenticated workbench ProblemCenter",

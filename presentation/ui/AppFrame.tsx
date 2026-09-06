@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { ActivityNavigationItem } from "./activityTypes";
 import type { CSSProperties, ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import type {
@@ -24,6 +27,7 @@ type AppFrameStyle = CSSProperties & {
 
 export function AppFrame({
   activeActivityId,
+  activityItems,
   contextSlot,
   detailSlot,
   layout,
@@ -32,6 +36,7 @@ export function AppFrame({
   problemsSlot,
 }: {
   activeActivityId: ActivityId;
+  activityItems: readonly ActivityNavigationItem[];
   contextSlot: ActivityContextSlot | null;
   detailSlot: ReactNode | null;
   layout: WorkbenchLayout;
@@ -90,6 +95,7 @@ export function AppFrame({
   return (
     <main className={frameClassName} style={style}>
       <ActivityBar
+        activities={activityItems}
         activeActivityId={activeActivityId}
         onActivityChange={onActivityChange}
       />

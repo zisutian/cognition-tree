@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type {
   WorkbenchController,
   WorkbenchControllerSnapshot,
 } from "../../../application/workbench/workbenchController";
-import type { WorkbenchApplication } from "../../activities/workbenchApplication";
+import type { WorkbenchApplication } from "./workbenchApplication";
 
 export function projectUnavailableWorkspace(
   controller: WorkbenchController,

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { describe, expect, it, vi } from "vitest";
 import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
 import { createCtnSyntaxDraft } from "../../../../core/ctn/syntax/draft";
@@ -7,11 +9,7 @@ import {
   findSyntaxCatalogNameConflict,
   startSyntaxCatalogMutation,
 } from "../../../../presentation/workspace/runtime/useSyntaxRuntime";
-import {
-  isCurrentSyntaxPersistenceCompletion,
-  resolveCtnSyntaxDraftAfterSourceChange,
-  startCtnSyntaxDraftPersistence,
-} from "../../../../presentation/activities/syntax/syntaxDraftPersistence";
+import { isCurrentSyntaxPersistenceCompletion, resolveCtnSyntaxDraftAfterSourceChange, startCtnSyntaxDraftPersistence } from "../../../../application/syntax/syntaxDraftPersistence";
 
 const renamedResult = compileCtnSyntaxDefinition({
   ...structuredClone(defaultCtnSyntax.definition),

@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
 import type { TodoApplication } from "../../../application/todo";
 import { createTodoActivitySlots } from "./TodoActivitySlots";
-import type { ActivityControllerProps } from "../activityController";
+import type { ActivityControllerProps } from "../../ui/activityController";
 import {
   BuiltInUnavailableActivity,
   resolveBuiltInActivityRetry,
 } from "../unavailable/BuiltInUnavailableActivity";
 
-type TodoBuiltInsApplication = ActivityControllerProps[
+type TodoBuiltInsApplication = ActivityControllerProps<TodoActivityApplication>[
   "application"
 ]["repository"]["builtIns"];
 
@@ -28,7 +29,7 @@ export function TodoActivityController({
   application,
   onActiveActivityChange,
   renderActivity,
-}: ActivityControllerProps) {
+}: TodoActivityControllerProps) {
   const todo = application.todo;
 
   if (!active) {
@@ -59,3 +60,6 @@ export function TodoActivityController({
     })
   );
 }
+
+export type TodoActivityApplication = { todo: TodoApplication; repository: Pick<RepositoryApplication, "builtIns">; };
+export type TodoActivityControllerProps = ActivityControllerProps<TodoActivityApplication>;

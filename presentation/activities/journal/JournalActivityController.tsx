@@ -1,12 +1,15 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
 import type { JournalApplication } from "../../../application/journal";
 import { createJournalActivitySlots } from "./JournalActivitySlots";
-import type { ActivityControllerProps } from "../activityController";
+import type { ActivityControllerProps } from "../../ui/activityController";
 import {
   BuiltInUnavailableActivity,
   resolveBuiltInActivityRetry,
 } from "../unavailable/BuiltInUnavailableActivity";
 
-type JournalBuiltInsApplication = ActivityControllerProps[
+type JournalBuiltInsApplication = ActivityControllerProps<JournalActivityApplication>[
   "application"
 ]["repository"]["builtIns"];
 
@@ -26,7 +29,7 @@ export function JournalActivityController({
   application,
   onActiveActivityChange,
   renderActivity,
-}: ActivityControllerProps) {
+}: JournalActivityControllerProps) {
   const journal = application.journal;
 
   if (!active) {
@@ -57,3 +60,6 @@ export function JournalActivityController({
     }),
   );
 }
+
+export type JournalActivityApplication = { journal: JournalApplication; repository: Pick<RepositoryApplication, "builtIns">; };
+export type JournalActivityControllerProps = ActivityControllerProps<JournalActivityApplication>;

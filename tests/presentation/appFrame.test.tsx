@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "vitest";
 import { AppFrame } from "../../presentation/ui/AppFrame";
@@ -19,7 +21,7 @@ describe("AppFrame", () => {
     problemsExpanded = false,
   } = {}) {
     return renderToStaticMarkup(
-      <AppFrame
+      <AppFrame activityItems={[]}
         activeActivityId="notes"
         contextSlot={context ? { content: <div>context</div>, title: "笔记" } : null}
         detailSlot={detail ? <section>detail</section> : null}

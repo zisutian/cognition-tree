@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createClientJournalApplicationServices, createClientTodoApplicationServices } from "./contentServices.ts";
 import {
   createWorkbenchController,
   type WorkbenchController,
@@ -8,11 +9,8 @@ import type { ApiAccessAdministration } from
   "../../../application/apiAccess/apiAccessAdministration";
 import type { OperationAdministration } from
   "../../../application/operations/operationAdministration";
-import {
-  clientApplicationScheduler,
-  clientWorkspaceSessionCommandDependencies,
-  createClientInitialWorkspaceContent,
-} from "../platform/applicationServices";
+import { clientApplicationScheduler } from "../platform/applicationServices";
+import { clientWorkspaceSessionCommandDependencies, createClientInitialWorkspaceContent } from "./contentServices";
 import type { OfficialClientApi } from "../http/apiTransport";
 import { createBuiltInRuntime } from "./builtInRuntime";
 import { createHttpApiEventSource } from "../http/apiEvents";
@@ -27,6 +25,11 @@ import {
 export type ClientWorkbenchRuntime = Readonly<{
   apiAccessAdministration: ApiAccessAdministration;
   controller: WorkbenchController;
+  applicationServices: {
+    journal: ReturnType<typeof createClientJournalApplicationServices>;
+    todo: ReturnType<typeof createClientTodoApplicationServices>;
+    scheduler: typeof clientApplicationScheduler;
+  };
   operationAdministration: OperationAdministration;
 }>;
 
@@ -61,5 +64,5 @@ export function createWorkbenchRuntime(
     workspaceRepositories: workspace.repositories,
   });
 
-  return { apiAccessAdministration, controller, operationAdministration };
+  return { apiAccessAdministration, controller, operationAdministration, applicationServices: { journal: createClientJournalApplicationServices(), todo: createClientTodoApplicationServices(), scheduler: clientApplicationScheduler } };
 }

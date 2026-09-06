@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 export type ActivityId =
@@ -33,3 +36,5 @@ export type ActivitySlotControls = {
 export type CreateActivitySlots = (
   controls: ActivitySlotControls,
 ) => ActivitySlots;
+
+export type ActivityNavigationItem = { group: "management" | "primary"; icon: LucideIcon; id: ActivityId; label: string };

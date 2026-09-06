@@ -15,7 +15,7 @@ import type {
 import type { WorkspaceApplication } from
   "../../workspace/runtime/useWorkspaceApplication";
 import type { ActivityId } from "../../ui/activityTypes";
-import { isActivityId } from "../../activities/activityCatalog";
+import { isActivityId } from "./activityCatalog";
 
 export type WorkbenchProblemOpenContext = {
   agentNavigation?: {

@@ -1,4 +1,6 @@
-import type { WorkbenchWorkspaceState } from "../workbenchApplication";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { WorkbenchWorkspaceState } from "../../workspace/workspaceApplicationState";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import { Button, EmptyState, Panel } from "../../ui/shared/primitives";
 

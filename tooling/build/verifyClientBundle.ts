@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import ts from "typescript";
 import { readFileSync, statSync } from "node:fs";
 
 type ManifestChunk = {
@@ -23,15 +28,19 @@ if (!clientEntry) {
   throw new Error("Client bundle manifest has no entry chunk.");
 }
 
-const activityCatalog = readFileSync(
-  new URL("../../presentation/activities/activityCatalog.ts", import.meta.url),
-  "utf8",
-);
-const controllerSources = [
-  ...activityCatalog.matchAll(
-    /import\("(\.\/[a-z-]+\/[A-Za-z]+ActivityController)"\)/g,
-  ),
-].map((match) => `presentation/activities/${match[1].slice(2)}.tsx`);
+const catalogUrl = new URL("../../presentation/shell/workbench/activityCatalog.tsx", import.meta.url);
+const catalogPath = fileURLToPath(catalogUrl);
+const catalog = ts.createSourceFile(catalogPath, readFileSync(catalogUrl, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const controllerSources: string[] = [];
+function visitCatalog(node: ts.Node) {
+  if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+    const argument = node.arguments[0];
+    if (!argument || !ts.isStringLiteralLike(argument)) throw new Error("Activity lazy import must declare a literal public entry");
+    controllerSources.push(path.relative(fileURLToPath(new URL("../../", import.meta.url)), path.resolve(path.dirname(catalogPath), argument.text + (path.extname(argument.text) ? "" : ".tsx"))));
+  }
+  ts.forEachChild(node, visitCatalog);
+}
+visitCatalog(catalog);
 
 if (controllerSources.length === 0) {
   throw new Error("Activity descriptor catalog declares no lazy controllers.");

@@ -6,7 +6,7 @@ import {
   resolveTodoRetry,
   TodoActivityController,
 } from "../../../../presentation/activities/todo/TodoActivityController";
-import type { WorkbenchApplication } from "../../../../presentation/activities/workbenchApplication";
+import type { WorkbenchApplication } from "../../../../presentation/shell/application/workbenchApplication";
 import { createTodoView } from "../../fixtures/todoViewFixture";
 import { createAgentApplicationFixture } from "../../fixtures/agentApplicationFixture";
 

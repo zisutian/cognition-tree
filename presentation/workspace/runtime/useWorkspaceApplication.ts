@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useMemo } from "react";
 import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import type { WorkspaceNote } from "../../../core/workspace/model/workspaceData";
@@ -27,6 +29,7 @@ export type WorkspaceRuntime = {
 
 export function useWorkspaceApplication(
   session: ActiveWorkspaceSession,
+  scheduler: import("../../../application/runtime/applicationScheduler").ApplicationScheduler,
 ) {
   const {
     activateSyntaxFile,
@@ -56,6 +59,7 @@ export function useWorkspaceApplication(
     [effectiveWorkspace],
   );
   const analysis = useWorkspaceAnalysis({
+    scheduler,
     enabled: syntax.isConfigured,
     index: syntax.isConfigured ? session.analysisIndex : null,
   });

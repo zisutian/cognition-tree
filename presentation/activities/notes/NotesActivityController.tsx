@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
+import type { WorkbenchWorkspaceState } from "../../workspace/workspaceApplicationState";
 import { useNotesActivity } from "./edit/useNotesActivity";
 import {
   createNotesActivitySlots,
@@ -15,7 +19,7 @@ import {
   type ReferenceGraphSession,
 } from "./graph/useReferenceGraphSession";
 import type { WorkspaceApplication } from "../../workspace/runtime/useWorkspaceApplication";
-import type { ActivityControllerProps } from "../activityController";
+import type { ActivityControllerProps } from "../../ui/activityController";
 import { renderWorkspaceUnavailableActivity } from "../unavailable/WorkspaceUnavailableActivityController";
 import {
   useRepositorySessionState,
@@ -42,7 +46,7 @@ function ActiveNotesActivity({
   onModeChange(mode: NotesMode): void;
   repositoryId: string;
   repositoryName: string;
-  renderActivity: ActivityControllerProps["renderActivity"];
+  renderActivity: ActivityControllerProps<NotesActivityApplication>["renderActivity"];
   visualizationSession: ReferenceGraphSession;
 }) {
   const view = useNotesActivity({
@@ -100,7 +104,7 @@ export function NotesActivityController({
   application,
   onActiveActivityChange,
   renderActivity,
-}: ActivityControllerProps) {
+}: NotesActivityControllerProps) {
   const repositoryId = application.repository.activeDescriptor?.id ??
     "workspace-unavailable";
   const [mode, setMode] = useRepositorySessionState<NotesMode>(
@@ -136,3 +140,6 @@ export function NotesActivityController({
     />
   );
 }
+
+export type NotesActivityApplication = { repository: Pick<RepositoryApplication, "activeDescriptor" | "session">; workspace: WorkbenchWorkspaceState; };
+export type NotesActivityControllerProps = ActivityControllerProps<NotesActivityApplication>;

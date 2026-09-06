@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
-import type { CtnEditorReferenceTarget } from "../../editor/ctnReferenceNavigation";
 import { useFeedback } from "./FeedbackProvider";
 import { QuickPick } from "./QuickPick";
 
@@ -11,18 +10,18 @@ type ReferenceDestination = {
   label: string;
 };
 
-type ReferenceNavigation<Destination extends ReferenceDestination> = {
+type ReferenceNavigation<Destination extends ReferenceDestination, Target extends { text: string }> = {
   navigate: (destination: Destination) => void;
-  resolve: (target: CtnEditorReferenceTarget) => Destination[];
+  resolve: (target: Target) => Destination[];
 };
 
-export function useReferenceNavigation<Destination extends ReferenceDestination>(
-  navigation: ReferenceNavigation<Destination>,
+export function useReferenceNavigation<Destination extends ReferenceDestination, Target extends { text: string }>(
+  navigation: ReferenceNavigation<Destination, Target>,
 ) {
   const feedback = useFeedback();
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const close = () => setDestinations([]);
-  const openReference = (target: CtnEditorReferenceTarget) => {
+  const openReference = (target: Target) => {
     const resolved = navigation.resolve(target);
 
     if (resolved.length === 0) {

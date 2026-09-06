@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useEffect } from "react";
 import type { JournalApplication } from "../../../application/journal";
 import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
@@ -12,12 +14,13 @@ import type {
 } from "../../../application/workbench/workbenchController";
 import type { ProblemCenterController } from "../../../application/problems/problemCenter";
 import type { ActiveWorkspaceSession } from "../../../application/workspace/session/workspaceSessionApplication";
-import type { WorkbenchApplication } from "../../activities/workbenchApplication";
+import type { WorkbenchApplication } from "../application/workbenchApplication";
 import { useWorkspaceApplication } from "../../workspace/runtime/useWorkspaceApplication";
 import type { ActivityId } from "../../ui/activityTypes";
 import { WorkspaceWorkbench } from "./WorkspaceWorkbench";
 
 export function ReadyWorkspaceWorkbench({
+  scheduler,
   activeActivityId,
   agent,
   apiAccess,
@@ -33,6 +36,7 @@ export function ReadyWorkspaceWorkbench({
   system,
   todo,
 }: {
+  scheduler: import("../../../application/runtime/applicationScheduler").ApplicationScheduler;
   activeActivityId: ActivityId;
   agent: AgentApplication;
   apiAccess: ApiAccessApplication;
@@ -48,7 +52,7 @@ export function ReadyWorkspaceWorkbench({
   system: SystemApplication;
   todo: TodoApplication;
 }) {
-  const workspace = useWorkspaceApplication(session);
+  const workspace = useWorkspaceApplication(session, scheduler);
   const focusRequest = snapshot.navigation.status === "ready"
     ? snapshot.navigation
     : null;

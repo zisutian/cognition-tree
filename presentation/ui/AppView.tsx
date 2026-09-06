@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { ActivityNavigationItem } from "./activityTypes";
 import type {
   ActivityId,
   CreateActivitySlots,
@@ -10,6 +13,7 @@ import "./styles/index.css";
 
 type AppViewProps = {
   activeActivityId: ActivityId;
+  activityItems: readonly ActivityNavigationItem[];
   createActivitySlots: CreateActivitySlots;
   onActiveActivityChange: (activityId: ActivityId) => void;
   problemsSlot: ReactNode;
@@ -18,6 +22,7 @@ type AppViewProps = {
 
 function AppView({
   activeActivityId,
+  activityItems,
   createActivitySlots,
   onActiveActivityChange,
   problemsSlot,
@@ -63,6 +68,7 @@ function AppView({
 
   return (
     <AppFrame
+      activityItems={activityItems}
       activeActivityId={activeActivityId}
       contextSlot={activitySlots.context}
       detailSlot={activitySlots.detail}
