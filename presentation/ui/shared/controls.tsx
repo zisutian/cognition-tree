@@ -10,7 +10,9 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
-import { cx } from "./primitives.tsx";
+import { Button, cx } from "./primitives.tsx";
+
+import { checkboxControlClassName } from "./controlPresentation.ts";
 
 export type ControlSizing = "container" | "content";
 
@@ -27,6 +29,20 @@ export const InputControl = forwardRef<
       className={cx("ui-control", "ui-input-control", sizingClass(sizing), className)}
       ref={ref}
       {...props}
+    />
+  );
+});
+
+export const CheckboxControl = forwardRef<
+  HTMLInputElement,
+  Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "size">
+>(function CheckboxControl({ className, ...props }, ref) {
+  return (
+    <input
+      {...props}
+      className={cx(checkboxControlClassName, className)}
+      ref={ref}
+      type="checkbox"
     />
   );
 });
@@ -71,6 +87,7 @@ type ChoiceGroupBase<Value extends string> = {
   className?: string;
   id?: string;
   layout?: "joined" | "wrap";
+  appearance?: "segmented" | "subtle";
   options: readonly ChoiceOption<Value>[];
 };
 
@@ -108,6 +125,7 @@ function nextEnabledIndex<Value extends string>(
 export function ChoiceGroup<Value extends string>(props: ChoiceGroupProps<Value>) {
   const {
     ariaLabel,
+    appearance = "segmented",
     className,
     id,
     layout = "joined",
@@ -154,6 +172,7 @@ export function ChoiceGroup<Value extends string>(props: ChoiceGroupProps<Value>
       className={cx(
         "ui-choice-group",
         `ui-choice-group-${layout}`,
+        `ui-choice-group-${appearance}`,
         className,
       )}
       role={mode === "single" ? "radiogroup" : "group"}
@@ -165,7 +184,7 @@ export function ChoiceGroup<Value extends string>(props: ChoiceGroupProps<Value>
           : props.values.includes(option.value);
 
         return (
-          <button
+          <Button variant="bare"
             {...(mode === "single"
               ? { "aria-checked": selected, role: "radio" }
               : { "aria-pressed": selected })}
@@ -192,7 +211,7 @@ export function ChoiceGroup<Value extends string>(props: ChoiceGroupProps<Value>
             type="button"
           >
             {option.label}
-          </button>
+          </Button>
         );
       })}
     </div>

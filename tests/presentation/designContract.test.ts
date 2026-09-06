@@ -5,7 +5,6 @@ import { uiVirtualRowHeightPx } from "../../presentation/ui/shared/virtualListMe
 import {
   appContextDefaultWidth,
   appDetailDefaultWidth,
-  appProblemsCollapsedHeight,
   appProblemsDefaultHeight,
 } from "../../presentation/ui/workbench/frameResize";
 import { auditTextPolicies, type TextCorpus } from "../support/textPolicy";
@@ -31,7 +30,6 @@ const uiTestModules = import.meta.glob(["./**/*.test.ts", "./**/*.test.tsx"], {
 const uiConstraintCatalog = createUiConstraintCatalog({
   appContextDefaultWidth,
   appDetailDefaultWidth,
-  appProblemsCollapsedHeight,
   appProblemsDefaultHeight,
   defaultStructureTreeIndentWidthPx,
   uiVirtualRowHeightPx,

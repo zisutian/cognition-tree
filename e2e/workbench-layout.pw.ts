@@ -176,7 +176,7 @@ for (const viewport of [
       height: element.getBoundingClientRect().height,
       fontSize: getComputedStyle(element).fontSize,
     }));
-    expect(dimensions).toEqual({ height: 22, fontSize: "13px" });
+    expect(dimensions).toEqual({ height: 26, fontSize: "13px" });
     const values = await page
       .getByRole("region", { name: "设置状态" })
       .locator(".ui-tool-property-row dd")

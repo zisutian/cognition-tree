@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import "./settings.css";
+import { RefreshCw } from "lucide-react";
+import { Button } from "../../ui/index.ts";
 import type { ReactNode } from "react";
 import type { ActivitySlots } from "../../ui/index.ts";
 import { AgentSettingsStatus } from "./AgentSettingsStatus.tsx";
@@ -79,12 +81,12 @@ export function createSettingsActivitySlots(
   }
   return {
     context: {
+      actions: <Button aria-label="刷新设置状态" onClick={onRefresh} title="刷新设置状态" type="button" variant="icon"><RefreshCw aria-hidden="true" size={16} /></Button>,
       content: (
         <SettingsContext
           agent={agent.configurationState}
           api={api.snapshot}
           blocked={blocked}
-          onRefresh={onRefresh}
           onSelect={onSelect}
           target={target}
         />

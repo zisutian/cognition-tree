@@ -9,7 +9,7 @@ import {
   BlockText,
   type DisplayText,
 } from "../blockText.tsx";
-import { cx } from "../primitives.tsx";
+import { Button, cx } from "../primitives.tsx";
 import { shouldVirtualizeUiRows } from "../virtualListMetrics.ts";
 import { getStructureTreeRowStyle } from "./structureIndent.ts";
 import {
@@ -92,7 +92,8 @@ function StructureTreeRow({
       role="treeitem"
       style={itemStyle}
     >
-      <button
+      <Button
+        variant="bare"
         {...rowAttributes}
         className={cx(
           "ui-tree-row ui-structure-tree-row",
@@ -110,7 +111,7 @@ function StructureTreeRow({
           lineLabel={node.lineLabel}
           textDisplay={node.textDisplay}
         />
-      </button>
+      </Button>
       {children}
     </li>
   );

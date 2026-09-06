@@ -9,6 +9,7 @@ import type {
 } from "../../../application/todo/index.ts";
 import {
   useFeedback,
+  CheckboxControl,
   Button,
   DetailPanel,
   PanelBody,
@@ -74,13 +75,12 @@ function TodoStructureNodes({
               })}
             >
               <span className="ui-structure-prefix">
-                <input
+                <CheckboxControl
                   aria-label={`${node.completed ? "标记未完成" : "标记完成"} ${node.text}`}
                   checked={node.completed}
                   onChange={() => feedback.runAction(() =>
                     view.toggleBlock(collectionId, node.id)
                   )}
-                  type="checkbox"
                 />
               </span>
               <Button

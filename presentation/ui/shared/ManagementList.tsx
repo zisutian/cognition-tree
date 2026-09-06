@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { HTMLAttributes, ReactNode } from "react";
-import { cx } from "./primitives.tsx";
+import { Button, cx } from "./primitives.tsx";
 
 export function ManagementList({
   className,
@@ -38,14 +38,14 @@ export function ManagementRow({
     <li className={cx("ui-management-row", selected && "is-selected", className)}>
       <div className="ui-management-row-heading">
         {onSelect ? (
-          <button
+          <Button variant="bare"
             aria-current={selected ? "true" : undefined}
             className="ui-management-row-title is-interactive"
             onClick={onSelect}
             type="button"
           >
             {heading}
-          </button>
+          </Button>
         ) : <div className="ui-management-row-title">{heading}</div>}
         {actions ? <div className="ui-actions">{actions}</div> : null}
       </div>

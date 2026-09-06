@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { NotesViewModel } from "../../../../application/workspace/index.ts";
 import {
   Button,
+  CompactContextGroupHeader,
   InputControl,
   NoteTree,
   TreeMoveQuickPick,
@@ -10,9 +11,6 @@ import {
   useFeedback,
   useExclusiveAsyncAction,
 } from "../../../ui/index.ts";
-
-
-
 
 
 export function submitNotesFolderCreation({
@@ -161,7 +159,7 @@ export function NotesContext({
 
   return (
     <div className="activity-context-content">
-      <div className="context-toolbar">
+      <CompactContextGroupHeader headingId="notes-files-heading" label="文件" actions={<>
         <Button
           aria-label="重新扫描文件"
           disabled={reloading}
@@ -170,7 +168,7 @@ export function NotesContext({
           type="button"
           variant="icon"
         >
-          <RefreshCw aria-hidden="true" size={14} />
+          <RefreshCw aria-hidden="true" size={16} />
         </Button>
         <Button
           aria-label="新建文件夹"
@@ -180,7 +178,7 @@ export function NotesContext({
           type="button"
           variant="icon"
         >
-          <FolderPlus aria-hidden="true" size={14} />
+          <FolderPlus aria-hidden="true" size={16} />
         </Button>
         <Button
           aria-label="新建笔记"
@@ -190,9 +188,9 @@ export function NotesContext({
           type="button"
           variant="icon"
         >
-          <Plus aria-hidden="true" size={14} />
+          <Plus aria-hidden="true" size={16} />
         </Button>
-      </div>
+      </>} />
       {creatingFolder ? (
         <form
           className="directory-create-row"

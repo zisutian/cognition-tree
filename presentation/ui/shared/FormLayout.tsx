@@ -11,45 +11,53 @@ export type FieldControlAccessibility = Readonly<{
 
 export function FormLayout({
   className,
+  layout = "columns",
   ...props
-}: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cx("ui-form-layout", className)} {...props} />;
+}: HTMLAttributes<HTMLDivElement> & { layout?: "columns" | "stacked" }) {
+  return (
+    <div
+      className={cx("ui-form-layout", `ui-form-layout-${layout}`, className)}
+      {...props}
+    />
+  );
 }
 
 export function FieldRow({
   children,
   className,
+  description,
   errorMessage,
   fieldId,
   label,
 }: {
   children(accessibility: FieldControlAccessibility): ReactNode;
   className?: string;
+  description?: ReactNode;
   errorMessage?: ReactNode;
   fieldId: string;
   label: ReactNode;
 }) {
   const hasError = errorMessage !== undefined;
-  const descriptionId = hasError
-    ? `${fieldId}-description`
-    : undefined;
+  const descriptionId = description === undefined ? undefined : `${fieldId}-description`;
+  const errorId = hasError ? `${fieldId}-error` : undefined;
+  const describedBy = [descriptionId, errorId].filter(Boolean).join(" ");
 
   return (
     <div className={cx("ui-field-row", className)}>
       <label className="ui-field-label" htmlFor={fieldId}>{label}</label>
       <div className="ui-field-control">
         {children({
-          ...(descriptionId ? { "aria-describedby": descriptionId } : {}),
+          ...(describedBy ? { "aria-describedby": describedBy } : {}),
           ...(hasError ? { "aria-invalid": true } : {}),
           id: fieldId,
         })}
+        {descriptionId ? (
+          <p className="ui-field-description" id={descriptionId}>{description}</p>
+        ) : null}
         {hasError ? (
           <p
-            className={cx(
-              "ui-field-description",
-              hasError && "is-error",
-            )}
-            id={descriptionId}
+            className="ui-field-description is-error"
+            id={errorId}
           >
             {errorMessage}
           </p>

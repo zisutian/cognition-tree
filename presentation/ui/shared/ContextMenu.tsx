@@ -1,3 +1,4 @@
+import { Button } from "./primitives.tsx";
 import { useRef, type KeyboardEvent } from "react";
 import { Overlay } from "./Overlay.tsx";
 
@@ -62,7 +63,7 @@ export function ContextMenu({
       onKeyDown={moveFocus}
     >
       {items.map((item, index) => (
-        <button
+        <Button variant="bare"
           disabled={item.disabled}
           key={item.id}
           onClick={() => {
@@ -76,7 +77,7 @@ export function ContextMenu({
           type="button"
         >
           {item.label}
-        </button>
+        </Button>
       ))}
     </Overlay>
   );

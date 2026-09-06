@@ -24,6 +24,7 @@ import {
 } from "./support/builtInSeeds";
 import { test } from "./support/e2eTest";
 import {
+  getProblemsToggle,
   getActivityButton,
   openWorkbench,
 } from "./support/workbenchPage";
@@ -84,8 +85,7 @@ test.describe("Todo activity flows", () => {
   }) => {
     await openWorkbench(page, repositoryId);
 
-    const problems = page.locator(".problems-panel");
-    const problemsHeader = problems.locator(".problems-panel-header");
+    const problemsHeader = getProblemsToggle(page);
 
     if (await problemsHeader.getAttribute("aria-expanded") === "false") {
       await problemsHeader.click();

@@ -14,6 +14,7 @@ export type ActivityId =
   | "settings";
 
 export type ActivityContextSlot = {
+  actions?: ReactNode;
   content: ReactNode;
   title: string;
 };

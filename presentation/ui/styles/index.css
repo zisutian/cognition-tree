@@ -2,6 +2,7 @@
 @import "./foundation/base.css";
 @import "./frame/frame.css";
 @import "./frame/problems.css";
+@import "./frame/statusBar.css";
 @import "./shared/primitives.css";
 @import "./shared/controls.css";
 @import "./shared/toolPanel.css";

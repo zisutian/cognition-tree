@@ -2,11 +2,11 @@
 
 import type { FormEvent } from "react";
 import {
-  ChoiceGroup,
+  CheckboxControl,
+  SelectControl,
   InputControl,
   FieldRow,
   FormLayout,
-  ToggleButton,
 } from "../../ui/index.ts";
 
 import {
@@ -34,7 +34,7 @@ export function AgentProviderSettingsForm({
   return (
     <form id={formId} onSubmit={onSubmit}>
       <fieldset className="ui-form-fields" disabled={busy}>
-        <FormLayout>
+        <FormLayout layout="stacked">
           <FieldRow fieldId="settings-provider-name" label="名称">
             {(accessibility) => (
               <InputControl
@@ -53,20 +53,21 @@ export function AgentProviderSettingsForm({
           </FieldRow>
           <FieldRow fieldId="settings-provider-kind" label="类型">
             {(accessibility) => (
-              <ChoiceGroup
+              <SelectControl
                 {...accessibility}
-                ariaLabel="Provider 类型"
-                mode="single"
-                onChange={(kind) =>
-                  onChange(changeAgentProviderDraftKind(draft, kind))
+                aria-label="Provider 类型"
+                onChange={(event) =>
+                  onChange(changeAgentProviderDraftKind(
+                    draft,
+                    event.currentTarget.value as AgentProviderDraft["kind"],
+                  ))
                 }
-                options={[
-                  { label: "Ollama", value: "ollama" },
-                  { label: "OpenAI-compatible", value: "openai-chat" },
-                  { label: "Codex", value: "codex" },
-                ]}
                 value={draft.kind}
-              />
+              >
+                <option value="ollama">Ollama</option>
+                <option value="openai-chat">OpenAI-compatible</option>
+                <option value="codex">Codex</option>
+              </SelectControl>
             )}
           </FieldRow>
           {draft.kind !== "codex" ? (
@@ -75,6 +76,7 @@ export function AgentProviderSettingsForm({
                 <InputControl
                   {...accessibility}
                   aria-label="Provider 地址"
+                  sizing="container"
                   onChange={(event) =>
                     onChange(
                       changeAgentProviderDraftBaseUrl(
@@ -91,38 +93,29 @@ export function AgentProviderSettingsForm({
           ) : null}
           <FieldRow fieldId="settings-provider-authentication" label="认证">
             {(accessibility) => (
-              <ChoiceGroup
+              <SelectControl
                 {...accessibility}
-                ariaLabel="Provider 认证"
-                mode="single"
-                onChange={(authenticationType) =>
-                  onChange(
-                    changeAgentProviderDraftAuthentication(
-                      draft,
-                      authenticationType,
-                    ),
-                  )
-                }
-                options={
-                  draft.kind === "codex"
-                    ? [
-                        { label: "API Key", value: "api-key" },
-                        {
-                          label: "ChatGPT 设备码",
-                          value: "chatgpt-device-code",
-                        },
-                      ]
-                    : [
-                        { label: "无需认证", value: "none" },
-                        { label: "API Key", value: "api-key" },
-                      ]
+                aria-label="Provider 认证"
+                onChange={(event) =>
+                  onChange(changeAgentProviderDraftAuthentication(
+                    draft,
+                    event.currentTarget.value as AgentProviderDraft["authenticationType"],
+                  ))
                 }
                 value={draft.authenticationType}
-              />
+              >
+                {draft.kind !== "codex" ? <option value="none">无需认证</option> : null}
+                <option value="api-key">API Key</option>
+                {draft.kind === "codex" ? <option value="chatgpt-device-code">ChatGPT 设备码</option> : null}
+              </SelectControl>
             )}
           </FieldRow>
           {draft.authenticationType === "api-key" ? (
-            <FieldRow fieldId="settings-provider-api-key" label="API Key">
+            <FieldRow
+              fieldId="settings-provider-api-key"
+              label="API Key"
+              description={editing ? "留空保留已保存的密钥。" : undefined}
+            >
               {(accessibility) => (
                 <InputControl
                   {...accessibility}
@@ -144,23 +137,22 @@ export function AgentProviderSettingsForm({
           {draft.kind !== "codex" ? (
             <FieldRow
               fieldId="settings-provider-private-network"
-              label="私网许可"
+              label="允许私网访问"
+              description="允许连接此服务使用的私有网络地址。"
             >
               {(accessibility) => (
-                <ToggleButton
+                <CheckboxControl
                   {...accessibility}
                   aria-label="确认 Provider 私网访问"
-                  onClick={() =>
+                  onChange={(event) =>
                     onChange({
                       ...draft,
                       privateNetworkAccessConfirmed:
-                        !draft.privateNetworkAccessConfirmed,
+                        event.currentTarget.checked,
                     })
                   }
-                  pressed={draft.privateNetworkAccessConfirmed}
-                >
-                  {draft.privateNetworkAccessConfirmed ? "已允许" : "未允许"}
-                </ToggleButton>
+                  checked={draft.privateNetworkAccessConfirmed}
+                />
               )}
             </FieldRow>
           ) : null}

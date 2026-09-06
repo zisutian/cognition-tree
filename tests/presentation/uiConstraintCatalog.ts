@@ -29,21 +29,17 @@ export function createUiTextPolicies({
   );
 
   return [
-    forbidTextPolicy(
-      "Activity direct native buttons",
-      presentationModules,
-      /<button\b/,
-      /^presentation\/activities\//,
-    ),
     {
-      allowedPath: (filePath) =>
-        [
-          "presentation/activities/todo/TodoDetailPanel.tsx",
-          "presentation/activities/todo/TodoRecurrenceEditor.tsx",
-          "presentation/ui/shared/controls.tsx",
-        ].includes(filePath),
+      allowedPath: /^presentation\/ui\/shared\/primitives\.tsx$/,
       corpus: presentationModules,
-      matches: 3,
+      matches: 1,
+      name: "native button ownership",
+      pattern: /<button\b/,
+    },
+    {
+      allowedPath: /^presentation\/ui\/shared\/controls\.tsx$/,
+      corpus: presentationModules,
+      matches: 1,
       name: "native form control ownership",
       pattern: /<(?:input|select|textarea)\b/,
     },
@@ -152,14 +148,12 @@ export function createUiTextPolicies({
 export function createUiConstraintCatalog({
   appContextDefaultWidth,
   appDetailDefaultWidth,
-  appProblemsCollapsedHeight,
   appProblemsDefaultHeight,
   defaultStructureTreeIndentWidthPx,
   uiVirtualRowHeightPx,
 }: {
   appContextDefaultWidth: number;
   appDetailDefaultWidth: number;
-  appProblemsCollapsedHeight: number;
   appProblemsDefaultHeight: number;
   defaultStructureTreeIndentWidthPx: number;
   uiVirtualRowHeightPx: number;
@@ -212,7 +206,6 @@ export function createUiConstraintCatalog({
     runtimeDimensions: [
       ["--app-context-width", `${appContextDefaultWidth}px`],
       ["--app-detail-width", `${appDetailDefaultWidth}px`],
-      ["--app-problems-collapsed-height", `${appProblemsCollapsedHeight}px`],
       ["--app-problems-height", `${appProblemsDefaultHeight}px`],
       ["--ui-row-height", `${uiVirtualRowHeightPx}px`],
       ["--ui-tree-indent", `${defaultStructureTreeIndentWidthPx}px`],

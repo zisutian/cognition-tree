@@ -5,8 +5,9 @@
     var(--app-context-width)
     minmax(var(--app-main-min-width), 1fr)
     var(--app-detail-width);
-  grid-template-rows: minmax(0, 1fr);
-  grid-template-areas: "activity context main detail";
+  grid-template-rows: minmax(0, 1fr) var(--app-status-bar-height);
+  grid-template-areas: "activity context main detail"
+    "status status status status";
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
@@ -18,7 +19,8 @@
     var(--app-activity-width)
     minmax(var(--app-main-min-width), 1fr)
     var(--app-detail-width);
-  grid-template-areas: "activity main detail";
+  grid-template-areas: "activity main detail"
+    "status status status";
 }
 
 .app-frame.no-detail {
@@ -26,14 +28,16 @@
     var(--app-activity-width)
     var(--app-context-width)
     minmax(var(--app-main-min-width), 1fr);
-  grid-template-areas: "activity context main";
+  grid-template-areas: "activity context main"
+    "status status status";
 }
 
 .app-frame.no-context.no-detail {
   grid-template-columns:
     var(--app-activity-width)
     minmax(var(--app-main-min-width), 1fr);
-  grid-template-areas: "activity main";
+  grid-template-areas: "activity main"
+    "status status";
 }
 
 .app-frame.detail-collapsed {
@@ -56,55 +60,43 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--ui-gap);
   min-width: 0;
   min-height: 0;
-  padding:
-    calc(var(--ui-panel-padding) - calc(var(--ui-border-width) * 2))
-    calc(var(--ui-gap) - var(--ui-border-width));
-  border-right: var(--ui-border-width) solid var(--color-border);
+  overflow-y: auto;
+  scrollbar-width: none;
   background: var(--color-activity);
-}
-
-.activity-bar button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--ui-panel-header-height);
-  height: var(--ui-panel-header-height);
-  border-radius: var(--ui-radius);
 }
 
 .activity-group {
   display: flex;
   flex-direction: column;
-  gap: var(--ui-gap-tight);
+  width: 100%;
 }
 
 .activity-group-bottom {
   margin-top: auto;
 }
 
-.activity-bar button {
+.activity-bar .ui-button {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 100%;
+  height: var(--app-activity-width);
   color: var(--color-fg-muted);
-  background: transparent;
-  cursor: pointer;
-  font-size: var(--ui-micro-font-size);
 }
 
-.activity-bar button:hover,
-.activity-bar button.is-active {
+.activity-bar .ui-button:hover,
+.activity-bar .ui-button.is-active {
   color: var(--color-fg-strong);
-  background: var(--color-selected);
 }
 
-.activity-bar button.is-active::before {
+.activity-bar .ui-button.is-active::before {
   position: absolute;
-  left: calc((var(--ui-gap) - var(--ui-border-width)) * -1);
-  width: calc(var(--ui-border-width) * 3);
-  height: calc(var(--ui-row-height) - calc(var(--ui-border-width) * 2));
-  border-radius: 0 var(--ui-radius) var(--ui-radius) 0;
+  inset: 0 auto 0 0;
+  width: calc(var(--ui-border-width) * 2);
   background: var(--color-accent);
   content: "";
 }
@@ -116,26 +108,9 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  padding: var(--ui-panel-padding);
+  padding: 0 var(--ui-panel-padding) var(--ui-panel-padding);
   overflow: hidden;
   background: var(--color-context);
-}
-
-.app-context-header {
-  display: flex;
-  align-items: center;
-  min-height: var(--ui-panel-header-height);
-}
-
-.app-context-header h1 {
-  margin: 0;
-  overflow: hidden;
-  color: var(--color-fg-strong);
-  font-size: var(--ui-title-font-size);
-  font-weight: var(--ui-title-weight);
-  line-height: var(--ui-title-line-height);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .app-context-body {
@@ -169,7 +144,7 @@
 .app-problems {
   position: relative;
   display: flex;
-  flex: 0 0 var(--app-problems-collapsed-height);
+  flex: 0 0 var(--app-problems-height);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -177,8 +152,12 @@
   background: var(--color-panel);
 }
 
-.app-problems.is-expanded {
-  flex-basis: var(--app-problems-height);
+.app-problems[hidden] {
+  display: none;
+}
+
+.app-frame.is-focus-mode {
+  --app-status-bar-height: 0px;
 }
 
 .app-detail {
@@ -205,7 +184,8 @@
   display: flex;
   justify-content: center;
   width: 100%;
-  padding-top: var(--ui-panel-padding);
+  align-items: center;
+  height: var(--ui-panel-header-height);
 }
 
 .app-resize-handle {
@@ -271,7 +251,6 @@
   background: var(--color-border-strong);
 }
 
-.activity-bar button:focus-visible,
 .app-resize-handle:focus-visible {
   outline: var(--ui-focus-outline);
   outline-offset: calc(var(--ui-border-width) * 2);
@@ -297,17 +276,19 @@
       var(--app-activity-width)
       minmax(220px, min(var(--app-context-width), 36vw))
       minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(200px, 34dvh);
+    grid-template-rows: minmax(0, 1fr) minmax(200px, 34dvh) var(--app-status-bar-height);
     grid-template-areas:
       "activity context main"
-      "activity context detail";
+      "activity context detail"
+    "status status status";
   }
 
   .app-frame.no-context {
     grid-template-columns: var(--app-activity-width) minmax(0, 1fr);
     grid-template-areas:
       "activity main"
-      "activity detail";
+      "activity detail"
+    "status status";
   }
 
   .app-frame.detail-collapsed {
@@ -317,31 +298,35 @@
       minmax(0, 1fr);
     grid-template-rows:
       minmax(0, 1fr)
-      var(--app-detail-collapsed-width);
+      var(--app-detail-collapsed-width) var(--app-status-bar-height);
     grid-template-areas:
       "activity context main"
-      "activity context detail";
+      "activity context detail"
+    "status status status";
   }
 
   .app-frame.no-context.detail-collapsed {
     grid-template-columns: var(--app-activity-width) minmax(0, 1fr);
     grid-template-areas:
       "activity main"
-      "activity detail";
+      "activity detail"
+    "status status";
   }
 
   .app-frame.no-detail,
   .app-frame.no-context.no-detail {
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) var(--app-status-bar-height);
   }
 
   .app-frame.no-detail {
-    grid-template-areas: "activity context main";
+    grid-template-areas: "activity context main"
+    "status status status";
   }
 
   .app-frame.no-context.no-detail {
     grid-template-columns: var(--app-activity-width) minmax(0, 1fr);
-    grid-template-areas: "activity main";
+    grid-template-areas: "activity main"
+    "status status";
   }
 
   .app-detail {

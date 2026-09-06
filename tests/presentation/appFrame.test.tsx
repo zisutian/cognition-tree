@@ -50,6 +50,7 @@ describe("AppFrame", () => {
         mainSlot={<section>main</section>}
         onActivityChange={() => undefined}
         problemsSlot={<div>problems</div>}
+        statusBarSlot={<footer>status</footer>}
       />,
     );
   }
@@ -80,11 +81,11 @@ describe("AppFrame", () => {
       { has: ["展开右侧详情"], lacks: ["detail</aside>"] },
     ],
     [
-      "keeps only activity and main content in focus mode",
+      "hides peripheral regions while retaining the Problems session",
       { detail: true, focusMode: true },
       {
-        has: ['aria-label="工作区功能"', "main"],
-        lacks: [">context<", ">detail<", ">problems<"],
+        has: ['aria-label="工作区功能"', "main", 'aria-label="问题" hidden=""'],
+        lacks: [">context<", ">detail<", "<footer>status"],
       },
     ],
     [

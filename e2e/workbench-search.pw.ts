@@ -59,7 +59,7 @@ test.describe("search activity flows", () => {
     await expect(page.getByRole("button", { name: "加载更多" })).toBeVisible();
     await page.getByRole("button", { name: "加载更多" }).click();
     await expect(page.getByRole("button", { name: "加载更多" })).toHaveCount(0);
-    await expect(page.getByRole("status")).toContainText("23 个命中");
+    await expect(page.getByRole("region", { name: "搜索结果", exact: true }).getByRole("status")).toContainText("23 个命中");
 
     await scopes.getByRole("button", { name: "日记", exact: true }).click();
     await scopes.getByRole("button", { name: "代办", exact: true }).click();

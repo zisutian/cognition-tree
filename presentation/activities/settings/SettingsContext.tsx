@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { FileCog, Plus, RefreshCw } from "lucide-react";
-import type { ReactNode } from "react";
+import { FileCog, Plus } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import type { AgentConfigurationState } from "../../../application/agent/index.ts";
 import {
   Button,
@@ -20,17 +20,16 @@ export function SettingsContext({
   agent,
   api,
   blocked,
-  onRefresh,
   onSelect,
   target,
 }: {
   agent: AgentConfigurationState;
   api: ApiAccessSettingsPanelSnapshot;
   blocked: boolean;
-  onRefresh(): void;
   onSelect(target: SettingsTarget): void;
   target: SettingsTarget;
 }) {
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
   const row = (item: SettingsTarget, label: string) => {
     const key = settingsTargetKey(item),
       selected = key === settingsTargetKey(target);
@@ -56,6 +55,12 @@ export function SettingsContext({
   ) => (
     <CompactContextGroup
       headingId={`settings-group-${id}`}
+      expanded={!collapsedGroups.has(id)}
+      onToggle={() => setCollapsedGroups((current) => {
+        const next = new Set(current);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      })}
       label={label}
       listAriaLabel={label}
       actions={actions}
@@ -74,8 +79,8 @@ export function SettingsContext({
       <>
         {items.map((item) => row({ kind, id: item.id }, item.label))}
         {target.kind === kind &&
-        target.id !== null &&
-        !items.some((item) => item.id === target.id)
+          target.id !== null &&
+          !items.some((item) => item.id === target.id)
           ? row(target, `已移除的${settingsPageLabels[kind]}`)
           : null}
         {target.kind === kind && "id" in target && target.id === null
@@ -89,22 +94,11 @@ export function SettingsContext({
         type="button"
         variant="icon"
       >
-        <Plus aria-hidden="true" size={13} />
+        <Plus aria-hidden="true" size={16} />
       </Button>,
     );
   return (
     <div className="activity-context-content settings-context">
-      <div className="ui-actions">
-        <Button
-          aria-label="刷新设置状态"
-          onClick={onRefresh}
-          title="刷新设置状态"
-          type="button"
-          variant="icon"
-        >
-          <RefreshCw aria-hidden="true" size={13} />
-        </Button>
-      </div>
       {group("interface", "界面", row({ kind: "interface" }, "工作台布局"))}
       {group(
         "system",

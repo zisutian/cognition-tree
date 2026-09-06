@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ButtonHTMLAttributes, HTMLAttributes, LiHTMLAttributes, ReactNode } from "react";
-import { cx } from "./primitives.tsx";
+import { Button, cx } from "./primitives.tsx";
 
 export function ToolList({
   className,
@@ -67,14 +67,14 @@ export function ToolListRow({
       {...props}
     >
       {onSelect ? (
-        <button
+        <Button variant="bare"
           className="ui-tool-list-row-target is-interactive"
           onClick={onSelect}
           type="button"
           {...buttonProps}
         >
           {content}
-        </button>
+        </Button>
       ) : (
         <div className="ui-tool-list-row-target">{content}</div>
       )}

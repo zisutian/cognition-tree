@@ -249,10 +249,12 @@ export async function seedWorkbenchRepository(
   api: APIRequestContext,
   id: string,
   {
+    alphaSource,
     searchBlocks = [],
     syntaxSource,
     workspaceName = "浏览器回归仓库",
   }: {
+    alphaSource?: string;
     searchBlocks?: readonly string[];
     syntaxSource?: string;
     workspaceName?: string;
@@ -265,7 +267,7 @@ export async function seedWorkbenchRepository(
       {
         id: "note-alpha",
         source: createSeedSourceWithBlockTimestamps(
-          [
+          alphaSource ?? [
             "Alpha",
             "\t: [[Beta]]",
             "\t- Alpha 子项",

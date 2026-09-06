@@ -1,0 +1,31 @@
+.workbench-status-bar {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: var(--ui-gap);
+  min-width: 0;
+  height: var(--app-status-bar-height);
+  padding: 0 var(--ui-gap);
+  background: var(--color-panel);
+  color: var(--color-fg);
+  font-size: var(--ui-micro-font-size);
+}
+
+.workbench-status-problems {
+  flex: none;
+  height: 100%;
+  padding: 0 var(--ui-gap);
+  font-variant-numeric: var(--ui-numeric-font-variant);
+}
+
+.workbench-status-problems:hover {
+  background: var(--color-hover);
+}
+
+.workbench-status-message {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

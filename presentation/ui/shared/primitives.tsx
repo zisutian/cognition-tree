@@ -31,14 +31,17 @@ export function PanelHeader({
   actions,
   className,
   title,
+  headingLevel = 2,
   ...props
 }: HTMLAttributes<HTMLElement> & {
   actions?: ReactNode;
+  headingLevel?: 1 | 2;
   title: ReactNode;
 }) {
+  const Heading = headingLevel === 1 ? "h1" : "h2";
   return (
     <header className={cx("ui-panel-header", className)} {...props}>
-      <h2>{title}</h2>
+      <Heading>{title}</Heading>
       {actions ? <div className="ui-actions">{actions}</div> : null}
     </header>
   );
@@ -149,7 +152,8 @@ export function ToggleButton({
   pressed: boolean;
 }) {
   return (
-    <button
+    <Button
+      variant="bare"
       aria-pressed={pressed}
       className={cx("ui-toggle-button", pressed && "is-active", className)}
       type="button"

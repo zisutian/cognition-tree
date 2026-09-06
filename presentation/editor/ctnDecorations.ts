@@ -15,6 +15,7 @@ import type {
   CtnInlineSpan,
 } from "../../core/ctn/index.ts";
 import {
+  checkboxControlClassName,
   getTextColorClassName,
   getTextColorStyleDeclaration,
   getToneClassName,
@@ -67,7 +68,7 @@ export class CtnCheckboxWidget extends WidgetType {
 
     checkbox.type = "checkbox";
     checkbox.checked = this.item.checked;
-    checkbox.className = "ctn-todo-checkbox";
+    checkbox.className = `${checkboxControlClassName} ctn-todo-checkbox`;
     checkbox.setAttribute(
       "aria-label",
       `${this.item.checked ? "标记未完成" : "标记完成"} ${this.item.label}`,

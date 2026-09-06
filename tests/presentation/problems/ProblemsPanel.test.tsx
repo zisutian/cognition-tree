@@ -71,31 +71,6 @@ const operationalProblem: UiWorkbenchOperationalProblem = {
 };
 
 describe("ProblemsPanel", () => {
-  it("renders a compact collapsed summary without mounting the list", () => {
-    const markup = renderToStaticMarkup(
-      <ProblemsPanel
-        expanded={false}
-        onOpen={() => undefined}
-        onToggle={() => undefined}
-        statusMessage="正在检查…"
-        view={{
-          errorCount: 1,
-          problems: [diagnostic],
-          status: "collecting",
-          warningCount: 2,
-        }}
-      />,
-    );
-
-    expect(markup).toContain("问题");
-    expect(markup).toContain("正在检查");
-    expect(markup).toContain('aria-expanded="false"');
-    expect(markup).toContain(
-      'aria-label="展开问题面板，1 个错误，2 个警告，正在检查…"',
-    );
-    expect(markup).not.toContain('aria-label="问题列表"');
-  });
-
   it("renders one ungrouped dense list and its navigation metadata", () => {
     const markup = renderToStaticMarkup(
       <ProblemsPanel
@@ -112,7 +87,6 @@ describe("ProblemsPanel", () => {
     );
 
     expect(markup).toContain('aria-label="问题列表"');
-    expect(markup).toContain("ui-tool-list-row-single-line");
     expect(markup).toContain("笔记 · 示例 · L2:C2");
     expect(markup).not.toContain("问题来源");
   });
@@ -136,7 +110,7 @@ describe("ProblemsPanel", () => {
     expect(markup).toContain("仓库 · 本地 · broken");
   });
 
-  it("renders a dismissible operational error and a fixed header status", () => {
+  it("renders a dismissible operational error", () => {
     const markup = renderToStaticMarkup(
       <ProblemsPanel
         expanded
@@ -144,7 +118,6 @@ describe("ProblemsPanel", () => {
         onDismiss={() => undefined}
         onOpen={() => undefined}
         onToggle={() => undefined}
-        statusMessage="代办 · 正在保存"
         view={{
           errorCount: 1,
           problems: [operationalProblem],
@@ -154,8 +127,6 @@ describe("ProblemsPanel", () => {
       />,
     );
 
-    expect(markup).toContain('aria-live="polite"');
-    expect(markup).toContain("代办 · 正在保存");
     expect(markup).toContain("操作 · 代办");
     expect(markup).toContain("3 次 · 最近 12:34:56");
     expect(markup).toContain("复制请求编号：request-42");
@@ -163,7 +134,6 @@ describe("ProblemsPanel", () => {
     expect(markup).toContain("按来源筛选问题");
     expect(markup).toContain("按严重度筛选问题");
     expect(markup).toContain("按可重试性筛选问题");
-    expect(markup).toContain("ui-tool-toolbar");
   });
 
   it("labels Journal diagnostics without treating them as workspace references", () => {

@@ -7,6 +7,8 @@ import {
 } from "./support/repositorySeeds";
 import { test } from "./support/e2eTest";
 import {
+  getWorkbenchStatus,
+  getProblemsToggle,
   getActivityButton,
   openRepositoryFromContext,
   openWorkbench,
@@ -34,7 +36,7 @@ test.describe("workbench diagnostics", () => {
     await getActivityButton(page, "笔记").click();
 
     const problems = page.locator(".problems-panel");
-    const problemsHeader = problems.locator(".problems-panel-header");
+    const problemsHeader = getProblemsToggle(page);
 
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
     expect(
@@ -44,13 +46,8 @@ test.describe("workbench diagnostics", () => {
         return { fontSize: style.fontSize, height: style.height };
       }),
     ).toEqual({ fontSize: "13px", height: "22px" });
-    await expect(problems.locator(".problems-panel-status")).toHaveCount(0);
-    await expect(problems.locator(".problems-panel-error-count")).toContainText(
-      "0",
-    );
-    await expect(
-      problems.locator(".problems-panel-warning-count"),
-    ).toContainText("2");
+    await expect(getWorkbenchStatus(page)).toHaveText("");
+    await expect(problemsHeader).toHaveAccessibleName(/0 个错误，2 个警告/);
     await problemsHeader.click();
 
     const rows = problems.locator(".ui-tool-list-row-target");
@@ -102,13 +99,13 @@ test.describe("workbench diagnostics", () => {
     await syntaxProblem.click();
     await expect(indentWidth).toBeFocused();
     await indentWidth.fill("4");
-    await expect(problems.locator(".problems-panel-status")).toHaveCount(0);
+    await expect(getWorkbenchStatus(page)).toHaveText("");
     await expect(rows).toHaveCount(2);
 
     await getActivityButton(page, "笔记").click();
     await page.getByRole("button", { name: "进入专注模式" }).click();
     await expect(page.locator(".app-context")).toHaveCount(0);
-    await expect(page.locator(".app-problems")).toHaveCount(0);
+    await expect(page.getByRole("complementary", { name: "问题", exact: true })).toBeHidden();
     await page.keyboard.press("Control+Shift+M");
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
 
@@ -242,21 +239,21 @@ test.describe("workbench diagnostics", () => {
     const persistenceProblem = page
       .locator(".ui-tool-list-row-frame")
       .filter({ hasText: "syntax persistence failed" });
-    const problemsHeader = page.locator(".problems-panel-header");
+    const problemsHeader = getProblemsToggle(page);
 
     await expect(page.locator(".ui-notification-error")).toHaveCount(0);
-    await expect(page.locator(".problems-panel-status")).toHaveCount(0);
+    await expect(getWorkbenchStatus(page)).toHaveText("");
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
     await problemsHeader.click();
     await expect(persistenceProblem).toHaveCount(1);
     await getActivityButton(page, "笔记").click();
     await expect(persistenceProblem).toHaveCount(1);
-    await expect(page.locator(".problems-panel-status")).toContainText(
+    await expect(getWorkbenchStatus(page)).toContainText(
       "保存失败",
     );
     await getActivityButton(page, "语法").click();
     await expect(persistenceProblem).toHaveCount(1);
-    await expect(page.locator(".problems-panel-status")).toHaveCount(0);
+    await expect(getWorkbenchStatus(page)).toHaveText("");
     await expect(
       persistenceProblem.getByRole("button", { name: /^关闭操作错误/ }),
     ).toHaveCount(0);

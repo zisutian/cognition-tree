@@ -4,7 +4,10 @@ import { expect } from "@playwright/test";
 import { buildApiOperationPath } from "../contracts/api/registry";
 import { test } from "./support/e2eTest";
 import { seedDiagnosticsRepository } from "./support/repositorySeeds";
-import { getActivityButton, openWorkbench } from "./support/workbenchPage";
+import {
+  getWorkbenchStatus,
+  getProblemsToggle, getActivityButton, openWorkbench
+} from "./support/workbenchPage";
 
 const repositoryId = "settings-draft-navigation";
 const providerId = "agent-provider-e2e-provider";
@@ -32,7 +35,7 @@ test("blocks directory, activities and problem navigation without replay, then u
     exact: true,
   });
   await name.fill("Unsaved provider");
-  const footer = page.locator(".problems-panel-status");
+  const footer = getWorkbenchStatus(page);
   await expect(footer).toContainText("先在编辑区保存或放弃");
   await page
     .locator(".settings-context")
@@ -50,7 +53,7 @@ test("blocks directory, activities and problem navigation without replay, then u
     await getActivityButton(page, activity).click();
     await expect(panel).toBeVisible();
   }
-  await page.locator(".problems-panel-header").click();
+  await getProblemsToggle(page).click();
   await page.getByRole("button", { name: /未知行首符号 !/ }).click();
   await expect(name).toHaveValue("Unsaved provider");
   // Advancing browser time proves this is persistent state, not a short feedback toast.

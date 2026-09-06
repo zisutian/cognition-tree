@@ -10,6 +10,7 @@ import type {
 } from "../../../core/todo/index.ts";
 
 import {
+  CheckboxControl,
   Button,
   ChoiceGroup,
   InputControl,
@@ -116,11 +117,10 @@ export function TodoRecurrenceEditor({
       {node.recurrence ? (
         <p className="todo-recurrence-summary">
           {node.recurrence.active
-            ? `完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount}${
-                node.recurrence.nextOccurrenceDate
-                  ? ` · 下次 ${node.recurrence.nextOccurrenceDate}`
-                  : " · 暂无下次"
-              }`
+            ? `完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount}${node.recurrence.nextOccurrenceDate
+              ? ` · 下次 ${node.recurrence.nextOccurrenceDate}`
+              : " · 暂无下次"
+            }`
             : `历史完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount} · 周期已停止`}
         </p>
       ) : null}
@@ -160,7 +160,7 @@ export function TodoRecurrenceEditor({
         <div aria-label="重复星期" className="todo-recurrence-weekdays">
           {weekdays.map((weekday) => (
             <label key={weekday.value}>
-              <input
+              <CheckboxControl
                 checked={selectedWeekdays.includes(weekday.value)}
                 onChange={(event) => {
                   setSelectedWeekdays((current) =>
@@ -170,7 +170,6 @@ export function TodoRecurrenceEditor({
                   );
                   setErrorMessage("");
                 }}
-                type="checkbox"
               />
               <span>{weekday.label}</span>
             </label>

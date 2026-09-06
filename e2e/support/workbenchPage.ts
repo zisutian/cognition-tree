@@ -73,3 +73,11 @@ export async function openRepositoryFromContext(
     { timeout: 15_000 },
   );
 }
+
+export function getWorkbenchStatus(page: Page) {
+  return page.getByRole("contentinfo", { name: "工作台状态" }).getByRole("status");
+}
+
+export function getProblemsToggle(page: Page) {
+  return page.getByRole("contentinfo", { name: "工作台状态" }).getByRole("button", { name: /问题面板/ });
+}

@@ -1,3 +1,4 @@
+import { Pencil, Trash2 } from "lucide-react";
 import {
   ChevronDown,
   ChevronRight,
@@ -9,7 +10,7 @@ import type {
   DragEvent,
   ReactNode,
 } from "react";
-import { cx } from "../primitives.tsx";
+import { Button, cx } from "../primitives.tsx";
 import { InputControl } from "../controls.tsx";
 import { CompactContextActionButtons } from "../CompactContextList.tsx";
 import {
@@ -204,7 +205,7 @@ export function DirectoryTreeRow({
             if (
               !current ||
               getTreeMoveDestinationTargetKey(current.activeDestination) !==
-                nodeKey
+              nodeKey
             ) {
               return current;
             }
@@ -249,10 +250,10 @@ export function DirectoryTreeRow({
           setDragState((current) =>
             current
               ? {
-                  ...current,
-                  activeDestination: destination,
-                  activeTargetCanDrop,
-                }
+                ...current,
+                activeDestination: destination,
+                activeTargetCanDrop,
+              }
               : current,
           );
         }}
@@ -265,7 +266,7 @@ export function DirectoryTreeRow({
           event.stopPropagation();
           const source = readTreeNodeDragPayload(
             event.dataTransfer.getData(treeNodeDragDataType) ||
-              event.dataTransfer.getData("text/plain"),
+            event.dataTransfer.getData("text/plain"),
           );
           const destination = getRowDropDestination(event, nodeReference);
 
@@ -323,7 +324,7 @@ export function DirectoryTreeRow({
             ) : null}
           </div>
         ) : (
-          <button
+          <Button variant="bare"
             aria-current={isActive ? "page" : undefined}
             aria-expanded={isFolder && hasChildren ? !isCollapsed : undefined}
             className="ui-tree-row ui-directory-tree-row"
@@ -368,10 +369,10 @@ export function DirectoryTreeRow({
             {leadingContent}
             <span className="ui-tree-text">{node.title}</span>
             {node.kind === "note" ? renderNoteBadges?.(node) : null}
-          </button>
+          </Button>
         )}
         {(isActive || isEditing || isDeletePending) &&
-            (onRenameNode || onDeleteNode) ? (
+          (onRenameNode || onDeleteNode) ? (
           <span className="ui-tree-actions">
             {isEditing ? (
               <CompactContextActionButtons confirmation={{
@@ -391,24 +392,26 @@ export function DirectoryTreeRow({
               <CompactContextActionButtons actions={[
                 ...(onRenameNode
                   ? [{
-                      ariaLabel: `重命名${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
-                      label: "改",
-                      onSelect: () => {
+                    ariaLabel: `重命名${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
+                    label: "改",
+                    icon: <Pencil aria-hidden="true" size={16} />,
+                    onSelect: () => {
                       setEditingNode({ key: nodeKey, title: node.title });
                       setPendingDeleteNode(null);
-                      },
-                    }]
+                    },
+                  }]
                   : []),
                 ...(onDeleteNode
                   ? [{
-                      ariaLabel: `删除${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
-                      label: "删",
-                      onSelect: () => {
+                    ariaLabel: `删除${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
+                    label: "删",
+                    icon: <Trash2 aria-hidden="true" size={16} />,
+                    onSelect: () => {
                       setEditingNode(null);
                       setPendingDeleteNode(node);
-                      },
-                      tone: "danger" as const,
-                    }]
+                    },
+                    tone: "danger" as const,
+                  }]
                   : []),
               ]} />
             )}

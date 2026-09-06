@@ -1,3 +1,4 @@
+import { Button } from "./shared/primitives.tsx";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ActivityId, ActivityNavigationItem } from "./activityTypes.ts";
@@ -19,7 +20,7 @@ function ActivityGroup({
         const Icon = item.icon;
 
         return (
-          <button
+          <Button variant="bare"
             aria-current={item.id === activeActivityId ? "page" : undefined}
             aria-label={item.label}
             className={item.id === activeActivityId ? "is-active" : ""}
@@ -28,8 +29,8 @@ function ActivityGroup({
             title={item.label}
             type="button"
           >
-            <Icon aria-hidden="true" size={18} strokeWidth={1.9} />
-          </button>
+            <Icon aria-hidden="true" size={24} strokeWidth={1.5} />
+          </Button>
         );
       })}
     </div>

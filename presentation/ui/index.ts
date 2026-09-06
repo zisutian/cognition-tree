@@ -22,6 +22,7 @@ export {
   ToggleButton,
 } from "./shared/primitives.tsx";
 export {
+  CheckboxControl,
   ChoiceGroup,
   ColorControl,
   InputControl,
@@ -32,6 +33,7 @@ export {
 export {
   CompactContextActionButtons,
   CompactContextGroup,
+  CompactContextGroupHeader,
   CompactContextList,
   CompactContextRow,
   CompactContextStatusIcon,
@@ -100,3 +102,6 @@ export type { WorkbenchController } from "./workbench/useWorkbenchLayout.ts";
 export { FormError, FormSaveActions } from "./shared/FormStatus.tsx";
 export { ConfirmAction } from "./shared/ConfirmAction.tsx";
 export type { ActivityInteractionState } from "./activityTypes.ts";
+
+export { checkboxControlClassName } from "./shared/controlPresentation.ts";
+export { StatusBar } from "./workbench/StatusBar.tsx";

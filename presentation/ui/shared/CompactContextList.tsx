@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { Check, ChevronDown, ChevronRight, X } from "lucide-react";
 import type {
   ButtonHTMLAttributes,
   HTMLAttributes,
@@ -9,7 +10,7 @@ import type {
   MouseEvent,
   ReactNode,
 } from "react";
-import { SymbolSlot, cx } from "./primitives.tsx";
+import { Button, SymbolSlot, cx } from "./primitives.tsx";
 import { InputControl } from "./controls.tsx";
 
 export function CompactContextStatusIcon({
@@ -59,6 +60,7 @@ export type CompactContextAction = {
   ariaLabel: string;
   disabled?: boolean;
   label: string;
+  icon?: ReactNode;
   onSelect: () => void;
   title?: string;
   tone?: "danger" | "default";
@@ -82,7 +84,7 @@ export function CompactContextActionButtons({
   if (confirmation) {
     return (
       <>
-        <button
+        <Button variant="bare"
           aria-label={confirmation.confirmAriaLabel}
           className="ui-tree-action-confirm"
           disabled={confirmation.disabled}
@@ -90,23 +92,23 @@ export function CompactContextActionButtons({
           title="确认"
           type="button"
         >
-          确认
-        </button>
-        <button
+          <Check aria-hidden="true" size={16} />
+        </Button>
+        <Button variant="bare"
           aria-label={confirmation.cancelAriaLabel}
           disabled={confirmation.disabled}
           onClick={confirmation.onCancel}
           title="取消"
           type="button"
         >
-          取消
-        </button>
+          <X aria-hidden="true" size={16} />
+        </Button>
       </>
     );
   }
 
   return actions.map((action) => (
-    <button
+    <Button variant="bare"
       aria-label={action.ariaLabel}
       className={action.tone === "danger" ? "ui-tree-action-danger" : undefined}
       disabled={action.disabled}
@@ -115,8 +117,8 @@ export function CompactContextActionButtons({
       title={action.title ?? action.label}
       type="button"
     >
-      {action.label}
-    </button>
+      {action.icon ?? action.label}
+    </Button>
   ));
 }
 
@@ -134,11 +136,44 @@ export type CompactContextGroupProps = {
   children: ReactNode;
   className?: string;
   count?: number;
+  expanded?: boolean;
+  onToggle?: () => void;
   headingId: string;
   label: ReactNode;
   listAriaLabel?: string;
   listClassName?: string;
 };
+
+export function CompactContextGroupHeader({
+  actions,
+  count,
+  expanded = true,
+  headingId,
+  label,
+  onToggle,
+}: Pick<CompactContextGroupProps, "actions" | "count" | "expanded" | "headingId" | "label" | "onToggle">) {
+  return (
+    <div className="ui-compact-context-group-heading">
+      <h3 className="ui-compact-context-group-title" id={headingId}>
+        {onToggle ? (
+          <Button
+            aria-expanded={expanded}
+            aria-controls={`${headingId}-list`}
+            className="ui-compact-context-group-toggle"
+            onClick={onToggle}
+            type="button"
+            variant="bare"
+          >
+            {expanded ? <ChevronDown aria-hidden="true" size={16} /> : <ChevronRight aria-hidden="true" size={16} />}
+            <span>{label}</span>
+          </Button>
+        ) : <span>{label}</span>}
+        {count === undefined ? null : <span>{count}</span>}
+      </h3>
+      {actions ? <span className="ui-actions">{actions}</span> : null}
+    </div>
+  );
+}
 
 export function CompactContextGroup({
   actions,
@@ -146,6 +181,8 @@ export function CompactContextGroup({
   className,
   count,
   headingId,
+  expanded = true,
+  onToggle,
   label,
   listAriaLabel,
   listClassName,
@@ -155,14 +192,20 @@ export function CompactContextGroup({
       aria-labelledby={headingId}
       className={cx("ui-compact-context-group", className)}
     >
-      <div className="ui-compact-context-group-heading">
-        <h3 className="ui-compact-context-group-title" id={headingId}>
-          <span>{label}</span>
-          {count === undefined ? null : <span>{count}</span>}
-        </h3>
-        {actions ? <span className="ui-actions">{actions}</span> : null}
-      </div>
-      <CompactContextList aria-label={listAriaLabel} className={listClassName}>
+      <CompactContextGroupHeader
+        actions={actions}
+        count={count}
+        expanded={expanded}
+        headingId={headingId}
+        label={label}
+        onToggle={onToggle}
+      />
+      <CompactContextList
+        aria-label={listAriaLabel}
+        className={listClassName}
+        hidden={!expanded}
+        id={`${headingId}-list`}
+      >
         {children}
       </CompactContextList>
     </section>
@@ -332,7 +375,7 @@ export function CompactContextRow({
           </span>
         </form>
       ) : (
-        <button
+        <Button variant="bare"
           {...buttonProps}
           aria-current={selected ? "page" : undefined}
           className={cx(
@@ -352,7 +395,7 @@ export function CompactContextRow({
           {trailing ? (
             <span className="ui-compact-context-trailing">{trailing}</span>
           ) : null}
-        </button>
+        </Button>
       )}
       {actions && !inlineRename && selected ? (
         <span className="ui-tree-actions">{actions}</span>

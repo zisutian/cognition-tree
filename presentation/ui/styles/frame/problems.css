@@ -4,64 +4,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-}
-
-.problems-panel-header {
-  display: flex;
-  flex: 0 0 var(--app-problems-collapsed-height);
-  align-items: center;
-  gap: var(--ui-gap-tight);
-  width: 100%;
-  min-width: 0;
-  height: var(--app-problems-collapsed-height);
-  padding: 0 var(--ui-gap-tight);
-  overflow: hidden;
-  color: var(--color-fg-muted);
-  background: transparent;
-  font-size: var(--ui-body-font-size);
-  font-weight: var(--ui-emphasis-weight);
-  line-height: var(--ui-body-line-height);
-  text-align: left;
-  cursor: pointer;
-}
-
-.problems-panel-header:hover,
-.problems-panel-header:focus-visible {
-  color: var(--color-fg);
-  background: var(--color-hover);
-  outline: none;
-}
-
-.problems-panel-title {
-  flex: none;
-  color: var(--color-fg-strong);
-}
-
-.problems-panel-count {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--ui-gap-tight) / 2);
-  font-variant-numeric: var(--ui-numeric-font-variant);
-  font-weight: var(--ui-body-weight);
-}
-
-.problems-panel-error-count {
-  color: var(--color-error);
-}
-
-.problems-panel-warning-count {
-  color: var(--color-warning);
-}
-
-.problems-panel-status {
-  min-width: 0;
-  margin-left: auto;
-  overflow: hidden;
-  color: var(--color-fg-muted);
-  font-weight: var(--ui-body-weight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 0 var(--ui-panel-padding);
 }
 
 .problems-panel-body,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import type { WorkbenchApplication } from "../application/workbenchApplication.ts";
 import {
   type WorkbenchDiagnostics,
@@ -12,6 +12,7 @@ import type { ActivityId, WorkbenchController } from "../../ui/index.ts";
 import { getActivityLabel, isActivityId } from "./activityCatalog.tsx";
 import {
   ProblemsPanel,
+  StatusBar,
   runActivityFeedbackAction,
   useWorkbenchFeedback,
   useWorkbenchProblemsShortcut,
@@ -32,7 +33,7 @@ export function WorkbenchProblemsController({
 }: {
   activeActivityId: ActivityId;
   application: WorkbenchApplication;
-  children: (problemsSlot: ReactNode) => ReactNode;
+  children: (slots: { problemsSlot: ReactNode; statusBarSlot: ReactNode }) => ReactNode;
   onOpenSystemSyntax: (owner: "journal" | "todo", fieldId: string) => void;
   onActiveActivityChange: (
     activityId: ActivityId,
@@ -42,6 +43,7 @@ export function WorkbenchProblemsController({
   syntaxDiagnostics: WorkbenchDiagnostics | null;
   workbench: WorkbenchController;
 }) {
+  const problemsToggleRef = useRef<HTMLButtonElement>(null);
   const feedback = useWorkbenchFeedback();
   const workspace =
     application.workspace.status === "ready"
@@ -54,13 +56,13 @@ export function WorkbenchProblemsController({
   const problems = projectWorkbenchProblems({
     agentProblems: application.agent.state.status?.configurationProblem
       ? [
-          {
-            code: "configuration_unavailable",
-            id: "agent-configuration-problem",
-            message: application.agent.state.status.configurationProblem,
-            sessionId: null,
-          },
-        ]
+        {
+          code: "configuration_unavailable",
+          id: "agent-configuration-problem",
+          message: application.agent.state.status.configurationProblem,
+          sessionId: null,
+        },
+      ]
       : [],
     diagnostics: workspace?.diagnostics ?? {
       diagnostics: [],
@@ -83,9 +85,9 @@ export function WorkbenchProblemsController({
       journalNavigation: journal?.navigation ?? null,
       todoNavigation: todo
         ? {
-            ...todo.navigation,
-            selectCollection: todo.selectCollection,
-          }
+          ...todo.navigation,
+          selectCollection: todo.selectCollection,
+        }
         : null,
       repositoryNavigation: application.repository.navigation,
       syntaxNavigation: { openSystemSyntax: onOpenSystemSyntax },
@@ -102,8 +104,8 @@ export function WorkbenchProblemsController({
       ? transient.message
       : transient?.tone === "error"
         ? (feedback.snapshot.problems.find(
-            ({ id }) => id === transient.problemId,
-          )?.message ?? "")
+          ({ id }) => id === transient.problemId,
+        )?.message ?? "")
         : "";
   const statusMessage =
     activityStatusMessage ||
@@ -115,8 +117,8 @@ export function WorkbenchProblemsController({
     onToggle: workbench.toggleProblems,
   });
 
-  return children(
-    <ProblemsPanel
+  return children({
+    problemsSlot: <ProblemsPanel
       expanded={workbench.layout.problemsExpanded}
       onCopyRequestId={(requestId) => {
         void runActivityFeedbackAction(
@@ -138,9 +140,21 @@ export function WorkbenchProblemsController({
         }
       }}
       onOpen={openProblem}
-      onToggle={workbench.toggleProblems}
-      statusMessage={statusMessage}
+      onToggle={() => {
+        workbench.toggleProblems();
+        problemsToggleRef.current?.focus();
+      }}
       view={problems}
     />,
-  );
+    statusBarSlot: (
+      <StatusBar
+        errorCount={problems.errorCount}
+        warningCount={problems.warningCount}
+        expanded={workbench.layout.problemsExpanded}
+        onToggleProblems={workbench.toggleProblems}
+        statusMessage={statusMessage}
+        toggleButtonRef={problemsToggleRef}
+      />
+    ),
+  });
 }

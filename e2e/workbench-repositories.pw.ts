@@ -23,6 +23,8 @@ import {
 } from "./support/repositorySeeds";
 import { test } from "./support/e2eTest";
 import {
+  getWorkbenchStatus,
+  getProblemsToggle,
   getActivityButton,
   openRepositoryFromContext,
   openWorkbench,
@@ -177,7 +179,7 @@ test.describe("repository and capacity flows", () => {
       let additions = 0;
       let removals = 0;
 
-      EventTarget.prototype.addEventListener = function (
+      EventTarget.prototype.addEventListener = function(
         type,
         listener,
         options,
@@ -190,7 +192,7 @@ test.describe("repository and capacity flows", () => {
         }
         originalAddEventListener.call(this, type, listener, options);
       };
-      EventTarget.prototype.removeEventListener = function (
+      EventTarget.prototype.removeEventListener = function(
         type,
         listener,
         options,
@@ -362,14 +364,9 @@ test.describe("repository and capacity flows", () => {
     await expect(editor).toHaveAttribute("data-editor-mode", "raw");
     await expect(editor).toContainText("? 未知语法");
     await expect(
-      page.locator(".problems-panel .problems-panel-status"),
-    ).toHaveCount(0);
-    await expect(
-      page.locator(".problems-panel .problems-panel-error-count"),
-    ).toContainText("0");
-    await expect(
-      page.locator(".problems-panel .problems-panel-warning-count"),
-    ).toContainText("0");
+      getWorkbenchStatus(page),
+    ).toHaveText("");
+    await expect(getProblemsToggle(page)).toHaveAccessibleName(/0 个错误，0 个警告/);
     await editor.locator(".cm-content").click();
     await page.keyboard.press("Control+End");
     await page.keyboard.type(" raw");
@@ -651,7 +648,7 @@ test.describe("repository and capacity flows", () => {
     try {
       await openWorkbench(page, repositoryId);
       const problems = page.locator(".problems-panel");
-      const problemsHeader = problems.locator(".problems-panel-header");
+      const problemsHeader = getProblemsToggle(page);
 
       if (await problemsHeader.getAttribute("aria-expanded") === "false") {
         await problemsHeader.click();

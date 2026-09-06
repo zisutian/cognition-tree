@@ -22,6 +22,7 @@ import {
   readCtnTonePresentation,
 } from "./support/uiPresentation";
 import {
+  getWorkbenchStatus,
   getActivityButton,
   openWorkbench,
 } from "./support/workbenchPage";
@@ -33,11 +34,11 @@ const editorSyntaxSource = formatCtnSyntaxV2({
   blocks: defaultCtnSyntax.definition.blocks.map((rule) =>
     rule.kind === "multiline"
       ? {
-          ...rule,
-          label: multilineRuleLabel,
-          textColor: "red",
-          tone: "violet",
-        }
+        ...rule,
+        label: multilineRuleLabel,
+        textColor: "red",
+        tone: "violet",
+      }
       : rule
   ),
   tabDisplayWidth: 8,
@@ -202,7 +203,7 @@ test.describe("editor workbench flows", () => {
       .locator(".source-editor .ctn-inline")
       .filter({ hasText: "<Missing>" })
       .click({ modifiers: ["Control"] });
-    await expect(page.locator(".problems-panel-status")).toContainText(
+    await expect(getWorkbenchStatus(page)).toContainText(
       "未找到引用目标：Missing",
     );
     await expect(page.locator(".ui-notification-region")).toHaveCount(0);

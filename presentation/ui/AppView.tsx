@@ -21,6 +21,7 @@ type AppViewProps = {
     beforeChange?: () => boolean | void,
   ) => void;
   problemsSlot: ReactNode;
+  statusBarSlot: ReactNode;
   workbench: WorkbenchController;
 };
 
@@ -30,6 +31,7 @@ function AppView({
   createActivitySlots,
   onActiveActivityChange,
   problemsSlot,
+  statusBarSlot,
   workbench,
 }: AppViewProps) {
   const configureSyntax = () => {
@@ -78,6 +80,7 @@ function AppView({
       mainSlot={activitySlots.main}
       onActivityChange={handleActivityChange}
       problemsSlot={problemsSlot}
+      statusBarSlot={statusBarSlot}
     />
   );
 }

@@ -1,7 +1,7 @@
 .ui-form-layout {
   display: grid;
   gap: var(--ui-gap-tight);
-  width: min(100%, 720px);
+  width: min(100%, var(--ui-form-max-width));
 }
 
 .ui-field-row {
@@ -60,4 +60,28 @@
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+.ui-form-layout-stacked {
+  --ui-control-height: var(--ui-form-control-height);
+  gap: var(--ui-form-field-gap);
+}
+
+.ui-form-layout-stacked > .ui-field-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ui-gap-tight);
+}
+
+.ui-form-layout-stacked .ui-field-label {
+  min-height: 0;
+  padding: 0;
+  color: var(--color-fg);
+}
+
+.ui-form-layout-stacked .ui-control-content {
+  width: min(320px, 100%);
+}
+
+.ui-form-layout-stacked .ui-form-actions {
+  margin-left: 0;
 }

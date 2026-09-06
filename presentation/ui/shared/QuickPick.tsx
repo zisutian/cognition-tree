@@ -7,7 +7,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { Overlay } from "./Overlay.tsx";
-import { cx } from "./primitives.tsx";
+import { Button, cx } from "./primitives.tsx";
 import { InputControl } from "./controls.tsx";
 
 export type QuickPickOption = {
@@ -147,7 +147,8 @@ export function QuickPick({
       <div className="ui-quick-pick-options" id={listboxId} role="listbox">
           {visibleOptions.length > 0 ? (
             visibleOptions.map((option, index) => (
-              <button
+              <Button
+        variant="bare"
                 aria-selected={index === activeIndex}
                 className={cx(
                   "ui-quick-pick-option",
@@ -164,7 +165,7 @@ export function QuickPick({
               >
                 <span>{option.label}</span>
                 {option.description ? <small>{option.description}</small> : null}
-              </button>
+              </Button>
             ))
           ) : (
             <p className="ui-quick-pick-empty">{emptyMessage}</p>

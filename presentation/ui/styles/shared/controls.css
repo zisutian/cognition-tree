@@ -7,7 +7,7 @@
   border: var(--ui-border-width) solid var(--color-border-strong);
   border-radius: var(--ui-radius);
   color: var(--color-fg);
-  background: var(--color-panel-strong);
+  background: var(--color-input);
   font: inherit;
   font-size: var(--ui-control-font-size);
   font-weight: var(--ui-body-weight);
@@ -21,7 +21,7 @@
 
 .ui-control:focus {
   border-color: var(--color-accent);
-  background: var(--color-panel-strong);
+  background: var(--color-input);
 }
 
 .ui-control:disabled {
@@ -89,7 +89,7 @@
   border: var(--ui-border-width) solid var(--color-border-strong);
   border-radius: 0;
   color: var(--color-fg-muted);
-  background: var(--color-panel-strong);
+  background: var(--color-input);
   font: inherit;
   font-size: var(--ui-control-font-size);
   font-weight: var(--ui-emphasis-weight);
@@ -218,11 +218,50 @@
   padding: 2px;
   border: var(--ui-border-width) solid var(--color-border-strong);
   border-radius: var(--ui-radius);
-  background: var(--color-panel-strong);
+  background: var(--color-input);
   cursor: pointer;
 }
 
 .ui-color-control:focus-visible {
   border-color: var(--color-accent);
   outline: none;
+}
+
+.ui-checkbox-control {
+  flex: none;
+  width: var(--ui-symbol-size);
+  height: var(--ui-symbol-size);
+  margin: var(--ui-gap-tight) 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.ui-checkbox-control:focus-visible {
+  outline: var(--ui-focus-outline);
+  outline-offset: 2px;
+}
+
+.ui-checkbox-control:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-choice-group-subtle .ui-choice-option {
+  min-height: var(--ui-form-control-height);
+  margin: 0;
+  padding-inline: var(--ui-panel-padding);
+  border: 0;
+  border-bottom: calc(var(--ui-border-width) * 2) solid transparent;
+  border-radius: 0;
+  background: transparent;
+  font-weight: var(--ui-body-weight);
+}
+
+.ui-choice-group-subtle .ui-choice-option.is-active {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-fg-strong);
+}
+
+.ui-choice-group-subtle .ui-choice-option:hover:not(:disabled) {
+  background: var(--color-hover);
 }

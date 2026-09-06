@@ -1,7 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
-  ChevronDown,
-  ChevronRight,
+  X,
   CircleX,
   TriangleAlert,
 } from "lucide-react";
@@ -11,7 +10,7 @@ import type {
   UiWorkbenchProblem,
   UiWorkbenchProblems,
 } from "../../../application/workbench/index.ts";
-import { SymbolSlot, cx } from "../shared/primitives.tsx";
+import { Button, PanelHeader, SymbolSlot, cx } from "../shared/primitives.tsx";
 import { ChoiceGroup } from "../shared/controls.tsx";
 import {
   ToolList,
@@ -91,22 +90,22 @@ function ProblemRow({
       actions={operational ? (
         <>
           {operational.requestId && onCopyRequestId ? (
-            <button
+            <Button variant="bare"
               aria-label={`复制请求编号：${operational.requestId}`}
               onClick={() => onCopyRequestId(operational.requestId!)}
               title={operational.requestId}
               type="button"
             >
               复制编号
-            </button>
+            </Button>
           ) : null}
-          <button
+          <Button variant="bare"
             aria-label={`关闭操作错误：${problem.message}`}
             onClick={() => onDismiss(problem)}
             type="button"
           >
             关闭
-          </button>
+          </Button>
         </>
       ) : null}
       buttonProps={{
@@ -220,7 +219,6 @@ export function ProblemsPanel({
   onDismiss = () => undefined,
   onOpen,
   onToggle,
-  statusMessage = "",
 }: {
   expanded: boolean;
   view: UiWorkbenchProblems;
@@ -228,7 +226,6 @@ export function ProblemsPanel({
   onDismiss?: (problem: UiWorkbenchProblem) => void;
   onOpen: (problem: UiWorkbenchProblem) => void;
   onToggle: () => void;
-  statusMessage?: string;
 }) {
   const [sourceFilter, setSourceFilter] = useState<"all" | UiWorkbenchProblem["source"]>("all");
   const [severityFilter, setSeverityFilter] = useState<"all" | "error" | "warning">("all");
@@ -242,39 +239,11 @@ export function ProblemsPanel({
     if (!isOperationalProblem(problem)) return false;
     return retryFilter === "retryable" ? problem.retryable : !problem.retryable;
   }), [retryFilter, severityFilter, sourceFilter, view.problems]);
-  const toggleLabel = expanded ? "折叠问题面板" : "展开问题面板";
-  const statusLabel = statusMessage ? `，${statusMessage}` : "";
-
   return (
     <section className={cx("problems-panel", expanded && "is-expanded")}>
-      <button
-        aria-expanded={expanded}
-        aria-label={`${toggleLabel}，${view.errorCount} 个错误，${view.warningCount} 个警告${statusLabel}`}
-        className="problems-panel-header"
-        onClick={onToggle}
-        title={toggleLabel}
-        type="button"
-      >
-        {expanded ? (
-          <ChevronDown aria-hidden="true" size={13} />
-        ) : (
-          <ChevronRight aria-hidden="true" size={13} />
-        )}
-        <span className="problems-panel-title">问题</span>
-        <span className="problems-panel-count problems-panel-error-count">
-          <CircleX aria-hidden="true" size={12} />
-          {view.errorCount}
-        </span>
-        <span className="problems-panel-count problems-panel-warning-count">
-          <TriangleAlert aria-hidden="true" size={12} />
-          {view.warningCount}
-        </span>
-        {statusMessage ? (
-          <span aria-live="polite" className="problems-panel-status">
-            {statusMessage}
-          </span>
-        ) : null}
-      </button>
+      <PanelHeader title="问题" actions={
+        <Button aria-label="关闭问题面板" onClick={onToggle} title="关闭问题面板" type="button" variant="icon"><X aria-hidden="true" size={16} /></Button>
+      } />
       {expanded ? (
         <div className="problems-panel-body">
           <ToolToolbar aria-label="问题筛选">

@@ -2,18 +2,6 @@
   min-width: 0;
 }
 
-.ui-tool-panel,
-.ui-tool-panel-body {
-  --ui-gap: var(--ui-gap-tight);
-  --ui-control-height: var(--ui-row-height);
-  --ui-control-font-size: var(--ui-body-font-size);
-  --ui-control-line-height: var(--ui-body-line-height);
-  --ui-micro-font-size: var(--ui-body-font-size);
-  --ui-micro-line-height: var(--ui-body-line-height);
-  --ui-code-font-size: var(--ui-body-font-size);
-  --ui-code-line-height: var(--ui-body-line-height);
-}
-
 .ui-tool-panel-body {
   display: block;
 }
@@ -28,8 +16,9 @@
 }
 
 .ui-tool-panel-body-form > .ui-tool-panel-content {
-  width: min(100%, 880px);
-  margin: 0 auto;
+  width: min(100%, var(--ui-form-max-width));
+  margin: 0;
+  gap: var(--ui-form-field-gap);
 }
 
 .ui-tool-panel-body-results > .ui-tool-panel-content {
@@ -43,4 +32,8 @@
 
 .ui-tool-panel-body-detail > .ui-tool-panel-content {
   width: 100%;
+}
+
+.ui-tool-panel-body-form {
+  padding: calc(var(--ui-form-padding) - var(--ui-panel-padding));
 }

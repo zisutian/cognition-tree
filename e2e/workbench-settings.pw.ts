@@ -399,7 +399,7 @@ test.describe("settings activity flows", () => {
       .getByRole("button", { name: "默认会话配置", exact: true })
       .click();
     await expect(selection).toHaveValue(e2eAgentProfileId);
-    await context
+    await page.getByRole("complementary", { name: "设置", exact: true })
       .getByRole("button", { name: "刷新设置状态", exact: true })
       .click();
     await expect(selection).toHaveValue(e2eAgentProfileId);

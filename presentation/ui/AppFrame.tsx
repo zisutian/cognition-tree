@@ -17,7 +17,7 @@ import {
   appProblemsMaxHeight,
   appProblemsMinHeight,
 } from "./workbench/frameResize.ts";
-import { Button, cx } from "./shared/primitives.tsx";
+import { Button, PanelHeader, cx } from "./shared/primitives.tsx";
 import type { WorkbenchLayout } from "./workbench/useWorkbenchLayout.ts";
 
 type AppFrameStyle = CSSProperties & {
@@ -35,6 +35,7 @@ export function AppFrame({
   mainSlot,
   onActivityChange,
   problemsSlot,
+  statusBarSlot,
 }: {
   activeActivityId: ActivityId;
   activityItems: readonly ActivityNavigationItem[];
@@ -44,6 +45,7 @@ export function AppFrame({
   mainSlot: ReactNode;
   onActivityChange: (activityId: ActivityId) => void;
   problemsSlot: ReactNode;
+  statusBarSlot: ReactNode;
 }) {
   const {
     contextCollapsed,
@@ -102,9 +104,11 @@ export function AppFrame({
       />
       {showContext ? (
         <aside className="app-context" aria-label={contextSlot.title}>
-          <header className="app-context-header">
-            <h1>{contextSlot.title}</h1>
-          </header>
+          <PanelHeader
+            actions={contextSlot.actions}
+            headingLevel={1}
+            title={contextSlot.title}
+          />
           <div className="app-context-body">{contextSlot.content}</div>
           <div
             aria-label="调整上下文区宽度"
@@ -123,33 +127,33 @@ export function AppFrame({
       ) : null}
       <section className="app-main-region">
         <div className="app-main-content">{mainSlot}</div>
-        {showProblems ? (
-          <aside
-            aria-label="问题"
-            className={
-              problemsExpanded
-                ? "app-problems is-expanded"
-                : "app-problems"
-            }
-          >
-            {problemsExpanded ? (
-              <div
-                aria-label="调整问题面板高度"
-                aria-orientation="horizontal"
-                aria-valuemax={appProblemsMaxHeight}
-                aria-valuemin={appProblemsMinHeight}
-                aria-valuenow={problemsResizeValue}
-                aria-valuetext={`${problemsResizeValue}px`}
-                className="app-resize-handle app-problems-resize"
-                onKeyDown={onProblemsResizeKeyDown}
-                onPointerDown={onProblemsResizeStart}
-                role="separator"
-                tabIndex={0}
-              />
-            ) : null}
-            {problemsSlot}
-          </aside>
-        ) : null}
+        <aside
+          aria-label="问题"
+          hidden={!showProblems || !problemsExpanded}
+          id="workbench-problems"
+          className={
+            problemsExpanded
+              ? "app-problems is-expanded"
+              : "app-problems"
+          }
+        >
+          {problemsExpanded ? (
+            <div
+              aria-label="调整问题面板高度"
+              aria-orientation="horizontal"
+              aria-valuemax={appProblemsMaxHeight}
+              aria-valuemin={appProblemsMinHeight}
+              aria-valuenow={problemsResizeValue}
+              aria-valuetext={`${problemsResizeValue}px`}
+              className="app-resize-handle app-problems-resize"
+              onKeyDown={onProblemsResizeKeyDown}
+              onPointerDown={onProblemsResizeStart}
+              role="separator"
+              tabIndex={0}
+            />
+          ) : null}
+          {problemsSlot}
+        </aside>
       </section>
       {hasDetail ? (
         <aside
@@ -192,6 +196,7 @@ export function AppFrame({
           )}
         </aside>
       ) : null}
+      {!focusMode ? statusBarSlot : null}
     </main>
   );
 }

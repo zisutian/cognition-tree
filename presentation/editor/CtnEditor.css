@@ -114,16 +114,12 @@
 .source-editor .ctn-todo-checkbox {
   position: relative;
   z-index: 1;
-  width: var(--ui-symbol-size);
-  height: var(--ui-symbol-size);
   margin:
     0
     calc(var(--ui-gap-tight) / 2)
     0
     calc(var(--ui-border-width) * 2);
   vertical-align: -0.12em;
-  accent-color: var(--color-accent);
-  cursor: pointer;
 }
 
 .source-editor .ctn-todo-recurrence-marker {

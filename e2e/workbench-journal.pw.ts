@@ -17,6 +17,8 @@ import {
 } from "./support/builtInSeeds";
 import { test } from "./support/e2eTest";
 import {
+  getWorkbenchStatus,
+  getProblemsToggle,
   getActivityButton,
   openWorkbench,
 } from "./support/workbenchPage";
@@ -69,7 +71,7 @@ async function waitUntilNextClockSecond(page: Page, timestamp: string) {
   await page.waitForFunction(
     (previousTimestamp) =>
       Math.floor(Date.now() / 1_000) >
-        Math.floor(Date.parse(previousTimestamp) / 1_000),
+      Math.floor(Date.parse(previousTimestamp) / 1_000),
     timestamp,
   );
 }
@@ -161,7 +163,7 @@ test.describe("Journal activity flows", () => {
       };
     }).toEqual({ hasBody: true, titlePreserved: true });
     await expect(editorPanel).not.toContainText("已保存");
-    await expect(page.locator(".problems-panel-status")).toHaveCount(0);
+    await expect(getWorkbenchStatus(page)).toHaveText("");
 
     await page.reload();
     await expect(
@@ -229,7 +231,7 @@ test.describe("Journal activity flows", () => {
         .getByRole("heading", { name: otherTitle, exact: true }),
     ).toBeVisible();
 
-    const problemsHeader = problems.locator(".problems-panel-header");
+    const problemsHeader = getProblemsToggle(page);
 
     if (await problemsHeader.getAttribute("aria-expanded") === "false") {
       await problemsHeader.click();
