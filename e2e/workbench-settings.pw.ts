@@ -64,6 +64,20 @@ test.describe("settings activity flows", () => {
     ]);
   });
 
+  test("keeps the edited provider and its details on the same object", async ({ page }) => {
+    await openWorkbench(page, syntaxRepositoryId);
+    await getActivityButton(page, "设置").click();
+    await page.locator(".settings-context").getByRole("button", { name: "智能体", exact: true }).click();
+    const panel = page.getByRole("region", { name: "智能体设置" });
+    await panel.getByRole("tab", { name: "Provider", exact: true }).click();
+    await panel.getByRole("button", { name: "编辑 E2E missing provider", exact: true }).click();
+    await expect(panel.getByRole("textbox", { name: "Provider 名称", exact: true })).toHaveValue("E2E missing provider");
+    const details = page.getByRole("region", { name: "设置状态" });
+    await expect(details).toContainText("E2E missing provider");
+    await expect(details).toContainText("https://e2e-missing.invalid/v1");
+    await expect(details).not.toContainText("https://e2e-runtime.invalid/v1");
+  });
+
   test("manages the owner credential only in service settings", async ({
     page,
   }) => {

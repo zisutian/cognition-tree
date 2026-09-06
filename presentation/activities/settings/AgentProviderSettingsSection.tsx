@@ -188,11 +188,14 @@ export function AgentProviderSettingsSection({
                     <Button
                       aria-label={`编辑 ${provider.label}`}
                       disabled={busy || loginPending}
-                      onClick={() => setDraftSession({
-                        draft: agentProviderDraftFrom(provider),
+                      onClick={() => {
+                        onRouteChange({ page: "providers", selectedProviderId: provider.id });
+                        setDraftSession({
+                          draft: agentProviderDraftFrom(provider),
                         providerId: provider.id,
-                        status: "editing",
-                      })}
+                          status: "editing",
+                        });
+                      }}
                       type="button"
                     >
                       编辑

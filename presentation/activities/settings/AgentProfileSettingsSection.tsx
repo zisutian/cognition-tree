@@ -175,11 +175,14 @@ export function AgentProfileSettingsSection({
                       : null}
                     <Button
                       disabled={busy}
-                      onClick={() => setDraftSession({
-                        draft: agentProfileDraftFrom(profile),
+                      onClick={() => {
+                        onRouteChange({ page: "profiles", selectedProfileId: profile.id });
+                        setDraftSession({
+                          draft: agentProfileDraftFrom(profile),
                         profileId: profile.id,
-                        status: "editing",
-                      })}
+                          status: "editing",
+                        });
+                      }}
                       type="button"
                     >
                       编辑
