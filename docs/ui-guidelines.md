@@ -116,7 +116,7 @@ Problems 默认关闭，关闭时不占据编辑区。面板标题显示“问�
     数字：tabular-nums。
 
 字号、字重和颜色必须通过角色 token 进入样式；Activity CSS 只描述布局和业务状态。
-工具面板不重新定义表单字号、尺寸或密度。共享表单提供 columns 和 stacked 两种显式布局；纵向布局的控件高 26px、字段间距 16px，表单内容最大宽度 720px。样板阶段 Provider 使用纵向表单，其余设置对象待样板确认后迁移到同一布局。
+工具面板不重新定义表单字号、尺寸或密度。共享表单提供 columns 和 stacked 两种显式布局；纵向布局的控件高 26px、字段间距 16px，表单内容最大宽度 720px。所有设置对象统一使用纵向布局；枚举使用 SelectControl，布尔项使用 CheckboxControl，成员集合使用 CheckboxGroup。
 
 
 ## 5. 颜色与状态
@@ -143,7 +143,7 @@ Problems 默认关闭，关闭时不占据编辑区。面板标题显示“问�
 
 控件：
 
-    InputControl、SelectControl、TextareaControl、CheckboxControl、ChoiceGroup、RangeControl、ColorControl、Button 和 ToggleButton 是全软件表单与操作控件的唯一所有者；包括共享组件在内的普通 React 按钮都组合 Button，原生表单元素只由共享控件实现。Activity 不得直接渲染原生按钮或普通输入。ChoiceGroup 以判别联合分别提供单选 radiogroup 和多选 aria-pressed 语义。笔记模式选择保留 radiogroup 键盘语义；设置目录使用按钮导航，不伪装成标签页。CodeMirror 的 DOM checkbox 仅保留宿主生命周期、位置和领域命令适配，与 React checkbox 共用视觉契约；内容语义颜色保持独立。
+    InputControl、SelectControl、TextareaControl、CheckboxControl、CheckboxGroup、ChoiceGroup、RangeControl、ColorControl、Button 和 ToggleButton 是全软件表单与操作控件的唯一所有者；包括共享组件在内的普通 React 按钮都组合 Button，原生表单元素只由共享控件实现。Activity 不得直接渲染原生按钮或普通输入。CheckboxGroup 组合 CheckboxControl，拥有成员选择及标签布局；FieldRow 的 group 类型通过 aria-labelledby 关联组标题。ChoiceGroup 以判别联合分别提供单选 radiogroup 和多选 aria-pressed 语义。笔记模式选择保留 radiogroup 键盘语义；设置目录使用按钮导航，不伪装成标签页。CodeMirror 的 DOM checkbox 仅保留宿主生命周期、位置和领域命令适配，与 React checkbox 共用视觉契约；内容语义颜色保持独立。
     普通输入使用 content 尺度，从 72px 随值扩展并在 320px 封顶；结构输入使用 container 尺度占满容器。FormLayout、FieldRow 和 FormActions 统一拥有横向标签列、纵向标签布局、说明、错误关联和操作行；description 与错误分别获得稳定 ID 并通过 aria-describedby 关联控件。纵向表单输入使用 320px 阅读宽度，地址等长值显式使用 container 尺度。ManagementList/ManagementRow 独占主区管理列表，CompactContextList 继续只服务左侧上下文区，二者不得混用业务语义。
     FormSaveActions 和 FormError 统一提交展示与错误反馈，保存规则、版本判断和敏感操作仍由对应控制器拥有。RepositoryCreateForm 属于仓库，SyntaxUnavailablePanel 属于笔记，通用表单不包含领域呈现。
     StatusBadge 统一呈现状态；EmptyState 的 compact 模式用于详情栏和顶部对齐空白页。Activity 只组合业务布局、局部 presentation 状态和回调，不复制私有表单行或管理卡片。

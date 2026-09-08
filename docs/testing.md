@@ -64,10 +64,19 @@ Dark Modern 样板、控件与问题面板：
     git diff --check
 
 `build` 包含前端构建、包体积门槛与服务端编译。保留现有门槛，不为本轮界面修改放宽限制。
-另需用临时数据分别验证 `pnpm dev` 和 `pnpm server:start` 的健康、网页和 API；生产迁移由 `./start.sh --production` 负责受控重启。
+另需用临时数据分别验证 `pnpm dev` 和 `pnpm server:start` 的健康、网页和 API；可用目录的 `./start.sh` 负责生产迁移后的受控重启。
 E2E 并发数可用 `CTN_E2E_WORKERS` 调整；同一结果应记录采用的配置。
 
 容量对照在修改前后各运行一次相同命令，保留输出中的 dataset、timings、memory、verification 和 validationCounts。
 若修改了容量参数或同时运行其他重负载任务，不能把结果作为同配置的性能对照。时间和内存会受环境波动影响，复用次数和内容完整性需分别判断。
 
 早期验收见[UI 优化记录](ui-optimization-progress.md)，本轮样板和验证状态见[Dark Modern 样板记录](ui-appearance-progress.md)。进程终止恢复仅是进程恢复证据；真实断电、真实模型、其他浏览器和平台的状态分别记录。
+
+## 独立运行包验收
+
+    pnpm test tests/tooling/runtime
+
+覆盖双入口参数拒绝、开发配置保留、进程重启与退出、运行文件与权限校验、越界链接、
+监听冲突、未知文件保护、完整备份和安装进程中断恢复。文件系统与进程恢复使用真实临时目录。
+此外，构建后的完整运行包必须在不依赖源码目录、Vite、TypeScript 或 pnpm 的环境中验证
+网页、API、CLI 与 Agent 子进程入口。启动冒烟使用独立临时数据；不复制正式凭据。
