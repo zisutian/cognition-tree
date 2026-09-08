@@ -26,6 +26,7 @@
     "core",
     "infrastructure",
     "presentation",
-    "tests"
+    "tests",
+    "tooling/runtime"
   ]
 }

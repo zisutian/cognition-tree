@@ -44,7 +44,7 @@ export const toolingModules: SourceModules = Object.freeze(
 );
 
 export const sourceAssets: SourceModules = Object.freeze(
-  import.meta.glob(["../../{application,contracts,core,infrastructure,presentation,tooling}/**/*.{css,json}", "../../*.{html,sh,json,yaml}", "../../ctn", "../../.githooks/*"],
+  import.meta.glob(["../../{application,contracts,core,infrastructure,presentation,tooling}/**/*.{css,json,sh,md}", "../../*.{html,sh,json,yaml}", "../../ctn", "../../.githooks/*"],
     { eager: true, import: "default", query: "?raw" }) as SourceModules,
 );
 

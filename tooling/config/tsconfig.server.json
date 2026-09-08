@@ -19,6 +19,7 @@
     "../../core/ctn/**/*.ts",
     "../../core/journal/**/*.ts",
     "../../core/todo/**/*.ts",
-    "../../infrastructure/server/**/*.ts"
+    "../../infrastructure/server/**/*.ts",
+    "../cli/**/*.ts"
   ]
 }

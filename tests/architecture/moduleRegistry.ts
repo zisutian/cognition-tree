@@ -676,7 +676,6 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     "id": "infrastructure/server",
-    "rootFiles": ["start.sh"],
     "responsibility": "Executable server startup and shutdown composition",
     "scope": "directory",
     "publicEntries": [],
@@ -1114,5 +1113,26 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     "scope": "tree",
     "publicEntries": [],
     "dependencies": []
-  }
+  },
+{
+  "id": "tooling/runtime",
+  "rootFiles": [
+    "start.sh"
+  ],
+  "responsibility": "Development bootstrap and separate launchers with one process supervisor",
+  "scope": "tree",
+  "publicEntries": [],
+  "dependencies": [
+    "infrastructure/server/system"
+  ]
+},
+{
+  "id": "tooling/release",
+  "responsibility": "Self-contained runtime package construction, integrity and deployment tooling",
+  "scope": "tree",
+  "publicEntries": [
+    "tooling/release/index.mjs"
+  ],
+  "dependencies": []
+}
 ];
