@@ -29,7 +29,8 @@
     "release:package": "node tooling/release/packageRuntime.mjs",
     "release:verify": "node tooling/release/verifyRuntime.mjs",
     "release:install": "node tooling/release/installRuntime.mjs",
-    "release:recover": "node tooling/release/recoverInstallation.mjs"
+    "release:recover": "node tooling/release/recoverInstallation.mjs",
+    "release:smoke": "node tooling/release/smokeRuntime.mjs"
   },
   "dependencies": {
     "@openai/codex": "0.148.0",
