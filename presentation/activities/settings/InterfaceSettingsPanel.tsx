@@ -27,7 +27,7 @@ export function InterfaceSettingsPanel({
     >
       <ToolPanelBody layout="form">
         <ToolSection aria-label="界面选项">
-          <FormLayout>
+          <FormLayout layout="stacked">
             <FieldRow fieldId="settings-context-width" label="左侧栏宽度">
               {(accessibility) => (
                 <InputControl

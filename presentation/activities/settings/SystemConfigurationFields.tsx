@@ -2,7 +2,7 @@
 
 import type { SystemConfigurationInput } from "../../../application/system/index.ts";
 import {
-  ChoiceGroup,
+  SelectControl,
   FieldRow,
   FormLayout,
   InputControl,
@@ -19,29 +19,23 @@ export function SystemConfigurationFields({
   page: SystemConfigurationPage;
 }) {
   return (
-    <FormLayout>
+    <FormLayout layout="stacked">
       {page === "network" ? (
         <>
           <FieldRow fieldId="settings-system-listen-mode" label="访问范围">
             {(accessibility) => (
-              <ChoiceGroup
+              <SelectControl
                 {...accessibility}
-                ariaLabel="服务访问范围"
-                mode="single"
-                onChange={(value) =>
-                  onChange({
-                    ...draft,
-                    listenMode: value,
-                    publicOrigin:
-                      value === "loopback" ? null : draft.publicOrigin,
-                  })
-                }
-                options={[
-                  { label: "仅本机", value: "loopback" },
-                  { label: "局域网", value: "lan" },
-                ]}
+                aria-label="服务访问范围"
                 value={draft.listenMode}
-              />
+                onChange={event => {
+                  const listenMode = event.currentTarget.value as SystemConfigurationInput["listenMode"];
+                  onChange({ ...draft, listenMode, publicOrigin: listenMode === "loopback" ? null : draft.publicOrigin });
+                }}
+              >
+                <option value="loopback">仅本机</option>
+                <option value="lan">局域网</option>
+              </SelectControl>
             )}
           </FieldRow>
           <FieldRow fieldId="settings-system-port" label="端口">

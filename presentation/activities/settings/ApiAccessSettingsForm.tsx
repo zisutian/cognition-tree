@@ -3,7 +3,8 @@
 import type { FormEvent } from "react";
 import type { ApiAccessApplication } from "../../../application/apiAccess/index.ts";
 import {
-  ChoiceGroup,
+  CheckboxGroup,
+  SelectControl,
   FieldRow,
   FormLayout,
   InputControl,
@@ -32,7 +33,7 @@ export function ApiAccessSettingsForm({
   return (
     <form id="api-token-form" onSubmit={onSubmit}>
       <fieldset className="ui-form-fields" disabled={busy}>
-        <FormLayout>
+        <FormLayout layout="stacked">
           <FieldRow fieldId="settings-token-name" label="名称">
             {(accessibility) => (
               <InputControl
@@ -58,19 +59,19 @@ export function ApiAccessSettingsForm({
                   label={`${label} 权限`}
                 >
                   {(accessibility) => (
-                    <ChoiceGroup
+                    <SelectControl
                       {...accessibility}
-                      ariaLabel={permissionLabel}
-                      mode="single"
-                      onChange={(value) =>
-                        onChange({
-                          ...draft,
-                          permissions: { ...draft.permissions, [id]: value },
-                        })
-                      }
-                      options={permissionLevels}
+                      aria-label={permissionLabel}
+                      onChange={(event) => onChange({
+                        ...draft,
+                        permissions: { ...draft.permissions, [id]: event.currentTarget.value },
+                      })}
                       value={draft.permissions[id]}
-                    />
+                    >
+                      {permissionLevels.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </SelectControl>
                   )}
                 </FieldRow>
               ))}
@@ -81,41 +82,29 @@ export function ApiAccessSettingsForm({
                     label="仓库范围"
                   >
                     {(accessibility) => (
-                      <ChoiceGroup
+                      <SelectControl
                         {...accessibility}
-                        ariaLabel="仓库范围"
-                        mode="single"
-                        onChange={(value) =>
-                          onChange({
-                            ...draft,
-                            repositoryIds: value === "all" ? null : [],
-                          })
-                        }
-                        options={[
-                          { label: "全部仓库", value: "all" },
-                          {
-                            disabled: repositories.length === 0,
-                            label: "指定仓库",
-                            value: "selected",
-                          },
-                        ]}
-                        value={
-                          draft.repositoryIds === null ? "all" : "selected"
-                        }
-                      />
+                        aria-label="仓库范围"
+                        onChange={(event) => onChange({
+                          ...draft,
+                          repositoryIds: event.currentTarget.value === "all" ? null : [],
+                        })}
+                        value={draft.repositoryIds === null ? "all" : "selected"}
+                      >
+                        <option value="all">全部仓库</option>
+                        <option disabled={repositories.length === 0} value="selected">指定仓库</option>
+                      </SelectControl>
                     )}
                   </FieldRow>
                   {draft.repositoryIds !== null ? (
                     <FieldRow
                       fieldId="settings-api-allowed-repositories"
+                      controlKind="group"
                       label="允许的仓库"
                     >
                       {(accessibility) => (
-                        <ChoiceGroup
+                        <CheckboxGroup
                           {...accessibility}
-                          ariaLabel="允许访问的 Workspace 仓库"
-                          layout="wrap"
-                          mode="multiple"
                           onChange={(value) =>
                             onChange({ ...draft, repositoryIds: value })
                           }

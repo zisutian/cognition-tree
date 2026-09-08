@@ -130,7 +130,7 @@ export function MigrationSettingsPanel({
       ) : null}
       {!recovering ? (
         <ToolSection title="迁移到新位置">
-          <FormLayout>
+          <FormLayout layout="stacked">
             <FieldRow fieldId="settings-migration-destination" label="新数据根">
               {(accessibility) => (
                 <InputControl

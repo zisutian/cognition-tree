@@ -208,29 +208,25 @@ test.describe("settings activity flows", () => {
       .getByRole("textbox", { name: "自动化令牌名称", exact: true })
       .fill("E2E AI");
     await panel
-      .getByRole("radiogroup", { name: "Workspace 权限" })
-      .getByRole("radio", { name: "只读" })
-      .click();
+      .getByRole("combobox", { name: "Workspace 权限" })
+      .selectOption({ label: "只读" });
     await panel
-      .getByRole("radiogroup", { name: "日记权限" })
-      .getByRole("radio", { name: "不授权" })
-      .click();
+      .getByRole("combobox", { name: "日记权限" })
+      .selectOption({ label: "不授权" });
     await panel
-      .getByRole("radiogroup", { name: "代办权限" })
-      .getByRole("radio", { name: "只读" })
-      .click();
+      .getByRole("combobox", { name: "代办权限" })
+      .selectOption({ label: "只读" });
     await panel
-      .getByRole("radiogroup", { name: "仓库范围" })
-      .getByRole("radio", { name: "指定仓库" })
-      .click();
+      .getByRole("combobox", { name: "仓库范围" })
+      .selectOption({ label: "指定仓库" });
     await panel
       .getByRole("group", {
-        name: "允许访问的 Workspace 仓库",
+        name: "允许的仓库",
       })
-      .getByRole("button", {
+      .getByRole("checkbox", {
         name: `浏览器回归仓库（${syntaxRepositoryId}）`,
       })
-      .click();
+      .check();
     await panel.getByRole("button", { name: "创建令牌" }).click();
     const oneTimeSecret = panel.getByLabel("新令牌");
     await expect(oneTimeSecret.locator("code")).toHaveCount(1);

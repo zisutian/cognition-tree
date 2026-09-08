@@ -6,6 +6,7 @@ import { cx } from "./primitives.tsx";
 export type FieldControlAccessibility = Readonly<{
   "aria-describedby"?: string;
   "aria-invalid"?: true;
+  "aria-labelledby"?: string;
   id: string;
 }>;
 
@@ -25,6 +26,7 @@ export function FormLayout({
 export function FieldRow({
   children,
   className,
+  controlKind = "field",
   description,
   errorMessage,
   fieldId,
@@ -32,6 +34,7 @@ export function FieldRow({
 }: {
   children(accessibility: FieldControlAccessibility): ReactNode;
   className?: string;
+  controlKind?: "field" | "group";
   description?: ReactNode;
   errorMessage?: ReactNode;
   fieldId: string;
@@ -44,11 +47,14 @@ export function FieldRow({
 
   return (
     <div className={cx("ui-field-row", className)}>
-      <label className="ui-field-label" htmlFor={fieldId}>{label}</label>
+      {controlKind === "group"
+        ? <span className="ui-field-label" id={`${fieldId}-label`}>{label}</span>
+        : <label className="ui-field-label" htmlFor={fieldId}>{label}</label>}
       <div className="ui-field-control">
         {children({
           ...(describedBy ? { "aria-describedby": describedBy } : {}),
           ...(hasError ? { "aria-invalid": true } : {}),
+          ...(controlKind === "group" ? { "aria-labelledby": `${fieldId}-label` } : {}),
           id: fieldId,
         })}
         {descriptionId ? (

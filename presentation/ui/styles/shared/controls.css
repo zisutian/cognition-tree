@@ -246,6 +246,21 @@
   cursor: not-allowed;
 }
 
+.ui-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+}
+
+.ui-checkbox-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .ui-choice-group-subtle .ui-choice-option {
   min-height: var(--ui-form-control-height);
   margin: 0;

@@ -9,6 +9,7 @@ import type {
 import {
   Button,
   ChoiceGroup,
+  CheckboxGroup,
   SelectControl,
   useFeedback,
   FieldRow,
@@ -52,10 +53,8 @@ function ExactScopeOptions({
       {options.length === 0 ? (
         <p>当前没有可选择的资源。</p>
       ) : (
-        <ChoiceGroup
-          ariaLabel={label}
-          layout="wrap"
-          mode="multiple"
+        <CheckboxGroup
+          aria-label={label}
           onChange={onChange}
           options={options.map(({ id, label: optionLabel }) => ({
             label: optionLabel,

@@ -51,7 +51,7 @@ export function AgentSettingsOverview({
       errorMessage={configurationState.errorMessage}
     >
       {page === "agent-default" ? (
-        <FormLayout>
+        <FormLayout layout="stacked">
           <FieldRow
             fieldId="settings-agent-default-profile"
             label="默认 Profile"
@@ -82,7 +82,7 @@ export function AgentSettingsOverview({
         </FormLayout>
       ) : (
         <>
-          <FormLayout>
+          <FormLayout layout="stacked">
             <FieldRow
               fieldId="settings-agent-ollama-endpoint"
               label="Ollama 地址"

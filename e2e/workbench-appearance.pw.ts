@@ -20,8 +20,10 @@ async function expectWorkbenchGeometry(page: Page) {
   });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
   for (const selector of [".app-context", ".app-main-region", ".app-detail"]) {
-    const box = await page.locator(selector).boundingBox();
-    if (box) expect(box.y + box.height).toBeLessThanOrEqual(viewport.height - 22);
+    const panels = page.locator(selector);
+    if (selector !== ".app-detail") await expect(panels).toBeVisible();
+    const bottoms = await panels.evaluateAll(elements => elements.map(element => element.getBoundingClientRect().bottom));
+    for (const bottom of bottoms) expect(bottom).toBeLessThanOrEqual(viewport.height - 22);
   }
 }
 
@@ -86,6 +88,32 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 1440, height: 900
     await expectActionExposed(panel.getByRole("button", { name: "保存 Provider", exact: true }));
     await expectWorkbenchGeometry(page);
     await panel.getByRole("button", { name: "放弃修改", exact: true }).click();
+
+    await page.getByRole("button", { name: "新建 Profile", exact: true }).click();
+    const profile = page.getByRole("region", { name: "会话配置设置" });
+    await profile.getByRole("combobox", { name: "Profile Provider" }).selectOption("agent-provider-e2e-provider");
+    const toolMode = profile.getByRole("combobox", { name: "Profile 工具模式" });
+    await toolMode.scrollIntoViewIfNeeded();
+    await expect(toolMode).toHaveValue("native");
+    await toolMode.focus();
+    await toolMode.press("Home");
+    expect((await toolMode.boundingBox())!.height).toBe(26);
+    await profile.getByRole("combobox", { name: "Profile 模型", exact: true }).fill("long-model-".repeat(30));
+    await expectActionExposed(profile.getByRole("button", { name: "创建 Profile", exact: true }));
+    await expectWorkbenchGeometry(page);
+    await profile.getByRole("button", { name: "放弃修改", exact: true }).click();
+
+    await page.getByRole("button", { name: "新建 自动化令牌", exact: true }).click();
+    const token = page.locator(".app-main-content").getByRole("region", { name: "API 访问", exact: true });
+    await token.getByRole("combobox", { name: "仓库范围" }).selectOption("selected");
+    const member = token.getByRole("group", { name: "允许的仓库" }).getByRole("checkbox").first();
+    await member.focus();
+    await member.press("Space");
+    await expect(member).toBeChecked();
+    await member.press("Space");
+    await expect(member).not.toBeChecked();
+    await expectWorkbenchGeometry(page);
+    await token.getByRole("button", { name: "放弃修改", exact: true }).click();
   });
 }
 

@@ -23,6 +23,7 @@ export {
 } from "./shared/primitives.tsx";
 export {
   CheckboxControl,
+  CheckboxGroup,
   ChoiceGroup,
   ColorControl,
   InputControl,

@@ -6,7 +6,6 @@ import type {
   AgentProviderView,
 } from "../../../application/agent/index.ts";
 import {
-  ChoiceGroup,
   InputControl,
   SelectControl,
   FieldRow,
@@ -37,7 +36,7 @@ export function AgentProfileSettingsForm({
   return (
     <form id={formId} onSubmit={onSubmit}>
       <fieldset className="ui-form-fields" disabled={busy}>
-        <FormLayout>
+        <FormLayout layout="stacked">
           <FieldRow fieldId="settings-profile-provider" label="Provider">
             {(accessibility) => (
               <SelectControl
@@ -163,24 +162,20 @@ function CodexProfileFields({
     <>
       <FieldRow fieldId="settings-profile-reasoning" label="推理强度">
         {(accessibility) => (
-          <ChoiceGroup
+          <SelectControl
             {...accessibility}
-            ariaLabel="Profile 推理强度"
-            mode="single"
-            onChange={(reasoningEffort) =>
-              setDraft({
-                ...draft,
-                reasoningEffort,
-              })
-            }
-            options={[
-              { label: "low", value: "low" },
-              { label: "medium", value: "medium" },
-              { label: "high", value: "high" },
-              { label: "xhigh", value: "xhigh" },
-            ]}
+            aria-label="Profile 推理强度"
             value={draft.reasoningEffort}
-          />
+            onChange={(event) => setDraft({
+              ...draft,
+              reasoningEffort: event.currentTarget.value as AgentProfileDraft["reasoningEffort"],
+            })}
+          >
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+            <option value="xhigh">xhigh</option>
+          </SelectControl>
         )}
       </FieldRow>
       <FieldRow fieldId="settings-profile-input-characters" label="输入字符">
@@ -234,50 +229,40 @@ function ChatProfileFields({
     <>
       <FieldRow fieldId="settings-profile-tool-mode" label="工具模式">
         {(accessibility) => (
-          <ChoiceGroup
+          <SelectControl
             {...accessibility}
-            ariaLabel="Profile 工具模式"
-            mode="single"
-            onChange={(toolCallMode) =>
-              setDraft({
-                ...draft,
-                toolCallMode,
-              })
-            }
-            options={
-              providerKind === "ollama"
-                ? [
-                    { label: "native", value: "native" },
-                    { label: "single-json", value: "single-json" },
-                  ]
-                : [{ label: "native", value: "native" }]
-            }
+            aria-label="Profile 工具模式"
             value={draft.toolCallMode}
-          />
+            onChange={(event) => setDraft({
+              ...draft,
+              toolCallMode: event.currentTarget.value as AgentProfileDraft["toolCallMode"],
+            })}
+          >
+            <option value="native">native</option>
+            {providerKind === "ollama" ? (
+              <option value="single-json">single-json</option>
+            ) : null}
+          </SelectControl>
         )}
       </FieldRow>
       {providerKind === "ollama" ? (
         <FieldRow fieldId="settings-profile-chat-reasoning" label="推理强度">
           {(accessibility) => (
-            <ChoiceGroup
+            <SelectControl
               {...accessibility}
-              ariaLabel="Profile Chat 推理强度"
-              mode="single"
-              onChange={(chatReasoningEffort) =>
-                setDraft({
-                  ...draft,
-                  chatReasoningEffort,
-                })
-              }
-              options={[
-                { label: "模型默认", value: "model-default" },
-                { label: "关闭", value: "none" },
-                { label: "low", value: "low" },
-                { label: "medium", value: "medium" },
-                { label: "high", value: "high" },
-              ]}
+              aria-label="Profile Chat 推理强度"
               value={draft.chatReasoningEffort}
-            />
+              onChange={(event) => setDraft({
+                ...draft,
+                chatReasoningEffort: event.currentTarget.value as AgentProfileDraft["chatReasoningEffort"],
+              })}
+            >
+              <option value="model-default">模型默认</option>
+              <option value="none">关闭</option>
+              <option value="low">low</option>
+              <option value="medium">medium</option>
+              <option value="high">high</option>
+            </SelectControl>
           )}
         </FieldRow>
       ) : null}

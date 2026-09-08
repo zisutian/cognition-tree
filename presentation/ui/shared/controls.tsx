@@ -4,6 +4,7 @@ import {
   forwardRef,
   useRef,
   type CSSProperties,
+  type HTMLAttributes,
   type InputHTMLAttributes,
   type KeyboardEvent,
   type ReactNode,
@@ -79,6 +80,32 @@ export type ChoiceOption<Value extends string> = Readonly<{
   label: ReactNode;
   value: Value;
 }>;
+
+export function CheckboxGroup<Value extends string>({
+  options, values, onChange, className, ...props
+}: Omit<HTMLAttributes<HTMLDivElement>, "onChange"> & {
+  options: readonly ChoiceOption<Value>[];
+  values: readonly Value[];
+  onChange(values: Value[]): void;
+}) {
+  return (
+    <div {...props} className={cx("ui-checkbox-group", className)} role="group">
+      {options.map(option => (
+        <label className="ui-checkbox-option" key={option.value}>
+          <CheckboxControl
+            aria-label={option.ariaLabel}
+            checked={values.includes(option.value)}
+            disabled={option.disabled}
+            onChange={event => onChange(event.currentTarget.checked
+              ? [...values, option.value]
+              : values.filter(value => value !== option.value))}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
 
 type ChoiceGroupBase<Value extends string> = {
   "aria-describedby"?: string;
