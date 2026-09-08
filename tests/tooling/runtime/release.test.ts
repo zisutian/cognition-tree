@@ -62,6 +62,32 @@ describe("runtime integrity and installation", () => {
     await expect(installRuntime(candidate, target, backups)).rejects.toThrow("Unexpected runtime entry");
     expect(await readFile(path.join(target, "unknown.txt"), "utf8")).toBe("preserve me");
   });
+  it.each(["copy", "verification"])("retains a recoverable backup after a real %s failure", async failure => {
+    const { candidate, target, backups, root } = await setup();
+    await expect(installRuntime(candidate, target, backups, {
+      onPhase: async (phase: string) => {
+        if (failure === "copy" && phase === "prepared") {
+          const owner = JSON.parse(await readFile(path.join(root, ".runtime.release-lock/owner.json"), "utf8"));
+          await rm(path.join(owner.backup, "incoming/start.sh"));
+        } else if (failure === "verification" && phase === "installing") {
+          await writeFile(path.join(target, ".artifacts/build/client/index.html"), "damaged transfer");
+        }
+      },
+    })).rejects.toThrow("Installation incomplete");
+    const owner = JSON.parse(await readFile(path.join(root, ".runtime.release-lock/owner.json"), "utf8"));
+    expect(await recoverInstallation(owner.backup)).toBe("recovered");
+    expect((await verifyRuntime(target, { installed: true })).commit).toBe("a".repeat(40));
+    expect(await readFile(path.join(target, ".cognition-tree/content.txt"), "utf8")).toBe("formal content");
+  });
+  it("does not quote damaged private bootstrap contents in diagnostics", async () => {
+    const { candidate, target, backups } = await setup();
+    const marker = "private-test-marker";
+    await writeFile(path.join(target, ".cognition-tree/bootstrap-v1/configuration.json"), `{${marker}`);
+    let diagnostic = "";
+    try { await installRuntime(candidate, target, backups); } catch (error) { diagnostic = String(error); }
+    expect(diagnostic.includes(marker)).toBe(false);
+    expect(diagnostic).toContain("Invalid runtime metadata");
+  });
   it.each(["prepared", "installing"])("recovers after killing the installer at %s and permits repeated reconciliation", async phase => {
     const { candidate, target, backups, root } = await setup();
     const source = `import {installRuntime} from ${JSON.stringify(releaseUrl)};

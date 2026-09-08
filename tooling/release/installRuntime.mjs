@@ -15,7 +15,12 @@ async function writeRecord(file, value) {
 function overlaps(a, b) { return a === b || a.startsWith(`${b}${path.sep}`) || b.startsWith(`${a}${path.sep}`); }
 async function optionalJson(file) {
   try { return JSON.parse(await readFile(file, "utf8")); }
-  catch (error) { if (error.code === "ENOENT") return null; throw error; }
+  catch (error) {
+    if (error.code === "ENOENT") return null;
+    // JSON parser messages may quote signing keys from damaged bootstrap files.
+    if (error instanceof SyntaxError) throw new Error(`Invalid runtime metadata: ${file}`);
+    throw error;
+  }
 }
 async function assertStopped(root) {
   const bootstrap = await optionalJson(path.join(root, ".cognition-tree/bootstrap-v1/configuration.json"));
