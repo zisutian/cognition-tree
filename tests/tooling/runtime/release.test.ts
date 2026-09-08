@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { chmod, cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, mkdtemp, readFile, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -19,7 +19,10 @@ async function setup() {
     await mkdir(path.dirname(path.join(candidate, file)), { recursive: true });
     await writeFile(path.join(candidate, file), "fixture\n");
   }
-  await seal(candidate, "a"); await cp(candidate, target, { recursive: true });
+  await mkdir(path.join(candidate, "node_modules/fixture-package"));
+  await writeFile(path.join(candidate, "node_modules/fixture-package/index.js"), "export default true;\n");
+  await symlink("fixture-package", path.join(candidate, "node_modules/fixture-link"));
+  await seal(candidate, "a"); await cp(candidate, target, { recursive: true, verbatimSymlinks: true });
   const bootstrap = new BootstrapConfigurationStore(target); const initial = await bootstrap.readSnapshot();
   const server = net.createServer(); server.listen(0, "127.0.0.1"); await once(server, "listening");
   const port = (server.address() as net.AddressInfo).port; await new Promise<void>(resolve => server.close(() => resolve()));
@@ -52,6 +55,15 @@ describe("runtime integrity and installation", () => {
     expect(await readFile(path.join(target, ".cognition-tree/bootstrap-v1/configuration.json"))).toEqual(before);
     expect(await readFile(path.join(result.backup, "runtime/.cognition-tree/content.txt"), "utf8")).toBe("formal content");
     expect(await recoverInstallation(result.backup)).toBe("completed");
+  });
+  it("keeps installed and backed-up dependency links independent of the candidate", async () => {
+    const { candidate, target, backups } = await setup();
+    const result = await installRuntime(candidate, target, backups);
+    await rm(candidate, { recursive: true });
+    for (const root of [target, path.join(result.backup, "runtime")]) {
+      expect(await readlink(path.join(root, "node_modules/fixture-link"))).toBe("fixture-package");
+      await verifyRuntime(root, { installed: true });
+    }
   });
   it("refuses a running service and unknown files before altering the target", async () => {
     const { candidate, target, backups, port } = await setup();

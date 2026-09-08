@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { randomUUID } from "node:crypto";
-import { cp, mkdir, readdir, readFile, realpath, rm } from "node:fs/promises";
+import { mkdir, readdir, readFile, realpath, rm } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { copyRuntimeFiles } from "./copyRuntimeFiles.mjs";
 import { verifyRuntime } from "./runtimeManifest.mjs";
 
 import { replaceFileDurably } from "../../infrastructure/server/persistence/index.ts";
@@ -62,17 +63,17 @@ export async function installRuntime(candidate, target, backupRoot, { onPhase = 
   try {
     await writeRecord(path.join(lock, "owner.json"), { backup });
     await writeRecord(recordFile, record);
-    await cp(target, path.join(backup, "runtime"), { recursive: true, preserveTimestamps: true });
+    await copyRuntimeFiles(target, path.join(backup, "runtime"));
     if (dataRoot !== path.join(target, ".cognition-tree")) {
-      await cp(dataRoot, path.join(backup, "external-data"), { recursive: true, preserveTimestamps: true });
+      await copyRuntimeFiles(dataRoot, path.join(backup, "external-data"));
     }
-    await cp(candidate, path.join(backup, "incoming"), { recursive: true, preserveTimestamps: true });
+    await copyRuntimeFiles(candidate, path.join(backup, "incoming"));
     await verifyRuntime(path.join(backup, "incoming"));
     record.phase = "prepared"; await writeRecord(recordFile, record); await onPhase(record.phase);
     await assertStopped(target);
     record.phase = "installing"; await writeRecord(recordFile, record);
     for (const name of originalEntries) await rm(path.join(target, name), { recursive: true, force: true });
-    for (const name of record.incomingEntries) await cp(path.join(backup, "incoming", name), path.join(target, name), { recursive: true, preserveTimestamps: true });
+    for (const name of record.incomingEntries) await copyRuntimeFiles(path.join(backup, "incoming", name), path.join(target, name));
     await onPhase(record.phase);
     await verifyRuntime(target, { installed: true });
     record.phase = "completed"; await writeRecord(recordFile, record);
@@ -104,7 +105,7 @@ export async function recoverInstallation(backup) {
       if (name === ".cognition-tree" || name.includes("/") || name === "." || name === "..") throw new Error("Invalid payload path in installation record");
     }
     for (const name of names) await rm(path.join(target, name), { recursive: true, force: true });
-    for (const name of record.originalEntries) await cp(path.join(backup, "runtime", name), path.join(target, name), { recursive: true, preserveTimestamps: true });
+    for (const name of record.originalEntries) await copyRuntimeFiles(path.join(backup, "runtime", name), path.join(target, name));
     if (record.originalEntries.length) await verifyRuntime(target, { installed: true });
   } else if (record.phase === "completed") {
     await verifyRuntime(target, { installed: true });

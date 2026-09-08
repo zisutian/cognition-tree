@@ -2,12 +2,13 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { cp, mkdtemp, rm, symlink } from "node:fs/promises";
+import { mkdtemp, rm, symlink } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { BootstrapConfigurationStore } from "../../infrastructure/server/system/index.ts";
 import { chromium } from "@playwright/test";
+import { copyRuntimeFiles } from "./copyRuntimeFiles.mjs";
 import { verifyRuntime } from "./runtimeManifest.mjs";
 
 if (process.argv.length !== 3) throw new Error("Usage: pnpm release:smoke <runtime-package>");
@@ -18,7 +19,8 @@ const commands = await mkdtemp(path.join(os.tmpdir(), "ctn-runtime-commands-"));
 let child;
 let browser;
 try {
-  await cp(candidate, fixture, { recursive: true, preserveTimestamps: true });
+  await copyRuntimeFiles(candidate, fixture);
+  await verifyRuntime(fixture);
   const compiled = path.join(fixture, ".artifacts/build/server");
   const store = new BootstrapConfigurationStore(fixture);
   const initial = await store.readSnapshot();

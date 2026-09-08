@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { execFileSync } from "node:child_process";
-import { chmod, cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { digestFile, inventoryRuntime, verifyRuntime } from "./runtimeManifest.mjs";
+import { copyRuntimeFiles } from "./copyRuntimeFiles.mjs";
 import { run } from "./process.mjs";
 
 export async function packageRuntime(sourceRoot, destination) {
@@ -23,8 +24,8 @@ export async function packageRuntime(sourceRoot, destination) {
     await run("pnpm", ["run", "build"], buildRoot);
     const build = path.join(destination, ".artifacts/build");
     await mkdir(build, { recursive: true });
-    for (const name of ["client", "server"]) await cp(path.join(buildRoot, ".artifacts/build", name), path.join(build, name), { recursive: true, preserveTimestamps: true });
-    for (const name of ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "LICENSE"]) await cp(path.join(buildRoot, name), path.join(destination, name));
+    for (const name of ["client", "server"]) await copyRuntimeFiles(path.join(buildRoot, ".artifacts/build", name), path.join(build, name));
+    for (const name of ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "LICENSE"]) await copyRuntimeFiles(path.join(buildRoot, name), path.join(destination, name));
     await run("pnpm", ["install", "--prod", "--frozen-lockfile", "--ignore-scripts"], destination, { env: { ...process.env, CI: "true" } });
     await rm(path.join(destination, "pnpm-workspace.yaml"));
     const sourcePackage = JSON.parse(await readFile(path.join(buildRoot, "package.json"), "utf8"));
@@ -32,10 +33,10 @@ export async function packageRuntime(sourceRoot, destination) {
     await writeFile(path.join(destination, "package.json"), JSON.stringify(runtimePackage, null, 2) + "\n");
     await mkdir(path.join(destination, "runtime"));
     for (const [source, target] of [["startProduction.sh", "start.sh"], ["ctnProduction.sh", "ctn"], ["supervise.sh", "runtime/supervise.sh"]]) {
-      await cp(path.join(buildRoot, "tooling/runtime", source), path.join(destination, target));
+      await copyRuntimeFiles(path.join(buildRoot, "tooling/runtime", source), path.join(destination, target));
       await chmod(path.join(destination, target), 0o755);
     }
-    await cp(path.join(buildRoot, "tooling/release/runtime-readme.md"), path.join(destination, "README.md"));
+    await copyRuntimeFiles(path.join(buildRoot, "tooling/release/runtime-readme.md"), path.join(destination, "README.md"));
     const manifest = {
       formatVersion: 1, commit, builtAt: new Date().toISOString(),
       nodeVersion: process.version, platform: process.platform, architecture: process.arch,
