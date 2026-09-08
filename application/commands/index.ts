@@ -21,8 +21,12 @@ export type {
 } from "./domainCommand.ts";
 export {
   projectContentLineDiff,
+  projectNamedSourceChanges,
   summarizeContentBlockChanges,
 } from "./contentChangeReview.ts";
 export {
   readCommandRuntimeNow,
 } from "./commandRuntime.ts";
+
+export { projectContentDocument, projectUnparsedContentDocument, projectContentSyntaxGuide } from "./contentDocument.ts";
+export type { ContentDocument, ContentSyntaxGuide } from "./contentDocument.ts";

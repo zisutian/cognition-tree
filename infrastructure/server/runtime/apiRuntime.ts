@@ -18,6 +18,7 @@ import {
 } from "../access/index.ts";
 import { ApiEventHub } from "../api/sync/index.ts";
 import { DomainRevisionTracker } from "../../../application/sync/index.ts";
+import { createServerContentService } from "./contentRuntime.ts";
 import { createServerSearchService } from "./searchRuntime.ts";
 
 export type ApiServerOptions = Partial<ApiHttpDependencies> & Pick<ApiHttpDependencies, "catalog" | "security"> & { stateDirectory?: string };
@@ -26,7 +27,8 @@ function composeApiDependencies(options: ApiServerOptions): ApiHttpDependencies 
   const runtime = options.runtime ?? systemApiRuntime;
   const maintenanceGate = options.maintenanceGate ?? new ApiMaintenanceGate(createServerDataRootWriteScope());
   const configuration = options.agentConfigurationStore ?? new AgentConfigurationStore(stateDirectory);
-  return {
+  const dependencies: ApiHttpDependencies = {
+    contentService: null,
     accessStore: options.accessStore ?? new AutomationTokenStore(stateDirectory),
     trustedClientTokenStore: options.trustedClientTokenStore ?? new TrustedClientTokenStore(stateDirectory),
     agentConfigurationStore: configuration,
@@ -45,6 +47,8 @@ function composeApiDependencies(options: ApiServerOptions): ApiHttpDependencies 
     security: options.security,
     systemAdministration: options.systemAdministration ?? null,
   };
+  dependencies.contentService = options.contentService ?? createServerContentService(dependencies);
+  return dependencies;
 }
 export function createApiRequestHandler(options: ApiServerOptions): ApiRequestHandler {
   return createHttpApiRequestHandler(composeApiDependencies(options));

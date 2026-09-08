@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { ContentCatalogSession } from "../../../../../application/content/index.ts";
 import { randomUUID } from "node:crypto";
 import { lstat, realpath, rename, rm } from "node:fs/promises";
 import path from "node:path";
@@ -144,14 +145,16 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
     request: CreateRepositoryDto,
   ): Promise<RepositoryDescriptorDto> {
     this.#assertAcceptingOperations();
-    return this.#enqueueOperation(async () => {
-      await this.#rootLease.initialize();
-      this.#rootLease.assertOwned();
-      const label = await this.#assertAvailableLabel(request.label);
-      const id = await this.#allocateRepositoryId();
+    return this.#enqueueOperation(() => this.#createRepository(request));
+  }
 
-      return this.#createRepositoryWithId({ content: request.content, id, label });
-    });
+  async #createRepository(request: CreateRepositoryDto) {
+    await this.#rootLease.initialize();
+    this.#rootLease.assertOwned();
+    const label = await this.#assertAvailableLabel(request.label);
+    const id = await this.#allocateRepositoryId();
+
+    return this.#createRepositoryWithId({ content: request.content, id, label });
   }
 
   async createRepositoryWithId(
@@ -167,21 +170,39 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
 
   async deleteRepository(repositoryId: string): Promise<void> {
     this.#assertAcceptingOperations();
+    return this.#enqueueOperation(() => this.#deleteRepository(repositoryId));
+  }
+
+  async #deleteRepository(repositoryId: string) {
+    await this.#rootLease.initialize();
+    this.#rootLease.assertOwned();
+    const repositoryPath = this.#resolveRepositoryPath(repositoryId);
+    const store = this.#storesById.get(repositoryId);
+
+    if (store) {
+      await store.closeForDeletion();
+      this.#storesById.delete(repositoryId);
+    }
+    await deleteLocalRepositoryDirectory({
+      onPhase: this.#onRepositoryDeletionPhase,
+      repositoryId,
+      repositoryPath,
+      rootDir: this.#rootLease.rootPath,
+    });
+  }
+
+  runContentCatalog<Result>(operation: (session: ContentCatalogSession) => Promise<Result>): Promise<Result> {
+    this.#assertAcceptingOperations();
     return this.#enqueueOperation(async () => {
       await this.#rootLease.initialize();
       this.#rootLease.assertOwned();
-      const repositoryPath = this.#resolveRepositoryPath(repositoryId);
-      const store = this.#storesById.get(repositoryId);
-
-      if (store) {
-        await store.closeForDeletion();
-        this.#storesById.delete(repositoryId);
-      }
-      await deleteLocalRepositoryDirectory({
-        onPhase: this.#onRepositoryDeletionPhase,
-        repositoryId,
-        repositoryPath,
-        rootDir: this.#rootLease.rootPath,
+      return operation({
+        read: () => this.#listRepositories(),
+        validateName: (name, excludedId) => this.#assertAvailableLabel(name, excludedId),
+        getStore: (id) => this.#getStore(id),
+        create: (label, content) => this.#createRepository({ label, content }),
+        rename: (id, label) => this.#renameRepository(id, { label }),
+        delete: (id) => this.#deleteRepository(id),
       });
     });
   }
@@ -193,18 +214,20 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
 
   async renameRepository(repositoryId: string, request: RenameRepositoryDto) {
     this.#assertAcceptingOperations();
-    return this.#enqueueOperation(async () => {
-      await this.#rootLease.initialize();
-      this.#rootLease.assertOwned();
-      const parsedLabel = await this.#assertAvailableLabel(
-        request.label,
-        repositoryId,
-      );
-      const store = await this.#getStore(repositoryId);
+    return this.#enqueueOperation(() => this.#renameRepository(repositoryId, request));
+  }
 
-      await store.renameLabel(parsedLabel);
-      return this.#createDescriptor(repositoryId, parsedLabel);
-    });
+  async #renameRepository(repositoryId: string, request: RenameRepositoryDto) {
+    await this.#rootLease.initialize();
+    this.#rootLease.assertOwned();
+    const parsedLabel = await this.#assertAvailableLabel(
+      request.label,
+      repositoryId,
+    );
+    const store = await this.#getStore(repositoryId);
+
+    await store.renameLabel(parsedLabel);
+    return this.#createDescriptor(repositoryId, parsedLabel);
   }
 
   async #getStore(repositoryId: string) {

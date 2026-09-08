@@ -5,7 +5,7 @@ import {
   projectCtnEditableText,
   projectRawCanonicalCtnBody,
 } from "../../../core/ctn/index.ts";
-import type { NoteTreeNode } from "../../../core/workspace/index.ts";
+import { listWorkspaceResourcePaths } from "../../../core/workspace/index.ts";
 import {
   projectContentLineDiff,
   summarizeContentBlockChanges,
@@ -127,49 +127,15 @@ type WorkspaceReviewResource = Readonly<{
 function indexWorkspaceReviewResources(
   preparation: WorkspaceRepositoryPreparation,
 ) {
-  const resources = new Map<string, WorkspaceReviewResource>();
-  const pending: Array<{ ancestors: string[]; node: NoteTreeNode }> =
-    preparation.workspace.data.tree.slice().reverse().map((node) => ({
-      ancestors: [],
-      node,
-    }));
-
-  while (pending.length > 0) {
-    const current = pending.pop();
-
-    if (!current) continue;
-    if (current.node.kind === "folder") {
-      const pathParts = [...current.ancestors, current.node.title];
-
-      resources.set(current.node.folderId, {
-        label: current.node.title,
-        parentPath: current.ancestors.join(" / "),
-        path: pathParts.join(" / "),
-        text: "",
-        type: "workspace-folder",
-      });
-      for (let index = current.node.children.length - 1; index >= 0; index -= 1) {
-        const node = current.node.children[index];
-
-        if (node) pending.push({ ancestors: pathParts, node });
-      }
-      continue;
-    }
-    const entry = preparation.workspace.noteEntryById.get(current.node.noteId);
-
-    if (!entry) continue;
-    const parsed = preparation.analysisIndex?.getParsedNote(current.node.noteId);
-    const text = parsed
-      ? projectCtnEditableText(parsed.analysis, "body").source
-      : projectRawCanonicalCtnBody(entry.note.source);
-
-    resources.set(current.node.noteId, {
-      label: entry.header.title,
-      parentPath: current.ancestors.join(" / "),
-      path: [...current.ancestors, entry.header.title].join(" / "),
-      text,
-      type: "workspace-note",
-    });
-  }
-  return resources;
+  return new Map(listWorkspaceResourcePaths(preparation.workspace).map((resource) => {
+    const note = resource.kind === "note" ? preparation.workspace.noteEntryById.get(resource.id) : null;
+    const parsed = note ? preparation.analysisIndex?.getParsedNote(resource.id) : null;
+    return [resource.id, {
+      label: resource.name,
+      parentPath: resource.path.split("/").slice(0, -1).join("/"),
+      path: resource.path,
+      text: parsed ? projectCtnEditableText(parsed.analysis, "body").source : note ? projectRawCanonicalCtnBody(note.note.source) : "",
+      type: resource.kind === "note" ? "workspace-note" : "workspace-folder",
+    } satisfies WorkspaceReviewResource];
+  }));
 }

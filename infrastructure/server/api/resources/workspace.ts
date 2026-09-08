@@ -11,14 +11,13 @@ import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
 } from "../../../../application/workspace/index.ts";
-import { projectRawCanonicalCtnBody } from "../../../../core/ctn/index.ts";
 import type { CtnCompiledSyntax } from "../../../../core/ctn/index.ts";
 import type {
   WorkspaceParseIndex,
   WorkspaceStructureIndex,
 } from "../../../../core/workspace/index.ts";
 
-import { projectApiCtnDocument } from "./ctn.ts";
+import { projectContentDocument, projectUnparsedContentDocument } from "../../../../application/commands/index.ts";
 import {
   createWorkspaceFolderVersion,
   createWorkspaceNoteVersion,
@@ -130,7 +129,7 @@ export function projectApiWorkspaceNote(
   const parsed = analysis.parseIndex?.getParsedNote(noteId);
 
   if (parsed) {
-    return projectApiCtnDocument({
+    return projectContentDocument({
       analysis: parsed.analysis,
       createdAt: entry.header.createdAt,
       resourceId: noteId,
@@ -140,16 +139,13 @@ export function projectApiWorkspaceNote(
       version,
     });
   }
-  return {
-    blocks: [],
+  return projectUnparsedContentDocument({
+    source: entry.note.source,
     createdAt: entry.header.createdAt,
-    diagnostics: [],
-    editableText: projectRawCanonicalCtnBody(entry.note.source),
     resourceId: noteId,
     textMode: "document",
     title: entry.header.title,
     updatedAt: entry.header.updatedAt,
     version,
-    writingGuide: null,
-  };
+  });
 }

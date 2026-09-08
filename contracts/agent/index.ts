@@ -57,11 +57,7 @@ export {
   AgentIpcResponseSchema,
   AgentIpcToolCatalogSchema,
 } from "./ipc.ts";
-export type {
-  AgentJournalCommandIntentDto,
-  AgentTodoCommandIntentDto,
-  AgentWorkspaceCommandIntentDto,
-} from "./tools.ts";
+
 export {
   agentToolContractVersion,
   agentToolDefinitions,

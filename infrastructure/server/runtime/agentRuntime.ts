@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createServerContentEvents } from "./contentEventRuntime.ts";
+
 import type { WriteAdmissionPort } from "../../../application/runtime/index.ts";
 import { serverApplicationScheduler } from '../platform/index.ts';
 import type {
@@ -69,13 +71,7 @@ getStore: async (store) => store.domain === 'workspace'
         ? input.catalog.getStore(store.repositoryId)
         : input.builtInCatalog.getStore(store.domain)
 },
-    events: {
-publish(store, revision, changes) {
-        if (store.domain === 'workspace') input.revisionTracker.observeWorkspace(store.repositoryId, revision);
-        else input.revisionTracker.observeDomain(store.domain, revision);
-        input.eventHub.publish(input.revisionTracker.checkpoint({ sequence: input.eventHub.sequence, streamId: input.eventHub.streamId }), changes);
-      }
-},
+    events: { publish: createServerContentEvents(input).onCommitted },
   });
   return new AgentService({
     configurationStore: input.configurationStore,

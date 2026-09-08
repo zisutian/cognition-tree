@@ -167,3 +167,5 @@ export { workspaceRepositoryPreparation } from "./persistence/workspaceRepositor
 export { createLocalFirstWorkspaceRepository } from "./persistence/localFirstWorkspaceRepository.ts";
 
 export { createLocalFirstWorkspaceCatalog } from "./persistence/localFirstWorkspaceCatalog.ts";
+
+export { createWorkspaceSyntaxCatalogMutationService } from "./commands/workspaceSyntaxCatalogMutationService.ts";

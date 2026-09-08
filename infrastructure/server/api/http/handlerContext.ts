@@ -43,6 +43,7 @@ import type { AgentConfigurationStore } from "../../agent/index.ts";
 
 import type { SystemAdministrationServerPort } from "../../../../application/system/index.ts";
 import type { ApiOwnerSessionAuthority } from "./security.ts";
+import type { ContentService } from "../../../../application/content/index.ts";
 
 export type HandlerResult = {
   body: unknown;
@@ -72,6 +73,10 @@ export function assertOperationAccess(
   if (access.kind === "public") return;
   if (!principal) {
     throw new ApiRequestError("unauthorized", "Authentication is required");
+  }
+  if (access.kind === "local-content") {
+    if (principal.kind !== "local-owner") throw new ApiRequestError("forbidden", "Content commands require a verified local connection.");
+    return;
   }
   switch (principal.kind) {
     case "local-owner":
@@ -177,6 +182,7 @@ export function createCheckpoint({
 }
 
 export type ApiHandlerContext = {
+  contentService: ContentService | null;
   accessStore: AutomationTokenStore;
   agentConfigurationStore: AgentConfigurationStore;
   agentProviderOperations: AgentProviderOperations;

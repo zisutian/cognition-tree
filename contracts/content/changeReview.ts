@@ -42,6 +42,8 @@ export const ContentChangeReviewSchema = strictObject({
     })),
     resourceId: identifier,
     type: Type.Union([
+      Type.Literal("syntax"),
+      Type.Literal("repository"),
       Type.Literal("journal-entry"),
       Type.Literal("todo-collection"),
       Type.Literal("workspace-folder"),

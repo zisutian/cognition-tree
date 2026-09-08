@@ -108,3 +108,6 @@ export type {
 export type {
   WorkspaceSyntaxCatalog,
 } from "./model/workspaceSyntaxCatalog.ts";
+
+export { listWorkspaceResourcePaths } from "./queries/workspacePaths.ts";
+export type { WorkspaceResourcePath } from "./queries/workspacePaths.ts";

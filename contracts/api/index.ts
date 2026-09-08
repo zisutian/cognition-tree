@@ -90,3 +90,5 @@ export {
 export {
   RecoveryBootstrapRequestSchema,
 } from "./operations/recovery.ts";
+export { ContentQuerySchema, ContentQueryResultSchema } from "./schemas/localContent.ts";
+export type { ContentQueryDto, ContentQueryResultDto } from "./schemas/localContent.ts";

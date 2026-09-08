@@ -8,6 +8,7 @@ export type ApiAccessPolicy =
   | { kind: "public" }
   | { kind: "owner" }
   | { kind: "local-recovery" }
+  | { kind: "local-content" }
   | { domain: ApiReadableDomain | "any"; kind: "content-read" }
   | { kind: "content-sync" };
 

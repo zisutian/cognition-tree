@@ -3,13 +3,12 @@
 import {
   parseAgentSchema,
   agentToolDefinitions,
-  agentToolDefinitionsForDomain,
-  type AgentJournalCommandIntentDto,
-  type AgentTodoCommandIntentDto,
-  type AgentWorkspaceCommandIntentDto,
-} from '../../../contracts/agent/index.ts';
+  agentToolDefinitionsForDomain} from '../../../contracts/agent/index.ts';
+import {
+  type JournalCommandIntentDto,
+  type TodoCommandIntentDto,
+  type WorkspaceCommandIntentDto} from "../../../contracts/content/index.ts";
 import type { AgentToolDecoder } from '../../../application/agentHost/index.ts';
-import type { TodoCommandIntent } from '../../../application/todo/index.ts';
 import {
   AgentScopeViolationError,
   type AgentRuntimeTool,
@@ -34,31 +33,31 @@ export function agentRuntimeToolsForScope(scope: AgentScope) {
 export function workspaceToolIntent(
   name: string,
   input: unknown,
-): AgentWorkspaceCommandIntentDto {
+): WorkspaceCommandIntentDto {
   const values = input as Record<string, unknown>;
 
   switch (name) {
     case "stage_workspace_create_folder":
-      return { ...values, kind: "create-folder" } as AgentWorkspaceCommandIntentDto;
+      return { ...values, kind: "create-folder" } as WorkspaceCommandIntentDto;
     case "stage_workspace_create_note":
-      return { ...values, kind: "create-note" } as AgentWorkspaceCommandIntentDto;
+      return { ...values, kind: "create-note" } as WorkspaceCommandIntentDto;
     case "stage_workspace_delete_folder":
-      return { ...values, kind: "delete-folder" } as AgentWorkspaceCommandIntentDto;
+      return { ...values, kind: "delete-folder" } as WorkspaceCommandIntentDto;
     case "stage_workspace_delete_note":
-      return { ...values, kind: "delete-note" } as AgentWorkspaceCommandIntentDto;
+      return { ...values, kind: "delete-note" } as WorkspaceCommandIntentDto;
     case "stage_workspace_move_block":
-      return { ...values, kind: "move-block" } as AgentWorkspaceCommandIntentDto;
+      return { ...values, kind: "move-block" } as WorkspaceCommandIntentDto;
     case "stage_workspace_move_tree_node":
-      return { ...values, kind: "move-tree-node" } as AgentWorkspaceCommandIntentDto;
+      return { ...values, kind: "move-tree-node" } as WorkspaceCommandIntentDto;
     case "stage_workspace_rename_folder":
-      return { ...values, kind: "rename-folder" } as AgentWorkspaceCommandIntentDto;
+      return { ...values, kind: "rename-folder" } as WorkspaceCommandIntentDto;
     case "stage_workspace_rename_note":
-      return { ...values, kind: "rename-note" } as AgentWorkspaceCommandIntentDto;
+      return { ...values, kind: "rename-note" } as WorkspaceCommandIntentDto;
     case "stage_workspace_replace_note_source":
       return {
         ...values,
         kind: "replace-note-source",
-      } as AgentWorkspaceCommandIntentDto;
+      } as WorkspaceCommandIntentDto;
     default:
       throw new AgentScopeViolationError("Unknown Workspace Agent tool");
   }
@@ -67,19 +66,19 @@ export function workspaceToolIntent(
 export function journalToolIntent(
   name: string,
   input: unknown,
-): AgentJournalCommandIntentDto {
+): JournalCommandIntentDto {
   const values = input as Record<string, unknown>;
 
   switch (name) {
     case "stage_journal_create_entry":
-      return { ...values, kind: "create-entry" } as AgentJournalCommandIntentDto;
+      return { ...values, kind: "create-entry" } as JournalCommandIntentDto;
     case "stage_journal_delete_entry":
-      return { ...values, kind: "delete-entry" } as AgentJournalCommandIntentDto;
+      return { ...values, kind: "delete-entry" } as JournalCommandIntentDto;
     case "stage_journal_replace_entry_body":
       return {
         ...values,
         kind: "replace-entry-body",
-      } as AgentJournalCommandIntentDto;
+      } as JournalCommandIntentDto;
     default:
       throw new AgentScopeViolationError("Unknown Journal Agent tool");
   }
@@ -88,23 +87,23 @@ export function journalToolIntent(
 export function todoToolIntent(
   name: string,
   input: unknown,
-): AgentTodoCommandIntentDto {
+): TodoCommandIntentDto {
   const values = input as Record<string, unknown>;
 
   switch (name) {
     case "stage_todo_create_collection":
-      return { ...values, kind: "create-collection" } as AgentTodoCommandIntentDto;
+      return { ...values, kind: "create-collection" } as TodoCommandIntentDto;
     case "stage_todo_delete_collection":
-      return { ...values, kind: "delete-collection" } as AgentTodoCommandIntentDto;
+      return { ...values, kind: "delete-collection" } as TodoCommandIntentDto;
     case "stage_todo_set_completion":
-      return { ...values, kind: "set-completion" } as AgentTodoCommandIntentDto;
+      return { ...values, kind: "set-completion" } as TodoCommandIntentDto;
     case "stage_todo_set_daily_recurrence":
       return {
         blockId: values.blockId,
         collectionId: values.collectionId,
         kind: "set-recurrence",
         rule: { interval: values.interval, kind: "daily" },
-      } as AgentTodoCommandIntentDto;
+      } as TodoCommandIntentDto;
     case "stage_todo_set_weekly_recurrence":
       return {
         blockId: values.blockId,
@@ -115,31 +114,31 @@ export function todoToolIntent(
           kind: "weekly",
           weekdays: values.weekdays,
         },
-      } as AgentTodoCommandIntentDto;
+      } as TodoCommandIntentDto;
     case "stage_todo_set_monthly_recurrence":
       return {
         blockId: values.blockId,
         collectionId: values.collectionId,
         kind: "set-recurrence",
         rule: {
-          day: values.day,
+          dayOfMonth: values.day,
           interval: values.interval,
           kind: "monthly",
         },
-      } as AgentTodoCommandIntentDto;
+      } as TodoCommandIntentDto;
     case "stage_todo_stop_recurrence":
-      return { ...values, kind: "stop-recurrence" } as AgentTodoCommandIntentDto;
+      return { ...values, kind: "stop-recurrence" } as TodoCommandIntentDto;
     case "stage_todo_move_block":
-      return { ...values, kind: "move-block" } as AgentTodoCommandIntentDto;
+      return { ...values, kind: "move-block" } as TodoCommandIntentDto;
     case "stage_todo_move_collection":
-      return { ...values, kind: "move-collection" } as AgentTodoCommandIntentDto;
+      return { ...values, kind: "move-collection" } as TodoCommandIntentDto;
     case "stage_todo_rename_collection":
-      return { ...values, kind: "rename-collection" } as AgentTodoCommandIntentDto;
+      return { ...values, kind: "rename-collection" } as TodoCommandIntentDto;
     case "stage_todo_replace_collection_body":
       return {
         ...values,
         kind: "replace-collection-body",
-      } as AgentTodoCommandIntentDto;
+      } as TodoCommandIntentDto;
     default:
       throw new AgentScopeViolationError("Unknown Todo Agent tool");
   }
@@ -160,7 +159,7 @@ export const agentToolDecoder: AgentToolDecoder = {
         switch (definition.domain) {
           case 'workspace': return {kind: 'stage-workspace', intent: workspaceToolIntent(definition.name, input)};
           case 'journal': return {kind: 'stage-journal', intent: journalToolIntent(definition.name, input)};
-          case 'todo': return {kind: 'stage-todo', intent: todoToolIntent(definition.name, input) as TodoCommandIntent};
+          case 'todo': return {kind: 'stage-todo', intent: todoToolIntent(definition.name, input)};
         }
         throw new AgentScopeViolationError('Unknown Agent tool');
     }

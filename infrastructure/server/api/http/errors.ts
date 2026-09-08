@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { ContentTargetError } from "../../../../application/content/index.ts";
+import { ContentOperationIdempotencyError } from "../../../../application/operations/index.ts";
+
 import { ApiRequestError } from '../protocol/index.ts';
 import { createHash } from "node:crypto";
 import {
@@ -73,6 +76,8 @@ function createConflictId(kind: string, currentVersion: string) {
 
 export function mapApiError(error: unknown): ApiRequestError {
   if (error instanceof ApiRequestError) return error;
+  if (error instanceof ContentOperationIdempotencyError) return new ApiRequestError("idempotency_conflict", error.message);
+  if (error instanceof ContentTargetError) return new ApiRequestError(error.code === "target_not_found" ? "not_found" : "invalid_request", error.message, { details: error.code === "target_not_found" ? { selector: error.selector } : { selector: error.selector, candidates: error.candidates } });
   if (error instanceof AgentProposalCommitIndeterminateError) {
     return mapApiError(error.cause);
   }

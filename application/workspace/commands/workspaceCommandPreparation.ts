@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type {
-  PreparedContentCommand,
-} from "../../commands/index.ts";
+import {
+  prepareCtnContentEdit,
+  projectCtnEditableText,
+  type CtnContentEdit,
+} from "../../../core/ctn/index.ts";
+
+import type { PreparedContentCommand } from "../../commands/index.ts";
 import {
   readCommandRuntimeNow,
   type CommandRuntime,
@@ -25,10 +29,7 @@ import type {
   WorkspaceCommandOutcome,
 } from "../../../core/workspace/index.ts";
 
-
-import type {
-  PreparedVersionedSnapshot,
-} from "../../persistence/index.ts";
+import type { PreparedVersionedSnapshot } from "../../persistence/index.ts";
 import type {
   RepositoryRevision,
   WorkspaceRepositoryContent,
@@ -38,6 +39,7 @@ import type {
 type ResourceVersion = `sha256:${string}`;
 
 export type WorkspaceCommandIntent =
+  | { kind: "edit-note-body"; noteId: string; edit: CtnContentEdit }
   | { kind: "create-folder"; parentFolderId: string | null; title: string }
   | {
       body: string;
@@ -108,7 +110,7 @@ function findTreeChildren(
 ) {
   return parentFolderId === null
     ? tree
-    : findFolder(tree, parentFolderId)?.children ?? null;
+    : (findFolder(tree, parentFolderId)?.children ?? null);
 }
 
 function nodeReference(node: NoteTreeNode): NoteTreeNodeReference {
@@ -121,9 +123,10 @@ function createTreeMoveRequest(
   context: WorkspaceDomainContext,
   intent: Extract<WorkspaceCommandIntent, { kind: "move-tree-node" }>,
 ) {
-  const source: NoteTreeNodeReference = intent.nodeKind === "folder"
-    ? { folderId: intent.nodeId, kind: "folder" }
-    : { kind: "note", noteId: intent.nodeId };
+  const source: NoteTreeNodeReference =
+    intent.nodeKind === "folder"
+      ? { folderId: intent.nodeId, kind: "folder" }
+      : { kind: "note", noteId: intent.nodeId };
   const children = findTreeChildren(
     context.structure.data.tree,
     intent.parentFolderId,
@@ -138,7 +141,7 @@ function createTreeMoveRequest(
   const remaining = children.filter((node) =>
     intent.nodeKind === "folder"
       ? node.kind !== "folder" || node.folderId !== intent.nodeId
-      : node.kind !== "note" || node.noteId !== intent.nodeId
+      : node.kind !== "note" || node.noteId !== intent.nodeId,
   );
 
   if (intent.toIndex > remaining.length) {
@@ -268,6 +271,36 @@ function toDomainCommand({
         request: createTreeMoveRequest(context, intent),
         timestamp,
       };
+    case "edit-note-body": {
+      const note = requireNote(context, intent.noteId);
+      const parsed = context.index?.getParsedNote(intent.noteId);
+      if (!parsed)
+        throw new DomainValidationError(
+          "An active syntax is required for block edits.",
+        );
+      const change = prepareCtnContentEdit(
+        parsed.analysis,
+        "body",
+        intent.edit,
+      );
+      const { sourceOffset } = projectCtnEditableText(parsed.analysis, "body");
+      return {
+        kind: "replace-note-source",
+        noteId: intent.noteId,
+        timestamp,
+        expectedVersion: versions.note(note.source),
+        change: {
+          source:
+            parsed.analysis.editableProjection.source.slice(0, sourceOffset) +
+            change.source,
+          edits: change.edits.map((edit) => ({
+            ...edit,
+            from: edit.from + sourceOffset,
+            to: edit.to + sourceOffset,
+          })),
+        },
+      };
+    }
     case "replace-note-source": {
       const note = requireNote(context, intent.noteId);
       return {
@@ -328,8 +361,11 @@ export function prepareWorkspaceCommand({
   return {
     baseRevision: snapshot.revision,
     content: { ...snapshot.content, workspace: mutation.content },
-    destructive: intent.kind === "delete-folder" ||
-      intent.kind === "delete-note",
+    destructive:
+      intent.kind === "delete-folder" ||
+      intent.kind === "delete-note" ||
+      (intent.kind === "edit-note-body" &&
+        intent.edit.kind === "delete-subtree"),
     outcome: mutation.outcome,
     projection: {
       analysisIndex: mutation.context.index,

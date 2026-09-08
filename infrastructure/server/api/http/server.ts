@@ -57,6 +57,7 @@ import { AgentConfigurationStore } from "../../agent/index.ts";
 import { AgentProviderOperations } from "../../../../application/agentHost/index.ts";
 import type { SystemAdministrationServerPort } from "../../../../application/system/index.ts";
 import { ApiMaintenanceGate } from "./maintenanceGate.ts";
+import type { ContentService } from "../../../../application/content/index.ts";
 
 export type ApiRequestHandler = (
   request: IncomingMessage,
@@ -64,6 +65,7 @@ export type ApiRequestHandler = (
 ) => Promise<void>;
 
 export type ApiHttpDependencies = {
+  contentService: ContentService | null;
   accessStore: AutomationTokenStore;
   agentConfigurationStore: AgentConfigurationStore;
   agentProviderOperations: AgentProviderOperations;
@@ -98,7 +100,7 @@ export function createHttpApiRequestHandler({
   agentProviderOperations: resolvedAgentProviderOperations,
   agentService, builtInCatalog, catalog, eventHub, logger, maintenanceGate,
   operationLedger, requestRestart, runtime, revisionTracker, search, security,
-  systemAdministration,
+  systemAdministration, contentService,
 }: ApiHttpDependencies): ApiRequestHandler {
   const bearerAuthenticator = {
     authenticate: async (secret: string) => maintenanceGate.isClosed() ? null : await resolvedAccessStore.authenticate(secret) ?? await resolvedTrustedClientTokenStore.authenticate(secret),
@@ -155,6 +157,7 @@ export function createHttpApiRequestHandler({
         );
         let parsedBody: Promise<unknown> | null = null;
         const result = await handleApiRoute({
+          contentService,
           accessStore: resolvedAccessStore,
           agentConfigurationStore: resolvedAgentConfigurationStore,
           agentProviderOperations: resolvedAgentProviderOperations,

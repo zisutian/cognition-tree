@@ -73,3 +73,6 @@ export type {
 } from "./todoSessionController.ts";
 
 export { todoRepositoryPreparation } from "./persistence/todoRepositoryPreparation.ts";
+
+export { projectTodoItemStates } from "./todoItemStates.ts";
+export type { TodoItemState } from "./todoItemStates.ts";

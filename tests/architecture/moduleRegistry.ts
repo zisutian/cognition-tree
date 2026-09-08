@@ -76,6 +76,13 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     ]
   },
   {
+    "id": "application/content",
+    "responsibility": "Local content use cases, semantic targeting and exact operation coordination",
+    "scope": "tree",
+    "publicEntries": ["application/content/index.ts"],
+    "dependencies": ["application/commands", "application/journal", "application/operations", "application/persistence", "application/repository", "application/runtime", "application/search", "application/todo", "application/workspace", "core/ctn", "core/errors", "core/journal", "core/naming", "core/sync", "core/todo", "core/workspace"]
+  },
+  {
     "id": "application/journal",
     "responsibility": "Journal use cases, versioned sessions, persistence and conflict policy",
     "scope": "tree",
@@ -322,7 +329,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     "responsibility": "Neutral content operation wire contracts and durable result decoding",
     "scope": "tree",
     "publicEntries": ["contracts/content/index.ts"],
-    "dependencies": ["contracts/common"]
+    "dependencies": ["contracts/common", "contracts/todo"]
   },
   {
     "id": "contracts/journal",
@@ -547,6 +554,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "infrastructure/server/agent/index.ts"
     ],
     "dependencies": [
+      "contracts/content",
       "application/agent",
       "application/agentHost",
       "application/commands",
@@ -566,6 +574,8 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "infrastructure/server/api/http/index.ts"
     ],
     "dependencies": [
+      "contracts/content",
+      "application/content",
       "application/agent",
       "application/agentHost",
       "application/commands",
@@ -616,6 +626,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "infrastructure/server/api/resources/index.ts"
     ],
     "dependencies": [
+      "application/commands",
       "application/journal",
       "application/todo",
       "application/workspace",
@@ -759,6 +770,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "infrastructure/server/repository/index.ts"
     ],
     "dependencies": [
+      "application/content",
       "application/journal",
       "application/persistence",
       "application/todo",
@@ -784,6 +796,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "infrastructure/server/runtime/index.ts"
     ],
     "dependencies": [
+      "application/content",
       "application/runtime",
       "application/agentHost",
       "application/commands",

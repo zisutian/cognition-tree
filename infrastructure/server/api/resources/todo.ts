@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { projectTodoItemStates } from "../../../../application/todo/index.ts";
+
 import type {
   ApiTodoCollectionDto,
   ApiTodoCollectionsDto,
-  ApiTodoItemStateDto,
 } from "../../../../contracts/api/index.ts";
 import type { ContentRevisionDto } from "../../../../contracts/common/index.ts";
 import {
   createTodoParseIndex,
   type ParsedTodoIndexCollection,
   type TodoParseIndex,
-  todoItemSemanticType,
   type TodoContent,
   createTodoCollectionBodyProjection,
-  projectTodoRecurrence,
 } from "../../../../core/todo/index.ts";
 
 
@@ -21,7 +20,7 @@ import {
 import type {
   TodoLocalDate,
 } from "../../../../core/todo/index.ts";
-import { projectApiCtnDocument } from "./ctn.ts";
+import { projectContentDocument } from "../../../../application/commands/index.ts";
 import {
   createParsedTodoCollectionVersion,
   createTodoCollectionStateVersion,
@@ -31,59 +30,6 @@ import {
 
 export function createApiTodoIndex(content: TodoContent) {
   return createTodoParseIndex(content);
-}
-
-function projectTodoItemStates(
-  parsed: ParsedTodoIndexCollection,
-  today: TodoLocalDate,
-): ApiTodoItemStateDto[] {
-  const ordinaryCompletionById = new Map(
-    parsed.collection.completions.map(({ blockId, completedAt }) => [
-      blockId,
-      completedAt,
-    ]),
-  );
-  const recurrenceById = new Map(
-    parsed.collection.recurrences.map((recurrence) => {
-      const projection = projectTodoRecurrence(recurrence, today);
-
-      return [recurrence.blockId, {
-        active: projection.active,
-        completedAt: projection.active
-          ? projection.completedAt
-          : ordinaryCompletionById.get(recurrence.blockId) ?? null,
-        recurrence: {
-          active: projection.active,
-          completedCount: projection.completedCount,
-          currentOccurrenceDate: projection.currentOccurrenceDate,
-          nextOccurrenceDate: projection.nextOccurrenceDate,
-          rule: projection.currentStage?.rule ??
-            recurrence.stages.at(-1)!.rule,
-          totalCount: projection.totalCount,
-        },
-      }] as const;
-    }),
-  );
-
-  return parsed.analysis.document.blocks
-    .filter(({ rule }) => rule.semanticId === todoItemSemanticType)
-    .map((block) => {
-      const recurrence = recurrenceById.get(block.id);
-      const completedAt = recurrence?.completedAt ??
-        ordinaryCompletionById.get(block.id) ??
-        null;
-
-      return {
-        blockId: block.id,
-        completed: completedAt !== null,
-        completedAt,
-        recurrence: recurrence?.recurrence ?? null,
-        stateVersion: createTodoItemStateVersion(
-          parsed.collection,
-          block.id,
-        ),
-      };
-    });
 }
 
 export function projectApiTodoCollections(
@@ -111,7 +57,7 @@ export function projectApiTodoCollection(
   const body = createTodoCollectionBodyProjection(parsed);
 
   return {
-    document: projectApiCtnDocument({
+    document: projectContentDocument({
       analysis: parsed.analysis,
       createdAt: parsed.analysis.document.blocks[0]!.metadata.createdAt,
       editableText: body.source,
@@ -127,7 +73,7 @@ export function projectApiTodoCollection(
       ),
       version: createParsedTodoCollectionVersion(parsed),
     }),
-    items: projectTodoItemStates(parsed, today),
+    items: projectTodoItemStates(parsed, today, createTodoItemStateVersion),
     stateVersion: createTodoCollectionStateVersion(parsed.collection),
   };
 }

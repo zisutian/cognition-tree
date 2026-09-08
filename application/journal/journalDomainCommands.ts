@@ -3,6 +3,7 @@
 import type {
   CtnCanonicalSourceAnalysis,
   CtnEditableSourceChange,
+  CtnContentMoveTarget,
 } from "../../core/ctn/index.ts";
 import {
   createMyersTextEdits,
@@ -11,6 +12,7 @@ import {
 import { DomainNotFoundError } from "../../core/errors/index.ts";
 import {
   createJournalEntry,
+  moveJournalBlock,
   deleteJournalEntry,
   updateJournalEntryBody,
   createJournalParseIndex,
@@ -44,6 +46,7 @@ export type JournalDomainVersions = {
 };
 
 export type JournalDomainCommand =
+  | { kind: "move-block"; entryId: string; blockId: string; target: CtnContentMoveTarget; expectedVersion?: `sha256:${string}`; updatedAt: string }
   | {
       body: string;
       createdAt: string;
@@ -176,6 +179,11 @@ export function prepareJournalMutation({
       outcome: { kind: "ok" },
       timestamp: command.timestamp,
     };
+  }
+  if (command.kind === "move-block") {
+    const moved = moveJournalBlock(content, index, { ...command, entryId: parsed.entry.id });
+    const analysisOverrides = new Map([[parsed.entry.id, moved.analysis]]);
+    return { analysisOverrides, content: moved.content, index: createJournalParseIndex(moved.content, index, analysisOverrides), outcome: { kind: "ok" }, timestamp: command.updatedAt };
   }
   const updated = updateJournalEntryBody(content, index, {
     change: command.change,

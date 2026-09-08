@@ -6,7 +6,9 @@ import { ContentChangeReviewSchema } from "./changeReview.ts";
 
 export const ContentOperationScopeSchema = Type.Union([
   strictObject({ domain: Type.Literal("workspace"), repository: identifier }),
-  strictObject({ domain: Type.Union([Type.Literal("catalog"), Type.Literal("journal"), Type.Literal("todo")]) }),
+  strictObject({ domain: Type.Literal("catalog") }),
+  strictObject({ domain: Type.Literal("journal") }),
+  strictObject({ domain: Type.Literal("todo") }),
 ]);
 export const ContentOperationResultSchema = strictObject({
   afterRevision: nullable(revision),
@@ -15,7 +17,7 @@ export const ContentOperationResultSchema = strictObject({
   changeMetadata: strictObject({ blockIds: Type.Array(identifier, { uniqueItems: true }), resourceIds: Type.Array(identifier, { uniqueItems: true }) }),
   command: identifier,
   digest: revision,
-  error: nullable(strictObject({ code: identifier, message: Type.String() })),
+  error: nullable(strictObject({ code: identifier, message: Type.String(), candidates: Type.Optional(Type.Array(Type.String())), selector: Type.Optional(Type.String()), currentRevision: Type.Optional(revision) })),
   occurredAt: timestamp,
   operationId: Type.String({ minLength: 1, maxLength: 128, pattern: "^[A-Za-z0-9_-]+$" }),
   review: nullable(ContentChangeReviewSchema),

@@ -1,28 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  ApiCtnBlockDto,
-  ApiCtnDocumentDto,
-  ApiResourceVersionDto,
-  ApiSyntaxGuideDto,
-} from "../../../../contracts/api/index.ts";
-import type {
   CtnCanonicalSourceAnalysis,
   CtnCanonicalBlock,
   CtnCompiledSyntax,
-} from "../../../../core/ctn/index.ts";
+} from "../../core/ctn/index.ts";
 import {
   projectCtnCanonicalBlockBody,
   projectCtnEditableText,
   getCtnEditableLineNumber,
-} from "../../../../core/ctn/index.ts";
+  projectRawCanonicalCtnBody,
+} from "../../core/ctn/index.ts";
 
-
-
-
-export function projectApiSyntaxGuide(
-  syntax: CtnCompiledSyntax,
-): ApiSyntaxGuideDto {
+export function projectContentSyntaxGuide(syntax: CtnCompiledSyntax) {
   return {
     blocks: syntax.blocks.map(({ kind, label, marker, semanticId }) => ({
       kind,
@@ -46,9 +36,7 @@ export function projectApiSyntaxGuide(
       : null,
   };
 }
-function createParentBlockIdIndex(
-  analysis: CtnCanonicalSourceAnalysis,
-) {
+function createParentBlockIdIndex(analysis: CtnCanonicalSourceAnalysis) {
   const result = new Map<CtnCanonicalBlock, string | null>();
   const pending = analysis.document.roots.map((block) => ({
     block,
@@ -60,7 +48,11 @@ function createParentBlockIdIndex(
 
     if (!current) continue;
     result.set(current.block, current.parentId);
-    for (let index = current.block.children.length - 1; index >= 0; index -= 1) {
+    for (
+      let index = current.block.children.length - 1;
+      index >= 0;
+      index -= 1
+    ) {
       const child = current.block.children[index];
 
       if (child) pending.push({ block: child, parentId: current.block.id });
@@ -69,7 +61,7 @@ function createParentBlockIdIndex(
   return result;
 }
 
-function projectApiBlocks({
+function projectContentBlocks({
   analysis,
   lineOffset,
   offset,
@@ -77,11 +69,12 @@ function projectApiBlocks({
   analysis: CtnCanonicalSourceAnalysis;
   lineOffset: number;
   offset: number;
-}): ApiCtnBlockDto[] {
+}) {
   const editable = analysis.editableProjection;
   const parentByBlock = createParentBlockIdIndex(analysis);
   const included = analysis.document.blocks.filter(
-    (block) => block.rule.semanticId !== analysis.syntax.title.semanticId ||
+    (block) =>
+      block.rule.semanticId !== analysis.syntax.title.semanticId ||
       lineOffset === 0,
   );
   const includedIds = new Set(included.map(({ id }) => id));
@@ -92,7 +85,8 @@ function projectApiBlocks({
       editable,
       block.lexicalEndLineNumber,
     );
-    const startLine = editable.sourceText.lines[lineNumber - 1] ??
+    const startLine =
+      editable.sourceText.lines[lineNumber - 1] ??
       editable.sourceText.lines[0]!;
     const endLine = editable.sourceText.lines[endLineNumber - 1] ?? startLine;
     const parentBlockId = parentByBlock.get(block) ?? null;
@@ -107,9 +101,8 @@ function projectApiBlocks({
       level: block.level,
       lineNumber: Math.max(1, lineNumber - lineOffset),
       order,
-      parentBlockId: parentBlockId && includedIds.has(parentBlockId)
-        ? parentBlockId
-        : null,
+      parentBlockId:
+        parentBlockId && includedIds.has(parentBlockId) ? parentBlockId : null,
       semanticId: block.rule.semanticId,
       sourceRange: {
         from: Math.max(0, startLine.from - offset),
@@ -121,7 +114,7 @@ function projectApiBlocks({
   });
 }
 
-export function projectApiCtnDocument({
+export function projectContentDocument({
   analysis,
   createdAt,
   editableText,
@@ -138,15 +131,15 @@ export function projectApiCtnDocument({
   textMode: "body" | "document";
   title: string;
   updatedAt: string;
-  version: ApiResourceVersionDto;
-}): ApiCtnDocumentDto {
+  version: `sha256:${string}`;
+}) {
   const projection = projectCtnEditableText(analysis, textMode);
   const offset = projection.sourceOffset;
   const lineOffset = projection.lineOffset;
   const source = editableText ?? projection.source;
 
   return {
-    blocks: projectApiBlocks({ analysis, lineOffset, offset }),
+    blocks: projectContentBlocks({ analysis, lineOffset, offset }),
     createdAt,
     diagnostics: analysis.editableProjection.document.diagnostics
       .filter(({ lineNumber }) => lineNumber > lineOffset)
@@ -163,6 +156,31 @@ export function projectApiCtnDocument({
     title,
     updatedAt,
     version,
-    writingGuide: projectApiSyntaxGuide(analysis.syntax),
+    writingGuide: projectContentSyntaxGuide(analysis.syntax),
   };
 }
+
+export function projectUnparsedContentDocument(input: {
+  source: string;
+  resourceId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  version: `sha256:${string}`;
+  textMode: "body" | "document";
+}): ContentDocument {
+  const { source, ...metadata } = input;
+  return {
+    ...metadata,
+    blocks: [],
+    diagnostics: [],
+    writingGuide: null,
+    editableText: projectRawCanonicalCtnBody(source),
+  };
+}
+
+export type ContentDocument = Omit<
+  ReturnType<typeof projectContentDocument>,
+  "writingGuide"
+> & { writingGuide: ContentSyntaxGuide | null };
+export type ContentSyntaxGuide = ReturnType<typeof projectContentSyntaxGuide>;

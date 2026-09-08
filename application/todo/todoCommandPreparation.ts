@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import {
+  prepareCtnContentEdit,
+  type CtnContentEdit,
+} from "../../core/ctn/index.ts";
+
 import type { PreparedContentCommand } from "../commands/index.ts";
 import {
   readCommandRuntimeNow,
@@ -11,7 +16,10 @@ import {
   type TodoDomainCommand,
   type TodoDomainVersions,
 } from "./todoDomainCommands.ts";
-import { DomainNotFoundError, DomainValidationError } from "../../core/errors/index.ts";
+import {
+  DomainNotFoundError,
+  DomainValidationError,
+} from "../../core/errors/index.ts";
 import type {
   TodoCommandOutcome,
   TodoBlockMoveTarget,
@@ -22,19 +30,16 @@ import type {
   TodoRecurrenceRule,
 } from "../../core/todo/index.ts";
 
-
-
 import {
   createTodoCollectionBodyProjection,
   isTodoCollectionId,
 } from "../../core/todo/index.ts";
 
-
-
 import type { PreparedVersionedSnapshot } from "../persistence/index.ts";
 import type { TodoRevision } from "./persistence/todoRepository.ts";
 
 export type TodoCommandIntent =
+  | { kind: "edit-collection-body"; collectionId: string; edit: CtnContentEdit }
   | { body: string; kind: "create-collection"; name: string }
   | { collectionId: string; kind: "delete-collection" }
   | {
@@ -169,15 +174,19 @@ function toDomainCommand({
         expectedVersion: versions.collection(parsed),
         updatedAt: timestamp,
       };
+    case "edit-collection-body":
     case "replace-collection-body":
       return {
-        change: createTodoBodyReplacement(
-          createTodoCollectionBodyProjection(parsed).source,
-          intent.body,
-        ),
+        change:
+          intent.kind === "edit-collection-body"
+            ? prepareCtnContentEdit(parsed.analysis, "body", intent.edit)
+            : createTodoBodyReplacement(
+                createTodoCollectionBodyProjection(parsed).source,
+                intent.body,
+              ),
         collectionId: intent.collectionId,
         expectedVersion: versions.collection(parsed),
-        kind: intent.kind,
+        kind: "replace-collection-body",
         updatedAt: timestamp,
       };
     case "set-completion":
@@ -245,7 +254,10 @@ export function prepareTodoCommand({
   return {
     baseRevision: snapshot.revision,
     content: mutation.content,
-    destructive: intent.kind === "delete-collection",
+    destructive:
+      intent.kind === "delete-collection" ||
+      (intent.kind === "edit-collection-body" &&
+        intent.edit.kind === "delete-subtree"),
     outcome: mutation.outcome,
     projection: mutation.index,
     timestamp: mutation.timestamp,

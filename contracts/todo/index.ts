@@ -21,3 +21,5 @@ export type {
 export {
   todoStorageEpoch,
 } from "./storageEpoch.ts";
+
+export { TodoRecurrenceRuleSchema, TodoLocalDateSchema } from "./recurrenceSchema.ts";

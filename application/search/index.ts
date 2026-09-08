@@ -38,3 +38,5 @@ export {
   searchDomains,
   SearchRequestError,
 } from "./searchTypes.ts";
+
+export { projectSearchDocumentResults } from "./searchText.ts";

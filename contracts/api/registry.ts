@@ -8,6 +8,7 @@ import { adminApiOperations } from "./operations/admin.ts";
 import { agentApiOperations } from "./operations/agent.ts";
 import { authApiOperations } from "./operations/auth.ts";
 import { contentApiOperations } from "./operations/content.ts";
+import { localContentApiOperations } from "./operations/localContent.ts";
 import type { ApiOperationDefinition } from "./operations/definition.ts";
 import { foundationApiOperations } from "./operations/foundation.ts";
 import { recoveryApiOperations } from "./operations/recovery.ts";
@@ -23,6 +24,7 @@ export const apiOperationCatalogs = {
   foundation: foundationApiOperations,
   auth: authApiOperations,
   content: contentApiOperations,
+  localContent: localContentApiOperations,
   sync: syncApiOperations,
   agent: agentApiOperations,
   admin: adminApiOperations,
@@ -53,6 +55,7 @@ function assertUniqueOperations() {
 assertUniqueOperations();
 
 export type ApiRouteParameters = {
+  operationId?: string;
   builtInId?: string;
   collectionId?: string;
   codexLoginId?: string;

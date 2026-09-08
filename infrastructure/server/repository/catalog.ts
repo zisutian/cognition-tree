@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { ContentCatalogSession } from "../../../application/content/index.ts";
+
 import type {
   parseCreateRepository,
   parseRenameRepository,
@@ -12,6 +14,7 @@ import type {
 import type { WorkspaceRepositoryStore } from "./store.ts";
 
 export type WorkspaceRepositoryCatalog = {
+  runContentCatalog?: <Result>(operation: (session: ContentCatalogSession) => Promise<Result>) => Promise<Result>;
   createRepository: (
     value: ReturnType<typeof parseCreateRepository>,
   ) => Promise<RepositoryDescriptorDto>;

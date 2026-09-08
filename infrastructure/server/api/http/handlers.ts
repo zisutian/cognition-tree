@@ -12,6 +12,7 @@ import {
   type HandlerResult,
 } from "./handlerContext.ts";
 import { handleAgentOperation } from "./agentHandlers.ts";
+import { handleLocalContent } from "./localContentHandlers.ts";
 import {
   handleJournalQuery,
   handleTodoQuery,
@@ -74,6 +75,7 @@ export async function handleApiRoute(
     ...context,
     principal: context.principal,
   };
+  if (operation.access.kind === "local-content") return handleLocalContent(authorizedContext);
   if (operation.operationId === "streamContentEvents") {
     requireBuiltInCatalog(authorizedContext.builtInCatalog);
     authorizedContext.eventHub.connect({

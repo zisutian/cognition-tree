@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  createMyersLineDiff,
-} from "../../core/ctn/index.ts";
+import { createMyersLineDiff } from "../../core/ctn/index.ts";
 import type { DomainBlockChange } from "../../core/sync/index.ts";
 
 export type ContentChangeReviewAction =
@@ -14,6 +12,8 @@ export type ContentChangeReviewAction =
   | "state-updated";
 
 export type ContentChangeReviewResourceType =
+  | "syntax"
+  | "repository"
   | "journal-entry"
   | "todo-collection"
   | "workspace-folder"
@@ -58,6 +58,46 @@ export type ContentChangeReview = Readonly<{
   storeLabel: string | null;
 }>;
 
+export function projectNamedSourceChanges(
+  before: readonly { id: string; name: string; source: string }[],
+  after: readonly { id: string; name: string; source: string }[],
+  beforeActive: string | null,
+  afterActive: string | null,
+): ContentChangeReviewResource[] {
+  const ids = new Set([...before, ...after].map(({ id }) => id));
+  return [...ids].flatMap((id) => {
+    const previous = before.find((item) => item.id === id);
+    const next = after.find((item) => item.id === id);
+    if (
+      previous?.source === next?.source &&
+      (id === beforeActive) === (id === afterActive)
+    )
+      return [];
+    return [
+      {
+        resourceId: id,
+        type: "syntax" as const,
+        actions: [
+          !previous
+            ? "created"
+            : !next
+              ? "deleted"
+              : previous.source !== next.source
+                ? "content-updated"
+                : "state-updated",
+        ] as ContentChangeReviewAction[],
+        before: previous ? { label: previous.name, path: previous.name } : null,
+        after: next ? { label: next.name, path: next.name } : null,
+        blockSummary: summarizeContentBlockChanges([]),
+        diff: projectContentLineDiff(
+          previous?.source ?? "",
+          next?.source ?? "",
+        ),
+      },
+    ];
+  });
+}
+
 export function summarizeContentBlockChanges(
   changes: readonly DomainBlockChange[],
 ): ContentChangeReviewBlockSummary {
@@ -93,11 +133,12 @@ export function projectContentLineDiff(
 
   for (const chunk of createMyersLineDiff(before, after)) {
     for (const text of chunk.lines) {
-      const kind = chunk.kind === "equal"
-        ? "context"
-        : chunk.kind === "delete"
-          ? "removed"
-          : "added";
+      const kind =
+        chunk.kind === "equal"
+          ? "context"
+          : chunk.kind === "delete"
+            ? "removed"
+            : "added";
 
       lines.push({
         afterLineNumber: kind === "removed" ? null : afterLineNumber,

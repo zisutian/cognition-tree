@@ -5,7 +5,7 @@ import {
   createInitialWorkspaceSyntax,
   parseWorkspaceSyntax,
 } from "../../../../core/workspace/context/workspaceSyntax";
-import { createWorkspaceSyntaxCatalogMutationService } from "../../../../application/workspace/session/workspaceSyntaxCatalogMutationService";
+import { createWorkspaceSyntaxCatalogMutationService } from "../../../../application/workspace/commands/workspaceSyntaxCatalogMutationService";
 import { createContent } from "./workspaceSessionTestFixture";
 import {
   resolveWorkspaceSessionContent,

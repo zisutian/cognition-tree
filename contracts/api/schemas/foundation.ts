@@ -123,6 +123,7 @@ const emptyError = <Code extends typeof apiErrorCodes[number]>(code: Code) =>
 export const ApiErrorSchema = Type.Union([
   emptyError("adapter_unavailable"),
   errorBranch("content_commit_indeterminate", {
+    operationId: Type.Optional(ApiIdentifierSchema),
     commitState: Type.Literal("indeterminate"),
     currentRevision: Type.Optional(ApiResourceVersionSchema),
   }),
@@ -131,12 +132,16 @@ export const ApiErrorSchema = Type.Union([
   }),
   emptyError("forbidden"),
   errorBranch("idempotency_conflict", {
+    operationId: Type.Optional(ApiIdentifierSchema),
     proposalId: Type.Optional(ApiUuidSchema),
     proposalVersion: Type.Optional(Type.Integer({ minimum: 1 })),
   }),
   emptyError("insufficient_storage"),
   emptyError("internal_error"),
   errorBranch("invalid_request", {
+    candidates: Type.Optional(Type.Array(Type.String())),
+    selector: Type.Optional(Type.String()),
+    operationId: Type.Optional(ApiIdentifierSchema),
     issues: Type.Optional(Type.Array(ApiErrorIssueSchema)),
     restartRequired: Type.Optional(Type.Boolean()),
   }),
@@ -147,6 +152,7 @@ export const ApiErrorSchema = Type.Union([
     store: ApiErrorStoreSchema,
   }),
   errorBranch("not_found", {
+    selector: Type.Optional(Type.String()),
     resourceId: Type.Optional(ApiIdentifierSchema),
   }),
   errorBranch("occurrence_conflict", {
@@ -171,6 +177,7 @@ export const ApiErrorSchema = Type.Union([
   emptyError("repository_busy"),
   emptyError("repository_corrupt"),
   errorBranch("resource_conflict", {
+    operationId: Type.Optional(ApiIdentifierSchema),
     conflictId: Type.Optional(ApiIdentifierSchema),
     currentRevision: Type.Optional(ApiResourceVersionSchema),
     currentVersion: Type.Optional(ApiIdentifierSchema),

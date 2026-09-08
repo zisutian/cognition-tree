@@ -482,6 +482,7 @@ export function auditApplicationCoordinationRoots(
     .filter(([filePath, domains]) =>
       domains.size > 1 &&
       !filePath.startsWith("../../application/workbench/") &&
+      !filePath.startsWith("../../application/content/") &&
       !filePath.startsWith("../../application/agent/") &&
       !filePath.startsWith("../../application/agentHost/")
     )

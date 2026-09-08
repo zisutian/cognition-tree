@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Type, type Static } from "@sinclair/typebox";
-import type { TodoRecurrenceRuleDto } from "../../todo/index.ts";
+import { TodoRecurrenceRuleSchema as ApiRecurrenceRuleSchema } from "../../todo/index.ts";
+export { TodoRecurrenceRuleSchema as ApiRecurrenceRuleSchema } from "../../todo/index.ts";
 import { ApiLocalDateSchema } from "./foundation.ts";
-import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiNonNegativeIntegerSchema, ApiResourceVersionSchema, nullable, schemaAs, strictObject } from "../../common/index.ts";
+import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiNonNegativeIntegerSchema, ApiResourceVersionSchema, nullable, strictObject } from "../../common/index.ts";
 
 export const ApiCtnDiagnosticSchema = strictObject({
   code: Type.String(),
@@ -145,28 +146,6 @@ export const ApiJournalEntriesSchema = strictObject({
 export type ApiJournalEntriesDto = Static<
   typeof ApiJournalEntriesSchema
 >;
-
-export const ApiRecurrenceRuleSchema = schemaAs<TodoRecurrenceRuleDto>(
-  Type.Union([
-    strictObject({
-      interval: Type.Integer({ minimum: 1 }),
-      kind: Type.Literal("daily"),
-    }),
-    strictObject({
-      interval: Type.Integer({ minimum: 1 }),
-      kind: Type.Literal("weekly"),
-      weekdays: Type.Array(Type.Integer({ maximum: 7, minimum: 1 }), {
-        minItems: 1,
-        uniqueItems: true,
-      }),
-    }),
-    strictObject({
-      dayOfMonth: Type.Integer({ maximum: 31, minimum: 1 }),
-      interval: Type.Integer({ minimum: 1 }),
-      kind: Type.Literal("monthly"),
-    }),
-  ]),
-);
 
 export const ApiTodoRecurrenceProjectionSchema = strictObject({
   active: Type.Boolean(),

@@ -265,6 +265,7 @@ export class WorkspaceAgentSessionTools {
       case "delete-note":
       case "rename-note":
       case "replace-note-source":
+      case "edit-note-body":
         checkNote(intent.noteId);
         return;
       case "move-block":

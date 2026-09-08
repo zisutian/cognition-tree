@@ -16,7 +16,7 @@ import {
 } from "../../../../core/journal/index.ts";
 
 
-import { projectApiCtnDocument } from "./ctn.ts";
+import { projectContentDocument } from "../../../../application/commands/index.ts";
 import {
   createJournalEntriesVersion,
   createJournalEntryVersion,
@@ -60,7 +60,7 @@ export function projectApiJournalEntry(
 ): ApiCtnDocumentDto {
   const body = createJournalEntryBodyProjection(parsed);
 
-  return projectApiCtnDocument({
+  return projectContentDocument({
     analysis: parsed.analysis,
     createdAt: parsed.entry.createdAt,
     editableText: body.source,

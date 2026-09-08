@@ -39,7 +39,7 @@ import type { ApplicationScheduler } from "../../runtime/index.ts";
 import {
   createWorkspaceSyntaxCatalogMutationService,
   type WorkspaceSyntaxCatalogMutation,
-} from "./workspaceSyntaxCatalogMutationService.ts";
+} from "../commands/workspaceSyntaxCatalogMutationService.ts";
 import {
   recoverWorkspaceLocalConflictCopies,
 } from "../persistence/workspaceConflictRecovery.ts";

@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import {
+  prepareCtnContentEdit,
+  type CtnContentEdit,
+  type CtnContentMoveTarget,
+} from "../../core/ctn/index.ts";
+
 import type { PreparedContentCommand } from "../commands/index.ts";
 import {
   readCommandRuntimeNow,
@@ -18,7 +24,6 @@ import type {
   JournalEntryId,
 } from "../../core/journal/index.ts";
 
-
 import {
   createJournalEntryBodyProjection,
   isJournalEntryId,
@@ -29,6 +34,13 @@ import type { PreparedVersionedSnapshot } from "../persistence/index.ts";
 import type { JournalRevision } from "./persistence/journalRepository.ts";
 
 export type JournalCommandIntent =
+  | {
+      kind: "move-block";
+      entryId: string;
+      blockId: string;
+      target: CtnContentMoveTarget;
+    }
+  | { kind: "edit-entry-body"; entryId: string; edit: CtnContentEdit }
   | { body: string; kind: "create-entry" }
   | { entryId: string; kind: "delete-entry" }
   | { body: string; entryId: string; kind: "replace-entry-body" };
@@ -88,14 +100,23 @@ function toDomainCommand({
       timestamp,
     };
   }
+  if (intent.kind === "move-block")
+    return {
+      ...intent,
+      expectedVersion: versions.entry(parsed.source),
+      updatedAt: timestamp,
+    };
   return {
-    change: createJournalBodyReplacement(
-      createJournalEntryBodyProjection(parsed).source,
-      intent.body,
-    ),
+    change:
+      intent.kind === "edit-entry-body"
+        ? prepareCtnContentEdit(parsed.analysis, "body", intent.edit)
+        : createJournalBodyReplacement(
+            createJournalEntryBodyProjection(parsed).source,
+            intent.body,
+          ),
     entryId: intent.entryId,
     expectedVersion: versions.entry(parsed.source),
-    kind: intent.kind,
+    kind: "replace-entry-body",
     updatedAt: timestamp,
   };
 }
@@ -141,7 +162,10 @@ export function prepareJournalCommand({
   return {
     baseRevision: snapshot.revision,
     content: mutation.content,
-    destructive: intent.kind === "delete-entry",
+    destructive:
+      intent.kind === "delete-entry" ||
+      (intent.kind === "edit-entry-body" &&
+        intent.edit.kind === "delete-subtree"),
     outcome: mutation.outcome,
     projection: mutation.index,
     timestamp: mutation.timestamp,

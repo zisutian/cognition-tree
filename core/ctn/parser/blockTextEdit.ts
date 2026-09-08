@@ -4,13 +4,10 @@ import {
   formatCtnBlockMetadataLine,
   parseCtnBlockMetadataLine,
 } from "../metadata/blockMetadata.ts";
-import {
-  analyzeCtnCanonicalMutation,
-} from "../analysis/canonicalMutation.ts";
-import type {
-  CtnCanonicalSourceAnalysis,
-} from "../analysis/sourceAnalysis.ts";
+import { analyzeCtnCanonicalMutation } from "../analysis/canonicalMutation.ts";
+import type { CtnCanonicalSourceAnalysis } from "../analysis/sourceAnalysis.ts";
 import type { CtnSourceText } from "../analysis/sourceText.ts";
+import type { CtnCanonicalBlock } from "./types.ts";
 import { isClosingMultilineFence } from "./blockRanges.ts";
 import { parseMarker } from "./lineMarkers.ts";
 
@@ -65,6 +62,7 @@ export type MoveCtnBlockWithinTextInput = {
   analysis: CtnCanonicalSourceAnalysis;
   targetPosition: CtnBlockTextTargetPosition;
   updatedAt: string;
+  touchTitle?: boolean;
 };
 
 export type MoveCtnBlockWithinTextResult = {
@@ -96,10 +94,7 @@ function getBlockLineRange(block: CtnBlockTextRange): BlockLineRange {
   };
 }
 
-function extractBlockLines(
-  lines: readonly string[],
-  range: BlockLineRange,
-) {
+function extractBlockLines(lines: readonly string[], range: BlockLineRange) {
   assertValidRange(lines, range);
 
   return lines.slice(range.startLineNumber - 1, range.endLineNumber);
@@ -166,81 +161,77 @@ function rewriteBlockIndent(
 ) {
   const toIndent = indentUnit.repeat(Math.max(0, toLevel));
   let expectsSourceLine = false;
-  let multiline:
-    | {
-        fromIndent: string;
-        marker: string;
-        toIndent: string;
-      }
-    | null = null;
+  let multiline: {
+    fromIndent: string;
+    marker: string;
+    toIndent: string;
+  } | null = null;
 
-  return blockLines
-    .map((line) => {
-      if (multiline) {
-        if (isClosingMultilineFence(line, multiline.fromIndent, multiline.marker)) {
-          const trailingWhitespace = line.slice(
-            multiline.fromIndent.length + multiline.marker.length,
-          );
-          const rewrittenLine =
-            `${multiline.toIndent}${multiline.marker}${trailingWhitespace}`;
-
-          multiline = null;
-          return rewrittenLine;
-        }
-
-        return rewriteMultilineBodyIndent(
-          line,
-          multiline.fromIndent,
-          multiline.toIndent,
+  return blockLines.map((line) => {
+    if (multiline) {
+      if (
+        isClosingMultilineFence(line, multiline.fromIndent, multiline.marker)
+      ) {
+        const trailingWhitespace = line.slice(
+          multiline.fromIndent.length + multiline.marker.length,
         );
-      }
+        const rewrittenLine = `${multiline.toIndent}${multiline.marker}${trailingWhitespace}`;
 
-      if (expectsSourceLine) {
-        expectsSourceLine = false;
-        const rewrittenLine = rewriteStructuralIndent(
-          line,
-          fromIndent,
-          toIndent,
-        );
-        const rewrittenIndent = rewrittenLine.match(/^\s*/)?.[0] ?? "";
-        const marker = parseMarker(
-          rewrittenLine.trim(),
-          1,
-          rewrittenIndent.length,
-          analysis.syntax.blockMatcher,
-        );
-
-        if (marker.rule?.kind === "multiline" && marker.marker !== null) {
-          multiline = {
-            fromIndent: line.match(/^\s*/)?.[0] ?? "",
-            marker: marker.marker,
-            toIndent: rewrittenIndent,
-          };
-        }
-
+        multiline = null;
         return rewrittenLine;
       }
 
-      if (!line.trim()) {
-        return line;
+      return rewriteMultilineBodyIndent(
+        line,
+        multiline.fromIndent,
+        multiline.toIndent,
+      );
+    }
+
+    if (expectsSourceLine) {
+      expectsSourceLine = false;
+      const rewrittenLine = rewriteStructuralIndent(line, fromIndent, toIndent);
+      const rewrittenIndent = rewrittenLine.match(/^\s*/)?.[0] ?? "";
+      const marker = parseMarker(
+        rewrittenLine.trim(),
+        1,
+        rewrittenIndent.length,
+        analysis.syntax.blockMatcher,
+      );
+
+      if (marker.rule?.kind === "multiline" && marker.marker !== null) {
+        multiline = {
+          fromIndent: line.match(/^\s*/)?.[0] ?? "",
+          marker: marker.marker,
+          toIndent: rewrittenIndent,
+        };
       }
 
-      const metadata = parseCtnBlockMetadataLine(line);
+      return rewrittenLine;
+    }
 
-      if (!metadata) {
-        throw new Error("Expected canonical CTN block metadata while moving text.");
-      }
+    if (!line.trim()) {
+      return line;
+    }
 
-      expectsSourceLine = true;
-      return formatCtnBlockMetadataLine({
-        ...metadata,
-        indentText: rewriteStructuralIndent(
-          metadata.indentText,
-          fromIndent,
-          toIndent,
-        ),
-      });
+    const metadata = parseCtnBlockMetadataLine(line);
+
+    if (!metadata) {
+      throw new Error(
+        "Expected canonical CTN block metadata while moving text.",
+      );
+    }
+
+    expectsSourceLine = true;
+    return formatCtnBlockMetadataLine({
+      ...metadata,
+      indentText: rewriteStructuralIndent(
+        metadata.indentText,
+        fromIndent,
+        toIndent,
+      ),
     });
+  });
 }
 
 function getDocumentAppendLineNumber(
@@ -309,8 +300,10 @@ function adjustInsertionLineNumberAfterRemoval(
   removedRange: BlockLineRange,
 ) {
   if (insertionLineNumber > removedRange.endLineNumber) {
-    return insertionLineNumber -
-      (removedRange.endLineNumber - removedRange.startLineNumber + 1);
+    return (
+      insertionLineNumber -
+      (removedRange.endLineNumber - removedRange.startLineNumber + 1)
+    );
   }
 
   return insertionLineNumber;
@@ -337,10 +330,7 @@ export function moveCtnBlockText(
   const movedTargetText = insertBlockLinesBeforeLine(
     input.targetAnalysis.sourceText.values,
     rewrittenLines,
-    getTargetInsertionLineNumber(
-      input.targetAnalysis,
-      input.targetPosition,
-    ),
+    getTargetInsertionLineNumber(input.targetAnalysis, input.targetPosition),
   ).join("\n");
   const nextSourceAnalysis = analyzeCtnCanonicalMutation(
     input.sourceAnalysis,
@@ -397,18 +387,61 @@ export function moveCtnBlockWithinText(
     rewrittenLines,
     insertionLineNumber,
   ).join("\n");
-  const analysis = analyzeCtnCanonicalMutation(
-    input.analysis,
-    movedText,
-    {
-      touchTitle: true,
-      updatedAt: input.updatedAt,
-    },
-  );
+  const analysis = analyzeCtnCanonicalMutation(input.analysis, movedText, {
+    touchTitle: input.touchTitle ?? true,
+    updatedAt: input.updatedAt,
+  });
 
   return {
     analysis,
     nextText: analysis.sourceText.source,
     status: "moved",
   };
+}
+
+export type CtnContentMoveTarget =
+  | { kind: "end" }
+  | { kind: "inside" | "above" | "below"; targetBlockId: string };
+
+export class CtnContentBlockNotFoundError extends Error {
+  readonly blockId: string;
+  constructor(blockId: string) {
+    super(`Content block does not exist: ${blockId}`);
+    this.name = "CtnContentBlockNotFoundError";
+    this.blockId = blockId;
+  }
+}
+
+export function moveCtnContentSubtree(
+  analysis: CtnCanonicalSourceAnalysis,
+  blockId: string,
+  target: CtnContentMoveTarget,
+  updatedAt: string,
+  touchTitle = true,
+) {
+  const requireBlock = (id: string): CtnCanonicalBlock => {
+    const block = analysis.document.blocks.find((block) => block.id === id);
+    if (!block || block.rule.semanticId === analysis.syntax.title.semanticId)
+      throw new CtnContentBlockNotFoundError(id);
+    return block;
+  };
+  const targetPosition: CtnBlockTextTargetPosition =
+    target.kind === "end"
+      ? target
+      : {
+          block: requireBlock(target.targetBlockId),
+          kind:
+            target.kind === "inside"
+              ? "inside-block"
+              : target.kind === "above"
+                ? "sibling-above"
+                : "sibling-below",
+        };
+  return moveCtnBlockWithinText({
+    analysis,
+    sourceBlock: requireBlock(blockId),
+    targetPosition,
+    updatedAt,
+    touchTitle,
+  });
 }

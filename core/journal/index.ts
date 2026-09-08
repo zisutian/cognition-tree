@@ -54,3 +54,4 @@ export {
   validateJournalContentAnalysisTransition,
   validateJournalContentTransition,
 } from "./model/journalValidation.ts";
+export { moveJournalBlock } from "./commands/journalBlockCommands.ts";
