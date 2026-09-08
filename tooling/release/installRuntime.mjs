@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { randomUUID } from "node:crypto";
-import { cp, lstat, mkdir, open, readdir, readFile, realpath, rename, rm } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, realpath, rm } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { verifyRuntime } from "./runtimeManifest.mjs";
 
+import { replaceFileDurably } from "../../infrastructure/server/persistence/index.ts";
+
 async function writeRecord(file, value) {
-  const temporary = `${file}.tmp`;
-  const handle = await open(temporary, "w", 0o600);
-  try { await handle.writeFile(JSON.stringify(value, null, 2) + "\n"); await handle.sync(); }
-  finally { await handle.close(); }
-  await rename(temporary, file);
-  const directory = await open(path.dirname(file), "r");
-  try { await directory.sync(); } finally { await directory.close(); }
+  await replaceFileDurably(file, JSON.stringify(value, null, 2) + "\n");
 }
 
 function overlaps(a, b) { return a === b || a.startsWith(`${b}${path.sep}`) || b.startsWith(`${a}${path.sep}`); }

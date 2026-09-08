@@ -1133,6 +1133,6 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   "publicEntries": [
     "tooling/release/index.mjs"
   ],
-  "dependencies": []
+  "dependencies": ["infrastructure/server/persistence"]
 }
 ];
