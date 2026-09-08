@@ -3,6 +3,8 @@
 export type OperationStoreReference =
   | { domain: "journal" }
   | { domain: "todo" }
+  | { domain: "catalog" }
+  | { domain: "workspace"; repository: string }
   | { domain: "workspace"; repositoryId: string };
 
 type OperationAuditEntryBase = {
@@ -20,6 +22,7 @@ type OperationAuditEntryBase = {
     | "conflict"
     | "failed"
     | "indeterminate"
+    | "pending"
     | "stale"
     | "unchanged";
   route: string;
@@ -43,7 +46,7 @@ export type OperationAuditEntry = OperationAuditEntryBase & (
       };
     }
   | {
-      source: "trusted-client";
+      source: "trusted-client" | "content-api";
       technical: { intentDigest: `sha256:${string}` | null };
     }
 );

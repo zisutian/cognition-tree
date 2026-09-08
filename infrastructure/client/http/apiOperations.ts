@@ -53,7 +53,7 @@ function projectEntry(
       }
     : {
         ...common,
-        source: "trusted-client",
+        source: entry.source,
         technical: {
           intentDigest: entry.intentDigest as `sha256:${string}` | null,
         },

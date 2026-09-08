@@ -56,6 +56,15 @@ export class OperationLedgerStore {
         await this.#partition.mutate((state) => {
           let changed = false;
 
+          for (const receipt of state.contentReceipts) {
+            if (receipt.status !== "pending") continue;
+            receipt.status = "indeterminate";
+            receipt.audit = "failed";
+            receipt.error = { code: "operation_indeterminate", message: "The process ended before a durable result was recorded. Inspect the operation and affected content; it will not be replayed." };
+            receipt.updatedAt = this.#now();
+            changed = true;
+          }
+
           for (const stored of state.auditEntries) {
             if (!stored.pending) continue;
             stored.pending = false;

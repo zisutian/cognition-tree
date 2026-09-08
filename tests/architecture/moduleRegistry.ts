@@ -111,7 +111,8 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "application/operations/index.ts"
     ],
     "dependencies": [
-      "application/agent"
+      "application/agent",
+      "application/commands"
     ]
   },
   {
@@ -274,6 +275,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "contracts/agent/index.ts"
     ],
     "dependencies": [
+      "contracts/content",
       "contracts/common",
       "contracts/todo"
     ]
@@ -286,6 +288,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "contracts/api/index.ts"
     ],
     "dependencies": [
+      "contracts/content",
       "contracts/agent",
       "contracts/built-ins",
       "contracts/common",
@@ -313,6 +316,13 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "contracts/common/index.ts"
     ],
     "dependencies": []
+  },
+  {
+    "id": "contracts/content",
+    "responsibility": "Neutral content operation wire contracts and durable result decoding",
+    "scope": "tree",
+    "publicEntries": ["contracts/content/index.ts"],
+    "dependencies": ["contracts/common"]
   },
   {
     "id": "contracts/journal",
@@ -711,6 +721,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "infrastructure/server/operations/index.ts"
     ],
     "dependencies": [
+      "contracts/content",
       "application/operations",
       "application/persistence",
       "contracts/agent",

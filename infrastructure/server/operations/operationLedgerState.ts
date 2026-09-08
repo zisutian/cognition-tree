@@ -17,8 +17,10 @@ import {
   requireStateRecord,
 } from "../state/index.ts";
 import type { AgentOperationAttempt } from "../../../application/operations/index.ts";
+import type { ContentOperationResult } from "../../../application/operations/index.ts";
+import { ContentOperationResultSchema } from "../../../contracts/content/index.ts";
 
-const operationLedgerFormatVersion = 2;
+const operationLedgerFormatVersion = 3;
 
 type AgentReceiptStatus =
   | "committed"
@@ -40,6 +42,7 @@ export type AgentReceiptState = {
 
 export type OperationLedgerState = {
   agentReceipts: AgentReceiptState[];
+  contentReceipts: ContentOperationResult[];
   auditEntries: Array<{
     entry: ApiOperationAuditEntryDto;
     pending: boolean;
@@ -193,6 +196,7 @@ function parseAgentReceipt(value: unknown): AgentReceiptState {
 export function createInitialOperationLedgerState(): OperationLedgerState {
   return {
     agentReceipts: [],
+    contentReceipts: [],
     auditEntries: [],
     formatVersion: operationLedgerFormatVersion,
   };
@@ -203,18 +207,28 @@ export function parseOperationLedgerState(value: unknown): OperationLedgerState 
 
   assertStateFields(
     record,
-    ["agentReceipts", "auditEntries", "formatVersion"],
+    record.formatVersion === 2 ? ["agentReceipts", "auditEntries", "formatVersion"] : ["agentReceipts", "contentReceipts", "auditEntries", "formatVersion"],
     "Operation ledger state",
   );
   if (
-    record.formatVersion !== operationLedgerFormatVersion ||
+    (record.formatVersion !== 2 && record.formatVersion !== operationLedgerFormatVersion) ||
     !Array.isArray(record.agentReceipts) ||
     !Array.isArray(record.auditEntries)
   ) {
     throw new Error("Operation ledger state has an invalid format.");
   }
+  const contentReceipts = record.formatVersion === 2 ? [] : record.contentReceipts;
+  if (!Array.isArray(contentReceipts)) throw new Error("Operation receipts must be an array.");
+  const seen = new Set<string>();
+  const parsedReceipts = contentReceipts.map((value) => {
+    const receipt = parseApiSchema(ContentOperationResultSchema, value);
+    if (seen.has(receipt.operationId) || (receipt.status === "committed" && receipt.afterRevision === null)) throw new Error("Operation receipt identity or outcome is invalid.");
+    seen.add(receipt.operationId);
+    return receipt;
+  });
   return {
     agentReceipts: record.agentReceipts.map(parseAgentReceipt),
+    contentReceipts: parsedReceipts,
     auditEntries: record.auditEntries.map((value, index) => {
       const stored = requireStateRecord(value, `auditEntries[${index}]`);
 

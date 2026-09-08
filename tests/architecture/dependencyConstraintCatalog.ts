@@ -124,6 +124,7 @@ const operationLedgerStateConsumers: ReadonlySet<string> = new Set([
   operationLedgerStorePath,
 ]);
 const operationLedgerStoreConsumers: ReadonlySet<string> = new Set([
+  "../../infrastructure/server/operations/contentOperationLedger.ts",
   agentOperationLedgerPath,
   operationLedgerPath,
   trustedClientOperationLedgerPath,
@@ -358,6 +359,11 @@ export function createDependencyImportPolicies({
       allows: ({ filePath }) => filePath === operationLedgerPath,
       applies: ({ targetPath }) => targetPath === agentOperationLedgerPath,
       name: "Agent operation ledger composition boundary",
+    },
+    {
+      allows: ({ filePath }) => filePath === operationLedgerPath,
+      applies: ({ targetPath }) => targetPath === "../../infrastructure/server/operations/contentOperationLedger.ts",
+      name: "content operation ledger composition boundary",
     },
     {
       allows: ({ filePath }) => filePath === operationLedgerPath,

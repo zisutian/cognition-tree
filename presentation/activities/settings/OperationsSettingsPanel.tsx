@@ -23,10 +23,10 @@ import type { OperationsSettingsPanelView } from "./useOperationsSettingsSession
 
 function targetLabel(entry: OperationAuditEntry) {
   return entry.store.domain === "workspace"
-    ? `Workspace · ${entry.store.repositoryId}`
+    ? `笔记 · ${"repository" in entry.store ? entry.store.repository : entry.store.repositoryId}`
     : entry.store.domain === "journal"
       ? "日记"
-      : "代办";
+      : entry.store.domain === "todo" ? "代办" : "仓库目录";
 }
 
 export function OperationsSettingsPanel({

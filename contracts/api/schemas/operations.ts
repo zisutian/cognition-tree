@@ -2,6 +2,7 @@
 
 import { Type, type Static } from "@sinclair/typebox";
 import { ApiCanonicalTimestampSchema, ApiIdentifierSchema, ApiResourceVersionSchema, nullable, strictObject } from "../../common/index.ts";
+import { ContentOperationScopeSchema } from "../../content/index.ts";
 
 const digest = Type.String({ pattern: "^sha256:[0-9a-f]{64}$" });
 const store = Type.Union([
@@ -30,6 +31,13 @@ const common = {
 };
 
 export const ApiOperationAuditEntrySchema = Type.Union([
+  strictObject({
+    ...common,
+    store: ContentOperationScopeSchema,
+    intentDigest: digest,
+    result: Type.Union([Type.Literal("pending"), Type.Literal("committed"), Type.Literal("conflict"), Type.Literal("failed"), Type.Literal("indeterminate")]),
+    source: Type.Literal("content-api"),
+  }),
   strictObject({
     ...common,
     agent: strictObject({

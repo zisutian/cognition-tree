@@ -12,11 +12,14 @@ import type {
 } from "../../../application/operations/index.ts";
 import { OperationLedgerStore } from "./operationLedgerStore.ts";
 import { TrustedClientOperationLedger } from "./trustedClientOperationLedger.ts";
+import { ContentOperationLedger } from "./contentOperationLedger.ts";
+import type { ContentOperationIntent, ContentOperationOutcome } from "../../../application/operations/index.ts";
 
 export class OperationLedger {
   readonly #agent: AgentOperationLedger;
   readonly #store: OperationLedgerStore;
   readonly #trusted: TrustedClientOperationLedger;
+  readonly #content: ContentOperationLedger;
 
   constructor(
     stateDirectory: string,
@@ -49,6 +52,7 @@ export class OperationLedger {
         : { runtimeId: options.runtimeId }),
     });
     this.#trusted = new TrustedClientOperationLedger(this.#store);
+    this.#content = new ContentOperationLedger(this.#store, now);
   }
 
   initialize() {
@@ -57,6 +61,14 @@ export class OperationLedger {
 
   status() {
     return this.#store.status();
+  }
+
+  getContentOperation(operationId: string) {
+    return this.#content.getContentOperation(operationId);
+  }
+
+  runContentOperation(intent: ContentOperationIntent, execute: () => Promise<ContentOperationOutcome>) {
+    return this.#content.runContentOperation(intent, execute);
   }
 
   runAgentIdempotent(

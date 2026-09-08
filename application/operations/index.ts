@@ -24,3 +24,5 @@ export type {
   OperationApplication,
   OperationAuditEntry,
 } from "./operationAdministration.ts";
+export { ContentOperationIdempotencyError } from "./contentOperationPort.ts";
+export type { ContentOperationScope, ContentOperationIntent, ContentOperationResult, ContentOperationOutcome, ContentOperationLedgerPort } from "./contentOperationPort.ts";
