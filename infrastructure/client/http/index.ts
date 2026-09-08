@@ -3,43 +3,43 @@
 
 
 export {
-  createHttpAgentClient,
+createHttpAgentClient
 } from "./agentClient.ts";
 export {
-  createHttpAgentConfigurationClient,
+createHttpAgentConfigurationClient
 } from "./agentConfigurationClient.ts";
 export {
-  createHttpApiAdministration,
-} from "./apiAdmin.ts";
-export {
-  createHttpApiEventSource,
+createHttpApiEventSource
 } from "./apiEvents.ts";
 export {
-  createHttpBuiltInCatalogBackend,
+createHttpOperationAdministration
+} from "./apiOperations.ts";
+export type {
+OfficialClientApi
+} from "./apiTransport.ts";
+export {
+createHttpBuiltInCatalogBackend
 } from "./builtInCatalog.ts";
 export {
-  createHttpJournalRepositoryBackend,
+createHttpJournalRepositoryBackend
 } from "./journalRepository.ts";
 export {
-  createHttpOperationAdministration,
-} from "./apiOperations.ts";
+createHttpLocalContentAccess
+} from "./localContentAccess.ts";
 export {
-  createHttpOwnerAuthenticationClient,
-  createHttpSystemAdministrationClient,
+createHttpOwnerAuthenticationClient,
+createHttpSystemAdministrationClient
 } from "./systemAdministrationClient.ts";
 export {
-  createHttpTodoRepositoryBackend,
+createHttpTodoRepositoryBackend
 } from "./todoRepository.ts";
 export {
-  createHttpWorkspaceRepositoryBackend,
+createHttpWorkspaceRepositoryBackend
 } from "./workspaceRepository.ts";
 export {
-  createHttpWorkspaceCatalogBackend,
+createHttpWorkspaceCatalogBackend
 } from "./workspaceRepositoryCatalog.ts";
-export type {
-  OfficialClientApi,
-} from "./apiTransport.ts";
 
-export { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity.ts";
-export { subscribeClientReconnect, HttpApiResponseError, HttpApiUnavailableError } from "./apiTransport.ts";
+export { HttpApiResponseError,HttpApiUnavailableError,subscribeClientReconnect } from "./apiTransport.ts";
 export type { HttpApiTransportOptions } from "./apiTransport.ts";
+export { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity.ts";

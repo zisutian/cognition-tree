@@ -5,18 +5,15 @@ import { resolveApiUrl } from "./apiTransport.ts";
 export async function createHttpRepositoryCacheIdentity({
   baseUrl,
   repositoryId,
-  token,
+
 }: {
   baseUrl: string;
   repositoryId: string;
-  token?: string;
+
 }) {
   const normalizedOrigin = new URL(resolveApiUrl(baseUrl, "")).origin;
-  const tokenBytes = new TextEncoder().encode(token ?? "");
-  const digest = await globalThis.crypto.subtle.digest("SHA-256", tokenBytes);
-  const tokenDigest = Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
+  // Preserve the existing official-client cache namespace without retaining credential paths.
+  const tokenDigest = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
   return `${normalizedOrigin}#${repositoryId}#${tokenDigest}`;
 }

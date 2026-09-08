@@ -1,52 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Type, type Static, type TProperties } from "@sinclair/typebox";
+import { Type,type Static,type TProperties } from "@sinclair/typebox";
 import type { ContentRevisionDto } from "../../common/index.ts";
+import { ApiIdentifierSchema,ApiResourceVersionSchema,ApiUuidSchema,nullable,schemaAs,strictObject } from "../../common/index.ts";
 import type { TodoLocalDateDto } from "../../todo/index.ts";
-import { strictObject, nullable, schemaAs, ApiResourceVersionSchema, ApiIdentifierSchema, ApiUuidSchema } from "../../common/index.ts";
 
 export const ApiLocalDateSchema = schemaAs<TodoLocalDateDto>(Type.String({format: "ctn-local-date"}));
 
-export const apiAutomationScopes = [
-  "journal:read",
-  "todo:read",
-  "workspace:read",
-] as const;
-
-export type AutomationApiScope = typeof apiAutomationScopes[number];
-export const apiAutomationScopeSchema = Type.Union(
-  apiAutomationScopes.map((scope) => Type.Literal(scope)),
-);
 export const apiDomainSchema = Type.Union([
   Type.Literal("journal"),
   Type.Literal("todo"),
   Type.Literal("workspace"),
 ]);
 
-export const ApiPrincipalSchema = Type.Union([
-  strictObject({
-    id: ApiIdentifierSchema,
-    kind: Type.Union([
-      Type.Literal("local-owner"),
-      Type.Literal("owner"),
-    ]),
-    name: ApiIdentifierSchema,
-  }),
-  strictObject({
-    id: ApiIdentifierSchema,
-    kind: Type.Literal("automation"),
-    name: ApiIdentifierSchema,
-    repositoryIds: nullable(Type.Array(ApiIdentifierSchema, {
-      uniqueItems: true,
-    })),
-    scopes: Type.Array(apiAutomationScopeSchema, { uniqueItems: true }),
-  }),
-  strictObject({
-    id: ApiIdentifierSchema,
-    kind: Type.Literal("trusted-client"),
-    name: ApiIdentifierSchema,
-  }),
-]);
+export const ApiPrincipalSchema = strictObject({
+  id: ApiIdentifierSchema,
+  kind: Type.Union([Type.Literal("local-owner"), Type.Literal("owner")]),
+  name: ApiIdentifierSchema,
+});
 export type ApiPrincipalDto = Static<typeof ApiPrincipalSchema>;
 
 export const ApiCapabilitiesSchema = strictObject({

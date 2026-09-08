@@ -1,42 +1,39 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback,useEffect,useMemo,useRef } from "react";
 import type {
-  WorkbenchController,
-  WorkbenchControllerSnapshot,
-} from "../../../application/workbench/index.ts";
-import type { ProblemCenterController } from "../../../application/problems/index.ts";
+AgentClientController,
+AgentClientState,
+AgentConfigurationController,
+AgentConfigurationState,
+AgentScopeCatalog,
+} from "../../../application/agent/index.ts";
 import type { JournalApplicationServices } from "../../../application/journal/index.ts";
+import type { LocalContentAccess,OperationAdministration } from "../../../application/operations/index.ts";
+import type { ProblemCenterController } from "../../../application/problems/index.ts";
+import type { SearchResult } from "../../../application/search/index.ts";
+import type {
+OwnerAuthenticationController,
+OwnerAuthenticationState,
+SystemConfigurationController,
+SystemConfigurationState,
+} from "../../../application/system/index.ts";
 import type { TodoApplicationServices } from "../../../application/todo/index.ts";
+import type {
+WorkbenchController,
+WorkbenchControllerSnapshot,
+} from "../../../application/workbench/index.ts";
+import { createRepositoryProjection } from "../../../application/workbench/index.ts";
+import {
+isJournalEntryId,
+} from "../../../core/journal/index.ts";
+import {
+isTodoCollectionId,
+} from "../../../core/todo/index.ts";
 import type { ActivityId } from "../../ui/index.ts";
 import { useJournalApplication } from "./useJournalApplication.ts";
 import { useRepositoryNavigation } from "./useRepositoryNavigation.ts";
 import { useTodoApplication } from "./useTodoApplication.ts";
-import { createRepositoryProjection } from "../../../application/workbench/index.ts";
-import type { SearchResult } from "../../../application/search/index.ts";
-import {
-  isJournalEntryId,
-} from "../../../core/journal/index.ts";
-import {
-  isTodoCollectionId,
-} from "../../../core/todo/index.ts";
-import type {
-  AgentClientController,
-  AgentClientState,
-  AgentConfigurationController,
-  AgentConfigurationState,
-  AgentScopeCatalog,
-} from "../../../application/agent/index.ts";
-import type {
-  OwnerAuthenticationController,
-  OwnerAuthenticationState,
-  SystemConfigurationController,
-  SystemConfigurationState,
-} from "../../../application/system/index.ts";
-import type { ApiAccessAdministration } from
-  "../../../application/apiAccess/index.ts";
-import type { OperationAdministration } from
-  "../../../application/operations/index.ts";
 
 const workspaceFeedbackActivities = [
   "notes",
@@ -50,7 +47,7 @@ export function useWorkbenchApplicationBindings({
   agentConfigurationState,
   agentController,
   agentState,
-  apiAccessAdministration,
+  localApi,
   controller,
   feedbackController,
   operationAdministration,
@@ -65,7 +62,7 @@ export function useWorkbenchApplicationBindings({
   agentConfigurationState: AgentConfigurationState;
   agentController: AgentClientController;
   agentState: AgentClientState;
-  apiAccessAdministration: ApiAccessAdministration;
+  localApi: LocalContentAccess;
   controller: WorkbenchController;
   feedbackController: ProblemCenterController<ActivityId>;
   operationAdministration: OperationAdministration;
@@ -233,15 +230,7 @@ export function useWorkbenchApplicationBindings({
       scopeCatalog: agentScopeCatalog,
       state: agentState,
     },
-    apiAccess: {
-      administration: apiAccessAdministration,
-      repositories: snapshot.catalog.state.status === "ready"
-        ? snapshot.catalog.state.repositories.map(({ id, label }) => ({
-            id,
-            label,
-          }))
-        : [],
-    },
+    localApi,
     journal,
     operations: {
       administration: operationAdministration,

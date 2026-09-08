@@ -1,28 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
+useCallback,
+useEffect,
+useLayoutEffect,
+useRef,
+useState,
 } from "react";
 import type { AgentApplication } from "../../../application/agent/index.ts";
-import type { ApiAccessApplication } from "../../../application/apiAccess/index.ts";
-import type { OperationApplication } from "../../../application/operations/index.ts";
+import type { LocalContentAccess,OperationApplication } from "../../../application/operations/index.ts";
 import type {
-  SystemApplication,
-  SystemReconnectPort,
+SystemApplication,
+SystemReconnectPort,
 } from "../../../application/system/index.ts";
 import {
-  type ActivityControllerProps,
-  type ActivityId,
-  type ActivityInteractionState,
-  useFeedback,
+useFeedback,
+type ActivityControllerProps,
+type ActivityId,
+type ActivityInteractionState,
 } from "../../ui/index.ts";
 import { createSettingsActivitySlots } from "./SettingsActivitySlots.tsx";
-import { settingsTargetKey, type SettingsTarget } from "./settingsTypes.ts";
-import { useApiAccessSettingsSession } from "./useApiAccessSettingsSession.ts";
+import { settingsTargetKey,type SettingsTarget } from "./settingsTypes.ts";
 import { useOperationsSettingsSession } from "./useOperationsSettingsSession.ts";
 import { idleSettingsInteraction } from "./useSettingsInteraction.ts";
 import { useSystemOwnerCredentialSession } from "./useSystemOwnerCredentialSession.ts";
@@ -41,7 +39,6 @@ export function SettingsActivityController({
   const [target, setTarget] = useState<SettingsTarget>({ kind: "interface" });
   const [interaction, setInteraction] = useState(idleSettingsInteraction);
   const currentInteraction = useRef(interaction);
-  const api = useApiAccessSettingsSession(application.apiAccess);
   const operations = useOperationsSettingsSession(
     application.operations.administration,
   );
@@ -67,13 +64,9 @@ export function SettingsActivityController({
         application.agent.configurationController.load(),
         application.agent.controller.refreshStatus(),
         application.system.configurationController.load(),
-        api.load(),
         ...(target.kind === "audit" ? [operations.load()] : []),
       ]);
     });
-  useEffect(() => {
-    if (active) void api.load();
-  }, [active, api.load]);
   useEffect(() => {
     if (active && target.kind === "audit") void operations.load();
   }, [active, target.kind, operations.load]);
@@ -81,7 +74,6 @@ export function SettingsActivityController({
     activeRef.current = active;
     if (!active) {
       targetEpoch.current += 1;
-      api.reset();
       owner.dismissSecret();
       operations.reset();
       report(idleSettingsInteraction);
@@ -89,11 +81,10 @@ export function SettingsActivityController({
     return () => {
       activeRef.current = false;
     };
-  }, [active, api.reset, owner.dismissSecret, operations.reset, report]);
+  }, [active, owner.dismissSecret, operations.reset, report]);
   const select = (next: SettingsTarget) => {
     if (settingsTargetKey(next) === settingsTargetKey(target)) return;
     if (currentInteraction.current.navigationBlocked) return;
-    api.dismissSecret();
     owner.dismissSecret();
     report(idleSettingsInteraction);
     targetEpoch.current += 1;
@@ -110,7 +101,7 @@ export function SettingsActivityController({
         ({ contextWidth, onCollapseDetail, onContextWidthChange }) =>
           createSettingsActivitySlots({
             agent: application.agent,
-            api,
+            localApi: application.localApi,
             blocked: interaction.navigationBlocked,
             navigation,
             onCollapseDetail,
@@ -130,7 +121,7 @@ export function SettingsActivityController({
 
 export type SettingsActivityApplication = {
   agent: AgentApplication;
-  apiAccess: ApiAccessApplication;
+  localApi: LocalContentAccess;
   operations: OperationApplication;
   system: SystemApplication;
 };

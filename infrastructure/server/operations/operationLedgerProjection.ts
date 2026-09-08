@@ -2,15 +2,14 @@
 
 import type { AgentOperationAuditEntryDto } from "../../../contracts/agent/index.ts";
 import {
-  parseApiSchema,
-  ApiOperationAuditEntrySchema,
-  type ApiOperationAuditEntryDto,
+ApiOperationAuditEntrySchema,
+parseApiSchema,
+type ApiOperationAuditEntryDto,
 } from "../../../contracts/api/index.ts";
 
 import type {
-  AgentOperationAttempt,
-  AgentOperationIdentity,
-  BeginTrustedClientOperationInput,
+AgentOperationAttempt,
+AgentOperationIdentity,
 } from "../../../application/operations/index.ts";
 
 type AgentReceiptProjectionInput = Readonly<{
@@ -28,26 +27,6 @@ export function operationLedgerKey(
   >,
 ) {
   return `${identity.proposalId}\u0000${identity.proposalVersion}`;
-}
-
-export function createTrustedClientAuditEntry(
-  input: BeginTrustedClientOperationInput,
-): ApiOperationAuditEntryDto {
-  return parseApiSchema(ApiOperationAuditEntrySchema, {
-    afterRevision: null,
-    beforeRevision: null,
-    changeMetadata: { blockIds: [], resourceIds: [] },
-    id: input.requestId,
-    intentDigest: null,
-    occurredAt: input.occurredAt,
-    principalId: input.principalId,
-    requestId: input.requestId,
-    result: "indeterminate",
-    route: input.route,
-    source: "trusted-client",
-    store: input.store,
-    updatedAt: input.occurredAt,
-  });
 }
 
 export function projectAgentOperationAudit(

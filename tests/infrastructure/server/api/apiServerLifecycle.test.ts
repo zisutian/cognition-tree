@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { once } from "node:events";
-import { createServer, get, type IncomingMessage } from "node:http";
-import { describe, expect, it } from "vitest";
+import { createServer,get,type IncomingMessage } from "node:http";
+import { describe,expect,it } from "vitest";
 import {
-  ApiServerLifecycleError,
-  closeApiServer,
-  settleApiServerLifecyclePhases,
+ApiServerLifecycleError,
+closeApiServer,
+settleApiServerLifecyclePhases,
 } from "../../../../infrastructure/server/api/http/serverLifecycle.ts";
 import { ApiEventHub } from "../../../../infrastructure/server/api/sync/events.ts";
 
@@ -63,11 +63,6 @@ describe("API server lifecycle", () => {
           workspaces: {},
         },
         headers: {},
-        principal: {
-          id: "local-owner",
-          kind: "local-owner",
-          name: "本机官方客户端",
-        },
         response,
       });
     });

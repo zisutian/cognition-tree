@@ -4,24 +4,24 @@ const systemNavigation = createClientSystemNavigation();
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  Archive,
-  Bot,
-  Braces,
-  CalendarDays,
-  FileText,
-  ListChecks,
-  Search,
-  Settings,
+Archive,
+Bot,
+Braces,
+CalendarDays,
+FileText,
+ListChecks,
+Search,
+Settings,
 } from "lucide-react";
-import { lazy, type ComponentType, type LazyExoticComponent } from "react";
+import { lazy,type ComponentType,type LazyExoticComponent } from "react";
 import type {
-  ActivityId,
-  ActivityControllerProps,
-  ActivityNavigationItem,
+ActivityControllerProps,
+ActivityId,
+ActivityNavigationItem,
 } from "../../ui/index.ts";
 
-import type { WorkbenchApplication } from "../application/workbenchApplication.ts";
 import type { SyntaxActivityControllerProps } from "../../activities/syntax/index.ts";
+import type { WorkbenchApplication } from "../application/workbenchApplication.ts";
 
 export type WorkbenchActivityControllerProps = {
   onInteractionStateChange(
@@ -266,7 +266,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
               active={props.active}
               application={{
                 agent: application.agent,
-                apiAccess: application.apiAccess,
+                localApi: application.localApi,
                 operations: application.operations,
                 system: application.system,
               }}

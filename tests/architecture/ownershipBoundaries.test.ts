@@ -1,24 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { describe,expect,it } from "vitest";
 import {
-  apiRouteDefinitions,
-  getApiRouteOperation,
+apiRouteDefinitions,
+getApiRouteOperation,
 } from "../../contracts/api/registry";
 import {
-  apiAutomationScopes,
-} from "../../contracts/api/types";
+auditTextPolicies,
+} from "../support/textPolicy";
 import {
-  createOwnershipTextPolicies,
+createOwnershipTextPolicies,
 } from "./ownershipConstraintCatalog";
 import {
-  applicationModules,
-  contractModules,
-  infrastructureModules,
-  presentationModules,
-  sourceModules,
+applicationModules,
+contractModules,
+infrastructureModules,
+presentationModules,
+sourceModules,
 } from "./sourceCorpus";
-import {
-  auditTextPolicies,
-} from "../support/textPolicy";
 
 const ownershipTextPolicies = createOwnershipTextPolicies({
   applicationModules,
@@ -33,7 +30,7 @@ describe("source ownership boundaries", () => {
     expect(auditTextPolicies(ownershipTextPolicies)).toEqual([]);
   });
 
-  it("keeps automation outside official sync and administration routes", () => {
+  it("keeps local commands, browser synchronization and owner routes distinct", () => {
     const operations = apiRouteDefinitions.flatMap((route) =>
       route.methods.map((method) => ({
         method,
@@ -42,13 +39,10 @@ describe("source ownership boundaries", () => {
       }))
     );
 
-    expect(apiAutomationScopes).toEqual([
-      "journal:read",
-      "todo:read",
-      "workspace:read",
-    ]);
     for (const { method, operation, path } of operations) {
-      if (path.startsWith("/api/v4/sync/")) {
+      if (["queryLocalContent", "executeContentOperation", "getContentOperation"].includes(operation.operationId)) {
+        expect(operation.access).toEqual({ kind: "local-content" });
+      } else if (path.startsWith("/api/v4/sync/")) {
         expect(operation.access, `${method} ${path}`).toEqual({
           kind: "content-sync",
         });

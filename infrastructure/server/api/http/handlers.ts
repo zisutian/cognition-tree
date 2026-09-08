@@ -1,39 +1,37 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createApiOpenApiDocument } from "../../../../contracts/api/index.ts";
 import type { ApiSearchRequestDto } from "../../../../contracts/api/index.ts";
+import { createApiOpenApiDocument } from "../../../../contracts/api/index.ts";
 import { ApiRequestError } from "../protocol/index.ts";
 import {
-  assertOperationAccess,
-  createCheckpoint,
-  requireBuiltInCatalog,
-  type ApiHandlerContext,
-  type ApiRouteHandlerContext,
-  type HandlerResult,
-} from "./handlerContext.ts";
+journalResourceVersions,
+todoResourceVersions,
+workspaceResourceVersions,
+} from "../resources/index.ts";
+import {
+handleAgentConfigurationAdmin,
+handleRepositoryAdmin,
+parseAuditQuery,
+} from "./adminHandlers.ts";
 import { handleAgentOperation } from "./agentHandlers.ts";
+import {
+assertOperationAccess,
+createCheckpoint,
+requireBuiltInCatalog,
+type ApiHandlerContext,
+type ApiRouteHandlerContext,
+type HandlerResult,
+} from "./handlerContext.ts";
 import { handleLocalContent } from "./localContentHandlers.ts";
 import {
-  handleJournalQuery,
-  handleTodoQuery,
-  handleWorkspaceQuery,
+handleJournalQuery,
+handleTodoQuery,
+handleWorkspaceQuery,
 } from "./queryHandlers.ts";
 import { handleApiSync } from "./syncHandlers.ts";
 import {
-  journalResourceVersions,
-  todoResourceVersions,
-  workspaceResourceVersions,
-} from "../resources/index.ts";
-import {
-  handleAgentConfigurationAdmin,
-  handleRepositoryAdmin,
-  handleTokenAdmin,
-  handleTrustedClientTokenAdmin,
-  parseAuditQuery,
-} from "./adminHandlers.ts";
-import {
-  handleOwnerSession,
-  handleSystemAdministration,
+handleOwnerSession,
+handleSystemAdministration,
 } from "./systemHandlers.ts";
 
 export async function handleApiRoute(
@@ -47,8 +45,7 @@ export async function handleApiRoute(
   }
   if (operation.operationId === "getCapabilities") {
     const exposesAuditStatus = context.principal?.kind === "local-owner" ||
-      context.principal?.kind === "owner" ||
-      context.principal?.kind === "trusted-client";
+      context.principal?.kind === "owner";
     const auditStatus = exposesAuditStatus && context.operationLedger
       ? (await context.operationLedger.status()).status
       : exposesAuditStatus ? "unavailable" : null;
@@ -84,7 +81,6 @@ export async function handleApiRoute(
         revisionTracker: authorizedContext.revisionTracker,
       }),
       headers: authorizedContext.responseHeaders,
-      principal: authorizedContext.principal,
       response: authorizedContext.response,
     });
     return null;
@@ -101,7 +97,6 @@ export async function handleApiRoute(
     return {
       body: await search.search(
         await authorizedContext.readJsonBody() as ApiSearchRequestDto,
-        authorizedContext.principal,
       ),
       statusCode: 200,
     };
@@ -161,14 +156,6 @@ export async function handleApiRoute(
       ),
       statusCode: 200,
     };
-  }
-  if (["listApiTokens", "createApiToken", "revokeToken"].includes(
-    operation.operationId,
-  )) {
-    return handleTokenAdmin(authorizedContext);
-  }
-  if (operation.operationId.includes("TrustedClientToken")) {
-    return handleTrustedClientTokenAdmin(authorizedContext);
   }
   if (
     operation.operationId === "listOperations" ||

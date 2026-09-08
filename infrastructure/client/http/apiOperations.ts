@@ -1,20 +1,20 @@
 import {
-  buildApiOperationPath,
-  ApiOperationAuditPageSchema,
-  ApiOperationAuditStatusSchema,
-  parseApiSchema,
+ApiOperationAuditPageSchema,
+ApiOperationAuditStatusSchema,
+buildApiOperationPath,
+parseApiSchema,
 } from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  OperationAdministration,
-  OperationAuditEntry,
+OperationAdministration,
+OperationAuditEntry,
 } from "../../../application/operations/index.ts";
 
 
 import {
-  requestApiJson,
-  type HttpApiTransportOptions,
+requestApiJson,
+type HttpApiTransportOptions,
 } from "./apiTransport.ts";
 
 function projectEntry(
@@ -67,7 +67,7 @@ function parsePage(value: unknown) {
 export function createHttpOperationAdministration({
   baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
-  token,
+
 }: HttpApiTransportOptions): OperationAdministration {
   return {
     async getStatus() {
@@ -78,7 +78,7 @@ export function createHttpOperationAdministration({
           baseUrl,
           buildApiOperationPath("getOperationAuditStatus"),
           undefined,
-          token,
+
         ),
       );
     },
@@ -91,7 +91,7 @@ export function createHttpOperationAdministration({
         baseUrl,
         `${buildApiOperationPath("listOperations")}?${query}`,
         undefined,
-        token,
+
       ));
 
       return {

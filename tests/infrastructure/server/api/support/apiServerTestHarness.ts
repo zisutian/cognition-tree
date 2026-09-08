@@ -1,36 +1,34 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp,rm } from "node:fs/promises";
 import type {
-  IncomingHttpHeaders,
-  IncomingMessage,
-  OutgoingHttpHeader,
-  OutgoingHttpHeaders,
-  ServerResponse,
+IncomingHttpHeaders,
+IncomingMessage,
+OutgoingHttpHeader,
+OutgoingHttpHeaders,
+ServerResponse,
 } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { expect } from "vitest";
-import { createInitialRepositoryContent } from "../../../../../application/workspace/session/initialRepository.ts";
 import {
-  prepareWorkspaceRepositoryContent,
+prepareWorkspaceRepositoryContent,
 } from "../../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
+import { createInitialRepositoryContent } from "../../../../../application/workspace/session/initialRepository.ts";
 import type {
-  RepositoryDescriptorDto,
-  WorkspaceRepositoryContentDto,
+RepositoryDescriptorDto,
+WorkspaceRepositoryContentDto,
 } from "../../../../../contracts/workspace/types.ts";
-import { LocalRepositoryCatalog } from
-  "../../../../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
-import { type ApiRequestHandler } from "../../../../../infrastructure/server/api/http/server.ts";
-import { createApiRequestHandler } from "../../../../../infrastructure/server/runtime/apiRuntime.ts";
 import type { ApiRuntime } from "../../../../../infrastructure/server/api/http/runtime.ts";
 import {
-  createApiSecurityPolicy,
+createApiSecurityPolicy,
 } from "../../../../../infrastructure/server/api/http/security.ts";
-import { AutomationTokenStore } from "../../../../../infrastructure/server/access/automationTokenStore.ts";
-import { BuiltInCatalog } from "../../../../../infrastructure/server/repository/built-ins/catalog.ts";
+import { type ApiRequestHandler } from "../../../../../infrastructure/server/api/http/server.ts";
 import type { OperationLedger } from "../../../../../infrastructure/server/operations/operationLedger.ts";
+import { BuiltInCatalog } from "../../../../../infrastructure/server/repository/built-ins/catalog.ts";
+import { LocalRepositoryCatalog } from "../../../../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
+import { createApiRequestHandler } from "../../../../../infrastructure/server/runtime/apiRuntime.ts";
 
 type RequestOptions = {
   body?: unknown;
@@ -170,13 +168,12 @@ export async function withHandler(
   run: (
     handler: ApiRequestHandler,
     rootDir: string,
-    createAuthenticatedHandler: (
-      ownerToken: string,
+    createConfiguredHandler: (
       options?: { operationLedger?: OperationLedger },
     ) => ApiRequestHandler,
   ) => Promise<void>,
 ) {
-  const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-api-v3-"));
+  const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-api-v4-"));
   let nextRepositoryId = 1;
   const catalog = new LocalRepositoryCatalog(rootDir, {
     createId: () => uuid(nextRepositoryId++),
@@ -185,13 +182,8 @@ export async function withHandler(
   const runtime = createRuntime();
   const stateDirectory = path.join(rootDir, "server-state");
   const createHandler = (operationLedger?: OperationLedger) => {
-    const accessStore = new AutomationTokenStore(stateDirectory, {
-      now: runtime.now,
-    });
-
     return (
     createApiRequestHandler({
-      accessStore,
       builtInCatalog,
       catalog,
       operationLedger,
@@ -215,16 +207,7 @@ export async function withHandler(
     await run(
       createHandler(),
       rootDir,
-      (ownerToken, options = {}) => {
-        const handler = createHandler(options.operationLedger);
-
-        return (request, response) => {
-          if (request.headers.authorization === `Bearer ${ownerToken}`) {
-            delete request.headers.authorization;
-          }
-          return handler(request, response);
-        };
-      },
+      (options = {}) => createHandler(options.operationLedger),
     );
   } finally {
     await catalog.dispose();

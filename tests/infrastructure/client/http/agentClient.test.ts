@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { describe, expect, it, vi } from "vitest";
+import { describe,expect,it,vi } from "vitest";
 import { createHttpAgentClient } from "../../../../infrastructure/client/http/agentClient";
 
 const sessionId = "00000000-0000-4000-8000-000000000001";
 
 describe("HTTP Agent client", () => {
-  it("uses owner-only v3 message operations", async () => {
+  it("uses owner-only v4 message operations", async () => {
     const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe(
         `https://ctn.example/api/v4/agent/sessions/${sessionId}/messages`,
@@ -14,7 +14,7 @@ describe("HTTP Agent client", () => {
       expect(init?.method).toBe("POST");
       expect(JSON.parse(String(init?.body))).toEqual({ content: "hello" });
       expect(new Headers(init?.headers).get("Authorization"))
-        .toBe("Bearer owner-token");
+        .toBeNull();
       return Response.json({
         accepted: true,
         turnId: "00000000-0000-4000-8000-000000000002",
@@ -23,7 +23,6 @@ describe("HTTP Agent client", () => {
     const client = createHttpAgentClient({
       baseUrl: "https://ctn.example",
       fetch: fetch as typeof globalThis.fetch,
-      token: "owner-token",
     });
 
     await expect(client.sendMessage(sessionId, "hello")).resolves

@@ -1,31 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { buildApiOperationPath } from "../../../contracts/api/index.ts";
-import {
-  isRepositoryId,
-  parseCreateRepository,
-  parseRepositoryCatalog,
-  parseRepositoryDescriptor,
-  parseRenameRepository,
-} from "../../../contracts/workspace/index.ts";
-import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
-import {
-  type HttpApiTransportOptions,
-} from "./apiTransport.ts";
-import {
-  requestWorkspaceApiJson,
-  requestWorkspaceApiNoContent,
-} from "./workspaceApiAdapter.ts";
 import type { WorkspaceRepositoryCatalog } from "../../../application/repository/index.ts";
 import type {
-  WorkspaceRepositoryProvisioner,
+WorkspaceRepositoryProvisioner,
 } from "../../../application/workspace/index.ts";
 import {
-  type WorkspaceRepositoryPreparationPolicy,
+type WorkspaceRepositoryPreparationPolicy,
 } from "../../../application/workspace/index.ts";
+import { buildApiOperationPath } from "../../../contracts/api/index.ts";
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
+import {
+isRepositoryId,
+parseCreateRepository,
+parseRenameRepository,
+parseRepositoryCatalog,
+parseRepositoryDescriptor,
+} from "../../../contracts/workspace/index.ts";
 import { parsePortableName } from "../../../core/naming/index.ts";
+import {
+type HttpApiTransportOptions,
+} from "./apiTransport.ts";
+import {
+requestWorkspaceApiJson,
+requestWorkspaceApiNoContent,
+} from "./workspaceApiAdapter.ts";
 
-export function createHttpWorkspaceCatalogBackend({ baseUrl, fetch: fetchFn = globalThis.fetch.bind(globalThis), token, preparation }: HttpApiTransportOptions & { preparation: WorkspaceRepositoryPreparationPolicy }): WorkspaceRepositoryCatalog & WorkspaceRepositoryProvisioner {
+export function createHttpWorkspaceCatalogBackend({ baseUrl, fetch: fetchFn = globalThis.fetch.bind(globalThis), preparation }: HttpApiTransportOptions & { preparation: WorkspaceRepositoryPreparationPolicy }): WorkspaceRepositoryCatalog & WorkspaceRepositoryProvisioner {
   return {
     label: "HTTP 后端",
     async createRepository(input) {
@@ -46,7 +46,7 @@ export function createHttpWorkspaceCatalogBackend({ baseUrl, fetch: fetchFn = gl
             headers: { "Content-Type": "application/json" },
             method: "POST",
           },
-          token,
+
         ),
       );
       return descriptor;
@@ -60,12 +60,12 @@ export function createHttpWorkspaceCatalogBackend({ baseUrl, fetch: fetchFn = gl
         baseUrl,
         buildApiOperationPath("deleteAdminRepository", { repositoryId: id }),
         { method: "DELETE" },
-        token,
+
       );
 
     },
     async listRepositories() {
-      return parseRepositoryCatalog(await requestWorkspaceApiJson(fetchFn, baseUrl, buildApiOperationPath("listAdminRepositories"), undefined, token));
+      return parseRepositoryCatalog(await requestWorkspaceApiJson(fetchFn, baseUrl, buildApiOperationPath("listAdminRepositories"), undefined));
     },
     async renameRepository({ id, label }) {
       if (!isRepositoryId(id)) {
@@ -85,7 +85,7 @@ export function createHttpWorkspaceCatalogBackend({ baseUrl, fetch: fetchFn = gl
             headers: { "Content-Type": "application/json" },
             method: "PATCH",
           },
-          token,
+
         ),
       );
 

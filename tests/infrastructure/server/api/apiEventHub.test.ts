@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { OutgoingHttpHeaders, ServerResponse } from "node:http";
-import { describe, expect, it } from "vitest";
+import type { OutgoingHttpHeaders,ServerResponse } from "node:http";
+import { describe,expect,it } from "vitest";
 import type {
-  ApiPrincipalDto,
-  ApiRevisionCheckpointDto,
+ApiRevisionCheckpointDto,
 } from "../../../../contracts/api/types.ts";
 import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
 import {
-  ApiEventHub,
-  filterApiChangeSet,
+ApiEventHub,
 } from "../../../../infrastructure/server/api/sync/events.ts";
 
 class EventResponse {
@@ -45,12 +43,6 @@ class EventResponse {
   }
 }
 
-const principal: ApiPrincipalDto = {
-  id: "owner",
-  kind: "owner",
-  name: "Owner",
-};
-
 const streamId = "00000000-0000-4000-8000-000000000001";
 
 const checkpoint: ApiRevisionCheckpointDto = {
@@ -76,13 +68,11 @@ describe("API event hub", () => {
     hub.connect({
       checkpoint,
       headers: {},
-      principal,
       response: failed.response,
     });
     hub.connect({
       checkpoint,
       headers: {},
-      principal,
       response: healthy.response,
     });
     failed.failWrites = true;
@@ -94,43 +84,6 @@ describe("API event hub", () => {
     expect(failed.writeCalls).toBe(2);
     expect(healthy.chunks).toHaveLength(3);
     expect(hub.sequence).toBe(2);
-  });
-
-  it("drops block changes whose resource id has mixed visibility", () => {
-    const automation: ApiPrincipalDto = {
-      id: "automation",
-      kind: "automation",
-      name: "Workspace reader",
-      repositoryIds: ["repository-a"],
-      scopes: ["workspace:read"],
-    };
-    const filtered = filterApiChangeSet({
-      blocks: [{
-        blockId: "block-shared",
-        kind: "updated",
-        resourceId: "resource-shared",
-        updatedAt: "2026-08-30T00:00:00.000Z",
-      }],
-      occurredAt: "2026-08-30T00:00:00.000Z",
-      resources: [
-        {
-          domain: "workspace",
-          kind: "updated",
-          repositoryId: "repository-a",
-          resourceId: "resource-shared",
-        },
-        {
-          domain: "journal",
-          kind: "updated",
-          resourceId: "resource-shared",
-        },
-      ],
-    }, automation);
-
-    expect(filtered.resources).toEqual([
-      expect.objectContaining({ domain: "workspace" }),
-    ]);
-    expect(filtered.blocks).toEqual([]);
   });
 
   it("does not advance a disposed event stream", () => {

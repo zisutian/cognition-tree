@@ -314,13 +314,17 @@ describe("workspace persistence integration", () => {
     const server = await startRepositoryServer();
     const invalidBearerCatalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: server.baseUrl,
-      token,
+      fetch: (input, init) => {
+        const headers = new Headers(init?.headers);
+        headers.set("Authorization", `Bearer ${token}`);
+        return fetch(input, { ...init, headers });
+      },
       preparation: workspaceRepositoryPreparation,
     });
 
     await expect(
       createRepository(invalidBearerCatalog, "unauthorized"),
-    ).rejects.toThrow("Bearer token is invalid");
+    ).rejects.toThrow("Bearer access has been retired");
 
     const localCatalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: server.baseUrl,

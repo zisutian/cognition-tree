@@ -54,15 +54,6 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     ]
   },
   {
-    "id": "application/apiAccess",
-    "responsibility": "Owner and automation access administration ports",
-    "scope": "tree",
-    "publicEntries": [
-      "application/apiAccess/index.ts"
-    ],
-    "dependencies": []
-  },
-  {
     "id": "application/commands",
     "responsibility": "Domain command preparation, provenance and approved command execution contracts",
     "scope": "tree",
@@ -449,8 +440,8 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "infrastructure/client/http/index.ts"
     ],
     "dependencies": [
+      "contracts/content",
       "application/agent",
-      "application/apiAccess",
       "application/journal",
       "application/operations",
       "application/persistence",
@@ -515,7 +506,6 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     ],
     "dependencies": [
       "application/agent",
-      "application/apiAccess",
       "application/journal",
       "application/operations",
       "application/persistence",
@@ -532,18 +522,6 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "infrastructure/client/http",
       "infrastructure/client/platform",
       "infrastructure/client/repository"
-    ]
-  },
-  {
-    "id": "infrastructure/server/access",
-    "responsibility": "Persisted automation and trusted-client access tokens",
-    "scope": "tree",
-    "publicEntries": [
-      "infrastructure/server/access/index.ts"
-    ],
-    "dependencies": [
-      "contracts/api",
-      "infrastructure/server/state"
     ]
   },
   {
@@ -595,7 +573,6 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "core/journal",
       "core/naming",
       "core/todo",
-      "infrastructure/server/access",
       "infrastructure/server/agent",
       "infrastructure/server/api",
       "infrastructure/server/api/protocol",
@@ -704,7 +681,6 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "application/agentHost",
       "application/sync",
       "application/system",
-      "infrastructure/server/access",
       "infrastructure/server/agent",
       "infrastructure/server/api/http",
       "infrastructure/server/api/sync",
@@ -803,7 +779,6 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "application/search",
       "application/sync",
       "contracts/common",
-      "infrastructure/server/access",
       "infrastructure/server/agent",
       "infrastructure/server/api",
       "infrastructure/server/api/http",
@@ -934,7 +909,6 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     ],
     "dependencies": [
       "application/agent",
-      "application/apiAccess",
       "application/operations",
       "application/system",
       "presentation/ui"
@@ -1008,7 +982,6 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     ],
     "dependencies": [
       "application/agent",
-      "application/apiAccess",
       "application/journal",
       "application/operations",
       "application/persistence",
@@ -1119,6 +1092,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "tooling/cli/index.ts"
     ],
     "dependencies": [
+      "contracts/content",
       "contracts/api"
     ]
   },

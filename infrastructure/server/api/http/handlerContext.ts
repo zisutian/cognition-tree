@@ -1,49 +1,45 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  OutgoingHttpHeaders,
-  ServerResponse,
+OutgoingHttpHeaders,
+ServerResponse,
 } from "node:http";
 import type {
-  ApiPrincipalDto,
-  ApiRevisionCheckpointDto,
+ApiPrincipalDto,
+ApiRevisionCheckpointDto,
+} from "../../../../contracts/api/index.ts";
+import {
+type ApiOperationDefinition,
+type ResolvedApiRoute,
 } from "../../../../contracts/api/index.ts";
 import type { DomainChangeSetDto } from "../../../../contracts/common/index.ts";
-import {
-  type ApiOperationDefinition,
-  type ResolvedApiRoute,
-} from "../../../../contracts/api/index.ts";
 import type {
-  WorkspaceRepositoryCatalog,
-  ApiBuiltInCatalog,
+ApiBuiltInCatalog,
+WorkspaceRepositoryCatalog,
 } from "../../repository/index.ts";
 
+import {
+DomainRevisionTracker,
+type TrackedContentDomain,
+} from "../../../../application/sync/index.ts";
+import type { ApiSearchService } from "../index.ts";
 import { ApiRequestError } from "../protocol/index.ts";
 import { ApiEventHub } from "../sync/index.ts";
 import {
-  DomainRevisionTracker,
-  type TrackedContentDomain,
-} from "../../../../application/sync/index.ts";
-import {
-  readApiRuntimeNow,
-  type ApiRuntime,
+readApiRuntimeNow,
+type ApiRuntime,
 } from "./runtime.ts";
-import type { ApiSearchService } from "../index.ts";
-import type {
-  AutomationTokenStore,
-  TrustedClientTokenStore,
-} from "../../access/index.ts";
 
-import type { OperationLedger } from "../../operations/index.ts";
 import type {
-  AgentService,
-  AgentProviderOperations,
+AgentProviderOperations,
+AgentService,
 } from "../../../../application/agentHost/index.ts";
 import type { AgentConfigurationStore } from "../../agent/index.ts";
+import type { OperationLedger } from "../../operations/index.ts";
 
+import type { ContentService } from "../../../../application/content/index.ts";
 import type { SystemAdministrationServerPort } from "../../../../application/system/index.ts";
 import type { ApiOwnerSessionAuthority } from "./security.ts";
-import type { ContentService } from "../../../../application/content/index.ts";
 
 export type HandlerResult = {
   body: unknown;
@@ -74,98 +70,15 @@ export function assertOperationAccess(
   if (!principal) {
     throw new ApiRequestError("unauthorized", "Authentication is required");
   }
+  if (!isOwnerPrincipal(principal)) throw new ApiRequestError("forbidden", "Unknown principal is denied");
   if (access.kind === "local-content") {
     if (principal.kind !== "local-owner") throw new ApiRequestError("forbidden", "Content commands require a verified local connection.");
     return;
   }
-  switch (principal.kind) {
-    case "local-owner":
-    case "owner":
-      return;
-    case "automation": {
-      if (access.kind === "owner" || access.kind === "content-sync") {
-        throw new ApiRequestError(
-          "forbidden",
-          "This operation is not available to automation tokens",
-        );
-      }
-      if (access.kind !== "content-read") return rejectUnknownAccess(access);
-      const required = access.domain === "any"
-        ? null
-        : `${access.domain}:read` as const;
-
-      if (
-        required
-          ? !principal.scopes.includes(required)
-          : principal.scopes.length === 0
-      ) {
-        throw new ApiRequestError("forbidden", "A matching read scope is required");
-      }
-      return;
-    }
-    case "trusted-client":
-      if (access.kind === "content-read" || access.kind === "content-sync") {
-        return;
-      }
-      if (access.kind === "owner") {
-        throw new ApiRequestError(
-          "forbidden",
-          "Trusted clients cannot access owner operations",
-        );
-      }
-      return rejectUnknownAccess(access);
-    default:
-      return rejectUnknownPrincipal(principal);
-  }
-}
-
-function rejectUnknownAccess(value: never): never {
-  void value;
-  throw new ApiRequestError("forbidden", "Unknown access policy is denied");
-}
-
-function rejectUnknownPrincipal(value: never): never {
-  void value;
-  throw new ApiRequestError("forbidden", "Unknown principal is denied");
 }
 
 export function isOwnerPrincipal(principal: ApiPrincipalDto | null) {
-  if (!principal) return false;
-  switch (principal.kind) {
-    case "local-owner":
-    case "owner":
-      return true;
-    case "automation":
-    case "trusted-client":
-      return false;
-    default:
-      return rejectUnknownPrincipal(principal);
-  }
-}
-
-export function assertRepositoryAllowed(
-  principal: ApiPrincipalDto,
-  repositoryId: string,
-) {
-  switch (principal.kind) {
-    case "local-owner":
-    case "owner":
-    case "trusted-client":
-      return;
-    case "automation":
-      if (
-        principal.repositoryIds !== null &&
-        !principal.repositoryIds.includes(repositoryId)
-      ) {
-        throw new ApiRequestError(
-          "forbidden",
-          "Token is not allowed to access this repository",
-        );
-      }
-      return;
-    default:
-      return rejectUnknownPrincipal(principal);
-  }
+  return principal?.kind === "local-owner" || principal?.kind === "owner";
 }
 
 export function createCheckpoint({
@@ -183,7 +96,6 @@ export function createCheckpoint({
 
 export type ApiHandlerContext = {
   contentService: ContentService | null;
-  accessStore: AutomationTokenStore;
   agentConfigurationStore: AgentConfigurationStore;
   agentProviderOperations: AgentProviderOperations;
   agentService: AgentService | null;
@@ -205,7 +117,6 @@ export type ApiHandlerContext = {
   runtime: ApiRuntime;
   search: ApiSearchService | null;
   systemAdministration: SystemAdministrationServerPort | null;
-  trustedClientTokenStore: TrustedClientTokenStore;
 };
 
 export type ApiRouteHandlerContext = Omit<ApiHandlerContext, "principal"> & {

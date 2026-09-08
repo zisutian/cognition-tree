@@ -1,31 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { AgentApplication } from "../../../application/agent/index.ts";
+import type { LocalContentAccess } from "../../../application/operations/index.ts";
 import type {
-  SystemApplication,
-  SystemReconnectPort,
+SystemApplication,
+SystemReconnectPort,
 } from "../../../application/system/index.ts";
-import { AgentProviderSettingsPanel } from "./AgentProviderSettingsPanel.tsx";
 import { AgentProfileSettingsPanel } from "./AgentProfileSettingsPanel.tsx";
+import { AgentProviderSettingsPanel } from "./AgentProviderSettingsPanel.tsx";
 import { AgentSettingsOverview } from "./AgentSettingsOverview.tsx";
-import { ApiAccessSettingsPanel } from "./ApiAccessSettingsPanel.tsx";
 import {
-  InterfaceSettingsPanel,
-  type SettingsWorkbenchPreferences,
+InterfaceSettingsPanel,
+type SettingsWorkbenchPreferences,
 } from "./InterfaceSettingsPanel.tsx";
+import { LocalApiSettingsPanel } from "./LocalApiSettingsPanel.tsx";
 import { MigrationSettingsPanel } from "./MigrationSettingsPanel.tsx";
 import { OperationsSettingsPanel } from "./OperationsSettingsPanel.tsx";
 import { OwnerCredentialSettingsPanel } from "./OwnerCredentialSettingsPanel.tsx";
+import type { SettingsTarget } from "./settingsTypes.ts";
 import { SystemConfigurationPanel } from "./SystemConfigurationPanel.tsx";
-import type { ApiAccessSettingsView } from "./useApiAccessSettingsSession.ts";
 import type { OperationsSettingsPanelView } from "./useOperationsSettingsSession.ts";
 import type { SettingsInteractionReporter } from "./useSettingsInteraction.ts";
 import type { SystemOwnerCredentialPanelView } from "./useSystemOwnerCredentialSession.ts";
-import type { SettingsTarget } from "./settingsTypes.ts";
 
 export type SettingsPanelProps = {
   agent: AgentApplication;
-  api: ApiAccessSettingsView;
+  localApi: LocalContentAccess;
   navigation: SystemReconnectPort;
   onCompleted(target: SettingsTarget): void;
   operations: OperationsSettingsPanelView;
@@ -39,7 +39,7 @@ export type SettingsPanelProps = {
 /** Composition boundary: pages receive only their own state and commands. */
 export function SettingsPanel({
   agent,
-  api,
+  localApi,
   navigation,
   onCompleted,
   operations,
@@ -116,16 +116,8 @@ export function SettingsPanel({
           status={agent.state.status}
         />
       );
-    case "automation":
-    case "trusted":
-      return (
-        <ApiAccessSettingsPanel
-          onCompleted={onCompleted}
-          report={report}
-          session={api}
-          target={target}
-        />
-      );
+    case "local-api":
+      return <LocalApiSettingsPanel api={localApi} report={report} />;
     case "audit":
       return <OperationsSettingsPanel report={report} session={operations} />;
   }

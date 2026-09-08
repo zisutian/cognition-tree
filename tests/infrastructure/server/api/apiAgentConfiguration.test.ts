@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { access, lstat, readFile } from "node:fs/promises";
+import { access,lstat,readFile } from "node:fs/promises";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe,expect,it } from "vitest";
 import type { AgentConfigurationSnapshot } from "../../../../application/agent/agentConfiguration.ts";
-import type { ApiCreatedTokenDto } from "../../../../contracts/api/types.ts";
-import { dispatch, withHandler } from "./support/apiServerTestHarness.ts";
+import { dispatch,withHandler } from "./support/apiServerTestHarness.ts";
 
 describe("Agent configuration admin API", () => {
   it("manages versioned configuration without returning secrets", async () => {
@@ -174,22 +173,17 @@ describe("Agent configuration admin API", () => {
     });
   });
 
-  it("rejects automation principals", async () => {
+  it("rejects retired Bearer access to Agent configuration", async () => {
     await withHandler(async (handler) => {
-      const created = await dispatch<ApiCreatedTokenDto>(handler, {
-        body: { name: "reader", repositoryIds: null, scopes: ["journal:read"] },
-        method: "POST",
-        url: "/api/v4/admin/automation-tokens",
-      });
       const response = await dispatch<{ code: string }>(handler, {
         method: "GET",
-        token: created.body!.secret,
+        token: "ctn_retired-token",
         url: "/api/v4/admin/agent-configuration",
       });
 
       expect(response).toMatchObject({
-        body: { code: "forbidden" },
-        statusCode: 403,
+        body: { code: "unauthorized" },
+        statusCode: 401,
       });
       for (const request of [
         {
@@ -204,10 +198,10 @@ describe("Agent configuration admin API", () => {
       ]) {
         await expect(dispatch<{ code: string }>(handler, {
           ...request,
-          token: created.body!.secret,
+          token: "ctn_retired-token",
         })).resolves.toMatchObject({
-          body: { code: "forbidden" },
-          statusCode: 403,
+          body: { code: "unauthorized" },
+          statusCode: 401,
         });
       }
     });

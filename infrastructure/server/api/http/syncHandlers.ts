@@ -1,36 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createHash } from "node:crypto";
-import { serializeJsonIteratively } from "../../../../contracts/common/index.ts";
-import type { DomainChangeSetDto } from "../../../../contracts/common/index.ts";
 import type {
-  WorkspaceResourceVersionPolicy,
-} from "../../../../application/workspace/index.ts";
-import type {
-  JournalDomainVersions,
+JournalDomainVersions,
 } from "../../../../application/journal/index.ts";
 import type {
-  TodoDomainVersions,
+TodoDomainVersions,
 } from "../../../../application/todo/index.ts";
-import { ApiRequestError, apiNotFound } from "../protocol/index.ts";
+import type {
+WorkspaceResourceVersionPolicy,
+} from "../../../../application/workspace/index.ts";
+import type { DomainChangeSetDto } from "../../../../contracts/common/index.ts";
+import { apiNotFound } from "../protocol/index.ts";
 import {
-  assertRepositoryAllowed,
-  publishTrackedChanges,
-  requireBuiltInCatalog,
-  type ApiHandlerContext,
-} from "./handlerContext.ts";
-import {
-  synchronizeApiJournal,
-  synchronizeApiTodo,
-  synchronizeApiWorkspace,
+synchronizeApiJournal,
+synchronizeApiTodo,
+synchronizeApiWorkspace,
 } from "../sync/index.ts";
 import {
-  OperationAuditFinalizeError,
-  OperationAuditUnavailableError,
-  type TrustedClientOperationStore,
-} from "../../../../application/operations/index.ts";
-import { readApiRuntimeNow } from "./runtime.ts";
-import { VersionedContentCommitOutcomeUnknownError } from "../../../../application/persistence/index.ts";
+publishTrackedChanges,
+requireBuiltInCatalog,
+type ApiHandlerContext,
+} from "./handlerContext.ts";
 
 async function publishApiChanges(
   context: ApiHandlerContext,
@@ -45,7 +35,7 @@ async function handleWorkspaceSync(
   mode: "commit" | "load",
   versionPolicy: WorkspaceResourceVersionPolicy,
 ) {
-  assertRepositoryAllowed(context.principal, repositoryId);
+
   const store = await context.catalog.getStore(repositoryId);
   return synchronizeApiWorkspace({
     mode,
@@ -100,7 +90,7 @@ async function handleTodoSync(
   });
 }
 
-function executeApiSync(
+export function handleApiSync(
   context: ApiHandlerContext,
   versionPolicies: {
     journal: JournalDomainVersions;
@@ -129,104 +119,4 @@ function executeApiSync(
       operationId === "putJournalSyncSnapshot"
     ? handleJournalSync(context, mode, versionPolicies.journal)
     : handleTodoSync(context, mode, versionPolicies.todo);
-}
-
-function intentDigest(value: unknown) {
-  return `sha256:${createHash("sha256")
-    .update(serializeJsonIteratively(value, { sortObjectKeys: true }))
-    .digest("hex")}` as `sha256:${string}`;
-}
-
-export async function handleApiSync(
-  context: ApiHandlerContext,
-  versionPolicies: {
-    journal: JournalDomainVersions;
-    todo: TodoDomainVersions;
-    workspace: WorkspaceResourceVersionPolicy;
-  },
-) {
-  if (
-    context.operation.method !== "PUT" ||
-    context.principal.kind !== "trusted-client"
-  ) {
-    return executeApiSync(context, versionPolicies);
-  }
-  const ledger = context.operationLedger;
-
-  if (!ledger) {
-    throw new OperationAuditUnavailableError(
-      "Operation audit is required for trusted-client writes",
-    );
-  }
-  const store: TrustedClientOperationStore =
-    context.operation.operationId === "putWorkspaceSyncSnapshot"
-      ? {
-          domain: "workspace",
-          repositoryId: context.route.repositoryId ?? apiNotFound(),
-        }
-      : context.operation.operationId === "putJournalSyncSnapshot"
-        ? { domain: "journal" }
-        : { domain: "todo" };
-  const occurredAt = readApiRuntimeNow(context.runtime).timestamp;
-  const operationId = await ledger.beginAuthenticatedAttempt({
-    occurredAt,
-    principalId: context.principal.id,
-    requestId: context.requestId,
-    route: context.operation.operationId,
-    store,
-  });
-  const auditedContext: ApiHandlerContext = {
-    ...context,
-    readJsonBody: async () => {
-      const request = await context.readJsonBody() as {
-        base: { revision: `sha256:${string}` };
-      };
-
-      await ledger.attachIntent(operationId, {
-        beforeRevision: request.base.revision,
-        intentDigest: intentDigest(request),
-        updatedAt: readApiRuntimeNow(context.runtime).timestamp,
-      });
-      return request;
-    },
-  };
-
-  try {
-    const result = await executeApiSync(auditedContext, versionPolicies);
-
-    if (!result.audit) {
-      throw new Error("Trusted-client PUT did not produce sync audit facts");
-    }
-    await ledger.finalizeTrustedAttempt(operationId, {
-      afterRevision: result.audit.afterRevision,
-      changeMetadata: {
-        blockIds: [...new Set(result.audit.changeMetadata.blockIds)],
-        resourceIds: [...new Set(result.audit.changeMetadata.resourceIds)],
-      },
-      result: result.audit.outcome,
-      updatedAt: readApiRuntimeNow(context.runtime).timestamp,
-    });
-    return result;
-  } catch (error) {
-    if (
-      error instanceof OperationAuditUnavailableError ||
-      error instanceof OperationAuditFinalizeError
-    ) {
-      throw error;
-    }
-    await ledger.finalizeTrustedAttempt(operationId, {
-      afterRevision:
-        error instanceof VersionedContentCommitOutcomeUnknownError
-          ? error.currentRevision
-          : null,
-      changeMetadata: { blockIds: [], resourceIds: [] },
-      result: error instanceof VersionedContentCommitOutcomeUnknownError
-        ? "indeterminate"
-        : error instanceof ApiRequestError && error.code === "merge_conflict"
-          ? "conflict"
-          : "failed",
-      updatedAt: readApiRuntimeNow(context.runtime).timestamp,
-    });
-    throw error;
-  }
 }

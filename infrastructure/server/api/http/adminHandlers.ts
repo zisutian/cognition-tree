@@ -1,31 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  apiAutomationScopes,
-  type AutomationApiScope,
-  type ApiCreateTokenRequestDto,
-  type ApiCreateTrustedClientTokenRequestDto,
-} from "../../../../contracts/api/index.ts";
 import type {
-  CreateRepositoryDto,
-  RenameRepositoryDto,
-} from "../../../../contracts/workspace/index.ts";
-import type {
-  AgentConfigurationDeleteRequestDto,
-  AgentCodexDeviceLoginRequestDto,
-  AgentConformanceCheckRequestDto,
-  AgentOllamaDiscoveryRequestDto,
-  AgentProfileMutationRequestDto,
-  AgentProviderMutationRequestDto,
+AgentCodexDeviceLoginRequestDto,
+AgentConfigurationDeleteRequestDto,
+AgentConformanceCheckRequestDto,
+AgentOllamaDiscoveryRequestDto,
+AgentProfileMutationRequestDto,
+AgentProviderMutationRequestDto,
 } from "../../../../contracts/agent/index.ts";
-import { ApiRequestError, apiNotFound } from "../protocol/index.ts";
+import type {
+CreateRepositoryDto,
+RenameRepositoryDto,
+} from "../../../../contracts/workspace/index.ts";
+import { apiNotFound } from "../protocol/index.ts";
 import {
-  publishTrackedChanges,
-  type ApiHandlerContext,
+publishTrackedChanges,
+type ApiHandlerContext,
 } from "./handlerContext.ts";
 import { readApiRuntimeNow } from "./runtime.ts";
 
-const automationTokenScopes = new Set<AutomationApiScope>(apiAutomationScopes);
 
 export async function handleRepositoryAdmin(context: ApiHandlerContext) {
   const { catalog, operation, route } = context;
@@ -98,76 +91,6 @@ export async function handleRepositoryAdmin(context: ApiHandlerContext) {
     statusCode: 204,
   };
 }
-export async function handleTokenAdmin(context: ApiHandlerContext) {
-  const { accessStore, operation, route } = context;
-
-  if (operation.operationId === "listApiTokens") {
-    return { body: { tokens: await accessStore.listTokens() }, statusCode: 200 };
-  }
-  if (operation.operationId === "createApiToken") {
-    const request =
-      await context.readJsonBody() as ApiCreateTokenRequestDto;
-
-    if (
-      request.scopes.length === 0 ||
-      request.scopes.some((scope) => !automationTokenScopes.has(scope))
-    ) {
-      throw new ApiRequestError(
-        "domain_validation_failed",
-        "Automation tokens may only use domain read scopes",
-      );
-    }
-    if (request.repositoryIds) {
-      const catalog = await context.catalog.listRepositories();
-      const knownIds = new Set(catalog.repositories.map(({ id }) => id));
-
-      for (const id of request.repositoryIds) {
-        if (!knownIds.has(id)) {
-          throw new ApiRequestError(
-            "domain_validation_failed",
-            `Repository allowlist contains an unknown repository: ${id}`,
-          );
-        }
-      }
-    }
-    return {
-      body: await accessStore.createToken(request),
-      statusCode: 201,
-    };
-  }
-  const tokenId = route.tokenId ?? "";
-  const removed = await accessStore.revokeToken(tokenId);
-
-  if (!removed) apiNotFound("API token does not exist");
-  context.eventHub.revokePrincipal(tokenId);
-  return { body: { revoked: true }, statusCode: 200 };
-}
-
-export async function handleTrustedClientTokenAdmin(context: ApiHandlerContext) {
-  const { eventHub, operation, route, trustedClientTokenStore } = context;
-
-  if (operation.operationId === "listTrustedClientTokens") {
-    return {
-      body: { tokens: await trustedClientTokenStore.listTokens() },
-      statusCode: 200,
-    };
-  }
-  if (operation.operationId === "createTrustedClientToken") {
-    return {
-      body: await trustedClientTokenStore.createToken(
-        await context.readJsonBody() as ApiCreateTrustedClientTokenRequestDto,
-      ),
-      statusCode: 201,
-    };
-  }
-  const tokenId = route.trustedClientTokenId ?? "";
-  const removed = await trustedClientTokenStore.revokeToken(tokenId);
-
-  if (!removed) apiNotFound("Trusted client token does not exist");
-  eventHub.revokePrincipal(tokenId);
-  return { body: { revoked: true }, statusCode: 200 };
-}
-
 export async function handleAgentConfigurationAdmin(
   context: ApiHandlerContext,
 ) {

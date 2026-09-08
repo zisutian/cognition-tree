@@ -1,42 +1,41 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
-import {
-  activityDescriptors,
-  listActivityDescriptors,
-} from "../../../presentation/shell/workbench/activityCatalog";
+import { describe,expect,it } from "vitest";
+import { createSearchController } from "../../../application/search/searchController";
+import { createAgentActivitySlots } from "../../../presentation/activities/agent/AgentActivitySlots";
 import { createJournalActivitySlots } from "../../../presentation/activities/journal/JournalActivitySlots";
 import {
-  createNotesActivitySlots,
-  createNotesWorkspaceActivitySlots,
-  type NotesMode,
+createNotesActivitySlots,
+createNotesWorkspaceActivitySlots,
+type NotesMode,
 } from "../../../presentation/activities/notes/edit/NotesActivitySlots";
+import { createVisualizationActivitySlots } from "../../../presentation/activities/notes/graph/VisualizationActivitySlots";
+import { createStructureOperationActivitySlots } from "../../../presentation/activities/notes/structure/StructureOperationActivitySlots";
 import { createRepositoryActivitySlots } from "../../../presentation/activities/repository/RepositoryActivitySlots";
 import { createSearchActivitySlots } from "../../../presentation/activities/search/SearchActivitySlots";
 import { createSettingsActivitySlots } from "../../../presentation/activities/settings/SettingsActivitySlots";
-import { createStructureOperationActivitySlots } from "../../../presentation/activities/notes/structure/StructureOperationActivitySlots";
 import { createSyntaxActivitySlots } from "../../../presentation/activities/syntax/SyntaxActivitySlots";
 import { createTodoActivitySlots } from "../../../presentation/activities/todo/TodoActivitySlots";
-import { createVisualizationActivitySlots } from "../../../presentation/activities/notes/graph/VisualizationActivitySlots";
+import {
+activityDescriptors,
+listActivityDescriptors,
+} from "../../../presentation/shell/workbench/activityCatalog";
 import type {
-  ActivityId,
-  ActivitySlots,
+ActivityId,
+ActivitySlots,
 } from "../../../presentation/ui/activityTypes";
 import { appContextDefaultWidth } from "../../../presentation/ui/workbench/frameResize";
 import {
-  createActivityViews,
-  type TestActivityViews,
+createActivityViews,
+type TestActivityViews,
 } from "../fixtures/activityViewsFixture";
+import { createAgentApplicationFixture } from "../fixtures/agentApplicationFixture";
 import { createNotesView } from "../fixtures/notesViewFixture";
+import { createOperationsSettingsSessionFixture } from "../fixtures/operationsSettingsSessionFixture";
+import { createSystemOwnerCredentialSessionFixture } from "../fixtures/systemOwnerCredentialSessionFixture";
 import { createReferenceGraphSession } from "../fixtures/visualizationViewFixture";
 import { createWorkspaceShell } from "../fixtures/workspaceShellFixture";
-import { createSearchController } from "../../../application/search/searchController";
-import { createAgentActivitySlots } from "../../../presentation/activities/agent/AgentActivitySlots";
-import { createAgentApplicationFixture } from "../fixtures/agentApplicationFixture";
-import { createApiAccessSettingsSessionFixture } from "../fixtures/apiAccessSettingsSessionFixture";
-import { createSystemOwnerCredentialSessionFixture } from "../fixtures/systemOwnerCredentialSessionFixture";
-import { createOperationsSettingsSessionFixture } from "../fixtures/operationsSettingsSessionFixture";
 
 const controls = {
   contextWidth: appContextDefaultWidth,
@@ -137,7 +136,7 @@ function createSlots(
         onSelect: () => undefined,
         onRefresh: () => undefined,
         report: () => undefined,
-        api: createApiAccessSettingsSessionFixture(),
+        localApi: { serviceOrigin: "http://localhost:3001", getOperation: async () => { throw new Error("not requested"); } },
         onCompleted: () => undefined,
         onCollapseDetail: controls.onCollapseDetail,
         operations: createOperationsSettingsSessionFixture(),

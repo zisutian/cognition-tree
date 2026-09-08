@@ -1,452 +1,123 @@
-import { buildApiOperationPath, resolveApiRoute, getApiRouteOperation, parseApiOperationRequest, parseApiOperationResponse } from "../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ReadStream, WriteStream } from "node:tty";
+import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
-import {
-  cliMaximumTrustedClientSecretCharacters,
-  CliCredentialStore,
-  validateCliTrustedClientSecret,
-} from "./credentialStore.ts";
-import {
-  CliApiError,
-  type CliApiClient,
-  CliHttpClient,
-  normalizeCliOrigin,
-} from "./httpClient.ts";
-import { readCliFile, writeCliFileAtomically } from "./checkoutFile.ts";
+import type { ContentQueryDto } from "../../contracts/api/index.ts";
+import { buildApiOperationPath,getApiOperation,parseApiOperationRequest,parseApiOperationResponse } from "../../contracts/api/index.ts";
+import type { ContentOperationRequestDto,ContentOperationResultDto } from "../../contracts/content/index.ts";
+import { CliApiError,CliHttpClient,normalizeCliOrigin,type CliApiClient } from "./httpClient.ts";
 
-type CliIo = {
-  error(message: string): void;
-  output(message: string): void;
-  readSecret(): Promise<string>;
-};
-
-type CliDependencies = {
-  createClient?(profile: { origin: string; secret: string }): CliApiClient;
-  credentialStore?: CliCredentialStore;
-  io?: CliIo;
-};
-
-class CliInputError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "CliInputError";
-  }
-}
-
-function printJson(value: unknown) {
-  return JSON.stringify(value, null, 2);
-}
-
-async function readSecretFromTty() {
-  const input = process.stdin as ReadStream;
-  const output = process.stderr as WriteStream;
-
-  if (!input.isTTY || !output.isTTY || typeof input.setRawMode !== "function") {
-    throw new CliInputError("Trusted-client secret must be entered from a TTY");
-  }
-  output.write("可信客户端 secret：");
-  input.setRawMode(true);
-  input.resume();
-  let secret = "";
-
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const onData = (chunk: Buffer) => {
-        for (const byte of chunk) {
-          if (byte === 3) {
-            cleanup();
-            reject(new CliInputError("Secret input was cancelled"));
-            return;
-          }
-          if (byte === 10 || byte === 13) {
-            cleanup();
-            resolve();
-            return;
-          }
-          if (byte === 8 || byte === 127) {
-            secret = secret.slice(0, -1);
-          } else {
-            if (secret.length >= cliMaximumTrustedClientSecretCharacters) {
-              cleanup();
-              reject(new CliInputError("Trusted-client secret is too long"));
-              return;
-            }
-            secret += String.fromCharCode(byte);
-          }
-        }
-      };
-      const cleanup = () => input.off("data", onData);
-
-      input.on("data", onData);
-    });
-  } finally {
-    input.setRawMode(false);
-    input.pause();
-    output.write("\n");
-  }
-  try {
-    return validateCliTrustedClientSecret(secret);
-  } catch {
-    throw new CliInputError("Trusted-client secret is invalid");
-  }
-}
-
-function defaultIo(): CliIo {
-  return {
-    error: (message) => console.error(message),
-    output: (message) => console.log(message),
-    readSecret: readSecretFromTty,
-  };
-}
-
+type CliIo = { error(message: string): void; output(message: string): void };
+type CliDependencies = { createClient?(options: { origin: string }): CliApiClient; io?: CliIo };
+class CliInputError extends Error {}
+const usage = `ctn --server <本机服务地址> <命令>
+  catalog
+  directory|syntax <workspace|journal|todo> [--repository <仓库名称>]
+  read <领域> --resource <标题或相对路径> [--block <块ID>] [--subtree]
+  search <领域> --text <关键词> [--limit <1..100>]
+  query --file <查询JSON>
+  apply --file <操作JSON，含operationId与baseRevision>
+  result <操作ID>
+  openapi
+Workspace 每次显式指定 --repository；不使用默认仓库或保存的凭据。`;
+const json = (value: unknown) => JSON.stringify(value, null, 2);
 function takeOption(args: string[], name: string) {
   const index = args.indexOf(name);
-
   if (index < 0) return null;
   const value = args[index + 1];
-
-  if (!value || value.startsWith("--")) {
-    throw new CliInputError(`${name} requires a value`);
-  }
+  if (!value || value.startsWith("--")) throw new CliInputError(`${name} requires a value`);
   args.splice(index, 2);
   return value;
 }
-
-function requireOption(args: string[], name: string) {
+function required(args: string[], name: string) {
   const value = takeOption(args, name);
-
   if (!value) throw new CliInputError(`${name} is required`);
   return value;
 }
-
-function assertNoArguments(args: string[]) {
-  if (args.length > 0) {
-    throw new CliInputError(`Unsupported arguments: ${args.join(" ")}`);
-  }
+function noArguments(args: string[]) {
+  if (args.length) throw new CliInputError(`Unsupported arguments: ${args.join(" ")}`);
 }
-
-async function selectProfile(
-  store: CliCredentialStore,
-  profileName: string | null,
-) {
-  const state = await store.read();
-  const selected = profileName ?? state.defaultProfile;
-
-  if (!selected) throw new CliInputError("No default CLI profile is selected");
-  const profile = state.profiles.find(({ name }) => name === selected);
-
-  if (!profile) throw new CliInputError(`CLI profile does not exist: ${selected}`);
-  return profile;
+async function jsonFile(file: string) {
+  const source = await readFile(file, "utf8");
+  if (Buffer.byteLength(source) > 4 * 1024 * 1024) throw new CliInputError("JSON input exceeds 4 MiB");
+  try { return JSON.parse(source) as unknown; }
+  catch { throw new CliInputError("Input file is not valid JSON"); }
 }
-
-function syncPath(domain: string, repositoryId: string | null) {
-  if (domain === "workspace") {
-    if (!repositoryId) throw new CliInputError("Workspace sync requires --repository");
-    return buildApiOperationPath("getWorkspaceSyncSnapshot", { repositoryId });
-  }
-  if (repositoryId) throw new CliInputError("--repository is only valid for workspace");
-  if (domain === "journal" || domain === "todo") {
-    return buildApiOperationPath(domain === "journal" ? "getJournalSyncSnapshot" : "getTodoSyncSnapshot");
-  }
-  throw new CliInputError(`Unsupported sync domain: ${domain}`);
-}
-
-type Snapshot = { content: unknown; revision: `sha256:${string}` };
-
-function syncOperation(path: string, method: "GET" | "PUT") {
-  const route = resolveApiRoute(path);
-  if (!route) throw new CliInputError("Unknown sync operation");
-  return getApiRouteOperation(route, method);
-}
-
-function parseSnapshot(value: unknown, path: string): Snapshot {
-  return parseApiOperationResponse(syncOperation(path, "GET").operationId, 200, value) as Snapshot;
-}
-
-function parseCheckout(source: string, path: string) {
-  let value: unknown;
-
-  try {
-    value = JSON.parse(source) as unknown;
-  } catch {
-    throw new CliInputError("Checkout file is not valid JSON");
-  }
-  return parseApiOperationRequest(syncOperation(path, "PUT"), value) as { base: Snapshot; content: unknown };
-}
-
-function checkoutSource(snapshot: { content: unknown; revision: string }) {
-  return `${printJson({ base: snapshot, content: snapshot.content })}\n`;
-}
-
-async function reconcileFinalizeFailure({
-  api,
-  checkoutFile,
-  checkoutOriginal,
-  error,
-  io,
-  path,
-}: {
-  api: CliApiClient;
-  checkoutFile: string;
-  checkoutOriginal: string;
-  error: CliApiError;
-  io: CliIo;
-  path: string;
-}) {
-  const afterRevision = error.error.code === "operation_audit_finalize_failed"
-    ? error.error.details.afterRevision
-    : null;
-  let checkoutUpdated = false;
-  let currentRevision: string | null = null;
-
-  if (afterRevision) {
-    try {
-      const snapshot = parseSnapshot(await api.request("GET", path), path);
-
-      currentRevision = snapshot.revision;
-      if (snapshot.revision === afterRevision) {
-        checkoutUpdated = await writeCliFileAtomically(
-          checkoutFile,
-          checkoutSource(snapshot),
-          checkoutOriginal,
-        );
-      }
-    } catch {
-      // Reconciliation is intentionally best effort and never replays the PUT.
-    }
-  }
-  io.error(printJson({
-    checkoutUpdated,
-    currentRevision,
-    error: error.error,
-  }));
-  return 6;
-}
-
-async function runAuth(
-  args: string[],
-  store: CliCredentialStore,
-  io: CliIo,
-) {
-  const command = args.shift();
-
-  if (command === "add") {
-    const name = requireOption(args, "--profile");
-    const origin = normalizeCliOrigin(requireOption(args, "--server"));
-
-    assertNoArguments(args);
-    let secret: string;
-
-    try {
-      secret = validateCliTrustedClientSecret(await io.readSecret());
-    } catch {
-      throw new CliInputError("Trusted-client secret is invalid");
-    }
-    const state = await store.read();
-
-    if (state.profiles.some((profile) => profile.name === name)) {
-      throw new CliInputError(`CLI profile already exists: ${name}`);
-    }
-    state.profiles.push({ name, origin, secret });
-    if (state.profiles.length === 1) state.defaultProfile = name;
-    await store.write(state);
-    io.output(printJson({ default: state.defaultProfile === name, name, origin }));
-    return 0;
-  }
-  if (command === "use") {
-    const name = requireOption(args, "--profile");
-
-    assertNoArguments(args);
-    const state = await store.read();
-
-    if (!state.profiles.some((profile) => profile.name === name)) {
-      throw new CliInputError(`CLI profile does not exist: ${name}`);
-    }
-    state.defaultProfile = name;
-    await store.write(state);
-    io.output(printJson({ defaultProfile: name }));
-    return 0;
-  }
-  if (command === "list") {
-    assertNoArguments(args);
-    const state = await store.read();
-
-    io.output(printJson({
-      defaultProfile: state.defaultProfile,
-      profiles: state.profiles.map(({ name, origin }) => ({ name, origin })),
-    }));
-    return 0;
-  }
-  if (command === "remove") {
-    const name = requireOption(args, "--profile");
-
-    assertNoArguments(args);
-    const state = await store.read();
-    const index = state.profiles.findIndex((profile) => profile.name === name);
-
-    if (index < 0) throw new CliInputError(`CLI profile does not exist: ${name}`);
-    state.profiles.splice(index, 1);
-    if (state.defaultProfile === name) state.defaultProfile = null;
-    await store.write(state);
-    io.output(printJson({ defaultProfile: state.defaultProfile, removed: name }));
-    return 0;
-  }
-  throw new CliInputError("Usage: ctn auth add|use|list|remove");
-}
-
-async function runSync(
-  args: string[],
-  api: CliApiClient,
-  io: CliIo,
-) {
-  const command = args.shift();
+function namedQuery(command: string, args: string[]): ContentQueryDto {
   const domain = args.shift();
-
-  if (!domain) throw new CliInputError("Sync domain is required");
-  const repositoryId = takeOption(args, "--repository");
-  const path = syncPath(domain, repositoryId);
-
-  if (command === "checkout") {
-    const output = requireOption(args, "--output");
-
-    assertNoArguments(args);
-    const snapshot = parseSnapshot(await api.request("GET", path), path);
-
-    await writeCliFileAtomically(output, checkoutSource(snapshot));
-    io.output(printJson({ output, revision: snapshot.revision }));
-    return 0;
-  }
-  if (command === "commit") {
-    const file = requireOption(args, "--file");
-
-    assertNoArguments(args);
-    const original = await readCliFile(file);
-    const checkout = parseCheckout(original, path);
-
-    try {
-      const response = parseApiOperationResponse(syncOperation(path, "PUT").operationId, 200,
-        await api.request("PUT", path, checkout)) as { outcome: string; snapshot: Snapshot };
-      const snapshot = response.snapshot;
-      const updated = await writeCliFileAtomically(
-        file,
-        checkoutSource(snapshot),
-        original,
-      );
-
-      if (!updated) {
-        io.error(printJson({
-          checkoutUpdated: false,
-          currentRevision: snapshot.revision,
-          message: "Content committed, but the checkout changed during the request",
-        }));
-        return 6;
-      }
-      io.output(printJson({
-        checkoutUpdated: true,
-        outcome: response.outcome,
-        revision: snapshot.revision,
-      }));
-      return 0;
-    } catch (error) {
-      if (
-        error instanceof CliApiError &&
-        error.error.code === "operation_audit_finalize_failed"
-      ) {
-        return reconcileFinalizeFailure({
-          api,
-          checkoutFile: file,
-          checkoutOriginal: original,
-          error,
-          io,
-          path,
-        });
-      }
-      throw error;
-    }
-  }
-  throw new CliInputError("Usage: ctn sync checkout|commit <domain>");
+  const repository = takeOption(args, "--repository");
+  if (domain !== "workspace" && domain !== "journal" && domain !== "todo") throw new CliInputError("Explicit domain must be workspace, journal or todo");
+  if (domain === "workspace" && !repository) throw new CliInputError("Workspace requires --repository <name>");
+  if (domain !== "workspace" && repository) throw new CliInputError("--repository only applies to Workspace");
+  const scope = domain === "workspace" ? { domain, repository: repository! } as const : { domain } as const;
+  let result: ContentQueryDto;
+  if (command === "read") {
+    const resource = required(args, "--resource");
+    const blockId = takeOption(args, "--block");
+    const subtreeIndex = args.indexOf("--subtree");
+    if (subtreeIndex >= 0) args.splice(subtreeIndex, 1);
+    result = { kind: "read", scope, resource, ...(blockId ? { blockId } : {}), ...(subtreeIndex >= 0 ? { subtree: true } : {}) };
+  } else if (command === "search") {
+    result = { kind: "search", scope, text: required(args, "--text"), limit: Number(takeOption(args, "--limit") ?? 20) };
+  } else if (command === "directory" || command === "syntax") result = { kind: command, scope };
+  else throw new CliInputError(usage);
+  noArguments(args);
+  return result;
 }
-
-function exitCodeFor(error: unknown) {
+async function call(api: CliApiClient, operationId: string, body?: unknown, parameters: { operationId?: string } = {}) {
+  const operation = getApiOperation(operationId);
+  const request = operation.body ? parseApiOperationRequest(operation, body) : undefined;
+  const response = await api.request(operation.method, buildApiOperationPath(operationId, parameters), request);
+  // Both accepted and finished content operations use the same registry-owned result schema.
+  return parseApiOperationResponse(operationId, 200, response);
+}
+function exitCode(error: unknown) {
   if (error instanceof CliInputError) return 2;
   if (error instanceof CliApiError) {
     if (error.status === 401 || error.status === 403) return 3;
-    if (error.error.code === "operation_audit_finalize_failed") return 6;
-    if (
-      error.error.code === "merge_conflict" ||
-      error.error.code === "domain_validation_failed" ||
-      error.error.code === "invalid_request" ||
-      error.error.code === "proposal_stale"
-    ) return 4;
+    if (error.error.code === "content_commit_indeterminate" || error.error.code === "operation_audit_finalize_failed") return 6;
+    if (error.status === 400 || error.status === 409 || error.status === 422) return 4;
     if (error.error.retryable) return 5;
-    return 1;
-  }
-  if (error instanceof Error && error.message.startsWith("API network request failed:")) {
-    return 5;
   }
   return 1;
 }
-
-export async function runCtnCli(
-  inputArguments: readonly string[],
-  dependencies: CliDependencies = {},
-) {
+export async function runCtnCli(inputArguments: readonly string[], dependencies: CliDependencies = {}) {
+  const io = dependencies.io ?? { error: console.error, output: console.log };
   const args = [...inputArguments];
-  const io = dependencies.io ?? defaultIo();
-  const store = dependencies.credentialStore ?? new CliCredentialStore();
-
+  let submitting: ContentOperationRequestDto | null = null;
   try {
+    if (args.length === 0 || (args.length === 1 && ["--help", "help"].includes(args[0]!))) { io.output(usage); return 0; }
+    const origin = normalizeCliOrigin(required(args, "--server"));
     const command = args.shift();
-
-    if (command === "auth") return await runAuth(args, store, io);
-    const profileName = takeOption(args, "--profile");
-    const profile = await selectProfile(store, profileName);
-    const api = dependencies.createClient?.(profile) ?? new CliHttpClient(profile);
-
-    if (command === "openapi") {
-      assertNoArguments(args);
-      io.output(printJson(await api.request("GET", buildApiOperationPath("getOpenApi"))));
-      return 0;
+    const api = dependencies.createClient?.({ origin }) ?? new CliHttpClient({ origin });
+    let result: unknown;
+    if (command === "catalog" || command === "openapi") {
+      noArguments(args);
+      result = await call(api, command === "catalog" ? "queryLocalContent" : "getOpenApi", command === "catalog" ? { kind: "catalog" } : undefined);
+    } else if (command === "result") {
+      const operationId = args.shift();
+      if (!operationId) throw new CliInputError("Operation ID is required");
+      noArguments(args);
+      result = await call(api, "getContentOperation", undefined, { operationId });
+    } else if (command === "query" || command === "apply") {
+      const file = required(args, "--file"); noArguments(args);
+      const body = await jsonFile(file);
+      if (command === "apply") {
+        submitting = parseApiOperationRequest(getApiOperation("executeContentOperation"), body) as ContentOperationRequestDto;
+        result = await call(api, "executeContentOperation", submitting);
+      } else result = await call(api, "queryLocalContent", body);
+    } else result = await call(api, "queryLocalContent", namedQuery(command ?? "", args));
+    io.output(json(result));
+    if (command === "apply" || command === "result") {
+      const receipt = result as ContentOperationResultDto;
+      if (receipt.status === "pending" || receipt.status === "indeterminate" || receipt.audit === "failed") return 6;
+      if (receipt.status !== "committed") return 4;
     }
-    if (command === "request") {
-      const method = args.shift()?.toUpperCase();
-      const path = args.shift();
-      const bodyFile = takeOption(args, "--body");
-
-      if (!method || !path) throw new CliInputError("Request method and path are required");
-      assertNoArguments(args);
-      let body: unknown;
-
-      if (bodyFile) {
-        try {
-          body = JSON.parse(await readCliFile(bodyFile)) as unknown;
-        } catch (error) {
-          if (error instanceof SyntaxError) {
-            throw new CliInputError("Request body file is not valid JSON");
-          }
-          throw error;
-        }
-      }
-
-      io.output(printJson(await api.request(method, path, body)));
-      return 0;
-    }
-    if (command === "sync") return await runSync(args, api, io);
-    throw new CliInputError("Usage: ctn auth|openapi|request|sync");
+    return 0;
   } catch (error) {
-    const code = exitCodeFor(error);
-
-    if (error instanceof CliApiError) io.error(printJson(error.error));
-    else io.error(error instanceof Error ? error.message : "Unknown CLI error");
-    return code;
+    if (submitting) io.error(json({ operationId: submitting.operationId, message: "Query this operation ID and inspect affected content before considering another submission. No automatic replay was performed." }));
+    io.error(error instanceof CliApiError ? json(error.error) : error instanceof Error ? error.message : "Unknown CLI error");
+    return submitting && !(error instanceof CliApiError) ? 6 : exitCode(error);
   }
 }
-
-if (
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
-) {
-  process.exitCode = await runCtnCli(process.argv.slice(2));
-}
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = await runCtnCli(process.argv.slice(2));

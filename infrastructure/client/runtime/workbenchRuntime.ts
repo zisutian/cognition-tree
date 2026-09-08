@@ -1,38 +1,35 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { LocalContentAccess,OperationAdministration } from "../../../application/operations/index.ts";
 import {
-  createClientJournalApplicationServices,
-  createClientTodoApplicationServices,
-  clientWorkspaceSessionCommandDependencies,
-  createClientInitialWorkspaceContent,
-} from "./contentServices.ts";
-import {
-  createWorkbenchController,
-  type WorkbenchController,
+createWorkbenchController,
+type WorkbenchController,
 } from "../../../application/workbench/index.ts";
-import type { ApiAccessAdministration } from
-  "../../../application/apiAccess/index.ts";
-import type { OperationAdministration } from
-  "../../../application/operations/index.ts";
 import { clientApplicationScheduler } from "../platform/index.ts";
+import {
+clientWorkspaceSessionCommandDependencies,
+createClientInitialWorkspaceContent,
+createClientJournalApplicationServices,
+createClientTodoApplicationServices,
+} from "./contentServices.ts";
 
 import type { OfficialClientApi } from "../http/index.ts";
-import { createBuiltInRuntime } from "./builtInRuntime.ts";
 import {
-  createHttpApiEventSource,
-  createHttpApiAdministration,
-  createHttpOperationAdministration,
+createHttpApiEventSource,
+createHttpLocalContentAccess,
+createHttpOperationAdministration,
 } from "../http/index.ts";
+import { createBuiltInRuntime } from "./builtInRuntime.ts";
 
 
-import { createWorkspaceRepositoryRuntime } from "./workspaceRepositoryRuntime.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
 import {
-  createVersionedContentRevision,
+createVersionedContentRevision,
 } from "../repository/index.ts";
+import { createWorkspaceRepositoryRuntime } from "./workspaceRepositoryRuntime.ts";
 
 export type ClientWorkbenchRuntime = Readonly<{
-  apiAccessAdministration: ApiAccessAdministration;
+  localApi: LocalContentAccess;
   controller: WorkbenchController;
   applicationServices: {
     journal: ReturnType<typeof createClientJournalApplicationServices>;
@@ -47,7 +44,7 @@ export function createWorkbenchRuntime(
 ): ClientWorkbenchRuntime {
   const workspace = createWorkspaceRepositoryRuntime(api);
   const builtIns = createBuiltInRuntime(api);
-  const apiAccessAdministration = createHttpApiAdministration({
+  const localApi = createHttpLocalContentAccess({
     baseUrl: api.baseUrl,
   });
   const operationAdministration = createHttpOperationAdministration({
@@ -73,5 +70,5 @@ export function createWorkbenchRuntime(
     workspaceRepositories: workspace.repositories,
   });
 
-  return { apiAccessAdministration, controller, operationAdministration, applicationServices: { journal: createClientJournalApplicationServices(), todo: createClientTodoApplicationServices(), scheduler: clientApplicationScheduler } };
+  return { localApi, controller, operationAdministration, applicationServices: { journal: createClientJournalApplicationServices(), todo: createClientTodoApplicationServices(), scheduler: clientApplicationScheduler } };
 }

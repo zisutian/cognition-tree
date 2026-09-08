@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe,expect,it,vi } from "vitest";
 import {
-  resolveTodoRetry,
-  TodoActivityController,
+resolveTodoRetry,
+TodoActivityController,
 } from "../../../../presentation/activities/todo/TodoActivityController";
 import type { WorkbenchApplication } from "../../../../presentation/shell/application/workbenchApplication";
-import { createTodoView } from "../../fixtures/todoViewFixture";
 import { createAgentApplicationFixture } from "../../fixtures/agentApplicationFixture";
+import { createTodoView } from "../../fixtures/todoViewFixture";
 
 const controls = {
   contextWidth: 280,
@@ -22,9 +22,9 @@ const controls = {
 function createApplicationWithoutWorkspace(): WorkbenchApplication {
   return {
     agent: createAgentApplicationFixture(),
-    apiAccess: {
-      administration: {} as WorkbenchApplication["apiAccess"]["administration"],
-      repositories: [],
+    localApi: {
+      serviceOrigin: "http://localhost:3001",
+      getOperation: async () => { throw new Error("not requested"); },
     },
     journal: { status: "loading" },
     operations: {} as WorkbenchApplication["operations"],

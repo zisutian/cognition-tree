@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseApiError } from "../../../contracts/api/index.ts";
 import type { ApiErrorCodeDto } from "../../../contracts/api/index.ts";
+import { parseApiError } from "../../../contracts/api/index.ts";
 
 export const apiRequestTimeoutMs = 30_000;
 export const apiMaximumJsonResponseBytes = 64 * 1024 * 1024;
@@ -9,7 +9,7 @@ export const apiMaximumJsonResponseBytes = 64 * 1024 * 1024;
 export type HttpApiTransportOptions = {
   baseUrl: string;
   fetch?: typeof fetch;
-  token?: string;
+
 };
 
 export type OfficialClientApi = Readonly<{ baseUrl: string }>;
@@ -267,12 +267,11 @@ async function requestApiResponse<Result>(
   endpoint: string,
   consumeResponse: (response: Response) => Promise<Result>,
   init?: RequestInit,
-  token?: string,
+
 ): Promise<Result> {
   const controller = new AbortController();
   const headers = new Headers(init?.headers);
 
-  if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const abortFromCaller = () => controller.abort(init?.signal?.reason);
 
@@ -326,7 +325,7 @@ export async function requestApiJson(
   baseUrl: string,
   endpoint: string,
   init?: RequestInit,
-  token?: string,
+
 ): Promise<unknown> {
   return requestApiResponse(
     fetchFn,
@@ -334,7 +333,7 @@ export async function requestApiJson(
     endpoint,
     readResponseJson,
     init,
-    token,
+
   );
 }
 
@@ -343,7 +342,7 @@ export async function requestApiNoContent(
   baseUrl: string,
   endpoint: string,
   init?: RequestInit,
-  token?: string,
+
 ): Promise<void> {
   return requestApiResponse(
     fetchFn,
@@ -351,6 +350,6 @@ export async function requestApiNoContent(
     endpoint,
     assertNoContentResponse,
     init,
-    token,
+
   );
 }

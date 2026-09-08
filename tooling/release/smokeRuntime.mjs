@@ -44,8 +44,8 @@ try {
   for (const endpoint of ["/", "/api/v4/openapi.json", "/api/v4/capabilities"]) {
     assert.equal((await fetch(origin + endpoint)).status, 200, endpoint);
   }
-  const cli = spawnSync("/bin/bash", ["./ctn", "auth", "unsupported"], { cwd: fixture, encoding: "utf8" });
-  assert.equal(cli.status, 2); assert.match(cli.stderr, /Usage|Unknown|auth/);
+  const cli = spawnSync("/bin/bash", ["./ctn", "--help"], { cwd: fixture, encoding: "utf8" });
+  assert.equal(cli.status, 0); assert.match(cli.stdout, /--server/);
   assert.doesNotMatch(cli.stderr, /ERR_MODULE_NOT_FOUND|Cannot find module|SyntaxError/);
   const codex = spawnSync(process.execPath, ["node_modules/@openai/codex/bin/codex.js", "--version"], { cwd: fixture, encoding: "utf8", timeout: 10000 });
   assert.equal(codex.status, 0, "Pinned Codex executable must run from the package");

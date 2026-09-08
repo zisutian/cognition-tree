@@ -8,7 +8,7 @@ import {
 } from "./support/apiServerTestHarness.ts";
 
 describe("CTN API v4 registry", () => {
-  it("derives unique v3 routes, access policy, OpenAPI, and owner sync", async () => {
+  it("derives unique v4 routes, access policy, OpenAPI, and owner sync", async () => {
     await withHandler(async (handler) => {
       await expect(dispatch<{ ok: boolean }>(handler, {
         method: "GET",
@@ -71,8 +71,10 @@ describe("CTN API v4 registry", () => {
       }
       expect(paths["/api/v4/content/search"]!.post["x-ctn-access"])
         .toEqual({ domain: "any", kind: "content-read" });
-      expect(paths["/api/v4/admin/automation-tokens"]!.post.responses)
-        .toMatchObject({ "201": expect.any(Object) });
+      expect(paths["/api/v4/admin/automation-tokens"]).toBeUndefined();
+      expect(paths["/api/v4/admin/trusted-client-tokens"]).toBeUndefined();
+      expect(paths["/api/v4/content/operations"]!.post["x-ctn-access"]).toEqual({ kind: "local-content" });
+      expect(JSON.stringify(openapi.body)).not.toContain("bearerAuth");
       expect(
         paths["/api/v4/admin/agent-profiles/{profileId}/conformance-checks"]!
           .post.responses,

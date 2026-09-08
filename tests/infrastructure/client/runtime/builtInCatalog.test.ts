@@ -1,43 +1,41 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { describe, expect, it, vi } from "vitest";
+import { describe,expect,it,vi } from "vitest";
+import {
+VersionedRepositoryBackendConflictError,
+VersionedRepositoryRemoteError,
+} from "../../../../application/persistence/versionedRepository";
 import type { BuiltInCatalogDto } from "../../../../contracts/built-ins/types";
 import type {
-  JournalContentDto,
-  JournalRevisionDto,
+JournalContentDto,
+JournalRevisionDto,
 } from "../../../../contracts/journal/types";
 import type {
-  TodoContentDto,
-  TodoRevisionDto,
+TodoContentDto,
+TodoRevisionDto,
 } from "../../../../contracts/todo/types";
+import { createHttpJournalRepositoryBackend } from "../../../../infrastructure/client/http/index.ts";
 import {
-  createHttpBuiltInCatalog,
-} from "../../../../infrastructure/client/runtime/index.ts";
-import {
-  createHttpJournalRepositoryProvider,
-} from "../../../../infrastructure/client/runtime/index.ts";
-import {
-  createHttpTodoRepositoryBackend,
+createHttpTodoRepositoryBackend,
 } from "../../../../infrastructure/client/http/todoRepository";
-import {
-  VersionedRepositoryBackendConflictError,
-  VersionedRepositoryRemoteError,
-} from "../../../../application/persistence/versionedRepository";
+import { createMemoryBuiltInCatalogCache } from "../../../../infrastructure/client/repository/index.ts";
 import { createMemoryVersionedRepositoryCache } from "../../../../infrastructure/client/repository/versionedRepositoryCache";
 import {
-  appendJournalTestEntry,
-  createEmptyJournalContent,
-  tamperJournalTestEntryCreation,
+createHttpBuiltInCatalog,
+createHttpJournalRepositoryProvider,
+} from "../../../../infrastructure/client/runtime/index.ts";
+import {
+appendJournalTestEntry,
+createEmptyJournalContent,
+tamperJournalTestEntryCreation,
 } from "../../../core/journal/journalTestFixture";
 import {
-  appendTodoTestCollection,
-  appendTodoTestItem,
-  createEmptyTodoContent,
-  todoBlockId,
-  todoTimestamp,
+appendTodoTestCollection,
+appendTodoTestItem,
+createEmptyTodoContent,
+todoBlockId,
+todoTimestamp,
 } from "../../../core/todo/todoTestFixture";
-import { createMemoryBuiltInCatalogCache } from "../../../../infrastructure/client/repository/index.ts";
-import { createHttpJournalRepositoryBackend } from "../../../../infrastructure/client/http/index.ts";
 
 const journalRevisionA = `sha256:${"a".repeat(64)}` as JournalRevisionDto;
 const journalRevisionB = `sha256:${"b".repeat(64)}` as JournalRevisionDto;
@@ -353,7 +351,6 @@ describe("HTTP built-in catalog and data repositories", () => {
         String(input).endsWith("/sync/journal")
           ? jsonResponse({ content: journalContent, revision: journalRevisionA })
           : jsonResponse(serverCatalog("/cached")),
-      token: "same-token",
     };
     const online = createHttpBuiltInCatalog({
       ...transport,
@@ -370,13 +367,11 @@ describe("HTTP built-in catalog and data repositories", () => {
       baseUrl: "https://cached.test/api",
       catalogCache: caches.catalogCache,
       fetch: offlineFetch,
-      token: "same-token",
     });
     const offlineJournals = createHttpJournalRepositoryProvider({
       baseUrl: "https://cached.test/api",
       fetch: offlineFetch,
       repositoryCache: caches.journalCache,
-      token: "same-token",
     });
     const cachedProjection = await offline.listBuiltIns();
 
@@ -388,10 +383,9 @@ describe("HTTP built-in catalog and data repositories", () => {
       remoteRevision: journalRevisionA,
     });
     await expect(createHttpBuiltInCatalog({
-      baseUrl: "https://cached.test/api",
+      baseUrl: "https://different-origin.test/api",
       catalogCache: caches.catalogCache,
       fetch: offlineFetch,
-      token: "different-token",
     }).listBuiltIns()).rejects.toThrow("failed or timed out");
   });
 });

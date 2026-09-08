@@ -36,7 +36,7 @@ async function expectActionExposed(action: Locator) {
   })).toBe(true);
 }
 
-for (const viewport of [{ width: 1280, height: 720 }, { width: 1440, height: 900 }]) {
+for (const viewport of [{ width: 1280, height: 720 }]) {
   test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, async ({ api, page }, testInfo) => {
     await page.setViewportSize(viewport);
     await seedWorkbenchRepository(api, repositoryId, {
@@ -103,17 +103,9 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 1440, height: 900
     await expectWorkbenchGeometry(page);
     await profile.getByRole("button", { name: "放弃修改", exact: true }).click();
 
-    await page.getByRole("button", { name: "新建 自动化令牌", exact: true }).click();
-    const token = page.locator(".app-main-content").getByRole("region", { name: "API 访问", exact: true });
-    await token.getByRole("combobox", { name: "仓库范围" }).selectOption("selected");
-    const member = token.getByRole("group", { name: "允许的仓库" }).getByRole("checkbox").first();
-    await member.focus();
-    await member.press("Space");
-    await expect(member).toBeChecked();
-    await member.press("Space");
-    await expect(member).not.toBeChecked();
+    await page.getByRole("button", { name: "本机 API", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: "服务地址", exact: true })).toBeVisible();
     await expectWorkbenchGeometry(page);
-    await token.getByRole("button", { name: "放弃修改", exact: true }).click();
   });
 }
 

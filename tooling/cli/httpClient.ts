@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseApiError } from "../../contracts/api/index.ts";
 import type { ApiErrorDto } from "../../contracts/api/index.ts";
+import { parseApiError } from "../../contracts/api/index.ts";
 
 const loopbackHosts = new Set(["127.0.0.1", "::1", "[::1]", "localhost"]);
 export const cliHttpRequestTimeoutMilliseconds = 30_000;
@@ -138,10 +138,9 @@ export function normalizeCliOrigin(value: string) {
     throw new Error("Server origin cannot contain credentials, a path, query, or fragment");
   }
   if (
-    url.protocol !== "https:" &&
-    !(url.protocol === "http:" && loopbackHosts.has(url.hostname.toLowerCase()))
+    !["http:", "https:"].includes(url.protocol) || !loopbackHosts.has(url.hostname.toLowerCase())
   ) {
-    throw new Error("Server origin must use HTTPS, except for strict loopback HTTP");
+    throw new Error("Server origin must be a local HTTP or HTTPS origin");
   }
   return url.origin;
 }
@@ -165,20 +164,16 @@ export type CliApiClient = {
 export class CliHttpClient implements CliApiClient {
   readonly #fetch: typeof fetch;
   readonly #origin: string;
-  readonly #secret: string;
 
   constructor({
     fetch: fetchFn = globalThis.fetch.bind(globalThis),
     origin,
-    secret,
   }: {
     fetch?: typeof fetch;
     origin: string;
-    secret: string;
   }) {
     this.#fetch = fetchFn;
     this.#origin = normalizeCliOrigin(origin);
-    this.#secret = secret;
   }
 
   async request(
@@ -209,7 +204,6 @@ export class CliHttpClient implements CliApiClient {
         body: body === undefined ? undefined : JSON.stringify(body),
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${this.#secret}`,
           ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         },
         method,

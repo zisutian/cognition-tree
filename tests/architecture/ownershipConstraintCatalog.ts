@@ -156,10 +156,10 @@ export function createOwnershipTextPolicies({
       /^infrastructure\/server\/operations\/agentOperationLedger\.ts$/,
     ],
     [
-      "trusted-client operation ledger coordinator",
+      "local content operation ledger coordinator",
       infrastructureModules,
-      /\bclass TrustedClientOperationLedger\b/,
-      /^infrastructure\/server\/operations\/trustedClientOperationLedger\.ts$/,
+      /\bclass ContentOperationLedger\b/,
+      /^infrastructure\/server\/operations\/contentOperationLedger\.ts$/,
     ],
     [
       "operation ledger store coordinator",
@@ -171,12 +171,6 @@ export function createOwnershipTextPolicies({
       "operation ledger stable key",
       infrastructureModules,
       /\bexport function operationLedgerKey\s*\(/,
-      /^infrastructure\/server\/operations\/operationLedgerProjection\.ts$/,
-    ],
-    [
-      "operation ledger trusted audit projection",
-      infrastructureModules,
-      /\bexport function createTrustedClientAuditEntry\s*\(/,
       /^infrastructure\/server\/operations\/operationLedgerProjection\.ts$/,
     ],
     [

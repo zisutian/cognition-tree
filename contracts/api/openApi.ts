@@ -2,8 +2,8 @@
 
 import type { TSchema } from "@sinclair/typebox";
 import {
-  ApiErrorResponseSchema,
-  apiOperations,
+ApiErrorResponseSchema,
+apiOperations,
 } from "./registry.ts";
 
 function jsonSchema(schema: TSchema): Record<string, unknown> {
@@ -102,9 +102,9 @@ export function createApiOpenApiDocument() {
         ...queryParameters(operation.query),
       ],
       responses,
-      security: ["public", "local-recovery"].includes(operation.access.kind)
+      security: ["public", "local-recovery", "local-content"].includes(operation.access.kind)
         ? []
-        : [{ bearerAuth: [] }],
+        : [{}, { ownerSession: [] }],
       tags: [operationTag(operation.path)],
       "x-ctn-access": operation.access,
     };
@@ -114,16 +114,15 @@ export function createApiOpenApiDocument() {
   return {
     components: {
       securitySchemes: {
-        bearerAuth: {
-          bearerFormat: "CTN token",
-          scheme: "bearer",
-          type: "http",
+        ownerSession: {
+          type: "apiKey", in: "cookie", name: "ctn_owner_session",
+          description: "Existing owner browser session. Verified loopback socket plus local Host may omit authentication. Authorization headers are rejected.",
         },
       },
     },
     info: {
       description:
-        "Read-only automation resources, owner synchronization, and approval-gated in-application Agent operations.",
+        "Local name-based content commands with exact CAS and durable operation receipts; browser synchronization and approval-gated internal Agent operations remain separate.",
       title: "Cognition Tree API",
       version: "4.0.0",
     },

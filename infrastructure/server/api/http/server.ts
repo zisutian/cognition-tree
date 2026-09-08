@@ -1,63 +1,59 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ApiSearchService } from "../index.ts";
 import { randomUUID } from "node:crypto";
-import http from "node:http";
 import type {
-  IncomingMessage,
-  ServerResponse,
+IncomingMessage,
+ServerResponse,
 } from "node:http";
+import http from "node:http";
+import type { AgentService } from "../../../../application/agentHost/index.ts";
+import { AgentProviderOperations } from "../../../../application/agentHost/index.ts";
+import type { ContentService } from "../../../../application/content/index.ts";
 import {
-  apiAllowedMethods,
-  assertApiOperationResponse,
-  getApiRouteOperation,
-  parseApiOperationRequest,
-  parseApiOperationQuery,
-  resolveApiRoute,
+DomainRevisionTracker,
+} from "../../../../application/sync/index.ts";
+import type { SystemAdministrationServerPort } from "../../../../application/system/index.ts";
+import {
+apiAllowedMethods,
+assertApiOperationResponse,
+getApiRouteOperation,
+parseApiOperationQuery,
+parseApiOperationRequest,
+resolveApiRoute,
 } from "../../../../contracts/api/index.ts";
+import { AgentConfigurationStore } from "../../agent/index.ts";
+import type { OperationLedger } from "../../operations/index.ts";
 import type {
-  WorkspaceRepositoryCatalog,
-  ApiBuiltInCatalog,
+ApiBuiltInCatalog,
+WorkspaceRepositoryCatalog,
 } from "../../repository/index.ts";
-import { mapApiError } from "./errors.ts";
+import type { ApiSearchService } from "../index.ts";
 import { ApiRequestError } from "../protocol/index.ts";
 import {
-  handleApiRoute,
-} from "./handlers.ts";
-import {
-  authorizeApiRequest,
-  ApiSecurityError,
-  type ApiSecurityPolicy,
-} from "./security.ts";
-import {
-  ApiRequestAbortedError,
-  assertApiRequestHasNoBody,
-  createApiResponseHeaders,
-  readApiJsonBody,
-  sendApiJson,
-  sendApiNoContent,
-} from "./transport.ts";
-import { reportApiRequestFailure } from "./log.ts";
-import {
-  ApiEventHub,
+ApiEventHub,
 } from "../sync/index.ts";
+import { mapApiError } from "./errors.ts";
 import {
-  type ApiRuntime,
+handleApiRoute,
+} from "./handlers.ts";
+import { reportApiRequestFailure } from "./log.ts";
+import { ApiMaintenanceGate } from "./maintenanceGate.ts";
+import {
+type ApiRuntime,
 } from "./runtime.ts";
 import {
-  DomainRevisionTracker,
-} from "../../../../application/sync/index.ts";
+ApiSecurityError,
+authorizeApiRequest,
+type ApiSecurityPolicy,
+} from "./security.ts";
 import {
-  AutomationTokenStore,
-  TrustedClientTokenStore,
-} from "../../access/index.ts";
-import type { AgentService } from "../../../../application/agentHost/index.ts";
-import type { OperationLedger } from "../../operations/index.ts";
-import { AgentConfigurationStore } from "../../agent/index.ts";
-import { AgentProviderOperations } from "../../../../application/agentHost/index.ts";
-import type { SystemAdministrationServerPort } from "../../../../application/system/index.ts";
-import { ApiMaintenanceGate } from "./maintenanceGate.ts";
-import type { ContentService } from "../../../../application/content/index.ts";
+ApiRequestAbortedError,
+assertApiRequestHasNoBody,
+createApiResponseHeaders,
+readApiJsonBody,
+sendApiJson,
+sendApiNoContent,
+} from "./transport.ts";
 
 export type ApiRequestHandler = (
   request: IncomingMessage,
@@ -66,7 +62,6 @@ export type ApiRequestHandler = (
 
 export type ApiHttpDependencies = {
   contentService: ContentService | null;
-  accessStore: AutomationTokenStore;
   agentConfigurationStore: AgentConfigurationStore;
   agentProviderOperations: AgentProviderOperations;
   agentService: AgentService | null;
@@ -82,7 +77,6 @@ export type ApiHttpDependencies = {
   revisionTracker: DomainRevisionTracker;
   security: ApiSecurityPolicy;
   systemAdministration: SystemAdministrationServerPort | null;
-  trustedClientTokenStore: TrustedClientTokenStore;
 };
 
 function mapSecurityError(error: ApiSecurityError) {
@@ -94,17 +88,12 @@ function mapSecurityError(error: ApiSecurityError) {
 }
 
 export function createHttpApiRequestHandler({
-  accessStore: resolvedAccessStore,
-  trustedClientTokenStore: resolvedTrustedClientTokenStore,
   agentConfigurationStore: resolvedAgentConfigurationStore,
   agentProviderOperations: resolvedAgentProviderOperations,
   agentService, builtInCatalog, catalog, eventHub, logger, maintenanceGate,
   operationLedger, requestRestart, runtime, revisionTracker, search, security,
   systemAdministration, contentService,
 }: ApiHttpDependencies): ApiRequestHandler {
-  const bearerAuthenticator = {
-    authenticate: async (secret: string) => maintenanceGate.isClosed() ? null : await resolvedAccessStore.authenticate(secret) ?? await resolvedTrustedClientTokenStore.authenticate(secret),
-  };
   return async (request, response) => {
     const requestId = randomUUID();
     let responseHeaders = createApiResponseHeaders(null, requestId);
@@ -115,7 +104,6 @@ export function createHttpApiRequestHandler({
         const authorized = await authorizeApiRequest(
           request,
           security,
-          bearerAuthenticator,
         );
 
         responseHeaders = createApiResponseHeaders(
@@ -158,7 +146,6 @@ export function createHttpApiRequestHandler({
         let parsedBody: Promise<unknown> | null = null;
         const result = await handleApiRoute({
           contentService,
-          accessStore: resolvedAccessStore,
           agentConfigurationStore: resolvedAgentConfigurationStore,
           agentProviderOperations: resolvedAgentProviderOperations,
           agentService,
@@ -188,7 +175,6 @@ export function createHttpApiRequestHandler({
           runtime,
           search,
           systemAdministration,
-          trustedClientTokenStore: resolvedTrustedClientTokenStore,
         });
 
         if (result) {

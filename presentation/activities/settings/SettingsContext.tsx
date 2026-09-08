@@ -1,30 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { FileCog, Plus } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { FileCog,Plus } from "lucide-react";
+import { useState,type ReactNode } from "react";
 import type { AgentConfigurationState } from "../../../application/agent/index.ts";
 import {
-  Button,
-  CompactContextGroup,
-  CompactContextRow,
+Button,
+CompactContextGroup,
+CompactContextRow,
 } from "../../ui/index.ts";
-import type { ApiAccessSettingsPanelSnapshot } from "./useApiAccessSettingsSession.ts";
 import {
-  settingsPageLabels,
-  settingsTargetKey,
-  type SettingsTarget,
+settingsPageLabels,
+settingsTargetKey,
+type SettingsTarget,
 } from "./settingsTypes.ts";
 
-type EntityKind = "provider" | "profile" | "automation" | "trusted";
+type EntityKind = "provider" | "profile";
 export function SettingsContext({
   agent,
-  api,
   blocked,
   onSelect,
   target,
 }: {
   agent: AgentConfigurationState;
-  api: ApiAccessSettingsPanelSnapshot;
   blocked: boolean;
   onSelect(target: SettingsTarget): void;
   target: SettingsTarget;
@@ -131,29 +128,7 @@ export function SettingsContext({
           </li>
         </>,
       )}
-      {group(
-        "api",
-        "API 访问",
-        <>
-          <li className="settings-context-subgroup">
-            {entities(
-              "automation",
-              "自动化令牌",
-              api.tokens.map((item) => ({ id: item.id, label: item.name })),
-            )}
-          </li>
-          <li className="settings-context-subgroup">
-            {entities(
-              "trusted",
-              "可信客户端令牌",
-              api.trustedClientTokens.map((item) => ({
-                id: item.id,
-                label: item.name,
-              })),
-            )}
-          </li>
-        </>,
-      )}
+      {group("api", "API 访问", row({ kind: "local-api" }, "本机 API"))}
       {group(
         "audit",
         "审计",

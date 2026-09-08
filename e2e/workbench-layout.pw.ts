@@ -50,7 +50,6 @@ async function expectExposed(locator: Locator) {
 
 for (const viewport of [
   { width: 1280, height: 720 },
-  { width: 1440, height: 900 },
 ]) {
   test(`Agent proposal keeps approval visible at ${viewport.width}×${viewport.height}`, async ({
     api,

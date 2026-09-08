@@ -1,25 +1,25 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace/contractValue";
-import { serializeJsonIteratively } from "../../../../contracts/common/json";
-import { parseWorkspaceRepositorySyncRequest } from "../../../../contracts/workspace/parseRepository";
-import { createHttpWorkspaceRepositoryBackend } from "../../../../infrastructure/client/http/workspaceRepository";
+import { afterEach,describe,expect,it,vi } from "vitest";
 import {
-  apiRequestTimeoutMs,
+WorkspaceRepositoryBackendConflictError,
+WorkspaceRepositoryRemoteError,
+WorkspaceRepositoryUnavailableError,
+} from "../../../../application/workspace/persistence/workspaceRepository";
+import { serializeJsonIteratively } from "../../../../contracts/common/json";
+import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace/contractValue";
+import { parseWorkspaceRepositorySyncRequest } from "../../../../contracts/workspace/parseRepository";
+import {
+apiRequestTimeoutMs,
 } from "../../../../infrastructure/client/http/apiTransport";
 import {
-  createHttpRepositoryCacheIdentity,
+createHttpRepositoryCacheIdentity,
 } from "../../../../infrastructure/client/http/httpRepositoryIdentity";
+import { createHttpWorkspaceRepositoryBackend } from "../../../../infrastructure/client/http/workspaceRepository";
 import {
-  WorkspaceRepositoryBackendConflictError,
-  WorkspaceRepositoryRemoteError,
-  WorkspaceRepositoryUnavailableError,
-} from "../../../../application/workspace/persistence/workspaceRepository";
-import {
-  createDeepWorkspaceRepositoryContent,
-  createWorkspaceRepositoryContent,
-  inspectDeepWorkspaceRepositoryContent,
-  revisionA,
-  revisionB,
+createDeepWorkspaceRepositoryContent,
+createWorkspaceRepositoryContent,
+inspectDeepWorkspaceRepositoryContent,
+revisionA,
+revisionB,
 } from "../../../support/workspaceRepositoryFixtures";
 
 type FetchCall = {
@@ -170,7 +170,6 @@ describe("HTTP workspace repository backend", () => {
       baseUrl: "http://api.test",
       fetch: fetchMock,
       repositoryId: "primary",
-      token: "client-token",
     });
 
     await expect(backend.synchronizeRemoteSnapshot(request)).resolves.toEqual({
@@ -180,9 +179,7 @@ describe("HTTP workspace repository backend", () => {
     expect(calls[0]?.body).toBe(JSON.stringify(request));
     expect(calls[0]?.method).toBe("PUT");
     expect(calls[0]?.headers.get("Content-Type")).toBe("application/json");
-    expect(calls[0]?.headers.get("Authorization")).toBe(
-      "Bearer client-token",
-    );
+    expect(calls[0]?.headers.has("Authorization")).toBe(false);
   });
 
   it("rejects invalid outbound exact content and unsafe note paths before fetch", async () => {
@@ -366,25 +363,22 @@ describe("HTTP workspace repository backend", () => {
     expect(observedSignal?.aborted).toBe(true);
   });
 
-  it("keys local cache identity by origin, repository id, and token digest", async () => {
+  it("preserves the official cache namespace and isolates repository identities", async () => {
     const first = await createHttpRepositoryCacheIdentity({
       baseUrl: "https://api.test/path-a",
       repositoryId: "primary",
-      token: "token-a",
     });
     const sameOrigin = await createHttpRepositoryCacheIdentity({
       baseUrl: "https://api.test/path-b",
       repositoryId: "primary",
-      token: "token-a",
     });
-    const anotherToken = await createHttpRepositoryCacheIdentity({
+    const anotherRepository = await createHttpRepositoryCacheIdentity({
       baseUrl: "https://api.test/path-a",
-      repositoryId: "primary",
-      token: "token-b",
+      repositoryId: "secondary",
     });
 
     expect(first).toBe(sameOrigin);
-    expect(first).not.toBe(anotherToken);
+    expect(first).not.toBe(anotherRepository);
     expect(first).not.toContain("token-a");
   });
 });

@@ -1,53 +1,43 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { nullable } from "../../common/index.ts";
 import { Type } from "@sinclair/typebox";
 import {
-  ApiOperationAuditPageSchema,
-  ApiOperationAuditStatusSchema,
+AgentCodexDeviceLoginRequestSchema,
+AgentCodexDeviceLoginStatusSchema,
+AgentConfigurationDeleteRequestSchema,
+AgentConfigurationSnapshotSchema,
+AgentConformanceCheckRequestSchema,
+AgentConformanceCheckStatusSchema,
+AgentOllamaDiscoveryRequestSchema,
+AgentOllamaDiscoveryResultSchema,
+AgentProfileMutationRequestSchema,
+AgentProviderMutationRequestSchema,
+AgentProviderProbeResultSchema,
+} from "../../agent/index.ts";
+import { nullable } from "../../common/index.ts";
+import { parseCreateRepository,parseRenameRepository } from "../../workspace/index.ts";
+import {
+ApiOperationAuditPageSchema,
+ApiOperationAuditStatusSchema,
 } from "../schemas/operations.ts";
 import {
-  AgentConfigurationDeleteRequestSchema,
-  AgentConfigurationSnapshotSchema,
-  AgentCodexDeviceLoginRequestSchema,
-  AgentCodexDeviceLoginStatusSchema,
-  AgentConformanceCheckRequestSchema,
-  AgentConformanceCheckStatusSchema,
-  AgentOllamaDiscoveryRequestSchema,
-  AgentOllamaDiscoveryResultSchema,
-  AgentProfileMutationRequestSchema,
-  AgentProviderProbeResultSchema,
-  AgentProviderMutationRequestSchema,
-} from "../../agent/index.ts";
-import { parseCreateRepository, parseRenameRepository } from "../../workspace/index.ts";
-import { parseApiCreateTokenRequest } from "../parse.ts";
-import {
-  ApiCreateTokenRequestSchema,
-  ApiCreatedTokenSchema,
-  ApiCreatedTrustedClientTokenSchema,
-  ApiCreateTrustedClientTokenRequestSchema,
-  ApiRevokedSchema,
-  ApiTokenListSchema,
-  ApiTrustedClientTokenListSchema,
-} from "../schemas/admin.ts";
-import {
-  ApiDataRootMigrationRequestSchema,
-  ApiDataRootMigrationStatusSchema,
-  ApiOwnerCredentialRotationActivationSchema,
-  ApiOwnerCredentialRotationPreparationSchema,
-  ApiSystemConfigurationMutationSchema,
-  ApiSystemConfigurationRevisionSchema,
-  ApiSystemConfigurationSnapshotSchema,
-} from "../schemas/system.ts";
-import {
-  ApiBuiltInCatalogSchema,
-  ApiBuiltInRetryResultSchema,
-  ApiCreateRepositorySchema,
-  ApiRenameRepositorySchema,
-  ApiRepositoryCatalogSchema,
-  ApiRepositoryDescriptorSchema,
+ApiBuiltInCatalogSchema,
+ApiBuiltInRetryResultSchema,
+ApiCreateRepositorySchema,
+ApiRenameRepositorySchema,
+ApiRepositoryCatalogSchema,
+ApiRepositoryDescriptorSchema,
 } from "../schemas/storage.ts";
-import { apiBody, ownerAccess, type ApiOperationDefinition } from "./definition.ts";
+import {
+ApiDataRootMigrationRequestSchema,
+ApiDataRootMigrationStatusSchema,
+ApiOwnerCredentialRotationActivationSchema,
+ApiOwnerCredentialRotationPreparationSchema,
+ApiSystemConfigurationMutationSchema,
+ApiSystemConfigurationRevisionSchema,
+ApiSystemConfigurationSnapshotSchema,
+} from "../schemas/system.ts";
+import { apiBody,ownerAccess,type ApiOperationDefinition } from "./definition.ts";
 
 const auditQuerySchema = Type.Object({
   cursor: Type.Optional(Type.Integer({ minimum: 0 })),
@@ -86,12 +76,6 @@ export const adminApiOperations = [
   { access: ownerAccess(), method: "DELETE", operationId: "deleteAdminRepository", path: "/api/v4/admin/repositories/{repositoryId}", responses: { 204: null } },
   { access: ownerAccess(), method: "GET", operationId: "listBuiltIns", path: "/api/v4/admin/built-ins", responses: { 200: ApiBuiltInCatalogSchema } },
   { access: ownerAccess(), method: "POST", operationId: "retryBuiltIn", path: "/api/v4/admin/built-ins/{builtInId}/retry", responses: { 200: ApiBuiltInRetryResultSchema } },
-  { access: ownerAccess(), method: "GET", operationId: "listApiTokens", path: "/api/v4/admin/automation-tokens", responses: { 200: ApiTokenListSchema } },
-  { access: ownerAccess(), body: apiBody(ApiCreateTokenRequestSchema, parseApiCreateTokenRequest), method: "POST", operationId: "createApiToken", path: "/api/v4/admin/automation-tokens", responses: { 201: ApiCreatedTokenSchema } },
-  { access: ownerAccess(), method: "DELETE", operationId: "revokeToken", path: "/api/v4/admin/automation-tokens/{tokenId}", responses: { 200: ApiRevokedSchema } },
-  { access: ownerAccess(), method: "GET", operationId: "listTrustedClientTokens", path: "/api/v4/admin/trusted-client-tokens", responses: { 200: ApiTrustedClientTokenListSchema } },
-  { access: ownerAccess(), body: apiBody(ApiCreateTrustedClientTokenRequestSchema), method: "POST", operationId: "createTrustedClientToken", path: "/api/v4/admin/trusted-client-tokens", responses: { 201: ApiCreatedTrustedClientTokenSchema } },
-  { access: ownerAccess(), method: "DELETE", operationId: "revokeTrustedClientToken", path: "/api/v4/admin/trusted-client-tokens/{trustedClientTokenId}", responses: { 200: ApiRevokedSchema } },
   { access: ownerAccess(), method: "GET", operationId: "getOperationAuditStatus", path: "/api/v4/admin/operations/status", responses: { 200: ApiOperationAuditStatusSchema } },
   { access: ownerAccess(), method: "GET", operationId: "listOperations", path: "/api/v4/admin/operations", query: auditQuerySchema, responses: { 200: ApiOperationAuditPageSchema } },
 ] as const satisfies readonly ApiOperationDefinition[];

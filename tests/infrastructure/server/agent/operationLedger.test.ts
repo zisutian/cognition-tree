@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  access,
-  mkdir,
-  mkdtemp,
-  readFile,
-  rm,
-  symlink,
-  writeFile,
+access,
+mkdir,
+mkdtemp,
+readFile,
+rm,
+symlink,
+writeFile,
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
-import type { AgentOperationAuditEntryDto } from "../../../../contracts/agent/schemas.ts";
+import { describe,expect,it,vi } from "vitest";
 import {
-  AgentOperationIdempotencyError,
-  AgentOperationIndeterminateError,
-  type AgentOperationAttempt,
+AgentOperationIdempotencyError,
+AgentOperationIndeterminateError,
+type AgentOperationAttempt,
 } from "../../../../application/operations/operationLedgerPort.ts";
+import type { AgentOperationAuditEntryDto } from "../../../../contracts/agent/schemas.ts";
 import { OperationLedger } from "../../../../infrastructure/server/operations/operationLedger.ts";
 import {
-  replaceFileDurably,
+replaceFileDurably,
 } from "../../../../infrastructure/server/persistence/fileSystemPersistence.ts";
 
 function revision(character: string) {
@@ -268,17 +268,11 @@ describe("operation ledger", () => {
       const updating = ledger.updateMaximumEntries(1);
 
       await trimSaveStarted;
-      const queuedAttempt = ledger.beginAuthenticatedAttempt({
-        occurredAt: "2026-08-20T00:00:00.000Z",
-        principalId: "trusted-client",
-        requestId: "new-operation",
-        route: "/api/v4/content/workspace",
-        store: { domain: "journal" },
-      });
+      const queuedAttempt = ledger.runAgentIdempotent(identity(entry(3)), attempt(entry(3)), async () => entry(3));
 
       rejectTrimSave(new Error("durable trim failed"));
       await expect(updating).rejects.toThrow("durable trim failed");
-      await expect(queuedAttempt).resolves.toBe("new-operation");
+      await expect(queuedAttempt).resolves.toMatchObject({ replayed: false });
       const persisted = JSON.parse(await readFile(
         path.join(directory, "operations-v1", "operations.json"),
         "utf8",
@@ -287,11 +281,8 @@ describe("operation ledger", () => {
       };
 
       expect(persisted.auditEntries).toHaveLength(2);
-      expect(persisted.auditEntries.filter(({ pending }) => pending))
-        .toEqual([{
-          entry: expect.objectContaining({ id: "new-operation" }),
-          pending: true,
-        }]);
+      expect(persisted.auditEntries.every(({ pending }) => !pending)).toBe(true);
+      expect(persisted.auditEntries.map(({ entry }) => entry.id)).toContain(`${entry(3).proposalId}\u0000${entry(3).proposalVersion}`);
     } finally {
       await rm(directory, { force: true, recursive: true });
     }
@@ -336,17 +327,11 @@ describe("operation ledger", () => {
       const updating = ledger.updateMaximumEntries(1);
 
       await trimSaveStarted;
-      const queuedAttempt = ledger.beginAuthenticatedAttempt({
-        occurredAt: "2026-08-20T00:00:00.000Z",
-        principalId: "trusted-client",
-        requestId: "new-operation",
-        route: "/api/v4/content/workspace",
-        store: { domain: "journal" },
-      });
+      const queuedAttempt = ledger.runAgentIdempotent(identity(entry(3)), attempt(entry(3)), async () => entry(3));
 
       releaseTrimSave();
       await expect(updating).resolves.toBeUndefined();
-      await expect(queuedAttempt).resolves.toBe("new-operation");
+      await expect(queuedAttempt).resolves.toMatchObject({ replayed: false });
       const persisted = JSON.parse(await readFile(
         path.join(directory, "operations-v1", "operations.json"),
         "utf8",
@@ -355,8 +340,8 @@ describe("operation ledger", () => {
       };
 
       expect(persisted.auditEntries).toEqual([{
-        entry: expect.objectContaining({ id: "new-operation" }),
-        pending: true,
+        entry: expect.objectContaining({ id: `${entry(3).proposalId}\u0000${entry(3).proposalVersion}` }),
+        pending: false,
       }]);
     } finally {
       await rm(directory, { force: true, recursive: true });
@@ -370,24 +355,11 @@ describe("operation ledger", () => {
 
     try {
       const ledger = new OperationLedger(directory, 10);
-      const first = {
-        occurredAt: "2026-08-20T00:00:00.000Z",
-        principalId: "trusted-client",
-        requestId: "duplicate-operation",
-        route: "/api/v4/content/workspace",
-        store: { domain: "journal" as const },
-      };
-
-      await expect(ledger.beginAuthenticatedAttempt(first)).resolves.toBe(
-        first.requestId,
-      );
-      await expect(ledger.beginAuthenticatedAttempt(first)).rejects.toThrow(
-        "requestId is already present",
-      );
-      await expect(ledger.beginAuthenticatedAttempt({
-        ...first,
-        requestId: "next-operation",
-      })).resolves.toBe("next-operation");
+      const value = entry(1);
+      await ledger.runAgentIdempotent(identity(value), attempt(value), async () => value);
+      await expect(ledger.runAgentIdempotent({ ...identity(value), digest: `sha256:${"f".repeat(64)}` }, attempt(value), async () => value)).rejects.toThrow("different digest");
+      const next = entry(2);
+      await expect(ledger.runAgentIdempotent(identity(next), attempt(next), async () => next)).resolves.toMatchObject({ replayed: false });
       await expect(ledger.status()).resolves.toEqual({ status: "available" });
     } finally {
       await rm(directory, { force: true, recursive: true });

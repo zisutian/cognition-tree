@@ -1,24 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type {
+AgentOperationAttempt,
+AgentOperationIdentity,
+ContentOperationIntent,ContentOperationOutcome,
+} from "../../../application/operations/index.ts";
 import type { AgentOperationAuditEntryDto } from "../../../contracts/agent/index.ts";
 import type { SecureStateFileReplacer } from "../state/index.ts";
 import { AgentOperationLedger } from "./agentOperationLedger.ts";
-import type {
-  AgentOperationAttempt,
-  AgentOperationIdentity,
-  AttachTrustedClientOperationIntentInput,
-  BeginTrustedClientOperationInput,
-  FinalizeTrustedClientOperationInput,
-} from "../../../application/operations/index.ts";
-import { OperationLedgerStore } from "./operationLedgerStore.ts";
-import { TrustedClientOperationLedger } from "./trustedClientOperationLedger.ts";
 import { ContentOperationLedger } from "./contentOperationLedger.ts";
-import type { ContentOperationIntent, ContentOperationOutcome } from "../../../application/operations/index.ts";
+import { OperationLedgerStore } from "./operationLedgerStore.ts";
 
 export class OperationLedger {
   readonly #agent: AgentOperationLedger;
   readonly #store: OperationLedgerStore;
-  readonly #trusted: TrustedClientOperationLedger;
   readonly #content: ContentOperationLedger;
 
   constructor(
@@ -51,7 +46,6 @@ export class OperationLedger {
         ? {}
         : { runtimeId: options.runtimeId }),
     });
-    this.#trusted = new TrustedClientOperationLedger(this.#store);
     this.#content = new ContentOperationLedger(this.#store, now);
   }
 
@@ -77,24 +71,6 @@ export class OperationLedger {
     execute: () => Promise<AgentOperationAuditEntryDto>,
   ) {
     return this.#agent.runIdempotent(identity, attempt, execute);
-  }
-
-  beginAuthenticatedAttempt(input: BeginTrustedClientOperationInput) {
-    return this.#trusted.begin(input);
-  }
-
-  attachIntent(
-    operationId: string,
-    input: AttachTrustedClientOperationIntentInput,
-  ) {
-    return this.#trusted.attachIntent(operationId, input);
-  }
-
-  finalizeTrustedAttempt(
-    operationId: string,
-    input: FinalizeTrustedClientOperationInput,
-  ) {
-    return this.#trusted.finalize(operationId, input);
   }
 
   list(input: { cursor: number; limit: number }) {

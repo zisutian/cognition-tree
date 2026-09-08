@@ -1,104 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type {
-  OutgoingHttpHeaders,
-  ServerResponse,
-} from "node:http";
 import { randomUUID } from "node:crypto";
-import { serializeJsonIteratively } from "../../../../contracts/common/index.ts";
 import type {
-  ApiChangeEventDto,
-  ApiCheckpointEventDto,
-  ApiPrincipalDto,
-  ApiRevisionCheckpointDto,
+OutgoingHttpHeaders,
+ServerResponse,
+} from "node:http";
+import type {
+ApiChangeEventDto,
+ApiCheckpointEventDto,
+ApiRevisionCheckpointDto,
 } from "../../../../contracts/api/index.ts";
 import type { DomainChangeSetDto } from "../../../../contracts/common/index.ts";
+import { serializeJsonIteratively } from "../../../../contracts/common/index.ts";
 import {
-  endServerSentEventResponse,
-  writeServerSentEvent,
+endServerSentEventResponse,
+writeServerSentEvent,
 } from "../../transport/index.ts";
 
 type EventConnection = {
-  principal: ApiPrincipalDto;
   response: ServerResponse;
 };
-
-function canRead(
-  principal: ApiPrincipalDto,
-  domain: "journal" | "todo" | "workspace",
-) {
-  switch (principal.kind) {
-    case "local-owner":
-    case "owner":
-    case "trusted-client":
-      return true;
-    case "automation":
-      return principal.scopes.includes(`${domain}:read`);
-  }
-}
-
-function repositoryAllowed(
-  principal: ApiPrincipalDto,
-  repositoryId: string | undefined,
-) {
-  if (repositoryId === undefined) return true;
-  switch (principal.kind) {
-    case "local-owner":
-    case "owner":
-    case "trusted-client":
-      return true;
-    case "automation":
-      return principal.repositoryIds === null ||
-        principal.repositoryIds.includes(repositoryId);
-  }
-}
-
-export function filterApiCheckpoint(
-  checkpoint: ApiRevisionCheckpointDto,
-  principal: ApiPrincipalDto,
-): ApiRevisionCheckpointDto {
-  return {
-    journal: canRead(principal, "journal") ? checkpoint.journal : null,
-    sequence: checkpoint.sequence,
-    streamId: checkpoint.streamId,
-    todo: canRead(principal, "todo") ? checkpoint.todo : null,
-    workspaces: canRead(principal, "workspace")
-      ? Object.fromEntries(
-          Object.entries(checkpoint.workspaces).filter(([repositoryId]) =>
-            repositoryAllowed(principal, repositoryId)
-          ),
-        )
-      : {},
-  };
-}
-
-export function filterApiChangeSet(
-  changes: DomainChangeSetDto,
-  principal: ApiPrincipalDto,
-): DomainChangeSetDto {
-  const visibilityByResourceId = new Map<string, boolean>();
-  const ambiguousResourceIds = new Set<string>();
-  const resources = changes.resources.filter((resource) => {
-    const visible = canRead(principal, resource.domain) &&
-      repositoryAllowed(principal, resource.repositoryId);
-    const previous = visibilityByResourceId.get(resource.resourceId);
-
-    if (previous !== undefined && previous !== visible) {
-      ambiguousResourceIds.add(resource.resourceId);
-    }
-    visibilityByResourceId.set(resource.resourceId, visible);
-    return visible;
-  });
-
-  return {
-    blocks: changes.blocks.filter(({ resourceId }) =>
-      visibilityByResourceId.get(resourceId) === true &&
-      !ambiguousResourceIds.has(resourceId)
-    ),
-    occurredAt: changes.occurredAt,
-    resources,
-  };
-}
 
 function writeSseEvent(
   response: ServerResponse,
@@ -126,18 +47,16 @@ export class ApiEventHub {
   connect({
     checkpoint,
     headers,
-    principal,
     response,
   }: {
     checkpoint: ApiRevisionCheckpointDto;
     headers: OutgoingHttpHeaders;
-    principal: ApiPrincipalDto;
-    response: ServerResponse;
+      response: ServerResponse;
   }) {
     if (this.#disposed) {
       throw new Error("API event hub is disposed");
     }
-    const connection = { principal, response };
+    const connection = { response };
 
     response.writeHead(200, {
       ...headers,
@@ -147,7 +66,7 @@ export class ApiEventHub {
     });
     const event: ApiCheckpointEventDto = {
       checkpoint: {
-        ...filterApiCheckpoint(checkpoint, principal),
+        ...checkpoint,
         sequence: this.#sequence,
         streamId: this.#streamId,
       },
@@ -180,26 +99,9 @@ export class ApiEventHub {
     };
 
     for (const connection of this.#connections) {
-      const filteredEvent: ApiChangeEventDto = {
-        ...event,
-        changes: filterApiChangeSet(changes, connection.principal),
-        checkpoint: filterApiCheckpoint(
-          event.checkpoint,
-          connection.principal,
-        ),
-      };
-
-      if (!writeSseEvent(connection.response, "change", filteredEvent)) {
+      if (!writeSseEvent(connection.response, "change", event)) {
         this.#connections.delete(connection);
       }
-    }
-  }
-
-  revokePrincipal(principalId: string) {
-    for (const connection of this.#connections) {
-      if (connection.principal.id !== principalId) continue;
-      endServerSentEventResponse(connection.response);
-      this.#connections.delete(connection);
     }
   }
 

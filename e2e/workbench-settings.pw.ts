@@ -10,7 +10,6 @@ import {
 import { getActivityButton, openWorkbench } from "./support/workbenchPage";
 
 const syntaxRepositoryId = "workbench-syntax-view";
-const deniedRepositoryId = "workbench-settings-denied";
 
 type TextReappearanceObservation = {
   observer: MutationObserver;
@@ -63,7 +62,6 @@ test.describe("settings activity flows", () => {
   test.beforeEach(async ({ api }) => {
     await Promise.all([
       seedWorkbenchRepository(api, syntaxRepositoryId),
-      seedWorkbenchRepository(api, deniedRepositoryId),
     ]);
   });
 
@@ -190,192 +188,6 @@ test.describe("settings activity flows", () => {
     await expect(save).toBeDisabled();
   });
 
-  test("creates only read-scoped tokens and retains only the prefix", async ({
-    api,
-    page,
-  }) => {
-    await openWorkbench(page, syntaxRepositoryId);
-    await getActivityButton(page, "设置").click();
-    await page
-      .getByRole("button", { name: "新建 自动化令牌", exact: true })
-      .click();
-    const panel = page
-      .locator(".app-main-content")
-      .getByRole("region", { name: "API 访问", exact: true });
-
-    await expect(panel).toBeVisible();
-    await panel
-      .getByRole("textbox", { name: "自动化令牌名称", exact: true })
-      .fill("E2E AI");
-    await panel
-      .getByRole("combobox", { name: "Workspace 权限" })
-      .selectOption({ label: "只读" });
-    await panel
-      .getByRole("combobox", { name: "日记权限" })
-      .selectOption({ label: "不授权" });
-    await panel
-      .getByRole("combobox", { name: "代办权限" })
-      .selectOption({ label: "只读" });
-    await panel
-      .getByRole("combobox", { name: "仓库范围" })
-      .selectOption({ label: "指定仓库" });
-    await panel
-      .getByRole("group", {
-        name: "允许的仓库",
-      })
-      .getByRole("checkbox", {
-        name: `浏览器回归仓库（${syntaxRepositoryId}）`,
-      })
-      .check();
-    await panel.getByRole("button", { name: "创建令牌" }).click();
-    const oneTimeSecret = panel.getByLabel("新令牌");
-    await expect(oneTimeSecret.locator("code")).toHaveCount(1);
-
-    const secret = (await oneTimeSecret.locator("code").textContent()) ?? "";
-
-    expect(/^ctn_[A-Za-z0-9_-]+$/.test(secret)).toBe(true);
-    await oneTimeSecret.getByRole("button", { name: "关闭显示" }).click();
-    await expect(oneTimeSecret).toHaveCount(0);
-    const tokenRow = page
-      .locator(".settings-context")
-      .getByRole("list", { name: "自动化令牌", exact: true })
-      .getByRole("listitem")
-      .filter({ hasText: "E2E AI" });
-
-    await expect(tokenRow).toBeVisible();
-    await expect(
-      await tokenRow.evaluate(
-        (element, value) => element.textContent?.includes(value),
-        secret,
-      ),
-    ).toBe(false);
-    await tokenRow.getByRole("button", { name: "E2E AI" }).click();
-    await expect(panel).toContainText("workspace:read");
-    await expect(panel).toContainText("todo:read");
-    await expect(panel).not.toContainText("journal:read");
-    await expect(panel).toContainText(syntaxRepositoryId);
-    await page.reload();
-    await expect(
-      page.getByRole("navigation", { name: "工作区功能" }),
-    ).toBeVisible();
-    await getActivityButton(page, "设置").click();
-    await page
-      .getByRole("button", { name: "新建 自动化令牌", exact: true })
-      .click();
-    await expect(page.locator("[data-sensitive]")).toHaveCount(0);
-    await expect(page.getByRole("list", { name: "自动化令牌" })).toContainText(
-      "E2E AI",
-    );
-
-    const automationHeaders = {
-      Authorization: `Bearer ${secret}`,
-    };
-    const allowed = await api.get(
-      `/api/v4/content/workspaces/${syntaxRepositoryId}/tree`,
-      { headers: automationHeaders },
-    );
-
-    expect(allowed.status()).toBe(200);
-    for (const path of [
-      `/api/v4/content/workspaces/${deniedRepositoryId}/tree`,
-      "/api/v4/admin/repositories",
-      "/api/v4/agent/status",
-    ]) {
-      const denied = await api.get(path, { headers: automationHeaders });
-
-      expect(denied.status()).toBe(403);
-    }
-
-    const reloadedPanel = page
-      .locator(".app-main-content")
-      .getByRole("region", { name: "API 访问", exact: true });
-
-    await page
-      .getByRole("button", { name: "刷新设置状态", exact: true })
-      .click();
-    const reloadedTokenRow = page
-      .locator(".settings-context")
-      .getByRole("list", { name: "自动化令牌" })
-      .getByRole("listitem")
-      .filter({ hasText: "E2E AI" });
-
-    await reloadedTokenRow.getByRole("button", { name: "E2E AI" }).click();
-    await expect(page.getByRole("region", { name: "设置状态" })).toContainText(
-      "最近使用",
-    );
-    await reloadedPanel
-      .getByRole("button", { name: "撤销令牌", exact: true })
-      .click();
-    await reloadedPanel
-      .getByRole("button", { name: "确认撤销令牌", exact: true })
-      .click();
-    await expect(reloadedTokenRow).toHaveCount(0);
-
-    const revoked = await api.get(
-      `/api/v4/content/workspaces/${syntaxRepositoryId}/tree`,
-      { headers: automationHeaders },
-    );
-
-    expect(revoked.status()).toBe(401);
-  });
-
-  test("clears a one-time API secret when leaving API access settings", async ({
-    page,
-  }) => {
-    await openWorkbench(page, syntaxRepositoryId);
-    await getActivityButton(page, "设置").click();
-    const settingsContext = page.locator(".settings-context");
-
-    await settingsContext
-      .getByRole("button", {
-        name: "新建 自动化令牌",
-        exact: true,
-      })
-      .click();
-    const panel = page
-      .locator(".app-main-content")
-      .getByRole("region", { name: "API 访问", exact: true });
-
-    await panel
-      .getByRole("textbox", { name: "自动化令牌名称", exact: true })
-      .fill("E2E transient secret");
-    await panel.getByRole("button", { name: "创建令牌" }).click();
-    const oneTimeSecret = panel.getByLabel("新令牌");
-    await expect(oneTimeSecret.locator("code")).toHaveCount(1);
-    const secret = (await oneTimeSecret.locator("code").textContent()) ?? "";
-
-    expect(/^ctn_[A-Za-z0-9_-]+$/.test(secret)).toBe(true);
-    const secretObservation = await observeTextReappearance(page, secret);
-    await settingsContext
-      .getByRole("button", {
-        name: "工作台布局",
-        exact: true,
-      })
-      .click();
-    await settingsContext
-      .getByRole("button", {
-        name: "E2E transient secret",
-        exact: true,
-      })
-      .click();
-
-    await expect(page.locator("[data-sensitive]")).toHaveCount(0);
-    expect(await stopTextReappearanceObservation(secretObservation)).toBe(
-      false,
-    );
-    const tokenRow = page
-      .locator(".settings-context")
-      .getByRole("list", { name: "自动化令牌", exact: true })
-      .getByRole("listitem")
-      .filter({ hasText: "E2E transient secret" });
-
-    await panel.getByRole("button", { name: "撤销令牌", exact: true }).click();
-    await panel
-      .getByRole("button", { name: "确认撤销令牌", exact: true })
-      .click();
-    await expect(tokenRow).toHaveCount(0);
-  });
-
   test("persists an explicit Agent profile without unavailable fallback", async ({
     page,
   }) => {
@@ -423,55 +235,32 @@ test.describe("settings activity flows", () => {
   });
 });
 
-test("creates and revokes a trusted client with details collapsed", async ({
-  api,
-  page,
-}) => {
+test("queries durable local API results from the main panel without a detail sidebar", async ({ api, page }) => {
   await seedWorkbenchRepository(api, syntaxRepositoryId);
+  const directory = await api.post("/api/v4/content/query", { data: { kind: "directory", scope: { domain: "journal" } } });
+  expect(directory.ok()).toBe(true);
+  const operationId = `e2e-local-${Date.now()}`;
+  const submitted = await api.post("/api/v4/content/operations", { data: { operationId, baseRevision: (await directory.json()).baseRevision, scope: { domain: "journal" }, command: { kind: "create-entry", body: "- 浏览器收据查询" } } });
+  expect(submitted.ok()).toBe(true);
   await openWorkbench(page, syntaxRepositoryId);
   await getActivityButton(page, "设置").click();
-  const context = page.locator(".settings-context");
-  await context
-    .getByRole("button", { name: "新建 可信客户端令牌", exact: true })
-    .click();
-  const panel = page.getByRole("region", { name: "API 访问", exact: true });
-  await panel
-    .getByRole("textbox", { name: "可信客户端名称", exact: true })
-    .fill("E2E trusted client");
-  await panel
-    .getByRole("button", { name: "创建可信客户端令牌", exact: true })
-    .click();
-  await page.getByRole("button", { name: "收回右侧详情", exact: true }).click();
-  const secretNode = panel.locator("code[data-sensitive]");
-  await expect(secretNode).toHaveCount(1);
-  const secret = (await secretNode.textContent()) ?? "";
-  expect(/^ctt_[A-Za-z0-9_-]+$/.test(secret)).toBe(true);
-  const headers = { Authorization: `Bearer ${secret}` };
-  expect(
-    (
-      await api.get(`/api/v4/content/workspaces/${syntaxRepositoryId}/tree`, {
-        headers,
-      })
-    ).status(),
-  ).toBe(200);
-  expect(
-    (await api.get("/api/v4/admin/repositories", { headers })).status(),
-  ).toBe(403);
-  await panel.getByRole("button", { name: "关闭显示", exact: true }).click();
-  await panel.getByRole("button", { name: "撤销令牌", exact: true }).click();
-  await panel
-    .getByRole("button", { name: "确认撤销令牌", exact: true })
-    .click();
-  await expect(
-    context.getByRole("button", { name: "E2E trusted client", exact: true }),
-  ).toHaveCount(0);
-  expect(
-    (
-      await api.get(`/api/v4/content/workspaces/${syntaxRepositoryId}/tree`, {
-        headers,
-      })
-    ).status(),
-  ).toBe(401);
+  await page.getByRole("button", { name: "本机 API", exact: true }).click();
+  const panel = page.getByRole("region", { name: "本机 API", exact: true });
+  await expect(panel.getByLabel("服务地址", { exact: true })).not.toHaveValue("");
+  await expect(page.getByRole("region", { name: "设置状态" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /新建 .*令牌/ })).toHaveCount(0);
+  const id = panel.getByRole("textbox", { name: "操作 ID", exact: true });
+  await id.fill(operationId);
+  await id.press("Enter");
+  await expect(panel.getByRole("status")).toContainText("已提交");
+  await expect(panel.getByRole("status")).toContainText(operationId);
+  await id.fill("missing-operation");
+  await expect(panel.getByRole("status")).toHaveCount(0);
+  await getActivityButton(page, "笔记").click();
+  await getActivityButton(page, "设置").click();
+  await page.getByRole("button", { name: "本机 API", exact: true }).click();
+  await expect(panel.getByRole("textbox", { name: "操作 ID", exact: true })).toHaveValue("");
+  expect((await api.get("/api/v4/capabilities", { headers: { Authorization: "Bearer ctn_retired" } })).status()).toBe(401);
 });
 
 test("discards Provider credentials and protects a new Profile draft", async ({

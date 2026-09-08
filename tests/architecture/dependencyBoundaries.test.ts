@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { describe, expect, it } from "vitest";
+import { describe,expect,it } from "vitest";
 import {
-  listSourceDependencyCycles,
-  listSourceImports,
-  readSourceImports,
-  sourceImportCorpus,
-} from "./sourceGraph";
-import { readModuleImports } from "./moduleImports";
+auditTextPolicies,
+} from "../support/textPolicy";
 import {
-  auditApplicationCoordinationRoots,
-  auditImportPolicies,
-  createDependencyImportPolicies,
-  createDependencyTextPolicies,
+auditApplicationCoordinationRoots,
+auditImportPolicies,
+createDependencyImportPolicies,
+createDependencyTextPolicies,
 } from "./dependencyConstraintCatalog";
+import { readModuleImports } from "./moduleImports";
 import { getSourceRoot } from "./sourceArchitecture";
 import {
-  applicationModules,
-  sourceModules,
-  sourceModulesByRoot,
+applicationModules,
+sourceModules,
+sourceModulesByRoot,
 } from "./sourceCorpus";
 import {
-  auditTextPolicies,
-} from "../support/textPolicy";
+listSourceDependencyCycles,
+listSourceImports,
+readSourceImports,
+sourceImportCorpus,
+} from "./sourceGraph";
 
 const layeredTestModules = import.meta.glob([
   "../application/**/*.{ts,tsx}",
@@ -194,8 +194,8 @@ describe("dependency boundaries", () => {
       },
       {
         filePath: "../../application/workbench/controller.ts",
-        importPath: "../apiAccess/administration",
-        targetPath: "../../application/apiAccess/administration.ts",
+        importPath: "../operations/administration",
+        targetPath: "../../application/operations/administration.ts",
         targetRoot: "application",
       },
       {
@@ -217,7 +217,7 @@ describe("dependency boundaries", () => {
       "server API independence from core commands: ../../infrastructure/server/api/http/queryHandlers.ts imports ../../../../core/todo/commands/todoCompletionRecurrenceCommands",
       "Agent session tool coordinator independence from domains: ../../application/agentHost/sessionTools.ts imports ../../../application/workspace/commands/workspaceCommandPreparation",
       "application coordination root independence: ../../application/workbench/problems.ts imports ../agent/controller",
-      "workbench content coordination boundary: ../../application/workbench/controller.ts imports ../apiAccess/administration",
+      "workbench content coordination boundary: ../../application/workbench/controller.ts imports ../operations/administration",
     ]);
   });
 

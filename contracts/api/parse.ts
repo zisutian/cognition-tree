@@ -1,26 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { Static,TSchema } from "@sinclair/typebox";
 import {
-  inspectWireSchema,
-  failWireContract,
+failWireContract,
+inspectWireSchema,
 } from "../common/index.ts";
-import type { Static, TSchema } from "@sinclair/typebox";
 
 import {
-  ApiCreateTokenRequestSchema,
-  ApiCreatedTokenSchema,
-  ApiTokenListSchema,
-  type ApiCreateTokenRequestDto,
-  type ApiCreatedTokenDto,
-  type ApiTokenDto,
-} from "./schemas/admin.ts";
-import {
-  ApiEventSchema,
-  type ApiEventDto,
+ApiEventSchema,
+type ApiEventDto,
 } from "./schemas/events.ts";
 import {
-  ApiSearchRequestSchema,
-  type ApiSearchRequestDto,
+ApiSearchRequestSchema,
+type ApiSearchRequestDto,
 } from "./schemas/search.ts";
 
 const contract = "CTN API v4";
@@ -59,23 +51,6 @@ export function parseApiSchema<T extends TSchema>(
   return input as Static<T>;
 }
 
-export function parseApiCreateTokenRequest(
-  input: unknown,
-): ApiCreateTokenRequestDto {
-  const request = parseApiSchema(ApiCreateTokenRequestSchema, input);
-
-  if (request.name.trim() !== request.name) {
-    failWireContract(contract, "$.name", "expected a trimmed name");
-  }
-  return {
-    ...request,
-    repositoryIds: request.repositoryIds
-      ? [...request.repositoryIds].sort()
-      : null,
-    scopes: [...request.scopes].sort(),
-  };
-}
-
 export function parseApiSearchRequest(
   input: unknown,
 ): ApiSearchRequestDto {
@@ -102,14 +77,4 @@ export function parseApiEvent(input: unknown): ApiEventDto {
     );
   }
   return event;
-}
-
-export function parseApiTokenList(input: unknown): ApiTokenDto[] {
-  return parseApiSchema(ApiTokenListSchema, input).tokens;
-}
-
-export function parseApiCreatedToken(
-  input: unknown,
-): ApiCreatedTokenDto {
-  return parseApiSchema(ApiCreatedTokenSchema, input);
 }

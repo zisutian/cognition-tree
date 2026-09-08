@@ -2,24 +2,24 @@ import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  AgentCodexDeviceLoginStatus,
-  AgentConformanceCheckStatus,
-  AgentConfigurationPort,
-  AgentConfigurationSnapshot,
+AgentCodexDeviceLoginStatus,
+AgentConfigurationPort,
+AgentConfigurationSnapshot,
+AgentConformanceCheckStatus,
 } from "../../../application/agent/index.ts";
 import {
-  AgentConfigurationSnapshotSchema,
-  AgentCodexDeviceLoginStatusSchema,
-  AgentConformanceCheckStatusSchema,
-  AgentOllamaDiscoveryResultSchema,
-  AgentProviderProbeResultSchema,
-  parseAgentSchema,
+AgentCodexDeviceLoginStatusSchema,
+AgentConfigurationSnapshotSchema,
+AgentConformanceCheckStatusSchema,
+AgentOllamaDiscoveryResultSchema,
+AgentProviderProbeResultSchema,
+parseAgentSchema,
 } from "../../../contracts/agent/index.ts";
 
 import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
 import {
-  requestApiJson,
-  type HttpApiTransportOptions,
+requestApiJson,
+type HttpApiTransportOptions,
 } from "./apiTransport.ts";
 
 function jsonRequest(body: unknown, method: "DELETE" | "PATCH" | "POST") {
@@ -54,10 +54,10 @@ function codexDeviceLogin(value: unknown) {
 export function createHttpAgentConfigurationClient({
   baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
-  token,
+
 }: HttpApiTransportOptions): AgentConfigurationPort {
   const request = (endpoint: string, init?: RequestInit) =>
-    requestApiJson(fetchFn, baseUrl, endpoint, init, token);
+    requestApiJson(fetchFn, baseUrl, endpoint, init);
 
   return {
     async cancelCodexDeviceLogin(loginId) {

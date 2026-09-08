@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { TextPolicy } from "../support/textPolicy";
 import type { SourceModules } from "./moduleImports";
 import type {
-  SourceImport,
-  SourceRoot,
+SourceImport,
+SourceRoot,
 } from "./sourceArchitecture";
-import type { TextPolicy } from "../support/textPolicy";
 
 export type ImportPolicy = {
   allows(edge: SourceImport): boolean;
@@ -405,7 +405,7 @@ export function createDependencyImportPolicies({
       allows: () => false,
       applies: ({ filePath, targetPath }) =>
         isApplicationArea(filePath, "workbench") &&
-        ["apiAccess", "operations", "system"].some((area) =>
+        ["operations", "system"].some((area) =>
           isApplicationArea(targetPath, area)
         ),
       name: "workbench content coordination boundary",

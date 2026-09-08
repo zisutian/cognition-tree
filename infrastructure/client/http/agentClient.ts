@@ -2,29 +2,29 @@ import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  AgentClientEvent,
-  AgentClientPort,
-  AgentProposalView,
-  AgentSessionSnapshot,
+AgentClientEvent,
+AgentClientPort,
+AgentProposalView,
+AgentSessionSnapshot,
 } from "../../../application/agent/index.ts";
 
 import {
-  AgentAcceptedTurnSchema,
-  AgentCancelledSchema,
-  AgentDeletedSchema,
-  AgentEventSchema,
-  AgentProposalSchema,
-  AgentSessionListSchema,
-  AgentSessionSnapshotSchema,
-  AgentStatusSchema,
-  parseAgentSchema,
+AgentAcceptedTurnSchema,
+AgentCancelledSchema,
+AgentDeletedSchema,
+AgentEventSchema,
+AgentProposalSchema,
+AgentSessionListSchema,
+AgentSessionSnapshotSchema,
+AgentStatusSchema,
+parseAgentSchema,
 } from "../../../contracts/agent/index.ts";
 
 import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
 import {
-  requestApiJson,
-  resolveApiUrl,
-  type HttpApiTransportOptions,
+requestApiJson,
+resolveApiUrl,
+type HttpApiTransportOptions,
 } from "./apiTransport.ts";
 import { readHttpSseData } from "./sseTransport.ts";
 
@@ -43,10 +43,10 @@ function jsonRequest(body: unknown, method: "POST") {
 export function createHttpAgentClient({
   baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
-  token,
+
 }: HttpApiTransportOptions): AgentClientPort {
   const request = (endpoint: string, init?: RequestInit) =>
-    requestApiJson(fetchFn, baseUrl, endpoint, init, token);
+    requestApiJson(fetchFn, baseUrl, endpoint, init);
 
   return {
     async cancel(sessionId) {
@@ -114,7 +114,6 @@ export function createHttpAgentClient({
         try {
           const headers = new Headers({ Accept: "text/event-stream" });
 
-          if (token) headers.set("Authorization", `Bearer ${token}`);
           const query = new URLSearchParams({
             afterSequence: String(afterSequence),
           });

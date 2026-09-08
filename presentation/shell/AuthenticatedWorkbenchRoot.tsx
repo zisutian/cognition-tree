@@ -2,24 +2,24 @@ import { createWorkbenchNavigation } from "./workbench/workbenchNavigation.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type ReactNode,
+useEffect,
+useMemo,
+useRef,
+useState,
+useSyncExternalStore,
+type ReactNode,
 } from "react";
 import { createProblemCenter } from "../../application/problems/index.ts";
 import type {
-  OwnerAuthenticationController,
-  OwnerAuthenticationState,
+OwnerAuthenticationController,
+OwnerAuthenticationState,
 } from "../../application/system/index.ts";
 import { projectWorkspaceSessionApplication } from "../../application/workspace/index.ts";
 import type { OfficialClientApi } from "../../infrastructure/client/http/index.ts";
 import {
-  createClientAgentRuntime,
-  createClientSystemConfigurationRuntime,
-  createWorkbenchRuntime,
+createClientAgentRuntime,
+createClientSystemConfigurationRuntime,
+createWorkbenchRuntime,
 } from "../../infrastructure/client/runtime/index.ts";
 
 import { clientApplicationScheduler } from "../../infrastructure/client/platform/index.ts";
@@ -117,7 +117,7 @@ export function AuthenticatedWorkbenchRoot({
     agentConfigurationState: agentConfigurationSnapshot,
     agentController: agentRuntime.session,
     agentState: agentSnapshot,
-    apiAccessAdministration: workbenchRuntime.apiAccessAdministration,
+    localApi: workbenchRuntime.localApi,
     controller,
     feedbackController,
     operationAdministration: workbenchRuntime.operationAdministration,
@@ -176,7 +176,7 @@ export function AuthenticatedWorkbenchRoot({
         scheduler={workbenchRuntime.applicationServices.scheduler}
         activeActivityId={activeActivityId}
         agent={applications.agent}
-        apiAccess={applications.apiAccess}
+        localApi={applications.localApi}
         controller={controller}
         feedbackController={feedbackController}
         journal={applications.journal}

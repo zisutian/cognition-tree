@@ -68,11 +68,6 @@ import { VersionedContentRevisionConflictError } from "../../../../application/p
 import { ApiRequestError } from "../protocol/index.ts";
 
 export type ApiSyncResult = {
-  audit: null | {
-    afterRevision: `sha256:${string}`;
-    changeMetadata: { blockIds: string[]; resourceIds: string[] };
-    outcome: "auto-merged" | "committed" | "unchanged";
-  };
   body: unknown;
   statusCode: number;
 };
@@ -200,21 +195,12 @@ export async function synchronizeApiWorkspace(
   context.observeRevision(result.snapshot.revision);
   if (result.status === "loaded") {
     return {
-      audit: null,
       body: result.snapshot,
       statusCode: 200,
     };
   }
   if (result.changes) await context.publish(result.changes);
   return {
-    audit: {
-      afterRevision: result.snapshot.revision,
-      changeMetadata: {
-        blockIds: result.changes?.blocks.map(({ blockId }) => blockId) ?? [],
-        resourceIds: result.changes?.resources.map(({ resourceId }) => resourceId) ?? [],
-      },
-      outcome: result.outcome,
-    },
     body: { outcome: result.outcome, snapshot: result.snapshot },
     statusCode: 200,
   };
@@ -256,21 +242,12 @@ export async function synchronizeApiJournal(
   context.observeRevision(result.snapshot.revision);
   if (result.status === "loaded") {
     return {
-      audit: null,
       body: result.snapshot,
       statusCode: 200,
     };
   }
   if (result.changes) await context.publish(result.changes);
   return {
-    audit: {
-      afterRevision: result.snapshot.revision,
-      changeMetadata: {
-        blockIds: result.changes?.blocks.map(({ blockId }) => blockId) ?? [],
-        resourceIds: result.changes?.resources.map(({ resourceId }) => resourceId) ?? [],
-      },
-      outcome: result.outcome,
-    },
     body: { outcome: result.outcome, snapshot: result.snapshot },
     statusCode: 200,
   };
@@ -312,21 +289,12 @@ export async function synchronizeApiTodo(
   context.observeRevision(result.snapshot.revision);
   if (result.status === "loaded") {
     return {
-      audit: null,
       body: result.snapshot,
       statusCode: 200,
     };
   }
   if (result.changes) await context.publish(result.changes);
   return {
-    audit: {
-      afterRevision: result.snapshot.revision,
-      changeMetadata: {
-        blockIds: result.changes?.blocks.map(({ blockId }) => blockId) ?? [],
-        resourceIds: result.changes?.resources.map(({ resourceId }) => resourceId) ?? [],
-      },
-      outcome: result.outcome,
-    },
     body: { outcome: result.outcome, snapshot: result.snapshot },
     statusCode: 200,
   };

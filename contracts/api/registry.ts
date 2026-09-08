@@ -2,22 +2,22 @@
 
 import type { TSchema } from "@sinclair/typebox";
 import { failWireContract } from "../common/index.ts";
-import { parseApiSchema } from "./parse.ts";
-import { ApiErrorSchema } from "./schemas/foundation.ts";
 import { adminApiOperations } from "./operations/admin.ts";
 import { agentApiOperations } from "./operations/agent.ts";
 import { authApiOperations } from "./operations/auth.ts";
 import { contentApiOperations } from "./operations/content.ts";
-import { localContentApiOperations } from "./operations/localContent.ts";
 import type { ApiOperationDefinition } from "./operations/definition.ts";
 import { foundationApiOperations } from "./operations/foundation.ts";
+import { localContentApiOperations } from "./operations/localContent.ts";
 import { recoveryApiOperations } from "./operations/recovery.ts";
 import { syncApiOperations } from "./operations/sync.ts";
+import { parseApiSchema } from "./parse.ts";
+import { ApiErrorSchema } from "./schemas/foundation.ts";
 
 export type {
-  ApiAccessPolicy,
-  ApiOperationDefinition,
-  ApiReadableDomain,
+ApiAccessPolicy,
+ApiOperationDefinition,
+ApiReadableDomain
 } from "./operations/definition.ts";
 
 export const apiOperationCatalogs = {
@@ -68,8 +68,6 @@ export type ApiRouteParameters = {
   providerId?: string;
   repositoryId?: string;
   sessionId?: string;
-  tokenId?: string;
-  trustedClientTokenId?: string;
 };
 
 export function getApiOperation(operationId: string): ApiOperationDefinition {

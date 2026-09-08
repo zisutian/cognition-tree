@@ -109,11 +109,6 @@ function readHeader(request: IncomingMessage, name: string) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function parseBearerToken(value: string | undefined) {
-  const match = /^Bearer ([^\s]+)$/i.exec(value ?? "");
-
-  return match?.[1] ?? null;
-}
 
 function readCookie(value: string | undefined, name: string) {
   for (const field of value?.split(";") ?? []) {
@@ -198,7 +193,6 @@ export function createApiSecurityPolicy({
 export async function authorizeApiRequest(
   request: IncomingMessage,
   policy: ApiSecurityPolicy,
-  accessStore: { authenticate(secret: string): Promise<ApiPrincipalDto | null> },
 ): Promise<{
   allowedOrigin: string | null;
   principal: ApiPrincipalDto | null;
@@ -220,18 +214,12 @@ export async function authorizeApiRequest(
       throw new ApiSecurityError(403, "Origin is not allowed");
     }
   }
-  if (request.method === "OPTIONS") return { allowedOrigin, principal: null };
   const authorization = readHeader(request, "authorization");
 
   if (authorization !== undefined) {
-    const token = parseBearerToken(authorization);
-
-    if (!token) throw new ApiSecurityError(401, "Bearer token is invalid", allowedOrigin);
-    const principal = await accessStore.authenticate(token);
-
-    if (!principal) throw new ApiSecurityError(401, "Bearer token is invalid", allowedOrigin);
-    return { allowedOrigin, principal };
+    throw new ApiSecurityError(401, "Bearer access has been retired. Use a verified local connection without Authorization.", allowedOrigin);
   }
+  if (request.method === "OPTIONS") return { allowedOrigin, principal: null };
   if (
     isLoopbackAddress(request.socket.remoteAddress) &&
     isLoopbackAddress(requestHost.hostname)

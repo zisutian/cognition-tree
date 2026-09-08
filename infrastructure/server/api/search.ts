@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  ScopedSearchService,
-  SearchAccessError,
-  type SearchAccess,
-  searchDomains,
-  SearchRequestError,
-  type SearchResponse,
+ScopedSearchService,
+SearchAccessError,
+searchDomains,
+SearchRequestError,
+type SearchAccess,
+type SearchResponse,
 } from "../../../application/search/index.ts";
 
-import type { ApiPrincipalDto, ApiSearchRequestDto, ApiSearchResponseDto } from "../../../contracts/api/index.ts";
+import type { ApiSearchRequestDto,ApiSearchResponseDto } from "../../../contracts/api/index.ts";
 import { ApiRequestError } from "./protocol/index.ts";
 
 function projectApiSearchResponse(
@@ -62,8 +62,8 @@ function projectApiSearchResponse(
 export class ApiSearchService {
   readonly #query: ScopedSearchService;
   constructor(query: ScopedSearchService) { this.#query = query; }
-  search(request: ApiSearchRequestDto, principal: ApiPrincipalDto): Promise<ApiSearchResponseDto> {
-    const access: SearchAccess = principal.kind === "automation" ? { domains: searchDomains.filter((domain) => principal.scopes.includes(`${domain}:read`)), repositoryIds: principal.repositoryIds } : { domains: searchDomains, repositoryIds: null };
+  search(request: ApiSearchRequestDto): Promise<ApiSearchResponseDto> {
+    const access: SearchAccess = { domains: searchDomains, repositoryIds: null };
     return this.#search(request, access);
   }
   async #search(request: ApiSearchRequestDto, access: SearchAccess) {

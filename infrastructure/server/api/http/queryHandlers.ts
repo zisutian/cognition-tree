@@ -4,28 +4,27 @@ import { isJournalEntryId } from "../../../../core/journal/index.ts";
 import { isTodoCollectionId } from "../../../../core/todo/index.ts";
 import { apiNotFound } from "../protocol/index.ts";
 import {
-  assertRepositoryAllowed,
-  observeBuiltInRevision,
-  observeWorkspaceRevision,
-  publishTrackedChanges,
-  requireBuiltInCatalog,
-  type ApiHandlerContext,
-} from "./handlerContext.ts";
-import {
-  projectApiJournalEntries,
-  projectApiJournalEntry,
-  projectApiTodoCollection,
-  projectApiTodoCollections,
-  projectApiWorkspaceAnalysis,
-  projectApiWorkspaceNote,
-  projectApiWorkspaceTree,
+projectApiJournalEntries,
+projectApiJournalEntry,
+projectApiTodoCollection,
+projectApiTodoCollections,
+projectApiWorkspaceAnalysis,
+projectApiWorkspaceNote,
+projectApiWorkspaceTree,
 } from "../resources/index.ts";
+import {
+observeBuiltInRevision,
+observeWorkspaceRevision,
+publishTrackedChanges,
+requireBuiltInCatalog,
+type ApiHandlerContext,
+} from "./handlerContext.ts";
 
 
 import { readApiRuntimeNow } from "./runtime.ts";
 
 export async function handleWorkspaceQuery(context: ApiHandlerContext) {
-  const { catalog, operation, principal, route } = context;
+  const { catalog, operation, route } = context;
 
   if (operation.operationId === "listWorkspaces") {
     const repositories = await catalog.listRepositories();
@@ -48,17 +47,6 @@ export async function handleWorkspaceQuery(context: ApiHandlerContext) {
     return {
       body: {
         workspaces: repositories.repositories
-          .filter(({ id }) => {
-            switch (principal.kind) {
-              case "local-owner":
-              case "owner":
-              case "trusted-client":
-                return true;
-              case "automation":
-                return principal.repositoryIds === null ||
-                  principal.repositoryIds.includes(id);
-            }
-          })
           .map(({ id, label }) => ({ id, label })),
       },
       statusCode: 200,
@@ -67,7 +55,7 @@ export async function handleWorkspaceQuery(context: ApiHandlerContext) {
   const repositoryId = route.repositoryId;
 
   if (!repositoryId) apiNotFound();
-  assertRepositoryAllowed(principal, repositoryId);
+
   const snapshot = await catalog.getStore(repositoryId)
     .then((store) => store.loadSnapshot());
   observeWorkspaceRevision(context, repositoryId, snapshot.revision);

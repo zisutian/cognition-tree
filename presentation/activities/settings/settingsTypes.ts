@@ -10,14 +10,15 @@ export type SettingsTarget =
         | "migration"
         | "agent-default"
         | "agent-discovery"
-        | "audit-retention";
+        | "audit-retention"
+        | "local-api";
     }
   | {
-      [Kind in "provider" | "profile" | "automation" | "trusted"]: {
+      [Kind in "provider" | "profile"]: {
         kind: Kind;
         id: string | null;
       };
-    }["provider" | "profile" | "automation" | "trusted"]
+    }["provider" | "profile"]
   | { kind: "audit" };
 
 export function settingsTargetKey(target: SettingsTarget) {
@@ -34,8 +35,7 @@ export const settingsPageLabels = {
   "agent-discovery": "本地服务发现",
   provider: "Provider",
   profile: "Profile",
-  automation: "自动化令牌",
-  trusted: "可信客户端令牌",
+  "local-api": "本机 API",
   audit: "操作记录",
   "audit-retention": "保留策略",
 } as const;

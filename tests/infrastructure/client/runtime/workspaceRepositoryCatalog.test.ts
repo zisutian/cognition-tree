@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { describe, expect, it, vi } from "vitest";
+import { describe,expect,it,vi } from "vitest";
+import type { WorkspaceRepositoryPreparation } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation";
+import { createHttpRepositoryCacheIdentity } from "../../../../infrastructure/client/http/httpRepositoryIdentity";
 import { createMemoryRepositoryClientCache } from "../../../../infrastructure/client/repository/repositoryClientCache";
 import { createHttpWorkspaceRepositoryCatalog } from "../../../../infrastructure/client/runtime/index.ts";
-import { createHttpRepositoryCacheIdentity } from "../../../../infrastructure/client/http/httpRepositoryIdentity";
 import {
-  createWorkspaceRepositoryContent,
-  revisionA,
-  revisionC,
+createWorkspaceRepositoryContent,
+revisionA,
+revisionC,
 } from "../../../support/workspaceRepositoryFixtures";
-import type { WorkspaceRepositoryPreparation } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation";
 
 function deferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
@@ -265,7 +265,6 @@ describe("HTTP workspace repository catalog", () => {
         baseUrl: "http://api.test",
         cache,
         fetch: fetchMock,
-        token: "token-a",
         preparation,
       });
 
@@ -320,7 +319,6 @@ describe("HTTP workspace repository catalog", () => {
         calls.push({ method: init?.method ?? "GET", url: String(input) });
         return new Response(null, { status: 204 });
       },
-      token: "token-a",
       preparation,
     });
 

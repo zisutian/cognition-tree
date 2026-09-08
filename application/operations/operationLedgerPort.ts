@@ -75,40 +75,6 @@ export class OperationAuditFinalizeError extends Error {
 
 export type { OperationAuditStatus } from "./operationAdministration.ts";
 
-export type TrustedClientOperationStore =
-  | { domain: "journal" }
-  | { domain: "todo" }
-  | { domain: "workspace"; repositoryId: string };
-
-export type TrustedClientOperationResult =
-  | "auto-merged"
-  | "committed"
-  | "conflict"
-  | "failed"
-  | "indeterminate"
-  | "unchanged";
-
-export type BeginTrustedClientOperationInput = Readonly<{
-  occurredAt: string;
-  principalId: string;
-  requestId: string;
-  route: string;
-  store: TrustedClientOperationStore;
-}>;
-
-export type AttachTrustedClientOperationIntentInput = Readonly<{
-  beforeRevision: `sha256:${string}`;
-  intentDigest: `sha256:${string}`;
-  updatedAt: string;
-}>;
-
-export type FinalizeTrustedClientOperationInput = Readonly<{
-  afterRevision: `sha256:${string}` | null;
-  changeMetadata: { blockIds: string[]; resourceIds: string[] };
-  result: TrustedClientOperationResult;
-  updatedAt: string;
-}>;
-
 export type AgentOperationLedgerPort = {
   runAgentIdempotent(
     identity: AgentOperationIdentity,

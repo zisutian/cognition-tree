@@ -5,7 +5,7 @@ import type { SystemMaintenancePort } from "../../../../application/system/index
 import { ApiRequestError } from "../protocol/index.ts";
 
 // These control operations read established control state and never enter a
-// data-root store. Bearer authentication is disabled while the gate is closed.
+// data-root store. Requests that may write cannot enter while the gate is closed.
 const maintenanceControlOperations = new Set([
   "getOwnerSession", "createOwnerSession", "getSystemConfiguration",
   "getCurrentDataRootMigration", "getDataRootMigration", "reconcileDataRootMigration",

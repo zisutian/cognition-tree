@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createClientUuid } from "../platform/index.ts";
+import { type JournalRepository,type JournalRepositoryProvider,journalRepositoryPreparation,mergeJournalContent } from "../../../application/journal/index.ts";
+import { type VersionedRepositoryCache,createLocalFirstVersionedRepository,createVersionedLocalDraftRevision } from "../../../application/persistence/index.ts";
 import { parseBuiltInDescriptor } from "../../../contracts/built-ins/index.ts";
-import type { JournalContentDto, JournalRevisionDto } from "../../../contracts/journal/index.ts";
-import { type JournalRepository, type JournalRepositoryProvider, mergeJournalContent, journalRepositoryPreparation } from "../../../application/journal/index.ts";
-import { type VersionedRepositoryCache, createVersionedLocalDraftRevision, createLocalFirstVersionedRepository } from "../../../application/persistence/index.ts";
-import { type HttpApiTransportOptions, createHttpJournalRepositoryBackend, createHttpRepositoryCacheIdentity, subscribeClientReconnect } from "../http/index.ts";
+import type { JournalContentDto,JournalRevisionDto } from "../../../contracts/journal/index.ts";
+import { type HttpApiTransportOptions,createHttpJournalRepositoryBackend,createHttpRepositoryCacheIdentity,subscribeClientReconnect } from "../http/index.ts";
+import { createClientUuid } from "../platform/index.ts";
 
 type JournalRepositoryCache = VersionedRepositoryCache<JournalContentDto, JournalRevisionDto, `draft:${string}`>;
 
@@ -13,7 +13,6 @@ export function createHttpJournalRepositoryProvider({
   baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   repositoryCache,
-  token,
 }: HttpApiTransportOptions & {
   repositoryCache: JournalRepositoryCache;
 }): JournalRepositoryProvider {
@@ -30,7 +29,6 @@ export function createHttpJournalRepositoryProvider({
         backend: createHttpJournalRepositoryBackend({
           baseUrl,
           fetch: fetchFn,
-          token,
         }),
         cache: repositoryCache,
         createLocalRevision: () =>
@@ -44,7 +42,6 @@ export function createHttpJournalRepositoryProvider({
         repositoryIdentity: createHttpRepositoryCacheIdentity({
           baseUrl,
           repositoryId: "built-in:journal",
-          token,
         }),
         subscribeReconnect: subscribeClientReconnect,
         preparation: journalRepositoryPreparation,

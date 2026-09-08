@@ -1,12 +1,12 @@
 import {
-  buildApiOperationPath,
-  parseApiEvent,
+buildApiOperationPath,
+parseApiEvent,
 } from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  DomainChangeEventSource,
-  DomainChangeNotification,
+DomainChangeEventSource,
+DomainChangeNotification,
 } from "../../../application/sync/index.ts";
 
 import { resolveApiUrl } from "./apiTransport.ts";
@@ -47,11 +47,11 @@ function projectNotification(
 export function createHttpApiEventSource({
   baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
-  token,
+
 }: {
   baseUrl: string;
   fetch?: typeof fetch;
-  token?: string;
+
 }): DomainChangeEventSource {
   const listeners = new Set<(event: DomainChangeNotification) => void>();
   let abortController: AbortController | null = null;
@@ -76,7 +76,6 @@ export function createHttpApiEventSource({
     try {
       const headers = new Headers({ Accept: "text/event-stream" });
 
-      if (token) headers.set("Authorization", `Bearer ${token}`);
       const response = await fetchFn(
         resolveApiUrl(baseUrl, buildApiOperationPath("streamContentEvents")),
         {

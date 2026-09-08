@@ -1,70 +1,21 @@
-import { createContent } from "../../application/workspace/session/workspaceSessionTestFixture.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  chmod,
-  lstat,
-  mkdtemp,
-  readFile,
-  rm,
-  symlink,
-  truncate,
-  writeFile,
-} from "node:fs/promises";
-import os from "node:os";
+import { randomUUID } from "node:crypto";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  cliMaximumCredentialFileBytes,
-  CliCredentialStore,
-} from "../../../tooling/cli/credentialStore.ts";
+import { afterEach,describe,expect,it,vi } from "vitest";
+import { createApiSecurityPolicy } from "../../../infrastructure/server/api/http/security.ts";
+import { createApiServer } from "../../../infrastructure/server/runtime/apiRuntime.ts";
 import { runCtnCli } from "../../../tooling/cli/ctnCli.ts";
-import {
-  cliMaximumJsonResponseBytes,
-  CliApiError,
-  CliHttpClient,
-  normalizeCliOrigin,
-} from "../../../tooling/cli/httpClient.ts";
+import { CliHttpClient,cliMaximumJsonResponseBytes,normalizeCliOrigin } from "../../../tooling/cli/httpClient.ts";
+import { createContentServiceFixture } from "../../infrastructure/server/operations/contentServiceFixture.ts";
 
-const roots: string[] = [];
-const revisionA = `sha256:${"a".repeat(64)}` as const;
-const revisionB = `sha256:${"b".repeat(64)}` as const;
+const cleanup: Array<() => Promise<void>> = [];
+afterEach(async () => { for (const dispose of cleanup.splice(0).reverse()) await dispose(); });
 
-async function temporaryRoot() {
-  const root = await mkdtemp(path.join(os.tmpdir(), "ctn-cli-"));
-
-  roots.push(root);
-  return root;
-}
-
-async function configuredStore(root: string) {
-  const store = new CliCredentialStore(
-    path.join(root, "cognition-tree", "cli-v1", "credentials.json"),
-  );
-
-  await store.write({
-    defaultProfile: "local",
-    formatVersion: 1,
-    profiles: [{
-      name: "local",
-      origin: "http://127.0.0.1:3001",
-      secret: "ctt_secret",
-    }],
-  });
-  return store;
-}
-
-afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) =>
-    rm(root, { force: true, recursive: true })
-  ));
-});
-
-describe("trusted-client CLI security", () => {
-  it("accepts HTTPS and strict loopback HTTP origins only", () => {
-    expect(normalizeCliOrigin("https://tree.example.test")).toBe(
-      "https://tree.example.test",
-    );
+describe("local content CLI", () => {
+  it("accepts only explicit local HTTP or HTTPS origins", () => {
+    expect(() => normalizeCliOrigin("https://tree.example.test")).toThrow();
     expect(normalizeCliOrigin("http://127.0.0.1:3001")).toBe(
       "http://127.0.0.1:3001",
     );
@@ -95,8 +46,7 @@ describe("trusted-client CLI security", () => {
     }));
     const client = new CliHttpClient({
       fetch: fetch as typeof globalThis.fetch,
-      origin: "https://tree.example.test",
-      secret: "ctt_secret",
+      origin: "http://localhost:3001",
     });
 
     await expect(client.request("GET", "/api/v4/capabilities")).resolves.toEqual({
@@ -105,9 +55,7 @@ describe("trusted-client CLI security", () => {
     const [, init] = fetch.mock.calls[0] ?? [];
 
     expect(init?.redirect).toBe("error");
-    expect(new Headers(init?.headers).get("Authorization")).toBe(
-      "Bearer ctt_secret",
-    );
+    expect(new Headers(init?.headers).has("Authorization")).toBe(false);
     await expect(client.request("GET", "/api/v4/../admin")).rejects.toThrow(
       "cannot escape /api/v4",
     );
@@ -122,193 +70,53 @@ describe("trusted-client CLI security", () => {
           "Content-Type": "application/json",
         },
       }),
-      origin: "https://tree.example.test",
-      secret: "ctt_secret",
+      origin: "http://localhost:3001",
     });
 
     await expect(client.request("GET", "/api/v4/capabilities"))
       .rejects.toThrow(/exceeds the size limit/i);
   });
 
-  it("persists credentials with private permissions and rejects symlinks", async () => {
-    const root = await temporaryRoot();
-    const file = path.join(
-      root,
-      "cognition-tree",
-      "cli-v1",
-      "credentials.json",
-    );
-    const store = new CliCredentialStore(file);
 
-    await store.write({
-      defaultProfile: "local",
-      formatVersion: 1,
-      profiles: [{
-        name: "local",
-        origin: "http://127.0.0.1:3001",
-        secret: "ctt_secret",
-      }],
-    });
-    expect((await lstat(path.dirname(file))).mode & 0o777).toBe(0o700);
-    expect((await lstat(file)).mode & 0o777).toBe(0o600);
-
-    const target = path.join(root, "target.json");
-
-    await writeFile(target, "{}", { mode: 0o600 });
-    await rm(file);
-    await symlink(target, file);
-    await expect(store.read()).rejects.toThrow();
+  it("requires explicit origin and refuses the retired auth, sync and raw request commands", async () => {
+    const io = { error: vi.fn(), output: vi.fn() };
+    expect(await runCtnCli(["catalog"], { io })).toBe(2);
+    for (const command of ["auth", "sync", "request"]) expect(await runCtnCli(["--server", "http://localhost:3001", command], { io })).toBe(2);
+    expect(await runCtnCli(["--server", "http://localhost:3001", "directory", "workspace"], { io })).toBe(2);
   });
 
-  it("rejects an oversized credential file before parsing it", async () => {
-    const root = await temporaryRoot();
-    const file = path.join(
-      root,
-      "cognition-tree",
-      "cli-v1",
-      "credentials.json",
-    );
-    const store = new CliCredentialStore(file);
-
-    await store.read();
-    await writeFile(file, "{}", { mode: 0o600 });
-    await truncate(file, cliMaximumCredentialFileBytes + 1);
-    await expect(store.read()).rejects.toThrow(/exceeds the size limit/i);
-  });
-
-  it("keeps profile secrets out of list output and leaves no fallback default", async () => {
-    const root = await temporaryRoot();
-    const store = new CliCredentialStore(
-      path.join(root, "cognition-tree", "cli-v1", "credentials.json"),
-    );
-    const output: string[] = [];
-    const error: string[] = [];
-    const io = {
-      error: (message: string) => error.push(message),
-      output: (message: string) => output.push(message),
-      readSecret: async () => "ctt_first_secret",
-    };
-
-    expect(await runCtnCli([
-      "auth",
-      "add",
-      "--profile",
-      "first",
-      "--server",
-      "http://127.0.0.1:3001",
-    ], { credentialStore: store, io })).toBe(0);
-    io.readSecret = async () => "ctt_second_secret";
-    expect(await runCtnCli([
-      "auth",
-      "add",
-      "--profile",
-      "second",
-      "--server",
-      "https://tree.example.test",
-    ], { credentialStore: store, io })).toBe(0);
-    output.length = 0;
-    expect(await runCtnCli(["auth", "list"], {
-      credentialStore: store,
-      io,
-    })).toBe(0);
-    expect(output.join("\n")).not.toContain("ctt_");
-    expect(await runCtnCli([
-      "auth",
-      "remove",
-      "--profile",
-      "first",
-    ], { credentialStore: store, io })).toBe(0);
-    expect((await store.read()).defaultProfile).toBeNull();
-    expect(error).toEqual([]);
-  });
-
-  it("rejects a non trusted-client secret before persisting a profile", async () => {
-    const root = await temporaryRoot();
-    const store = new CliCredentialStore(
-      path.join(root, "cognition-tree", "cli-v1", "credentials.json"),
-    );
-    const errors: string[] = [];
-
-    expect(await runCtnCli([
-      "auth",
-      "add",
-      "--profile",
-      "invalid",
-      "--server",
-      "https://tree.example.test",
-    ], {
-      credentialStore: store,
-      io: {
-        error: (message) => errors.push(message),
-        output: () => undefined,
-        readSecret: async () => "automation-token",
-      },
-    })).toBe(2);
-    expect((await store.read()).profiles).toEqual([]);
-    expect(errors.join("\n")).toContain("Trusted-client secret is invalid");
-  });
-
-  it("reconciles a committed write without replaying PUT", async () => {
-    const root = await temporaryRoot();
-    const store = await configuredStore(root);
-    const checkoutFile = path.join(root, "workspace-checkout.json");
-    const initial = {
-      base: { content: createContent("base"), revision: revisionA },
-      content: createContent("committed"),
-    };
-
-    await writeFile(checkoutFile, `${JSON.stringify(initial, null, 2)}\n`, {
-      mode: 0o600,
+  it("queries by name, submits through real HTTP, and queries a committed receipt after the caller loses the response", async () => {
+    const fixture = await createContentServiceFixture();
+    cleanup.push(() => fixture.dispose());
+    const server = createApiServer({ catalog: fixture.catalog, builtInCatalog: fixture.builtIns, contentService: fixture.service, operationLedger: fixture.ledger, stateDirectory: path.join(fixture.root, "server-state"), security: createApiSecurityPolicy({ port: 3001, publicOrigin: null, ownerSessions: { createOwnerSessionForSecret: async () => null, verifyOwnerSession: async () => false } }) });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    cleanup.push(() => new Promise<void>((resolve, reject) => { server.closeAllConnections(); server.close((error) => error ? reject(error) : resolve()); }));
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Missing server address");
+    const origin = `http://127.0.0.1:${address.port}`;
+    const io = { error: vi.fn(), output: vi.fn() };
+    const args = ["--server", origin];
+    expect(await runCtnCli([...args, "catalog"], { io })).toBe(0);
+    const catalog = JSON.parse(io.output.mock.lastCall![0]);
+    const operationId = randomUUID();
+    const file = path.join(fixture.root, "operation.json");
+    await writeFile(file, JSON.stringify({ operationId, scope: { domain: "catalog" }, baseRevision: catalog.baseRevision, command: { kind: "create-repository", name: "学习资料" } }));
+    const client = new CliHttpClient({ origin });
+    const request = vi.fn(async (method: string, endpoint: string, body?: unknown) => {
+      const result = await client.request(method, endpoint, body);
+      if (method === "POST") throw new TypeError("Connection lost after commit");
+      return result;
     });
-    await chmod(checkoutFile, 0o600);
-    const request = vi.fn(async (method: string) => {
-      if (method === "PUT") {
-        throw new CliApiError(500, {
-          code: "operation_audit_finalize_failed",
-          details: {
-            afterRevision: revisionB,
-            commitState: "committed",
-          },
-          message: "Content committed, but audit finalization failed",
-          requestId: "request-1",
-          retryable: false,
-        });
-      }
-      return {
-        content: createContent("committed"),
-        revision: revisionB,
-      };
-    });
-    const output: string[] = [];
-    const errors: string[] = [];
-    const code = await runCtnCli([
-      "sync",
-      "commit",
-      "workspace",
-      "--repository",
-      "primary",
-      "--file",
-      checkoutFile,
-    ], {
-      createClient: () => ({ request }),
-      credentialStore: store,
-      io: {
-        error: (message) => errors.push(message),
-        output: (message) => output.push(message),
-        readSecret: async () => "unused",
-      },
-    });
-
-    expect(code).toBe(6);
-    expect(request.mock.calls.map(([method]) => method)).toEqual(["PUT", "GET"]);
-    expect(JSON.parse(await readFile(checkoutFile, "utf8"))).toEqual({
-      base: {
-        content: createContent("committed"),
-        revision: revisionB,
-      },
-      content: createContent("committed"),
-    });
-    expect(errors.join("\n")).toContain('"checkoutUpdated": true');
-    expect(output).toEqual([]);
+    expect(await runCtnCli([...args, "apply", "--file", file], { io, createClient: () => ({ request }) })).toBe(6);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(io.error.mock.calls.flat().join(" ")).toContain(operationId);
+    expect(await runCtnCli([...args, "result", operationId], { io })).toBe(0);
+    expect(JSON.parse(io.output.mock.lastCall![0])).toMatchObject({ operationId, status: "committed" });
+    expect((await fixture.catalog.listRepositories()).repositories).toHaveLength(1);
+    await fixture.apply({ domain: "workspace", repository: "学习资料" }, { kind: "create-note", parent: null, title: "操作系统", body: "- 进程管理" });
+    expect(await runCtnCli([...args, "read", "workspace", "--repository", "学习资料", "--resource", "操作系统"], { io })).toBe(0);
+    const note = JSON.parse(io.output.mock.lastCall![0]);
+    expect(note.document.editableText).toBe("- 进程管理");
+    expect(note.baseRevision).toMatch(/^sha256:/);
   });
 });

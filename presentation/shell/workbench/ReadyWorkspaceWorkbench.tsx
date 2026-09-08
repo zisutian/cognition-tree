@@ -2,22 +2,21 @@ import type { ActivityInteractionState } from "../../ui/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect } from "react";
-import type { JournalApplication } from "../../../application/journal/index.ts";
-import type { RepositoryApplication } from "../../../application/repository/index.ts";
-import type { TodoApplication } from "../../../application/todo/index.ts";
-import type { ApiAccessApplication } from "../../../application/apiAccess/index.ts";
 import type { AgentApplication } from "../../../application/agent/index.ts";
-import type { SystemApplication } from "../../../application/system/index.ts";
-import type { OperationApplication } from "../../../application/operations/index.ts";
-import type {
-  WorkbenchController,
-  WorkbenchControllerSnapshot,
-} from "../../../application/workbench/index.ts";
+import type { JournalApplication } from "../../../application/journal/index.ts";
+import type { LocalContentAccess,OperationApplication } from "../../../application/operations/index.ts";
 import type { ProblemCenterController } from "../../../application/problems/index.ts";
+import type { RepositoryApplication } from "../../../application/repository/index.ts";
+import type { SystemApplication } from "../../../application/system/index.ts";
+import type { TodoApplication } from "../../../application/todo/index.ts";
+import type {
+WorkbenchController,
+WorkbenchControllerSnapshot,
+} from "../../../application/workbench/index.ts";
 import type { ActiveWorkspaceSession } from "../../../application/workspace/index.ts";
-import type { WorkbenchApplication } from "../application/workbenchApplication.ts";
-import { useWorkspaceApplication } from "../../workspace/index.ts";
 import type { ActivityId } from "../../ui/index.ts";
+import { useWorkspaceApplication } from "../../workspace/index.ts";
+import type { WorkbenchApplication } from "../application/workbenchApplication.ts";
 import { WorkspaceWorkbench } from "./WorkspaceWorkbench.tsx";
 
 export function ReadyWorkspaceWorkbench({
@@ -26,7 +25,7 @@ export function ReadyWorkspaceWorkbench({
   interaction,
   onInteractionStateChange,
   agent,
-  apiAccess,
+  localApi,
   controller,
   feedbackController,
   journal,
@@ -47,7 +46,7 @@ export function ReadyWorkspaceWorkbench({
     state: ActivityInteractionState,
   ): void;
   agent: AgentApplication;
-  apiAccess: ApiAccessApplication;
+  localApi: LocalContentAccess;
   controller: WorkbenchController;
   feedbackController: ProblemCenterController<ActivityId>;
   journal: JournalApplication;
@@ -99,7 +98,7 @@ export function ReadyWorkspaceWorkbench({
       feedbackController={feedbackController}
       application={{
         agent,
-        apiAccess,
+        localApi,
         journal,
         operations,
         repository,

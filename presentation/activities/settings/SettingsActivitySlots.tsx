@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import "./settings.css";
 import { RefreshCw } from "lucide-react";
-import { Button } from "../../ui/index.ts";
 import type { ReactNode } from "react";
 import type { ActivitySlots } from "../../ui/index.ts";
+import { Button } from "../../ui/index.ts";
 import { AgentSettingsStatus } from "./AgentSettingsStatus.tsx";
-import { ApiAccessSettingsStatus } from "./ApiAccessSettingsStatus.tsx";
 import { OperationsSettingsStatus } from "./OperationsSettingsStatus.tsx";
 import { SettingsContext } from "./SettingsContext.tsx";
-import { SettingsPanel, type SettingsPanelProps } from "./SettingsPanel.tsx";
+import { SettingsPanel,type SettingsPanelProps } from "./SettingsPanel.tsx";
 import { SettingsStatusPanel } from "./SettingsStatusPanel.tsx";
 import { SystemSettingsStatus } from "./SystemSettingsStatus.tsx";
-import { settingsTargetKey, type SettingsTarget } from "./settingsTypes.ts";
+import "./settings.css";
+import { settingsTargetKey,type SettingsTarget } from "./settingsTypes.ts";
 
 export function createSettingsActivitySlots(
   props: SettingsPanelProps & {
@@ -24,7 +23,6 @@ export function createSettingsActivitySlots(
 ): ActivitySlots {
   const {
     agent,
-    api,
     blocked,
     onCollapseDetail,
     onRefresh,
@@ -64,17 +62,6 @@ export function createSettingsActivitySlots(
           />
         );
       break;
-    case "automation":
-    case "trusted":
-      if (
-        target.id &&
-        (target.kind === "automation"
-          ? api.snapshot.tokens
-          : api.snapshot.trustedClientTokens
-        ).some((item) => item.id === target.id)
-      )
-        detail = <ApiAccessSettingsStatus selection={target} session={api} />;
-      break;
     case "audit":
       detail = <OperationsSettingsStatus session={operations} />;
       break;
@@ -85,7 +72,6 @@ export function createSettingsActivitySlots(
       content: (
         <SettingsContext
           agent={agent.configurationState}
-          api={api.snapshot}
           blocked={blocked}
           onSelect={onSelect}
           target={target}

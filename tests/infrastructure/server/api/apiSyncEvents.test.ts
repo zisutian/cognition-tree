@@ -1,37 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createServerSearchService } from "../../../../infrastructure/server/runtime/searchRuntime.ts";
-import { describe, expect, it } from "vitest";
+import { describe,expect,it } from "vitest";
+import { DomainRevisionTracker } from "../../../../application/sync/domainRevisionTracker.ts";
 import type {
-  DomainChangeSetDto,
-  ApiPrincipalDto,
+DomainChangeSetDto,
 } from "../../../../contracts/api/types.ts";
 import type {
-  RepositoryDescriptorDto,
-  WorkspaceRepositoryContentDto,
+RepositoryDescriptorDto,
+WorkspaceRepositoryContentDto,
 } from "../../../../contracts/workspace/types.ts";
-import { createApiRequestHandler } from "../../../../infrastructure/server/runtime/apiRuntime.ts";
 import {
-  createApiSecurityPolicy,
+createApiSecurityPolicy,
 } from "../../../../infrastructure/server/api/http/security.ts";
-import type { ApiBuiltInCatalog } from "../../../../infrastructure/server/repository/built-ins/catalogPort.ts";
 import { workspaceResourceVersions } from "../../../../infrastructure/server/api/resources/versions.ts";
-import { DomainRevisionTracker } from "../../../../application/sync/domainRevisionTracker.ts";
 import { synchronizeApiWorkspace } from "../../../../infrastructure/server/api/sync/service.ts";
+import type { ApiBuiltInCatalog } from "../../../../infrastructure/server/repository/built-ins/catalogPort.ts";
 import type {
-  WorkspaceRepositoryCatalog,
+WorkspaceRepositoryCatalog,
 } from "../../../../infrastructure/server/repository/catalog.ts";
 import {
-  RepositoryCorruptError,
+RepositoryCorruptError,
 } from "../../../../infrastructure/server/repository/store.ts";
-import {
-  createContent,
-  createRuntime,
-  dispatchRaw,
-  preparedWorkspaceSnapshot,
-  revision,
-} from "./support/apiServerTestHarness.ts";
 import { createWorkspaceRepositoryRevision } from "../../../../infrastructure/server/repository/workspace/revision.ts";
+import { createApiRequestHandler } from "../../../../infrastructure/server/runtime/apiRuntime.ts";
+import { createServerSearchService } from "../../../../infrastructure/server/runtime/searchRuntime.ts";
+import {
+createContent,
+createRuntime,
+dispatchRaw,
+preparedWorkspaceSnapshot,
+revision,
+} from "./support/apiServerTestHarness.ts";
 
 describe("CTN API v4", () => {
   it("keeps SSE checkpoints lightweight and derives sync changes from the CAS payload", async () => {
@@ -224,11 +223,6 @@ describe("CTN API v4", () => {
         throw new Error("not used");
       },
     };
-    const principal: ApiPrincipalDto = {
-      id: "owner",
-      kind: "owner",
-      name: "Owner",
-    };
     const search = createServerSearchService({
       builtInCatalog: {} as ApiBuiltInCatalog,
       catalog,
@@ -236,7 +230,7 @@ describe("CTN API v4", () => {
     const response = await search.search({
       domains: ["workspace"],
       query: "未命名笔记",
-    }, principal);
+    });
 
     expect(response.results.length).toBeGreaterThan(0);
     expect(response.results.every((result) =>

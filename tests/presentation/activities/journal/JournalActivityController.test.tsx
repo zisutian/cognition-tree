@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe,expect,it,vi } from "vitest";
 import {
-  JournalActivityController,
-  resolveJournalRetry,
+JournalActivityController,
+resolveJournalRetry,
 } from "../../../../presentation/activities/journal/JournalActivityController";
 import type { WorkbenchApplication } from "../../../../presentation/shell/application/workbenchApplication";
-import { createJournalView } from "../../fixtures/journalViewFixture";
 import { createAgentApplicationFixture } from "../../fixtures/agentApplicationFixture";
+import { createJournalView } from "../../fixtures/journalViewFixture";
 
 const controls = {
   contextWidth: 280,
@@ -22,9 +22,9 @@ const controls = {
 function createApplicationWithoutWorkspace(): WorkbenchApplication {
   return {
     agent: createAgentApplicationFixture(),
-    apiAccess: {
-      administration: {} as WorkbenchApplication["apiAccess"]["administration"],
-      repositories: [],
+    localApi: {
+      serviceOrigin: "http://localhost:3001",
+      getOperation: async () => { throw new Error("not requested"); },
     },
     journal: {
       reload: async () => undefined,

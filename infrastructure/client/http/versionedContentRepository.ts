@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  VersionedRepositoryBackendConflictError,
-  VersionedRepositoryBackendMergeConflictError,
-  VersionedRepositoryRemoteError,
-  VersionedRepositoryUnavailableError,
-  type VersionedRepositoryBackend,
-  type VersionedRemoteSnapshot,
-  type VersionedRemoteSyncRequest,
-  type VersionedRemoteSyncResult,
+VersionedRepositoryBackendConflictError,
+VersionedRepositoryBackendMergeConflictError,
+VersionedRepositoryRemoteError,
+VersionedRepositoryUnavailableError,
+type VersionedRemoteSnapshot,
+type VersionedRemoteSyncRequest,
+type VersionedRemoteSyncResult,
+type VersionedRepositoryBackend,
 } from "../../../application/persistence/index.ts";
 import {
-  HttpApiResponseError,
-  HttpApiUnavailableError,
-  requestApiJson,
-  type HttpApiTransportOptions,
+HttpApiResponseError,
+HttpApiUnavailableError,
+requestApiJson,
+type HttpApiTransportOptions,
 } from "./apiTransport.ts";
 
 export type HttpVersionedContentCodec<Content, Revision extends string> = {
@@ -84,7 +84,7 @@ export function createHttpVersionedContentRepositoryBackend<
   codec,
   endpoint,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
-  token,
+
 }: HttpApiTransportOptions & {
   codec: HttpVersionedContentCodec<Content, Revision>;
   endpoint: string;
@@ -103,7 +103,7 @@ export function createHttpVersionedContentRepositoryBackend<
             headers: { "Content-Type": "application/json" },
             method: "PUT",
           },
-          token,
+
         ),
         codec.parseRevision,
       ));
@@ -115,7 +115,7 @@ export function createHttpVersionedContentRepositoryBackend<
           baseUrl,
           endpoint,
           undefined,
-          token,
+
         ),
         codec.parseRevision,
       ));
