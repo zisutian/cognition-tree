@@ -7,18 +7,18 @@ import {
 } from "../../../core/ctn/index.ts";
 import type { NoteTreeNode } from "../../../core/workspace/index.ts";
 import {
-  projectAgentProposalLineDiff,
-  summarizeAgentProposalBlocks,
-  type AgentProposalReview,
-  type AgentProposalReviewAction,
-  type AgentProposalReviewResourceType,
+  projectContentLineDiff,
+  summarizeContentBlockChanges,
+  type ContentChangeReview,
+  type ContentChangeReviewAction,
+  type ContentChangeReviewResourceType,
 } from "../../commands/index.ts";
 import type { DomainChangeSet } from "../../../core/sync/index.ts";
 import type {
   WorkspaceRepositoryContent,
   WorkspaceRepositoryPreparation,
 } from "../persistence/workspaceRepository.ts";
-import type { WorkspaceResourceVersionPolicy } from "./workspaceAgentCommandPreparation.ts";
+import type { WorkspaceResourceVersionPolicy } from "./workspaceCommandPreparation.ts";
 
 export function projectWorkspaceContentChanges(
   repositoryId: string,
@@ -52,7 +52,7 @@ export function projectWorkspaceContentChanges(
   });
 }
 
-export function projectWorkspaceAgentProposalReview({
+export function projectWorkspaceContentReview({
   afterPreparation,
   beforePreparation,
   changes,
@@ -62,7 +62,7 @@ export function projectWorkspaceAgentProposalReview({
   beforePreparation: WorkspaceRepositoryPreparation;
   changes: DomainChangeSet;
   repositoryLabel: string;
-}): AgentProposalReview {
+}): ContentChangeReview {
   const beforeResources = indexWorkspaceReviewResources(beforePreparation);
   const afterResources = indexWorkspaceReviewResources(afterPreparation);
   const changedIds = new Set([
@@ -80,7 +80,7 @@ export function projectWorkspaceAgentProposalReview({
           "Workspace proposal review cannot resolve a changed resource",
         );
       }
-      const actions: AgentProposalReviewAction[] = [];
+      const actions: ContentChangeReviewAction[] = [];
 
       if (!previous && next) actions.push("created");
       if (previous && !next) actions.push("deleted");
@@ -99,12 +99,12 @@ export function projectWorkspaceAgentProposalReview({
         before: previous
           ? { label: previous.label, path: previous.path }
           : null,
-        blockSummary: summarizeAgentProposalBlocks(
+        blockSummary: summarizeContentBlockChanges(
           changes.blocks.filter((change) =>
             change.resourceId === resourceId
           ),
         ),
-        diff: projectAgentProposalLineDiff(
+        diff: projectContentLineDiff(
           previous?.text ?? "",
           next?.text ?? "",
         ),
@@ -121,7 +121,7 @@ type WorkspaceReviewResource = Readonly<{
   parentPath: string;
   path: string;
   text: string;
-  type: AgentProposalReviewResourceType;
+  type: ContentChangeReviewResourceType;
 }>;
 
 function indexWorkspaceReviewResources(

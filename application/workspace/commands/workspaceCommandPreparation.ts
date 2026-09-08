@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  AgentPreparedCommand,
+  PreparedContentCommand,
 } from "../../commands/index.ts";
 import {
   readCommandRuntimeNow,
@@ -37,7 +37,7 @@ import type {
 
 type ResourceVersion = `sha256:${string}`;
 
-export type WorkspaceAgentCommandIntent =
+export type WorkspaceCommandIntent =
   | { kind: "create-folder"; parentFolderId: string | null; title: string }
   | {
       body: string;
@@ -119,7 +119,7 @@ function nodeReference(node: NoteTreeNode): NoteTreeNodeReference {
 
 function createTreeMoveRequest(
   context: WorkspaceDomainContext,
-  intent: Extract<WorkspaceAgentCommandIntent, { kind: "move-tree-node" }>,
+  intent: Extract<WorkspaceCommandIntent, { kind: "move-tree-node" }>,
 ) {
   const source: NoteTreeNodeReference = intent.nodeKind === "folder"
     ? { folderId: intent.nodeId, kind: "folder" }
@@ -177,7 +177,7 @@ function requireFolder(context: WorkspaceDomainContext, folderId: string) {
 }
 
 function blockTarget(
-  intent: Extract<WorkspaceAgentCommandIntent, { kind: "move-block" }>,
+  intent: Extract<WorkspaceCommandIntent, { kind: "move-block" }>,
 ) {
   if (intent.targetKind === "end") {
     if (intent.targetBlockId !== null) {
@@ -205,7 +205,7 @@ function toDomainCommand({
 }: {
   context: WorkspaceDomainContext;
   createId(): string;
-  intent: WorkspaceAgentCommandIntent;
+  intent: WorkspaceCommandIntent;
   timestamp: string;
   versions: WorkspaceDomainVersions;
 }): WorkspaceDomainCommand {
@@ -285,13 +285,13 @@ function toDomainCommand({
   }
 }
 
-export function prepareAgentWorkspaceCommand({
+export function prepareWorkspaceCommand({
   intent,
   runtime,
   snapshot,
   versionPolicy,
 }: {
-  intent: WorkspaceAgentCommandIntent;
+  intent: WorkspaceCommandIntent;
   runtime: CommandRuntime;
   snapshot: PreparedVersionedSnapshot<
     WorkspaceRepositoryContent,
@@ -299,7 +299,7 @@ export function prepareAgentWorkspaceCommand({
     RepositoryRevision
   >;
   versionPolicy: WorkspaceResourceVersionPolicy;
-}): AgentPreparedCommand<
+}): PreparedContentCommand<
   WorkspaceRepositoryContent,
   WorkspaceRepositoryPreparation,
   WorkspaceCommandOutcome,

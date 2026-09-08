@@ -13,8 +13,8 @@ import {
   type AgentRuntimeTurnRequest,
 } from "../../../../application/agent/agentRuntimePort.ts";
 import {
-  prepareAgentJournalCommand,
-} from "../../../../application/journal/journalAgentCommandPreparation.ts";
+  prepareJournalCommand,
+} from "../../../../application/journal/journalCommandPreparation.ts";
 import { listJournalEntries } from "../../../../core/journal/model/journalContent.ts";
 import { BuiltInCatalog } from "../../../../infrastructure/server/repository/built-ins/catalog.ts";
 import type {
@@ -583,7 +583,7 @@ describe("Agent service proposal lifecycle", () => {
     try {
       const store = await fixture.builtInCatalog.getStore("journal");
       const empty = await store.loadSnapshot();
-      const seeded = prepareAgentJournalCommand({
+      const seeded = prepareJournalCommand({
         intent: { body: "Readable", kind: "create-entry" },
         runtime: fixture.runtime,
         snapshot: empty,
@@ -880,7 +880,7 @@ describe("Agent service proposal lifecycle", () => {
       const proposal = await waitForProposal(fixture.service, session.id);
       const store = await fixture.builtInCatalog.getStore("journal");
       const current = await store.loadSnapshot();
-      const external = prepareAgentJournalCommand({
+      const external = prepareJournalCommand({
         intent: { body: "External change", kind: "create-entry" },
         runtime: fixture.runtime,
         snapshot: current,
@@ -931,7 +931,7 @@ describe("Agent service proposal lifecycle", () => {
     try {
       const store = await fixture.builtInCatalog.getStore("journal");
       const empty = await store.loadSnapshot();
-      const seeded = prepareAgentJournalCommand({
+      const seeded = prepareJournalCommand({
         intent: { body: "Delete me", kind: "create-entry" },
         runtime: fixture.runtime,
         snapshot: empty,

@@ -3,7 +3,7 @@
 import type { TodoAgentToolPorts } from './todoToolPorts.ts';
 import type { SearchResponse } from '../search/index.ts';
 import { readCommandRuntimeNow } from '../commands/index.ts';
-import type { TodoAgentCommandIntent } from '../todo/index.ts';
+import type { TodoCommandIntent } from '../todo/index.ts';
 import {
   AgentScopeUnavailableError,
   AgentScopeViolationError,
@@ -14,8 +14,8 @@ import {
   type AgentScope,
 } from "../agent/index.ts";
 import {
-  prepareAgentTodoCommand,
-  projectTodoAgentProposalReview,
+  prepareTodoCommand,
+  projectTodoContentReview,
   projectTodoContentChanges,
 } from "../todo/index.ts";
 
@@ -98,7 +98,7 @@ export class TodoAgentSessionTools {
   async stage(
     record: AgentToolSession,
     scope: TodoScope,
-    intent: TodoAgentCommandIntent,
+    intent: TodoCommandIntent,
   ) {
     let staging = await resolveAgentStaging(
       record,
@@ -136,7 +136,7 @@ export class TodoAgentSessionTools {
         domain: "todo",
       });
     }
-    const prepared = prepareAgentTodoCommand({
+    const prepared = prepareTodoCommand({
       intent,
       runtime: this.#runtime,
       snapshot: staging.current,
@@ -177,7 +177,7 @@ export class TodoAgentSessionTools {
       digestPort: { digest: this.#ports.digest },
       diff: transition.diff,
       id,
-      review: projectTodoAgentProposalReview({
+      review: projectTodoContentReview({
         afterIndex: staging.current.projection,
         beforeIndex: staging.base.projection,
         changes: transition.changes,

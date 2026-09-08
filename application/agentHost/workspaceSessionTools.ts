@@ -2,7 +2,7 @@
 
 import type {
   WorkspaceRepositoryContent,
-  WorkspaceAgentCommandIntent,
+  WorkspaceCommandIntent,
 } from '../workspace/index.ts';
 import type { WorkspaceAgentToolPorts } from './workspaceToolPorts.ts';
 import type { SearchResponse } from '../search/index.ts';
@@ -18,8 +18,8 @@ import {
   type AgentScope,
 } from "../agent/index.ts";
 import {
-  prepareAgentWorkspaceCommand,
-  projectWorkspaceAgentProposalReview,
+  prepareWorkspaceCommand,
+  projectWorkspaceContentReview,
   projectWorkspaceContentChanges,
 } from "../workspace/index.ts";
 
@@ -123,7 +123,7 @@ export class WorkspaceAgentSessionTools {
   async stage(
     record: AgentToolSession,
     scope: WorkspaceScope,
-    intent: WorkspaceAgentCommandIntent,
+    intent: WorkspaceCommandIntent,
   ) {
     let staging = await resolveAgentStaging(
       record,
@@ -152,7 +152,7 @@ export class WorkspaceAgentSessionTools {
       );
     }
     this.#assertIntentScope(scope, staging.current.content.workspace, intent);
-    const prepared = prepareAgentWorkspaceCommand({
+    const prepared = prepareWorkspaceCommand({
       intent,
       runtime: this.#runtime,
       snapshot: staging.current,
@@ -205,7 +205,7 @@ export class WorkspaceAgentSessionTools {
       digestPort: { digest: this.#ports.digest },
       diff: transition.diff,
       id,
-      review: projectWorkspaceAgentProposalReview({
+      review: projectWorkspaceContentReview({
         afterPreparation: staging.current.projection,
         beforePreparation: staging.base.projection,
         changes: transition.changes,
@@ -229,7 +229,7 @@ export class WorkspaceAgentSessionTools {
   #assertIntentScope(
     scope: WorkspaceScope,
     workspace: WorkspaceRepositoryContent["workspace"],
-    intent: WorkspaceAgentCommandIntent,
+    intent: WorkspaceCommandIntent,
   ) {
     const checkNote = (noteId: string) =>
       assertAgentResourceInScope(scope, {

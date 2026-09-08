@@ -5,7 +5,7 @@ import type {
   DomainTextEdit,
 } from "../../core/sync/index.ts";
 
-import type { AgentProposalReview } from "../commands/index.ts";
+import type { ContentChangeReview } from "../commands/index.ts";
 
 export type AgentRuntimeKind = "codex" | "ollama" | "openai-chat";
 
@@ -58,7 +58,7 @@ export type AgentProposal<
   digest: `sha256:${string}`;
   diff: readonly DomainTextEdit[];
   id: string;
-  review: AgentProposalReview;
+  review: ContentChangeReview;
   staged: Readonly<{
     content: Content;
     projection: Projection;

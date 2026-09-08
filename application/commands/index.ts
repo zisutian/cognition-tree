@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 export type {
-  AgentPreparedCommand,
-} from "./agentCommandPreparation.ts";
+  PreparedContentCommand,
+} from "./contentCommandPreparation.ts";
 export type {
-  AgentProposalReview,
-  AgentProposalReviewAction,
-  AgentProposalReviewResourceType,
-} from "./agentProposalReview.ts";
+  ContentChangeReview,
+  ContentChangeReviewAction,
+  ContentChangeReviewResourceType,
+} from "./contentChangeReview.ts";
 export {
   assertDomainResourceVersion,
   DomainResourceConflictError,
@@ -20,9 +20,9 @@ export type {
   DomainMutationProjection,
 } from "./domainCommand.ts";
 export {
-  projectAgentProposalLineDiff,
-  summarizeAgentProposalBlocks,
-} from "./agentProposalReview.ts";
+  projectContentLineDiff,
+  summarizeContentBlockChanges,
+} from "./contentChangeReview.ts";
 export {
   readCommandRuntimeNow,
 } from "./commandRuntime.ts";

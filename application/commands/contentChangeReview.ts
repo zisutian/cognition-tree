@@ -5,7 +5,7 @@ import {
 } from "../../core/ctn/index.ts";
 import type { DomainBlockChange } from "../../core/sync/index.ts";
 
-export type AgentProposalReviewAction =
+export type ContentChangeReviewAction =
   | "content-updated"
   | "created"
   | "deleted"
@@ -13,18 +13,18 @@ export type AgentProposalReviewAction =
   | "renamed"
   | "state-updated";
 
-export type AgentProposalReviewResourceType =
+export type ContentChangeReviewResourceType =
   | "journal-entry"
   | "todo-collection"
   | "workspace-folder"
   | "workspace-note";
 
-export type AgentProposalReviewResourceSnapshot = Readonly<{
+export type ContentChangeReviewResourceSnapshot = Readonly<{
   label: string;
   path: string;
 }>;
 
-export type AgentProposalReviewBlockSummary = Readonly<{
+export type ContentChangeReviewBlockSummary = Readonly<{
   created: number;
   deleted: number;
   moved: number;
@@ -32,35 +32,35 @@ export type AgentProposalReviewBlockSummary = Readonly<{
   updated: number;
 }>;
 
-export type AgentProposalReviewLine = Readonly<{
+export type ContentChangeReviewLine = Readonly<{
   afterLineNumber: number | null;
   beforeLineNumber: number | null;
   kind: "added" | "context" | "removed";
   text: string;
 }>;
 
-export type AgentProposalReviewHunk = Readonly<{
-  lines: readonly AgentProposalReviewLine[];
+export type ContentChangeReviewHunk = Readonly<{
+  lines: readonly ContentChangeReviewLine[];
 }>;
 
-export type AgentProposalReviewResource = Readonly<{
-  actions: readonly AgentProposalReviewAction[];
-  after: AgentProposalReviewResourceSnapshot | null;
-  before: AgentProposalReviewResourceSnapshot | null;
-  blockSummary: AgentProposalReviewBlockSummary;
-  diff: readonly AgentProposalReviewHunk[];
+export type ContentChangeReviewResource = Readonly<{
+  actions: readonly ContentChangeReviewAction[];
+  after: ContentChangeReviewResourceSnapshot | null;
+  before: ContentChangeReviewResourceSnapshot | null;
+  blockSummary: ContentChangeReviewBlockSummary;
+  diff: readonly ContentChangeReviewHunk[];
   resourceId: string;
-  type: AgentProposalReviewResourceType;
+  type: ContentChangeReviewResourceType;
 }>;
 
-export type AgentProposalReview = Readonly<{
-  resources: readonly AgentProposalReviewResource[];
+export type ContentChangeReview = Readonly<{
+  resources: readonly ContentChangeReviewResource[];
   storeLabel: string | null;
 }>;
 
-export function summarizeAgentProposalBlocks(
+export function summarizeContentBlockChanges(
   changes: readonly DomainBlockChange[],
-): AgentProposalReviewBlockSummary {
+): ContentChangeReviewBlockSummary {
   const summary = {
     created: 0,
     deleted: 0,
@@ -79,13 +79,13 @@ export function summarizeAgentProposalBlocks(
   return summary;
 }
 
-type IndexedReviewLine = AgentProposalReviewLine & { index: number };
+type IndexedReviewLine = ContentChangeReviewLine & { index: number };
 
-export function projectAgentProposalLineDiff(
+export function projectContentLineDiff(
   before: string,
   after: string,
   contextLines = 3,
-): AgentProposalReviewHunk[] {
+): ContentChangeReviewHunk[] {
   if (before === after) return [];
   let beforeLineNumber = 1;
   let afterLineNumber = 1;

@@ -3,7 +3,7 @@
 import type { JournalAgentToolPorts } from './journalToolPorts.ts';
 import type { SearchResponse } from '../search/index.ts';
 import { readCommandRuntimeNow } from '../commands/index.ts';
-import type { JournalAgentCommandIntent } from '../journal/index.ts';
+import type { JournalCommandIntent } from '../journal/index.ts';
 import {
   AgentScopeUnavailableError,
   AgentScopeViolationError,
@@ -14,8 +14,8 @@ import {
   type AgentScope,
 } from "../agent/index.ts";
 import {
-  prepareAgentJournalCommand,
-  projectJournalAgentProposalReview,
+  prepareJournalCommand,
+  projectJournalContentReview,
   projectJournalContentChanges,
 } from "../journal/index.ts";
 
@@ -97,7 +97,7 @@ export class JournalAgentSessionTools {
   async stage(
     record: AgentToolSession,
     scope: JournalScope,
-    intent: JournalAgentCommandIntent,
+    intent: JournalCommandIntent,
   ) {
     let staging = await resolveAgentStaging(
       record,
@@ -134,7 +134,7 @@ export class JournalAgentSessionTools {
         entryId: intent.entryId,
       });
     }
-    const prepared = prepareAgentJournalCommand({
+    const prepared = prepareJournalCommand({
       intent,
       runtime: this.#runtime,
       snapshot: staging.current,
@@ -175,7 +175,7 @@ export class JournalAgentSessionTools {
       digestPort: { digest: this.#ports.digest },
       diff: transition.diff,
       id,
-      review: projectJournalAgentProposalReview({
+      review: projectJournalContentReview({
         afterIndex: staging.current.projection,
         beforeIndex: staging.base.projection,
         changes: transition.changes,

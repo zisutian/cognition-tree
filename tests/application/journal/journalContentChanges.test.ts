@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { projectJournalAgentProposalReview } from "../../../application/journal/journalContentProjection.ts";
+import { projectJournalContentReview } from "../../../application/journal/journalContentProjection.ts";
 import { prepareJournalRepositoryContent } from "../../../application/journal/persistence/journalRepositoryPreparation.ts";
 import {
   appendJournalTestEntry,
@@ -25,7 +25,7 @@ describe("Journal Agent proposal review", () => {
     const entryId = journalEntryId(1);
     const before = prepareJournalRepositoryContent(created);
     const after = prepareJournalRepositoryContent(updated, before);
-    const review = projectJournalAgentProposalReview({
+    const review = projectJournalContentReview({
       afterIndex: after,
       beforeIndex: before,
       changes: {

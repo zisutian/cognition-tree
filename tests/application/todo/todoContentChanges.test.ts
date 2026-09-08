@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { projectTodoAgentProposalReview } from "../../../application/todo/todoContentProjection.ts";
+import { projectTodoContentReview } from "../../../application/todo/todoContentProjection.ts";
 import { prepareTodoRepositoryContent } from "../../../application/todo/persistence/todoRepositoryPreparation.ts";
 import {
   appendTodoTestCollection,
@@ -30,7 +30,7 @@ describe("Todo Agent proposal review", () => {
     const before = prepareTodoRepositoryContent(empty);
     const after = prepareTodoRepositoryContent(created, before);
     const collectionId = todoCollectionId(1);
-    const review = projectTodoAgentProposalReview({
+    const review = projectTodoContentReview({
       afterIndex: after,
       beforeIndex: before,
       changes: {

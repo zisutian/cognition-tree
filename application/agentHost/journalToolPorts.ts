@@ -2,7 +2,7 @@
 
 import type { AgentStagingFor } from './sessionToolState.ts';
 import type {
-  JournalAgentCommandRuntime,
+  JournalCommandRuntime,
   JournalDomainVersions,
 } from '../journal/index.ts';
 
@@ -11,7 +11,7 @@ import type { ParsedJournalIndexEntry } from '../../core/journal/index.ts';
 type Snapshot = AgentStagingFor<'journal'>['base'];
 export type JournalAgentToolPorts = {
   load(): Promise<Snapshot>;
-  runtime: JournalAgentCommandRuntime;
+  runtime: JournalCommandRuntime;
   versions: JournalDomainVersions;
   digest(value: unknown): `sha256:${string}`;
   resources: {

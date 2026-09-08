@@ -9,7 +9,7 @@ import {
   type AgentWorkspaceCommandIntentDto,
 } from '../../../contracts/agent/index.ts';
 import type { AgentToolDecoder } from '../../../application/agentHost/index.ts';
-import type { TodoAgentCommandIntent } from '../../../application/todo/index.ts';
+import type { TodoCommandIntent } from '../../../application/todo/index.ts';
 import {
   AgentScopeViolationError,
   type AgentRuntimeTool,
@@ -160,7 +160,7 @@ export const agentToolDecoder: AgentToolDecoder = {
         switch (definition.domain) {
           case 'workspace': return {kind: 'stage-workspace', intent: workspaceToolIntent(definition.name, input)};
           case 'journal': return {kind: 'stage-journal', intent: journalToolIntent(definition.name, input)};
-          case 'todo': return {kind: 'stage-todo', intent: todoToolIntent(definition.name, input) as TodoAgentCommandIntent};
+          case 'todo': return {kind: 'stage-todo', intent: todoToolIntent(definition.name, input) as TodoCommandIntent};
         }
         throw new AgentScopeViolationError('Unknown Agent tool');
     }

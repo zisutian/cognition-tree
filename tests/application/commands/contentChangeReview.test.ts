@@ -2,9 +2,9 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  projectAgentProposalLineDiff,
-  summarizeAgentProposalBlocks,
-} from "../../../application/commands/agentProposalReview.ts";
+  projectContentLineDiff,
+  summarizeContentBlockChanges,
+} from "../../../application/commands/contentChangeReview.ts";
 
 describe("Agent proposal review projection", () => {
   it("projects added and removed lines with bounded context", () => {
@@ -12,7 +12,7 @@ describe("Agent proposal review projection", () => {
       .join("\n");
     const after = ["one", "two", "three", "changed", "five", "six", "seven"]
       .join("\n");
-    const hunks = projectAgentProposalLineDiff(before, after);
+    const hunks = projectContentLineDiff(before, after);
 
     expect(hunks).toHaveLength(1);
     expect(hunks[0]?.lines).toEqual([
@@ -28,7 +28,7 @@ describe("Agent proposal review projection", () => {
   });
 
   it("aggregates block changes without retaining block IDs", () => {
-    const summary = summarizeAgentProposalBlocks([
+    const summary = summarizeContentBlockChanges([
       {
         blockId: "block-secret-a",
         kind: "created",

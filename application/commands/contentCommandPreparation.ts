@@ -4,7 +4,7 @@ import type {
   PreparedVersionedSnapshot,
 } from "../persistence/index.ts";
 
-export type AgentPreparedCommand<
+export type PreparedContentCommand<
   Content,
   Projection,
   Outcome,
@@ -18,7 +18,7 @@ export type AgentPreparedCommand<
   timestamp: string;
 }>;
 
-export type AgentCommandPreparation<
+export type ContentCommandPreparation<
   Content,
   Projection,
   Outcome,
@@ -27,4 +27,4 @@ export type AgentCommandPreparation<
 > = (
   snapshot: PreparedVersionedSnapshot<Content, Projection, Revision>,
   intent: Intent,
-) => AgentPreparedCommand<Content, Projection, Outcome, Revision>;
+) => PreparedContentCommand<Content, Projection, Outcome, Revision>;

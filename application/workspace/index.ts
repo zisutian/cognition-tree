@@ -65,14 +65,14 @@ export type {
   NotesViewModel,
 } from "./notes/edit/notesViewModel.ts";
 export {
-  prepareAgentWorkspaceCommand,
-} from "./commands/workspaceAgentCommandPreparation.ts";
+  prepareWorkspaceCommand,
+} from "./commands/workspaceCommandPreparation.ts";
 export {
   prepareWorkspaceRepositoryContent,
   prepareWorkspaceSyntaxCatalog,
 } from "./persistence/workspaceRepositoryPreparation.ts";
 export {
-  projectWorkspaceAgentProposalReview,
+  projectWorkspaceContentReview,
   projectWorkspaceContentChanges,
 } from "./commands/workspaceContentProjection.ts";
 export {
@@ -135,9 +135,9 @@ export type {
   UiWorkbenchDiagnostics,
 } from "./projection/viewDiagnostics.ts";
 export type {
-  WorkspaceAgentCommandIntent,
+  WorkspaceCommandIntent,
   WorkspaceResourceVersionPolicy,
-} from "./commands/workspaceAgentCommandPreparation.ts";
+} from "./commands/workspaceCommandPreparation.ts";
 export type {
   WorkspaceAnalysis,
 } from "./analysis/workspaceAnalysis.ts";

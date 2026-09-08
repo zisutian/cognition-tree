@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentPreparedCommand } from "../commands/index.ts";
+import type { PreparedContentCommand } from "../commands/index.ts";
 import {
   readCommandRuntimeNow,
   type CommandRuntime,
@@ -34,7 +34,7 @@ import {
 import type { PreparedVersionedSnapshot } from "../persistence/index.ts";
 import type { TodoRevision } from "./persistence/todoRepository.ts";
 
-export type TodoAgentCommandIntent =
+export type TodoCommandIntent =
   | { body: string; kind: "create-collection"; name: string }
   | { collectionId: string; kind: "delete-collection" }
   | {
@@ -62,7 +62,7 @@ export type TodoAgentCommandIntent =
   | { collectionId: string; kind: "rename-collection"; name: string }
   | { body: string; collectionId: string; kind: "replace-collection-body" };
 
-export type TodoAgentCommandRuntime = CommandRuntime & {
+export type TodoCommandRuntime = CommandRuntime & {
   today(date: Date): TodoLocalDate;
 };
 
@@ -90,7 +90,7 @@ function requireCollection(
 }
 
 function moveTarget(
-  intent: Extract<TodoAgentCommandIntent, { kind: "move-block" }>,
+  intent: Extract<TodoCommandIntent, { kind: "move-block" }>,
 ): TodoBlockMoveTarget {
   if (intent.targetKind === "end") {
     if (intent.targetBlockId !== null) {
@@ -121,7 +121,7 @@ function toDomainCommand({
   content: TodoContent;
   createId(): string;
   index: TodoParseIndex;
-  intent: TodoAgentCommandIntent;
+  intent: TodoCommandIntent;
   timestamp: string;
   today: TodoLocalDate;
   versions: TodoDomainVersions;
@@ -205,21 +205,21 @@ function toDomainCommand({
   }
 }
 
-export function prepareAgentTodoCommand({
+export function prepareTodoCommand({
   intent,
   runtime,
   snapshot,
   versionPolicy,
 }: {
-  intent: TodoAgentCommandIntent;
-  runtime: TodoAgentCommandRuntime;
+  intent: TodoCommandIntent;
+  runtime: TodoCommandRuntime;
   snapshot: PreparedVersionedSnapshot<
     TodoContent,
     TodoParseIndex,
     TodoRevision
   >;
   versionPolicy: TodoDomainVersions;
-}): AgentPreparedCommand<
+}): PreparedContentCommand<
   TodoContent,
   TodoParseIndex,
   TodoCommandOutcome,

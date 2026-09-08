@@ -14,10 +14,10 @@ import {
 
 import type { DomainChangeSet } from "../../core/sync/index.ts";
 import {
-  projectAgentProposalLineDiff,
-  summarizeAgentProposalBlocks,
-  type AgentProposalReview,
-  type AgentProposalReviewAction,
+  projectContentLineDiff,
+  summarizeContentBlockChanges,
+  type ContentChangeReview,
+  type ContentChangeReviewAction,
 } from "../commands/index.ts";
 import type { TodoDomainVersions } from "./todoDomainCommands.ts";
 import { projectTodoMutation } from "./todoDomainProjection.ts";
@@ -40,7 +40,7 @@ export function projectTodoContentChanges(
   });
 }
 
-export function projectTodoAgentProposalReview({
+export function projectTodoContentReview({
   afterIndex,
   beforeIndex,
   changes,
@@ -48,7 +48,7 @@ export function projectTodoAgentProposalReview({
   afterIndex: TodoParseIndex;
   beforeIndex: TodoParseIndex;
   changes: DomainChangeSet;
-}): AgentProposalReview {
+}): ContentChangeReview {
   const knownIds = new Set([
     ...beforeIndex.collections.map(({ collection }) => collection.id),
     ...afterIndex.collections.map(({ collection }) => collection.id),
@@ -87,7 +87,7 @@ export function projectTodoAgentProposalReview({
       const afterText = next
         ? createTodoCollectionBodyProjection(next).source
         : "";
-      const actions: AgentProposalReviewAction[] = [];
+      const actions: ContentChangeReviewAction[] = [];
 
       if (!previous && next) actions.push("created");
       if (previous && !next) actions.push("deleted");
@@ -114,12 +114,12 @@ export function projectTodoAgentProposalReview({
         before: previous
           ? { label: previous.name, path: previous.name }
           : null,
-        blockSummary: summarizeAgentProposalBlocks(
+        blockSummary: summarizeContentBlockChanges(
           changes.blocks.filter((change) =>
             change.resourceId === resourceId
           ),
         ),
-        diff: projectAgentProposalLineDiff(beforeText, afterText),
+        diff: projectContentLineDiff(beforeText, afterText),
         resourceId,
         type: "todo-collection" as const,
       };

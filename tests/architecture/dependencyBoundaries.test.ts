@@ -202,9 +202,9 @@ describe("dependency boundaries", () => {
         filePath:
           "../../application/agentHost/sessionTools.ts",
         importPath:
-          "../../../application/workspace/commands/workspaceAgentCommandPreparation",
+          "../../../application/workspace/commands/workspaceCommandPreparation",
         targetPath:
-          "../../application/workspace/commands/workspaceAgentCommandPreparation.ts",
+          "../../application/workspace/commands/workspaceCommandPreparation.ts",
         targetRoot: "application",
       },
     ], dependencyImportPolicies);
@@ -215,7 +215,7 @@ describe("dependency boundaries", () => {
       "generic persistence and sync independence from domains: ../../application/persistence/merge.ts imports ../../core/todo/model",
       "generic client HTTP independence from domains: ../../infrastructure/client/http/apiTransport.ts imports ../../../application/workspace/persistence/workspaceRepository",
       "server API independence from core commands: ../../infrastructure/server/api/http/queryHandlers.ts imports ../../../../core/todo/commands/todoCompletionRecurrenceCommands",
-      "Agent session tool coordinator independence from domains: ../../application/agentHost/sessionTools.ts imports ../../../application/workspace/commands/workspaceAgentCommandPreparation",
+      "Agent session tool coordinator independence from domains: ../../application/agentHost/sessionTools.ts imports ../../../application/workspace/commands/workspaceCommandPreparation",
       "application coordination root independence: ../../application/workbench/problems.ts imports ../agent/controller",
       "workbench content coordination boundary: ../../application/workbench/controller.ts imports ../apiAccess/administration",
     ]);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentPreparedCommand } from "../commands/index.ts";
+import type { PreparedContentCommand } from "../commands/index.ts";
 import {
   readCommandRuntimeNow,
   type CommandRuntime,
@@ -28,12 +28,12 @@ import { DomainNotFoundError } from "../../core/errors/index.ts";
 import type { PreparedVersionedSnapshot } from "../persistence/index.ts";
 import type { JournalRevision } from "./persistence/journalRepository.ts";
 
-export type JournalAgentCommandIntent =
+export type JournalCommandIntent =
   | { body: string; kind: "create-entry" }
   | { entryId: string; kind: "delete-entry" }
   | { body: string; entryId: string; kind: "replace-entry-body" };
 
-export type JournalAgentCommandRuntime = CommandRuntime & {
+export type JournalCommandRuntime = CommandRuntime & {
   timezoneOffsetMinutes(date: Date): number;
 };
 
@@ -63,8 +63,8 @@ function toDomainCommand({
   createId(): string;
   date: Date;
   index: JournalParseIndex;
-  intent: JournalAgentCommandIntent;
-  runtime: JournalAgentCommandRuntime;
+  intent: JournalCommandIntent;
+  runtime: JournalCommandRuntime;
   timestamp: string;
   versions: JournalDomainVersions;
 }): JournalDomainCommand {
@@ -100,21 +100,21 @@ function toDomainCommand({
   };
 }
 
-export function prepareAgentJournalCommand({
+export function prepareJournalCommand({
   intent,
   runtime,
   snapshot,
   versionPolicy,
 }: {
-  intent: JournalAgentCommandIntent;
-  runtime: JournalAgentCommandRuntime;
+  intent: JournalCommandIntent;
+  runtime: JournalCommandRuntime;
   snapshot: PreparedVersionedSnapshot<
     JournalContent,
     JournalParseIndex,
     JournalRevision
   >;
   versionPolicy: JournalDomainVersions;
-}): AgentPreparedCommand<
+}): PreparedContentCommand<
   JournalContent,
   JournalParseIndex,
   JournalCommandOutcome,

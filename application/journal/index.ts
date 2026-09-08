@@ -36,9 +36,9 @@ export type {
   JournalViewModel,
 } from "./journalViewModel.ts";
 export type {
-  JournalAgentCommandIntent,
-  JournalAgentCommandRuntime,
-} from "./journalAgentCommandPreparation.ts";
+  JournalCommandIntent,
+  JournalCommandRuntime,
+} from "./journalCommandPreparation.ts";
 export type {
   JournalApplication,
   JournalApplicationServices,
@@ -76,14 +76,14 @@ export {
   mergeJournalContent,
 } from "./persistence/journalThreeWayMerge.ts";
 export {
-  prepareAgentJournalCommand,
-} from "./journalAgentCommandPreparation.ts";
+  prepareJournalCommand,
+} from "./journalCommandPreparation.ts";
 export {
   prepareJournalRepositoryContent,
   validateJournalRepositoryPreparedTransition,
 } from "./persistence/journalRepositoryPreparation.ts";
 export {
-  projectJournalAgentProposalReview,
+  projectJournalContentReview,
   projectJournalContentChanges,
 } from "./journalContentProjection.ts";
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { projectWorkspaceAgentProposalReview } from "../../../../application/workspace/commands/workspaceContentProjection.ts";
+import { projectWorkspaceContentReview } from "../../../../application/workspace/commands/workspaceContentProjection.ts";
 import { prepareWorkspaceRepositoryContent } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import { createContent } from "../session/workspaceSessionTestFixture.ts";
 
@@ -14,7 +14,7 @@ describe("Workspace Agent proposal review", () => {
       createContent("测试工作区", "新标题\n- 新内容"),
       { previous: before },
     );
-    const review = projectWorkspaceAgentProposalReview({
+    const review = projectWorkspaceContentReview({
       afterPreparation: after,
       beforePreparation: before,
       changes: {

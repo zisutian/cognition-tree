@@ -12,10 +12,10 @@ import {
 
 import type { DomainChangeSet } from "../../core/sync/index.ts";
 import {
-  projectAgentProposalLineDiff,
-  summarizeAgentProposalBlocks,
-  type AgentProposalReview,
-  type AgentProposalReviewAction,
+  projectContentLineDiff,
+  summarizeContentBlockChanges,
+  type ContentChangeReview,
+  type ContentChangeReviewAction,
 } from "../commands/index.ts";
 import {
   projectJournalMutation,
@@ -40,7 +40,7 @@ export function projectJournalContentChanges(
   });
 }
 
-export function projectJournalAgentProposalReview({
+export function projectJournalContentReview({
   afterIndex,
   beforeIndex,
   changes,
@@ -48,7 +48,7 @@ export function projectJournalAgentProposalReview({
   afterIndex: JournalParseIndex;
   beforeIndex: JournalParseIndex;
   changes: DomainChangeSet;
-}): AgentProposalReview {
+}): ContentChangeReview {
   const changedIds = new Set([
     ...changes.resources.map(({ resourceId }) => resourceId),
     ...changes.blocks.map(({ resourceId }) => resourceId),
@@ -70,7 +70,7 @@ export function projectJournalAgentProposalReview({
       const afterText = next
         ? createJournalEntryBodyProjection(next).source
         : "";
-      const actions: AgentProposalReviewAction[] = [];
+      const actions: ContentChangeReviewAction[] = [];
 
       if (!previous && next) actions.push("created");
       if (previous && !next) actions.push("deleted");
@@ -83,12 +83,12 @@ export function projectJournalAgentProposalReview({
         before: previous
           ? { label: previous.title, path: previous.title }
           : null,
-        blockSummary: summarizeAgentProposalBlocks(
+        blockSummary: summarizeContentBlockChanges(
           changes.blocks.filter((change) =>
             change.resourceId === resourceId
           ),
         ),
-        diff: projectAgentProposalLineDiff(beforeText, afterText),
+        diff: projectContentLineDiff(beforeText, afterText),
         resourceId,
         type: "journal-entry" as const,
       };

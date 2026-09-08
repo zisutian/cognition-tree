@@ -2,7 +2,7 @@
 
 import type { AgentStagingFor } from './sessionToolState.ts';
 import type {
-  TodoAgentCommandRuntime,
+  TodoCommandRuntime,
   TodoDomainVersions,
 } from '../todo/index.ts';
 
@@ -15,7 +15,7 @@ import type {
 type Snapshot = AgentStagingFor<'todo'>['base'];
 export type TodoAgentToolPorts = {
   load(): Promise<Snapshot>;
-  runtime: TodoAgentCommandRuntime;
+  runtime: TodoCommandRuntime;
   versions: TodoDomainVersions;
   digest(value: unknown): `sha256:${string}`;
   resources: {

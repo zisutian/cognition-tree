@@ -19,14 +19,14 @@ export {
   mergeTodoContent,
 } from "./persistence/todoThreeWayMerge.ts";
 export {
-  prepareAgentTodoCommand,
-} from "./todoAgentCommandPreparation.ts";
+  prepareTodoCommand,
+} from "./todoCommandPreparation.ts";
 export {
   prepareTodoRepositoryContent,
   validateTodoRepositoryPreparedTransition,
 } from "./persistence/todoRepositoryPreparation.ts";
 export {
-  projectTodoAgentProposalReview,
+  projectTodoContentReview,
   projectTodoContentChanges,
 } from "./todoContentProjection.ts";
 export type {
@@ -39,9 +39,9 @@ export type {
   TodoViewModel,
 } from "./todoViewModel.ts";
 export type {
-  TodoAgentCommandIntent,
-  TodoAgentCommandRuntime,
-} from "./todoAgentCommandPreparation.ts";
+  TodoCommandIntent,
+  TodoCommandRuntime,
+} from "./todoCommandPreparation.ts";
 export type {
   TodoApplication,
 } from "./todoApplicationState.ts";
