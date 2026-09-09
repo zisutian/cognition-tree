@@ -34,6 +34,21 @@ describe("semantic content targeting", () => {
       "three",
     );
   });
+  it("disambiguates a root title with an explicit relative path", () => {
+    const withRoot = [...resources, { id: "root", name: "进程", path: "进程" }];
+    expect(() => resolveNamedContent(withRoot, "进程")).toThrow(
+      ContentTargetError,
+    );
+    expect(resolveNamedContent(withRoot, "./进程").id).toBe("root");
+    expect(resolveNamedContent(withRoot, "./操作系统/进程").id).toBe("one");
+    try {
+      resolveNamedContent(withRoot, "进程");
+    } catch (error) {
+      expect(error).toMatchObject({
+        candidates: ["操作系统/进程", "复习/操作系统/进程", "./进程"],
+      });
+    }
+  });
   it.each([
     "",
     "/操作系统/进程",

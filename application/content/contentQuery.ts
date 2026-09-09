@@ -168,13 +168,15 @@ function readQuery(
         ...document,
         blocks,
         editableText: range.text,
-        diagnostics: document.diagnostics.filter(({ lineNumber }) =>
-          blocks.some(
-            (block) =>
-              lineNumber >= block.lineNumber &&
-              lineNumber <= block.endLineNumber,
-          ),
-        ),
+        diagnostics: query.blockId
+          ? document.diagnostics.filter(({ lineNumber }) =>
+              blocks.some(
+                (block) =>
+                  lineNumber >= block.lineNumber &&
+                  lineNumber <= block.endLineNumber,
+              ),
+            )
+          : document.diagnostics,
       },
       range: { from: range.from, to: range.to },
       tasks: tasks.filter(({ blockId }) => ids.has(blockId)),

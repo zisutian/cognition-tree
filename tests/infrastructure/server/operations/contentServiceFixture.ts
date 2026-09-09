@@ -23,8 +23,10 @@ import {
   workspaceResourceVersions,
 } from "../../../../infrastructure/server/api/resources/index.ts";
 
-export async function createContentServiceFixture() {
-  const root = await mkdtemp(path.join(os.tmpdir(), "ctn-content-service-"));
+export async function createContentServiceFixture(existingRoot?: string) {
+  const root =
+    existingRoot ??
+    (await mkdtemp(path.join(os.tmpdir(), "ctn-content-service-")));
   const catalog = new LocalRepositoryCatalog(path.join(root, "repositories"));
   const builtIns = new BuiltInCatalog(catalog.rootPath);
   const ledger = new OperationLedger(path.join(root, "server-state"), 20);

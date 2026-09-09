@@ -145,6 +145,46 @@ describe("local semantic content use cases on real storage", () => {
     ).toHaveLength(0);
   });
 
+  it("edits a root note by explicit path and retains diagnostics outside parsed blocks", async () => {
+    const value = await fixture();
+    await value.apply(
+      { domain: "catalog" },
+      { kind: "create-repository", name: workspace.repository },
+    );
+    await value.apply(workspace, {
+      kind: "create-folder",
+      parent: null,
+      name: "目录",
+    });
+    for (const parent of [null, "目录"]) {
+      await value.apply(workspace, {
+        kind: "create-note",
+        parent,
+        title: "进程",
+        body: "- 正常内容\n! 未知行",
+      });
+    }
+    const before = await value.read(workspace, "./进程");
+    expect(before.document.diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({ lineNumber: 2 })]),
+    );
+    await value.apply(workspace, {
+      kind: "edit-content",
+      resource: "./进程",
+      edit: {
+        kind: "replace-text",
+        blockId: null,
+        replacements: [{ oldText: "! 未知行", newText: ": 已修复" }],
+      },
+    });
+    expect(
+      (await value.read(workspace, "./进程")).document.diagnostics,
+    ).toEqual([]);
+    expect(
+      (await value.read(workspace, "目录/进程")).document.editableText,
+    ).toContain("! 未知行");
+  });
+
   it("edits and moves Journal subtrees while preserving the managed title", async () => {
     const value = await fixture();
     expect(

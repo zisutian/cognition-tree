@@ -37,13 +37,14 @@ export function resolveNamedContent<T extends { name: string; path: string }>(
   resources: readonly T[],
   selector: string,
 ): T {
-  const parts = selector
+  const explicitPath = selector.startsWith("./");
+  const parts = (explicitPath ? selector.slice(2) : selector)
     .split("/")
     .map((part) => parsePortableName(part, "Target name"));
   const key = parts.map(createPortableNameKey).join("/");
   const matches = resources.filter(
     (resource) =>
-      (parts.length === 1
+      (parts.length === 1 && !explicitPath
         ? createPortableNameKey(resource.name)
         : resource.path.split("/").map(createPortableNameKey).join("/")) ===
       key,
@@ -54,7 +55,7 @@ export function resolveNamedContent<T extends { name: string; path: string }>(
     throw new ContentTargetError(
       "target_ambiguous",
       selector,
-      matches.map(({ path }) => path),
+      matches.map(({ path }) => (path.includes("/") ? path : `./${path}`)),
     );
   return matches[0]!;
 }
