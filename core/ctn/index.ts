@@ -6,7 +6,7 @@ export {
   analyzeCtnSource,
   reprojectCtnAnalysisPresentation,
 } from "./analysis/sourceAnalysis.ts";
-export { CtnContentEditError, prepareCtnContentEdit, prepareExactTextReplacement, projectCtnContentRange } from "./analysis/contentEdits.ts";
+export { CtnContentEditError, prepareRawCtnBodyReplacement, prepareCtnContentEdit, prepareExactTextReplacement, projectCtnContentRange } from "./analysis/contentEdits.ts";
 export type { CtnContentEdit, CtnExactReplacement } from "./analysis/contentEdits.ts";
 export {
   assertCtnEditableSourceChange,

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { isCtnBlockMetadataDirectiveText } from "../metadata/blockMetadata.ts";
+import { createMyersTextEdits } from "../metadata/myersTextEdits.ts";
 import { getCtnEditableLineNumber } from "../metadata/editableSource.ts";
 import {
   applyCtnTextEdits,
@@ -232,4 +234,61 @@ export function prepareCtnContentEdit(
     };
   }
   return { edits: [change], source: applyCtnTextEdits(source, [change]) };
+}
+
+/** Edit syntax-free visible text without exposing or discarding identity records. */
+export function prepareRawCtnBodyReplacement(
+  canonicalSource: string,
+  replacements: readonly CtnExactReplacement[],
+): CtnEditableSourceChange {
+  const lines = canonicalSource.split("\n");
+  const visibleLines: { text: string; canonicalFrom: number; from: number }[] =
+    [];
+  let canonicalFrom = 0;
+  let from = 0;
+  for (const text of lines) {
+    if (!isCtnBlockMetadataDirectiveText(text)) {
+      visibleLines.push({ text, canonicalFrom, from });
+      from += text.length + 1;
+    }
+    canonicalFrom += text.length + 1;
+  }
+  const visible = visibleLines.map(({ text }) => text).join("\n");
+  const bodyFrom = Math.min(
+    visible.length,
+    (visibleLines[0]?.text.length ?? 0) + 1,
+  );
+  const change = prepareExactTextReplacement(visible, replacements, {
+    from: bodyFrom,
+    to: visible.length,
+  });
+  if (
+    change.edits.some(({ insertedText }) =>
+      insertedText.split("\n").some(isCtnBlockMetadataDirectiveText),
+    )
+  )
+    throw new CtnContentEditError(
+      "invalid-edit",
+      "Identity metadata cannot be inserted as body text.",
+    );
+  // Minimal text edits retain intermediate identity records when only their text changes.
+  const descendingLines = [...visibleLines].reverse();
+  const canonicalEdits = createMyersTextEdits(visible, change.source).map(
+    (edit) => {
+      const start = descendingLines.find((line) => line.from <= edit.from)!;
+      const end = descendingLines.find((line) => line.from <= edit.to)!;
+      const mappedFrom = start.canonicalFrom + edit.from - start.from;
+      const mappedTo = end.canonicalFrom + edit.to - end.from;
+      if (mappedTo - mappedFrom !== edit.to - edit.from)
+        throw new CtnContentEditError(
+          "invalid-edit",
+          "This replacement crosses stored block identities. Activate a syntax before changing block structure.",
+        );
+      return { ...edit, from: mappedFrom, to: mappedTo };
+    },
+  );
+  return {
+    edits: canonicalEdits,
+    source: applyCtnTextEdits(canonicalSource, canonicalEdits),
+  };
 }

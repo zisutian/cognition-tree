@@ -93,21 +93,52 @@ describe("local semantic content use cases on real storage", () => {
 
   it("binds a write to its read repository even when another repository has identical content and reuses the name", async () => {
     const value = await fixture();
-    await value.apply({ domain: "catalog" }, { kind: "create-repository", name: workspace.repository });
-    await value.apply(workspace, { kind: "create-note", parent: null, title: "目标", body: "- 原文" });
+    await value.apply(
+      { domain: "catalog" },
+      { kind: "create-repository", name: workspace.repository },
+    );
+    await value.apply(workspace, {
+      kind: "create-note",
+      parent: null,
+      title: "目标",
+      body: "- 原文",
+    });
     const read = await value.read(workspace, "目标");
     const id = read.basis.repositoryId!;
     const snapshot = await (await value.catalog.getStore(id)).loadSnapshot();
     await value.catalog.renameRepository(id, { label: "已改名" });
-    const clone = await value.catalog.createRepository({ label: workspace.repository, content: snapshot.content });
+    const clone = await value.catalog.createRepository({
+      label: workspace.repository,
+      content: snapshot.content,
+    });
     const current = await value.read(workspace, "目标");
     expect(current.basis.baseRevision).toBe(read.basis.baseRevision);
     expect(clone.id).not.toBe(id);
-    const result = await value.service.execute({ operationId: randomUUID(), scope: workspace, basis: read.basis,
-      command: { kind: "edit-content", resource: "目标", edit: { kind: "replace-text", blockId: null, replacements: [{ oldText: "原文", newText: "误写" }] } } });
-    expect(result).toMatchObject({ status: "conflict", error: { code: "target_identity_conflict" } });
-    expect((await value.read(workspace, "目标")).document.editableText).toBe("- 原文");
-    expect((await value.read({ ...workspace, repository: "已改名" }, "目标")).document.editableText).toBe("- 原文");
+    const result = await value.service.execute({
+      operationId: randomUUID(),
+      scope: workspace,
+      basis: read.basis,
+      command: {
+        kind: "edit-content",
+        resource: "目标",
+        edit: {
+          kind: "replace-text",
+          blockId: null,
+          replacements: [{ oldText: "原文", newText: "误写" }],
+        },
+      },
+    });
+    expect(result).toMatchObject({
+      status: "conflict",
+      error: { code: "target_identity_conflict" },
+    });
+    expect((await value.read(workspace, "目标")).document.editableText).toBe(
+      "- 原文",
+    );
+    expect(
+      (await value.read({ ...workspace, repository: "已改名" }, "目标"))
+        .document.editableText,
+    ).toBe("- 原文");
   });
 
   it("rejects stale name reuse after rename and commits cross-note moves once without changing identities", async () => {
@@ -325,6 +356,52 @@ describe("local semantic content use cases on real storage", () => {
       blocks: [],
       writingGuide: null,
     });
+    const beforeRaw = await value.catalog
+      .getStore((await value.catalog.listRepositories()).repositories[0]!.id)
+      .then((store) => store.loadSnapshot());
+    expect(
+      await value.apply(workspace, {
+        kind: "edit-content",
+        resource: "原文",
+        edit: {
+          kind: "replace-text",
+          blockId: null,
+          replacements: [
+            { oldText: "保留内容", newText: "修改内容\n追加原文" },
+          ],
+        },
+      }),
+    ).toMatchObject({ status: "committed" });
+    expect((await value.read(workspace, "原文")).document.editableText).toBe(
+      "- 修改内容\n追加原文",
+    );
+    const afterRaw = await value.catalog
+      .getStore((await value.catalog.listRepositories()).repositories[0]!.id)
+      .then((store) => store.loadSnapshot());
+    expect(afterRaw.content.workspace.notes[0]!.id).toBe(
+      beforeRaw.content.workspace.notes[0]!.id,
+    );
+    expect(
+      afterRaw.content.workspace.notes[0]!.source.match(
+        /id=[^ ]+ created=[^ ]+/g,
+      ),
+    ).toEqual(
+      beforeRaw.content.workspace.notes[0]!.source.match(
+        /id=[^ ]+ created=[^ ]+/g,
+      ),
+    );
+    expect(
+      await value.apply(workspace, {
+        kind: "edit-content",
+        resource: "原文",
+        edit: {
+          kind: "insert-blocks",
+          blockId: null,
+          position: "end",
+          text: "- 禁止块操作",
+        },
+      }),
+    ).toMatchObject({ status: "failed" });
     for (const scope of [journal, todo]) {
       const current = await value.service.query({ kind: "syntax", scope });
       if (current.kind !== "syntax") throw new Error("Expected syntax");

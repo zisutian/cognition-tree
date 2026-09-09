@@ -2,6 +2,7 @@
 
 import {
   prepareCtnContentEdit,
+  prepareRawCtnBodyReplacement,
   projectCtnEditableText,
   type CtnContentEdit,
 } from "../../../core/ctn/index.ts";
@@ -274,10 +275,22 @@ function toDomainCommand({
     case "edit-note-body": {
       const note = requireNote(context, intent.noteId);
       const parsed = context.index?.getParsedNote(intent.noteId);
-      if (!parsed)
-        throw new DomainValidationError(
-          "An active syntax is required for block edits.",
-        );
+      if (!parsed) {
+        if (intent.edit.kind !== "replace-text" || intent.edit.blockId !== null)
+          throw new DomainValidationError(
+            "An active syntax is required for block edits.",
+          );
+        return {
+          kind: "replace-note-source",
+          noteId: intent.noteId,
+          timestamp,
+          expectedVersion: versions.note(note.source),
+          change: prepareRawCtnBodyReplacement(
+            note.source,
+            intent.edit.replacements,
+          ),
+        };
+      }
       const change = prepareCtnContentEdit(
         parsed.analysis,
         "body",
