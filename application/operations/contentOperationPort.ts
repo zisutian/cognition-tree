@@ -21,19 +21,31 @@ export type ContentOperationResult = ContentOperationIntent & {
   afterRevision: `sha256:${string}` | null;
   audit: "pending" | "recorded" | "failed";
   changeMetadata: { blockIds: string[]; resourceIds: string[] };
-  error: { code: string; message: string; candidates?: string[]; selector?: string; currentRevision?: `sha256:${string}` } | null;
+  error: {
+    code: string;
+    message: string;
+    candidates?: string[];
+    selector?: string;
+    currentRevision?: `sha256:${string}`;
+  } | null;
   review: ContentChangeReview | null;
   status: "pending" | "committed" | "conflict" | "failed" | "indeterminate";
   updatedAt: string;
 };
 
-export type ContentOperationOutcome = Pick<ContentOperationResult,
+export type ContentOperationOutcome = Pick<
+  ContentOperationResult,
   "afterRevision" | "changeMetadata" | "error" | "review" | "status"
 >;
 
 export interface ContentOperationLedgerPort {
-  getContentOperation(operationId: string): Promise<ContentOperationResult | null>;
-  runContentOperation(intent: ContentOperationIntent, execute: () => Promise<ContentOperationOutcome>): Promise<ContentOperationResult>;
+  getContentOperation(
+    operationId: string,
+  ): Promise<ContentOperationResult | null>;
+  runContentOperation(
+    intent: ContentOperationIntent,
+    execute: () => Promise<ContentOperationOutcome>,
+  ): Promise<ContentOperationResult>;
 }
 
 export class ContentOperationIdempotencyError extends Error {

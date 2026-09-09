@@ -7,14 +7,20 @@ const loopbackHosts = new Set(["127.0.0.1", "::1", "[::1]", "localhost"]);
 export const cliHttpRequestTimeoutMilliseconds = 30_000;
 export const cliMaximumJsonResponseBytes = 64 * 1024 * 1024;
 
-async function rejectResponse(response: Response, message: string): Promise<never> {
+async function rejectResponse(
+  response: Response,
+  message: string,
+): Promise<never> {
   await response.body?.cancel().catch(() => undefined);
   throw new Error(message);
 }
 
 async function readJsonResponse(response: Response) {
-  const contentType = response.headers.get("content-type")
-    ?.split(";", 1)[0]?.trim().toLowerCase();
+  const contentType = response.headers
+    .get("content-type")
+    ?.split(";", 1)[0]
+    ?.trim()
+    .toLowerCase();
 
   if (contentType !== "application/json") {
     return rejectResponse(
@@ -108,7 +114,9 @@ async function assertNoContent(response: Response) {
         break;
       }
       if (value.byteLength > 0) {
-        throw new Error("API returned content where 204 No Content was required");
+        throw new Error(
+          "API returned content where 204 No Content was required",
+        );
       }
     }
   } finally {
@@ -132,13 +140,19 @@ export function normalizeCliOrigin(value: string) {
     throw new Error("Server origin is not a valid URL");
   }
   if (
-    url.username || url.password || url.pathname !== "/" || url.search ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
     url.hash
   ) {
-    throw new Error("Server origin cannot contain credentials, a path, query, or fragment");
+    throw new Error(
+      "Server origin cannot contain credentials, a path, query, or fragment",
+    );
   }
   if (
-    !["http:", "https:"].includes(url.protocol) || !loopbackHosts.has(url.hostname.toLowerCase())
+    !["http:", "https:"].includes(url.protocol) ||
+    !loopbackHosts.has(url.hostname.toLowerCase())
   ) {
     throw new Error("Server origin must be a local HTTP or HTTPS origin");
   }
@@ -158,7 +172,11 @@ export class CliApiError extends Error {
 }
 
 export type CliApiClient = {
-  request(method: string, requestPath: string, body?: unknown): Promise<unknown>;
+  request(
+    method: string,
+    requestPath: string,
+    body?: unknown,
+  ): Promise<unknown>;
 };
 
 export class CliHttpClient implements CliApiClient {
@@ -186,11 +204,10 @@ export class CliHttpClient implements CliApiClient {
     }
     const url = new URL(requestPath, this.#origin);
 
-    if (
-      url.origin !== this.#origin ||
-      !url.pathname.startsWith("/api/v4/")
-    ) {
-      throw new Error("CLI request path cannot escape /api/v4 on the configured origin");
+    if (url.origin !== this.#origin || !url.pathname.startsWith("/api/v4/")) {
+      throw new Error(
+        "CLI request path cannot escape /api/v4 on the configured origin",
+      );
     }
     const controller = new AbortController();
     const timeout = setTimeout(
