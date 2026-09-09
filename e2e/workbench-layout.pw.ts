@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { expect, type Locator, type Page } from "@playwright/test";
-import { buildApiOperationPath } from "../contracts/api/registry";
+import { buildApiOperationPath } from "../contracts/api/index.ts";
 import { createCrossDomainSearchSeeds } from "./support/builtInSeeds";
 import { seedJournalProposal } from "./support/agentSeeds";
 import { test } from "./support/e2eTest";
@@ -9,6 +9,80 @@ import { seedWorkbenchRepository } from "./support/repositorySeeds";
 import { getActivityButton, openWorkbench } from "./support/workbenchPage";
 
 const repositoryId = "workbench-layout";
+
+async function expectRepositoryDetails(page: Page) {
+  const status = page.locator('dl[aria-label="仓库状态"]');
+  await expect(status).toBeVisible();
+  await expect(status.getByText("名称", { exact: true })).toHaveCount(0);
+  await expect(status.getByText("类型", { exact: true })).toHaveCount(0);
+  // Re-resolve the current DOM while the saved repository projection settles.
+  await expect
+    .poll(() =>
+      status.evaluate((element) => {
+        const rows = [...element.querySelectorAll(".ui-tool-property-row")];
+        const labels = rows.map((row) => row.querySelector("dt"));
+        const values = rows.map((row) => row.querySelector("dd"));
+        if (
+          !element.isConnected ||
+          labels.some((value) => !value) ||
+          values.some((value) => !value)
+        )
+          return null;
+        return {
+          rows: rows.length,
+          fontSizes: [
+            ...new Set(
+              labels.map((label) => getComputedStyle(label!).fontSize),
+            ),
+          ],
+          alignments: [
+            ...new Set(
+              labels.map((label) => getComputedStyle(label!).textAlign),
+            ),
+          ],
+          minimumHeights: [
+            ...new Set(rows.map((row) => getComputedStyle(row).minHeight)),
+          ],
+          valueColumns: new Set(
+            values.map((value) => Math.round(value!.getBoundingClientRect().x)),
+          ).size,
+        };
+      }),
+    )
+    .toEqual({
+      rows: 2,
+      fontSizes: ["13px"],
+      alignments: ["left"],
+      minimumHeights: ["22px"],
+      valueColumns: 1,
+    });
+  const location = page
+    .getByLabel("仓库位置", { exact: true })
+    .locator(".ui-tool-property-row")
+    .first();
+  await expect(
+    location.locator(".ui-tool-property-actions button"),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      location.evaluate((element) => {
+        const action = element.querySelector(
+          ".ui-tool-property-actions button",
+        );
+        const value = element.querySelector("dd");
+        if (!element.isConnected || !action || !value) return null;
+        const actionBox = action.getBoundingClientRect();
+        const rowBox = element.getBoundingClientRect();
+        return {
+          actionInside:
+            actionBox.top >= rowBox.top && actionBox.bottom <= rowBox.bottom,
+          wraps: getComputedStyle(value).overflowWrap,
+          sufficientHeight: rowBox.height >= 22,
+        };
+      }),
+    )
+    .toEqual({ actionInside: true, wraps: "anywhere", sufficientHeight: true });
+}
 
 async function expectFrameFits(page: Page) {
   expect(
@@ -48,9 +122,7 @@ async function expectExposed(locator: Locator) {
   ).toBe(true);
 }
 
-for (const viewport of [
-  { width: 1280, height: 720 },
-]) {
+for (const viewport of [{ width: 1280, height: 720 }]) {
   test(`Agent proposal keeps approval visible at ${viewport.width}×${viewport.height}`, async ({
     api,
     page,
@@ -120,6 +192,7 @@ for (const viewport of [
         page.getByRole("region", { name: label!, exact: true }),
       ).toBeVisible();
       await expectFrameFits(page);
+      if (name === "仓库") await expectRepositoryDetails(page);
       if (name === "智能体" || name === "搜索")
         await expect(page.locator(".app-detail")).toHaveCount(0);
       await page.screenshot({ path: testInfo.outputPath(`${name}.png`) });
