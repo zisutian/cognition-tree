@@ -41,7 +41,20 @@ Workspace 每次显式给出仓库名称。在该仓库中，笔记标题唯一�
 
 ## 单次修改
 
-操作文件包含自行分配且不复用的 `operationId`、从查询取得的 `basis`、明确 scope 和一个领域命令。下面只演示形状；请将版本替换为实际读取结果：
+推荐直接复用读取结果，不手工复制身份和版本：
+
+```sh
+./ctn --server http://127.0.0.1:3001 read workspace --repository '学习资料' --resource '操作系统/进程' > read.json
+./ctn --server http://127.0.0.1:3001 apply --from read.json --file - <<'JSON'
+{"kind":"edit-content","resource":"操作系统/进程","edit":{"kind":"replace-text","blockId":null,"replacements":[{"oldText":"原句","newText":"修改后的句子"}]}}
+JSON
+```
+
+CLI 从 `--from` 读取 scope 和完整 basis，自动生成操作 ID，在发送前写到标准错误；标准输出只返回 JSON 结果。`--id` 可显式指定 ID，不能与输入文件中的 ID 冲突。`query`、`apply` 的 `--file -` 支持标准输入；两份输入不能同时使用标准输入。CLI 不会自动获取更新版本。
+
+`./ctn help` 列出全部内容命令；`./ctn help workspace` 按领域筛选；`./ctn help edit-content` 和 `./ctn help replace-text` 给出对应参数契约，均不需要启动服务。帮助和领域支持关系直接来自命令契约。
+
+也可提供完整操作文件，包含从查询取得的 `basis`、明确 scope 和一个领域命令。省略 `operationId` 时由 CLI 生成；以下手工示例仅展示 HTTP 请求形状：
 
 ```json
 {
@@ -85,7 +98,7 @@ Todo 的完成与周期命令消费读取返回的任务状态，周期任务使
 
 内容已提交但审计收尾失败时，收据保持 `committed` 并单独标明 `audit: "failed"`。进程重启后，未完成的持久意图转为不确定状态，不自动执行。查不到操作 ID 也不能作为一次不确定请求“必定没写入”的证明。
 
-CLI 不自动重放提交。网络断连或响应无法解码时保留原操作 ID 提示核对。错误响应使用严格的 `code`、`message`、`requestId`、`retryable` 和 `details`；即使错误被标记可重试，外部写入也必须先确认原操作结果。
+CLI 不自动重放提交。网络断连或响应无法解码时保留原操作 ID 提示核对。进入操作流程前的通用错误包含 `code`、`message`、`requestId`、`retryable` 和 `details`；操作失败则返回收据及其 `error`；即使错误被标记可重试，外部写入也必须先确认原操作结果。
 
 | 退出码 | 含义 |
 |---|---|

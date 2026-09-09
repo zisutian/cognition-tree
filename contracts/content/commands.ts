@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Type, type Static } from "@sinclair/typebox";
+import { Type, type TProperties, type Static } from "@sinclair/typebox";
 import {
   ApiIdentifierSchema as identifier,
   nullable,
@@ -10,7 +10,10 @@ import {
   TodoLocalDateSchema,
   TodoRecurrenceRuleSchema,
 } from "../todo/index.ts";
-import { ContentReadBasisSchema, ContentOperationScopeSchema } from "./operation.ts";
+import {
+  ContentReadBasisSchema,
+  ContentOperationScopeSchema,
+} from "./operation.ts";
 
 const position = Type.Union([
   Type.Literal("above"),
@@ -43,122 +46,128 @@ export const ContentEditSchema = Type.Union([
     text: Type.String({ minLength: 1 }),
   }),
 ]);
-export const ContentCommandSchema = Type.Union([
-  strictObject({ kind: Type.Literal("create-repository"), name: identifier }),
-  strictObject({
-    kind: Type.Literal("rename-repository"),
+type Domain = "catalog" | "workspace" | "journal" | "todo";
+function command<Kind extends string, Properties extends TProperties>(
+  kind: Kind,
+  domains: readonly Domain[],
+  properties: Properties,
+) {
+  return {
+    domains,
+    schema: strictObject(
+      { kind: Type.Literal(kind), ...properties },
+      { "x-ctn-domains": domains },
+    ),
+  };
+}
+const contentDomains = ["workspace", "journal", "todo"] as const;
+/** Command support and command schemas are defined together for validation and help. */
+export const contentCommandDefinitions = [
+  command("create-repository", ["catalog"], { name: identifier }),
+  command("rename-repository", ["catalog"], {
     repository: identifier,
     name: identifier,
   }),
-  strictObject({
-    kind: Type.Literal("delete-repository"),
-    repository: identifier,
-  }),
-  strictObject({
-    kind: Type.Literal("create-folder"),
+  command("delete-repository", ["catalog"], { repository: identifier }),
+  command("create-folder", ["workspace"], {
     parent: nullable(identifier),
     name: identifier,
   }),
-  strictObject({
-    kind: Type.Literal("create-note"),
+  command("create-note", ["workspace"], {
     parent: nullable(identifier),
     title: identifier,
     body: Type.String(),
   }),
-  strictObject({
-    kind: Type.Union([
-      Type.Literal("delete-folder"),
-      Type.Literal("delete-note"),
-      Type.Literal("delete-entry"),
-      Type.Literal("delete-collection"),
-    ]),
-    resource: identifier,
-  }),
-  strictObject({
-    kind: Type.Union([
-      Type.Literal("rename-folder"),
-      Type.Literal("rename-note"),
-      Type.Literal("rename-collection"),
-    ]),
+  command("delete-folder", ["workspace"], { resource: identifier }),
+  command("delete-note", ["workspace"], { resource: identifier }),
+  command("delete-entry", ["journal"], { resource: identifier }),
+  command("delete-collection", ["todo"], { resource: identifier }),
+  command("rename-folder", ["workspace"], {
     resource: identifier,
     name: identifier,
   }),
-  strictObject({
-    kind: Type.Literal("move-tree-node"),
+  command("rename-note", ["workspace"], {
+    resource: identifier,
+    name: identifier,
+  }),
+  command("rename-collection", ["todo"], {
+    resource: identifier,
+    name: identifier,
+  }),
+  command("move-tree-node", ["workspace"], {
     resource: identifier,
     resourceKind: Type.Union([Type.Literal("folder"), Type.Literal("note")]),
     parent: nullable(identifier),
     index: Type.Integer({ minimum: 0 }),
   }),
-  strictObject({
-    kind: Type.Literal("edit-content"),
+  command("edit-content", contentDomains, {
     resource: identifier,
     edit: ContentEditSchema,
   }),
-  strictObject({
-    kind: Type.Literal("move-block"),
+  command("move-block", contentDomains, {
     resource: identifier,
     blockId: identifier,
     targetResource: identifier,
     targetBlockId: nullable(identifier),
     position,
   }),
-  strictObject({ kind: Type.Literal("create-entry"), body: Type.String() }),
-  strictObject({
-    kind: Type.Literal("create-collection"),
+  command("create-entry", ["journal"], { body: Type.String() }),
+  command("create-collection", ["todo"], {
     name: identifier,
     body: Type.String(),
   }),
-  strictObject({
-    kind: Type.Literal("move-collection"),
+  command("move-collection", ["todo"], {
     resource: identifier,
     index: Type.Integer({ minimum: 0 }),
   }),
-  strictObject({
-    kind: Type.Literal("set-completion"),
+  command("set-completion", ["todo"], {
     resource: identifier,
     blockId: identifier,
     completed: Type.Boolean(),
     occurrenceDate: nullable(TodoLocalDateSchema),
   }),
-  strictObject({
-    kind: Type.Literal("set-recurrence"),
+  command("set-recurrence", ["todo"], {
     resource: identifier,
     blockId: identifier,
     rule: TodoRecurrenceRuleSchema,
   }),
-  strictObject({
-    kind: Type.Literal("stop-recurrence"),
+  command("stop-recurrence", ["todo"], {
     resource: identifier,
     blockId: identifier,
   }),
-  strictObject({
-    kind: Type.Literal("create-syntax"),
+  command("create-syntax", ["workspace"], {
     source: Type.String({ minLength: 1 }),
   }),
-  strictObject({
-    kind: Type.Literal("update-syntax"),
+  command("update-syntax", contentDomains, {
     syntax: nullable(identifier),
     source: Type.String({ minLength: 1 }),
   }),
-  strictObject({
-    kind: Type.Union([
-      Type.Literal("activate-syntax"),
-      Type.Literal("delete-syntax"),
-    ]),
-    syntax: identifier,
-  }),
-]);
-export const ContentOperationRequestSchema = strictObject({
-  basis: ContentReadBasisSchema,
-  command: ContentCommandSchema,
-  operationId: Type.String({
-    minLength: 1,
-    maxLength: 128,
-    pattern: "^[A-Za-z0-9_-]+$",
-  }),
-  scope: ContentOperationScopeSchema,
-});
+  command("activate-syntax", ["workspace"], { syntax: identifier }),
+  command("delete-syntax", ["workspace"], { syntax: identifier }),
+] as const;
+export const ContentCommandSchema = Type.Union(
+  contentCommandDefinitions.map(({ schema }) => schema),
+);
+export const ContentOperationRequestSchema = Type.Union(
+  ContentOperationScopeSchema.anyOf.map((scope) =>
+    strictObject({
+      basis: ContentReadBasisSchema,
+      command: Type.Union(
+        contentCommandDefinitions
+          .filter((definition) =>
+            definition.domains.includes(scope.properties.domain.const),
+          )
+          .map(({ schema }) => schema),
+      ),
+      operationId: Type.String({
+        minLength: 1,
+        maxLength: 128,
+        pattern: "^[A-Za-z0-9_-]+$",
+      }),
+      scope,
+    }),
+  ),
+);
 export type ContentOperationRequestDto = Static<
   typeof ContentOperationRequestSchema
 >;

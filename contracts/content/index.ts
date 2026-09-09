@@ -19,6 +19,7 @@ export type {
   TodoCommandIntentDto,
 } from "./intents.ts";
 export {
+  contentCommandDefinitions,
   ContentEditSchema,
   ContentCommandSchema,
   ContentOperationRequestSchema,

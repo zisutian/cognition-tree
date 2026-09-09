@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { Readable } from "node:stream";
 import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -20,6 +21,43 @@ afterEach(async () => {
 });
 
 describe("local content CLI", () => {
+  it("discovers domain commands and nested edits without a server or a second command catalog", async () => {
+    const io = { error: vi.fn(), output: vi.fn() };
+    const createClient = vi.fn();
+    expect(await runCtnCli(["help", "todo"], { io, createClient })).toBe(0);
+    expect(io.output.mock.lastCall![0]).toContain("set-completion");
+    expect(io.output.mock.lastCall![0]).not.toContain("create-note");
+    expect(
+      await runCtnCli(["help", "replace-text"], { io, createClient }),
+    ).toBe(0);
+    expect(
+      JSON.parse(io.output.mock.lastCall![0]).properties.replacements.items
+        .required,
+    ).toEqual(["oldText", "newText"]);
+    expect(await runCtnCli(["apply", "--help"], { io, createClient })).toBe(0);
+    expect(createClient).not.toHaveBeenCalled();
+  });
+  it("rejects malformed or oversized stdin before opening a connection", async () => {
+    const createClient = vi.fn(() => ({ request: vi.fn() }));
+    for (const bytes of [
+      Buffer.from("{"),
+      Buffer.from([0xff]),
+      Buffer.alloc(4 * 1024 * 1024 + 1),
+    ]) {
+      expect(
+        await runCtnCli(
+          ["--server", "http://localhost:3001", "apply", "--file", "-"],
+          {
+            createClient,
+            stdin: Readable.from([bytes]),
+            io: { error() {}, output() {} },
+          },
+        ),
+      ).toBe(2);
+    }
+    for (const result of createClient.mock.results)
+      expect(result.value.request).not.toHaveBeenCalled();
+  });
   it("accepts only explicit local HTTP or HTTPS origins", () => {
     expect(() => normalizeCliOrigin("https://tree.example.test")).toThrow();
     expect(normalizeCliOrigin("http://127.0.0.1:3001")).toBe(
@@ -196,5 +234,79 @@ describe("local content CLI", () => {
     const note = JSON.parse(io.output.mock.lastCall![0]);
     expect(note.document.editableText).toBe("- 进程管理");
     expect(note.basis.baseRevision).toMatch(/^sha256:/);
+    const readFile = path.join(fixture.root, "read.json");
+    await writeFile(readFile, JSON.stringify(note));
+    const command = {
+      kind: "edit-content",
+      resource: "操作系统",
+      edit: {
+        kind: "replace-text",
+        blockId: null,
+        replacements: [{ oldText: "进程管理", newText: "进程调度" }],
+      },
+    };
+    const published: string[] = [];
+    const captured = {
+      error: (message: string) => {
+        published.push(message);
+        io.error(message);
+      },
+      output: io.output,
+    };
+    const observed = {
+      request: async (method: string, endpoint: string, body?: unknown) => {
+        const id = (body as { operationId: string }).operationId;
+        expect(published.some((message) => message.includes(id))).toBe(true);
+        expect(body).toMatchObject({
+          basis: note.basis,
+          scope: note.scope,
+          command,
+        });
+        return client.request(method, endpoint, body);
+      },
+    };
+    expect(
+      await runCtnCli([...args, "apply", "--from", readFile, "--file", "-"], {
+        io: captured,
+        stdin: Readable.from([Buffer.from(JSON.stringify(command))]),
+        createClient: () => observed,
+      }),
+    ).toBe(0);
+    const written = JSON.parse(io.output.mock.lastCall![0]);
+    expect(written.status).toBe("committed");
+    expect(
+      await runCtnCli(
+        [
+          ...args,
+          "apply",
+          "--from",
+          readFile,
+          "--file",
+          "-",
+          "--id",
+          written.operationId,
+        ],
+        { io, stdin: Readable.from([Buffer.from(JSON.stringify(command))]) },
+      ),
+    ).toBe(0);
+    expect(JSON.parse(io.output.mock.lastCall![0])).toEqual(written);
+    expect(
+      await runCtnCli([...args, "apply", "--from", readFile, "--file", "-"], {
+        io,
+        stdin: Readable.from([Buffer.from(JSON.stringify(command))]),
+      }),
+    ).toBe(4);
+    expect(JSON.parse(io.output.mock.lastCall![0])).toMatchObject({
+      status: "conflict",
+      error: { code: "revision_conflict" },
+    });
+    expect(
+      (
+        await fixture.read(
+          { domain: "workspace", repository: "学习资料" },
+          "操作系统",
+        )
+      ).document.editableText,
+    ).toBe("- 进程调度");
   });
 });

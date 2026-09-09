@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { readCliJson, type CliInputStream } from "./jsonInput.ts";
+import { cliUsage as usage, contentCommandHelp } from "./commandHelp.ts";
 import { pathToFileURL } from "node:url";
 import type { ContentQueryDto } from "../../contracts/api/index.ts";
 import {
@@ -25,18 +27,9 @@ type CliIo = { error(message: string): void; output(message: string): void };
 type CliDependencies = {
   createClient?(options: { origin: string }): CliApiClient;
   io?: CliIo;
+  stdin?: CliInputStream;
 };
 class CliInputError extends Error {}
-const usage = `ctn --server <本机服务地址> <命令>
-  catalog
-  directory|syntax <workspace|journal|todo> [--repository <仓库名称>]
-  read <领域> --resource <标题或相对路径> [--block <块ID>] [--subtree]
-  search <领域> --text <关键词> [--limit <1..100>]
-  query --file <查询JSON>
-  apply --file <操作JSON，含operationId与basis>
-  result <操作ID>
-  openapi
-Workspace 每次显式指定 --repository；不使用默认仓库或保存的凭据。`;
 const json = (value: unknown) => JSON.stringify(value, null, 2);
 function takeOption(args: string[], name: string) {
   const index = args.indexOf(name);
@@ -55,16 +48,6 @@ function required(args: string[], name: string) {
 function noArguments(args: string[]) {
   if (args.length)
     throw new CliInputError(`Unsupported arguments: ${args.join(" ")}`);
-}
-async function jsonFile(file: string) {
-  const source = await readFile(file, "utf8");
-  if (Buffer.byteLength(source) > 4 * 1024 * 1024)
-    throw new CliInputError("JSON input exceeds 4 MiB");
-  try {
-    return JSON.parse(source) as unknown;
-  } catch {
-    throw new CliInputError("Input file is not valid JSON");
-  }
 }
 function namedQuery(command: string, args: string[]): ContentQueryDto {
   const domain = args.shift();
@@ -158,7 +141,40 @@ export async function runCtnCli(
       args.length === 0 ||
       (args.length === 1 && ["--help", "help"].includes(args[0]!))
     ) {
-      io.output(usage);
+      io.output(`${usage}\n\n${contentCommandHelp()}`);
+      return 0;
+    }
+    if (args[0] === "help") {
+      args.shift();
+      const selector = args.shift();
+      noArguments(args);
+      io.output(
+        selector
+          ? contentCommandHelp(selector)
+          : `${usage}\n\n${contentCommandHelp()}`,
+      );
+      return 0;
+    }
+    if (args.includes("--help")) {
+      takeOption(args, "--server");
+      const filtered = args.filter((arg) => arg !== "--help");
+      if (filtered.length !== 1)
+        throw new CliInputError("Use ctn help <domain|command>");
+      io.output(
+        [
+          "catalog",
+          "directory",
+          "syntax",
+          "read",
+          "search",
+          "query",
+          "apply",
+          "result",
+          "openapi",
+        ].includes(filtered[0]!)
+          ? usage
+          : contentCommandHelp(filtered[0]),
+      );
       return 0;
     }
     const origin = normalizeCliOrigin(required(args, "--server"));
@@ -182,15 +198,64 @@ export async function runCtnCli(
       });
     } else if (command === "query" || command === "apply") {
       const file = required(args, "--file");
+      const from = command === "apply" ? takeOption(args, "--from") : null;
+      const explicitId = command === "apply" ? takeOption(args, "--id") : null;
       noArguments(args);
-      const body = await jsonFile(file);
-      if (command === "apply") {
-        submitting = parseApiOperationRequest(
-          getApiOperation("executeContentOperation"),
-          body,
-        ) as ContentOperationRequestDto;
+      if (file === "-" && from === "-")
+        throw new CliInputError("Only one input can consume stdin");
+      const stdin = dependencies.stdin ?? process.stdin;
+      let queryBody: unknown;
+      try {
+        const body = await readCliJson(file, stdin);
+        if (command === "apply") {
+          if (!body || typeof body !== "object" || Array.isArray(body))
+            throw new CliInputError("Operation input must be an object");
+          let payload: object = body;
+          if (from) {
+            const read = parseApiOperationResponse(
+              "queryLocalContent",
+              200,
+              await readCliJson(from, stdin, 64 * 1024 * 1024),
+            ) as { basis: unknown; scope: unknown };
+            payload = { basis: read.basis, scope: read.scope, command: body };
+          }
+          const suppliedId =
+            "operationId" in payload ? payload.operationId : undefined;
+          if (
+            suppliedId !== undefined &&
+            explicitId &&
+            explicitId !== suppliedId
+          )
+            throw new CliInputError(
+              "--id differs from the operation ID in the input",
+            );
+          submitting = parseApiOperationRequest(
+            getApiOperation("executeContentOperation"),
+            {
+              ...payload,
+              operationId: explicitId ?? suppliedId ?? randomUUID(),
+            },
+          ) as ContentOperationRequestDto;
+        } else
+          queryBody = parseApiOperationRequest(
+            getApiOperation("queryLocalContent"),
+            body,
+          );
+      } catch (error) {
+        if (error instanceof CliApiError) throw error;
+        throw new CliInputError(
+          error instanceof Error ? error.message : "Invalid JSON input",
+        );
+      }
+      if (submitting) {
+        io.error(
+          json({
+            operationId: submitting.operationId,
+            message: "操作 ID 已生成；不确定时使用 result 查询，请勿自动重放。",
+          }),
+        );
         result = await call(api, "executeContentOperation", submitting);
-      } else result = await call(api, "queryLocalContent", body);
+      } else result = await call(api, "queryLocalContent", queryBody);
     } else
       result = await call(
         api,
