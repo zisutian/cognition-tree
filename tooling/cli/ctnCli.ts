@@ -78,15 +78,39 @@ function namedQuery(command: string, args: string[]): ContentQueryDto {
       ...(subtreeIndex >= 0 ? { subtree: true } : {}),
     };
   } else if (command === "search") {
+    const cursor = takeOption(args, "--cursor");
     result = {
       kind: "search",
       scope,
+      ...(cursor ? { cursor } : {}),
       text: required(args, "--text"),
       limit: Number(takeOption(args, "--limit") ?? 20),
     };
-  } else if (command === "directory" || command === "syntax")
-    result = { kind: command, scope };
-  else throw new CliInputError(usage);
+  } else if (command === "directory") {
+    const parent = takeOption(args, "--parent");
+    const cursor = takeOption(args, "--cursor");
+    const limit = takeOption(args, "--limit");
+    const recursive = args.indexOf("--recursive");
+    if (recursive >= 0) args.splice(recursive, 1);
+    result = {
+      kind: command,
+      scope,
+      ...(parent ? { parent } : {}),
+      ...(cursor ? { cursor } : {}),
+      ...(limit ? { limit: Number(limit) } : {}),
+      ...(recursive >= 0 ? { recursive: true } : {}),
+    };
+  } else if (command === "syntax") {
+    const file = takeOption(args, "--file");
+    const source = args.indexOf("--source");
+    if (source >= 0) args.splice(source, 1);
+    result = {
+      kind: command,
+      scope,
+      ...(file ? { file } : {}),
+      ...(source >= 0 ? { includeSource: true } : {}),
+    };
+  } else throw new CliInputError(usage);
   noArguments(args);
   return result;
 }

@@ -6,7 +6,10 @@ import {
   nullable,
   strictObject,
 } from "../../common/index.ts";
-import { ContentReadBasisSchema, ContentOperationScopeSchema } from "../../content/index.ts";
+import {
+  ContentReadBasisSchema,
+  ContentOperationScopeSchema,
+} from "../../content/index.ts";
 import {
   ApiCtnDocumentSchema,
   ApiSyntaxGuideSchema,
@@ -20,8 +23,20 @@ const scope = Type.Union([
 ]);
 export const ContentQuerySchema = Type.Union([
   strictObject({ kind: Type.Literal("catalog") }),
-  strictObject({ kind: Type.Literal("directory"), scope }),
-  strictObject({ kind: Type.Literal("syntax"), scope }),
+  strictObject({
+    kind: Type.Literal("directory"),
+    scope,
+    parent: Type.Optional(nullable(identifier)),
+    recursive: Type.Optional(Type.Boolean()),
+    limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+    cursor: Type.Optional(Type.String({ minLength: 1, maxLength: 2048 })),
+  }),
+  strictObject({
+    kind: Type.Literal("syntax"),
+    scope,
+    file: Type.Optional(identifier),
+    includeSource: Type.Optional(Type.Boolean()),
+  }),
   strictObject({
     kind: Type.Literal("read"),
     scope,
@@ -34,6 +49,7 @@ export const ContentQuerySchema = Type.Union([
     scope,
     text: Type.String({ minLength: 1 }),
     limit: Type.Integer({ minimum: 1, maximum: 100 }),
+    cursor: Type.Optional(Type.String({ minLength: 1, maxLength: 2048 })),
   }),
 ]);
 const resource = strictObject({
@@ -48,7 +64,10 @@ const resource = strictObject({
   name: Type.String(),
   path: Type.String(),
 });
-const base = { basis: ContentReadBasisSchema, scope: ContentOperationScopeSchema };
+const base = {
+  basis: ContentReadBasisSchema,
+  scope: ContentOperationScopeSchema,
+};
 export const ContentQueryResultSchema = Type.Union([
   strictObject({
     ...base,
@@ -64,6 +83,7 @@ export const ContentQueryResultSchema = Type.Union([
     ...base,
     kind: Type.Literal("directory"),
     resources: Type.Array(resource),
+    nextCursor: nullable(Type.String()),
   }),
   strictObject({
     ...base,
@@ -73,7 +93,7 @@ export const ContentQueryResultSchema = Type.Union([
       strictObject({
         id: identifier,
         name: Type.String(),
-        source: Type.String(),
+        source: Type.Optional(Type.String()),
       }),
     ),
     guide: nullable(ApiSyntaxGuideSchema),
@@ -100,7 +120,7 @@ export const ContentQueryResultSchema = Type.Union([
         snippet: Type.String(),
       }),
     ),
-    truncated: Type.Boolean(),
+    nextCursor: nullable(Type.String()),
   }),
 ]);
 export type ContentQueryDto = Static<typeof ContentQuerySchema>;

@@ -349,11 +349,12 @@ describe("local semantic content use cases on real storage", () => {
     });
     const syntax = await value.service.query({
       kind: "syntax",
+      includeSource: true,
       scope: workspace,
     });
     if (syntax.kind !== "syntax") throw new Error("Expected syntax");
     const file = syntax.files[0]!;
-    const source = file.source.replace(file.name, "专用语法");
+    const source = file.source!.replace(file.name, "专用语法");
     expect(
       await value.apply(workspace, { kind: "create-syntax", source }),
     ).toMatchObject({ status: "committed" });
@@ -434,13 +435,17 @@ describe("local semantic content use cases on real storage", () => {
       }),
     ).toMatchObject({ status: "failed" });
     for (const scope of [journal, todo]) {
-      const current = await value.service.query({ kind: "syntax", scope });
+      const current = await value.service.query({
+        kind: "syntax",
+        scope,
+        includeSource: true,
+      });
       if (current.kind !== "syntax") throw new Error("Expected syntax");
       expect(
         await value.apply(scope, {
           kind: "update-syntax",
           syntax: null,
-          source: current.files[0]!.source,
+          source: current.files[0]!.source!,
         }),
       ).toMatchObject({ status: "committed" });
       expect(

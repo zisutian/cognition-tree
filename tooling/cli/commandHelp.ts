@@ -7,9 +7,10 @@ import {
 
 export const cliUsage = `ctn --server <本机服务地址> <命令>
   catalog
-  directory|syntax <workspace|journal|todo> [--repository <仓库名称>]
+  directory <领域> [--repository <仓库名称>] [--parent <目录>] [--recursive] [--limit <1..100>] [--cursor <续页标记>]
+  syntax <领域> [--repository <仓库名称>] [--file <语法名称>] [--source]
   read <领域> --resource <标题或相对路径> [--block <块ID>] [--subtree]
-  search <领域> --text <关键词> [--limit <1..100>]
+  search <领域> --text <关键词> [--limit <1..100>] [--cursor <续页标记>]
   query --file <查询JSON或->
   apply --from <查询响应JSON> --file <命令JSON或-> [--id <操作ID>]
   apply --file <完整操作JSON或-> [--id <操作ID>]

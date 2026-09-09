@@ -26,6 +26,8 @@ import {
   type CtnCompiledSyntax,
 } from "../../core/ctn/index.ts";
 import { listWorkspaceResourcePaths } from "../../core/workspace/index.ts";
+import { DomainValidationError } from "../../core/errors/index.ts";
+import { contentPage } from "./contentPage.ts";
 import {
   resolveNamedContent,
   type NamedContentResource,
@@ -43,8 +45,20 @@ export type ContentScope = Exclude<
 >;
 export type ContentQuery =
   | { kind: "catalog" }
-  | { kind: "directory"; scope: ContentScope }
-  | { kind: "syntax"; scope: ContentScope }
+  | {
+      kind: "directory";
+      scope: ContentScope;
+      parent?: string | null;
+      recursive?: boolean;
+      limit?: number;
+      cursor?: string;
+    }
+  | {
+      kind: "syntax";
+      scope: ContentScope;
+      file?: string;
+      includeSource?: boolean;
+    }
   | {
       kind: "read";
       scope: ContentScope;
@@ -52,7 +66,13 @@ export type ContentQuery =
       blockId?: string;
       subtree?: boolean;
     }
-  | { kind: "search"; scope: ContentScope; text: string; limit: number };
+  | {
+      kind: "search";
+      scope: ContentScope;
+      text: string;
+      limit: number;
+      cursor?: string;
+    };
 
 export type ContentQueryResult = {
   basis: ContentReadBasis;
@@ -63,11 +83,15 @@ export type ContentQueryResult = {
       repositories: { id: string; name: string }[];
       issues: { id: string; message: string }[];
     }
-  | { kind: "directory"; resources: NamedContentResource[] }
+  | {
+      kind: "directory";
+      resources: NamedContentResource[];
+      nextCursor: string | null;
+    }
   | {
       kind: "syntax";
       active: string | null;
-      files: { id: string; name: string; source: string }[];
+      files: { id: string; name: string; source?: string }[];
       guide: ContentSyntaxGuide | null;
     }
   | {
@@ -85,7 +109,7 @@ export type ContentQueryResult = {
         lineNumber: number | null;
         snippet: string;
       }[];
-      truncated: boolean;
+      nextCursor: string | null;
     }
 );
 
@@ -101,6 +125,7 @@ type ContentReadContext = {
   syntax: CtnCompiledSyntax | null;
   syntaxFiles: { id: string; name: string; source: string }[];
   active: string | null;
+  syntaxForFile(id: string): CtnCompiledSyntax;
   read(resource: NamedContentResource): QueryDocument;
 };
 
@@ -127,18 +152,74 @@ export function contentCatalogRevision(
 function readQuery(
   context: ContentReadContext,
   query: Exclude<ContentQuery, { kind: "catalog" }>,
+  digest: ContentServicePorts["digest"],
 ): ContentQueryResult {
   const base = { basis: context.basis, scope: context.scope };
-  if (query.kind === "directory")
-    return { ...base, kind: query.kind, resources: context.resources };
-  if (query.kind === "syntax")
+  if (query.kind === "directory") {
+    if (context.scope.domain !== "workspace" && query.parent != null)
+      throw new DomainValidationError("This domain has no folder hierarchy.");
+    const parent =
+      query.parent == null
+        ? null
+        : resolveNamedContent(
+            context.resources.filter((item) => item.kind === "folder"),
+            query.parent,
+          ).path;
+    const prefix = parent === null ? "" : `${parent}/`;
+    const rows = context.resources.filter(
+      (item) =>
+        item.path.startsWith(prefix) &&
+        (query.recursive || !item.path.slice(prefix.length).includes("/")),
+    );
+    const limit = query.limit ?? 100;
+    const page = contentPage(rows, {
+      basis: context.basis,
+      cursor: query.cursor,
+      limit,
+      digest,
+      query: {
+        kind: query.kind,
+        scope: context.scope,
+        parent,
+        recursive: query.recursive ?? false,
+        limit,
+      },
+    });
+    return {
+      ...base,
+      kind: query.kind,
+      resources: page.items,
+      nextCursor: page.nextCursor,
+    };
+  }
+  if (query.kind === "syntax") {
+    const selected = query.file
+      ? resolveNamedContent(
+          context.syntaxFiles.map((file) => ({ ...file, path: file.name })),
+          query.file,
+        )
+      : context.syntaxFiles.find((file) => file.id === context.active);
+    if (query.includeSource && !selected)
+      throw new DomainValidationError(
+        "No active syntax. Select a syntax file by name.",
+      );
+    const syntax = selected
+      ? context.syntaxForFile(selected.id)
+      : context.syntax;
     return {
       ...base,
       kind: query.kind,
       active: context.active,
-      files: context.syntaxFiles,
-      guide: context.syntax ? projectContentSyntaxGuide(context.syntax) : null,
+      files: context.syntaxFiles.map((file) => ({
+        id: file.id,
+        name: file.name,
+        ...(query.includeSource && selected?.id === file.id
+          ? { source: file.source }
+          : {}),
+      })),
+      guide: syntax ? projectContentSyntaxGuide(syntax) : null,
     };
+  }
   if (query.kind === "read") {
     const resource = resolveNamedContent(
       context.resources.filter(({ kind }) => kind !== "folder"),
@@ -189,43 +270,55 @@ function readQuery(
       tasks: tasks.filter(({ blockId }) => ids.has(blockId)),
     };
   }
-  const results: Extract<ContentQueryResult, { kind: "search" }>["results"] =
-    [];
-  if (
-    !query.text.trim() ||
-    !Number.isInteger(query.limit) ||
-    query.limit < 1 ||
-    query.limit > 100
-  )
-    throw new Error("Search requires text and a limit between 1 and 100.");
-  for (const resource of context.resources) {
-    if (resource.kind === "folder") continue;
-    const document = context.read(resource).document;
-    const input: SearchDocument =
-      context.scope.domain === "workspace"
-        ? {
-            ...document,
-            title: resource.path,
-            domain: "workspace",
-            repositoryId: context.scope.repository,
-          }
-        : { ...document, title: resource.path, domain: context.scope.domain };
-    for (const match of projectSearchDocumentResults(input, {
-      query: query.text,
-    })) {
-      if (results.length === query.limit)
-        return { ...base, kind: query.kind, results, truncated: true };
-      results.push({
-        resource,
-        blockId: match.blockId,
-        lineNumber:
-          document.blocks.find(({ blockId }) => blockId === match.blockId)
-            ?.lineNumber ?? null,
-        snippet: match.snippet,
-      });
+  if (!query.text.trim())
+    throw new DomainValidationError("Search requires non-empty text.");
+  const searchText = query.text;
+  function* matches(): Generator<
+    Extract<ContentQueryResult, { kind: "search" }>["results"][number]
+  > {
+    for (const resource of context.resources) {
+      if (resource.kind === "folder") continue;
+      const document = context.read(resource).document;
+      const input: SearchDocument =
+        context.scope.domain === "workspace"
+          ? {
+              ...document,
+              title: resource.path,
+              domain: "workspace",
+              repositoryId: context.scope.repository,
+            }
+          : { ...document, title: resource.path, domain: context.scope.domain };
+      for (const match of projectSearchDocumentResults(input, {
+        query: searchText,
+      }))
+        yield {
+          resource,
+          blockId: match.blockId,
+          lineNumber:
+            document.blocks.find(({ blockId }) => blockId === match.blockId)
+              ?.lineNumber ?? null,
+          snippet: match.snippet,
+        };
     }
   }
-  return { ...base, kind: query.kind, results, truncated: false };
+  const page = contentPage(matches(), {
+    basis: context.basis,
+    cursor: query.cursor,
+    limit: query.limit,
+    digest,
+    query: {
+      kind: query.kind,
+      scope: context.scope,
+      text: query.text,
+      limit: query.limit,
+    },
+  });
+  return {
+    ...base,
+    kind: query.kind,
+    results: page.items,
+    nextCursor: page.nextCursor,
+  };
 }
 
 function workspaceReadContext(
@@ -249,6 +342,7 @@ function workspaceReadContext(
       ...file,
       name: preparation.syntaxById.get(file.id)!.syntax.name,
     })),
+    syntaxForFile: (id) => preparation.syntaxById.get(id)!.syntax,
     read(resource) {
       const parsed = preparation.analysisIndex?.getParsedNote(resource.id);
       const { header, note } = preparation.workspace.noteEntryById.get(
@@ -325,6 +419,7 @@ export async function queryContent(
           repository.id,
         ),
         query,
+        ports.digest,
       );
     });
   }
@@ -351,6 +446,7 @@ export async function queryContent(
             source: snapshot.content.syntaxSource,
           },
         ],
+        syntaxForFile: () => index.syntax,
         read(resource) {
           const parsed = index.entries.find(
             ({ entry }) => entry.id === resource.id,
@@ -372,6 +468,7 @@ export async function queryContent(
         },
       },
       query,
+      ports.digest,
     );
   }
   const snapshot = await (await ports.todo()).loadSnapshot();
@@ -395,6 +492,7 @@ export async function queryContent(
           source: snapshot.content.syntaxSource,
         },
       ],
+      syntaxForFile: () => index.syntax,
       read(resource) {
         const collection = index.collections.find(
           ({ collection }) => collection.id === resource.id,
@@ -427,5 +525,6 @@ export async function queryContent(
       },
     },
     query,
+    ports.digest,
   );
 }
