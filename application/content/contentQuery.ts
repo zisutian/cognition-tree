@@ -31,6 +31,7 @@ import {
   type NamedContentResource,
 } from "./targetResolution.ts";
 import type {
+  ContentReadBasis,
   ContentCatalog,
   ContentRevision,
   ContentServicePorts,
@@ -54,7 +55,7 @@ export type ContentQuery =
   | { kind: "search"; scope: ContentScope; text: string; limit: number };
 
 export type ContentQueryResult = {
-  baseRevision: ContentRevision;
+  basis: ContentReadBasis;
   scope: ContentOperationScope;
 } & (
   | {
@@ -95,7 +96,7 @@ type QueryDocument = {
 };
 type ContentReadContext = {
   scope: ContentScope;
-  revision: ContentRevision;
+  basis: ContentReadBasis;
   resources: NamedContentResource[];
   syntax: CtnCompiledSyntax | null;
   syntaxFiles: { id: string; name: string; source: string }[];
@@ -121,7 +122,7 @@ function readQuery(
   context: ContentReadContext,
   query: Exclude<ContentQuery, { kind: "catalog" }>,
 ): ContentQueryResult {
-  const base = { baseRevision: context.revision, scope: context.scope };
+  const base = { basis: context.basis, scope: context.scope };
   if (query.kind === "directory")
     return { ...base, kind: query.kind, resources: context.resources };
   if (query.kind === "syntax")
@@ -229,11 +230,12 @@ function workspaceReadContext(
     ContentRevision
   >,
   ports: ContentServicePorts,
+  repositoryId: string,
 ): ContentReadContext {
   const preparation = snapshot.projection;
   return {
     scope,
-    revision: snapshot.revision,
+    basis: { baseRevision: snapshot.revision, repositoryId },
     resources: listWorkspaceResourcePaths(preparation.workspace),
     syntax: preparation.workspaceSyntax?.syntax ?? null,
     active: snapshot.content.syntax.activeFileId,
@@ -288,7 +290,7 @@ export async function queryContent(
         return {
           kind: "catalog",
           scope: { domain: "catalog" },
-          baseRevision: contentCatalogRevision(catalog, ports.digest),
+          basis: { baseRevision: contentCatalogRevision(catalog, ports.digest), repositoryId: null },
           repositories: catalog.repositories.map(({ id, label }) => ({
             id,
             name: label,
@@ -311,6 +313,7 @@ export async function queryContent(
           { domain: "workspace", repository: repository.name },
           await store.loadSnapshot(),
           ports,
+          repository.id,
         ),
         query,
       );
@@ -328,7 +331,7 @@ export async function queryContent(
     return readQuery(
       {
         scope: query.scope,
-        revision: snapshot.revision,
+        basis: { baseRevision: snapshot.revision, repositoryId: null },
         resources,
         syntax: index.syntax,
         active: "journal",
@@ -367,7 +370,7 @@ export async function queryContent(
   return readQuery(
     {
       scope: query.scope,
-      revision: snapshot.revision,
+      basis: { baseRevision: snapshot.revision, repositoryId: null },
       resources: index.collections.map(({ collection, name }) => ({
         id: collection.id,
         kind: "collection",

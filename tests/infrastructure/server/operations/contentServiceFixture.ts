@@ -74,12 +74,12 @@ export async function createContentServiceFixture(existingRoot?: string) {
       command: ContentCommand,
       operationId = randomUUID(),
     ) {
-      const { baseRevision } = await service.query(
+      const { basis } = await service.query(
         scope.domain === "catalog"
           ? { kind: "catalog" }
           : { kind: "directory", scope },
       );
-      return service.execute({ scope, command, baseRevision, operationId });
+      return service.execute({ scope, command, basis, operationId });
     },
     async read(
       scope: ContentScope,

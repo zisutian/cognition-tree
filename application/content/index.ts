@@ -10,6 +10,7 @@ export type {
   ContentScope,
 } from "./contentQuery.ts";
 export type {
+  ContentReadBasis,
   ContentCatalogSession,
   ContentServicePorts,
   ContentRevision,

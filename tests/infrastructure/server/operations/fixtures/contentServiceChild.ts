@@ -39,14 +39,14 @@ if (phase === "reopen") {
       },
     }),
   });
-  const { baseRevision } = await service.query({
+  const { basis } = await service.query({
     kind: "directory",
     scope: { domain: "journal" },
   });
   const request: ContentOperationRequest = {
     operationId: "journal-interrupted",
     scope: { domain: "journal" },
-    baseRevision,
+    basis,
     command: { kind: "create-entry", body: "- 中断后的真实内容" },
   };
   async function pause() {

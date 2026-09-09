@@ -240,7 +240,7 @@ test("queries durable local API results from the main panel without a detail sid
   const directory = await api.post("/api/v4/content/query", { data: { kind: "directory", scope: { domain: "journal" } } });
   expect(directory.ok()).toBe(true);
   const operationId = `e2e-local-${Date.now()}`;
-  const submitted = await api.post("/api/v4/content/operations", { data: { operationId, baseRevision: (await directory.json()).baseRevision, scope: { domain: "journal" }, command: { kind: "create-entry", body: "- 浏览器收据查询" } } });
+  const submitted = await api.post("/api/v4/content/operations", { data: { operationId, basis: (await directory.json()).basis, scope: { domain: "journal" }, command: { kind: "create-entry", body: "- 浏览器收据查询" } } });
   expect(submitted.ok()).toBe(true);
   await openWorkbench(page, syntaxRepositoryId);
   await getActivityButton(page, "设置").click();

@@ -6,7 +6,7 @@ import type {
   TodoRecurrenceRule,
 } from "../../core/todo/index.ts";
 import type { ContentOperationScope } from "../operations/index.ts";
-import type { ContentRevision } from "./contentPorts.ts";
+import type { ContentReadBasis } from "./contentPorts.ts";
 
 export type ContentCommand =
   | { kind: "create-repository"; name: string }
@@ -65,7 +65,7 @@ export type ContentCommand =
   | { kind: "activate-syntax" | "delete-syntax"; syntax: string };
 
 export type ContentOperationRequest = {
-  baseRevision: ContentRevision;
+  basis: ContentReadBasis;
   command: ContentCommand;
   operationId: string;
   scope: ContentOperationScope;

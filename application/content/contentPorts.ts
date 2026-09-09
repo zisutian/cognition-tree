@@ -21,6 +21,8 @@ import type {
 } from "../../core/todo/index.ts";
 import type { DomainChangeSet } from "../../core/sync/index.ts";
 
+export type ContentReadBasis = { baseRevision: `sha256:${string}`; repositoryId: string | null };
+
 export type ContentRevision = `sha256:${string}`;
 export type ContentWorkspaceStore = PreparedVersionedStore<
   WorkspaceRepositoryContent,

@@ -60,7 +60,7 @@ describe("local semantic content use cases on real storage", () => {
     expect(JSON.stringify(selected)).not.toContain("无关的长内容");
     const operation = {
       operationId: randomUUID(),
-      baseRevision: note.baseRevision,
+      basis: note.basis,
       scope: workspace,
       command: {
         kind: "edit-content" as const,
@@ -91,6 +91,25 @@ describe("local semantic content use cases on real storage", () => {
     ).toContain("精确改动");
   });
 
+  it("binds a write to its read repository even when another repository has identical content and reuses the name", async () => {
+    const value = await fixture();
+    await value.apply({ domain: "catalog" }, { kind: "create-repository", name: workspace.repository });
+    await value.apply(workspace, { kind: "create-note", parent: null, title: "目标", body: "- 原文" });
+    const read = await value.read(workspace, "目标");
+    const id = read.basis.repositoryId!;
+    const snapshot = await (await value.catalog.getStore(id)).loadSnapshot();
+    await value.catalog.renameRepository(id, { label: "已改名" });
+    const clone = await value.catalog.createRepository({ label: workspace.repository, content: snapshot.content });
+    const current = await value.read(workspace, "目标");
+    expect(current.basis.baseRevision).toBe(read.basis.baseRevision);
+    expect(clone.id).not.toBe(id);
+    const result = await value.service.execute({ operationId: randomUUID(), scope: workspace, basis: read.basis,
+      command: { kind: "edit-content", resource: "目标", edit: { kind: "replace-text", blockId: null, replacements: [{ oldText: "原文", newText: "误写" }] } } });
+    expect(result).toMatchObject({ status: "conflict", error: { code: "target_identity_conflict" } });
+    expect((await value.read(workspace, "目标")).document.editableText).toBe("- 原文");
+    expect((await value.read({ ...workspace, repository: "已改名" }, "目标")).document.editableText).toBe("- 原文");
+  });
+
   it("rejects stale name reuse after rename and commits cross-note moves once without changing identities", async () => {
     const value = await fixture();
     await value.apply(
@@ -118,7 +137,7 @@ describe("local semantic content use cases on real storage", () => {
     const rejected = await value.service.execute({
       scope: workspace,
       operationId: randomUUID(),
-      baseRevision: original.baseRevision,
+      basis: original.basis,
       command: { kind: "delete-note", resource: "原笔记" },
     });
     expect(rejected).toMatchObject({ status: "conflict" });

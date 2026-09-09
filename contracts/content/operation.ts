@@ -10,6 +10,8 @@ import {
 } from "../common/index.ts";
 import { ContentChangeReviewSchema } from "./changeReview.ts";
 
+export const ContentReadBasisSchema = strictObject({ baseRevision: revision, repositoryId: nullable(identifier) });
+
 export const ContentOperationScopeSchema = Type.Union([
   strictObject({ domain: Type.Literal("workspace"), repository: identifier }),
   strictObject({ domain: Type.Literal("catalog") }),

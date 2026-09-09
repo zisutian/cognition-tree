@@ -95,7 +95,7 @@ describe("local content API over HTTP", () => {
       );
       const create = {
         operationId: randomUUID(),
-        baseRevision: catalog.baseRevision,
+        basis: catalog.basis,
         scope: { domain: "catalog" },
         command: { kind: "create-repository", name: "语义仓库" },
       };
@@ -120,7 +120,7 @@ describe("local content API over HTTP", () => {
         ).join("\n");
       const createNote = await request("executeContentOperation", {
         operationId: randomUUID(),
-        baseRevision: directory.baseRevision,
+        basis: directory.basis,
         scope,
         command: {
           kind: "create-note",
@@ -151,7 +151,7 @@ describe("local content API over HTTP", () => {
       expect(JSON.stringify(selected.body)).not.toContain("无关内容");
       const edit = {
         operationId: randomUUID(),
-        baseRevision: read.baseRevision,
+        basis: read.basis,
         scope,
         command: {
           kind: "edit-content",
@@ -215,7 +215,7 @@ describe("local content API over HTTP", () => {
       });
       const interrupted = {
         operationId: randomUUID(),
-        baseRevision: initialJournal.baseRevision,
+        basis: initialJournal.basis,
         scope: { domain: "journal" as const },
         command: { kind: "create-entry" as const, body: "- 提交后断开连接" },
       };

@@ -3,7 +3,6 @@
 import { Type, type Static } from "@sinclair/typebox";
 import {
   ApiIdentifierSchema as identifier,
-  ApiResourceVersionSchema as revision,
   nullable,
   strictObject,
 } from "../common/index.ts";
@@ -11,7 +10,7 @@ import {
   TodoLocalDateSchema,
   TodoRecurrenceRuleSchema,
 } from "../todo/index.ts";
-import { ContentOperationScopeSchema } from "./operation.ts";
+import { ContentReadBasisSchema, ContentOperationScopeSchema } from "./operation.ts";
 
 const position = Type.Union([
   Type.Literal("above"),
@@ -151,7 +150,7 @@ export const ContentCommandSchema = Type.Union([
   }),
 ]);
 export const ContentOperationRequestSchema = strictObject({
-  baseRevision: revision,
+  basis: ContentReadBasisSchema,
   command: ContentCommandSchema,
   operationId: Type.String({
     minLength: 1,

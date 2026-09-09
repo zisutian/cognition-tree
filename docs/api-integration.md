@@ -16,7 +16,7 @@ Workspace 每次显式给出仓库名称。在该仓库中，笔记标题唯一�
 
 定位遵守现有名称归一化规则。只有唯一匹配才成功，找不到或存在歧义会返回明确错误；歧义包含候选相对路径。搜索可用关键词，写入不使用模糊匹配，不取第一个候选。业务标题、磁盘文件名和稳定 ID 均不重写，也不建立短编号或别名表。
 
-目录和局部读取都返回存储 `baseRevision`。服务在同一权威快照上检查该版本并解析目标，旧请求不会因重命名、移动、删除或名称复用而转向另一对象。块操作使用局部读取结果中的块 ID；无需再次携带仓库和笔记的长 ID。
+目录和局部读取返回 `basis`，包含存储 `baseRevision` 和已解析的 `repositoryId`（非 Workspace 为 null）。提交必须原样携带整个 basis。服务验证名称仍指向读取时的仓库，再在同一权威快照上检查版本并解析资源，旧请求不会因重命名、移动、删除或名称复用而转向另一对象。块操作使用局部读取结果中的块 ID；无需再次携带仓库和笔记的长 ID。
 
 ## CLI 读取
 
@@ -41,12 +41,12 @@ Workspace 每次显式给出仓库名称。在该仓库中，笔记标题唯一�
 
 ## 单次修改
 
-操作文件包含自行分配且不复用的 `operationId`、从查询取得的 `baseRevision`、明确 scope 和一个领域命令。下面只演示形状；请将版本替换为实际读取结果：
+操作文件包含自行分配且不复用的 `operationId`、从查询取得的 `basis`、明确 scope 和一个领域命令。下面只演示形状；请将版本替换为实际读取结果：
 
 ```json
 {
   "operationId": "process-note-edit-20260909-1",
-  "baseRevision": "从读取响应原样复制",
+  "basis": { "baseRevision": "从读取响应原样复制", "repositoryId": "从读取响应原样复制" },
   "scope": { "domain": "workspace", "repository": "学习资料" },
   "command": {
     "kind": "edit-content",
@@ -67,7 +67,7 @@ Workspace 每次显式给出仓库名称。在该仓库中，笔记标题唯一�
 
 `replace-text` 将全部片段在原文上定位后原子修改。旧文本在所选资源或块内必须唯一出现；零匹配、多匹配或片段重叠都拒绝整次请求。`set-block-text` 只修改块自身文字，`delete-subtree` 删除整个子树，`insert-blocks` 和 `move-block` 显式指定位置。Workspace 支持跨笔记移动；Journal 和 Todo 的块移动各自限制在一条记录或一个集合内。服务端生成新身份，保留未修改内容的身份和时间戳。
 
-Todo 的完成与周期命令消费读取返回的任务状态，周期任务使用当前 occurrenceDate，普通任务使用 null。仓库管理使用 `scope.domain: "catalog"` 和 catalog 查询返回的目录版本；语法修改仍由相应领域验证。全部命令结构见 OpenAPI 和 [内容命令 schema](../contracts/content/commands.ts)。
+Todo 的完成与周期命令消费读取返回的任务状态，周期任务使用当前 occurrenceDate，普通任务使用 null。仓库管理使用 `scope.domain: "catalog"` 和 catalog 查询返回的 basis；语法修改仍由相应领域验证。全部命令结构见 OpenAPI 和 [内容命令 schema](../contracts/content/commands.ts)。
 
 一条请求只提交一个领域操作；同资源多个精确片段可以一起提交。不支持跨仓库、跨领域事务或强制覆盖。版本过期返回冲突，不自动合并、重新计算或重试。成功响应给出实际修改摘要、受影响身份、有限上下文差异和新版本，不附带整个领域快照。输入上限由 registry 定义，当前内容操作为 4 MiB。
 

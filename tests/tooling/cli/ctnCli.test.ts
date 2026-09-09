@@ -100,7 +100,7 @@ describe("local content CLI", () => {
     const catalog = JSON.parse(io.output.mock.lastCall![0]);
     const operationId = randomUUID();
     const file = path.join(fixture.root, "operation.json");
-    await writeFile(file, JSON.stringify({ operationId, scope: { domain: "catalog" }, baseRevision: catalog.baseRevision, command: { kind: "create-repository", name: "学习资料" } }));
+    await writeFile(file, JSON.stringify({ operationId, scope: { domain: "catalog" }, basis: catalog.basis, command: { kind: "create-repository", name: "学习资料" } }));
     const client = new CliHttpClient({ origin });
     const request = vi.fn(async (method: string, endpoint: string, body?: unknown) => {
       const result = await client.request(method, endpoint, body);
@@ -117,6 +117,6 @@ describe("local content CLI", () => {
     expect(await runCtnCli([...args, "read", "workspace", "--repository", "学习资料", "--resource", "操作系统"], { io })).toBe(0);
     const note = JSON.parse(io.output.mock.lastCall![0]);
     expect(note.document.editableText).toBe("- 进程管理");
-    expect(note.baseRevision).toMatch(/^sha256:/);
+    expect(note.basis.baseRevision).toMatch(/^sha256:/);
   });
 });

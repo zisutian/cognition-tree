@@ -27,7 +27,7 @@ export async function verifyLocalContent({ directory, origin }) {
   const catalog = cli("catalog");
   const created = await apply({
     operationId: "smoke-create-repository",
-    baseRevision: catalog.baseRevision,
+    basis: catalog.basis,
     scope: { domain: "catalog" },
     command: { kind: "create-repository", name: "验收仓库" },
   });
@@ -41,7 +41,7 @@ export async function verifyLocalContent({ directory, origin }) {
   );
   await apply({
     operationId: "smoke-create-note",
-    baseRevision: directoryResult.baseRevision,
+    basis: directoryResult.basis,
     scope,
     command: {
       kind: "create-note",
@@ -65,7 +65,7 @@ export async function verifyLocalContent({ directory, origin }) {
   assert.equal(read("--block", blockId).document.editableText, "- 验收内容");
   const request = {
     operationId: "smoke-edit-note",
-    baseRevision: before.baseRevision,
+    basis: before.basis,
     scope,
     command: {
       kind: "edit-content",
@@ -82,7 +82,7 @@ export async function verifyLocalContent({ directory, origin }) {
   assert.deepEqual(await apply(request), receipt);
   assert.deepEqual(cli("result", request.operationId), receipt);
   assert.equal(read().document.editableText, "- 已修改内容\n- 保留内容");
-  assert.equal(read().baseRevision, receipt.afterRevision);
+  assert.equal(read().basis.baseRevision, receipt.afterRevision);
   const rejected = await fetch(`${origin}/api/v4/health`, {
     headers: { Authorization: "Bearer retired-smoke-fixture" },
   });

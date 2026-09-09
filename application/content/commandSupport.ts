@@ -18,6 +18,10 @@ import type { ContentCommand } from "./contentCommand.ts";
 import type { ContentRevision } from "./contentPorts.ts";
 import { ContentTargetError } from "./targetResolution.ts";
 
+export class ContentBasisMismatchError extends Error {
+  constructor() { super("The read basis belongs to a different repository. Read the intended target again."); this.name = "ContentBasisMismatchError"; }
+}
+
 export function commandFailure(
   error: unknown,
   uncertain = false,
@@ -27,11 +31,11 @@ export function commandFailure(
     afterRevision: null,
     changeMetadata: { resourceIds: [], blockIds: [] },
     review: null,
-    status: conflict ? "conflict" : uncertain ? "indeterminate" : "failed",
+    status: conflict || error instanceof ContentBasisMismatchError ? "conflict" : uncertain ? "indeterminate" : "failed",
     error: {
       code: conflict
         ? "revision_conflict"
-        : uncertain
+        : error instanceof ContentBasisMismatchError ? "target_identity_conflict" : uncertain
           ? "operation_indeterminate"
           : error instanceof ContentTargetError
             ? error.code

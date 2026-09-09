@@ -32,7 +32,7 @@ const usage = `ctn --server <本机服务地址> <命令>
   read <领域> --resource <标题或相对路径> [--block <块ID>] [--subtree]
   search <领域> --text <关键词> [--limit <1..100>]
   query --file <查询JSON>
-  apply --file <操作JSON，含operationId与baseRevision>
+  apply --file <操作JSON，含operationId与basis>
   result <操作ID>
   openapi
 Workspace 每次显式指定 --repository；不使用默认仓库或保存的凭据。`;

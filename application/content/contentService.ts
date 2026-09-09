@@ -15,7 +15,7 @@ import {
   queryContent,
   type ContentQuery,
 } from "./contentQuery.ts";
-import { commandFailure, requireRevision } from "./commandSupport.ts";
+import { commandFailure, requireRevision, ContentBasisMismatchError } from "./commandSupport.ts";
 import { executeJournalContentCommand } from "./journalCommand.ts";
 import { resolveNamedContent } from "./targetResolution.ts";
 import { executeTodoContentCommand } from "./todoCommand.ts";
@@ -39,7 +39,7 @@ export class ContentService {
     return this.#ports.ledger.runContentOperation(
       {
         operationId,
-        baseRevision: request.baseRevision,
+        baseRevision: request.basis.baseRevision,
         command: request.command.kind,
         scope: request.scope,
         digest: this.#ports.digest(payload),
@@ -47,6 +47,7 @@ export class ContentService {
       },
       async () => {
         try {
+          if (request.scope.domain !== "workspace" && request.basis.repositoryId !== null) throw new ContentBasisMismatchError();
           if (request.scope.domain === "catalog")
             return await this.#executeCatalog(request, timestamp);
           if (request.scope.domain === "workspace") {
@@ -61,11 +62,12 @@ export class ContentService {
                 })),
                 selector,
               );
+              if (repository.id !== request.basis.repositoryId) throw new ContentBasisMismatchError();
               return executeWorkspaceContentCommand(
                 this.#ports,
                 await session.getStore(repository.id),
                 repository,
-                request.baseRevision,
+                request.basis.baseRevision,
                 request.command,
                 timestamp,
               );
@@ -75,14 +77,14 @@ export class ContentService {
             return await executeJournalContentCommand(
               this.#ports,
               await this.#ports.journal(),
-              request.baseRevision,
+              request.basis.baseRevision,
               request.command,
               timestamp,
             );
           return await executeTodoContentCommand(
             this.#ports,
             await this.#ports.todo(),
-            request.baseRevision,
+            request.basis.baseRevision,
             request.command,
             timestamp,
           );
@@ -99,7 +101,7 @@ export class ContentService {
         const before = await session.read();
         requireRevision(
           contentCatalogRevision(before, this.#ports.digest),
-          request.baseRevision,
+          request.basis.baseRevision,
         );
         const command = request.command;
         if (

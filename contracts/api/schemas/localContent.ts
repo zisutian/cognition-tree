@@ -3,11 +3,10 @@
 import { Type, type Static } from "@sinclair/typebox";
 import {
   ApiIdentifierSchema as identifier,
-  ApiResourceVersionSchema as revision,
   nullable,
   strictObject,
 } from "../../common/index.ts";
-import { ContentOperationScopeSchema } from "../../content/index.ts";
+import { ContentReadBasisSchema, ContentOperationScopeSchema } from "../../content/index.ts";
 import {
   ApiCtnDocumentSchema,
   ApiSyntaxGuideSchema,
@@ -49,7 +48,7 @@ const resource = strictObject({
   name: Type.String(),
   path: Type.String(),
 });
-const base = { baseRevision: revision, scope: ContentOperationScopeSchema };
+const base = { basis: ContentReadBasisSchema, scope: ContentOperationScopeSchema };
 export const ContentQueryResultSchema = Type.Union([
   strictObject({
     ...base,

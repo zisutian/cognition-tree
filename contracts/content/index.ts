@@ -2,6 +2,7 @@
 
 export { ContentChangeReviewSchema } from "./changeReview.ts";
 export {
+  ContentReadBasisSchema,
   ContentOperationResultSchema,
   ContentOperationScopeSchema,
 } from "./operation.ts";
