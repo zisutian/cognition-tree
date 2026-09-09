@@ -94,10 +94,11 @@ export function LocalApiSettingsPanel({
           <p>
             在对话中确认修改后，由本机客户端直接提交。内置智能体仍使用原有提案审批。
           </p>
-          <pre className="local-api-example">{`./ctn --server ${api.serviceOrigin} catalog\n./ctn --server ${api.serviceOrigin} directory workspace --repository '仓库名称'\n./ctn --server ${api.serviceOrigin} apply --file operation.json`}</pre>
+          <pre className="local-api-example">{`./ctn --server ${api.serviceOrigin} catalog\n./ctn --server ${api.serviceOrigin} directory workspace --repository '仓库名称' > read.json\n./ctn --server ${api.serviceOrigin} apply --from read.json --file command.json`}</pre>
           <p>
-            每次修改携带独立操作 ID 和读取时的
-            baseRevision。版本过期时重新读取并确认修改；结果不确定时先查询收据和受影响内容，不自动重放。
+            每次修改复用读取结果中的完整 basis（身份与版本）。CLI 可通过 --from
+            读取，自动生成操作 ID
+            并在发送前显示。版本过期时重新读取并确认修改；结果不确定时先查询收据和受影响内容，不自动重放。
           </p>
         </ToolSection>
         <ToolSection title="查询操作结果">
