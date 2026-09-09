@@ -1,14 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { OpenApiSchemas } from "./openApiSchemas.ts";
 import type { TSchema } from "@sinclair/typebox";
-import {
-ApiErrorResponseSchema,
-apiOperations,
-} from "./registry.ts";
-
-function jsonSchema(schema: TSchema): Record<string, unknown> {
-  return JSON.parse(JSON.stringify(schema)) as Record<string, unknown>;
-}
+import { ApiErrorResponseSchema, apiOperations } from "./registry.ts";
 
 function pathParameters(path: string) {
   return [...path.matchAll(/\{([^}]+)\}/g)].map((match) => ({
@@ -19,14 +13,15 @@ function pathParameters(path: string) {
   }));
 }
 
-function queryParameters(schema: TSchema | undefined) {
+function queryParameters(
+  schema: TSchema | undefined,
+  jsonSchema: (schema: TSchema) => Record<string, unknown>,
+) {
   if (!schema || schema.type !== "object") return [];
   const required = new Set(
-    Array.isArray(schema.required) ? schema.required as string[] : [],
+    Array.isArray(schema.required) ? (schema.required as string[]) : [],
   );
-  const properties = schema.properties as
-    | Record<string, TSchema>
-    | undefined;
+  const properties = schema.properties as Record<string, TSchema> | undefined;
 
   return Object.entries(properties ?? {}).map(([name, property]) => ({
     in: "query",
@@ -40,19 +35,26 @@ function operationTag(path: string) {
   return path.split("/")[3]?.replace(/\.json$/, "") ?? "api";
 }
 
-const errorResponse = {
-  content: {
-    "application/json": {
-      schema: jsonSchema(ApiErrorResponseSchema),
+export function createApiOpenApiDocument({
+  contentOnly = false,
+}: { contentOnly?: boolean } = {}) {
+  const registry = new OpenApiSchemas();
+  const jsonSchema = (schema: TSchema, hint?: string) =>
+    registry.reference(schema, hint);
+  const errorResponse = {
+    content: {
+      "application/json": {
+        schema: jsonSchema(ApiErrorResponseSchema),
+      },
     },
-  },
-  description: "CTN API error envelope",
-};
+    description: "CTN API error envelope",
+  };
 
-export function createApiOpenApiDocument() {
   const paths: Record<string, Record<string, unknown>> = {};
 
-  for (const operation of apiOperations) {
+  for (const operation of apiOperations.filter(
+    (operation) => !contentOnly || operation.access.kind === "local-content",
+  )) {
     const path = paths[operation.path] ?? {};
     const mediaType = operation.responseMediaType ?? "application/json";
     const responses = Object.fromEntries([
@@ -62,25 +64,27 @@ export function createApiOpenApiDocument() {
           ? { description: "No content" }
           : {
               content: {
-                [mediaType]: { schema: jsonSchema(schema) },
+                [mediaType]: {
+                  schema: jsonSchema(
+                    schema,
+                    `${operation.operationId}Response${status}`,
+                  ),
+                },
               },
-              description: mediaType === "text/event-stream"
-                ? "Checkpoint followed by change notifications"
-                : "Successful response",
+              description:
+                mediaType === "text/event-stream"
+                  ? "Checkpoint followed by change notifications"
+                  : Number(status) >= 400
+                    ? "Rejected or uncertain operation"
+                    : "Successful response",
             },
       ]),
-      ...[
-        400,
-        401,
-        403,
-        404,
-        409,
-        422,
-        423,
-        500,
-        503,
-        507,
-      ].map((status) => [String(status), errorResponse]),
+      ...[400, 401, 403, 404, 409, 422, 423, 500, 503, 507]
+        .filter(
+          (status) =>
+            !Object.prototype.hasOwnProperty.call(operation.responses, status),
+        )
+        .map((status) => [String(status), errorResponse]),
     ]);
 
     path[operation.method.toLowerCase()] = {
@@ -89,7 +93,10 @@ export function createApiOpenApiDocument() {
             requestBody: {
               content: {
                 "application/json": {
-                  schema: jsonSchema(operation.body.schema),
+                  schema: jsonSchema(
+                    operation.body.schema,
+                    `${operation.operationId}Request`,
+                  ),
                 },
               },
               required: true,
@@ -99,10 +106,12 @@ export function createApiOpenApiDocument() {
       operationId: operation.operationId,
       parameters: [
         ...pathParameters(operation.path),
-        ...queryParameters(operation.query),
+        ...queryParameters(operation.query, jsonSchema),
       ],
       responses,
-      security: ["public", "local-recovery", "local-content"].includes(operation.access.kind)
+      security: ["public", "local-recovery", "local-content"].includes(
+        operation.access.kind,
+      )
         ? []
         : [{}, { ownerSession: [] }],
       tags: [operationTag(operation.path)],
@@ -113,10 +122,14 @@ export function createApiOpenApiDocument() {
 
   return {
     components: {
+      schemas: registry.finalize(paths),
       securitySchemes: {
         ownerSession: {
-          type: "apiKey", in: "cookie", name: "ctn_owner_session",
-          description: "Existing owner browser session. Verified loopback socket plus local Host may omit authentication. Authorization headers are rejected.",
+          type: "apiKey",
+          in: "cookie",
+          name: "ctn_owner_session",
+          description:
+            "Existing owner browser session. Verified loopback socket plus local Host may omit authentication. Authorization headers are rejected.",
         },
       },
     },

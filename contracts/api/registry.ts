@@ -15,9 +15,9 @@ import { parseApiSchema } from "./parse.ts";
 import { ApiErrorSchema } from "./schemas/foundation.ts";
 
 export type {
-ApiAccessPolicy,
-ApiOperationDefinition,
-ApiReadableDomain
+  ApiAccessPolicy,
+  ApiOperationDefinition,
+  ApiReadableDomain,
 } from "./operations/definition.ts";
 
 export const apiOperationCatalogs = {
@@ -71,7 +71,9 @@ export type ApiRouteParameters = {
 };
 
 export function getApiOperation(operationId: string): ApiOperationDefinition {
-  const operation = apiOperations.find((candidate) => candidate.operationId === operationId);
+  const operation = apiOperations.find(
+    (candidate) => candidate.operationId === operationId,
+  );
   if (!operation) throw new Error(`Unknown API operation: ${operationId}`);
   return operation;
 }
@@ -79,24 +81,41 @@ export function getApiOperation(operationId: string): ApiOperationDefinition {
 export function buildApiOperationPath(
   operationId: string,
   parameters: ApiRouteParameters = {},
+  query?: Readonly<Record<string, string | number>>,
 ) {
   const operation = getApiOperation(operationId);
   const used = new Set<string>();
-  const result = operation.path.replace(/\{([^}]+)\}/g, (_match, name: string) => {
-    const value = parameters[name as keyof ApiRouteParameters];
-    if (!value || value === "." || value === "..") {
-      throw new Error(`API operation ${operationId} requires a valid ${name}`);
-    }
-    used.add(name);
-    return encodeURIComponent(value);
-  });
+  const result = operation.path.replace(
+    /\{([^}]+)\}/g,
+    (_match, name: string) => {
+      const value = parameters[name as keyof ApiRouteParameters];
+      if (!value || value === "." || value === "..") {
+        throw new Error(
+          `API operation ${operationId} requires a valid ${name}`,
+        );
+      }
+      used.add(name);
+      return encodeURIComponent(value);
+    },
+  );
   if (Object.keys(parameters).some((name) => !used.has(name))) {
-    throw new Error(`API operation ${operationId} received an unexpected route parameter`);
+    throw new Error(
+      `API operation ${operationId} received an unexpected route parameter`,
+    );
   }
-  return result;
+  if (query === undefined) return result;
+  const search = new URLSearchParams(
+    Object.entries(query).map(([key, value]) => [key, String(value)]),
+  );
+  parseApiOperationQuery(operation, search);
+  return search.size ? `${result}?${search}` : result;
 }
 
-export function parseApiOperationResponse(operationId: string, statusCode: number, input: unknown) {
+export function parseApiOperationResponse(
+  operationId: string,
+  statusCode: number,
+  input: unknown,
+) {
   const operation = getApiOperation(operationId);
   assertApiOperationResponse(operation, statusCode, input);
   return input;
@@ -119,14 +138,16 @@ function groupRoutes() {
     current.push(definition);
     routes.set(definition.path, current);
   }
-  return [...routes.entries()].map(([path, operations]) => ({
-    methods: operations.map(({ method }) => method),
-    operations: new Map(operations.map((candidate) => [
-      candidate.method,
-      candidate,
-    ])),
-    path,
-  } satisfies ApiRouteDefinition));
+  return [...routes.entries()].map(
+    ([path, operations]) =>
+      ({
+        methods: operations.map(({ method }) => method),
+        operations: new Map(
+          operations.map((candidate) => [candidate.method, candidate]),
+        ),
+        path,
+      }) satisfies ApiRouteDefinition,
+  );
 }
 
 export const apiRouteDefinitions = groupRoutes();
@@ -176,9 +197,14 @@ export function resolveApiRoute(pathname: string): ResolvedApiRoute | null {
 export const apiAllowedMethods = [
   ...new Set(apiOperations.map(({ method }) => method)),
   "OPTIONS",
-].sort().join(", ");
+]
+  .sort()
+  .join(", ");
 
-export function getApiRouteOperation(route: ApiRouteDefinition, method: string) {
+export function getApiRouteOperation(
+  route: ApiRouteDefinition,
+  method: string,
+) {
   const operation = route.operations.get(method);
 
   if (!operation) {
@@ -222,11 +248,7 @@ export function parseApiOperationQuery(
 
   for (const [key, value] of entries) {
     if (key in source) {
-      failWireContract(
-        "CTN API v4",
-        `$.${key}`,
-        "duplicate query parameter",
-      );
+      failWireContract("CTN API v4", `$.${key}`, "duplicate query parameter");
     }
     source[key] = properties?.[key]?.type === "integer" ? Number(value) : value;
   }

@@ -77,6 +77,9 @@ E2E 并发数可用 `CTN_E2E_WORKERS` 调整；同一结果应记录采用的配
 `tests/application/content` 验证名称、Unicode、相对路径及歧义规则；
 `tests/infrastructure/server/operations` 使用真实临时仓库验证精确修改、身份、版本、收据及进程中断；
 `tests/infrastructure/server/api/localContentApi.test.ts` 与 `tests/tooling/cli` 验证 registry 契约、实际 HTTP 传输和不重放行为。
+本机 API 回归包括同内容仓库名称复用、无语法的唯一原文编辑、分页期间版本变化，以及标准输入复用查询 basis。
+收据使用真实磁盘验证累计超过单文件容量、旧账本可重入迁移、提交前核对信息和提交前后子进程终止；浏览器仓库管理同样覆盖目录版本冲突。
+`tests/contracts/openApi.test.ts` 检查完整与内容专用契约的引用可解析性，并展开代表性 schema 与 registry 对照，包括递归树与错误收据，避免通过精简丢失约束。
 旧令牌测试已转为认证退出和历史状态保留测试，不以替身继续模拟已移除的认证能力。
 浏览器设置回归包含本机 API 收据查询，查询不构成配置修改。既有所有者密钥、Agent 登录、编辑器、迁移和保存冲突仍保留原有验证边界。
 

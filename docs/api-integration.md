@@ -31,6 +31,7 @@ Workspace 每次显式给出仓库名称。在该仓库中，笔记标题唯一�
 ./ctn --server http://127.0.0.1:3001 directory journal
 ./ctn --server http://127.0.0.1:3001 directory todo
 ./ctn --server http://127.0.0.1:3001 openapi
+./ctn --server http://127.0.0.1:3001 openapi --content
 ```
 
 `read` 可附加 `--block <块ID>`；加 `--subtree` 同时读取该块的后代。返回的范围和块位置仍相对于完整资源正文，正文只包含所选部分。无活动语法时仍能读原文，不能按块定位。`syntax` 默认返回语法名称和写作指南，不携带源码。加 `--source` 取得当前活动语法源码；`--file <语法名称>` 可选择另一份语法，再用 `--source` 读取它的源码。
@@ -53,6 +54,8 @@ JSON
 CLI 从 `--from` 读取 scope 和完整 basis，自动生成操作 ID，在发送前写到标准错误；标准输出只返回 JSON 结果。`--id` 可显式指定 ID，不能与输入文件中的 ID 冲突。`query`、`apply` 的 `--file -` 支持标准输入；两份输入不能同时使用标准输入。CLI 不会自动获取更新版本。
 
 `./ctn help` 列出全部内容命令；`./ctn help workspace` 按领域筛选；`./ctn help edit-content` 和 `./ctn help replace-text` 给出对应参数契约，均不需要启动服务。帮助和领域支持关系直接来自命令契约。
+
+`openapi --content` 只导出本机查询、内容提交和收据查询的契约；`openapi` 保留浏览器同步、设置与内置 Agent 的完整契约。两者均使用文档内的共享 schema 引用，引用目标随文档一起提供，无需额外下载。直接 HTTP 读取可使用 OpenAPI 入口的 `scope=content` 查询参数；错误状态中的收据结构与运行时 registry 一致。
 
 也可提供完整操作文件，包含从查询取得的 `basis`、明确 scope 和一个领域命令。省略 `operationId` 时由 CLI 生成；以下手工示例仅展示 HTTP 请求形状：
 

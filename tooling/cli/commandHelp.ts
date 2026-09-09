@@ -15,7 +15,7 @@ export const cliUsage = `ctn --server <本机服务地址> <命令>
   apply --from <查询响应JSON> --file <命令JSON或-> [--id <操作ID>]
   apply --file <完整操作JSON或-> [--id <操作ID>]
   result <操作ID>
-  openapi
+  openapi [--content]
   help [领域或内容命令]
 Workspace 每次显式指定 --repository；不使用默认仓库或保存的凭据。
 apply 默认生成操作 ID，发送前打印到标准错误；不自动读取新版本或重放。`;

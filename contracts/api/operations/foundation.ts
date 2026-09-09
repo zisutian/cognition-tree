@@ -8,7 +8,29 @@ import { publicAccess, type ApiOperationDefinition } from "./definition.ts";
 const openApiDocumentSchema = Type.Record(Type.String(), Type.Unknown());
 
 export const foundationApiOperations = [
-  { access: publicAccess(), method: "GET", operationId: "getHealth", path: "/api/v4/health", responses: { 200: ApiHealthSchema } },
-  { access: publicAccess(), method: "GET", operationId: "getCapabilities", path: "/api/v4/capabilities", responses: { 200: ApiCapabilitiesSchema } },
-  { access: publicAccess(), method: "GET", operationId: "getOpenApi", path: "/api/v4/openapi.json", responses: { 200: openApiDocumentSchema } },
+  {
+    access: publicAccess(),
+    method: "GET",
+    operationId: "getHealth",
+    path: "/api/v4/health",
+    responses: { 200: ApiHealthSchema },
+  },
+  {
+    access: publicAccess(),
+    method: "GET",
+    operationId: "getCapabilities",
+    path: "/api/v4/capabilities",
+    responses: { 200: ApiCapabilitiesSchema },
+  },
+  {
+    access: publicAccess(),
+    method: "GET",
+    operationId: "getOpenApi",
+    query: Type.Object(
+      { scope: Type.Optional(Type.Literal("content")) },
+      { additionalProperties: false },
+    ),
+    path: "/api/v4/openapi.json",
+    responses: { 200: openApiDocumentSchema },
+  },
 ] as const satisfies readonly ApiOperationDefinition[];

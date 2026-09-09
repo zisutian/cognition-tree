@@ -67,7 +67,12 @@ export async function handleApiRoute(
     return handleOwnerSession(context);
   }
   if (operation.operationId === "getOpenApi") {
-    return { body: createApiOpenApiDocument(), statusCode: 200 };
+    return {
+      body: createApiOpenApiDocument({
+        contentOnly: (context.query as { scope?: string }).scope === "content",
+      }),
+      statusCode: 200,
+    };
   }
   if (!context.principal) {
     throw new ApiRequestError(

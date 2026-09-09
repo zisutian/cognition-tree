@@ -119,6 +119,7 @@ async function call(
   operationId: string,
   body?: unknown,
   parameters: { operationId?: string } = {},
+  query?: Record<string, string | number>,
 ) {
   const operation = getApiOperation(operationId);
   const request = operation.body
@@ -126,7 +127,7 @@ async function call(
     : undefined;
   const response = await api.request(
     operation.method,
-    buildApiOperationPath(operationId, parameters),
+    buildApiOperationPath(operationId, parameters, query),
     request,
   );
   if (
@@ -207,11 +208,15 @@ export async function runCtnCli(
       dependencies.createClient?.({ origin }) ?? new CliHttpClient({ origin });
     let result: unknown;
     if (command === "catalog" || command === "openapi") {
+      const content = command === "openapi" ? args.indexOf("--content") : -1;
+      if (content >= 0) args.splice(content, 1);
       noArguments(args);
       result = await call(
         api,
         command === "catalog" ? "queryLocalContent" : "getOpenApi",
         command === "catalog" ? { kind: "catalog" } : undefined,
+        {},
+        content >= 0 ? { scope: "content" } : undefined,
       );
     } else if (command === "result") {
       const operationId = args.shift();

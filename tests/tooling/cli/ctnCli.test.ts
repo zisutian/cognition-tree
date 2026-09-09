@@ -170,6 +170,13 @@ describe("local content CLI", () => {
     const origin = `http://127.0.0.1:${address.port}`;
     const io = { error: vi.fn(), output: vi.fn() };
     const args = ["--server", origin];
+    expect(await runCtnCli([...args, "openapi", "--content"], { io })).toBe(0);
+    const contentContract = JSON.parse(io.output.mock.lastCall![0]);
+    expect(Object.keys(contentContract.paths)).toHaveLength(3);
+    expect(
+      contentContract.paths["/api/v4/content/operations"].post.responses["409"]
+        .content["application/json"].schema.$ref,
+    ).toMatch(/^#\/components\/schemas\//);
     expect(await runCtnCli([...args, "catalog"], { io })).toBe(0);
     const catalog = JSON.parse(io.output.mock.lastCall![0]);
     const operationId = randomUUID();
