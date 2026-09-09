@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-AgentOperationAttempt,
-AgentOperationIdentity,
-ContentOperationIntent,ContentOperationOutcome,
+  AgentOperationAttempt,
+  AgentOperationIdentity,
+  ContentOperationIntent,
+  ContentOperationOutcome,
 } from "../../../application/operations/index.ts";
 import type { AgentOperationAuditEntryDto } from "../../../contracts/agent/index.ts";
 import type { SecureStateFileReplacer } from "../state/index.ts";
 import { AgentOperationLedger } from "./agentOperationLedger.ts";
+import { ContentReceiptStore } from "./contentReceiptStore.ts";
 import { ContentOperationLedger } from "./contentOperationLedger.ts";
 import { OperationLedgerStore } from "./operationLedgerStore.ts";
 
@@ -28,8 +30,13 @@ export class OperationLedger {
   ) {
     const now = options.now ?? (() => new Date().toISOString());
 
+    const receipts = new ContentReceiptStore(
+      stateDirectory,
+      options.replaceStateFile,
+    );
     this.#store = new OperationLedgerStore(stateDirectory, maxAuditEntries, {
       now,
+      migrateContentReceipts: (legacy) => receipts.importLegacy(legacy),
       ...(options.replaceStateFile
         ? { replaceStateFile: options.replaceStateFile }
         : {}),
@@ -39,14 +46,13 @@ export class OperationLedger {
       ...(options.receiptRetentionMilliseconds === undefined
         ? {}
         : {
-            receiptRetentionMilliseconds:
-              options.receiptRetentionMilliseconds,
+            receiptRetentionMilliseconds: options.receiptRetentionMilliseconds,
           }),
       ...(options.runtimeId === undefined
         ? {}
         : { runtimeId: options.runtimeId }),
     });
-    this.#content = new ContentOperationLedger(this.#store, now);
+    this.#content = new ContentOperationLedger(this.#store, receipts, now);
   }
 
   initialize() {
@@ -61,7 +67,10 @@ export class OperationLedger {
     return this.#content.getContentOperation(operationId);
   }
 
-  runContentOperation(intent: ContentOperationIntent, execute: () => Promise<ContentOperationOutcome>) {
+  runContentOperation(
+    intent: ContentOperationIntent,
+    execute: () => Promise<ContentOperationOutcome>,
+  ) {
     return this.#content.runContentOperation(intent, execute);
   }
 

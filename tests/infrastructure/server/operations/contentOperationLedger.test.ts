@@ -206,3 +206,134 @@ it("retains historical trusted-client audit when upgrading a version 2 ledger", 
     (await reopened.list({ cursor: 0, limit: 10 })).entries,
   ).toContainEqual(entry);
 });
+
+it("keeps receipts usable after their aggregate size exceeds the former 64 MiB partition limit", async () => {
+  const root = await temporaryRoot();
+  const ledger = new OperationLedger(root, 1);
+  await ledger.initialize();
+  const large: ContentOperationOutcome = {
+    ...committed,
+    review: {
+      storeLabel: "日记",
+      resources: [
+        {
+          type: "journal-entry",
+          resourceId: "entry-1",
+          actions: ["content-updated"],
+          before: { label: "记录", path: "记录" },
+          after: { label: "记录", path: "记录" },
+          blockSummary: {
+            created: 0,
+            deleted: 0,
+            moved: 0,
+            stateUpdated: 0,
+            updated: 1,
+          },
+          diff: [
+            {
+              lines: [
+                {
+                  beforeLineNumber: 1,
+                  afterLineNumber: null,
+                  kind: "removed",
+                  text: "x".repeat(4 * 1024 * 1024),
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  };
+  for (let index = 0; index < 17; index++) {
+    expect(
+      (
+        await ledger.runContentOperation(
+          { ...intent, operationId: `large-${index}` },
+          async () => large,
+        )
+      ).audit,
+    ).toBe("recorded");
+  }
+  expect(
+    (await readFile(path.join(root, "operations-v1", "operations.json")))
+      .length,
+  ).toBeLessThan(16 * 1024);
+  const restarted = new OperationLedger(root, 1);
+  await restarted.initialize();
+  expect((await restarted.getContentOperation("large-0"))?.review).toEqual(
+    large.review,
+  );
+  expect(
+    (
+      await restarted.runContentOperation(
+        { ...intent, operationId: "after-growth" },
+        async () => committed,
+      )
+    ).status,
+  ).toBe("committed");
+}, 30000);
+
+it("persists the content result independently of an audit write failure", async () => {
+  const root = await temporaryRoot();
+  let failAudit = false;
+  const ledger = new OperationLedger(root, 1, {
+    replaceStateFile: async (target, text) => {
+      if (failAudit && path.basename(target) === "operations.json")
+        throw new Error("Audit disk failure");
+      await replaceFileDurably(target, text);
+    },
+  });
+  await ledger.initialize();
+  const result = await ledger.runContentOperation(intent, async () => {
+    failAudit = true;
+    return committed;
+  });
+  expect(result).toMatchObject({ status: "committed", audit: "failed" });
+  const reopened = new OperationLedger(root, 1);
+  await reopened.initialize();
+  const execute = vi.fn(async () => committed);
+  expect(await reopened.runContentOperation(intent, execute)).toEqual(result);
+  expect(execute).not.toHaveBeenCalled();
+});
+
+it("resumes a legacy receipt migration after the index replacement fails", async () => {
+  const root = await temporaryRoot();
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  const directory = path.join(root, "operations-v1");
+  await mkdir(directory, { mode: 0o700 });
+  const receipt = {
+    ...intent,
+    ...committed,
+    audit: "recorded",
+    updatedAt: intent.occurredAt,
+  };
+  await writeFile(
+    path.join(directory, "operations.json"),
+    JSON.stringify({
+      formatVersion: 3,
+      contentReceipts: [receipt],
+      agentReceipts: [],
+      auditEntries: [],
+    }),
+    { mode: 0o600 },
+  );
+  const interrupted = new OperationLedger(root, 1, {
+    replaceStateFile: async (target, text) => {
+      if (path.basename(target) === "operations.json")
+        throw new Error("Migration index replacement failed");
+      await replaceFileDurably(target, text);
+    },
+  });
+  expect((await interrupted.initialize()).status).toBe("unavailable");
+  const restarted = new OperationLedger(root, 1);
+  expect((await restarted.initialize()).status).toBe("available");
+  expect(await restarted.getContentOperation(intent.operationId)).toEqual(
+    receipt,
+  );
+  const index = JSON.parse(
+    await readFile(path.join(directory, "operations.json"), "utf8"),
+  );
+  expect(index.formatVersion).toBe(4);
+  expect(index).not.toHaveProperty("contentReceipts");
+});

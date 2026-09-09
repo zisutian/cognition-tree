@@ -7,6 +7,7 @@ import {
   type ContentOperationOutcome,
   type ContentOperationResult,
 } from "../../../application/operations/index.ts";
+import type { ContentReceiptStore } from "./contentReceiptStore.ts";
 import type { OperationLedgerStore } from "./operationLedgerStore.ts";
 
 /** Receipt retention is independent of the user-visible audit retention setting. */
@@ -18,9 +19,15 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
   readonly #undurableResults = new Map<string, ContentOperationResult>();
 
   private readonly store: OperationLedgerStore;
+  private readonly receipts: ContentReceiptStore;
   private readonly now: () => string;
-  constructor(store: OperationLedgerStore, now: () => string) {
+  constructor(
+    store: OperationLedgerStore,
+    receipts: ContentReceiptStore,
+    now: () => string,
+  ) {
     this.store = store;
+    this.receipts = receipts;
     this.now = now;
   }
 
@@ -29,13 +36,28 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
   ): Promise<ContentOperationResult | null> {
     const known = this.#undurableResults.get(operationId);
     if (known) return structuredClone(known);
-    return this.store.read((state) =>
-      structuredClone(
-        state.contentReceipts.find(
-          (entry) => entry.operationId === operationId,
-        ) ?? null,
-      ),
-    );
+    const receipt = await this.receipts.read(operationId);
+    return receipt ? this.#project(receipt) : null;
+  }
+
+  #project(receipt: ContentOperationResult): ContentOperationResult {
+    if (
+      receipt.status === "pending" &&
+      !this.#inFlight.has(receipt.operationId)
+    )
+      return {
+        ...receipt,
+        status: "indeterminate",
+        audit: "failed",
+        error: {
+          code: "operation_indeterminate",
+          message:
+            "The process ended before a durable result was recorded. Inspect this operation and its affected content; it will not be replayed.",
+        },
+      };
+    return receipt.audit === "pending" && receipt.status !== "pending"
+      ? { ...receipt, audit: "failed" }
+      : receipt;
   }
 
   async runContentOperation(
@@ -67,16 +89,30 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
         throw new ContentOperationIdempotencyError();
       return known;
     }
-    const existing = await this.store.mutate((state) => {
-      const previous = state.contentReceipts.find(
-        ({ operationId }) => operationId === intent.operationId,
-      );
+    const existing = await this.receipts.mutate(intent.operationId, (state) => {
+      const previous = state.receipt;
       if (previous) {
         if (previous.digest !== intent.digest)
           throw new ContentOperationIdempotencyError();
-        return { changed: false, result: structuredClone(previous) };
+        // An existing persisted intent is never replayed, including across processes.
+        return {
+          changed: false,
+          result:
+            previous.status === "pending"
+              ? {
+                  ...previous,
+                  status: "indeterminate" as const,
+                  audit: "failed" as const,
+                  error: {
+                    code: "operation_indeterminate",
+                    message:
+                      "The process ended before a durable result was recorded. Inspect this operation and its affected content; it will not be replayed.",
+                  },
+                }
+              : this.#project(previous),
+        };
       }
-      state.contentReceipts.push({
+      state.receipt = {
         ...intent,
         afterRevision: null,
         audit: "pending",
@@ -85,7 +121,7 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
         review: null,
         status: "pending",
         updatedAt: intent.occurredAt,
-      });
+      };
       return { changed: true, result: null };
     });
     if (existing) return existing;
@@ -111,17 +147,15 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
     const result: ContentOperationResult = {
       ...intent,
       ...outcome,
-      audit: "recorded",
+      audit: "pending",
       updatedAt: this.now(),
     };
     try {
+      await this.receipts.mutate(intent.operationId, (state) => {
+        state.receipt = result;
+        return { changed: true, result: undefined };
+      });
       await this.store.mutate((state) => {
-        const index = state.contentReceipts.findIndex(
-          ({ operationId }) => operationId === intent.operationId,
-        );
-        if (index < 0)
-          throw new Error("Persisted operation intent is missing.");
-        state.contentReceipts[index] = result;
         state.auditEntries.push({
           pending: false,
           entry: {
@@ -141,6 +175,11 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
           },
         });
         this.store.trimAudit(state);
+        return { changed: true, result: undefined };
+      });
+      result.audit = "recorded";
+      await this.receipts.mutate(intent.operationId, (state) => {
+        state.receipt = result;
         return { changed: true, result: undefined };
       });
       return result;

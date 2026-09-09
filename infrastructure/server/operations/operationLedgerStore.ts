@@ -3,20 +3,28 @@
 import { lstat, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { ApiOperationAuditPageDto } from "../../../contracts/api/index.ts";
-import { SecureJsonPartition, type SecureStateFileReplacer } from "../state/index.ts";
+import {
+  SecureJsonPartition,
+  type SecureStateFileReplacer,
+} from "../state/index.ts";
 import { SecureStatePartitionError } from "../../../application/persistence/index.ts";
 import {
   type OperationAuditStatus,
+  type ContentOperationResult,
   OperationAuditUnavailableError,
 } from "../../../application/operations/index.ts";
 import {
   createInitialOperationLedgerState,
+  legacyContentReceipts,
   type OperationLedgerState,
   parseOperationLedgerState,
 } from "./operationLedgerState.ts";
 
 export class OperationLedgerStore {
   #maxAuditEntries: number;
+  readonly #migrateContentReceipts: (
+    receipts: readonly ContentOperationResult[],
+  ) => Promise<void>;
   readonly #now: () => string;
   #operationQueue: Promise<void> = Promise.resolve();
   readonly #partition: SecureJsonPartition<OperationLedgerState>;
@@ -28,6 +36,9 @@ export class OperationLedgerStore {
     maxAuditEntries: number,
     options: {
       now: () => string;
+      migrateContentReceipts: (
+        receipts: readonly ContentOperationResult[],
+      ) => Promise<void>;
       replaceStateFile?: SecureStateFileReplacer;
     },
   ) {
@@ -36,6 +47,7 @@ export class OperationLedgerStore {
     }
     this.#maxAuditEntries = maxAuditEntries;
     this.#now = options.now;
+    this.#migrateContentReceipts = options.migrateContentReceipts;
     this.#stateDirectory = path.resolve(stateDirectory);
     this.#partition = new SecureJsonPartition({
       createInitial: createInitialOperationLedgerState,
@@ -53,17 +65,8 @@ export class OperationLedgerStore {
     return this.#enqueue(async () => {
       if (this.#unavailableMessage) return this.#currentStatus();
       try {
-        await this.#partition.mutate((state) => {
+        await this.#mutatePartition(async (state) => {
           let changed = false;
-
-          for (const receipt of state.contentReceipts) {
-            if (receipt.status !== "pending") continue;
-            receipt.status = "indeterminate";
-            receipt.audit = "failed";
-            receipt.error = { code: "operation_indeterminate", message: "The process ended before a durable result was recorded. Inspect the operation and affected content; it will not be replayed." };
-            receipt.updatedAt = this.#now();
-            changed = true;
-          }
 
           for (const stored of state.auditEntries) {
             if (!stored.pending) continue;
@@ -97,9 +100,13 @@ export class OperationLedgerStore {
     });
   }
 
-  list(
-    { cursor, limit }: { cursor: number; limit: number },
-  ): Promise<ApiOperationAuditPageDto> {
+  list({
+    cursor,
+    limit,
+  }: {
+    cursor: number;
+    limit: number;
+  }): Promise<ApiOperationAuditPageDto> {
     return this.read((state) => {
       const descending = state.auditEntries.map(({ entry }) => entry).reverse();
       const entries = descending.slice(cursor, cursor + limit);
@@ -148,12 +155,12 @@ export class OperationLedgerStore {
   }
 
   mutate<Result>(
-    operation: (
-      state: OperationLedgerState,
-    ) => { changed: boolean; result: Result } | Promise<{
-      changed: boolean;
-      result: Result;
-    }>,
+    operation: (state: OperationLedgerState) =>
+      | { changed: boolean; result: Result }
+      | Promise<{
+          changed: boolean;
+          result: Result;
+        }>,
   ) {
     return this.#enqueue(() => this.#mutatePartition(operation));
   }
@@ -167,7 +174,10 @@ export class OperationLedgerStore {
   #enqueue<Result>(operation: () => Promise<Result>): Promise<Result> {
     const pending = this.#operationQueue.then(operation);
 
-    this.#operationQueue = pending.then(() => undefined, () => undefined);
+    this.#operationQueue = pending.then(
+      () => undefined,
+      () => undefined,
+    );
     return pending;
   }
 
@@ -178,7 +188,10 @@ export class OperationLedgerStore {
       throw new OperationAuditUnavailableError(this.#unavailableMessage);
     }
     try {
-      return await this.#partition.read(project);
+      return await this.#mutatePartition((state) => ({
+        changed: false,
+        result: project(state),
+      }));
     } catch (error) {
       if (error instanceof SecureStatePartitionError) {
         this.#markUnavailable(error);
@@ -191,18 +204,26 @@ export class OperationLedgerStore {
   }
 
   async #mutatePartition<Result>(
-    operation: (
-      state: OperationLedgerState,
-    ) => { changed: boolean; result: Result } | Promise<{
-      changed: boolean;
-      result: Result;
-    }>,
+    operation: (state: OperationLedgerState) =>
+      | { changed: boolean; result: Result }
+      | Promise<{
+          changed: boolean;
+          result: Result;
+        }>,
   ) {
     if (this.#unavailableMessage) {
       throw new OperationAuditUnavailableError(this.#unavailableMessage);
     }
     try {
-      return await this.#partition.mutate(operation);
+      return await this.#partition.mutate(async (state) => {
+        const legacy = state[legacyContentReceipts];
+        if (legacy) {
+          await this.#migrateContentReceipts(legacy);
+          delete state[legacyContentReceipts];
+        }
+        const result = await operation(state);
+        return { ...result, changed: result.changed || legacy !== undefined };
+      });
     } catch (error) {
       if (error instanceof SecureStatePartitionError) {
         this.#markUnavailable(error);
@@ -215,9 +236,8 @@ export class OperationLedgerStore {
   }
 
   #markUnavailable(error: unknown) {
-    this.#unavailableMessage = error instanceof Error
-      ? error.message
-      : "Operation audit is unavailable";
+    this.#unavailableMessage =
+      error instanceof Error ? error.message : "Operation audit is unavailable";
   }
 
   async #removeLegacyAuditFile(directoryName: string, fileName: string) {
@@ -228,7 +248,11 @@ export class OperationLedgerStore {
     try {
       directoryStats = await lstat(directory);
     } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
         return;
       }
       throw error;
@@ -243,7 +267,11 @@ export class OperationLedgerStore {
     try {
       targetStats = await lstat(target);
     } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
         return;
       }
       throw error;

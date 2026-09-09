@@ -12,15 +12,13 @@ import {
   parseApiSchema,
 } from "../../../contracts/api/index.ts";
 
-import {
-  assertStateFields,
-  requireStateRecord,
-} from "../state/index.ts";
+import { assertStateFields, requireStateRecord } from "../state/index.ts";
 import type { AgentOperationAttempt } from "../../../application/operations/index.ts";
 import type { ContentOperationResult } from "../../../application/operations/index.ts";
 import { ContentOperationResultSchema } from "../../../contracts/content/index.ts";
 
-const operationLedgerFormatVersion = 3;
+const operationLedgerFormatVersion = 4;
+export const legacyContentReceipts = Symbol("legacy content receipts");
 
 type AgentReceiptStatus =
   | "committed"
@@ -42,7 +40,7 @@ export type AgentReceiptState = {
 
 export type OperationLedgerState = {
   agentReceipts: AgentReceiptState[];
-  contentReceipts: ContentOperationResult[];
+  [legacyContentReceipts]?: ContentOperationResult[];
   auditEntries: Array<{
     entry: ApiOperationAuditEntryDto;
     pending: boolean;
@@ -67,22 +65,26 @@ function requirePositiveInteger(value: unknown, label: string) {
 function parseOperationAttempt(value: unknown): AgentOperationAttempt {
   const record = requireStateRecord(value, "Agent operation attempt");
 
-  assertStateFields(record, [
-    "approvingOwnerId",
-    "beforeRevision",
-    "occurredAt",
-    "profileDigest",
-    "profileId",
-    "profileVersion",
-    "providerDigest",
-    "providerId",
-    "providerVersion",
-    "requestId",
-    "route",
-    "runtimeKind",
-    "sessionId",
-    "store",
-  ], "Agent operation attempt");
+  assertStateFields(
+    record,
+    [
+      "approvingOwnerId",
+      "beforeRevision",
+      "occurredAt",
+      "profileDigest",
+      "profileId",
+      "profileVersion",
+      "providerDigest",
+      "providerId",
+      "providerVersion",
+      "requestId",
+      "route",
+      "runtimeKind",
+      "sessionId",
+      "store",
+    ],
+    "Agent operation attempt",
+  );
   if (
     record.route !== "destructive-confirmation" &&
     record.route !== "proposal-decision"
@@ -135,26 +137,33 @@ function parseOperationAttempt(value: unknown): AgentOperationAttempt {
 function parseAgentReceipt(value: unknown): AgentReceiptState {
   const record = requireStateRecord(value, "Agent operation receipt");
 
-  assertStateFields(record, [
-    "attempt",
-    "digest",
-    "entry",
-    "proposalId",
-    "proposalVersion",
-    "runtimeId",
-    "status",
-    "updatedAt",
-  ], "Agent operation receipt");
+  assertStateFields(
+    record,
+    [
+      "attempt",
+      "digest",
+      "entry",
+      "proposalId",
+      "proposalVersion",
+      "runtimeId",
+      "status",
+      "updatedAt",
+    ],
+    "Agent operation receipt",
+  );
   if (
-    record.status !== "committed" && record.status !== "failed" &&
-    record.status !== "indeterminate" && record.status !== "pending" &&
+    record.status !== "committed" &&
+    record.status !== "failed" &&
+    record.status !== "indeterminate" &&
+    record.status !== "pending" &&
     record.status !== "stale"
   ) {
     throw new Error("Agent operation receipt status is invalid.");
   }
-  const entry = record.entry === null
-    ? null
-    : parseAgentSchema(AgentOperationAuditEntrySchema, record.entry);
+  const entry =
+    record.entry === null
+      ? null
+      : parseAgentSchema(AgentOperationAuditEntrySchema, record.entry);
   const digest = requireString(record.digest, "Agent operation receipt digest");
 
   if (!/^sha256:[0-9a-f]{64}$/.test(digest)) {
@@ -164,8 +173,10 @@ function parseAgentReceipt(value: unknown): AgentReceiptState {
     throw new Error("Pending Agent receipt cannot contain a terminal entry.");
   }
   if (
-    (record.status === "committed" || record.status === "failed" ||
-      record.status === "stale") && entry === null
+    (record.status === "committed" ||
+      record.status === "failed" ||
+      record.status === "stale") &&
+    entry === null
   ) {
     throw new Error("Terminal Agent receipt must contain an entry.");
   }
@@ -196,39 +207,49 @@ function parseAgentReceipt(value: unknown): AgentReceiptState {
 export function createInitialOperationLedgerState(): OperationLedgerState {
   return {
     agentReceipts: [],
-    contentReceipts: [],
     auditEntries: [],
     formatVersion: operationLedgerFormatVersion,
   };
 }
 
-export function parseOperationLedgerState(value: unknown): OperationLedgerState {
+export function parseOperationLedgerState(
+  value: unknown,
+): OperationLedgerState {
   const record = requireStateRecord(value, "Operation ledger state");
 
   assertStateFields(
     record,
-    record.formatVersion === 2 ? ["agentReceipts", "auditEntries", "formatVersion"] : ["agentReceipts", "contentReceipts", "auditEntries", "formatVersion"],
+    record.formatVersion !== 3
+      ? ["agentReceipts", "auditEntries", "formatVersion"]
+      : ["agentReceipts", "contentReceipts", "auditEntries", "formatVersion"],
     "Operation ledger state",
   );
   if (
-    (record.formatVersion !== 2 && record.formatVersion !== operationLedgerFormatVersion) ||
+    (record.formatVersion !== 2 &&
+      record.formatVersion !== 3 &&
+      record.formatVersion !== operationLedgerFormatVersion) ||
     !Array.isArray(record.agentReceipts) ||
     !Array.isArray(record.auditEntries)
   ) {
     throw new Error("Operation ledger state has an invalid format.");
   }
-  const contentReceipts = record.formatVersion === 2 ? [] : record.contentReceipts;
-  if (!Array.isArray(contentReceipts)) throw new Error("Operation receipts must be an array.");
+  const contentReceipts =
+    record.formatVersion !== 3 ? [] : record.contentReceipts;
+  if (!Array.isArray(contentReceipts))
+    throw new Error("Operation receipts must be an array.");
   const seen = new Set<string>();
   const parsedReceipts = contentReceipts.map((value) => {
     const receipt = parseApiSchema(ContentOperationResultSchema, value);
-    if (seen.has(receipt.operationId) || (receipt.status === "committed" && receipt.afterRevision === null)) throw new Error("Operation receipt identity or outcome is invalid.");
+    if (
+      seen.has(receipt.operationId) ||
+      (receipt.status === "committed" && receipt.afterRevision === null)
+    )
+      throw new Error("Operation receipt identity or outcome is invalid.");
     seen.add(receipt.operationId);
     return receipt;
   });
-  return {
+  const state: OperationLedgerState = {
     agentReceipts: record.agentReceipts.map(parseAgentReceipt),
-    contentReceipts: parsedReceipts,
     auditEntries: record.auditEntries.map((value, index) => {
       const stored = requireStateRecord(value, `auditEntries[${index}]`);
 
@@ -243,4 +264,10 @@ export function parseOperationLedgerState(value: unknown): OperationLedgerState 
     }),
     formatVersion: operationLedgerFormatVersion,
   };
+  if (record.formatVersion !== operationLedgerFormatVersion)
+    Object.defineProperty(state, legacyContentReceipts, {
+      value: parsedReceipts,
+      configurable: true,
+    });
+  return state;
 }
