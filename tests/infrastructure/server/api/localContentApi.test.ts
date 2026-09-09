@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "vitest";
+import { ContentService } from "../../../../application/content/index.ts";
 import {
   buildApiOperationPath,
   getApiOperation,
@@ -19,7 +20,32 @@ import { createContentServiceFixture } from "../operations/contentServiceFixture
 describe("local content API over HTTP", () => {
   it("uses registry routes, local access, compact reads, exact commands and durable result queries", async () => {
     const fixture = await createContentServiceFixture();
+    let holdAfterCommit = false;
+    let observeCommit!: () => void;
+    let releaseCommit!: () => void;
+    const committed = new Promise<void>((resolve) => {
+      observeCommit = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      releaseCommit = resolve;
+    });
+    const journal = await fixture.ports.journal();
+    const service = new ContentService({
+      ...fixture.ports,
+      journal: async () => ({
+        loadSnapshot: () => journal.loadSnapshot(),
+        commit: async (input) => {
+          const receipt = await journal.commit(input);
+          if (holdAfterCommit) {
+            observeCommit();
+            await released;
+          }
+          return receipt;
+        },
+      }),
+    });
     const server = createApiServer({
+      contentService: service,
       catalog: fixture.catalog,
       builtInCatalog: fixture.builtIns,
       operationLedger: fixture.ledger,
@@ -43,20 +69,24 @@ describe("local content API over HTTP", () => {
       body?: unknown,
       operation?: string,
       headers: Record<string, string> = {},
+      signal?: AbortSignal,
     ) {
       const definition = getApiOperation(operationId);
+      const sent = body === undefined ? undefined : JSON.stringify(body);
       const response = await fetch(
         `${origin}${buildApiOperationPath(operationId, operation ? { operationId: operation } : {})}`,
         {
           method: definition.method,
           headers: { "content-type": "application/json", ...headers },
-          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+          body: sent,
+          signal,
         },
       );
-      const parsed: unknown = await response.json();
+      const received = await response.text();
+      const parsed: unknown = JSON.parse(received);
       if (response.status >= 400) parseApiError(parsed);
       else parseApiOperationResponse(operationId, response.status, parsed);
-      return { status: response.status, body: parsed };
+      return { status: response.status, body: parsed, sent, received };
     }
     try {
       const catalog = parseApiSchema(
@@ -82,6 +112,12 @@ describe("local content API over HTTP", () => {
         ContentQueryResultSchema,
         (await request("queryLocalContent", { kind: "directory", scope })).body,
       );
+      const source =
+        "- 修改目标\n" +
+        Array.from(
+          { length: 200 },
+          (_, index) => `- 无关内容 ${index} 保留的详细说明`,
+        ).join("\n");
       const createNote = await request("executeContentOperation", {
         operationId: randomUUID(),
         baseRevision: directory.baseRevision,
@@ -90,7 +126,7 @@ describe("local content API over HTTP", () => {
           kind: "create-note",
           parent: null,
           title: "进程",
-          body: "- 修改目标\n- 无关内容",
+          body: source,
         },
       });
       expect(createNote.status).toBe(200);
@@ -127,7 +163,13 @@ describe("local content API over HTTP", () => {
           },
         },
       };
-      expect((await request("executeContentOperation", edit)).status).toBe(200);
+      const edited = await request("executeContentOperation", edit);
+      expect(edited.status).toBe(200);
+      expect(edited.sent).not.toContain("无关内容");
+      expect(edited.received).not.toContain("无关内容 199");
+      expect(Buffer.byteLength(edited.received)).toBeLessThan(
+        Buffer.byteLength(source),
+      );
       const staleId = randomUUID();
       const stale = await request("executeContentOperation", {
         ...edit,
@@ -166,7 +208,54 @@ describe("local content API over HTTP", () => {
           })
         ).status,
       ).toBe(403);
+
+      const initialJournal = await service.query({
+        kind: "directory",
+        scope: { domain: "journal" },
+      });
+      const interrupted = {
+        operationId: randomUUID(),
+        baseRevision: initialJournal.baseRevision,
+        scope: { domain: "journal" as const },
+        command: { kind: "create-entry" as const, body: "- 提交后断开连接" },
+      };
+      holdAfterCommit = true;
+      const controller = new AbortController();
+      const responseLost = expect(
+        request(
+          "executeContentOperation",
+          interrupted,
+          undefined,
+          {},
+          controller.signal,
+        ),
+      ).rejects.toThrow();
+      await committed;
+      controller.abort();
+      releaseCommit();
+      await responseLost;
+      await expect
+        .poll(
+          async () => (await service.result(interrupted.operationId))?.status,
+        )
+        .toBe("committed");
+      const result = await request(
+        "getContentOperation",
+        undefined,
+        interrupted.operationId,
+      );
+      expect(
+        (await request("executeContentOperation", interrupted)).body,
+      ).toEqual(result.body);
+      const finalJournal = await service.query({
+        kind: "directory",
+        scope: { domain: "journal" },
+      });
+      if (finalJournal.kind !== "directory")
+        throw new Error("Expected Journal directory");
+      expect(finalJournal.resources).toHaveLength(1);
     } finally {
+      releaseCommit();
       server.closeAllConnections();
       await new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),

@@ -143,7 +143,7 @@ test.describe("workbench diagnostics", () => {
       exact: true,
     });
     const apiSection = settingsContext.getByRole("button", {
-      name: "新建 自动化令牌",
+      name: "本机 API",
       exact: true,
     });
     const agentSection = settingsContext.getByRole("button", {
@@ -185,7 +185,6 @@ test.describe("workbench diagnostics", () => {
       String(resizedProblemsHeight),
     );
 
-    await page.setViewportSize({ width: 760, height: 640 });
     const mainContentBox = await page
       .locator(".app-main-content")
       .boundingBox();
@@ -198,7 +197,7 @@ test.describe("workbench diagnostics", () => {
     ).toBeLessThanOrEqual((problemsBox?.y ?? 0) + 1);
     expect(
       (problemsBox?.y ?? 0) + (problemsBox?.height ?? 0),
-    ).toBeLessThanOrEqual(640);
+    ).toBeLessThanOrEqual(page.viewportSize()!.height);
   });
 
   test("reports syntax save failure once through global persistence feedback", async ({

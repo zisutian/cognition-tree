@@ -10,6 +10,7 @@ import { BootstrapConfigurationStore } from "../../infrastructure/server/system/
 import { chromium } from "@playwright/test";
 import { copyRuntimeFiles } from "./copyRuntimeFiles.mjs";
 import { verifyRuntime } from "./runtimeManifest.mjs";
+import { verifyLocalContent } from "./verifyLocalContent.mjs";
 
 if (process.argv.length !== 3) throw new Error("Usage: pnpm release:smoke <runtime-package>");
 const candidate = path.resolve(process.argv[2]);
@@ -47,6 +48,7 @@ try {
   const cli = spawnSync("/bin/bash", ["./ctn", "--help"], { cwd: fixture, encoding: "utf8" });
   assert.equal(cli.status, 0); assert.match(cli.stdout, /--server/);
   assert.doesNotMatch(cli.stderr, /ERR_MODULE_NOT_FOUND|Cannot find module|SyntaxError/);
+  await verifyLocalContent({ directory: fixture, origin });
   const codex = spawnSync(process.execPath, ["node_modules/@openai/codex/bin/codex.js", "--version"], { cwd: fixture, encoding: "utf8", timeout: 10000 });
   assert.equal(codex.status, 0, "Pinned Codex executable must run from the package");
   const privateTool = spawnSync(process.execPath, [path.join(compiled, "infrastructure/server/agent/sessionMcpServer.js")], { cwd: fixture, encoding: "utf8", timeout: 10000 });
@@ -65,7 +67,7 @@ try {
   await browser.close(); browser = null;
   const exited = once(child, "exit"); child.kill("SIGTERM"); await exited;
   assert.equal(child.exitCode, 130);
-  console.log("Packaged runtime passed: HTTP, Chromium, CLI, Codex executable, private tool entry and graceful shutdown; temporary data only.");
+  console.log("Packaged runtime passed: HTTP, Chromium, CLI content queries/edits/receipts, retired credential rejection, Codex executable, private tool entry and graceful shutdown; temporary data only.");
 } finally {
   if (browser) await browser.close();
   if (child && child.exitCode === null && child.signalCode === null) {
