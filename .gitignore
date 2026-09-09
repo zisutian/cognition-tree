@@ -29,3 +29,6 @@ Thumbs.db
 .vscode/
 .idea/
 temp.txt
+
+# Historical evidence belongs in the sibling reports directory, never source or runtime.
+reports/

@@ -45,6 +45,12 @@ describe("documentation entry points", () => {
           path.dirname(file),
           decodeURIComponent(relative || path.basename(file)),
         );
+        if (path.relative(root, destination).startsWith("..")) {
+          errors.push(
+            `${file}: required link escapes the independent checkout: ${target}`,
+          );
+          continue;
+        }
         if (!existsSync(destination)) errors.push(`${file}: missing ${target}`);
         else if (
           fragment &&

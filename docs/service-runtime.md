@@ -27,11 +27,7 @@ versioned store、session 和 API，也不获得普通仓库的创建、删除�
 runtime 重建后从 Server 重新加载，不恢复当前页面会话状态。旧 IndexedDB 不属于运行时
 输入，不读取、不迁移也不清理。
 
-唯一 HTTP 契约为 `/api/v4`。contracts/api 的唯一 registry composition root
-组合并校验 foundation、auth、content、sync、agent、admin operation catalog 的
-operationId、method/path 与访问策略。`/api/v2`、公开 command endpoint、command
-envelope、preview/commit mode、resource precondition、公开 commandId 和兼容
-parser 都不存在。
+唯一 HTTP 契约为 API v4。contracts/api 的 registry 组合 foundation、auth、content、localContent、sync、agent、admin 与 recovery 操作并校验 operationId 和 method/path。普通浏览器读取与同步保留；本机内容查询、单次提交和结果查询采用独立的 local-content 权限。精确路径与 schema 由 registry/OpenAPI 提供。
 
 `ApiErrorSchema` 是错误 code、DTO 与 parser 的唯一 wire owner；Server 的
 `ApiErrorCatalog` 穷举 error class 到 status、retryable 与安全 details。客户端不得按
@@ -43,35 +39,13 @@ diff、secret、stack、提示词或 tool output。
 
 request body 上限属于 operation definition：默认与既有 operation 为 20 MiB，三个
 包含 base 与 local 双份 snapshot 的 sync PUT 为 42 MiB。Content-Length 与 streamed
-body 使用同一个已匹配 operation 上限，不扩大其他 API 的输入面。
+body 使用同一个已匹配 operation 上限。本机内容提交上限为 4 MiB。
 
-API principal 是严格 union，不共享“全部 scopes”：
+HTTP principal 只包含 local-owner 和 owner。local-owner 同时要求 socket remote address 与 Host 都为 loopback；公共 Host 经 loopback 反向代理不会提升权限。Origin 继续按配置校验，显式 Authorization 一律拒绝，不读取旧令牌或降级认证。agent-session capability 只存在于私有 IPC。
 
-    local-owner、owner：按 operation 的 owner policy 授权，不构造 scopes。
-    automation：只能持有 workspace:read、journal:read、todo:read；Workspace
-    继续受 repository ID allowlist 限制。
-    trusted-client：可读取并同步全部当前及未来 Workspace、Journal 与 Todo；不能访问
-    owner、Agent、admin 或 auth operation。
-    agent-session capability：只存在于服务端私有 IPC，不属于 HTTP principal。
+远程 owner 仍由签名 HttpOnly session Cookie 提供。Cookie 带 SameSite=Strict、Secure 和 Path=/api/v4，写请求要求精确配置的 HTTPS Origin。凭据 prepare 只替换 pending 摘要，activate 验证持有证明后在同一权威提交中提升摘要、递增版本并换发 Cookie；普通登录同样在一次权威读取中校验和签发。未知提交结果不自动重试，调用端保留已获得的 secret。清除凭据只允许本机模式并同时清除 pending。
 
-local-owner 同时要求 socket remote address 与 Host 都是 loopback；公共 Host 经过
-loopback 反向代理不会提升权限。远程 owner 只来自签名 HttpOnly session Cookie，
-owner credential 轮换分为 prepare 与 activate 两个 exact-CAS operation：prepare 只
-替换无认证能力的 pending 摘要；activate 才提升 pending、递增 active credential
-version、使旧 Cookie 失效；activate 必须回传 secret 作为持有证明，服务端在同一状态
-candidate 上验证 pending digest 并签发新 Cookie。普通登录同样在一次权威读取中完成
-secret 校验与 session 签发。提交结果未知时不会自动重试；调用端保留 prepare 已交付的
-secret。Cookie 写请求还必须精确匹配设置中的 HTTPS Origin。Bearer 只属于 automation
-或 trusted-client，显式无效 Bearer 一律 401。
-
-每个 operation 只声明 `public`、`owner`、`content-read(domain)` 或
-`content-sync`。授权矩阵穷举 principal 与 policy 的全部组合，未知 kind 默认拒绝；
-不得使用“不是 automation 就是 owner”一类隐式分支。automation 只能调用
-`/api/v4/content/*` 的已授权只读资源、搜索与无正文 change event；trusted-client
-拥有全部内容读取与三个 sync operation，但不能取得 Agent、仓库管理、Provider、
-系统设置或 owner-session 能力。
-change event 的 resource 逐项鉴权；block 只在其 resourceId 的全部同名资源均可见时
-投影，跨域或跨仓同名且可见性混合时必须丢弃，不能凭 ID 集合扩大授权。
+registry 的 public、owner、content-read、content-sync、local-content、local-recovery 策略由统一授权入口检查。local-content 只允许 local-owner；local-recovery 只在本机启动恢复服务执行。未知 principal 拒绝。Content SSE 面向通过认证的 owner 会话，不再存在令牌范围过滤或令牌撤销连接路径。
 
 SSE 只发送带
 `streamId` 的 checkpoint 与无正文 change set；sequence 只在同一 stream
@@ -86,33 +60,21 @@ AgentSessionSnapshot。两类 SSE 都不是正文真值来源。
 固定控制区与数据状态各有唯一 owner：
 
     <项目根>/.cognition-tree/bootstrap-v1/configuration.json
-    <dataRoot>/server/access-v1/automation-tokens.json
-    <dataRoot>/server/access-v1/trusted-client-tokens.json
     <dataRoot>/server/agent-auth-v1/providers/<providerId>/
     <dataRoot>/server/agent-config-v1/configuration.json
     <dataRoot>/server/operations-v1/operations.json
 
-access 分区分别保存 automation 与 trusted-client token 的 SHA-256 哈希；前者保存
-只读 scopes 和 Workspace allowlist，后者固定为全部内容读写。agent-auth 分区独占
-API Key 与 Codex 托管登录态，agent-config 分区只保存 provider、profile、认证模式、
-凭据引用/version/digest 与符合性结果。
-token 的 `lastUsedAt` 由 access session 串行观察并按分钟节流持久化；持久值、会话值
-与当前时钟取时间最大值，系统时钟回拨或外部刷新不得让审计时间倒退。
+旧 access-v1 分区与 CLI 凭据文件不读取、不转换权限也不删除；历史 trusted-client 审计仍可解码和展示。agent-auth 独占 Provider 密钥与受管登录态，agent-config 只保存配置、凭据引用与符合性结果。
 
-operations-v1 在一个原子状态中分离 `auditEntries` 与 `agentReceipts`。受审计 mutation
-先以短事务持久化认证尝试，body 解码后再附加 store、base revision 与 intent digest；
-释放账本锁后才执行内容 CAS，发布真实 change event，最后以短事务写终态。任一写前
-步骤失败都不得越过对应 CAS 边界；CAS 已成功但 finalize 失败则内容不回滚，pending
-记录保留并返回明确对账错误。不同内容 operation 的 CAS 可并发，账本锁只保护短暂
-状态替换。
+operations-v1 的 formatVersion 3 在同一持久状态中分别保存 auditEntries、agentReceipts 和 contentReceipts；读取兼容已有 formatVersion 2，内容格式版本不变。
 
-Agent receipt 唯一键仍为 proposal UUID + version，并校验 digest；同进程 pending
-请求复用 promise，已完成同 digest 返回原 receipt，不同 digest 冲突，重启后孤立
-pending 标记为 indeterminate 且禁止重放。receipt 在 24 小时会话生命周期后清理，
-不受审计展示容量直接裁剪；auditEntries 才按“设置 → 审计 → 保留策略”的操作审计保留条数裁剪。
-账本不保存提示词、模型回复、正文、完整 diff、secret 或 tool output。初始化状态通过
-capabilities 与 admin status 投影；不可用时 Agent 与 trusted-client fail closed，本地
-浏览器 autosave 继续可用。
+本机内容用例由 application/content 拥有。先持久化操作 ID、请求摘要、scope、命令和基线版本，再加载权威快照并定位，最后通过领域 prepared store 执行一次 CAS。短账本事务不持有内容锁；Workspace 的目录准入覆盖名称解析、存储访问与提交，仓库管理也使用该目录队列。普通浏览器的三方同步不进入此 exact-CAS 用例。
+
+相同内容操作 ID 和摘要返回原收据，不同摘要拒绝。提交后的身份、差异和版本来自真实 commit receipt。审计收尾失败不回滚已提交内容，也不把它重新视为可写请求；同进程保留明确的 committed/audit-failed 结果。重启后的孤立 pending 转为 indeterminate，禁止自动重放。结果查询与受影响内容读取供调用方核对，不提供强制重试入口。内容收据不随展示容量裁剪，包含修改摘要及有限上下文差异，因此与业务数据一样受私有目录权限保护；不保存认证 secret 或模型提示词。
+
+Agent receipt 的键仍是 proposal UUID + version，并校验 digest；同进程复用在途 promise，同摘要重放返回原 receipt，不同摘要拒绝。重启后 pending 标记 indeterminate。Agent receipt 在原有 24 小时会话生命周期后清理，审计展示容量不直接裁剪它。内置 Agent 会话、提案和审批保持独立，领域命令准备与变更 review 复用中立入口。
+
+账本初始化状态通过 capabilities 与管理状态投影；账本不可用时本机外部提交和 Agent fail closed，官方浏览器 autosave 仍可使用。审计展示只按设置中的保留条数裁剪 auditEntries。
 
 权威切换时只安全删除旧 `<dataRoot>/server/agent-v2/operations.json` 与
 `<dataRoot>/server/api-v1/audit.json`；`api-v1/tokens.json`、agent-v1、Agent 配置、凭据
@@ -133,7 +95,7 @@ server 根。固定控制区的迁移记录在不可逆步骤前持久化 ID、�
 目录身份、校验摘要和阶段；阶段与提交结果（未提交、已提交、不确定）分别保存。
 
 维护先关闭新内容请求和会话入口，排空已接纳请求，再检查 resident Agent、设备登录
-和实际仍运行的后台操作。读请求也可能写入认证使用时间或惰性初始化数据，因此参与
+和实际仍运行的后台操作。读请求也可能惰性初始化数据，因此参与
 排空。application/runtime 的写入租约由 server/platform 的异步上下文适配；请求内派生
 写入持有独立租约，父请求结束不能提前释放子任务。Agent 内容 CAS 与审计收尾、
 Provider 凭据安装与配置提交、符合性结果记录共享同一写入范围。结束请求中尚未开始的
@@ -175,13 +137,11 @@ Provider 凭据安装与配置提交、符合性结果记录共享同一写入�
     通过独立跨实例锁串行，持锁后刷新磁盘 authority 再执行 read/mutate，解锁失败后
     分区 fail closed；
     api/resources、api/sync 分别拥有只读 wire 资源投影与同步协议适配；application/sync
-    执行普通同步用例。application/search 通过查询端口协调各来源，HTTP 仅转换协议。server/access 独占 automation 与 trusted-client token；
+    执行普通同步用例。application/search 通过查询端口协调各来源，HTTP 仅转换协议。application/content 协调本机名称定位和一次提交；
     server/operations 独占统一账本、审计状态和 Agent receipt；其中
     application/operations 的 operationLedgerPort 独占公开错误与命令类型；operationLedgerState 独占
-    operations-v1 严格解析与初始状态，operationLedgerProjection 独占 Agent/trusted
-    审计 wire 投影与稳定 operation key，operationLedgerStore 独占安全分区、串行化、
-    可用性、容量与旧文件清理，trustedClientOperationLedger 独占 trusted-client 的
-    begin/attach/finalize 事务，agentOperationLedger 独占 in-flight 去重、持久 receipt、
+    operations-v1 严格解析与初始状态，operationLedgerProjection 独占 Agent 审计 wire 投影与稳定 operation key，operationLedgerStore 独占安全分区、串行化、
+    可用性、容量与旧文件清理，contentOperationLedger 独占本机操作意图、去重和终态收据，agentOperationLedger 独占 in-flight 去重、持久 receipt、
     retention 与 terminal/indeterminate 流程，operationLedger 只作为显式组合根和公开
     façade；
     server/agent 拥有模型 runtime adapter、Provider 配置和凭据存储、私有 IPC 与子进程
@@ -230,7 +190,7 @@ Provider 凭据安装与配置提交、符合性结果记录共享同一写入�
     ollamaRuntime 只作为各自 profile 的显式组合根。
     repository/built-ins、repository/versioned、repository/workspace 分别拥有
     系统内容、通用版本存储和 Workspace 持久布局。只有 contracts/api registry
-    定义 HTTP wire；只有 owner/trusted-client sync 与 Agent exact commit 可以写内容。
+    定义 HTTP wire；内容通过官方浏览器同步、本机内容命令或 Agent exact commit 写入。
 
 这些模块只拆职责，不改变本地 WAL 提交点或仓库内容 schema。普通仓库没有第二种
 存储实现、组合 catalog、连接 registry 或存储回退路径。

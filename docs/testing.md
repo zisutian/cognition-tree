@@ -64,13 +64,21 @@ Dark Modern 样板、控件与问题面板：
     git diff --check
 
 `build` 包含前端构建、包体积门槛与服务端编译。保留现有门槛，不为本轮界面修改放宽限制。
-另需用临时数据分别验证 `pnpm dev` 和 `pnpm server:start` 的健康、网页和 API；可用目录的 `./start.sh` 负责生产迁移后的受控重启。
+另需在独立临时源码副本中验证开发 `./start.sh` 的健康、网页和内容调用，再通过 `pnpm release:smoke <候选目录>` 验证编译入口。两个启动脚本均不接受模式参数；验收不启动正式数据目录，也不替换可用版。
 E2E 并发数可用 `CTN_E2E_WORKERS` 调整；同一结果应记录采用的配置。
 
 容量对照在修改前后各运行一次相同命令，保留输出中的 dataset、timings、memory、verification 和 validationCounts。
 若修改了容量参数或同时运行其他重负载任务，不能把结果作为同配置的性能对照。时间和内存会受环境波动影响，复用次数和内容完整性需分别判断。
 
-早期验收见[UI 优化记录](ui-optimization-progress.md)，本轮样板和验证状态见[Dark Modern 样板记录](ui-appearance-progress.md)。进程终止恢复仅是进程恢复证据；真实断电、真实模型、其他浏览器和平台的状态分别记录。
+当前桌面验收使用 Chromium 默认 1280×720，保留独立滚动、长内容、侧栏调整及八活动导航。其他尺寸、浏览器和设备不属于本轮扩展范围。历史验收报告只在项目外层的本地 reports 中补充，不是测试前置条件。进程终止恢复只证明进程恢复；真实断电、真实模型和其他平台分别记录。
+
+## 本机内容接口回归
+
+`tests/application/content` 验证名称、Unicode、相对路径及歧义规则；
+`tests/infrastructure/server/operations` 使用真实临时仓库验证精确修改、身份、版本、收据及进程中断；
+`tests/infrastructure/server/api/localContentApi.test.ts` 与 `tests/tooling/cli` 验证 registry 契约、实际 HTTP 传输和不重放行为。
+旧令牌测试已转为认证退出和历史状态保留测试，不以替身继续模拟已移除的认证能力。
+浏览器设置回归包含本机 API 收据查询，查询不构成配置修改。既有所有者密钥、Agent 登录、编辑器、迁移和保存冲突仍保留原有验证边界。
 
 ## 独立运行包验收
 
@@ -79,4 +87,4 @@ E2E 并发数可用 `CTN_E2E_WORKERS` 调整；同一结果应记录采用的配
 覆盖双入口参数拒绝、开发配置保留、进程重启与退出、运行文件与权限校验、越界链接、
 监听冲突、未知文件保护、完整备份和安装进程中断恢复。文件系统与进程恢复使用真实临时目录。
 此外，构建后的完整运行包必须在不依赖源码目录、Vite、TypeScript 或 pnpm 的环境中验证
-网页、API、CLI 与 Agent 子进程入口。启动冒烟使用独立临时数据；不复制正式凭据。
+网页、API、CLI 与 Agent 子进程入口。`release:smoke` 通过实际 CLI 完成目录读取、创建、局部编辑、重复请求和结果查询，同时验证旧 Bearer 拒绝。启动冒烟使用独立临时数据；不复制正式凭据。打包、校验及发布命令的顺序见[部署与恢复](deployment.md)。

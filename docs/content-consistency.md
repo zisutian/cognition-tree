@@ -71,7 +71,7 @@ Journal/Todo 的 synthetic title 参与 canonical 解析，但不进入公开可
     发生变化，store 必须拒绝事务，调用方重新加载和准备。
 
 Agent preparation 不建立第二套领域 transition。Workspace、Journal、Todo 各自
-公开 `prepareAgentCommand(snapshot, intent)`，只计算 staged after 和 projection，
+公开各自的中立 `prepareWorkspaceCommand`、`prepareJournalCommand` 和 `prepareTodoCommand`，只计算 staged after 和 projection，
 不访问 store。第一条 intent 固定一个 versioned store 与 base snapshot，后续 intent
 只消费前一 staged snapshot；最终 change set 和 diff 只比较原始 base 与最终
 staged content。`commitAgentProposalExactly` 只接收已批准 proposal 内冻结的
@@ -89,9 +89,7 @@ Workspace preparation；提交后的 validate 只检查读取完整性与 revisi
 
 ## 保存、同步与冲突
 
-内容写入只有三个授权来源：owner 官方浏览器 sync、trusted-client 同步，以及已批准
-Agent proposal。前两者共用服务端 merge-aware sync；Agent 始终使用冻结 proposal 的
-exact CAS，revision 变化即 stale，不能进入自动合并。领域 transition、preparation 和
+内容写入由官方浏览器同步、本机内容命令及已批准 Agent proposal 提交。浏览器保留三方合并；本机命令与冻结 Agent proposal 都只执行一次 exact CAS，版本过期不能自动合并、重算或重试。领域 transition、preparation 和
 change projection 仍是内容语义的唯一 owner；HTTP handler、runtime、MCP、SSE、audit
 和 presentation 不重建领域命令或变化。成功且 revision 实际变化时只生成并发布一次
 DomainChangeSet；no-op、校验失败和 conflict 不发布 change event。
@@ -143,8 +141,7 @@ transform 必须返回 covered unit ids，repository 在任何 rebase 前验证�
 
 `application/sync` 是通用协调器，只消费组合根注入的 `revisionOf`、`prepare`、
 `merge`、`projectChanges` 与 prepared store port，不导入三个内容领域、HTTP 或
-基础设施。trusted-client 先提交会使既有 Agent proposal stale；Agent 先提交后，
-trusted-client 的非重叠变更可合并，重叠变更仍返回冲突。
+基础设施。本机命令先提交会使旧 Agent proposal 过期；Agent 或浏览器先提交也会使旧本机命令返回版本冲突。外部命令的意图和持久收据流程见[服务运行](service-runtime.md)，调用规则见[API 与 CLI 集成](api-integration.md)。
 
 ## Todo 周期查询
 

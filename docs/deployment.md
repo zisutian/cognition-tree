@@ -99,7 +99,7 @@ origin。TLS 证书仍由外部反向代理管理。
 未结束迁移时才进入控制配置重置流程；迁移记录未结束或无法读取时，只提供对账诊断，
 不会重置配置指针。
 
-当前数据根布局：
+当前活动数据根布局（旧 access-v1 文件可保留，但不再作为权限输入）：
 
     <dataRoot>/
       repositories/
@@ -107,8 +107,6 @@ origin。TLS 证书仍由外部反向代理管理。
         .built-ins/journal/
         .built-ins/todo/
       server/
-        access-v1/automation-tokens.json
-        access-v1/trusted-client-tokens.json
         agent-auth-v1/providers/<provider-id>/
         agent-config-v1/configuration.json
         operations-v1/operations.json

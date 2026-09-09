@@ -103,7 +103,7 @@ application/workbench/WorkbenchController 提供 start、dispose、subscribe、
 getSnapshot 与明确 facade。snapshot 只包含不可变状态，不嵌入可变 controller；
 查询和操作只能经 facade 执行。它组合 RepositoryCatalogController、Workspace
 session slot、Journal/Todo built-in slot、SearchIndex、引用解析与跨仓导航
-状态机，并独占以下跨领域流程；API Access、Operations、System 与 Agent administration
+状态机，并独占以下跨领域流程；Local API、Operations、System 与 Agent administration
 由 client runtime 组合结果并列交给 Presentation，不经 Workbench 转发：
 
     普通仓库切换与一次性导航。
@@ -171,6 +171,14 @@ OwnerAuthenticationController 串行执行会改变 owner session cookie 的登�
 
 Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 UUID、时间、页面事件和定时器实现由 infrastructure 注入。Problems 的选择与合并留在 application，Activity 切换和 DOM 聚焦只由 presentation 执行。
 
+
+## 本机内容用例
+
+application/content 是外部内容调用的显式协调根：目标解析、目录版本、一次 CAS 与操作收据由该模块协调，平台能力通过端口注入。各领域公开的中立 command preparation 与 review 同时被此模块和 Agent 使用；Agent 自己保留会话、暂存提案和审批。
+
+Core CTN 独占精确文本替换、块文字、插入、子树和移动范围计算；Core Workspace 独占逻辑目录路径。Application 不复制语法或身份规则。CTN 文档与写作指南投影归 application/commands，Todo 任务状态投影归 application/todo；HTTP 只做 wire 适配。Contracts 公共内容模块拥有中立命令与收据 schema，Agent 工具协议消费它，API catalog 只聚合操作。
+
+CLI 只导入公开 Contracts，由 registry 构造请求并校验响应；它没有目录解析、直接文件修改或凭据 profile 实现。服务器 runtime 将真实 catalog、领域 store、时钟、账本和事件端口接入 ContentService。持久结果和恢复规则见[服务运行](service-runtime.md)，调用语义见[API 与 CLI 集成](api-integration.md)。
 
 ## 客户端适配边界
 
@@ -247,11 +255,8 @@ registry 位于按仓库重挂载的工作台边界之上、认证边界之内�
 登录销毁整个页面会话；ready catalog 是有效仓库分区集合的唯一依据，删除仓库后 registry
 统一裁剪所有 slot 的对应分区。不得用模块级 Map 建立第二个页面会话 owner，也不得进入领域
 content 或服务端配置。write-only secret 随对应表单卸载
-而清除；服务端 pending 操作具有独立生命周期，不由页面卸载取消。API access settings 的
-列表 authority、load generation、mutation version 与在途计数由独立页面 session controller
-持有，React hook 只订阅并在 Activity 卸载时终结 controller；旧 load 不得覆盖
-create/revoke，单个完成不得提前清除 loading，dispose 后的迟到结果不得发布。
-SettingsStatusPanel 只提供统一 detail shell；SettingsActivitySlots 在设置组合边界中路由当前目标；Agent、System、API access、
+而清除；服务端 pending 操作具有独立生命周期，不由页面卸载取消。本机 API 页只通过 LocalContentAccess 读取地址与收据，查询输入属于局部页面状态；迟到结果按代次丢弃，卸载不发布结果，不拥有配置草稿或内容保存规则。
+SettingsStatusPanel 只提供统一 detail shell；SettingsActivitySlots 在设置组合边界中路由当前目标；Agent、System、
 Audit 的状态投影分别由各自领域 status view 文件持有，不在路由文件内混合实现。
 
 `application/problems` 的 ProblemCenter 是运行期 operational incident 的唯一 owner。

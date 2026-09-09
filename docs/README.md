@@ -5,7 +5,7 @@
 ## 使用
 
 - [快速入门](getting-started.md)：首次启动、创建仓库与编辑。
-- [设置操作](settings.md)：对象目录、保存与放弃、认证、令牌及迁移入口。
+- [设置操作](settings.md)：对象目录、保存与放弃、认证、本机 API 及迁移入口。
 - [产品需求](product-requirements.md)：能力、用户可见承诺与不支持的范围。
 
 ## 运维
@@ -23,12 +23,9 @@
 - [工程原则](engineering-principles.md)：修改方式与工程组织。
 - [测试指南](testing.md)：分层、夹具、针对性验证和完整验收。
 
-## 历史证据
+## 文档与本地报告
 
-- [2026-09-06 结构重整记录](restructure-progress.md)
-- [2026-09-06 UI 优化记录](ui-optimization-progress.md)
-- [Dark Modern 样板与验证记录](ui-appearance-progress.md)
+正式规则均在上述专题维护；独立检出不依赖历史报告。项目外层的 `reports` 只存放本地审查、重构决策和完成记录，不纳入 Git，也不进入运行包。历史报告保留原日期、基线和验证范围，不能替代当前规范。
 
-历史报告保留当时证据，不替代当前行为或架构规范。新增事实先写入对应专题，其他文档链接引用；
-不复制 HTTP 路径或结构清单。精确操作由 [API registry](../contracts/api/registry.ts)
-及其 OpenAPI 输出提供，CLI `./ctn openapi` 读取同一契约。
+精确 API 操作由 [registry](../contracts/api/registry.ts) 及其 OpenAPI 输出提供；
+`./ctn --server <本机服务地址> openapi` 读取同一契约。

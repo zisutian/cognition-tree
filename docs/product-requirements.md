@@ -209,10 +209,7 @@ active 与 pending。
 搜索覆盖所有普通仓库、日记和代办；工作台只按“本地仓库 / 日记 / 代办”三个领域范围筛选，不提供逐仓库或更新时间条件。公开搜索请求仍可用 repositoryIds 限制普通仓库范围，供授权和 Agent 等非页面调用方使用。结果以稳定资源与块身份导航；单个来源故障不阻断其他来源，分页游标失效时要求使用当前条件重新搜索。
 
 Todo 不包含截止日期、优先级、备注、筛选或跨集合任务移动。Journal 跨仓引用不进入
-普通仓库引用图谱。唯一 HTTP 契约是 `/api/v4`；外部 automation 只有
-Workspace、Journal、Todo 只读能力，没有 command、preview、commit、write 或 delete
-接口。trusted-client 可经与浏览器相同的 merge-aware snapshot sync 修改全部内容，
-但不能访问 Agent、管理或认证；根 `./ctn` 是该能力的参考客户端。真正重叠的变更仍需
-调用方或用户决策，不提供 force 或 fallback。Agent 继续只由 owner 审批并执行 exact
-CAS。本项目不提供外部 MCP、专用手机契约、Dockerfile、镜像或 Compose；只保留未来
+普通仓库引用图谱。唯一 HTTP 契约为 API v4；本机免密钥内容接口覆盖名称查询、局部读取、精确编辑、资源与仓库管理、任务状态和语法配置。对话授权后直接提交，单次 exact CAS；不自动重算或重试，不引入跨领域事务。系统设置、凭据和迁移继续从设置界面操作。旧自动化与可信客户端令牌退出运行，远程 API 令牌暂不扩展。内置 Agent 保留提案审批，Provider/Profile 暂停扩展。调用契约见[API 与 CLI 集成](api-integration.md)。
+
+本项目不提供外部 MCP、专用手机契约、Dockerfile、镜像或 Compose；只保留未来
 容器路径约定。
