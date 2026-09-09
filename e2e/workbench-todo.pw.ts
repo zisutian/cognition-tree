@@ -23,6 +23,7 @@ import {
   readTodoSnapshot,
 } from "./support/builtInSeeds";
 import { test } from "./support/e2eTest";
+import { removeOtherWorkbenchRepositories } from "./support/contentOperations";
 import {
   getProblemsToggle,
   getActivityButton,
@@ -293,20 +294,7 @@ test.describe("Todo activity flows", () => {
   test("keeps Todo usable when the ordinary repository catalog is empty", async ({
     page,
   }) => {
-    await page.route("**/api/v4/admin/repositories", async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({
-          body: JSON.stringify({
-            issues: [],
-            repositories: [],
-          }),
-          contentType: "application/json",
-          status: 200,
-        });
-        return;
-      }
-      await route.continue();
-    });
+    await removeOtherWorkbenchRepositories(api);
 
     await page.goto("/");
     await expect(page.getByLabel("尚未创建笔记仓库")).toBeVisible();

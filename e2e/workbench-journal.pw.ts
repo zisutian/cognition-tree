@@ -16,6 +16,7 @@ import {
   readJournalSnapshot,
 } from "./support/builtInSeeds";
 import { test } from "./support/e2eTest";
+import { removeOtherWorkbenchRepositories } from "./support/contentOperations";
 import {
   getWorkbenchStatus,
   getProblemsToggle,
@@ -251,20 +252,7 @@ test.describe("Journal activity flows", () => {
   test("keeps Journal usable when the ordinary repository catalog is empty", async ({
     page,
   }) => {
-    await page.route("**/api/v4/admin/repositories", async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({
-          body: JSON.stringify({
-            issues: [],
-            repositories: [],
-          }),
-          contentType: "application/json",
-          status: 200,
-        });
-        return;
-      }
-      await route.continue();
-    });
+    await removeOtherWorkbenchRepositories(api);
 
     await page.goto("/");
     await expect(

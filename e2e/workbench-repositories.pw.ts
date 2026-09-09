@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { randomUUID } from "node:crypto";
-import { buildApiOperationPath } from "../contracts/api/index.ts";
+import { removeOtherWorkbenchRepositories } from "./support/contentOperations";
 
 import { expect, type APIRequestContext } from "@playwright/test";
 import type {
@@ -810,31 +809,7 @@ test.describe("repository and capacity flows", () => {
 
     expect(catalogResponse.ok()).toBe(true);
     expect(remainingRepository).toBeDefined();
-    for (const repository of catalog.repositories) {
-      if (repository.id === largeRepositoryId) {
-        continue;
-      }
-      const query = await api.post(buildApiOperationPath("queryLocalContent"), {
-        data: { kind: "catalog" },
-      });
-      const { basis } = await query.json();
-      const deleteResponse = await api.post(
-        buildApiOperationPath("executeContentOperation"),
-        {
-          data: {
-            operationId: randomUUID(),
-            basis,
-            scope: { domain: "catalog" },
-            command: {
-              kind: "delete-repository",
-              repository: repository.label,
-            },
-          },
-        },
-      );
-
-      expect(deleteResponse.ok()).toBe(true);
-    }
+    await removeOtherWorkbenchRepositories(api, largeRepositoryId);
 
     await seedNoncurrentLocalRepository(
       repositoryRoot,
