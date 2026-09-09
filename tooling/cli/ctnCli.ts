@@ -7,6 +7,7 @@ import {
   buildApiOperationPath,
   getApiOperation,
   parseApiOperationRequest,
+  parseApiError,
   parseApiOperationResponse,
 } from "../../contracts/api/index.ts";
 import type {
@@ -121,8 +122,14 @@ async function call(
     buildApiOperationPath(operationId, parameters),
     request,
   );
-  // Both accepted and finished content operations use the same registry-owned result schema.
-  return parseApiOperationResponse(operationId, 200, response);
+  if (
+    response.status >= 400 &&
+    response.body &&
+    typeof response.body === "object" &&
+    "code" in response.body
+  )
+    throw new CliApiError(response.status, parseApiError(response.body));
+  return parseApiOperationResponse(operationId, response.status, response.body);
 }
 function exitCode(error: unknown) {
   if (error instanceof CliInputError) return 2;

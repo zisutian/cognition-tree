@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ApiErrorDto } from "../../contracts/api/index.ts";
-import { parseApiError } from "../../contracts/api/index.ts";
 
 const loopbackHosts = new Set(["127.0.0.1", "::1", "[::1]", "localhost"]);
 export const cliHttpRequestTimeoutMilliseconds = 30_000;
@@ -176,7 +175,7 @@ export type CliApiClient = {
     method: string,
     requestPath: string,
     body?: unknown,
-  ): Promise<unknown>;
+  ): Promise<{ status: number; body: unknown }>;
 };
 
 export class CliHttpClient implements CliApiClient {
@@ -198,7 +197,7 @@ export class CliHttpClient implements CliApiClient {
     method: string,
     requestPath: string,
     body?: unknown,
-  ): Promise<unknown> {
+  ): Promise<{ status: number; body: unknown }> {
     if (!requestPath.startsWith("/api/v4/") || requestPath.includes("#")) {
       throw new Error("CLI request path must start with /api/v4/");
     }
@@ -229,14 +228,11 @@ export class CliHttpClient implements CliApiClient {
       });
       if (response.status === 204) {
         await assertNoContent(response);
-        return null;
+        return { status: response.status, body: null };
       }
       const value = await readJsonResponse(response);
 
-      if (!response.ok) {
-        throw new CliApiError(response.status, parseApiError(value));
-      }
-      return value;
+      return { status: response.status, body: value };
     } catch (error) {
       if (controller.signal.aborted) {
         throw new Error(

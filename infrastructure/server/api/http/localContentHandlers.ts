@@ -33,45 +33,17 @@ export async function handleLocalContent(
   }
   const request = (await context.readJsonBody()) as ContentOperationRequestDto;
   const result = await service.execute(request);
-  if (result.status === "conflict")
-    throw new ApiRequestError(
-      "resource_conflict",
-      result.error?.message ?? "The read version is stale.",
-      {
-        details: {
-          operationId: result.operationId,
-          ...(result.error?.currentRevision
-            ? { currentRevision: result.error.currentRevision }
-            : {}),
-        },
-      },
-    );
-  if (result.status === "indeterminate")
-    throw new ApiRequestError(
-      "content_commit_indeterminate",
-      result.error?.message ?? "The operation outcome is uncertain.",
-      {
-        details: {
-          operationId: result.operationId,
-          commitState: "indeterminate",
-        },
-      },
-    );
-  if (result.status === "failed")
-    throw new ApiRequestError(
-      "invalid_request",
-      result.error?.message ?? "The content operation was rejected.",
-      {
-        details: {
-          operationId: result.operationId,
-          ...(result.error?.candidates
-            ? {
-                candidates: result.error.candidates,
-                selector: result.error.selector,
-              }
-            : {}),
-        },
-      },
-    );
-  return { body: result, statusCode: result.status === "pending" ? 202 : 200 };
+  return {
+    body: result,
+    statusCode:
+      result.status === "conflict"
+        ? 409
+        : result.status === "failed"
+          ? 400
+          : result.status === "indeterminate"
+            ? 503
+            : result.status === "pending"
+              ? 202
+              : 200,
+  };
 }

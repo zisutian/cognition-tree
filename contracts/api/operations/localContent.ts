@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { Type } from "@sinclair/typebox";
+import { ApiErrorSchema } from "../schemas/foundation.ts";
 import {
   ContentOperationRequestSchema,
   ContentOperationResultSchema,
@@ -29,6 +31,9 @@ export const localContentApiOperations = [
     responses: {
       200: ContentOperationResultSchema,
       202: ContentOperationResultSchema,
+      400: Type.Union([ContentOperationResultSchema, ApiErrorSchema]),
+      409: Type.Union([ContentOperationResultSchema, ApiErrorSchema]),
+      503: Type.Union([ContentOperationResultSchema, ApiErrorSchema]),
     },
   },
   {

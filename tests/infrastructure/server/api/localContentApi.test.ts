@@ -84,7 +84,7 @@ describe("local content API over HTTP", () => {
       );
       const received = await response.text();
       const parsed: unknown = JSON.parse(received);
-      if (response.status >= 400) parseApiError(parsed);
+      if (response.status >= 400 && parsed && typeof parsed === "object" && "code" in parsed) parseApiError(parsed);
       else parseApiOperationResponse(operationId, response.status, parsed);
       return { status: response.status, body: parsed, sent, received };
     }
@@ -170,16 +170,38 @@ describe("local content API over HTTP", () => {
       expect(Buffer.byteLength(edited.received)).toBeLessThan(
         Buffer.byteLength(source),
       );
+      const missingId = randomUUID();
+      const missing = await request("executeContentOperation", {
+        ...edit,
+        operationId: missingId,
+        basis: (await service.query({ kind: "directory", scope: { domain: "workspace", repository: edit.scope.repository } }))
+          .basis,
+        command: { kind: "delete-note", resource: "不存在的笔记" },
+      });
+      expect(missing.status).toBe(400);
+      expect(missing.body).toMatchObject({
+        status: "failed",
+        error: { code: "target_not_found", selector: "不存在的笔记" },
+      });
+      expect(
+        (await request("getContentOperation", undefined, missingId)).body,
+      ).toEqual(missing.body);
       const staleId = randomUUID();
       const stale = await request("executeContentOperation", {
         ...edit,
         operationId: staleId,
       });
       expect(stale.status).toBe(409);
-      expect(parseApiError(stale.body)).toMatchObject({
-        code: "resource_conflict",
-        details: { operationId: staleId },
+      expect(
+        parseApiSchema(ContentOperationResultSchema, stale.body),
+      ).toMatchObject({
+        status: "conflict",
+        operationId: staleId,
+        error: { code: "revision_conflict" },
       });
+      expect(
+        (await request("getContentOperation", undefined, staleId)).body,
+      ).toEqual(stale.body);
       expect(
         parseApiSchema(
           ContentOperationResultSchema,
