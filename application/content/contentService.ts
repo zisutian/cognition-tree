@@ -6,7 +6,10 @@ import {
   summarizeContentBlockChanges,
   type ContentChangeReview,
 } from "../commands/index.ts";
-import type { ContentOperationOutcome } from "../operations/index.ts";
+import type {
+  ContentOperationOutcome,
+  ContentOperationRecorder,
+} from "../operations/index.ts";
 import { createInitialRepositoryContent } from "../workspace/index.ts";
 import type { ContentOperationRequest } from "./contentCommand.ts";
 import type { ContentServicePorts } from "./contentPorts.ts";
@@ -15,7 +18,11 @@ import {
   queryContent,
   type ContentQuery,
 } from "./contentQuery.ts";
-import { commandFailure, requireRevision, ContentBasisMismatchError } from "./commandSupport.ts";
+import {
+  commandFailure,
+  requireRevision,
+  ContentBasisMismatchError,
+} from "./commandSupport.ts";
 import { executeJournalContentCommand } from "./journalCommand.ts";
 import { resolveNamedContent } from "./targetResolution.ts";
 import { executeTodoContentCommand } from "./todoCommand.ts";
@@ -45,11 +52,19 @@ export class ContentService {
         digest: this.#ports.digest(payload),
         occurredAt: timestamp,
       },
-      async () => {
+      async (recordPrepared) => {
         try {
-          if (request.scope.domain !== "workspace" && request.basis.repositoryId !== null) throw new ContentBasisMismatchError();
+          if (
+            request.scope.domain !== "workspace" &&
+            request.basis.repositoryId !== null
+          )
+            throw new ContentBasisMismatchError();
           if (request.scope.domain === "catalog")
-            return await this.#executeCatalog(request, timestamp);
+            return await this.#executeCatalog(
+              request,
+              timestamp,
+              recordPrepared,
+            );
           if (request.scope.domain === "workspace") {
             const selector = request.scope.repository;
             return await this.#ports.catalog.run(async (session) => {
@@ -62,7 +77,8 @@ export class ContentService {
                 })),
                 selector,
               );
-              if (repository.id !== request.basis.repositoryId) throw new ContentBasisMismatchError();
+              if (repository.id !== request.basis.repositoryId)
+                throw new ContentBasisMismatchError();
               return executeWorkspaceContentCommand(
                 this.#ports,
                 await session.getStore(repository.id),
@@ -70,6 +86,7 @@ export class ContentService {
                 request.basis.baseRevision,
                 request.command,
                 timestamp,
+                recordPrepared,
               );
             });
           }
@@ -80,6 +97,7 @@ export class ContentService {
               request.basis.baseRevision,
               request.command,
               timestamp,
+              recordPrepared,
             );
           return await executeTodoContentCommand(
             this.#ports,
@@ -87,6 +105,7 @@ export class ContentService {
             request.basis.baseRevision,
             request.command,
             timestamp,
+            recordPrepared,
           );
         } catch (error) {
           return commandFailure(error);
@@ -95,7 +114,11 @@ export class ContentService {
     );
   }
 
-  #executeCatalog(request: ContentOperationRequest, timestamp: string) {
+  #executeCatalog(
+    request: ContentOperationRequest,
+    timestamp: string,
+    recordPrepared: ContentOperationRecorder,
+  ) {
     return this.#ports.catalog.run(
       async (session): Promise<ContentOperationOutcome> => {
         const before = await session.read();
@@ -139,10 +162,45 @@ export class ContentService {
                 timestamp,
               })
             : null;
-        let id = previous?.id ?? null;
+        const id = previous?.id ?? (await session.allocateId());
+        const expectedAfter = {
+          ...before,
+          repositories:
+            command.kind === "create-repository"
+              ? [...before.repositories, { id, label: name! }]
+              : command.kind === "delete-repository"
+                ? before.repositories.filter((item) => item.id !== id)
+                : before.repositories.map((item) =>
+                    item.id === id ? { ...item, label: name! } : item,
+                  ),
+        };
+        await recordPrepared({
+          repositoryId: id,
+          expectedAfterRevision: contentCatalogRevision(
+            expectedAfter,
+            this.#ports.digest,
+          ),
+          targets: [
+            {
+              type: "repository",
+              resourceId: id,
+              actions: [
+                command.kind === "create-repository"
+                  ? "created"
+                  : command.kind === "rename-repository"
+                    ? "renamed"
+                    : "deleted",
+              ],
+              before: previous
+                ? { label: previous.name, path: previous.path }
+                : null,
+              after: name ? { label: name, path: name } : null,
+            },
+          ],
+        });
         try {
           if (command.kind === "create-repository") {
-            id = (await session.create(name!, initialContent!)).id;
+            await session.create(id, name!, initialContent!);
           } else if (command.kind === "rename-repository")
             await session.rename(previous!.id, name!);
           else await session.delete(previous!.id);

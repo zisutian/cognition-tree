@@ -21,7 +21,10 @@ import type {
 } from "../../core/todo/index.ts";
 import type { DomainChangeSet } from "../../core/sync/index.ts";
 
-export type ContentReadBasis = { baseRevision: `sha256:${string}`; repositoryId: string | null };
+export type ContentReadBasis = {
+  baseRevision: `sha256:${string}`;
+  repositoryId: string | null;
+};
 
 export type ContentRevision = `sha256:${string}`;
 export type ContentWorkspaceStore = PreparedVersionedStore<
@@ -49,7 +52,9 @@ export type ContentCatalogSession = {
   read(): Promise<ContentCatalog>;
   validateName(name: string, excludedId?: string): Promise<string>;
   getStore(id: string): Promise<ContentWorkspaceStore>;
+  allocateId(): Promise<string>;
   create(
+    id: string,
     label: string,
     content: WorkspaceRepositoryContent,
   ): Promise<{ id: string; label: string }>;
@@ -70,6 +75,11 @@ export type ContentServicePorts = {
   runtime: CommandRuntime & {
     timezoneOffsetMinutes(date: Date): number;
     today(date: Date): TodoLocalDate;
+  };
+  revisions: {
+    workspace(content: WorkspaceRepositoryContent): ContentRevision;
+    journal(content: JournalContent): ContentRevision;
+    todo(content: TodoContent): ContentRevision;
   };
   versions: {
     workspace: WorkspaceResourceVersionPolicy;

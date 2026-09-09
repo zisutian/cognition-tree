@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { ContentOperationRecorder } from "../operations/index.ts";
 import { DomainValidationError } from "../../core/errors/index.ts";
 import {
   createInitialWorkspaceSyntax,
@@ -30,10 +31,14 @@ export function executeWorkspaceContentCommand(
   baseRevision: ContentRevision,
   command: ContentCommand,
   timestamp: string,
+  recordPrepared: ContentOperationRecorder,
 ) {
   return commitContentCommand({
     store,
     baseRevision,
+    recordPrepared,
+    revisionOf: ports.revisions.workspace,
+    repositoryId: repository.id,
     prepare(snapshot) {
       const resources = listWorkspaceResourcePaths(
         snapshot.projection.workspace,
@@ -230,10 +235,10 @@ export function executeWorkspaceContentCommand(
           ],
           blockIds: [...new Set(changes.blocks.map(({ blockId }) => blockId))],
         },
-        notify: () =>
+        notify: (revision) =>
           ports.onCommitted(
             { domain: "workspace", repositoryId: repository.id },
-            receipt.revision,
+            revision,
             changes,
           ),
       };

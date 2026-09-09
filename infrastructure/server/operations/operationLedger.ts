@@ -4,6 +4,7 @@ import type {
   AgentOperationAttempt,
   AgentOperationIdentity,
   ContentOperationIntent,
+  ContentOperationRecorder,
   ContentOperationOutcome,
 } from "../../../application/operations/index.ts";
 import type { AgentOperationAuditEntryDto } from "../../../contracts/agent/index.ts";
@@ -69,7 +70,9 @@ export class OperationLedger {
 
   runContentOperation(
     intent: ContentOperationIntent,
-    execute: () => Promise<ContentOperationOutcome>,
+    execute: (
+      recordPrepared: ContentOperationRecorder,
+    ) => Promise<ContentOperationOutcome>,
   ) {
     return this.#content.runContentOperation(intent, execute);
   }

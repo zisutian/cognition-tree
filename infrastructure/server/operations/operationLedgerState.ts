@@ -239,7 +239,10 @@ export function parseOperationLedgerState(
     throw new Error("Operation receipts must be an array.");
   const seen = new Set<string>();
   const parsedReceipts = contentReceipts.map((value) => {
-    const receipt = parseApiSchema(ContentOperationResultSchema, value);
+    const receipt = parseApiSchema(ContentOperationResultSchema, {
+      ...requireStateRecord(value, "Legacy content receipt"),
+      preparation: null,
+    });
     if (
       seen.has(receipt.operationId) ||
       (receipt.status === "committed" && receipt.afterRevision === null)

@@ -1,3 +1,8 @@
+import {
+  createWorkspaceRepositoryRevision,
+  createJournalRevision,
+  createTodoRevision,
+} from "../../../../infrastructure/server/repository/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomUUID } from "node:crypto";
@@ -44,6 +49,11 @@ export async function createContentServiceFixture(existingRoot?: string) {
     ledger,
     digest: createApiResourceVersion,
     runtime,
+    revisions: {
+      workspace: createWorkspaceRepositoryRevision,
+      journal: createJournalRevision,
+      todo: createTodoRevision,
+    },
     versions: {
       workspace: workspaceResourceVersions,
       journal: journalResourceVersions,

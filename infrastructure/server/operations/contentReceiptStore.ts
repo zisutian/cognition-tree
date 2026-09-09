@@ -16,7 +16,10 @@ import {
   type SecureStateFileReplacer,
 } from "../state/index.ts";
 
-type ReceiptState = { receipt: ContentOperationResult | null };
+type ReceiptState = {
+  formatVersion: 2;
+  receipt: ContentOperationResult | null;
+};
 
 /** One independently locked durable file per operation; audit retention has no effect. */
 export class ContentReceiptStore {
@@ -43,21 +46,36 @@ export class ContentReceiptStore {
     return new SecureJsonPartition<ReceiptState>({
       ...this.#location(operationId),
       name: "content operation receipt",
-      createInitial: () => ({ receipt: null }),
+      createInitial: () => ({ formatVersion: 2, receipt: null }),
       parse(value) {
         const state = requireStateRecord(value, "Content receipt");
-        assertStateFields(state, ["receipt"], "Content receipt");
+        const legacy = state.formatVersion === undefined;
+        assertStateFields(
+          state,
+          legacy ? ["receipt"] : ["formatVersion", "receipt"],
+          "Content receipt",
+        );
+        if (!legacy && state.formatVersion !== 2)
+          throw new Error("Unsupported content receipt format.");
         const receipt =
           state.receipt === null
             ? null
-            : parseApiSchema(ContentOperationResultSchema, state.receipt);
+            : parseApiSchema(
+                ContentOperationResultSchema,
+                legacy
+                  ? {
+                      ...requireStateRecord(state.receipt, "Legacy receipt"),
+                      preparation: null,
+                    }
+                  : state.receipt,
+              );
         if (
           receipt &&
           (receipt.operationId !== operationId ||
             (receipt.status === "committed" && !receipt.afterRevision))
         )
           throw new Error("Content receipt identity or outcome is invalid.");
-        return { receipt };
+        return { formatVersion: 2, receipt };
       },
       ...(this.replaceFile ? { replaceFile: this.replaceFile } : {}),
     });

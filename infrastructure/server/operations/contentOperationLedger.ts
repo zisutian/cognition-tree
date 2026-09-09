@@ -3,6 +3,8 @@
 import {
   ContentOperationIdempotencyError,
   type ContentOperationIntent,
+  type ContentOperationPreparation,
+  type ContentOperationRecorder,
   type ContentOperationLedgerPort,
   type ContentOperationOutcome,
   type ContentOperationResult,
@@ -37,6 +39,9 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
     const known = this.#undurableResults.get(operationId);
     if (known) return structuredClone(known);
     const receipt = await this.receipts.read(operationId);
+    const completing = this.#inFlight.get(operationId);
+    if (receipt && receipt.status !== "pending" && completing)
+      return structuredClone(await completing.promise);
     return receipt ? this.#project(receipt) : null;
   }
 
@@ -62,7 +67,9 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
 
   async runContentOperation(
     intent: ContentOperationIntent,
-    execute: () => Promise<ContentOperationOutcome>,
+    execute: (
+      recordPrepared: ContentOperationRecorder,
+    ) => Promise<ContentOperationOutcome>,
   ): Promise<ContentOperationResult> {
     const pending = this.#inFlight.get(intent.operationId);
     if (pending) {
@@ -81,7 +88,9 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
 
   async #run(
     intent: ContentOperationIntent,
-    execute: () => Promise<ContentOperationOutcome>,
+    execute: (
+      recordPrepared: ContentOperationRecorder,
+    ) => Promise<ContentOperationOutcome>,
   ): Promise<ContentOperationResult> {
     const known = this.#undurableResults.get(intent.operationId);
     if (known) {
@@ -114,6 +123,7 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
       }
       state.receipt = {
         ...intent,
+        preparation: null,
         afterRevision: null,
         audit: "pending",
         changeMetadata: { blockIds: [], resourceIds: [] },
@@ -126,9 +136,24 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
     });
     if (existing) return existing;
 
+    let preparation: ContentOperationPreparation | null = null;
     let outcome: ContentOperationOutcome;
     try {
-      outcome = await execute();
+      outcome = await execute(async (prepared) => {
+        await this.receipts.mutate(intent.operationId, (state) => {
+          if (
+            !state.receipt ||
+            state.receipt.status !== "pending" ||
+            state.receipt.preparation
+          )
+            throw new Error(
+              "Operation preparation can only be persisted once before commit.",
+            );
+          state.receipt.preparation = prepared;
+          return { changed: true, result: undefined };
+        });
+        preparation = prepared;
+      });
     } catch {
       // The coordinator classifies proven pre-commit failures. An unexpected
       // failure here cannot prove that the content was left unchanged.
@@ -147,6 +172,7 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
     const result: ContentOperationResult = {
       ...intent,
       ...outcome,
+      preparation,
       audit: "pending",
       updatedAt: this.now(),
     };

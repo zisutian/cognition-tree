@@ -17,7 +17,20 @@ export type ContentOperationIntent = {
   scope: ContentOperationScope;
 };
 
+export type ContentOperationPreparation = {
+  repositoryId: string | null;
+  expectedAfterRevision: `sha256:${string}`;
+  targets: Pick<
+    ContentChangeReview["resources"][number],
+    "resourceId" | "type" | "actions" | "before" | "after"
+  >[];
+};
+export type ContentOperationRecorder = (
+  preparation: ContentOperationPreparation,
+) => Promise<void>;
+
 export type ContentOperationResult = ContentOperationIntent & {
+  preparation: ContentOperationPreparation | null;
   afterRevision: `sha256:${string}` | null;
   audit: "pending" | "recorded" | "failed";
   changeMetadata: { blockIds: string[]; resourceIds: string[] };
@@ -44,7 +57,9 @@ export interface ContentOperationLedgerPort {
   ): Promise<ContentOperationResult | null>;
   runContentOperation(
     intent: ContentOperationIntent,
-    execute: () => Promise<ContentOperationOutcome>,
+    execute: (
+      recordPrepared: ContentOperationRecorder,
+    ) => Promise<ContentOperationOutcome>,
   ): Promise<ContentOperationResult>;
 }
 

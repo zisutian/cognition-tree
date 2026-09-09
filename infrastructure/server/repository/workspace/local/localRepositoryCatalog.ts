@@ -25,12 +25,8 @@ import {
   hasFileSystemErrorCode,
 } from "../../../persistence/index.ts";
 
-import {
-  WorkspaceFileStore,
-} from "./workspaceFileStore.ts";
-import {
-  provisionWorkspaceFileRepository,
-} from "./workspaceFileRepositoryProvisioning.ts";
+import { WorkspaceFileStore } from "./workspaceFileStore.ts";
+import { provisionWorkspaceFileRepository } from "./workspaceFileRepositoryProvisioning.ts";
 import {
   deleteLocalRepositoryDirectory,
   type LocalRepositoryDeletionPhase,
@@ -90,12 +86,13 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
     rootDir: string,
     {
       createId = randomUUID,
-      createStore = (repositoryRoot) => new WorkspaceFileStore(repositoryRoot, {
-        createBlockId: randomUUID,
-        createFolderId: () => `folder-${randomUUID().toLowerCase()}`,
-        createNoteId: () => `note-${randomUUID().toLowerCase()}`,
-        now: () => new Date().toISOString(),
-      }),
+      createStore = (repositoryRoot) =>
+        new WorkspaceFileStore(repositoryRoot, {
+          createBlockId: randomUUID,
+          createFolderId: () => `folder-${randomUUID().toLowerCase()}`,
+          createNoteId: () => `note-${randomUUID().toLowerCase()}`,
+          now: () => new Date().toISOString(),
+        }),
       hostRoot = null,
       onRepositoryDeletionPhase = async () => {},
     }: LocalRepositoryCatalogOptions = {},
@@ -154,7 +151,11 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
     const label = await this.#assertAvailableLabel(request.label);
     const id = await this.#allocateRepositoryId();
 
-    return this.#createRepositoryWithId({ content: request.content, id, label });
+    return this.#createRepositoryWithId({
+      content: request.content,
+      id,
+      label,
+    });
   }
 
   async createRepositoryWithId(
@@ -191,16 +192,21 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
     });
   }
 
-  runContentCatalog<Result>(operation: (session: ContentCatalogSession) => Promise<Result>): Promise<Result> {
+  runContentCatalog<Result>(
+    operation: (session: ContentCatalogSession) => Promise<Result>,
+  ): Promise<Result> {
     this.#assertAcceptingOperations();
     return this.#enqueueOperation(async () => {
       await this.#rootLease.initialize();
       this.#rootLease.assertOwned();
       return operation({
         read: () => this.#listRepositories(),
-        validateName: (name, excludedId) => this.#assertAvailableLabel(name, excludedId),
+        validateName: (name, excludedId) =>
+          this.#assertAvailableLabel(name, excludedId),
         getStore: (id) => this.#getStore(id),
-        create: (label, content) => this.#createRepository({ label, content }),
+        allocateId: () => this.#allocateRepositoryId(),
+        create: (id, label, content) =>
+          this.#createRepositoryWithId({ id, label, content }),
         rename: (id, label) => this.#renameRepository(id, { label }),
         delete: (id) => this.#deleteRepository(id),
       });
@@ -214,7 +220,9 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
 
   async renameRepository(repositoryId: string, request: RenameRepositoryDto) {
     this.#assertAcceptingOperations();
-    return this.#enqueueOperation(() => this.#renameRepository(repositoryId, request));
+    return this.#enqueueOperation(() =>
+      this.#renameRepository(repositoryId, request),
+    );
   }
 
   async #renameRepository(repositoryId: string, request: RenameRepositoryDto) {
@@ -245,13 +253,19 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
     });
 
     if (!stats.isDirectory() || stats.isSymbolicLink()) {
-      throw new RepositoryCatalogError("invalid_request", "Repository is not a real directory");
+      throw new RepositoryCatalogError(
+        "invalid_request",
+        "Repository is not a real directory",
+      );
     }
 
     const canonicalPath = await realpath(repositoryPath);
 
     if (path.dirname(canonicalPath) !== this.#rootLease.rootPath) {
-      throw new RepositoryCatalogError("invalid_request", "Repository escapes the configured root");
+      throw new RepositoryCatalogError(
+        "invalid_request",
+        "Repository escapes the configured root",
+      );
     }
 
     const existing = this.#storesById.get(repositoryId);
@@ -314,10 +328,13 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
       );
     }
     const catalog = await this.#listRepositories();
-    if (catalog.repositories.some((repository) =>
-      repository.id !== excludedId &&
-      createPortableNameKey(repository.label) === key
-    )) {
+    if (
+      catalog.repositories.some(
+        (repository) =>
+          repository.id !== excludedId &&
+          createPortableNameKey(repository.label) === key,
+      )
+    ) {
       throw new RepositoryCatalogError(
         "invalid_request",
         "Repository label is already in use",
@@ -376,7 +393,10 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
     });
   }
 
-  #createDescriptor(repositoryId: string, label: string): RepositoryDescriptorDto {
+  #createDescriptor(
+    repositoryId: string,
+    label: string,
+  ): RepositoryDescriptorDto {
     return {
       id: repositoryId,
       label,
@@ -387,25 +407,29 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
 
   #createLocation(repositoryId: string) {
     return {
-      hostPath: this.#hostRoot === null
-        ? null
-        : path.join(this.#hostRoot, repositoryId),
+      hostPath:
+        this.#hostRoot === null
+          ? null
+          : path.join(this.#hostRoot, repositoryId),
       serverPath: this.#resolveRepositoryPath(repositoryId),
     };
   }
 
   #resolveRepositoryPath(repositoryId: string) {
     if (!isRepositoryId(repositoryId)) {
-      throw new RepositoryCatalogError("invalid_request", `Invalid repository id: ${repositoryId}`);
+      throw new RepositoryCatalogError(
+        "invalid_request",
+        `Invalid repository id: ${repositoryId}`,
+      );
     }
 
-    const repositoryPath = path.resolve(
-      this.#rootLease.rootPath,
-      repositoryId,
-    );
+    const repositoryPath = path.resolve(this.#rootLease.rootPath, repositoryId);
 
     if (path.dirname(repositoryPath) !== this.#rootLease.rootPath) {
-      throw new RepositoryCatalogError("invalid_request", "Repository escapes the configured root");
+      throw new RepositoryCatalogError(
+        "invalid_request",
+        "Repository escapes the configured root",
+      );
     }
     return repositoryPath;
   }
@@ -421,7 +445,10 @@ export class LocalRepositoryCatalog implements WorkspaceRepositoryCatalog {
 
   #enqueueOperation<Result>(operation: () => Promise<Result>) {
     const result = this.#operationQueue.then(operation);
-    this.#operationQueue = result.then(() => undefined, () => undefined);
+    this.#operationQueue = result.then(
+      () => undefined,
+      () => undefined,
+    );
     return result;
   }
 }

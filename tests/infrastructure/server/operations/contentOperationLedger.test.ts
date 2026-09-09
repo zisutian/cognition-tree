@@ -305,6 +305,7 @@ it("resumes a legacy receipt migration after the index replacement fails", async
   const receipt = {
     ...intent,
     ...committed,
+    preparation: null,
     audit: "recorded",
     updatedAt: intent.occurredAt,
   };

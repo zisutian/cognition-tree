@@ -61,6 +61,17 @@ it.each(["before-commit", "after-commit"])(
         operationId: request.operationId,
         status: "indeterminate",
       });
+      expect(evidence.result.preparation).toMatchObject({
+        repositoryId: null,
+        targets: [{ type: "journal-entry", actions: ["created"] }],
+      });
+      expect(
+        evidence.result.preparation!.targets[0]!.after!.label,
+      ).toBeTruthy();
+      expect(
+        evidence.result.preparation!.expectedAfterRevision ===
+          evidence.directory.basis.baseRevision,
+      ).toBe(phase === "after-commit");
       expect(evidence.repeated).toEqual(evidence.result);
       if (evidence.directory.kind !== "directory")
         throw new Error("Missing directory result");

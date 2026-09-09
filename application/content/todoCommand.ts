@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { ContentOperationRecorder } from "../operations/index.ts";
 import { DomainValidationError } from "../../core/errors/index.ts";
 import {
   createTodoParseIndex,
@@ -27,10 +28,14 @@ export function executeTodoContentCommand(
   baseRevision: ContentRevision,
   command: ContentCommand,
   timestamp: string,
+  recordPrepared: ContentOperationRecorder,
 ) {
   return commitContentCommand({
     store,
     baseRevision,
+    recordPrepared,
+    revisionOf: ports.revisions.todo,
+    repositoryId: null,
     prepare(snapshot) {
       const index = snapshot.projection;
       if (command.kind === "update-syntax") {
@@ -192,8 +197,8 @@ export function executeTodoContentCommand(
           ],
           blockIds: [...new Set(changes.blocks.map(({ blockId }) => blockId))],
         },
-        notify: () =>
-          ports.onCommitted({ domain: "todo" }, receipt.revision, changes),
+        notify: (revision) =>
+          ports.onCommitted({ domain: "todo" }, revision, changes),
       };
     },
   });

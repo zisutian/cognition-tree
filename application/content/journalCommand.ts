@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { ContentOperationRecorder } from "../operations/index.ts";
 import { DomainValidationError } from "../../core/errors/index.ts";
 import {
   createJournalParseIndex,
@@ -27,10 +28,14 @@ export function executeJournalContentCommand(
   baseRevision: ContentRevision,
   command: ContentCommand,
   timestamp: string,
+  recordPrepared: ContentOperationRecorder,
 ) {
   return commitContentCommand({
     store,
     baseRevision,
+    recordPrepared,
+    revisionOf: ports.revisions.journal,
+    repositoryId: null,
     prepare(snapshot) {
       const index = snapshot.projection;
       if (command.kind === "update-syntax") {
@@ -149,8 +154,8 @@ export function executeJournalContentCommand(
           ],
           blockIds: [...new Set(changes.blocks.map(({ blockId }) => blockId))],
         },
-        notify: () =>
-          ports.onCommitted({ domain: "journal" }, receipt.revision, changes),
+        notify: (revision) =>
+          ports.onCommitted({ domain: "journal" }, revision, changes),
       };
     },
   });

@@ -4,6 +4,9 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { ContentService } from "../../../../application/content/index.ts";
+import { OperationLedger } from "../../../../infrastructure/server/operations/index.ts";
+import { replaceFileDurably } from "../../../../infrastructure/server/persistence/index.ts";
 import { createContentServiceFixture } from "./contentServiceFixture.ts";
 
 const fixtures: Awaited<ReturnType<typeof createContentServiceFixture>>[] = [];
@@ -20,6 +23,34 @@ const journal = { domain: "journal" as const };
 const todo = { domain: "todo" as const };
 
 describe("local semantic content use cases on real storage", () => {
+  it("does not commit content if prepared target evidence cannot be persisted", async () => {
+    const value = await fixture();
+    const ledger = new OperationLedger(
+      path.join(value.root, "failing-ledger"),
+      1,
+      {
+        replaceStateFile: async (target, text) => {
+          const receipt = JSON.parse(text).receipt;
+          if (receipt?.status === "pending" && receipt.preparation)
+            throw new Error("Prepared evidence disk failure");
+          await replaceFileDurably(target, text);
+        },
+      },
+    );
+    await ledger.initialize();
+    const service = new ContentService({ ...value.ports, ledger });
+    const before = await service.query({ kind: "directory", scope: journal });
+    const result = await service.execute({
+      operationId: randomUUID(),
+      scope: journal,
+      basis: before.basis,
+      command: { kind: "create-entry", body: "- 不应写入" },
+    });
+    expect(result.status).toBe("failed");
+    expect(await service.query({ kind: "directory", scope: journal })).toEqual(
+      before,
+    );
+  });
   it("reads exact titles and paths, rejects ambiguity, and returns only the requested block", async () => {
     const value = await fixture();
     expect(

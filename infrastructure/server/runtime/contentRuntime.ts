@@ -1,3 +1,8 @@
+import {
+  createWorkspaceRepositoryRevision,
+  createJournalRevision,
+  createTodoRevision,
+} from "../repository/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { ContentService } from "../../../application/content/index.ts";
@@ -32,6 +37,11 @@ export function createServerContentService(
     ledger,
     digest: createApiResourceVersion,
     runtime: input.runtime,
+    revisions: {
+      workspace: createWorkspaceRepositoryRevision,
+      journal: createJournalRevision,
+      todo: createTodoRevision,
+    },
     versions: {
       workspace: workspaceResourceVersions,
       journal: journalResourceVersions,

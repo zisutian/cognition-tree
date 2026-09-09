@@ -10,7 +10,10 @@ import {
 } from "../common/index.ts";
 import { ContentChangeReviewSchema } from "./changeReview.ts";
 
-export const ContentReadBasisSchema = strictObject({ baseRevision: revision, repositoryId: nullable(identifier) });
+export const ContentReadBasisSchema = strictObject({
+  baseRevision: revision,
+  repositoryId: nullable(identifier),
+});
 
 export const ContentOperationScopeSchema = Type.Union([
   strictObject({ domain: Type.Literal("workspace"), repository: identifier }),
@@ -19,6 +22,21 @@ export const ContentOperationScopeSchema = Type.Union([
   strictObject({ domain: Type.Literal("todo") }),
 ]);
 export const ContentOperationResultSchema = strictObject({
+  preparation: nullable(
+    strictObject({
+      repositoryId: nullable(identifier),
+      expectedAfterRevision: revision,
+      targets: Type.Array(
+        Type.Pick(ContentChangeReviewSchema.properties.resources.items, [
+          "resourceId",
+          "type",
+          "actions",
+          "before",
+          "after",
+        ]),
+      ),
+    }),
+  ),
   afterRevision: nullable(revision),
   audit: Type.Union([
     Type.Literal("pending"),

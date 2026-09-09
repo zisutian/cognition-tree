@@ -6,7 +6,10 @@ import {
 } from "../../core/ctn/index.ts";
 import { DomainValidationError } from "../../core/errors/index.ts";
 import type { ContentChangeReview } from "../commands/index.ts";
-import type { ContentOperationOutcome } from "../operations/index.ts";
+import type {
+  ContentOperationOutcome,
+  ContentOperationRecorder,
+} from "../operations/index.ts";
 import {
   VersionedContentRevisionConflictError,
   type PreparedVersionedCommitReceipt,
@@ -19,7 +22,12 @@ import type { ContentRevision } from "./contentPorts.ts";
 import { ContentTargetError } from "./targetResolution.ts";
 
 export class ContentBasisMismatchError extends Error {
-  constructor() { super("The read basis belongs to a different repository. Read the intended target again."); this.name = "ContentBasisMismatchError"; }
+  constructor() {
+    super(
+      "The read basis belongs to a different repository. Read the intended target again.",
+    );
+    this.name = "ContentBasisMismatchError";
+  }
 }
 
 export function commandFailure(
@@ -31,17 +39,24 @@ export function commandFailure(
     afterRevision: null,
     changeMetadata: { resourceIds: [], blockIds: [] },
     review: null,
-    status: conflict || error instanceof ContentBasisMismatchError ? "conflict" : uncertain ? "indeterminate" : "failed",
+    status:
+      conflict || error instanceof ContentBasisMismatchError
+        ? "conflict"
+        : uncertain
+          ? "indeterminate"
+          : "failed",
     error: {
       code: conflict
         ? "revision_conflict"
-        : error instanceof ContentBasisMismatchError ? "target_identity_conflict" : uncertain
-          ? "operation_indeterminate"
-          : error instanceof ContentTargetError
-            ? error.code
-            : error instanceof CtnContentEditError
-              ? error.reason
-              : "invalid_request",
+        : error instanceof ContentBasisMismatchError
+          ? "target_identity_conflict"
+          : uncertain
+            ? "operation_indeterminate"
+            : error instanceof ContentTargetError
+              ? error.code
+              : error instanceof CtnContentEditError
+                ? error.reason
+                : "invalid_request",
       message: uncertain
         ? "The commit outcome cannot be proved. Query this operation and inspect the affected content; do not replay it."
         : error instanceof Error
@@ -81,16 +96,16 @@ export async function commitContentCommand<Content, Projection>(input: {
   prepare(
     snapshot: PreparedVersionedSnapshot<Content, Projection, ContentRevision>,
   ): PreparedVersionedContent<Content, Projection>;
-  describe(
-    receipt: PreparedVersionedCommitReceipt<
-      Content,
-      Projection,
-      ContentRevision
-    >,
-  ): {
+  repositoryId: string | null;
+  revisionOf(content: Content): ContentRevision;
+  recordPrepared: ContentOperationRecorder;
+  describe(change: {
+    before: PreparedVersionedContent<Content, Projection>;
+    after: PreparedVersionedContent<Content, Projection>;
+  }): {
     review: ContentChangeReview;
     changeMetadata: ContentOperationOutcome["changeMetadata"];
-    notify(): void;
+    notify(revision: ContentRevision): void;
   };
 }): Promise<ContentOperationOutcome> {
   let committing = false;
@@ -103,6 +118,20 @@ export async function commitContentCommand<Content, Projection>(input: {
     const snapshot = await input.store.loadSnapshot();
     requireRevision(snapshot.revision, input.baseRevision);
     const prepared = input.prepare(snapshot);
+    const expected = input.describe({ before: snapshot, after: prepared });
+    await input.recordPrepared({
+      repositoryId: input.repositoryId,
+      expectedAfterRevision: input.revisionOf(prepared.content),
+      targets: expected.review.resources.map(
+        ({ resourceId, type, actions, before, after }) => ({
+          resourceId,
+          type,
+          actions,
+          before,
+          after,
+        }),
+      ),
+    });
     committing = true;
     receipt = await input.store.commit({
       ...prepared,
@@ -111,7 +140,7 @@ export async function commitContentCommand<Content, Projection>(input: {
     const description = input.describe(receipt);
     let error: ContentOperationOutcome["error"] = null;
     try {
-      description.notify();
+      description.notify(receipt.revision);
     } catch {
       error = {
         code: "notification_failed",
