@@ -149,7 +149,3 @@ Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active �
 周期。inactive recurrence 保留 completedCount/totalCount，但完成状态与写入按
 普通任务处理并使用 occurrenceDate null；active 只能提交服务端给出的
 currentOccurrenceDate。
-
-本机内容操作在 CAS 前持久化 `preparation`：包含仓库身份、已解析目标的身份与前后名称/路径、预期写入后的存储版本。操作结果中的 `afterRevision` 只来自真实提交收据；预期版本不冒充已提交结果。中断后可将查询取得的 `basis.baseRevision` 与预期版本核对，但不会因此自动重放或将结果改为成功。
-
-内容收据按操作 ID 分文件保存在服务状态目录 `content-operations-v1`，不随审计保留数量裁剪。`operations-v1/operations.json` 只保留 Agent 收据与有限审计。旧格式内容收据先逐项持久化，再移除旧索引中的副本；迁移中断可重入，冲突副本拒绝覆盖。内容结果先于审计收尾持久化，所以审计失败不会抹掉已知提交；若连结果也无法持久化，重启后保留不确定状态及提交前证据。

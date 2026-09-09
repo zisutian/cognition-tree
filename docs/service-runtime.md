@@ -63,14 +63,17 @@ AgentSessionSnapshot。两类 SSE 都不是正文真值来源。
     <dataRoot>/server/agent-auth-v1/providers/<providerId>/
     <dataRoot>/server/agent-config-v1/configuration.json
     <dataRoot>/server/operations-v1/operations.json
+    <dataRoot>/server/content-operations-v1/<摘要前缀>/<操作ID摘要>.json
 
 旧 access-v1 分区与 CLI 凭据文件不读取、不转换权限也不删除；历史 trusted-client 审计仍可解码和展示。agent-auth 独占 Provider 密钥与受管登录态，agent-config 只保存配置、凭据引用与符合性结果。
 
-operations-v1 的 formatVersion 3 在同一持久状态中分别保存 auditEntries、agentReceipts 和 contentReceipts；读取兼容已有 formatVersion 2，内容格式版本不变。
+operations-v1 的 formatVersion 4 只保存 auditEntries 和 agentReceipts；内容收据按操作 ID 分文件保存在 content-operations-v1，各自加锁和持久化，不受单个总账本文件的累计容量限制。读取兼容旧 formatVersion 2/3：先逐项持久化原有内容收据，再移除旧索引中的副本；迁移中断可重入，冲突副本拒绝覆盖。内容收据文件当前使用 formatVersion 2，兼容原有无 preparation 的记录；业务内容格式版本不变。
 
 本机内容用例由 application/content 拥有。先持久化操作 ID、请求摘要、scope、命令和基线版本，再加载权威快照并定位，最后通过领域 prepared store 执行一次 CAS。短账本事务不持有内容锁；Workspace 的目录准入覆盖名称解析、存储访问与提交，仓库管理也使用该目录队列。普通浏览器的三方同步不进入此 exact-CAS 用例。
 
-相同内容操作 ID 和摘要返回原收据，不同摘要拒绝。提交后的身份、差异和版本来自真实 commit receipt。审计收尾失败不回滚已提交内容，也不把它重新视为可写请求；同进程保留明确的 committed/audit-failed 结果。重启后的孤立 pending 转为 indeterminate，禁止自动重放。结果查询与受影响内容读取供调用方核对，不提供强制重试入口。内容收据不随展示容量裁剪，包含修改摘要及有限上下文差异，因此与业务数据一样受私有目录权限保护；不保存认证 secret 或模型提示词。
+CAS 前必须持久化 preparation：包含仓库身份、已解析目标的身份与前后名称/路径、预期写入后的存储版本。afterRevision 只来自真实提交收据；预期版本不冒充已提交结果。中断后可将查询取得的 basis.baseRevision 与预期版本核对，但不会因此自动重放或将结果改为成功。
+
+相同内容操作 ID 和摘要返回原收据，不同摘要拒绝。提交后的身份、差异和版本来自真实 commit receipt。内容结果先于审计收尾持久化，审计失败不会抹掉已知提交，重启后仍能读到 committed/audit-failed；若连结果也无法持久化，同进程保留已知提交，重启后保留不确定状态及提交前证据。孤立 pending 转为 indeterminate，禁止自动重放。结果查询与受影响内容读取供调用方核对，不提供强制重试入口。内容收据不随展示容量裁剪，包含修改摘要及有限上下文差异，因此与业务数据一样受私有目录权限保护；不保存认证 secret 或模型提示词。
 
 Agent receipt 的键仍是 proposal UUID + version，并校验 digest；同进程复用在途 promise，同摘要重放返回原 receipt，不同摘要拒绝。重启后 pending 标记 indeterminate。Agent receipt 在原有 24 小时会话生命周期后清理，审计展示容量不直接裁剪它。内置 Agent 会话、提案和审批保持独立，领域命令准备与变更 review 复用中立入口。
 
@@ -141,7 +144,7 @@ Provider 凭据安装与配置提交、符合性结果记录共享同一写入�
     server/operations 独占统一账本、审计状态和 Agent receipt；其中
     application/operations 的 operationLedgerPort 独占公开错误与命令类型；operationLedgerState 独占
     operations-v1 严格解析与初始状态，operationLedgerProjection 独占 Agent 审计 wire 投影与稳定 operation key，operationLedgerStore 独占安全分区、串行化、
-    可用性、容量与旧文件清理，contentOperationLedger 独占本机操作意图、去重和终态收据，agentOperationLedger 独占 in-flight 去重、持久 receipt、
+    可用性、容量与旧文件清理，contentReceiptStore 独占每操作文件、格式和旧记录导入，contentOperationLedger 独占本机操作意图、去重和终态收据，agentOperationLedger 独占 in-flight 去重、持久 receipt、
     retention 与 terminal/indeterminate 流程，operationLedger 只作为显式组合根和公开
     façade；
     server/agent 拥有模型 runtime adapter、Provider 配置和凭据存储、私有 IPC 与子进程
