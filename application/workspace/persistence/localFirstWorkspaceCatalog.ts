@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { WorkspaceRepositoryCatalog, WorkspaceRepositoryCatalogData } from "../../repository/index.ts";
-import type { WorkspaceRepositoryProvider, WorkspaceRepositoryProvisioner } from "./workspaceRepositoryProvider.ts";
-import { WorkspaceRepositoryUnavailableError, WorkspaceRepositoryRemoteError } from "./workspaceRepository.ts";
+import type {
+  WorkspaceRepositoryCatalog,
+  WorkspaceRepositoryCatalogData,
+} from "../../repository/index.ts";
+import type { WorkspaceRepositoryProvider } from "./workspaceRepositoryProvider.ts";
+import {
+  WorkspaceRepositoryUnavailableError,
+  WorkspaceRepositoryRemoteError,
+} from "./workspaceRepository.ts";
 
 export type WorkspaceCatalogProjectionPort = {
   load(): Promise<WorkspaceRepositoryCatalogData | null>;
@@ -12,27 +18,37 @@ export type WorkspaceCatalogProjectionPort = {
   forgetSnapshot(id: string): Promise<void>;
 };
 function isOfflineError(error: unknown) {
-  return error instanceof WorkspaceRepositoryUnavailableError || (error instanceof WorkspaceRepositoryRemoteError && error.retryable);
+  return (
+    error instanceof WorkspaceRepositoryUnavailableError ||
+    (error instanceof WorkspaceRepositoryRemoteError && error.retryable)
+  );
 }
-export function createLocalFirstWorkspaceCatalog({ remote, cache, openRepository }: {
-  remote: WorkspaceRepositoryCatalog & WorkspaceRepositoryProvisioner;
+export function createLocalFirstWorkspaceCatalog({
+  remote,
+  cache,
+  openRepository,
+}: {
+  remote: WorkspaceRepositoryCatalog;
   cache: WorkspaceCatalogProjectionPort;
   openRepository: WorkspaceRepositoryProvider["openRepository"];
-}): WorkspaceRepositoryCatalog & WorkspaceRepositoryProvider & WorkspaceRepositoryProvisioner {
+}): WorkspaceRepositoryCatalog & WorkspaceRepositoryProvider {
   let cacheProjectionQueue: Promise<void> = Promise.resolve();
   let catalogAuthorityEpoch = 0;
   let latestAppliedListGeneration = 0;
   let nextListGeneration = 1;
-  const enqueueCacheProjection = <Result>(
-    operation: () => Promise<Result>,
-  ) => {
+  const enqueueCacheProjection = <Result>(operation: () => Promise<Result>) => {
     const pending = cacheProjectionQueue.then(operation);
 
-    cacheProjectionQueue = pending.then(() => undefined, () => undefined);
+    cacheProjectionQueue = pending.then(
+      () => undefined,
+      () => undefined,
+    );
     return pending;
   };
   const saveCatalogBestEffort = async (
-    catalog: Awaited<ReturnType<WorkspaceRepositoryCatalog["listRepositories"]>>,
+    catalog: Awaited<
+      ReturnType<WorkspaceRepositoryCatalog["listRepositories"]>
+    >,
   ) => {
     await enqueueCacheProjection(async () => {
       try {
@@ -55,23 +71,27 @@ export function createLocalFirstWorkspaceCatalog({ remote, cache, openRepository
   return {
     async createRepository(input) {
       catalogAuthorityEpoch += 1;
-      const descriptor = await remote.createRepository(input);
+      const result = await remote.createRepository(input);
+      const { descriptor, revision } = result;
       catalogAuthorityEpoch += 1;
       const cached = await loadCatalogBestEffort();
       const repositories = [
-        ...(cached?.repositories.filter(({ id }) => id !== descriptor.id) ?? []),
+        ...(cached?.repositories.filter(({ id }) => id !== descriptor.id) ??
+          []),
         descriptor,
       ].sort((left, right) => left.id.localeCompare(right.id));
 
       await saveCatalogBestEffort({
+        revision,
         issues: cached?.issues.filter(({ id }) => id !== descriptor.id) ?? [],
         repositories,
       });
-      return descriptor;
+      return result;
     },
-    async deleteRepository({ id }) {
+    async deleteRepository(input) {
       catalogAuthorityEpoch += 1;
-      await remote.deleteRepository({ id });
+      const { id } = input;
+      const result = await remote.deleteRepository(input);
       catalogAuthorityEpoch += 1;
 
       await enqueueCacheProjection(async () => {
@@ -81,6 +101,7 @@ export function createLocalFirstWorkspaceCatalog({ remote, cache, openRepository
           // A cache cleanup failure cannot hide a completed remote deletion.
         }
       });
+      return result;
     },
     label: remote.label,
     async listRepositories() {
@@ -101,10 +122,12 @@ export function createLocalFirstWorkspaceCatalog({ remote, cache, openRepository
             ...catalog.repositories.map(({ id }) => id),
             ...catalog.issues.map(({ id }) => id),
           ]);
-          const removedIds = new Set([
-            ...(previous?.repositories ?? []).map(({ id }) => id),
-            ...(previous?.issues ?? []).map(({ id }) => id),
-          ].filter((id) => !currentIds.has(id)));
+          const removedIds = new Set(
+            [
+              ...(previous?.repositories ?? []).map(({ id }) => id),
+              ...(previous?.issues ?? []).map(({ id }) => id),
+            ].filter((id) => !currentIds.has(id)),
+          );
 
           await enqueueCacheProjection(async () => {
             await Promise.all(
@@ -131,15 +154,17 @@ export function createLocalFirstWorkspaceCatalog({ remote, cache, openRepository
         }
 
         return {
+          revision: null,
           issues: cached.issues,
           repositories: cached.repositories,
         };
       }
     },
     openRepository,
-    async renameRepository({ id, label }) {
+    async renameRepository(input) {
       catalogAuthorityEpoch += 1;
-      const descriptor = await remote.renameRepository({ id, label });
+      const result = await remote.renameRepository(input);
+      const { descriptor } = result;
       catalogAuthorityEpoch += 1;
 
       await enqueueCacheProjection(async () => {
@@ -150,7 +175,7 @@ export function createLocalFirstWorkspaceCatalog({ remote, cache, openRepository
           // projection cannot turn a successful rename into a client failure.
         }
       });
-      return descriptor;
+      return result;
     },
   };
 }

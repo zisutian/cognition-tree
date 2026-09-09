@@ -1,94 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-AgentCodexDeviceLoginRequestDto,
-AgentConfigurationDeleteRequestDto,
-AgentConformanceCheckRequestDto,
-AgentOllamaDiscoveryRequestDto,
-AgentProfileMutationRequestDto,
-AgentProviderMutationRequestDto,
+  AgentCodexDeviceLoginRequestDto,
+  AgentConfigurationDeleteRequestDto,
+  AgentConformanceCheckRequestDto,
+  AgentOllamaDiscoveryRequestDto,
+  AgentProfileMutationRequestDto,
+  AgentProviderMutationRequestDto,
 } from "../../../../contracts/agent/index.ts";
-import type {
-CreateRepositoryDto,
-RenameRepositoryDto,
-} from "../../../../contracts/workspace/index.ts";
 import { apiNotFound } from "../protocol/index.ts";
-import {
-publishTrackedChanges,
-type ApiHandlerContext,
-} from "./handlerContext.ts";
-import { readApiRuntimeNow } from "./runtime.ts";
-
+import { type ApiHandlerContext } from "./handlerContext.ts";
 
 export async function handleRepositoryAdmin(context: ApiHandlerContext) {
-  const { catalog, operation, route } = context;
-
-  if (operation.operationId === "listAdminRepositories") {
-    return { body: await catalog.listRepositories(), statusCode: 200 };
-  }
-  if (operation.operationId === "createAdminRepository") {
-    const descriptor = await catalog.createRepository(
-      await context.readJsonBody() as CreateRepositoryDto,
-    );
-    const revision = await catalog.getStore(descriptor.id)
-      .then((store) => store.loadSnapshot())
-      .then((snapshot) => snapshot.revision);
-
-    context.revisionTracker.observeWorkspace(descriptor.id, revision);
-    await publishTrackedChanges(context, {
-      blocks: [],
-      occurredAt: readApiRuntimeNow(context.runtime).timestamp,
-      resources: [{
-        domain: "workspace",
-        kind: "created",
-        repositoryId: descriptor.id,
-        resourceId: descriptor.id,
-        version: revision,
-      }],
-    });
-    return { body: descriptor, statusCode: 201 };
-  }
-  const repositoryId = route.repositoryId ?? "";
-
-  if (operation.operationId === "renameAdminRepository") {
-    const descriptor = await catalog.renameRepository(
-      repositoryId,
-      await context.readJsonBody() as RenameRepositoryDto,
-    );
-    const revision = await catalog.getStore(repositoryId)
-      .then((store) => store.loadSnapshot())
-      .then((snapshot) => snapshot.revision);
-
-    context.revisionTracker.observeWorkspace(repositoryId, revision);
-    await publishTrackedChanges(context, {
-      blocks: [],
-      occurredAt: readApiRuntimeNow(context.runtime).timestamp,
-      resources: [{
-        domain: "workspace",
-        kind: "updated",
-        repositoryId,
-        resourceId: repositoryId,
-        version: revision,
-      }],
-    });
-    return { body: descriptor, statusCode: 200 };
-  }
-  await catalog.deleteRepository(repositoryId);
-
-  context.revisionTracker.removeWorkspace(repositoryId);
-  await publishTrackedChanges(context, {
-    blocks: [],
-    occurredAt: readApiRuntimeNow(context.runtime).timestamp,
-    resources: [{
-      domain: "workspace",
-      kind: "deleted",
-      repositoryId,
-      resourceId: repositoryId,
-    }],
-  });
+  if (!context.contentService)
+    throw new Error("Content service is unavailable.");
   return {
-    body: undefined,
-    statusCode: 204,
+    body: await context.contentService.repositoryCatalog(),
+    statusCode: 200,
   };
 }
 export async function handleAgentConfigurationAdmin(
@@ -100,10 +28,13 @@ export async function handleAgentConfigurationAdmin(
     return { body: await store.readSnapshot(), statusCode: 200 };
   }
   if (operation.operationId === "discoverOllamaProvider") {
-    const request = await context.readJsonBody() as AgentOllamaDiscoveryRequestDto;
+    const request =
+      (await context.readJsonBody()) as AgentOllamaDiscoveryRequestDto;
 
     return {
-      body: await context.agentProviderOperations.discoverOllama(request.endpoint),
+      body: await context.agentProviderOperations.discoverOllama(
+        request.endpoint,
+      ),
       statusCode: 200,
     };
   }
@@ -115,8 +46,8 @@ export async function handleAgentConfigurationAdmin(
   }
   if (operation.operationId === "startAgentCodexDeviceLogin") {
     const providerId = route.providerId ?? "";
-    const request = await context.readJsonBody() as
-      AgentCodexDeviceLoginRequestDto;
+    const request =
+      (await context.readJsonBody()) as AgentCodexDeviceLoginRequestDto;
 
     return {
       body: await context.agentProviderOperations.startCodexDeviceLogin(
@@ -128,24 +59,26 @@ export async function handleAgentConfigurationAdmin(
   }
   if (operation.operationId === "getAgentCodexDeviceLogin") {
     return {
-      body: context.agentProviderOperations.getCodexDeviceLogin(
-        route.codexLoginId ?? "",
-      ) ?? apiNotFound("Codex device login does not exist"),
+      body:
+        context.agentProviderOperations.getCodexDeviceLogin(
+          route.codexLoginId ?? "",
+        ) ?? apiNotFound("Codex device login does not exist"),
       statusCode: 200,
     };
   }
   if (operation.operationId === "cancelAgentCodexDeviceLogin") {
     return {
-      body: await context.agentProviderOperations.cancelCodexDeviceLogin(
-        route.codexLoginId ?? "",
-      ) ?? apiNotFound("Codex device login does not exist"),
+      body:
+        (await context.agentProviderOperations.cancelCodexDeviceLogin(
+          route.codexLoginId ?? "",
+        )) ?? apiNotFound("Codex device login does not exist"),
       statusCode: 200,
     };
   }
   if (operation.operationId === "clearAgentProviderAuthentication") {
     const providerId = route.providerId ?? "";
-    const request = await context.readJsonBody() as
-      AgentConfigurationDeleteRequestDto;
+    const request =
+      (await context.readJsonBody()) as AgentConfigurationDeleteRequestDto;
 
     return {
       body: await store.clearProviderAuthentication(
@@ -156,8 +89,8 @@ export async function handleAgentConfigurationAdmin(
     };
   }
   if (operation.operationId === "startAgentProfileConformanceCheck") {
-    const request = await context.readJsonBody() as
-      AgentConformanceCheckRequestDto;
+    const request =
+      (await context.readJsonBody()) as AgentConformanceCheckRequestDto;
 
     return {
       body: await context.agentProviderOperations.startConformance(
@@ -169,23 +102,25 @@ export async function handleAgentConfigurationAdmin(
   }
   if (operation.operationId === "getAgentProfileConformanceCheck") {
     return {
-      body: context.agentProviderOperations.getConformance(
-        route.conformanceCheckId ?? "",
-      ) ?? apiNotFound("Agent conformance check does not exist"),
+      body:
+        context.agentProviderOperations.getConformance(
+          route.conformanceCheckId ?? "",
+        ) ?? apiNotFound("Agent conformance check does not exist"),
       statusCode: 200,
     };
   }
   if (operation.operationId === "cancelAgentProfileConformanceCheck") {
     return {
-      body: context.agentProviderOperations.cancelConformance(
-        route.conformanceCheckId ?? "",
-      ) ?? apiNotFound("Agent conformance check does not exist"),
+      body:
+        context.agentProviderOperations.cancelConformance(
+          route.conformanceCheckId ?? "",
+        ) ?? apiNotFound("Agent conformance check does not exist"),
       statusCode: 200,
     };
   }
   if (operation.operationId === "createAgentProvider") {
-    const request = await context.readJsonBody() as
-      AgentProviderMutationRequestDto;
+    const request =
+      (await context.readJsonBody()) as AgentProviderMutationRequestDto;
     const result = await store.createProvider(
       request.baseRevision,
       request.provider,
@@ -194,8 +129,8 @@ export async function handleAgentConfigurationAdmin(
     return { body: result.configuration, statusCode: 201 };
   }
   if (operation.operationId === "createAgentProfile") {
-    const request = await context.readJsonBody() as
-      AgentProfileMutationRequestDto;
+    const request =
+      (await context.readJsonBody()) as AgentProfileMutationRequestDto;
     const result = await store.createProfile(
       request.baseRevision,
       request.profile,
@@ -205,8 +140,8 @@ export async function handleAgentConfigurationAdmin(
   }
   if (operation.operationId === "updateAgentProvider") {
     const providerId = route.providerId ?? "";
-    const request = await context.readJsonBody() as
-      AgentProviderMutationRequestDto;
+    const request =
+      (await context.readJsonBody()) as AgentProviderMutationRequestDto;
     const result = await store.updateProvider(
       request.baseRevision,
       providerId,
@@ -216,8 +151,8 @@ export async function handleAgentConfigurationAdmin(
     return { body: result.configuration, statusCode: 200 };
   }
   if (operation.operationId === "updateAgentProfile") {
-    const request = await context.readJsonBody() as
-      AgentProfileMutationRequestDto;
+    const request =
+      (await context.readJsonBody()) as AgentProfileMutationRequestDto;
     const result = await store.updateProfile(
       request.baseRevision,
       route.profileId ?? "",
@@ -226,8 +161,8 @@ export async function handleAgentConfigurationAdmin(
 
     return { body: result.configuration, statusCode: 200 };
   }
-  const request = await context.readJsonBody() as
-    AgentConfigurationDeleteRequestDto;
+  const request =
+    (await context.readJsonBody()) as AgentConfigurationDeleteRequestDto;
 
   if (operation.operationId === "deleteAgentProvider") {
     const providerId = route.providerId ?? "";

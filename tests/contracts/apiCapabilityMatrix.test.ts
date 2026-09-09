@@ -64,9 +64,6 @@ const expectedCapabilities = [
   ["GET", "getAgentProfileConformanceCheck"],
   ["DELETE", "cancelAgentProfileConformanceCheck"],
   ["GET", "listAdminRepositories"],
-  ["POST", "createAdminRepository"],
-  ["PATCH", "renameAdminRepository"],
-  ["DELETE", "deleteAdminRepository"],
   ["GET", "listBuiltIns"],
   ["POST", "retryBuiltIn"],
   ["GET", "getOperationAuditStatus"],
@@ -82,7 +79,8 @@ describe("HTTP API capability matrix", () => {
     expect(
       apiOperations.map(({ method, operationId }) => [method, operationId]),
     ).toEqual(expectedCapabilities);
-    expect(new Set(apiOperations.map(({ operationId }) => operationId)).size)
-      .toBe(expectedCapabilities.length);
+    expect(
+      new Set(apiOperations.map(({ operationId }) => operationId)).size,
+    ).toBe(expectedCapabilities.length);
   });
 });

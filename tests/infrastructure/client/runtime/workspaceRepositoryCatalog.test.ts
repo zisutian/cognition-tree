@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { describe,expect,it,vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceRepositoryPreparation } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation";
 import { createHttpRepositoryCacheIdentity } from "../../../../infrastructure/client/http/httpRepositoryIdentity";
 import { createMemoryRepositoryClientCache } from "../../../../infrastructure/client/repository/repositoryClientCache";
 import { createHttpWorkspaceRepositoryCatalog } from "../../../../infrastructure/client/runtime/index.ts";
 import {
-createWorkspaceRepositoryContent,
-revisionA,
-revisionC,
+  createWorkspaceRepositoryContent,
+  revisionA,
+  revisionC,
 } from "../../../support/workspaceRepositoryFixtures";
 
 function deferred<Value>() {
@@ -42,10 +42,32 @@ const issue = {
   location: null,
   message: "Repository head is invalid",
 };
+const basis = { baseRevision: revisionA, operationId: "catalog-operation" };
 const serverCatalog = {
+  revision: revisionA,
   issues: [issue],
   repositories: [descriptor],
 };
+
+function receipt(repository?: typeof descriptor) {
+  return {
+    afterRevision: revisionC,
+    audit: "recorded",
+    baseRevision: revisionA,
+    changeMetadata: { blockIds: [], resourceIds: [descriptor.id] },
+    command: "catalog",
+    digest: revisionA,
+    error: null,
+    occurredAt: "2026-09-10T00:00:00.000Z",
+    operationId: basis.operationId,
+    preparation: null,
+    review: null,
+    scope: { domain: "catalog" },
+    status: "committed",
+    updatedAt: "2026-09-10T00:00:00.000Z",
+    ...(repository ? { repository } : {}),
+  };
+}
 
 describe("HTTP workspace repository catalog", () => {
   const preparation = {
@@ -62,20 +84,25 @@ describe("HTTP workspace repository catalog", () => {
     });
 
     await expect(catalog.listRepositories()).resolves.toEqual({
+      revision: revisionA,
       issues: [issue],
       repositories: [descriptor],
     });
   });
 
   it("creates v4 content with an explicit stable catalog label", async () => {
-    const calls: Array<{ body?: BodyInit | null; method: string; url: string }> = [];
+    const calls: Array<{
+      body?: BodyInit | null;
+      method: string;
+      url: string;
+    }> = [];
     const fetchMock: typeof fetch = async (input, init) => {
       calls.push({
         body: init?.body,
         method: init?.method ?? "GET",
         url: String(input),
       });
-      return jsonResponse(descriptor, 201);
+      return jsonResponse(receipt(descriptor));
     };
     const catalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: "http://api.test/base",
@@ -83,23 +110,35 @@ describe("HTTP workspace repository catalog", () => {
       preparation,
     });
     const input = {
-      content: createWorkspaceRepositoryContent("Workspace name"),
+      ...basis,
       label: "Stable label",
     };
 
-    await expect(catalog.createRepository(input)).resolves.toEqual(descriptor);
+    await expect(catalog.createRepository(input)).resolves.toEqual({
+      descriptor,
+      revision: revisionC,
+    });
     expect(calls).toEqual([
       {
-        body: JSON.stringify(input),
+        body: JSON.stringify({
+          scope: { domain: "catalog" },
+          basis: { baseRevision: revisionA, repositoryId: null },
+          operationId: basis.operationId,
+          command: { kind: "create-repository", name: input.label },
+        }),
         method: "POST",
-        url: "http://api.test/base/api/v4/admin/repositories",
+        url: "http://api.test/base/api/v4/content/operations",
       },
     ]);
   });
 
   it("renames only catalog metadata through PATCH and refreshes the cache", async () => {
     const cache = createMemoryRepositoryClientCache();
-    const calls: Array<{ body?: BodyInit | null; method: string; url: string }> = [];
+    const calls: Array<{
+      body?: BodyInit | null;
+      method: string;
+      url: string;
+    }> = [];
     const renamed = { ...descriptor, label: "Renamed" };
     const catalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: "http://api.test/base",
@@ -110,18 +149,22 @@ describe("HTTP workspace repository catalog", () => {
           method: init?.method ?? "GET",
           url: String(input),
         });
-        return init?.method === "PATCH"
-          ? jsonResponse(renamed)
+        return init?.method === "POST"
+          ? jsonResponse(receipt(renamed))
           : jsonResponse(serverCatalog);
       },
       preparation,
     });
 
     await catalog.listRepositories();
-    await expect(catalog.renameRepository({
-      id: descriptor.id,
-      label: "  Renamed  ",
-    })).resolves.toEqual(renamed);
+    await expect(
+      catalog.renameRepository({
+        ...basis,
+        repository: descriptor.label,
+        id: descriptor.id,
+        label: "  Renamed  ",
+      }),
+    ).resolves.toEqual({ descriptor: renamed, revision: revisionC });
     const catalogIdentity = await createHttpRepositoryCacheIdentity({
       baseUrl: "http://api.test/base",
       repositoryId: "__catalog__",
@@ -131,9 +174,18 @@ describe("HTTP workspace repository catalog", () => {
       repositories: [renamed],
     });
     expect(calls[1]).toEqual({
-      body: JSON.stringify({ label: "Renamed" }),
-      method: "PATCH",
-      url: "http://api.test/base/api/v4/admin/repositories/primary",
+      body: JSON.stringify({
+        scope: { domain: "catalog" },
+        basis: { baseRevision: revisionA, repositoryId: null },
+        operationId: basis.operationId,
+        command: {
+          kind: "rename-repository",
+          repository: descriptor.label,
+          name: "Renamed",
+        },
+      }),
+      method: "POST",
+      url: "http://api.test/base/api/v4/content/operations",
     });
   });
 
@@ -145,13 +197,12 @@ describe("HTTP workspace repository catalog", () => {
       preparation,
     });
     const input = {
-      content: createWorkspaceRepositoryContent(),
-      label: "Primary",
-      repositoryPath: "/must/not/cross/the/wire",
+      ...basis,
+      label: "Invalid/name",
     };
 
     await expect(catalog.createRepository(input)).rejects.toThrow(
-      "unsupported field",
+      "unsupported characters",
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -269,11 +320,13 @@ describe("HTTP workspace repository catalog", () => {
       });
 
     await expect(createCatalog().listRepositories()).resolves.toEqual({
+      revision: revisionA,
       issues: [issue],
       repositories: [descriptor],
     });
     unavailable = true;
     await expect(createCatalog().listRepositories()).resolves.toEqual({
+      revision: null,
       issues: [issue],
       repositories: [descriptor],
     });
@@ -288,16 +341,20 @@ describe("HTTP workspace repository catalog", () => {
       fetch: async () =>
         corrupt
           ? jsonResponse(
-            {
-              code: "repository_corrupt",
-              details: {},
-              message: "catalog metadata is corrupt",
-              requestId: "request-9",
-              retryable: false,
-            },
-            500,
-          )
-          : jsonResponse({ issues: [], repositories: [descriptor] }),
+              {
+                code: "repository_corrupt",
+                details: {},
+                message: "catalog metadata is corrupt",
+                requestId: "request-9",
+                retryable: false,
+              },
+              500,
+            )
+          : jsonResponse({
+              revision: revisionA,
+              issues: [],
+              repositories: [descriptor],
+            }),
       preparation,
     });
 
@@ -317,21 +374,29 @@ describe("HTTP workspace repository catalog", () => {
       cache,
       fetch: async (input, init) => {
         calls.push({ method: init?.method ?? "GET", url: String(input) });
-        return new Response(null, { status: 204 });
+        return jsonResponse(receipt());
       },
       preparation,
     });
 
-    await expect(catalog.deleteRepository({
-      id: "primary",
-    })).resolves.toBeUndefined();
-    expect(calls).toEqual([{
-      method: "DELETE",
-      url: "http://api.test/base/api/v4/admin/repositories/primary",
-    }]);
-    expect(atomicDelete).toHaveBeenCalledWith(expect.objectContaining({
-      repositoryId: "primary",
-    }));
+    await expect(
+      catalog.deleteRepository({
+        ...basis,
+        repository: descriptor.label,
+        id: "primary",
+      }),
+    ).resolves.toEqual({ revision: revisionC });
+    expect(calls).toEqual([
+      {
+        method: "POST",
+        url: "http://api.test/base/api/v4/content/operations",
+      },
+    ]);
+    expect(atomicDelete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        repositoryId: "primary",
+      }),
+    );
   });
 
   it("reconciles removed remote entries without retaining a ghost descriptor", async () => {
@@ -340,10 +405,12 @@ describe("HTTP workspace repository catalog", () => {
     const catalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: "http://api.test",
       cache,
-      fetch: async () => jsonResponse({
-        issues: [],
-        repositories: present ? [descriptor] : [],
-      }),
+      fetch: async () =>
+        jsonResponse({
+          revision: revisionA,
+          issues: [],
+          repositories: present ? [descriptor] : [],
+        }),
       preparation,
     });
 
@@ -362,6 +429,7 @@ describe("HTTP workspace repository catalog", () => {
     });
     present = false;
     await expect(catalog.listRepositories()).resolves.toEqual({
+      revision: revisionA,
       issues: [],
       repositories: [],
     });
@@ -380,7 +448,8 @@ describe("HTTP workspace repository catalog", () => {
     const firstResponse = deferred<Response>();
     const secondResponse = deferred<Response>();
     const renamed = { ...descriptor, label: "Newest" };
-    const fetchMock = vi.fn<typeof fetch>()
+    const fetchMock = vi
+      .fn<typeof fetch>()
       .mockReturnValueOnce(firstResponse.promise)
       .mockReturnValueOnce(secondResponse.promise);
     const catalog = createHttpWorkspaceRepositoryCatalog({
@@ -392,10 +461,13 @@ describe("HTTP workspace repository catalog", () => {
     const first = catalog.listRepositories();
     const second = catalog.listRepositories();
 
-    secondResponse.resolve(jsonResponse({
-      issues: [],
-      repositories: [renamed],
-    }));
+    secondResponse.resolve(
+      jsonResponse({
+        revision: revisionC,
+        issues: [],
+        repositories: [renamed],
+      }),
+    );
     await expect(second).resolves.toMatchObject({ repositories: [renamed] });
     firstResponse.resolve(jsonResponse(serverCatalog));
     await expect(first).resolves.toEqual(serverCatalog);
@@ -418,11 +490,16 @@ describe("HTTP workspace repository catalog", () => {
     const catalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: "http://api.test",
       cache,
-      fetch: async () => new Response(null, { status: 204 }),
+      fetch: async () => jsonResponse(receipt()),
       preparation,
     });
 
-    await expect(catalog.deleteRepository({ id: descriptor.id }))
-      .resolves.toBeUndefined();
+    await expect(
+      catalog.deleteRepository({
+        ...basis,
+        repository: descriptor.label,
+        id: descriptor.id,
+      }),
+    ).resolves.toEqual({ revision: revisionC });
   });
 });

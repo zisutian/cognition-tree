@@ -1,31 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { mkdtemp,rm } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import type { ContentOperationResultDto } from "../../../../../contracts/content/index.ts";
+
+import { mkdtemp, rm } from "node:fs/promises";
 import type {
-IncomingHttpHeaders,
-IncomingMessage,
-OutgoingHttpHeader,
-OutgoingHttpHeaders,
-ServerResponse,
+  IncomingHttpHeaders,
+  IncomingMessage,
+  OutgoingHttpHeader,
+  OutgoingHttpHeaders,
+  ServerResponse,
 } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { expect } from "vitest";
-import {
-prepareWorkspaceRepositoryContent,
-} from "../../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
+import { prepareWorkspaceRepositoryContent } from "../../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import { createInitialRepositoryContent } from "../../../../../application/workspace/session/initialRepository.ts";
-import type {
-RepositoryDescriptorDto,
-WorkspaceRepositoryContentDto,
-} from "../../../../../contracts/workspace/types.ts";
+import type { WorkspaceRepositoryContentDto } from "../../../../../contracts/workspace/types.ts";
 import type { ApiRuntime } from "../../../../../infrastructure/server/api/http/runtime.ts";
-import {
-createApiSecurityPolicy,
-} from "../../../../../infrastructure/server/api/http/security.ts";
+import { createApiSecurityPolicy } from "../../../../../infrastructure/server/api/http/security.ts";
 import { type ApiRequestHandler } from "../../../../../infrastructure/server/api/http/server.ts";
-import type { OperationLedger } from "../../../../../infrastructure/server/operations/operationLedger.ts";
+import { OperationLedger } from "../../../../../infrastructure/server/operations/operationLedger.ts";
 import { BuiltInCatalog } from "../../../../../infrastructure/server/repository/built-ins/catalog.ts";
 import { LocalRepositoryCatalog } from "../../../../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
 import { createApiRequestHandler } from "../../../../../infrastructure/server/runtime/apiRuntime.ts";
@@ -116,10 +112,7 @@ export async function dispatchRaw(
 ) {
   const response = createResponse();
 
-  await handler(
-    createRequest(options),
-    response as unknown as ServerResponse,
-  );
+  await handler(createRequest(options), response as unknown as ServerResponse);
   return response;
 }
 
@@ -130,7 +123,7 @@ export async function dispatch<Body>(
   const response = await dispatchRaw(handler, options);
 
   return {
-    body: response.body ? JSON.parse(response.body) as Body : null,
+    body: response.body ? (JSON.parse(response.body) as Body) : null,
     headers: response.headers,
     statusCode: response.statusCode,
   };
@@ -168,9 +161,9 @@ export async function withHandler(
   run: (
     handler: ApiRequestHandler,
     rootDir: string,
-    createConfiguredHandler: (
-      options?: { operationLedger?: OperationLedger },
-    ) => ApiRequestHandler,
+    createConfiguredHandler: (options?: {
+      operationLedger?: OperationLedger;
+    }) => ApiRequestHandler,
   ) => Promise<void>,
 ) {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-api-v4-"));
@@ -181,9 +174,9 @@ export async function withHandler(
   const builtInCatalog = new BuiltInCatalog(rootDir);
   const runtime = createRuntime();
   const stateDirectory = path.join(rootDir, "server-state");
-  const createHandler = (operationLedger?: OperationLedger) => {
-    return (
-    createApiRequestHandler({
+  const defaultLedger = new OperationLedger(stateDirectory, 50);
+  const createHandler = (operationLedger = defaultLedger) => {
+    return createApiRequestHandler({
       builtInCatalog,
       catalog,
       operationLedger,
@@ -197,17 +190,15 @@ export async function withHandler(
         publicOrigin: null,
       }),
       stateDirectory,
-    })
-    );
+    });
   };
 
   await catalog.initialize();
   await builtInCatalog.initialize();
+  await defaultLedger.initialize();
   try {
-    await run(
-      createHandler(),
-      rootDir,
-      (options = {}) => createHandler(options.operationLedger),
+    await run(createHandler(), rootDir, (options = {}) =>
+      createHandler(options.operationLedger),
     );
   } finally {
     await catalog.dispose();
@@ -216,17 +207,25 @@ export async function withHandler(
 }
 
 export async function createRepository(handler: ApiRequestHandler) {
-  const response = await dispatch<RepositoryDescriptorDto>(handler, {
-    body: {
-      content: createContent(),
-      label: "API 仓库",
-    },
+  const catalog = await dispatch<{
+    basis: { baseRevision: `sha256:${string}`; repositoryId: null };
+  }>(handler, {
     method: "POST",
-    url: "/api/v4/admin/repositories",
+    url: "/api/v4/content/query",
+    body: { kind: "catalog" },
   });
-
-  expect(response.statusCode).toBe(201);
-  return response.body!;
+  const response = await dispatch<ContentOperationResultDto>(handler, {
+    method: "POST",
+    url: "/api/v4/content/operations",
+    body: {
+      operationId: randomUUID(),
+      scope: { domain: "catalog" },
+      basis: catalog.body!.basis,
+      command: { kind: "create-repository", name: "API 仓库" },
+    },
+  });
+  expect(response.statusCode, JSON.stringify(response.body)).toBe(200);
+  return response.body!.repository!;
 }
 
 export const revision = (character: string) =>

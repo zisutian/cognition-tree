@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-
-
-export type {
-  ActiveRepositorySelection,
-} from "./activeRepositorySelection.ts";
+export type { ActiveRepositorySelection } from "./activeRepositorySelection.ts";
 export type {
   BuiltInCatalog,
   BuiltInCatalogData,
@@ -21,37 +17,27 @@ export type {
   BuiltInIssueView,
   BuiltInOption,
 } from "./builtInRepositoryViewModel.ts";
-export type {
-  BuiltInRuntimeIssue,
-} from "./projectBuiltInIssues.ts";
+export type { BuiltInRuntimeIssue } from "./projectBuiltInIssues.ts";
 export type {
   BuiltInSessionSummary,
   RepositoryApplication,
   RepositoryPersistenceState,
   RepositorySessionState,
 } from "./repositoryApplication.ts";
-export {
-  createBuiltInCatalogController,
-} from "./builtInCatalogController.ts";
+export { createBuiltInCatalogController } from "./builtInCatalogController.ts";
 export {
   createDefaultRepositorySelection,
   projectRepositoryFocusSelection,
   repositorySelectionExists,
 } from "./repositorySelection.ts";
-export {
-  createRepositoryApplication,
-} from "./repositoryApplication.ts";
-export {
-  createRepositoryCatalogController,
-} from "./repositoryCatalogController.ts";
+export { createRepositoryApplication } from "./repositoryApplication.ts";
+export { createRepositoryCatalogController } from "./repositoryCatalogController.ts";
 export type {
   CreateRepositoryRequest,
   DeleteRepositoryRequest,
   RenameRepositoryRequest,
 } from "./repositoryCatalog.ts";
-export {
-  createRepositoryViewModel,
-} from "./repositoryViewModel.ts";
+export { createRepositoryViewModel } from "./repositoryViewModel.ts";
 export {
   projectBuiltInCatalogFailure,
   projectBuiltInRuntimeIssues,
@@ -64,9 +50,7 @@ export {
   projectRepositoryIssueMessage,
   requiresManualLocalDeletion,
 } from "./repositoryIssueProjection.ts";
-export {
-  projectWorkspaceRepositoryRuntimeIssues,
-} from "./projectWorkspaceRepositoryIssues.ts";
+export { projectWorkspaceRepositoryRuntimeIssues } from "./projectWorkspaceRepositoryIssues.ts";
 export type {
   RepositoryApiErrorCode,
   RepositoryLocation,
@@ -74,9 +58,7 @@ export type {
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
 } from "./workspaceRepositoryCatalog.ts";
-export type {
-  RepositoryCatalogControllerSnapshot,
-} from "./repositoryCatalogController.ts";
+export type { RepositoryCatalogControllerSnapshot } from "./repositoryCatalogController.ts";
 export type {
   RepositoryConflictResolutionView,
   RepositoryLocationRow,
@@ -91,16 +73,15 @@ export type {
   RepositoryIssueView,
   RepositoryOption,
 } from "./ordinaryRepositoryViewModel.ts";
-export type {
-  RepositorySelection,
-} from "./repositorySelection.ts";
-export type {
-  RepositoryViewModel,
-} from "./repositoryViewModel.ts";
-export type {
-  WorkspaceRepositoryRuntimeIssue,
-} from "./projectWorkspaceRepositoryIssues.ts";
+export type { RepositorySelection } from "./repositorySelection.ts";
+export type { RepositoryViewModel } from "./repositoryViewModel.ts";
+export type { WorkspaceRepositoryRuntimeIssue } from "./projectWorkspaceRepositoryIssues.ts";
 
 export { createCachedBuiltInCatalog } from "./cachedBuiltInCatalog.ts";
 
 export type { WorkspaceRepositoryCatalogData } from "./workspaceRepositoryCatalog.ts";
+
+export type {
+  RepositoryMutationBasis,
+  RepositoryMutationResult,
+} from "./workspaceRepositoryCatalog.ts";

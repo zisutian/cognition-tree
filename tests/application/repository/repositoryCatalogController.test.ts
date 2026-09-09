@@ -1,9 +1,8 @@
+import { randomUUID } from "node:crypto";
+const revision = `sha256:${"a".repeat(64)}` as const;
 import { describe, expect, it, vi } from "vitest";
-import {
-  reuseUnchangedRepositoryDescriptors,
-} from "../../../application/repository/repositoryCatalog";
-import { createRepositoryCatalogController } from
-  "../../../application/repository/repositoryCatalogController";
+import { reuseUnchangedRepositoryDescriptors } from "../../../application/repository/repositoryCatalog";
+import { createRepositoryCatalogController } from "../../../application/repository/repositoryCatalogController";
 import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryCatalogData,
@@ -24,6 +23,7 @@ function catalogData(
   repositories: WorkspaceRepositoryDescriptor[] = [descriptor],
 ): WorkspaceRepositoryCatalogData {
   return {
+    revision,
     issues: [],
     repositories,
   };
@@ -41,12 +41,13 @@ function deferred<Value>() {
 function createHarness(initial = catalogData()) {
   let activeId: string | null = descriptor.id;
   const catalog: WorkspaceRepositoryCatalog = {
-    deleteRepository: vi.fn(),
+    createRepository: vi.fn(),
+    deleteRepository: vi.fn(async () => ({ revision })),
     label: "Repositories",
     listRepositories: vi.fn(async () => initial),
     renameRepository: vi.fn(),
   };
-  const provisionRepository = vi.fn();
+  const provisionRepository = vi.mocked(catalog.createRepository);
   const controller = createRepositoryCatalogController({
     activeRepositorySelection: {
       clear: () => {
@@ -58,7 +59,7 @@ function createHarness(initial = catalogData()) {
       },
     },
     catalog,
-    provisionRepository,
+    createOperationId: randomUUID,
   });
 
   return {
@@ -89,24 +90,60 @@ describe("repository catalog descriptor identity", () => {
 
     expect(published).toBe(changed);
   });
-
 });
 
 describe("repository catalog controller", () => {
+  it("refuses writes from cached catalogs and retains the displayed basis across a rejected refresh", async () => {
+    const offline = createHarness({ ...catalogData(), revision: null });
+    await offline.controller.reload();
+    await expect(
+      offline.controller.deleteRepository({ id: descriptor.id }),
+    ).rejects.toThrow("刷新");
+    expect(offline.catalog.deleteRepository).not.toHaveBeenCalled();
+    const ready = createHarness();
+    await ready.controller.reload();
+    vi.mocked(ready.catalog.listRepositories).mockRejectedValueOnce(
+      new Error("刷新失败"),
+    );
+    await expect(ready.controller.reload()).rejects.toThrow("刷新失败");
+    vi.mocked(ready.catalog.renameRepository).mockRejectedValueOnce(
+      new Error("目录已变化"),
+    );
+    await expect(
+      ready.controller.renameRepository({ id: descriptor.id, name: "新名称" }),
+    ).rejects.toThrow("目录已变化");
+    expect(ready.catalog.renameRepository).toHaveBeenCalledWith({
+      id: descriptor.id,
+      repository: descriptor.label,
+      label: "新名称",
+      baseRevision: revision,
+      operationId: expect.any(String),
+    });
+    expect(ready.controller.getSnapshot().state).toMatchObject({
+      revision,
+      operation: "idle",
+    });
+  });
   it("delegates validated creation without owning Workspace content", async () => {
     const harness = createHarness();
     const created = { ...descriptor, id: "created", label: "Created" };
 
-    harness.provisionRepository.mockResolvedValueOnce(created);
+    harness.provisionRepository.mockResolvedValueOnce({
+      descriptor: created,
+      revision,
+    });
     await harness.controller.reload();
-    await expect(harness.controller.createRepository({
-      name: "  Created  ",
-    })).resolves.toBe(created);
+    await expect(
+      harness.controller.createRepository({
+        name: "  Created  ",
+      }),
+    ).resolves.toBe(created);
 
-    expect(harness.provisionRepository).toHaveBeenCalledWith(
-      { name: "  Created  " },
-      "Created",
-    );
+    expect(harness.provisionRepository).toHaveBeenCalledWith({
+      label: "Created",
+      baseRevision: revision,
+      operationId: expect.any(String),
+    });
     expect(harness.controller.getSnapshot().activeDescriptor).toBe(created);
   });
 
@@ -124,8 +161,14 @@ describe("repository catalog controller", () => {
     vi.mocked(harness.catalog.listRepositories).mockResolvedValueOnce(
       catalogData([renamed]),
     );
-    vi.mocked(harness.catalog.renameRepository).mockResolvedValueOnce(renamed);
-    await harness.controller.renameRepository({ id: "primary", name: "Renamed" });
+    vi.mocked(harness.catalog.renameRepository).mockResolvedValueOnce({
+      descriptor: renamed,
+      revision,
+    });
+    await harness.controller.renameRepository({
+      id: "primary",
+      name: "Renamed",
+    });
 
     expect(harness.controller.getSnapshot().activeDescriptor?.label).toBe(
       "Renamed",
@@ -157,6 +200,9 @@ describe("repository catalog controller", () => {
 
     expect(harness.catalog.deleteRepository).toHaveBeenCalledWith({
       id: descriptor.id,
+      repository: descriptor.label,
+      baseRevision: revision,
+      operationId: expect.any(String),
     });
     expect(harness.controller.getSnapshot()).toMatchObject({
       activeDescriptor: null,
@@ -205,7 +251,10 @@ describe("repository catalog controller", () => {
 
   it("does not install a repository created after disposal", async () => {
     const harness = createHarness();
-    const pending = deferred<WorkspaceRepositoryDescriptor>();
+    const pending = deferred<{
+      descriptor: WorkspaceRepositoryDescriptor;
+      revision: typeof revision;
+    }>();
     const created = { ...descriptor, id: "created", label: "Created" };
 
     await harness.controller.reload();
@@ -213,7 +262,7 @@ describe("repository catalog controller", () => {
     const creating = harness.controller.createRepository({ name: "Created" });
 
     harness.controller.dispose();
-    pending.resolve(created);
+    pending.resolve({ descriptor: created, revision });
 
     await expect(creating).resolves.toBe(created);
     expect(harness.activeId()).toBe(descriptor.id);
@@ -231,7 +280,10 @@ describe("repository catalog controller", () => {
     );
     const reload = harness.controller.reload();
 
-    harness.provisionRepository.mockResolvedValueOnce(created);
+    harness.provisionRepository.mockResolvedValueOnce({
+      descriptor: created,
+      revision,
+    });
     await harness.controller.createRepository({ name: "Created" });
     pending.resolve(catalogData());
     await reload;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  expect,
-  type APIRequestContext,
-} from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { buildApiOperationPath } from "../contracts/api/index.ts";
+
+import { expect, type APIRequestContext } from "@playwright/test";
 import type {
   RepositoryCatalogDto,
   WorkspaceRepositorySnapshotDto,
@@ -52,7 +52,9 @@ test.describe("repository and capacity flows", () => {
     const contextResize = page.getByRole("separator", {
       name: "调整上下文区宽度",
     });
-    const firstWidth = Number(await contextResize.getAttribute("aria-valuenow"));
+    const firstWidth = Number(
+      await contextResize.getAttribute("aria-valuenow"),
+    );
 
     await contextResize.focus();
     await contextResize.press("ArrowRight");
@@ -62,8 +64,7 @@ test.describe("repository and capacity flows", () => {
       name: "新建仓库",
     });
 
-    await expect(page.getByRole("button", { name: "新建仓库" }))
-      .toHaveCount(1);
+    await expect(page.getByRole("button", { name: "新建仓库" })).toHaveCount(1);
     await createRepositoryButton.click();
     const createForm = page.locator(".repository-create");
 
@@ -74,9 +75,11 @@ test.describe("repository and capacity flows", () => {
       "aria-current",
       "page",
     );
-    await expect(page.locator(".app-main-content")
-      .getByRole("heading", { name: "第二仓库" }))
-      .toBeVisible();
+    await expect(
+      page
+        .locator(".app-main-content")
+        .getByRole("heading", { name: "第二仓库" }),
+    ).toBeVisible();
     const statusList = page.locator('dl[aria-label="仓库状态"]');
     const statusRows = statusList.locator(".ui-tool-property-row");
 
@@ -92,23 +95,30 @@ test.describe("repository and capacity flows", () => {
       }
 
       return {
-        labelFontSizes: rows.map((row) =>
-          getComputedStyle(row.querySelector("dt")!).fontSize),
-        labelTextAlignments: rows.map((row) =>
-          getComputedStyle(row.querySelector("dt")!).textAlign),
+        labelFontSizes: rows.map(
+          (row) => getComputedStyle(row.querySelector("dt")!).fontSize,
+        ),
+        labelTextAlignments: rows.map(
+          (row) => getComputedStyle(row.querySelector("dt")!).textAlign,
+        ),
         minimumHeights: rows.map((row) => getComputedStyle(row).minHeight),
         valueStarts: values.map((value) =>
-          Math.round(value!.getBoundingClientRect().x)),
+          Math.round(value!.getBoundingClientRect().x),
+        ),
       };
     });
 
     expect(new Set(statusMetrics.labelFontSizes)).toEqual(new Set(["13px"]));
-    expect(new Set(statusMetrics.labelTextAlignments)).toEqual(new Set(["left"]));
+    expect(new Set(statusMetrics.labelTextAlignments)).toEqual(
+      new Set(["left"]),
+    );
     expect(new Set(statusMetrics.minimumHeights)).toEqual(new Set(["22px"]));
     expect(new Set(statusMetrics.valueStarts).size).toBe(1);
     const locations = page.locator('dl[aria-label="仓库位置"]');
     const locationRow = locations.locator(".ui-tool-property-row").first();
-    const locationAction = locationRow.locator(".ui-tool-property-actions button");
+    const locationAction = locationRow.locator(
+      ".ui-tool-property-actions button",
+    );
 
     await expect(locations).toBeVisible();
     await expect(locationAction).toBeVisible();
@@ -123,8 +133,8 @@ test.describe("repository and capacity flows", () => {
       const rowBox = element.getBoundingClientRect();
 
       return {
-        actionInsideRow: actionBox.top >= rowBox.top &&
-          actionBox.bottom <= rowBox.bottom,
+        actionInsideRow:
+          actionBox.top >= rowBox.top && actionBox.bottom <= rowBox.bottom,
         overflowWrap: getComputedStyle(value).overflowWrap,
         rowHeight: rowBox.height,
       };
@@ -135,8 +145,9 @@ test.describe("repository and capacity flows", () => {
     expect(locationMetrics.rowHeight).toBeGreaterThanOrEqual(22);
     await getActivityButton(page, "笔记").click();
     await expect(page.getByLabel("笔记编辑")).toBeVisible();
-    await expect(page.locator(".app-context").getByTitle("未命名笔记"))
-      .toBeVisible();
+    await expect(
+      page.locator(".app-context").getByTitle("未命名笔记"),
+    ).toBeVisible();
     await expect(contextResize).toHaveAttribute(
       "aria-valuenow",
       String(appContextDefaultWidth),
@@ -146,9 +157,8 @@ test.describe("repository and capacity flows", () => {
     const activeRepository = page.locator(
       '[data-repository-id][aria-current="page"]',
     );
-    const createdRepositoryId = await activeRepository.getAttribute(
-      "data-repository-id",
-    );
+    const createdRepositoryId =
+      await activeRepository.getAttribute("data-repository-id");
 
     expect(createdRepositoryId).toMatch(
       /^repository-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
@@ -160,7 +170,9 @@ test.describe("repository and capacity flows", () => {
       "page",
     );
     await getActivityButton(page, "笔记").click();
-    await expect(page.locator(".app-context").getByTitle("Alpha")).toBeVisible();
+    await expect(
+      page.locator(".app-context").getByTitle("Alpha"),
+    ).toBeVisible();
     await expect(contextResize).toHaveAttribute(
       "aria-valuenow",
       String(firstWidth + appResizeKeyboardStep),
@@ -179,7 +191,7 @@ test.describe("repository and capacity flows", () => {
       let additions = 0;
       let removals = 0;
 
-      EventTarget.prototype.addEventListener = function(
+      EventTarget.prototype.addEventListener = function (
         type,
         listener,
         options,
@@ -192,7 +204,7 @@ test.describe("repository and capacity flows", () => {
         }
         originalAddEventListener.call(this, type, listener, options);
       };
-      EventTarget.prototype.removeEventListener = function(
+      EventTarget.prototype.removeEventListener = function (
         type,
         listener,
         options,
@@ -229,15 +241,18 @@ test.describe("repository and capacity flows", () => {
       );
 
     await openWorkbench(page, repositoryId);
-    await expect(page.locator(".app-context").getByTitle("Alpha")).toBeVisible();
+    await expect(
+      page.locator(".app-context").getByTitle("Alpha"),
+    ).toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(3);
     const initialProbe = await readProbe();
 
     await getActivityButton(page, "仓库").click();
     await openRepositoryFromContext(page, rawRepositoryId);
     await getActivityButton(page, "笔记").click();
-    await expect(page.locator(".app-context").getByTitle("原始笔记"))
-      .toBeVisible();
+    await expect(
+      page.locator(".app-context").getByTitle("原始笔记"),
+    ).toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(3);
     await expect
       .poll(async () => (await readProbe()).additions)
@@ -250,7 +265,9 @@ test.describe("repository and capacity flows", () => {
     await getActivityButton(page, "仓库").click();
     await openRepositoryFromContext(page, repositoryId);
     await getActivityButton(page, "笔记").click();
-    await expect(page.locator(".app-context").getByTitle("Alpha")).toBeVisible();
+    await expect(
+      page.locator(".app-context").getByTitle("Alpha"),
+    ).toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(3);
     await expect
       .poll(async () => (await readProbe()).additions)
@@ -278,11 +295,12 @@ test.describe("repository and capacity flows", () => {
       (source) => `${source}\n\t- 外部文件修改已载入`,
     );
 
-    const rescanResponse = page.waitForResponse((response) =>
-      response.request().method() === "GET" &&
-      response.url().endsWith(
-        `/api/v4/sync/workspaces/${externalRepositoryId}`,
-      )
+    const rescanResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response
+          .url()
+          .endsWith(`/api/v4/sync/workspaces/${externalRepositoryId}`),
     );
 
     await page.getByRole("button", { name: "重新扫描文件" }).click();
@@ -325,31 +343,39 @@ test.describe("repository and capacity flows", () => {
 
     await openWorkbench(page, externalRepositoryId);
     await getActivityButton(page, "仓库").click();
-    await expect(locationRow("服务端路径").getByText(
-      externalRepository.location.serverPath,
-      { exact: true },
-    )).toBeVisible();
-    await expect(locationRow("主机路径").getByText(
-      externalRepository.location.hostPath,
-      { exact: true },
-    )).toBeVisible();
+    await expect(
+      locationRow("服务端路径").getByText(
+        externalRepository.location.serverPath,
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(
+      locationRow("主机路径").getByText(externalRepository.location.hostPath, {
+        exact: true,
+      }),
+    ).toBeVisible();
 
     await openRepositoryFromContext(page, rawRepositoryId);
-    await expect(locationRow("服务端路径").getByText(
-      rawRepository.location.serverPath,
-      { exact: true },
-    )).toBeVisible();
-    await expect(locationRow("主机路径").getByText(
-      rawRepository.location.hostPath,
-      { exact: true },
-    )).toBeVisible();
-    await expect(locationRow("服务端路径").getByText(
-      externalRepository.location.serverPath,
-      { exact: true },
-    )).toHaveCount(0);
+    await expect(
+      locationRow("服务端路径").getByText(rawRepository.location.serverPath, {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      locationRow("主机路径").getByText(rawRepository.location.hostPath, {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      locationRow("服务端路径").getByText(
+        externalRepository.location.serverPath,
+        { exact: true },
+      ),
+    ).toHaveCount(0);
     await getActivityButton(page, "笔记").click();
-    await expect(page.locator(".app-context").getByTitle("原始笔记"))
-      .toBeVisible();
+    await expect(
+      page.locator(".app-context").getByTitle("原始笔记"),
+    ).toBeVisible();
   });
 
   test("edits repositories without syntax in raw mode", async ({ page }) => {
@@ -363,27 +389,36 @@ test.describe("repository and capacity flows", () => {
 
     await expect(editor).toHaveAttribute("data-editor-mode", "raw");
     await expect(editor).toContainText("? 未知语法");
-    await expect(
-      getWorkbenchStatus(page),
-    ).toHaveText("");
-    await expect(getProblemsToggle(page)).toHaveAccessibleName(/0 个错误，0 个警告/);
+    await expect(getWorkbenchStatus(page)).toHaveText("");
+    await expect(getProblemsToggle(page)).toHaveAccessibleName(
+      /0 个错误，0 个警告/,
+    );
     await editor.locator(".cm-content").click();
     await page.keyboard.press("Control+End");
     await page.keyboard.type(" raw");
 
-    await expect.poll(async () => {
-      const response = await api.get(
-        `/api/v4/sync/workspaces/${rawRepositoryId}`,
-      );
-      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
+    await expect
+      .poll(async () => {
+        const response = await api.get(
+          `/api/v4/sync/workspaces/${rawRepositoryId}`,
+        );
+        const snapshot =
+          (await response.json()) as WorkspaceRepositorySnapshotDto;
 
-      return snapshot.content.workspace.notes[0]?.source.endsWith(" raw") ?? false;
-    }).toBe(true);
+        return (
+          snapshot.content.workspace.notes[0]?.source.endsWith(" raw") ?? false
+        );
+      })
+      .toBe(true);
 
     await selectNotesMode(page, "结构");
-    await expect(page.getByText("结构操作不可用", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("结构操作不可用", { exact: true }),
+    ).toBeVisible();
     await selectNotesMode(page, "图谱");
-    await expect(page.getByText("引用图谱不可用", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("引用图谱不可用", { exact: true }),
+    ).toBeVisible();
     await getActivityButton(page, "语法").click();
     await expect(
       page.getByRole("button", { name: "新建笔记库语法" }).first(),
@@ -405,8 +440,9 @@ test.describe("repository and capacity flows", () => {
     await getActivityButton(page, "仓库").click();
     await openRepositoryFromContext(page, rawRepositoryId);
     await getActivityButton(page, "笔记").click();
-    await expect(page.locator(".app-context").getByTitle("原始笔记"))
-      .toBeVisible();
+    await expect(
+      page.locator(".app-context").getByTitle("原始笔记"),
+    ).toBeVisible();
 
     await getActivityButton(page, "仓库").click();
     await openRepositoryFromContext(page, repositoryId);
@@ -428,15 +464,16 @@ test.describe("repository and capacity flows", () => {
     page,
   }) => {
     await page.route(`${apiBaseUrl}/api/v4/content/events`, (route) =>
-      route.abort());
+      route.abort(),
+    );
     await openWorkbench(page, repositoryId);
     await page.locator(".app-context").getByTitle("Alpha").click();
 
     const snapshotResponse = await api.get(
       `/api/v4/sync/workspaces/${repositoryId}`,
     );
-    const snapshot = (await snapshotResponse.json()) as
-      WorkspaceRepositorySnapshotDto;
+    const snapshot =
+      (await snapshotResponse.json()) as WorkspaceRepositorySnapshotDto;
     const remoteContent = structuredClone(snapshot.content);
     const remoteNote = remoteContent.workspace.notes.find(
       ({ id }) => id === "note-alpha",
@@ -468,10 +505,9 @@ test.describe("repository and capacity flows", () => {
     await page.keyboard.type(" conflict-local-first");
     await getActivityButton(page, "仓库").click();
     await expect(
-      page.locator('dl[aria-label="仓库状态"]').getByText(
-        "仓库内容已更改",
-        { exact: true },
-      ),
+      page
+        .locator('dl[aria-label="仓库状态"]')
+        .getByText("仓库内容已更改", { exact: true }),
     ).toBeVisible();
 
     await getActivityButton(page, "笔记").click();
@@ -480,76 +516,104 @@ test.describe("repository and capacity flows", () => {
     await page.keyboard.type(" conflict-local-latest");
     await getActivityButton(page, "仓库").click();
     await expect(
-      page.locator('dl[aria-label="仓库状态"]').getByText(
-        "仓库内容已更改",
-        { exact: true },
-      ),
+      page
+        .locator('dl[aria-label="仓库状态"]')
+        .getByText("仓库内容已更改", { exact: true }),
     ).toBeVisible();
 
     const conflictSection = page.getByRole("region", { name: "同步冲突" });
 
     await expect(conflictSection).toBeVisible();
     await expect(
-      page.getByLabel("同步冲突详情")
+      page
+        .getByLabel("同步冲突详情")
         .getByText("workspace:note:note-alpha", { exact: true }),
-    )
-      .toBeVisible();
+    ).toBeVisible();
 
     const remoteResponse = await api.get(
       `/api/v4/sync/workspaces/${repositoryId}`,
     );
-    const remoteSnapshot = (await remoteResponse.json()) as
-      WorkspaceRepositorySnapshotDto;
-    const remoteSource = remoteSnapshot.content.workspace.notes.find(
-      ({ id }) => id === "note-alpha",
-    )?.source ?? "";
+    const remoteSnapshot =
+      (await remoteResponse.json()) as WorkspaceRepositorySnapshotDto;
+    const remoteSource =
+      remoteSnapshot.content.workspace.notes.find(
+        ({ id }) => id === "note-alpha",
+      )?.source ?? "";
 
     expect(remoteSource).not.toContain("conflict-local-first");
     expect(remoteSource).not.toContain("conflict-local-latest");
     expect(remoteSource).toContain("remote-conflict");
 
-    await conflictSection.getByRole("button", {
-      name: "远端并另存本地",
-    }).click();
+    await conflictSection
+      .getByRole("button", {
+        name: "远端并另存本地",
+      })
+      .click();
     await expect(conflictSection).toBeHidden();
     await getActivityButton(page, "笔记").click();
     await page.locator(".app-context").getByTitle("本地恢复副本").click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "conflict-local-first conflict-local-latest",
     );
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true })
+    await page
+      .locator(".app-context")
+      .getByTitle("Alpha", { exact: true })
       .click();
     await expect(page.getByLabel("笔记编辑")).toContainText("remote-conflict");
-    await expect(page.getByLabel("笔记编辑"))
-      .not.toContainText("conflict-local-first");
-    await expect.poll(async () => {
-      const response = await api.get(
-        `/api/v4/sync/workspaces/${repositoryId}`,
-      );
-      const current = (await response.json()) as WorkspaceRepositorySnapshotDto;
-      const recovery = current.content.workspace.notes.find(({ source }) =>
-        source.includes("本地恢复副本")
-      );
+    await expect(page.getByLabel("笔记编辑")).not.toContainText(
+      "conflict-local-first",
+    );
+    await expect
+      .poll(async () => {
+        const response = await api.get(
+          `/api/v4/sync/workspaces/${repositoryId}`,
+        );
+        const current =
+          (await response.json()) as WorkspaceRepositorySnapshotDto;
+        const recovery = current.content.workspace.notes.find(({ source }) =>
+          source.includes("本地恢复副本"),
+        );
 
-      return recovery?.source.includes(
-        "conflict-local-first conflict-local-latest",
-      ) ?? false;
-    }).toBe(true);
+        return (
+          recovery?.source.includes(
+            "conflict-local-first conflict-local-latest",
+          ) ?? false
+        );
+      })
+      .toBe(true);
   });
 
-  test("automatically clears a conflict after editing and preserves other pending notes", async ({ apiBaseUrl, page }) => {
-    await page.route(`${apiBaseUrl}/api/v4/content/events`, route => route.abort());
+  test("automatically clears a conflict after editing and preserves other pending notes", async ({
+    apiBaseUrl,
+    page,
+  }) => {
+    await page.route(`${apiBaseUrl}/api/v4/content/events`, (route) =>
+      route.abort(),
+    );
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    await page
+      .locator(".app-context")
+      .getByTitle("Alpha", { exact: true })
+      .click();
     const response = await api.get(`/api/v4/sync/workspaces/${repositoryId}`);
-    const snapshot = await response.json() as WorkspaceRepositorySnapshotDto;
+    const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
     const remote = structuredClone(snapshot.content);
-    const alpha = remote.workspace.notes.find(note => note.id === "note-alpha")!;
-    alpha.source += "\n" + createSeedSource(": remote-resolution", 9_100)
-      .split("\n").map(line => `\t${line}`).join("\n");
-    expect((await api.put(`/api/v4/sync/workspaces/${repositoryId}`, {
-      data: { base: snapshot, content: remote },
-    })).ok()).toBe(true);
+    const alpha = remote.workspace.notes.find(
+      (note) => note.id === "note-alpha",
+    )!;
+    alpha.source +=
+      "\n" +
+      createSeedSource(": remote-resolution", 9_100)
+        .split("\n")
+        .map((line) => `\t${line}`)
+        .join("\n");
+    expect(
+      (
+        await api.put(`/api/v4/sync/workspaces/${repositoryId}`, {
+          data: { base: snapshot, content: remote },
+        })
+      ).ok(),
+    ).toBe(true);
 
     const editor = page.locator(".source-editor .cm-content");
     await editor.click();
@@ -559,29 +623,47 @@ test.describe("repository and capacity flows", () => {
     const conflict = page.getByRole("region", { name: "同步冲突" });
     await expect(conflict).toBeVisible();
     await getActivityButton(page, "笔记").click();
-    await page.locator(".app-context").getByTitle("Beta", { exact: true }).click();
+    await page
+      .locator(".app-context")
+      .getByTitle("Beta", { exact: true })
+      .click();
     await editor.click();
     await page.keyboard.press("Control+End");
     await page.keyboard.type(" preserved-during-conflict");
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    await page
+      .locator(".app-context")
+      .getByTitle("Alpha", { exact: true })
+      .click();
     await editor.click();
     await page.keyboard.press("Control+End");
     await page.keyboard.down("Shift");
-    for (let index = 0; index < " local".length; index++) await page.keyboard.press("ArrowLeft");
+    for (let index = 0; index < " local".length; index++)
+      await page.keyboard.press("ArrowLeft");
     await page.keyboard.up("Shift");
     await page.keyboard.press("Backspace");
     await getActivityButton(page, "仓库").click();
     await expect(conflict).toBeHidden();
-    await expect.poll(async () => {
-      const result = await api.get(`/api/v4/sync/workspaces/${repositoryId}`);
-      const current = await result.json() as WorkspaceRepositorySnapshotDto;
-      return current.content.workspace.notes.find(note => note.id === "note-beta")?.source;
-    }).toContain("preserved-during-conflict");
+    await expect
+      .poll(async () => {
+        const result = await api.get(`/api/v4/sync/workspaces/${repositoryId}`);
+        const current = (await result.json()) as WorkspaceRepositorySnapshotDto;
+        return current.content.workspace.notes.find(
+          (note) => note.id === "note-beta",
+        )?.source;
+      })
+      .toContain("preserved-during-conflict");
     await getActivityButton(page, "笔记").click();
-    await expect(page.getByLabel("笔记编辑")).toContainText("remote-resolution");
+    await expect(page.getByLabel("笔记编辑")).toContainText(
+      "remote-resolution",
+    );
     await page.reload();
-    await page.locator(".app-context").getByTitle("Beta", { exact: true }).click();
-    await expect(page.getByLabel("笔记编辑")).toContainText("preserved-during-conflict");
+    await page
+      .locator(".app-context")
+      .getByTitle("Beta", { exact: true })
+      .click();
+    await expect(page.getByLabel("笔记编辑")).toContainText(
+      "preserved-during-conflict",
+    );
   });
 
   test("virtualizes large directory and structure trees", async ({ page }) => {
@@ -595,12 +677,15 @@ test.describe("repository and capacity flows", () => {
     const directoryTree = context.getByRole("tree");
 
     await expect(directoryTree).toBeVisible();
-    await expect(directoryTree).toHaveAttribute("data-virtual-row-count", "601");
-    await expect(
-      directoryTree.getByRole("treeitem").first(),
-    ).toHaveAttribute("aria-setsize", "601");
-    expect(await directoryTree.getByRole("treeitem").count())
-      .toBeLessThan(100);
+    await expect(directoryTree).toHaveAttribute(
+      "data-virtual-row-count",
+      "601",
+    );
+    await expect(directoryTree.getByRole("treeitem").first()).toHaveAttribute(
+      "aria-setsize",
+      "601",
+    );
+    expect(await directoryTree.getByRole("treeitem").count()).toBeLessThan(100);
     await context.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
@@ -615,12 +700,15 @@ test.describe("repository and capacity flows", () => {
     const structureTree = detailScroll.getByRole("tree");
 
     await expect(structureTree).toBeVisible();
-    await expect(structureTree).toHaveAttribute("data-virtual-row-count", "600");
-    await expect(
-      structureTree.getByRole("treeitem").first(),
-    ).toHaveAttribute("aria-setsize", "600");
-    expect(await structureTree.getByRole("treeitem").count())
-      .toBeLessThan(100);
+    await expect(structureTree).toHaveAttribute(
+      "data-virtual-row-count",
+      "600",
+    );
+    await expect(structureTree.getByRole("treeitem").first()).toHaveAttribute(
+      "aria-setsize",
+      "600",
+    );
+    expect(await structureTree.getByRole("treeitem").count()).toBeLessThan(100);
     await detailScroll.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
@@ -643,14 +731,17 @@ test.describe("repository and capacity flows", () => {
         unsupportedDeleteRequests += 1;
       }
     });
-    await seedNoncurrentLocalRepository(repositoryRoot, unsupportedRepositoryId);
+    await seedNoncurrentLocalRepository(
+      repositoryRoot,
+      unsupportedRepositoryId,
+    );
 
     try {
       await openWorkbench(page, repositoryId);
       const problems = page.locator(".problems-panel");
       const problemsHeader = getProblemsToggle(page);
 
-      if (await problemsHeader.getAttribute("aria-expanded") === "false") {
+      if ((await problemsHeader.getAttribute("aria-expanded")) === "false") {
         await problemsHeader.click();
       }
       const repositoryProblem = problems
@@ -659,7 +750,8 @@ test.describe("repository and capacity flows", () => {
       const issueRow = page.locator(
         `[data-repository-issue-id="${unsupportedRepositoryId}"]`,
       );
-      const repositoryPanel = page.locator(".app-main-content")
+      const repositoryPanel = page
+        .locator(".app-main-content")
         .getByRole("region", { name: "仓库", exact: true });
       const repositoryStatus = page.getByRole("region", {
         name: "仓库状态",
@@ -722,14 +814,32 @@ test.describe("repository and capacity flows", () => {
       if (repository.id === largeRepositoryId) {
         continue;
       }
-      const deleteResponse = await api.delete(
-        `/api/v4/admin/repositories/${encodeURIComponent(repository.id)}`,
+      const query = await api.post(buildApiOperationPath("queryLocalContent"), {
+        data: { kind: "catalog" },
+      });
+      const { basis } = await query.json();
+      const deleteResponse = await api.post(
+        buildApiOperationPath("executeContentOperation"),
+        {
+          data: {
+            operationId: randomUUID(),
+            basis,
+            scope: { domain: "catalog" },
+            command: {
+              kind: "delete-repository",
+              repository: repository.label,
+            },
+          },
+        },
       );
 
       expect(deleteResponse.ok()).toBe(true);
     }
 
-    await seedNoncurrentLocalRepository(repositoryRoot, unsupportedRepositoryId);
+    await seedNoncurrentLocalRepository(
+      repositoryRoot,
+      unsupportedRepositoryId,
+    );
 
     try {
       await openWorkbench(page, largeRepositoryId);
@@ -741,11 +851,14 @@ test.describe("repository and capacity flows", () => {
       });
 
       await expect(confirmation).toBeVisible();
-      await confirmation.getByRole("textbox", {
-        name: "永久删除前请输入仓库名称",
-      }).fill(remainingRepository?.label ?? "");
+      await confirmation
+        .getByRole("textbox", {
+          name: "永久删除前请输入仓库名称",
+        })
+        .fill(remainingRepository?.label ?? "");
       await confirmation.getByRole("button", { name: "永久删除" }).click();
-      const repositoryPanel = page.locator(".app-main-content")
+      const repositoryPanel = page
+        .locator(".app-main-content")
         .getByRole("region", { name: "仓库", exact: true });
       const repositoryStatus = page.getByRole("region", {
         name: "仓库状态",

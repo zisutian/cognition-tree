@@ -4,34 +4,34 @@ import type { ApiSearchRequestDto } from "../../../../contracts/api/index.ts";
 import { createApiOpenApiDocument } from "../../../../contracts/api/index.ts";
 import { ApiRequestError } from "../protocol/index.ts";
 import {
-journalResourceVersions,
-todoResourceVersions,
-workspaceResourceVersions,
+  journalResourceVersions,
+  todoResourceVersions,
+  workspaceResourceVersions,
 } from "../resources/index.ts";
 import {
-handleAgentConfigurationAdmin,
-handleRepositoryAdmin,
-parseAuditQuery,
+  handleAgentConfigurationAdmin,
+  handleRepositoryAdmin,
+  parseAuditQuery,
 } from "./adminHandlers.ts";
 import { handleAgentOperation } from "./agentHandlers.ts";
 import {
-assertOperationAccess,
-createCheckpoint,
-requireBuiltInCatalog,
-type ApiHandlerContext,
-type ApiRouteHandlerContext,
-type HandlerResult,
+  assertOperationAccess,
+  createCheckpoint,
+  requireBuiltInCatalog,
+  type ApiHandlerContext,
+  type ApiRouteHandlerContext,
+  type HandlerResult,
 } from "./handlerContext.ts";
 import { handleLocalContent } from "./localContentHandlers.ts";
 import {
-handleJournalQuery,
-handleTodoQuery,
-handleWorkspaceQuery,
+  handleJournalQuery,
+  handleTodoQuery,
+  handleWorkspaceQuery,
 } from "./queryHandlers.ts";
 import { handleApiSync } from "./syncHandlers.ts";
 import {
-handleOwnerSession,
-handleSystemAdministration,
+  handleOwnerSession,
+  handleSystemAdministration,
 } from "./systemHandlers.ts";
 
 export async function handleApiRoute(
@@ -44,11 +44,15 @@ export async function handleApiRoute(
     return { body: { ok: true }, statusCode: 200 };
   }
   if (operation.operationId === "getCapabilities") {
-    const exposesAuditStatus = context.principal?.kind === "local-owner" ||
+    const exposesAuditStatus =
+      context.principal?.kind === "local-owner" ||
       context.principal?.kind === "owner";
-    const auditStatus = exposesAuditStatus && context.operationLedger
-      ? (await context.operationLedger.status()).status
-      : exposesAuditStatus ? "unavailable" : null;
+    const auditStatus =
+      exposesAuditStatus && context.operationLedger
+        ? (await context.operationLedger.status()).status
+        : exposesAuditStatus
+          ? "unavailable"
+          : null;
 
     return {
       body: {
@@ -66,13 +70,17 @@ export async function handleApiRoute(
     return { body: createApiOpenApiDocument(), statusCode: 200 };
   }
   if (!context.principal) {
-    throw new ApiRequestError("unauthorized", "Owner authentication is required");
+    throw new ApiRequestError(
+      "unauthorized",
+      "Owner authentication is required",
+    );
   }
   const authorizedContext: ApiHandlerContext = {
     ...context,
     principal: context.principal,
   };
-  if (operation.access.kind === "local-content") return handleLocalContent(authorizedContext);
+  if (operation.access.kind === "local-content")
+    return handleLocalContent(authorizedContext);
   if (operation.operationId === "streamContentEvents") {
     requireBuiltInCatalog(authorizedContext.builtInCatalog);
     authorizedContext.eventHub.connect({
@@ -89,63 +97,59 @@ export async function handleApiRoute(
     const search = authorizedContext.search;
 
     if (!search) {
-      throw new ApiRequestError(
-        "adapter_unavailable",
-        "Search is unavailable",
-      );
+      throw new ApiRequestError("adapter_unavailable", "Search is unavailable");
     }
     return {
       body: await search.search(
-        await authorizedContext.readJsonBody() as ApiSearchRequestDto,
+        (await authorizedContext.readJsonBody()) as ApiSearchRequestDto,
       ),
       statusCode: 200,
     };
   }
-  if ([
-    "listWorkspaces",
-    "getWorkspaceTree",
-    "getWorkspaceNote",
-  ].includes(operation.operationId)) {
+  if (
+    ["listWorkspaces", "getWorkspaceTree", "getWorkspaceNote"].includes(
+      operation.operationId,
+    )
+  ) {
     return handleWorkspaceQuery(authorizedContext);
   }
-  if (["listJournalEntries", "getJournalEntry"].includes(
-    operation.operationId,
-  )) {
+  if (
+    ["listJournalEntries", "getJournalEntry"].includes(operation.operationId)
+  ) {
     return handleJournalQuery(authorizedContext);
   }
-  if (["listTodoCollections", "getTodoCollection"].includes(
-    operation.operationId,
-  )) {
+  if (
+    ["listTodoCollections", "getTodoCollection"].includes(operation.operationId)
+  ) {
     return handleTodoQuery(authorizedContext);
   }
   if (operation.path.startsWith("/api/v4/agent/")) {
     return handleAgentOperation(authorizedContext);
   }
-  if ([
-    "getWorkspaceSyncSnapshot",
-    "putWorkspaceSyncSnapshot",
-    "getJournalSyncSnapshot",
-    "putJournalSyncSnapshot",
-    "getTodoSyncSnapshot",
-    "putTodoSyncSnapshot",
-  ].includes(operation.operationId)) {
+  if (
+    [
+      "getWorkspaceSyncSnapshot",
+      "putWorkspaceSyncSnapshot",
+      "getJournalSyncSnapshot",
+      "putJournalSyncSnapshot",
+      "getTodoSyncSnapshot",
+      "putTodoSyncSnapshot",
+    ].includes(operation.operationId)
+  ) {
     return handleApiSync(authorizedContext, {
       journal: journalResourceVersions,
       todo: todoResourceVersions,
       workspace: workspaceResourceVersions,
     });
   }
-  if ([
-    "listAdminRepositories",
-    "createAdminRepository",
-    "renameAdminRepository",
-    "deleteAdminRepository",
-  ].includes(operation.operationId)) {
+  if (["listAdminRepositories"].includes(operation.operationId)) {
     return handleRepositoryAdmin(authorizedContext);
   }
   if (operation.operationId === "listBuiltIns") {
     return {
-      body: await requireBuiltInCatalog(authorizedContext.builtInCatalog).listBuiltIns(),
+      body: await requireBuiltInCatalog(
+        authorizedContext.builtInCatalog,
+      ).listBuiltIns(),
       statusCode: 200,
     };
   }
@@ -183,7 +187,9 @@ export async function handleApiRoute(
       };
     }
     return {
-      body: await authorizedContext.operationLedger.list(parseAuditQuery(authorizedContext.query)),
+      body: await authorizedContext.operationLedger.list(
+        parseAuditQuery(authorizedContext.query),
+      ),
       statusCode: 200,
     };
   }
@@ -194,18 +200,20 @@ export async function handleApiRoute(
     operation.operationId.startsWith("deleteAgentProfile") ||
     operation.operationId.startsWith("createAgentProvider") ||
     operation.operationId.startsWith("updateAgentProvider") ||
-    operation.operationId.startsWith("deleteAgentProvider")
-    || operation.operationId === "discoverOllamaProvider"
-    || operation.operationId === "probeAgentProvider"
-    || operation.operationId === "clearAgentProviderAuthentication"
-    || operation.operationId.includes("AgentCodexDeviceLogin")
-    || operation.operationId.endsWith("AgentProfileConformanceCheck")
+    operation.operationId.startsWith("deleteAgentProvider") ||
+    operation.operationId === "discoverOllamaProvider" ||
+    operation.operationId === "probeAgentProvider" ||
+    operation.operationId === "clearAgentProviderAuthentication" ||
+    operation.operationId.includes("AgentCodexDeviceLogin") ||
+    operation.operationId.endsWith("AgentProfileConformanceCheck")
   ) {
     return handleAgentConfigurationAdmin(authorizedContext);
   }
-  if (operation.operationId.includes("SystemConfiguration") ||
-      operation.operationId.includes("OwnerCredential") ||
-      operation.operationId.includes("DataRootMigration")) {
+  if (
+    operation.operationId.includes("SystemConfiguration") ||
+    operation.operationId.includes("OwnerCredential") ||
+    operation.operationId.includes("DataRootMigration")
+  ) {
     return handleSystemAdministration(authorizedContext);
   }
   throw new ApiRequestError("not_found", "Not found");

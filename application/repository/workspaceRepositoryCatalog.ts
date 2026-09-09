@@ -32,22 +32,37 @@ export type WorkspaceRepositoryCatalogIssue = {
   message: string;
 };
 export type WorkspaceRepositoryCatalogData = {
+  revision: `sha256:${string}` | null;
   issues: WorkspaceRepositoryCatalogIssue[];
   repositories: WorkspaceRepositoryDescriptor[];
 };
 
-export type DeleteWorkspaceRepositoryInput = {
-  id: string;
+export type RepositoryMutationBasis = {
+  baseRevision: `sha256:${string}`;
+  operationId: string;
 };
-
+export type RepositoryMutationResult = {
+  revision: `sha256:${string}`;
+  descriptor: WorkspaceRepositoryDescriptor;
+};
+export type DeleteWorkspaceRepositoryInput = RepositoryMutationBasis & {
+  id: string;
+  repository: string;
+};
 export type WorkspaceRepositoryCatalog = {
-  deleteRepository(
-    input: DeleteWorkspaceRepositoryInput,
-  ): Promise<void>;
   label: string;
   listRepositories(): Promise<WorkspaceRepositoryCatalogData>;
-  renameRepository(input: {
-    id: string;
-    label: string;
-  }): Promise<WorkspaceRepositoryDescriptor>;
+  createRepository(
+    input: RepositoryMutationBasis & { label: string },
+  ): Promise<RepositoryMutationResult>;
+  deleteRepository(
+    input: DeleteWorkspaceRepositoryInput,
+  ): Promise<{ revision: `sha256:${string}` }>;
+  renameRepository(
+    input: RepositoryMutationBasis & {
+      id: string;
+      repository: string;
+      label: string;
+    },
+  ): Promise<RepositoryMutationResult>;
 };

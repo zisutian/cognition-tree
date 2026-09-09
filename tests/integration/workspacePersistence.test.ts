@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { randomUUID } from "node:crypto";
+import { BuiltInCatalog } from "../../infrastructure/server/repository/index.ts";
+import { OperationLedger } from "../../infrastructure/server/operations/index.ts";
+
 import { mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
@@ -13,20 +17,13 @@ import {
 import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/client/http/workspaceRepository";
 import { createHttpWorkspaceRepositoryCatalog } from "../../infrastructure/client/runtime/index.ts";
 import { workspaceRepositoryPreparation } from "../../application/workspace/index.ts";
-import type {
-  WorkspaceRepository,
-} from "../../application/workspace/persistence/workspaceRepository";
-import type { WorkspaceRepositoryProvisioner } from "../../application/workspace/persistence/workspaceRepositoryProvider";
-import type {
-  WorkspaceRepositoryDescriptor,
-} from "../../application/repository/workspaceRepositoryCatalog";
+import type { WorkspaceRepository } from "../../application/workspace/persistence/workspaceRepository";
+import type { WorkspaceRepositoryCatalog } from "../../application/repository/index.ts";
+import type { WorkspaceRepositoryDescriptor } from "../../application/repository/workspaceRepositoryCatalog";
 import { createApiServer } from "../../infrastructure/server/runtime/apiRuntime.ts";
 import { createApiSecurityPolicy } from "../../infrastructure/server/api/http/security.ts";
-import { LocalRepositoryCatalog } from
-  "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
-import { createInitialWorkspaceData } from "../../core/workspace/model/workspaceData";
+import { LocalRepositoryCatalog } from "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog.ts";
 import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
-import { createInitialWorkspaceSyntax } from "../../core/workspace/context/workspaceSyntax";
 import { analyzeCanonicalTestSource } from "../core/ctn/analysis/analysisTestHelpers";
 import {
   replaceEditableSource,
@@ -44,8 +41,7 @@ type TestRepositoryServer = {
 const commandDependencies = {
   createBlockId: (() => {
     let id = 0;
-    return () =>
-      `00000000-0000-4000-8000-${String(++id).padStart(12, "0")}`;
+    return () => `00000000-0000-4000-8000-${String(++id).padStart(12, "0")}`;
   })(),
   createFolderId: () => "folder-integration",
   createNoteId: (() => {
@@ -61,7 +57,6 @@ const commandDependencies = {
 };
 const openControllers: WorkspaceSessionController[] = [];
 const openServers: TestRepositoryServer[] = [];
-let nextWorkspaceId = 0;
 
 async function listen(server: Server) {
   await new Promise<void>((resolve, reject) => {
@@ -89,7 +84,14 @@ async function startRepositoryServer(): Promise<TestRepositoryServer> {
 
   await catalog.initialize();
 
+  const builtInCatalog = new BuiltInCatalog(rootDir);
+  const operationLedger = new OperationLedger(path.join(rootDir, "server"), 10);
+  await builtInCatalog.initialize();
+  await operationLedger.initialize();
   const server = createApiServer({
+    builtInCatalog,
+    operationLedger,
+    stateDirectory: path.join(rootDir, "server"),
     catalog,
     security: createApiSecurityPolicy({
       ownerSessions: {
@@ -105,15 +107,16 @@ async function startRepositoryServer(): Promise<TestRepositoryServer> {
     baseUrl,
     catalog,
     rootDir,
-    close: () => new Promise<void>((resolve, reject) => {
-      server.close((error) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve();
-        }
-      });
-    }),
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
+      }),
   };
 
   openServers.push(testServer);
@@ -133,30 +136,23 @@ function startController(repository: WorkspaceRepository) {
 }
 
 async function createRepository(
-  catalog: WorkspaceRepositoryProvisioner,
+  catalog: WorkspaceRepositoryCatalog,
   label: string,
 ) {
-  const workspace = createInitialWorkspaceData();
-
-  return catalog.createRepository({
-    content: {
-      schemaVersion: 4,
-      syntax: { activeFileId: null, files: [] },
-      workspace: {
-        ...workspace,
-        id: `workspace-00000000-0000-4000-8000-${String(++nextWorkspaceId)
-          .padStart(12, "0")}`,
-      },
-    },
-    label: `Repository ${label}`,
-  });
+  const snapshot = await catalog.listRepositories();
+  return (
+    await catalog.createRepository({
+      baseRevision: snapshot.revision!,
+      operationId: randomUUID(),
+      label: `Repository ${label}`,
+    })
+  ).descriptor;
 }
 
 async function waitUntilSaved(controller: WorkspaceSessionController) {
   return waitForWorkspaceSessionState(
     controller,
-    (state) =>
-      state.status === "ready" && state.persistence.status === "saved",
+    (state) => state.status === "ready" && state.persistence.status === "saved",
   );
 }
 
@@ -194,6 +190,51 @@ afterEach(async () => {
 });
 
 describe("workspace persistence integration", () => {
+  it("uses one catalog commit path and rejects a stale browser directory basis", async () => {
+    const server = await startRepositoryServer();
+    const client = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: server.baseUrl,
+      preparation: workspaceRepositoryPreparation,
+    });
+    const original = await client.listRepositories();
+    const operationId = randomUUID();
+    const created = await client.createRepository({
+      label: "一致性仓库",
+      operationId,
+      baseRevision: original.revision!,
+    });
+    const receipt = await fetch(
+      `${server.baseUrl}/api/v4/content/operations/${operationId}`,
+    ).then((response) => response.json());
+    expect(receipt).toMatchObject({
+      status: "committed",
+      repository: created.descriptor,
+      afterRevision: created.revision,
+    });
+    await server.catalog.renameRepository(created.descriptor.id, {
+      label: "外部改名",
+    });
+    await expect(
+      client.deleteRepository({
+        id: created.descriptor.id,
+        repository: created.descriptor.label,
+        baseRevision: created.revision,
+        operationId: randomUUID(),
+      }),
+    ).rejects.toMatchObject({ code: "revision_conflict" });
+    expect(
+      (await server.catalog.listRepositories()).repositories[0]?.label,
+    ).toBe("外部改名");
+    expect(
+      (
+        await fetch(`${server.baseUrl}/api/v4/admin/repositories`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "{}",
+        })
+      ).status,
+    ).toBe(405);
+  });
   it("persists repository v4 content and syntax through HTTP, then reloads a new local-first session", async () => {
     const server = await startRepositoryServer();
     const clientCatalog = createHttpWorkspaceRepositoryCatalog({
@@ -205,9 +246,16 @@ describe("workspace persistence integration", () => {
       clientCatalog.openRepository(descriptor),
     );
 
-    await waitForWorkspaceSessionState(firstController, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(
+      firstController,
+      (state) => state.status === "ready",
+    );
     const firstSyntaxFileId = await firstController.createSyntaxFile(null);
     await firstController.activateSyntaxFile(firstSyntaxFileId);
+    const sourceBeforeSaving = firstController.getState();
+    if (sourceBeforeSaving.status !== "ready")
+      throw new Error("Expected ready session");
+    const expectedSyntax = sourceBeforeSaving.workspaceSyntax!.source;
 
     const noteId = firstController.commands.createNote(null);
 
@@ -234,14 +282,10 @@ describe("workspace persistence integration", () => {
 
     expect(note?.projectedNote.title).toBe("集成测试笔记");
     expect(
-      analyzeCanonicalTestSource(
-        note?.note.source ?? "",
-        defaultCtnSyntax,
-      ).editableProjection.source,
+      analyzeCanonicalTestSource(note?.note.source ?? "", defaultCtnSyntax)
+        .editableProjection.source,
     ).toBe("集成测试笔记\n\t: 已写入磁盘");
-    expect(reloadedState.workspaceSyntax?.source).toBe(
-      createInitialWorkspaceSyntax().source,
-    );
+    expect(reloadedState.workspaceSyntax?.source).toBe(expectedSyntax);
     expect(reloadedState.location).toEqual(descriptor.location);
   });
 
@@ -252,9 +296,14 @@ describe("workspace persistence integration", () => {
       preparation: workspaceRepositoryPreparation,
     });
     const descriptor = await createRepository(clientCatalog, "conflict");
-    const controller = startController(clientCatalog.openRepository(descriptor));
+    const controller = startController(
+      clientCatalog.openRepository(descriptor),
+    );
 
-    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(
+      controller,
+      (state) => state.status === "ready",
+    );
 
     const externalRepository = createHttpWorkspaceRepositoryBackend({
       baseUrl: server.baseUrl,
@@ -334,9 +383,7 @@ describe("workspace persistence integration", () => {
       localCatalog,
       "local-owner",
     );
-    const controller = startController(
-      localCatalog.openRepository(descriptor),
-    );
+    const controller = startController(localCatalog.openRepository(descriptor));
     const ready = await waitForWorkspaceSessionState(
       controller,
       (state) => state.status === "ready",

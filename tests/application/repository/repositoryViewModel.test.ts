@@ -1,7 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  createRepositoryViewModel,
-} from "../../../application/repository/repositoryViewModel";
+import { createRepositoryViewModel } from "../../../application/repository/repositoryViewModel";
 import {
   createDefaultRepositorySelection,
   projectRepositoryFocusSelection,
@@ -14,10 +12,8 @@ import {
   projectRepositoryLabelIssueMessage,
   projectRepositoryLocation,
 } from "../../../application/repository/ordinaryRepositoryViewModel";
-import { projectBuiltInRepositoryViewModel } from
-  "../../../application/repository/builtInRepositoryViewModel";
-import { requiresManualLocalDeletion } from
-  "../../../application/repository/repositoryIssueProjection";
+import { projectBuiltInRepositoryViewModel } from "../../../application/repository/builtInRepositoryViewModel";
+import { requiresManualLocalDeletion } from "../../../application/repository/repositoryIssueProjection";
 import type {
   RepositoryApplication,
   RepositoryPersistenceState,
@@ -42,6 +38,7 @@ function createSource(
     activeDescriptor: descriptor,
     catalogLabel: "普通仓库",
     catalogState: {
+      revision: null,
       activeRepositoryId: descriptor.id,
       issues: [],
       operation: "idle",
@@ -143,44 +140,60 @@ describe("repository view model", () => {
   it("projects Problems focus targets into the same master-detail selection", () => {
     const view = createRepositoryViewModel(createSource());
 
-    expect(projectRepositoryFocusSelection({
-      kind: "catalog",
-    })).toEqual({ kind: "create" });
-    expect(projectRepositoryFocusSelection({
-      id: "broken",
-      kind: "ordinary-issue",
-    })).toEqual({ id: "broken", kind: "ordinary-issue" });
-    expect(projectRepositoryFocusSelection({
-      id: "primary",
-      kind: "ordinary-repository",
-    })).toEqual({ id: "primary", kind: "ordinary-repository" });
-    expect(projectRepositoryFocusSelection({
-      id: "todo",
-      kind: "built-in",
-    })).toEqual({ id: "todo", kind: "built-in" });
+    expect(
+      projectRepositoryFocusSelection({
+        kind: "catalog",
+      }),
+    ).toEqual({ kind: "create" });
+    expect(
+      projectRepositoryFocusSelection({
+        id: "broken",
+        kind: "ordinary-issue",
+      }),
+    ).toEqual({ id: "broken", kind: "ordinary-issue" });
+    expect(
+      projectRepositoryFocusSelection({
+        id: "primary",
+        kind: "ordinary-repository",
+      }),
+    ).toEqual({ id: "primary", kind: "ordinary-repository" });
+    expect(
+      projectRepositoryFocusSelection({
+        id: "todo",
+        kind: "built-in",
+      }),
+    ).toEqual({ id: "todo", kind: "built-in" });
     expect(createDefaultRepositorySelection(view)).toEqual({
       id: "primary",
       kind: "ordinary-repository",
     });
-    expect(createDefaultRepositorySelection({
-      activeRepositoryId: null,
-      repositories: [],
-    })).toEqual({ kind: "create" });
-    expect(repositorySelectionExists(
-      { id: "primary", kind: "ordinary-repository" },
-      view,
-    )).toBe(true);
-    expect(repositorySelectionExists(
-      { id: "missing", kind: "ordinary-repository" },
-      view,
-    )).toBe(false);
+    expect(
+      createDefaultRepositorySelection({
+        activeRepositoryId: null,
+        repositories: [],
+      }),
+    ).toEqual({ kind: "create" });
+    expect(
+      repositorySelectionExists(
+        { id: "primary", kind: "ordinary-repository" },
+        view,
+      ),
+    ).toBe(true);
+    expect(
+      repositorySelectionExists(
+        { id: "missing", kind: "ordinary-repository" },
+        view,
+      ),
+    ).toBe(false);
   });
 
   it("projects each repository location without hiding copyable values", () => {
-    expect(projectRepositoryLocation({
-      hostPath: "/host/notes",
-      serverPath: "/data/notes",
-    })).toEqual([
+    expect(
+      projectRepositoryLocation({
+        hostPath: "/host/notes",
+        serverPath: "/data/notes",
+      }),
+    ).toEqual([
       {
         copyValue: "/host/notes",
         label: "主机路径",
@@ -208,27 +221,35 @@ describe("repository view model", () => {
 
     expect(requiresManualLocalDeletion(issue)).toBe(true);
     expect(projectRepositoryIssueActions(issue)).toEqual([]);
-    expect(projectRepositoryIssues([issue])).toEqual([{
-      ...issue,
-      displayLabel: "default",
-      locationRows: [{
-        copyValue: "/home/zisu/notes/default",
-        label: "主机路径",
-        value: "/home/zisu/notes/default",
-      }],
-      message: "仓库格式不受支持，需要手工删除该目录。",
-    }]);
+    expect(projectRepositoryIssues([issue])).toEqual([
+      {
+        ...issue,
+        displayLabel: "default",
+        locationRows: [
+          {
+            copyValue: "/home/zisu/notes/default",
+            label: "主机路径",
+            value: "/home/zisu/notes/default",
+          },
+        ],
+        message: "仓库格式不受支持，需要手工删除该目录。",
+      },
+    ]);
 
-    const [serverPathOnly] = projectRepositoryIssues([{
-      ...issue,
-      location: { ...issue.location, hostPath: null },
-    }]);
+    const [serverPathOnly] = projectRepositoryIssues([
+      {
+        ...issue,
+        location: { ...issue.location, hostPath: null },
+      },
+    ]);
 
-    expect(serverPathOnly?.locationRows).toEqual([{
-      copyValue: "/data/repositories/default",
-      label: "服务端路径",
-      value: "/data/repositories/default",
-    }]);
+    expect(serverPathOnly?.locationRows).toEqual([
+      {
+        copyValue: "/data/repositories/default",
+        label: "服务端路径",
+        value: "/data/repositories/default",
+      },
+    ]);
   });
 
   it("projects the single local repository issue action", () => {
@@ -237,12 +258,16 @@ describe("repository view model", () => {
       id: "broken",
     };
 
-    expect(projectRepositoryIssueActions({
-      ...source,
-    })).toEqual([{
-      confirmation: "将删除故障仓库条目 broken。",
-      label: "清理",
-    }]);
+    expect(
+      projectRepositoryIssueActions({
+        ...source,
+      }),
+    ).toEqual([
+      {
+        confirmation: "将删除故障仓库条目 broken。",
+        label: "清理",
+      },
+    ]);
   });
 
   it.each([
@@ -264,11 +289,12 @@ describe("repository view model", () => {
       },
       "保存失败",
     ],
-  ] satisfies Array<[RepositoryPersistenceState, string]>) (
+  ] satisfies Array<[RepositoryPersistenceState, string]>)(
     "maps $0 to its single persistence label",
     (persistence, label) => {
-      expect(projectOrdinaryRepositoryViewModel(createSource(persistence)))
-        .toMatchObject({
+      expect(
+        projectOrdinaryRepositoryViewModel(createSource(persistence)),
+      ).toMatchObject({
         persistenceStatusLabel: label,
       });
     },
@@ -333,11 +359,13 @@ describe("repository view model", () => {
         expect.objectContaining({
           id: "journal",
           label: "日记",
-          locationRows: [{
-            copyValue: "/state/built-ins/journal/content.json",
-            label: "服务端路径",
-            value: "/state/built-ins/journal/content.json",
-          }],
+          locationRows: [
+            {
+              copyValue: "/state/built-ins/journal/content.json",
+              label: "服务端路径",
+              value: "/state/built-ins/journal/content.json",
+            },
+          ],
           protected: true,
           sessionStatus: "ready",
         }),
@@ -438,16 +466,18 @@ describe("repository view model", () => {
     }
     source.builtIns.catalog.state = {
       ...source.builtIns.catalog.state,
-      issues: [{
-        code: "repository_corrupt",
-        id: "journal",
-        location: {
-          serverPath: "/state/built-ins/journal/content.json",
-          type: "server",
+      issues: [
+        {
+          code: "repository_corrupt",
+          id: "journal",
+          location: {
+            serverPath: "/state/built-ins/journal/content.json",
+            type: "server",
+          },
+          message: "日记仓库损坏。",
+          status: "fault",
         },
-        message: "日记仓库损坏。",
-        status: "fault",
-      }],
+      ],
       repositories: source.builtIns.catalog.state.repositories.filter(
         ({ id }) => id !== "journal",
       ),
@@ -462,15 +492,15 @@ describe("repository view model", () => {
       deletionBlocked: false,
       persistenceStatusLabel: "未挂载",
       repositories: [],
-      builtInIssues: [expect.objectContaining({
-        displayLabel: "日记 · 内置数据",
-        id: "journal",
-        label: "日记",
-      })],
+      builtInIssues: [
+        expect.objectContaining({
+          displayLabel: "日记 · 内置数据",
+          id: "journal",
+          label: "日记",
+        }),
+      ],
     });
-    expect(view.retryBuiltIn).toBe(
-      source.builtIns.catalog.retry,
-    );
+    expect(view.retryBuiltIn).toBe(source.builtIns.catalog.retry);
   });
 
   it("does not report conflicted or failed built-in persistence as available", async () => {
@@ -485,9 +515,7 @@ describe("repository view model", () => {
       status: "conflict",
     };
     let view = projectBuiltInRepositoryViewModel(source.builtIns);
-    let projectedJournal = view.builtIns.find(
-      ({ id }) => id === "journal",
-    );
+    let projectedJournal = view.builtIns.find(({ id }) => id === "journal");
 
     expect(projectedJournal).toMatchObject({
       conflictResolution: {
@@ -510,9 +538,7 @@ describe("repository view model", () => {
       status: "error",
     };
     view = projectBuiltInRepositoryViewModel(source.builtIns);
-    projectedJournal = view.builtIns.find(
-      ({ id }) => id === "journal",
-    );
+    projectedJournal = view.builtIns.find(({ id }) => id === "journal");
 
     expect(projectedJournal).toMatchObject({
       errorMessage: "remote sync failed",
@@ -532,8 +558,9 @@ describe("repository view model", () => {
       status: "error",
     };
 
-    expect(projectOrdinaryRepositoryViewModel(createSource(localError)))
-      .toMatchObject({
+    expect(
+      projectOrdinaryRepositoryViewModel(createSource(localError)),
+    ).toMatchObject({
       deletionBlocked: true,
       deletionWarning: "本地副本尚未安全保存，当前不能删除仓库。",
       hasSaveConflict: false,

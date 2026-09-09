@@ -4,9 +4,7 @@ import type {
   JournalWorkspaceReferenceResolver,
   JournalRepositoryProvider,
 } from "../journal/index.ts";
-import type {
-  WorkspaceContentDestination,
-} from "../navigation/index.ts";
+import type { WorkspaceContentDestination } from "../navigation/index.ts";
 import {
   createJournalSessionController,
   type JournalSessionController,
@@ -31,21 +29,14 @@ import type {
 
 import type { TodoRepositoryProvider } from "../todo/index.ts";
 
-
-
-
 import type {
-  WorkspaceRepositoryContent,
   WorkspaceRepositoryProvider,
-  WorkspaceRepositoryProvisioner,
   SessionCommandDependencies,
   WorkspaceSessionController,
 } from "../workspace/index.ts";
 
 import type { ApplicationScheduler } from "../runtime/index.ts";
-import type {
-  DomainChangeEventSource,
-} from "../sync/index.ts";
+import type { DomainChangeEventSource } from "../sync/index.ts";
 import {
   createSearchController,
   type SearchController,
@@ -57,7 +48,6 @@ import {
   createTodoSessionController,
   type TodoSessionController,
 } from "../todo/index.ts";
-
 
 import {
   createBuiltInSessionSlot,
@@ -169,7 +159,7 @@ type WorkbenchControllerOptions = {
   activeRepositorySelection: ActiveRepositorySelection;
   builtInCatalog: BuiltInCatalog;
   changeEvents?: DomainChangeEventSource;
-  createInitialWorkspaceContent(label: string): WorkspaceRepositoryContent;
+  createOperationId(): string;
   createSearchVersion(value: unknown): Promise<SearchResourceVersion>;
   journalRepositories: JournalRepositoryProvider;
   scheduler: ApplicationScheduler;
@@ -177,8 +167,7 @@ type WorkbenchControllerOptions = {
   todoRepositories: TodoRepositoryProvider;
   workspaceCatalog: WorkspaceRepositoryCatalog;
   workspaceCommandDependencies: SessionCommandDependencies;
-  workspaceRepositories: WorkspaceRepositoryProvider &
-    WorkspaceRepositoryProvisioner;
+  workspaceRepositories: WorkspaceRepositoryProvider;
 };
 
 function findBuiltInDescriptor(
@@ -186,7 +175,7 @@ function findBuiltInDescriptor(
   id: BuiltInId,
 ) {
   return state.status === "ready"
-    ? state.repositories.find((descriptor) => descriptor.id === id) ?? null
+    ? (state.repositories.find((descriptor) => descriptor.id === id) ?? null)
     : null;
 }
 
@@ -194,7 +183,7 @@ export function createWorkbenchController({
   activeRepositorySelection,
   builtInCatalog,
   changeEvents,
-  createInitialWorkspaceContent,
+  createOperationId,
   createSearchVersion,
   journalRepositories,
   scheduler,
@@ -207,15 +196,10 @@ export function createWorkbenchController({
   const repositoryCatalogController = createRepositoryCatalogController({
     activeRepositorySelection,
     catalog: workspaceCatalog,
-    provisionRepository(_input, label) {
-      const content = createInitialWorkspaceContent(label);
-
-      return workspaceRepositories.createRepository({ content, label });
-    },
+    createOperationId,
   });
-  const builtInCatalogController = createBuiltInCatalogController(
-    builtInCatalog,
-  );
+  const builtInCatalogController =
+    createBuiltInCatalogController(builtInCatalog);
   const listeners = new Set<() => void>();
   let disposed = false;
   let referenceResolutionGeneration = 0;
@@ -302,7 +286,7 @@ export function createWorkbenchController({
       return {
         activeRepositoryId:
           repositoryCatalogController.getSnapshot().activeDescriptor?.id ??
-            null,
+          null,
         journal: journalSlot.getSnapshot().state,
         todo: todoSlot.getSnapshot().state,
         workspace: workspace.status === "absent" ? null : workspace,
@@ -318,18 +302,18 @@ export function createWorkbenchController({
     onChange: () => publish(),
     query: searchQuery,
   });
-  const currentWorkspaceReferenceSnapshot = ():
-    JournalWorkspaceReferenceSnapshot | null => {
-    const catalog = repositoryCatalogController.getSnapshot();
-    const workspace = workspaceSlot.getSnapshot();
+  const currentWorkspaceReferenceSnapshot =
+    (): JournalWorkspaceReferenceSnapshot | null => {
+      const catalog = repositoryCatalogController.getSnapshot();
+      const workspace = workspaceSlot.getSnapshot();
 
-    return workspace.status === "ready" && catalog.activeDescriptor
-      ? {
-          repositoryId: catalog.activeDescriptor.id,
-          workspace: workspace.workspace.data,
-        }
-      : null;
-  };
+      return workspace.status === "ready" && catalog.activeDescriptor
+        ? {
+            repositoryId: catalog.activeDescriptor.id,
+            workspace: workspace.workspace.data,
+          }
+        : null;
+    };
   const journalReferenceResolver: JournalWorkspaceReferenceResolver = {
     resolve(references) {
       requireActive();
@@ -423,8 +407,7 @@ export function createWorkbenchController({
     recoverLocalConflictCopy: (...args) =>
       requireJournalController().recoverLocalConflictCopy(...args),
     reload: (...args) => requireJournalController().reload(...args),
-    requestSync: (...args) =>
-      requireJournalController().requestSync(...args),
+    requestSync: (...args) => requireJournalController().requestSync(...args),
     synchronizePendingChanges: (...args) =>
       requireJournalController().synchronizePendingChanges(...args),
     useRemoteConflictAndSynchronize: (...args) =>
@@ -486,28 +469,29 @@ export function createWorkbenchController({
       return {
         catalog: {
           activeRepositoryId: catalog.activeDescriptor?.id ?? null,
-          knownRepositoryIds: catalog.state.status === "ready"
-            ? catalog.state.repositories.map(({ id }) => id)
-            : null,
+          knownRepositoryIds:
+            catalog.state.status === "ready"
+              ? catalog.state.repositories.map(({ id }) => id)
+              : null,
         },
-        journalPersistenceStatus: journal.state.status === "ready"
-          ? journal.state.persistence.status
-          : null,
-        journalRemoteRevision: journal.state.status === "ready"
-          ? journal.state.snapshot.remoteRevision
-          : null,
-        todoPersistenceStatus: todo.state.status === "ready"
-          ? todo.state.persistence.status
-          : null,
-        todoRemoteRevision: todo.state.status === "ready"
-          ? todo.state.snapshot.remoteRevision
-          : null,
-        workspacePersistenceStatus: workspace.status === "ready"
-          ? workspace.persistence.status
-          : null,
-        workspaceRemoteRevision: workspace.status === "ready"
-          ? workspace.remoteRevision
-          : null,
+        journalPersistenceStatus:
+          journal.state.status === "ready"
+            ? journal.state.persistence.status
+            : null,
+        journalRemoteRevision:
+          journal.state.status === "ready"
+            ? journal.state.snapshot.remoteRevision
+            : null,
+        todoPersistenceStatus:
+          todo.state.status === "ready" ? todo.state.persistence.status : null,
+        todoRemoteRevision:
+          todo.state.status === "ready"
+            ? todo.state.snapshot.remoteRevision
+            : null,
+        workspacePersistenceStatus:
+          workspace.status === "ready" ? workspace.persistence.status : null,
+        workspaceRemoteRevision:
+          workspace.status === "ready" ? workspace.remoteRevision : null,
       };
     },
     source: changeEvents,

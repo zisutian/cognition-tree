@@ -1,16 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-
-
-export type {
-  ActiveWorkspaceSession,
-} from "./session/workspaceSessionApplication.ts";
-export {
-  createEmptyNoteReferenceGraph,
-} from "./analysis/workspaceAnalysis.ts";
-export {
-  createInitialRepositoryContent,
-} from "./session/initialRepository.ts";
+export type { ActiveWorkspaceSession } from "./session/workspaceSessionApplication.ts";
+export { createEmptyNoteReferenceGraph } from "./analysis/workspaceAnalysis.ts";
+export { createInitialRepositoryContent } from "./session/initialRepository.ts";
 export {
   createLocalDraftRevision,
   WorkspaceRepositoryBackendConflictError,
@@ -18,30 +10,20 @@ export {
   WorkspaceRepositoryRemoteError,
   WorkspaceRepositoryUnavailableError,
 } from "./persistence/workspaceRepository.ts";
-export {
-  createStructureOperationProjection,
-} from "./notes/structure/structureOperationProjection.ts";
-export {
-  createUiEditorView,
-} from "./projection/viewEditor.ts";
-export {
-  createUiNoteTree,
-} from "./projection/viewTree.ts";
+export { createStructureOperationProjection } from "./notes/structure/structureOperationProjection.ts";
+export { createUiEditorView } from "./projection/viewEditor.ts";
+export { createUiNoteTree } from "./projection/viewTree.ts";
 export {
   createUiOutlineNodes,
   findUiOutlineNodeAtLine,
   flattenUiBlockSubtree,
 } from "./projection/viewBlocks.ts";
-export {
-  createUiReferenceGraphView,
-} from "./projection/viewGraph.ts";
+export { createUiReferenceGraphView } from "./projection/viewGraph.ts";
 export {
   createUiWorkbenchDiagnostics,
   createUiWorkspacePortableNameDiagnostics,
 } from "./projection/viewDiagnostics.ts";
-export {
-  createWorkspaceSessionController,
-} from "./session/workspaceSessionController.ts";
+export { createWorkspaceSessionController } from "./session/workspaceSessionController.ts";
 export {
   createWorkspaceTreeMoveDestination,
   createWorkspaceTreeNodeReference,
@@ -58,15 +40,9 @@ export type {
   WorkspaceRepositoryContent,
   WorkspaceRepositoryPreparationPolicy,
 } from "./persistence/workspaceRepository.ts";
-export {
-  mergeWorkspaceContent,
-} from "./persistence/workspaceThreeWayMerge.ts";
-export type {
-  NotesViewModel,
-} from "./notes/edit/notesViewModel.ts";
-export {
-  prepareWorkspaceCommand,
-} from "./commands/workspaceCommandPreparation.ts";
+export { mergeWorkspaceContent } from "./persistence/workspaceThreeWayMerge.ts";
+export type { NotesViewModel } from "./notes/edit/notesViewModel.ts";
+export { prepareWorkspaceCommand } from "./commands/workspaceCommandPreparation.ts";
 export {
   prepareWorkspaceRepositoryContent,
   prepareWorkspaceSyntaxCatalog,
@@ -75,9 +51,7 @@ export {
   projectWorkspaceContentReview,
   projectWorkspaceContentChanges,
 } from "./commands/workspaceContentProjection.ts";
-export {
-  projectWorkspaceSessionApplication,
-} from "./session/workspaceSessionApplication.ts";
+export { projectWorkspaceSessionApplication } from "./session/workspaceSessionApplication.ts";
 export type {
   ReferenceGraphLocalDepth,
   ReferenceGraphMode,
@@ -90,9 +64,7 @@ export {
   resolveActiveNoteIdAfterRemovingNotes,
   resolveDifferentNoteId,
 } from "./selection/viewSelection.ts";
-export {
-  resolveFolderSelection,
-} from "./selection/resolveFolderSelection.ts";
+export { resolveFolderSelection } from "./selection/resolveFolderSelection.ts";
 export {
   resolveStructureOperationDirectorySelection,
   resolveSwappedStructureOperationPair,
@@ -101,35 +73,23 @@ export type {
   SessionCommandDependencies,
   SessionCommands,
 } from "./session/sessionCommands.ts";
-export {
-  startWorkspaceAnalysisCollection,
-} from "./analysis/workspaceAnalysisCollection.ts";
-export type {
-  StructureOperationActivityViewModel,
-} from "./notes/structure/structureOperationViewModel.ts";
-export type {
-  StructureOperationPairSelectionPhase,
-} from "./notes/structure/directorySelection.ts";
-export type {
-  UiBlockNode,
-} from "./projection/viewBlocks.ts";
+export { startWorkspaceAnalysisCollection } from "./analysis/workspaceAnalysisCollection.ts";
+export type { StructureOperationActivityViewModel } from "./notes/structure/structureOperationViewModel.ts";
+export type { StructureOperationPairSelectionPhase } from "./notes/structure/directorySelection.ts";
+export type { UiBlockNode } from "./projection/viewBlocks.ts";
 export type {
   UiDirectoryActiveNode,
   UiFolderId,
   UiNoteId,
   UiTreeMoveRequest,
 } from "./projection/viewTree.ts";
-export type {
-  UiEditorFocusTarget,
-} from "./projection/viewEditor.ts";
+export type { UiEditorFocusTarget } from "./projection/viewEditor.ts";
 export type {
   UiReferenceGraphEdge,
   UiReferenceGraphNode,
   UiReferenceGraphView,
 } from "./projection/viewGraph.ts";
-export type {
-  UiStructureOperationView,
-} from "./projection/viewStructureOperation.ts";
+export type { UiStructureOperationView } from "./projection/viewStructureOperation.ts";
 export type {
   UiWorkbenchDiagnostic,
   UiWorkbenchDiagnostics,
@@ -138,9 +98,7 @@ export type {
   WorkspaceCommandIntent,
   WorkspaceResourceVersionPolicy,
 } from "./commands/workspaceCommandPreparation.ts";
-export type {
-  WorkspaceAnalysis,
-} from "./analysis/workspaceAnalysis.ts";
+export type { WorkspaceAnalysis } from "./analysis/workspaceAnalysis.ts";
 export type {
   WorkspaceDirectoryMutations,
   WorkspaceSelection,
@@ -150,13 +108,8 @@ export type {
   WorkspaceRepositoryPreparationObserver,
   WorkspaceSyntaxCatalogPreparation,
 } from "./persistence/workspaceRepositoryPreparation.ts";
-export type {
-  WorkspaceRepositoryProvider,
-  WorkspaceRepositoryProvisioner,
-} from "./persistence/workspaceRepositoryProvider.ts";
-export {
-  WorkspaceRevisionConflictError,
-} from "./persistence/workspaceCommitErrors.ts";
+export type { WorkspaceRepositoryProvider } from "./persistence/workspaceRepositoryProvider.ts";
+export { WorkspaceRevisionConflictError } from "./persistence/workspaceCommitErrors.ts";
 export type {
   WorkspaceSessionController,
   WorkspaceSessionControllerState,

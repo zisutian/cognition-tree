@@ -24,6 +24,7 @@ export type RepositoryCatalogOperation =
   | "switching";
 
 export type ReadyRepositoryCatalogState = {
+  revision: `sha256:${string}` | null;
   activeRepositoryId: string | null;
   issues: WorkspaceRepositoryCatalogIssue[];
   operation: RepositoryCatalogOperation;
@@ -40,8 +41,9 @@ function repositoryLocationsEqual(
   left: WorkspaceRepositoryDescriptor["location"],
   right: WorkspaceRepositoryDescriptor["location"],
 ) {
-  return left.hostPath === right.hostPath &&
-    left.serverPath === right.serverPath;
+  return (
+    left.hostPath === right.hostPath && left.serverPath === right.serverPath
+  );
 }
 
 export function reuseUnchangedRepositoryDescriptors(
@@ -56,9 +58,9 @@ export function reuseUnchangedRepositoryDescriptors(
     const existing = previousById.get(descriptor.id);
 
     return existing &&
-        existing.label === descriptor.label &&
-        existing.labelIssue === descriptor.labelIssue &&
-        repositoryLocationsEqual(existing.location, descriptor.location)
+      existing.label === descriptor.label &&
+      existing.labelIssue === descriptor.labelIssue &&
+      repositoryLocationsEqual(existing.location, descriptor.location)
       ? existing
       : descriptor;
   });

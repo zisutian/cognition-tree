@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ApiErrorCodeDto } from "../../../contracts/api/index.ts";
-import { parseApiError } from "../../../contracts/api/index.ts";
+import {
+  buildApiOperationPath,
+  getApiOperation,
+  parseApiOperationRequest,
+  parseApiOperationResponse,
+  parseApiError,
+} from "../../../contracts/api/index.ts";
 
 export const apiRequestTimeoutMs = 30_000;
 export const apiMaximumJsonResponseBytes = 64 * 1024 * 1024;
@@ -9,7 +15,6 @@ export const apiMaximumJsonResponseBytes = 64 * 1024 * 1024;
 export type HttpApiTransportOptions = {
   baseUrl: string;
   fetch?: typeof fetch;
-
 };
 
 export type OfficialClientApi = Readonly<{ baseUrl: string }>;
@@ -70,12 +75,12 @@ async function rejectResponseBody(
   });
 }
 
-async function readBoundedResponseText(
-  response: Response,
-  retryable: boolean,
-) {
-  const contentType = response.headers.get("content-type")
-    ?.split(";", 1)[0]?.trim().toLowerCase();
+async function readBoundedResponseText(response: Response, retryable: boolean) {
+  const contentType = response.headers
+    .get("content-type")
+    ?.split(";", 1)[0]
+    ?.trim()
+    .toLowerCase();
 
   if (contentType !== "application/json") {
     return rejectResponseBody(
@@ -197,25 +202,24 @@ async function assertSuccessfulResponse(response: Response) {
   let apiError;
 
   try {
-    apiError = parseApiError(
-      await readResponseJson(response),
-    );
+    apiError = parseApiError(await readResponseJson(response));
   } catch (error) {
     if (error instanceof HttpApiResponseError) throw error;
-    throw new HttpApiResponseError(
-      `API request failed (${response.status}).`,
-      { retryable: false, statusCode: response.status },
-    );
+    throw new HttpApiResponseError(`API request failed (${response.status}).`, {
+      retryable: false,
+      statusCode: response.status,
+    });
   }
 
   throw new HttpApiResponseError(apiError.message, {
     apiCode: apiError.code,
     details: apiError.details,
-    path: "issues" in apiError.details &&
-        Array.isArray(apiError.details.issues) &&
-        typeof apiError.details.issues[0]?.path === "string"
-      ? apiError.details.issues[0].path
-      : null,
+    path:
+      "issues" in apiError.details &&
+      Array.isArray(apiError.details.issues) &&
+      typeof apiError.details.issues[0]?.path === "string"
+        ? apiError.details.issues[0].path
+        : null,
     requestId: apiError.requestId,
     retryable: apiError.retryable,
     statusCode: response.status,
@@ -267,11 +271,10 @@ async function requestApiResponse<Result>(
   endpoint: string,
   consumeResponse: (response: Response) => Promise<Result>,
   init?: RequestInit,
-
+  assertSuccess = true,
 ): Promise<Result> {
   const controller = new AbortController();
   const headers = new Headers(init?.headers);
-
 
   const abortFromCaller = () => controller.abort(init?.signal?.reason);
 
@@ -292,7 +295,7 @@ async function requestApiResponse<Result>(
       signal: controller.signal,
     });
 
-    await assertSuccessfulResponse(response);
+    if (assertSuccess) await assertSuccessfulResponse(response);
     return await consumeResponse(response);
   } catch (error) {
     if (controller.signal.aborted) {
@@ -325,16 +328,8 @@ export async function requestApiJson(
   baseUrl: string,
   endpoint: string,
   init?: RequestInit,
-
 ): Promise<unknown> {
-  return requestApiResponse(
-    fetchFn,
-    baseUrl,
-    endpoint,
-    readResponseJson,
-    init,
-
-  );
+  return requestApiResponse(fetchFn, baseUrl, endpoint, readResponseJson, init);
 }
 
 export async function requestApiNoContent(
@@ -342,7 +337,6 @@ export async function requestApiNoContent(
   baseUrl: string,
   endpoint: string,
   init?: RequestInit,
-
 ): Promise<void> {
   return requestApiResponse(
     fetchFn,
@@ -350,6 +344,48 @@ export async function requestApiNoContent(
     endpoint,
     assertNoContentResponse,
     init,
+  );
+}
 
+export function requestApiOperation(
+  fetchFn: typeof fetch,
+  baseUrl: string,
+  operationId: string,
+  body?: unknown,
+) {
+  const operation = getApiOperation(operationId);
+  const request = operation.body
+    ? parseApiOperationRequest(operation, body)
+    : undefined;
+  return requestApiResponse(
+    fetchFn,
+    baseUrl,
+    buildApiOperationPath(operationId),
+    async (response) => {
+      const value = await readResponseJson(response);
+      if (
+        response.status >= 400 &&
+        value &&
+        typeof value === "object" &&
+        "code" in value
+      ) {
+        const error = parseApiError(value);
+        throw new HttpApiResponseError(error.message, {
+          apiCode: error.code,
+          details: error.details,
+          statusCode: response.status,
+          retryable: error.retryable,
+          requestId: error.requestId,
+        });
+      }
+      return parseApiOperationResponse(operationId, response.status, value);
+    },
+    {
+      method: operation.method,
+      body: request === undefined ? undefined : JSON.stringify(request),
+      headers: { "Content-Type": "application/json" },
+      redirect: "error",
+    },
+    false,
   );
 }

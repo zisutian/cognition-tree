@@ -27,10 +27,7 @@ export {
   parseRepositoryCatalog,
   parseRepositoryDescriptor,
 } from "./parseCatalog.ts";
-export {
-  isRepositoryNoteId,
-  parseRepositoryTree,
-} from "./parseWorkspace.ts";
+export { isRepositoryNoteId, parseRepositoryTree } from "./parseWorkspace.ts";
 export {
   isRepositorySyntaxFileId,
   parseRepositorySyntaxCatalog,
@@ -53,3 +50,8 @@ export {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
 } from "./contractValue.ts";
+
+export {
+  RepositoryDescriptorSchema,
+  RepositoryLocationSchema,
+} from "./catalogSchema.ts";

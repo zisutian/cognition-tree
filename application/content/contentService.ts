@@ -36,6 +36,15 @@ export class ContentService {
   query(query: ContentQuery) {
     return queryContent(this.#ports, query);
   }
+  repositoryCatalog() {
+    return this.#ports.catalog.run(async (session) => {
+      const catalog = await session.read();
+      return {
+        ...catalog,
+        revision: contentCatalogRevision(catalog, this.#ports.digest),
+      };
+    });
+  }
   result(operationId: string) {
     return this.#ports.ledger.getContentOperation(operationId);
   }
@@ -230,6 +239,7 @@ export class ContentService {
           };
           const result: ContentOperationOutcome = {
             status: "committed",
+            ...(next ? { repository: next } : {}),
             afterRevision: contentCatalogRevision(after, this.#ports.digest),
             changeMetadata: { resourceIds: [id!], blockIds: [] },
             review,

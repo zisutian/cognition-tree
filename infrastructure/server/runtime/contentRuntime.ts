@@ -1,10 +1,12 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import {
   createWorkspaceRepositoryRevision,
   createJournalRevision,
   createTodoRevision,
 } from "../repository/index.ts";
-// SPDX-License-Identifier: GPL-3.0-or-later
 
+import { OperationAuditUnavailableError } from "../../../application/operations/index.ts";
 import { ContentService } from "../../../application/content/index.ts";
 import type { ApiHttpDependencies } from "../api/http/index.ts";
 import {
@@ -29,12 +31,25 @@ export function createServerContentService(
   const run = input.catalog.runContentCatalog?.bind(input.catalog);
   const builtIns = input.builtInCatalog;
   const ledger = input.operationLedger;
-  if (!run || !builtIns || !ledger) return null;
+  if (!run) return null;
   return new ContentService({
     catalog: { run },
-    journal: () => builtIns.getStore("journal"),
-    todo: () => builtIns.getStore("todo"),
-    ledger,
+    journal: async () => {
+      if (!builtIns) throw new Error("Journal is unavailable");
+      return builtIns.getStore("journal");
+    },
+    todo: async () => {
+      if (!builtIns) throw new Error("Todo is unavailable");
+      return builtIns.getStore("todo");
+    },
+    ledger: ledger ?? {
+      getContentOperation: async () => null,
+      runContentOperation: async () => {
+        throw new OperationAuditUnavailableError(
+          "Content operation receipts are unavailable.",
+        );
+      },
+    },
     digest: createApiResourceVersion,
     runtime: input.runtime,
     revisions: {

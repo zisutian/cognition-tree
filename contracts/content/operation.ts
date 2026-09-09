@@ -8,6 +8,7 @@ import {
   nullable,
   strictObject,
 } from "../common/index.ts";
+import { RepositoryDescriptorSchema } from "../workspace/index.ts";
 import { ContentChangeReviewSchema } from "./changeReview.ts";
 
 export const ContentReadBasisSchema = strictObject({
@@ -37,6 +38,7 @@ export const ContentOperationResultSchema = strictObject({
       ),
     }),
   ),
+  repository: Type.Optional(RepositoryDescriptorSchema),
   afterRevision: nullable(revision),
   audit: Type.Union([
     Type.Literal("pending"),

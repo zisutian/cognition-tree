@@ -1,95 +1,112 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { WorkspaceRepositoryCatalog } from "../../../application/repository/index.ts";
-import type {
-WorkspaceRepositoryProvisioner,
-} from "../../../application/workspace/index.ts";
-import {
-type WorkspaceRepositoryPreparationPolicy,
-} from "../../../application/workspace/index.ts";
-import { buildApiOperationPath } from "../../../contracts/api/index.ts";
-import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
-import {
-isRepositoryId,
-parseCreateRepository,
-parseRenameRepository,
-parseRepositoryCatalog,
-parseRepositoryDescriptor,
-} from "../../../contracts/workspace/index.ts";
 import { parsePortableName } from "../../../core/naming/index.ts";
+import type {
+  WorkspaceRepositoryCatalog,
+  WorkspaceRepositoryCatalogData,
+  RepositoryMutationBasis,
+} from "../../../application/repository/index.ts";
+import { WorkspaceRepositoryRemoteError } from "../../../application/workspace/index.ts";
+import type {
+  ContentOperationRequestDto,
+  ContentOperationResultDto,
+} from "../../../contracts/content/index.ts";
 import {
-type HttpApiTransportOptions,
+  parseRepositoryCatalog,
+  parseRepositoryDescriptor,
+} from "../../../contracts/workspace/index.ts";
+import {
+  requestApiOperation,
+  type HttpApiTransportOptions,
 } from "./apiTransport.ts";
-import {
-requestWorkspaceApiJson,
-requestWorkspaceApiNoContent,
-} from "./workspaceApiAdapter.ts";
+import { withWorkspaceApiAdapterErrors } from "./workspaceApiAdapter.ts";
 
-export function createHttpWorkspaceCatalogBackend({ baseUrl, fetch: fetchFn = globalThis.fetch.bind(globalThis), preparation }: HttpApiTransportOptions & { preparation: WorkspaceRepositoryPreparationPolicy }): WorkspaceRepositoryCatalog & WorkspaceRepositoryProvisioner {
-  return {
-    label: "HTTP 后端",
-    async createRepository(input) {
-      const decoded = parseCreateRepository(input);
-      const outbound = {
-        ...decoded,
-        label: parsePortableName(decoded.label, "Repository label"),
-      };
-
-      preparation.prepare(outbound.content);
-      const descriptor = parseRepositoryDescriptor(
-        await requestWorkspaceApiJson(
-          fetchFn,
-          baseUrl,
-          buildApiOperationPath("createAdminRepository"),
-          {
-            body: serializeJsonIteratively(outbound),
-            headers: { "Content-Type": "application/json" },
-            method: "POST",
-          },
-
-        ),
-      );
-      return descriptor;
-    },
-    async deleteRepository({ id }) {
-      if (!isRepositoryId(id)) {
-        throw new Error(`Invalid repository id: ${id}`);
-      }
-      await requestWorkspaceApiNoContent(
+export function createHttpWorkspaceCatalogBackend({
+  baseUrl,
+  fetch: fetchFn = globalThis.fetch.bind(globalThis),
+}: HttpApiTransportOptions): WorkspaceRepositoryCatalog {
+  const execute = (
+    basis: RepositoryMutationBasis,
+    command: ContentOperationRequestDto["command"],
+  ) =>
+    withWorkspaceApiAdapterErrors(async () => {
+      const result = (await requestApiOperation(
         fetchFn,
         baseUrl,
-        buildApiOperationPath("deleteAdminRepository", { repositoryId: id }),
-        { method: "DELETE" },
-
+        "executeContentOperation",
+        {
+          scope: { domain: "catalog" },
+          basis: { baseRevision: basis.baseRevision, repositoryId: null },
+          operationId: basis.operationId,
+          command,
+        },
+      )) as ContentOperationResultDto;
+      if (result.status !== "committed" || !result.afterRevision)
+        throw new WorkspaceRepositoryRemoteError(
+          `${result.error?.message ?? "操作尚未完成"}（操作 ID：${result.operationId}）`,
+          {
+            code:
+              result.status === "conflict"
+                ? "revision_conflict"
+                : "invalid_request",
+            retryable: false,
+          },
+        );
+      return result;
+    }).catch((error) => {
+      if (error instanceof Error && !error.message.includes(basis.operationId))
+        error.message += `（请核对操作 ID：${basis.operationId}，不要自动重试）`;
+      throw error;
+    });
+  const descriptorResult = (result: ContentOperationResultDto) => {
+    if (!result.repository || !result.afterRevision)
+      throw new Error(
+        `已提交，但仓库收据不完整。请查询操作 ${result.operationId}。`,
       );
-
-    },
-    async listRepositories() {
-      return parseRepositoryCatalog(await requestWorkspaceApiJson(fetchFn, baseUrl, buildApiOperationPath("listAdminRepositories"), undefined));
-    },
-    async renameRepository({ id, label }) {
-      if (!isRepositoryId(id)) {
-        throw new Error(`Invalid repository id: ${id}`);
-      }
-      const decoded = parseRenameRepository({ label });
-      const outbound = {
-        label: parsePortableName(decoded.label, "Repository label"),
-      };
-      const descriptor = parseRepositoryDescriptor(
-        await requestWorkspaceApiJson(
+    return {
+      descriptor: parseRepositoryDescriptor(result.repository),
+      revision: result.afterRevision,
+    };
+  };
+  return {
+    label: "HTTP 后端",
+    createRepository: async (input) =>
+      descriptorResult(
+        await execute(input, {
+          kind: "create-repository",
+          name: parsePortableName(input.label, "Repository label"),
+        }),
+      ),
+    renameRepository: async (input) =>
+      descriptorResult(
+        await execute(input, {
+          kind: "rename-repository",
+          repository: input.repository,
+          name: parsePortableName(input.label, "Repository label"),
+        }),
+      ),
+    deleteRepository: async (input) => ({
+      revision: (
+        await execute(input, {
+          kind: "delete-repository",
+          repository: input.repository,
+        })
+      ).afterRevision!,
+    }),
+    listRepositories: () =>
+      withWorkspaceApiAdapterErrors(async () => {
+        const value = (await requestApiOperation(
           fetchFn,
           baseUrl,
-          buildApiOperationPath("renameAdminRepository", { repositoryId: id }),
-          {
-            body: serializeJsonIteratively(outbound),
-            headers: { "Content-Type": "application/json" },
-            method: "PATCH",
-          },
-
-        ),
-      );
-
-      return descriptor;
-    },
+          "listAdminRepositories",
+        )) as WorkspaceRepositoryCatalogData;
+        return {
+          ...parseRepositoryCatalog({
+            repositories: value.repositories,
+            issues: value.issues,
+          }),
+          revision: value.revision,
+        };
+      }),
   };
 }

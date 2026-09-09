@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { WorkspaceRepositoryDescriptor } from "../repository/index.ts";
 import type { ContentChangeReview } from "../commands/index.ts";
 
 export type ContentOperationScope =
@@ -31,6 +32,7 @@ export type ContentOperationRecorder = (
 
 export type ContentOperationResult = ContentOperationIntent & {
   preparation: ContentOperationPreparation | null;
+  repository?: WorkspaceRepositoryDescriptor;
   afterRevision: `sha256:${string}` | null;
   audit: "pending" | "recorded" | "failed";
   changeMetadata: { blockIds: string[]; resourceIds: string[] };
@@ -48,7 +50,12 @@ export type ContentOperationResult = ContentOperationIntent & {
 
 export type ContentOperationOutcome = Pick<
   ContentOperationResult,
-  "afterRevision" | "changeMetadata" | "error" | "review" | "status"
+  | "afterRevision"
+  | "changeMetadata"
+  | "error"
+  | "review"
+  | "status"
+  | "repository"
 >;
 
 export interface ContentOperationLedgerPort {

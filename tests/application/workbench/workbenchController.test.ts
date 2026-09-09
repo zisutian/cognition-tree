@@ -41,12 +41,8 @@ import {
   replaceEditableSource,
 } from "../workspace/session/workspaceSessionTestFixture";
 import { testApplicationScheduler } from "../../support/testApplicationScheduler";
-import type {
-  DomainChangeNotification,
-} from "../../../application/sync/domainChangeEvents";
-import type {
-  VersionedRepository,
-} from "../../../application/persistence/versionedRepository";
+import type { DomainChangeNotification } from "../../../application/sync/domainChangeEvents";
+import type { VersionedRepository } from "../../../application/persistence/versionedRepository";
 
 function deferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
@@ -96,8 +92,7 @@ const builtInDescriptors: BuiltInDescriptor[] = [
 const builtInRevision = (character: string) =>
   `sha256:${character.repeat(64)}` as JournalRevision;
 const builtInDraft = (suffix: string) =>
-  `draft:00000000-0000-4000-8000-${suffix.padStart(12, "0")}` as
-    JournalLocalDraftRevision;
+  `draft:00000000-0000-4000-8000-${suffix.padStart(12, "0")}` as JournalLocalDraftRevision;
 
 function createBuiltInRepository<Content, Projection>(
   label: string,
@@ -138,7 +133,9 @@ function createBuiltInRepository<Content, Projection>(
     loadSnapshot: async () => snapshot,
     location,
     resolveConflictAndSynchronize: async () => {
-      throw new Error("Unexpected built-in conflict resolution in workbench test.");
+      throw new Error(
+        "Unexpected built-in conflict resolution in workbench test.",
+      );
     },
     stageSnapshot: async (change) => {
       const previousLocalRevision = snapshot.localRevision;
@@ -146,7 +143,7 @@ function createBuiltInRepository<Content, Projection>(
       snapshot = {
         conflictRevision: null,
         content: change.after.content,
-        localRevision: builtInDraft(`${localRevisionIndex += 1}`),
+        localRevision: builtInDraft(`${(localRevisionIndex += 1)}`),
         pendingChanges: true,
         projection: change.after.projection,
         remoteRevision: snapshot.remoteRevision,
@@ -189,14 +186,16 @@ function createWorkspaceRepository(
     loadSnapshot: readSnapshot,
     location: descriptor.location,
     resolveConflictAndSynchronize: async () => {
-      throw new Error("Unexpected workspace conflict resolution in workbench test.");
+      throw new Error(
+        "Unexpected workspace conflict resolution in workbench test.",
+      );
     },
     stageSnapshot: async (change) => {
-      const before = currentSnapshot ?? await readSnapshot();
+      const before = currentSnapshot ?? (await readSnapshot());
       const snapshot = {
         ...before,
         content: change.after.content,
-        localRevision: draftRevision(`next-${localRevisionIndex += 1}`),
+        localRevision: draftRevision(`next-${(localRevisionIndex += 1)}`),
         pendingChanges: true,
         projection: change.after.projection,
       };
@@ -206,7 +205,7 @@ function createWorkspaceRepository(
     },
     subscribeReconnect: () => () => undefined,
     synchronizePendingSnapshot: async () => {
-      const before = currentSnapshot ?? await readSnapshot();
+      const before = currentSnapshot ?? (await readSnapshot());
       const snapshot = {
         ...before,
         pendingChanges: false,
@@ -216,10 +215,12 @@ function createWorkspaceRepository(
       currentSnapshot = snapshot;
       return {
         status: "synced",
-        transitions: [{
-          previousLocalRevision: before.localRevision,
-          snapshot,
-        }],
+        transitions: [
+          {
+            previousLocalRevision: before.localRevision,
+            snapshot,
+          },
+        ],
       };
     },
   };
@@ -256,9 +257,8 @@ function createHarness({
   const repositories = new Map<string, WorkspaceRepository>([
     [
       "repository-a",
-      createWorkspaceRepository(
-        workspaceDescriptors[0],
-        async () => createSnapshot({ content: createContent("仓库A", "A") }),
+      createWorkspaceRepository(workspaceDescriptors[0], async () =>
+        createSnapshot({ content: createContent("仓库A", "A") }),
       ),
     ],
     [
@@ -266,14 +266,19 @@ function createHarness({
       createWorkspaceRepository(
         workspaceDescriptors[1],
         repositoryBLoad ??
-          (async () => createSnapshot({ content: createContent("仓库B", "B") })),
+          (async () =>
+            createSnapshot({ content: createContent("仓库B", "B") })),
       ),
     ],
   ]);
   const workspaceCatalog: WorkspaceRepositoryCatalog = {
-    deleteRepository: vi.fn(async () => undefined),
+    createRepository: vi.fn(),
+    deleteRepository: vi.fn(async () => ({
+      revision: `sha256:${"a".repeat(64)}` as const,
+    })),
     label: "Repositories",
     listRepositories: vi.fn(async () => ({
+      revision: `sha256:${"a".repeat(64)}` as const,
       issues: [],
       repositories: workspaceDescriptors,
     })),
@@ -312,9 +317,7 @@ function createHarness({
   const todoRepositories: TodoRepositoryProvider = {
     openTodo: () => todoRepository,
   };
-  const changeListeners = new Set<
-    (event: DomainChangeNotification) => void
-  >();
+  const changeListeners = new Set<(event: DomainChangeNotification) => void>();
   const disposeChangeEvents = vi.fn();
   const startChangeEvents = vi.fn();
   const controller = createWorkbenchController({
@@ -339,7 +342,7 @@ function createHarness({
           },
         }
       : undefined,
-    createInitialWorkspaceContent: () => createContent(),
+    createOperationId: () => "catalog-operation",
     createSearchVersion: async (value) =>
       `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}` as const,
     journalRepositories,
@@ -351,8 +354,7 @@ function createHarness({
       createBlockId: () => "00000000-0000-4000-8000-000000000001",
       createFolderId: () => "folder-created",
       createNoteId: () => "note-created",
-      createSyntaxFileId: () =>
-        "syntax-00000000-0000-4000-8000-000000000002",
+      createSyntaxFileId: () => "syntax-00000000-0000-4000-8000-000000000002",
       now: () => "2026-07-23T00:00:00.000Z",
     },
     workspaceRepositories,
@@ -375,10 +377,12 @@ describe("Workbench controller", () => {
     const { controller } = createHarness();
 
     controller.start();
-    const snapshot = await waitForSnapshot(controller, (current) =>
-      current.workspace.status === "ready" &&
-      current.builtIns.journal.state.status === "ready" &&
-      current.builtIns.todo.state.status === "ready"
+    const snapshot = await waitForSnapshot(
+      controller,
+      (current) =>
+        current.workspace.status === "ready" &&
+        current.builtIns.journal.state.status === "ready" &&
+        current.builtIns.todo.state.status === "ready",
     );
 
     expect(snapshot.catalog.activeDescriptor?.id).toBe("repository-a");
@@ -426,9 +430,10 @@ describe("Workbench controller", () => {
       replaceEditableSource(activeSource, "尚未同步的本地检索内容"),
     );
     const workspaceBeforeSearch = controller.getSnapshot().workspace;
-    const analysisRunsBeforeSearch = workspaceBeforeSearch.status === "ready"
-      ? workspaceBeforeSearch.analysisIndex?.analysisStats.runCount
-      : null;
+    const analysisRunsBeforeSearch =
+      workspaceBeforeSearch.status === "ready"
+        ? workspaceBeforeSearch.analysisIndex?.analysisStats.runCount
+        : null;
 
     search.updateDraft({
       domains: ["workspace"],
@@ -445,9 +450,11 @@ describe("Workbench controller", () => {
     );
     const workspaceAfterSearch = controller.getSnapshot().workspace;
 
-    expect(workspaceAfterSearch.status === "ready"
-      ? workspaceAfterSearch.analysisIndex?.analysisStats.runCount
-      : null).toBe(analysisRunsBeforeSearch);
+    expect(
+      workspaceAfterSearch.status === "ready"
+        ? workspaceAfterSearch.analysisIndex?.analysisStats.runCount
+        : null,
+    ).toBe(analysisRunsBeforeSearch);
 
     search.updateDraft({
       domains: ["workspace"],
@@ -464,21 +471,24 @@ describe("Workbench controller", () => {
       submitted: { query: "B" },
     });
     expect(searchState.results.length).toBeGreaterThan(0);
-    expect(searchState.results.every((result) =>
-      result.domain === "workspace" &&
-      result.repositoryId === "repository-b" &&
-      result.resourceId === "note-1"
-    )).toBe(true);
-    expect(events.filter((event) => event === "open:repository-b")).toHaveLength(
-      2,
-    );
+    expect(
+      searchState.results.every(
+        (result) =>
+          result.domain === "workspace" &&
+          result.repositoryId === "repository-b" &&
+          result.resourceId === "note-1",
+      ),
+    ).toBe(true);
+    expect(
+      events.filter((event) => event === "open:repository-b"),
+    ).toHaveLength(2);
 
     repositoryBContentReadable = false;
     await search.search();
     expect(controller.getSnapshot().search.faults).toEqual([]);
-    expect(events.filter((event) => event === "open:repository-b")).toHaveLength(
-      3,
-    );
+    expect(
+      events.filter((event) => event === "open:repository-b"),
+    ).toHaveLength(3);
 
     repositoryBContentReadable = true;
     await controller.selectRepository("repository-b");
@@ -494,10 +504,12 @@ describe("Workbench controller", () => {
     const harness = createHarness({ withChangeEvents: true });
 
     harness.controller.start();
-    const snapshot = await waitForSnapshot(harness.controller, (current) =>
-      current.workspace.status === "ready" &&
-      current.builtIns.journal.state.status === "ready" &&
-      current.builtIns.todo.state.status === "ready"
+    const snapshot = await waitForSnapshot(
+      harness.controller,
+      (current) =>
+        current.workspace.status === "ready" &&
+        current.builtIns.journal.state.status === "ready" &&
+        current.builtIns.todo.state.status === "ready",
     );
     if (snapshot.workspace.status !== "ready") throw new Error("not ready");
     const reloadWorkspace = vi.fn(async () => undefined);
@@ -549,7 +561,9 @@ describe("Workbench controller", () => {
       sequence: 2,
     });
     await vi.waitFor(() => {
-      expect(harness.workspaceCatalog.listRepositories).toHaveBeenCalledTimes(2);
+      expect(harness.workspaceCatalog.listRepositories).toHaveBeenCalledTimes(
+        2,
+      );
     });
     harness.emitChange({
       ...notification,
@@ -609,7 +623,9 @@ describe("Workbench controller", () => {
     await Promise.resolve();
     expect(controller.getSnapshot().navigation.status).toBe("pending");
 
-    targetLoad.resolve(createSnapshot({ content: createContent("仓库B", "B") }));
+    targetLoad.resolve(
+      createSnapshot({ content: createContent("仓库B", "B") }),
+    );
     await waitForSnapshot(
       controller,
       ({ navigation }) => navigation.status === "ready",
@@ -631,11 +647,9 @@ describe("Workbench controller", () => {
     if (failedInitial.workspace.status !== "ready") {
       throw new Error("failed-switch workspace is not ready");
     }
-    failedHarness.controller.workspace.flushPendingChanges = vi.fn(
-      async () => {
-        throw new Error("local stage failed");
-      },
-    );
+    failedHarness.controller.workspace.flushPendingChanges = vi.fn(async () => {
+      throw new Error("local stage failed");
+    });
     failedHarness.controller.requestWorkspaceNoteDestination({
       blockId: null,
       domain: "workspace",
@@ -669,16 +683,18 @@ describe("Workbench controller", () => {
     if (snapshot.workspace.status !== "ready") throw new Error("not ready");
     const resume = vi.fn();
 
-    controller.workspace.prepareForRepositoryRemoval = vi.fn(
-      async () => ({ resume }),
-    );
+    controller.workspace.prepareForRepositoryRemoval = vi.fn(async () => ({
+      resume,
+    }));
     vi.mocked(workspaceCatalog.deleteRepository).mockRejectedValueOnce(
       new Error("delete failed"),
     );
 
-    await expect(controller.deleteRepository({
-      id: "repository-a",
-    })).rejects.toThrow("delete failed");
+    await expect(
+      controller.deleteRepository({
+        id: "repository-a",
+      }),
+    ).rejects.toThrow("delete failed");
     expect(resume).toHaveBeenCalledOnce();
     controller.dispose();
   });
@@ -689,19 +705,23 @@ describe("Workbench controller", () => {
     controller.dispose();
     controller.dispose();
 
-    await expect(controller.createRepository({ name: "Late repository" }))
-      .rejects.toThrow("disposed");
+    await expect(
+      controller.createRepository({ name: "Late repository" }),
+    ).rejects.toThrow("disposed");
     await expect(controller.reloadBuiltIns()).rejects.toThrow("disposed");
     await expect(controller.search.search()).rejects.toThrow("disposed");
-    expect(() => controller.requestWorkspaceNoteDestination({
-      blockId: null,
-      domain: "workspace",
-      repositoryId: "repository-a",
-      resourceId: "note-1",
-    })).toThrow("disposed");
+    expect(() =>
+      controller.requestWorkspaceNoteDestination({
+        blockId: null,
+        domain: "workspace",
+        repositoryId: "repository-a",
+        resourceId: "note-1",
+      }),
+    ).toThrow("disposed");
     expect(() => controller.workspace.commands).toThrow("disposed");
-    expect(() => controller.journalReferenceResolver.resolve([]))
-      .toThrow("disposed");
+    expect(() => controller.journalReferenceResolver.resolve([])).toThrow(
+      "disposed",
+    );
     expect(controller.subscribe(vi.fn())).toBeTypeOf("function");
   });
 });

@@ -105,7 +105,13 @@ type ContentReadContext = {
 };
 
 export function contentCatalogRevision(
-  catalog: ContentCatalog,
+  catalog: {
+    repositories: Pick<
+      ContentCatalog["repositories"][number],
+      "id" | "label"
+    >[];
+    issues: Pick<ContentCatalog["issues"][number], "id" | "message">[];
+  },
   digest: ContentServicePorts["digest"],
 ) {
   return digest({
@@ -290,12 +296,15 @@ export async function queryContent(
         return {
           kind: "catalog",
           scope: { domain: "catalog" },
-          basis: { baseRevision: contentCatalogRevision(catalog, ports.digest), repositoryId: null },
+          basis: {
+            baseRevision: contentCatalogRevision(catalog, ports.digest),
+            repositoryId: null,
+          },
           repositories: catalog.repositories.map(({ id, label }) => ({
             id,
             name: label,
           })),
-          issues: catalog.issues,
+          issues: catalog.issues.map(({ id, message }) => ({ id, message })),
         };
       if (query.scope.domain !== "workspace")
         throw new Error("Invalid workspace scope.");

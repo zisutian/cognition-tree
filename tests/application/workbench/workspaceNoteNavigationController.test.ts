@@ -2,9 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { RepositoryCatalogControllerSnapshot } from "../../../application/repository/repositoryCatalogController";
-import {
-  createWorkspaceNoteNavigationController,
-} from "../../../application/workbench/workspaceNoteNavigationController";
+import { createWorkspaceNoteNavigationController } from "../../../application/workbench/workspaceNoteNavigationController";
 
 function deferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
@@ -39,6 +37,7 @@ function readyCatalog(
     activeDescriptor: activeRepositoryId === descriptor.id ? descriptor : null,
     catalogLabel: "Repositories",
     state: {
+      revision: null,
       activeRepositoryId,
       issues: [],
       operation: "idle",
@@ -87,9 +86,9 @@ describe("workspace note navigation controller", () => {
 
   it("flushes before selection and waits for the mounted target session", async () => {
     let catalog = readyCatalog(null);
-    let workspace:
-      | { status: "loading" }
-      | { status: "ready" } = { status: "ready" };
+    let workspace: { status: "loading" } | { status: "ready" } = {
+      status: "ready",
+    };
     const events: string[] = [];
     const controller = createWorkspaceNoteNavigationController({
       async flushWorkspace() {
@@ -111,17 +110,14 @@ describe("workspace note navigation controller", () => {
 
     workspace = { status: "ready" };
     controller.notifyInputsChanged();
-    await vi.waitFor(() =>
-      expect(controller.getState().status).toBe("ready")
-    );
+    await vi.waitFor(() => expect(controller.getState().status).toBe("ready"));
   });
 
   it("observes a target session that becomes ready during selection", async () => {
     let catalog = readyCatalog(null);
-    let workspace:
-      | { status: "loading" }
-      | { status: "ready" }
-      = { status: "loading" };
+    let workspace: { status: "loading" } | { status: "ready" } = {
+      status: "loading",
+    };
     const controller = createWorkspaceNoteNavigationController({
       flushWorkspace: vi.fn(async () => undefined),
       getCatalog: () => catalog,
@@ -134,9 +130,7 @@ describe("workspace note navigation controller", () => {
     });
 
     controller.request(destination);
-    await vi.waitFor(() =>
-      expect(controller.getState().status).toBe("ready")
-    );
+    await vi.waitFor(() => expect(controller.getState().status).toBe("ready"));
   });
 
   it("does not select for a request replaced while its flush is pending", async () => {
@@ -159,11 +153,11 @@ describe("workspace note navigation controller", () => {
     };
     const selectRepository = vi.fn(async (repositoryId: string) => {
       catalog = {
-        activeDescriptor: repositoryId === descriptor.id
-          ? descriptor
-          : repositoryC,
+        activeDescriptor:
+          repositoryId === descriptor.id ? descriptor : repositoryC,
         catalogLabel: "Repositories",
         state: {
+          revision: null,
           activeRepositoryId: repositoryId,
           issues: [],
           operation: "idle",
@@ -192,7 +186,7 @@ describe("workspace note navigation controller", () => {
       expect(controller.getState()).toMatchObject({
         destination: replacementDestination,
         status: "ready",
-      })
+      }),
     );
   });
 

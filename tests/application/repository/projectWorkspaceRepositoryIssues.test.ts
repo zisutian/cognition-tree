@@ -21,6 +21,7 @@ function source(
   return {
     activeDescriptor: descriptor,
     catalogState: {
+      revision: null,
       activeRepositoryId: descriptor.id,
       issues: [],
       operation: "idle",
@@ -33,31 +34,41 @@ function source(
 
 describe("ordinary repository runtime issue projection", () => {
   it("preserves catalog and active-session load failures", () => {
-    expect(projectWorkspaceRepositoryRuntimeIssues({
-      activeDescriptor: null,
-      catalogState: {
-        errorMessage: "无法读取普通仓库目录。",
-        status: "failed",
+    expect(
+      projectWorkspaceRepositoryRuntimeIssues({
+        activeDescriptor: null,
+        catalogState: {
+          errorMessage: "无法读取普通仓库目录。",
+          status: "failed",
+        },
+        session: { status: "absent" },
+      }),
+    ).toEqual([
+      {
+        code: "repository_catalog_failed",
+        kind: "catalog",
+        message: "无法读取普通仓库目录。",
       },
-      session: { status: "absent" },
-    })).toEqual([{
-      code: "repository_catalog_failed",
-      kind: "catalog",
-      message: "无法读取普通仓库目录。",
-    }]);
+    ]);
 
-    expect(projectWorkspaceRepositoryRuntimeIssues(source({
-      errorMessage: "仓库索引损坏。",
-      retry: async () => undefined,
-      status: "failed",
-      storageLabel: "本地仓库",
-    }))).toEqual([{
-      code: "session_load_failed",
-      kind: "repository",
-      message: "仓库索引损坏。",
-      repositoryId: "primary",
-      repositoryLabel: "主要笔记",
-    }]);
+    expect(
+      projectWorkspaceRepositoryRuntimeIssues(
+        source({
+          errorMessage: "仓库索引损坏。",
+          retry: async () => undefined,
+          status: "failed",
+          storageLabel: "本地仓库",
+        }),
+      ),
+    ).toEqual([
+      {
+        code: "session_load_failed",
+        kind: "repository",
+        message: "仓库索引损坏。",
+        repositoryId: "primary",
+        repositoryLabel: "主要笔记",
+      },
+    ]);
   });
 
   it("prefers the recoverable catalog target over a stale active descriptor", () => {
@@ -68,37 +79,45 @@ describe("ordinary repository runtime issue projection", () => {
       storageLabel: "本地仓库",
     });
 
-    expect(projectWorkspaceRepositoryRuntimeIssues({
-      ...failedSession,
-      catalogState: {
-        errorMessage: "无法读取普通仓库目录。",
-        status: "failed",
+    expect(
+      projectWorkspaceRepositoryRuntimeIssues({
+        ...failedSession,
+        catalogState: {
+          errorMessage: "无法读取普通仓库目录。",
+          status: "failed",
+        },
+      }),
+    ).toEqual([
+      {
+        code: "repository_catalog_failed",
+        kind: "catalog",
+        message: "无法读取普通仓库目录。",
       },
-    })).toEqual([{
-      code: "repository_catalog_failed",
-      kind: "catalog",
-      message: "无法读取普通仓库目录。",
-    }]);
+    ]);
   });
 
   it("projects conflict and persistence errors without inventing document diagnostics", () => {
-    expect(projectWorkspaceRepositoryRuntimeIssues(source({
-      discardPendingChangesAndReload: async () => undefined,
-      keepLocalConflictAndSynchronize: async () => undefined,
-      loadConflictDetails: async () => ({
-        remoteRevision: "sha256:remote",
-        unitIds: [],
-      }),
-      persistence: {
-        remoteRevision: "sha256:remote",
-        status: "conflict",
-      },
-      recoverLocalConflictCopy: async () => undefined,
-      reload: async () => undefined,
-      status: "ready",
-      storageLabel: "本地仓库",
-      useRemoteConflictAndSynchronize: async () => undefined,
-    }))).toEqual([
+    expect(
+      projectWorkspaceRepositoryRuntimeIssues(
+        source({
+          discardPendingChangesAndReload: async () => undefined,
+          keepLocalConflictAndSynchronize: async () => undefined,
+          loadConflictDetails: async () => ({
+            remoteRevision: "sha256:remote",
+            unitIds: [],
+          }),
+          persistence: {
+            remoteRevision: "sha256:remote",
+            status: "conflict",
+          },
+          recoverLocalConflictCopy: async () => undefined,
+          reload: async () => undefined,
+          status: "ready",
+          storageLabel: "本地仓库",
+          useRemoteConflictAndSynchronize: async () => undefined,
+        }),
+      ),
+    ).toEqual([
       expect.objectContaining({
         code: "repository_conflict",
         kind: "repository",
@@ -106,25 +125,29 @@ describe("ordinary repository runtime issue projection", () => {
       }),
     ]);
 
-    expect(projectWorkspaceRepositoryRuntimeIssues(source({
-      discardPendingChangesAndReload: async () => undefined,
-      keepLocalConflictAndSynchronize: async () => undefined,
-      loadConflictDetails: async () => ({
-        remoteRevision: "sha256:remote",
-        unitIds: [],
-      }),
-      persistence: {
-        localCopySafe: false,
-        message: "无法保存本地副本。",
-        phase: "local",
-        status: "error",
-      },
-      recoverLocalConflictCopy: async () => undefined,
-      reload: async () => undefined,
-      status: "ready",
-      storageLabel: "本地仓库",
-      useRemoteConflictAndSynchronize: async () => undefined,
-    }))).toEqual([
+    expect(
+      projectWorkspaceRepositoryRuntimeIssues(
+        source({
+          discardPendingChangesAndReload: async () => undefined,
+          keepLocalConflictAndSynchronize: async () => undefined,
+          loadConflictDetails: async () => ({
+            remoteRevision: "sha256:remote",
+            unitIds: [],
+          }),
+          persistence: {
+            localCopySafe: false,
+            message: "无法保存本地副本。",
+            phase: "local",
+            status: "error",
+          },
+          recoverLocalConflictCopy: async () => undefined,
+          reload: async () => undefined,
+          status: "ready",
+          storageLabel: "本地仓库",
+          useRemoteConflictAndSynchronize: async () => undefined,
+        }),
+      ),
+    ).toEqual([
       expect.objectContaining({
         code: "repository_persistence_error",
         message: "无法保存本地副本。",

@@ -7,19 +7,14 @@ import type {
   ActiveRepositorySelection,
   WorkspaceRepositoryCatalog,
 } from "../../../application/repository/index.ts";
-import type {
-  WorkspaceRepositoryProvider,
-  WorkspaceRepositoryProvisioner,
-} from "../../../application/workspace/index.ts";
-import {
-  createMemoryRepositoryClientCache,
-} from "../repository/index.ts";
+import type { WorkspaceRepositoryProvider } from "../../../application/workspace/index.ts";
+import { createMemoryRepositoryClientCache } from "../repository/index.ts";
 import { workspaceRepositoryPreparation } from "../../../application/workspace/index.ts";
 
 export type WorkspaceRepositoryRuntime = {
   activeRepositorySelection: ActiveRepositorySelection;
   catalog: WorkspaceRepositoryCatalog;
-  repositories: WorkspaceRepositoryProvider & WorkspaceRepositoryProvisioner;
+  repositories: WorkspaceRepositoryProvider;
 };
 
 export function createWorkspaceRepositoryRuntime(

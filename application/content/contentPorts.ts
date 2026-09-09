@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type {
+  WorkspaceRepositoryDescriptor,
+  WorkspaceRepositoryCatalogIssue,
+} from "../repository/index.ts";
 import type { CommandRuntime } from "../commands/index.ts";
 import type { JournalDomainVersions } from "../journal/index.ts";
 import type { ContentOperationLedgerPort } from "../operations/index.ts";
@@ -43,8 +47,8 @@ export type ContentTodoStore = PreparedVersionedStore<
   ContentRevision
 >;
 export type ContentCatalog = {
-  repositories: { id: string; label: string }[];
-  issues: { id: string; message: string }[];
+  repositories: WorkspaceRepositoryDescriptor[];
+  issues: WorkspaceRepositoryCatalogIssue[];
 };
 
 /** The adapter holds catalog admission for the entire callback, including CAS. */

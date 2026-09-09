@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it, vi } from "vitest";
-import {
-  createJournalWorkspaceReferenceResolver,
-} from "../../../application/workbench/journalWorkspaceReferences";
+import { createJournalWorkspaceReferenceResolver } from "../../../application/workbench/journalWorkspaceReferences";
 import {
   startJournalWorkspaceReferenceResolution,
   type JournalWorkspaceReferenceResolution,
@@ -38,8 +36,7 @@ function reference(
     lineNumber: 2,
     noteName: "目标笔记",
     repositoryName: "知识库",
-    sourceEntryId:
-      "journal-entry-00000000-0000-4000-8000-000000000001",
+    sourceEntryId: "journal-entry-00000000-0000-4000-8000-000000000001",
     targetText: "知识库:目标笔记",
     ...overrides,
   };
@@ -52,9 +49,12 @@ function repository(
     discardPendingSnapshotAndReload: vi.fn(),
     label: descriptor.label,
     loadConflict: vi.fn(async () => null),
-    loadSnapshot: result instanceof Error
-      ? vi.fn(async () => { throw result; })
-      : vi.fn(async () => result),
+    loadSnapshot:
+      result instanceof Error
+        ? vi.fn(async () => {
+            throw result;
+          })
+        : vi.fn(async () => result),
     location: descriptor.location,
     resolveConflictAndSynchronize: vi.fn(async () => {
       throw new Error("Unexpected conflict resolution in reference test.");
@@ -82,29 +82,34 @@ describe("journal workspace reference resolver", () => {
     const openRepository = vi.fn(() => opened);
     const resolver = createResolver({
       listRepositories: vi.fn(async () => ({
+        revision: null,
         issues: [],
-        repositories: [descriptor, {
-          ...descriptor,
-          id: "unused",
-          label: "未引用仓库",
-        }],
+        repositories: [
+          descriptor,
+          {
+            ...descriptor,
+            id: "unused",
+            label: "未引用仓库",
+          },
+        ],
       })),
       openRepository,
     });
 
-    await expect(resolver.resolve([reference(), reference({ lineNumber: 4 })]))
-      .resolves.toEqual([
-        expect.objectContaining({
-          destination: expect.objectContaining({
-            blockId: null,
-            domain: "workspace",
-            repositoryId: descriptor.id,
-            resourceId: "note-1",
-          }),
-          status: "resolved",
+    await expect(
+      resolver.resolve([reference(), reference({ lineNumber: 4 })]),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        destination: expect.objectContaining({
+          blockId: null,
+          domain: "workspace",
+          repositoryId: descriptor.id,
+          resourceId: "note-1",
         }),
-        expect.objectContaining({ status: "resolved" }),
-      ]);
+        status: "resolved",
+      }),
+      expect.objectContaining({ status: "resolved" }),
+    ]);
     expect(openRepository).toHaveBeenCalledTimes(1);
     expect(openRepository).toHaveBeenCalledWith(descriptor);
     expect(opened.loadSnapshot).toHaveBeenCalledTimes(1);
@@ -156,12 +161,12 @@ describe("journal workspace reference resolver", () => {
     for (const current of cases) {
       const resolver = createResolver({
         listRepositories: async () => ({
+          revision: null,
           issues: [],
           repositories: current.descriptor ? [current.descriptor] : [],
         }),
-        openRepository: () => repository(
-          current.snapshot ?? new Error("unexpected open"),
-        ),
+        openRepository: () =>
+          repository(current.snapshot ?? new Error("unexpected open")),
       });
       const [resolution] = await resolver.resolve([reference()]);
 
@@ -174,11 +179,14 @@ describe("journal workspace reference resolver", () => {
 
   it("re-resolves repository rename and deletion without changing Journal source", async () => {
     let repositories: WorkspaceRepositoryDescriptor[] = [descriptor];
-    const opened = repository(createSnapshot({
-      content: createContent("知识库", "目标笔记\n正文"),
-    }));
+    const opened = repository(
+      createSnapshot({
+        content: createContent("知识库", "目标笔记\n正文"),
+      }),
+    );
     const resolver = createResolver({
       listRepositories: async () => ({
+        revision: null,
         issues: [],
         repositories,
       }),
@@ -213,6 +221,7 @@ describe("journal workspace reference resolver", () => {
   it("uses the active in-memory snapshot for note rename and deletion", async () => {
     const catalog = {
       listRepositories: async () => ({
+        revision: null,
         issues: [],
         repositories: [descriptor],
       }),
@@ -254,26 +263,33 @@ describe("journal workspace reference resolver", () => {
   it("returns to loading while a generation re-resolution is pending", async () => {
     const initialResolutions = await createResolver({
       listRepositories: async () => ({
+        revision: null,
         issues: [],
         repositories: [descriptor],
       }),
-      openRepository: () => repository(createSnapshot({
-        content: createContent("知识库", "目标笔记\n正文"),
-      })),
+      openRepository: () =>
+        repository(
+          createSnapshot({
+            content: createContent("知识库", "目标笔记\n正文"),
+          }),
+        ),
     }).resolve([reference()]);
     let resolvePending: (
       resolutions: JournalWorkspaceReferenceResolution[],
     ) => void = () => undefined;
-    const states: JournalWorkspaceReferenceResolutionState[] = [{
-      resolutions: initialResolutions,
-      status: "ready",
-    }];
+    const states: JournalWorkspaceReferenceResolutionState[] = [
+      {
+        resolutions: initialResolutions,
+        status: "ready",
+      },
+    ];
     const resolver = {
-      resolve: vi.fn(() => new Promise<JournalWorkspaceReferenceResolution[]>(
-        (resolve) => {
-          resolvePending = resolve;
-        },
-      )),
+      resolve: vi.fn(
+        () =>
+          new Promise<JournalWorkspaceReferenceResolution[]>((resolve) => {
+            resolvePending = resolve;
+          }),
+      ),
     };
 
     startJournalWorkspaceReferenceResolution({
@@ -284,12 +300,14 @@ describe("journal workspace reference resolver", () => {
 
     expect(states.at(-1)).toEqual({ status: "loading" });
 
-    resolvePending([{
-      code: "note-not-found",
-      message: "找不到目标笔记",
-      reference: reference(),
-      status: "fault",
-    }]);
+    resolvePending([
+      {
+        code: "note-not-found",
+        message: "找不到目标笔记",
+        reference: reference(),
+        status: "fault",
+      },
+    ]);
     await Promise.resolve();
 
     expect(states).toEqual([
@@ -299,10 +317,12 @@ describe("journal workspace reference resolver", () => {
       },
       { status: "loading" },
       {
-        resolutions: [expect.objectContaining({
-          code: "note-not-found",
-          status: "fault",
-        })],
+        resolutions: [
+          expect.objectContaining({
+            code: "note-not-found",
+            status: "fault",
+          }),
+        ],
         status: "ready",
       },
     ]);
@@ -324,10 +344,12 @@ describe("journal workspace reference resolver", () => {
     expect(states).toEqual([
       { status: "loading" },
       {
-        resolutions: [expect.objectContaining({
-          code: "repository-unreadable",
-          status: "fault",
-        })],
+        resolutions: [
+          expect.objectContaining({
+            code: "repository-unreadable",
+            status: "fault",
+          }),
+        ],
         status: "ready",
       },
     ]);
