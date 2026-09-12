@@ -38,7 +38,7 @@ function createSource(
     activeDescriptor: descriptor,
     catalogLabel: "普通仓库",
     catalogState: {
-      revision: null,
+      revision: remoteRevision("a"),
       activeRepositoryId: descriptor.id,
       issues: [],
       operation: "idle",

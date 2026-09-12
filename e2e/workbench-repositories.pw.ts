@@ -44,6 +44,89 @@ test.describe("repository and capacity flows", () => {
     await seedWorkbenchRepository(api, repositoryId);
   });
 
+  test("keeps a committed repository visible and recovers its missing directory version", async ({
+    page,
+  }) => {
+    await openWorkbench(page, repositoryId);
+    let directoryUnavailable = false;
+    let mutations = 0;
+    const operations = "**/api/v4/content/operations";
+    const directory = "**/api/v4/admin/repositories";
+    await page.route(directory, async (route) => {
+      if (directoryUnavailable) await route.abort("failed");
+      else await route.continue();
+    });
+    await page.route(operations, async (route) => {
+      mutations++;
+      if (mutations === 1) directoryUnavailable = true;
+      const response = await route.fetch();
+      const receipt = await response.json();
+      expect(receipt.status).toBe("committed");
+      await route.fulfill({
+        response,
+        json:
+          mutations === 1
+            ? {
+                ...receipt,
+                afterRevision: null,
+                error: {
+                  code: "catalog_refresh_failed",
+                  message: "Directory refresh unavailable",
+                },
+              }
+            : receipt,
+      });
+    });
+    try {
+      await getActivityButton(page, "仓库").click();
+      await page.getByRole("button", { name: "新建仓库", exact: true }).click();
+      await page
+        .getByRole("textbox", { name: "名称", exact: true })
+        .fill("提交已确认");
+      await page.getByRole("button", { name: "创建仓库", exact: true }).click();
+      await expect(
+        page
+          .getByRole("region", { name: "仓库", exact: true })
+          .getByRole("heading", { name: "提交已确认", exact: true }),
+      ).toBeVisible();
+      const refresh = page.getByRole("button", {
+        name: "刷新仓库目录",
+        exact: true,
+      });
+      await expect(refresh).toBeVisible();
+      await page.getByRole("button", { name: "新建仓库", exact: true }).click();
+      await page
+        .getByRole("textbox", { name: "名称", exact: true })
+        .fill("恢复后创建");
+      await page.getByRole("button", { name: "创建仓库", exact: true }).click();
+      await expect(
+        page.getByRole("alert").filter({ hasText: "请刷新仓库目录后再修改" }),
+      ).toBeVisible();
+      expect(mutations).toBe(1);
+      directoryUnavailable = false;
+      await refresh.click();
+      await expect(refresh).toHaveCount(0);
+      await page.getByRole("button", { name: "创建仓库", exact: true }).click();
+      await expect(
+        page
+          .getByRole("region", { name: "仓库", exact: true })
+          .getByRole("heading", { name: "恢复后创建", exact: true }),
+      ).toBeVisible();
+      expect(mutations).toBe(2);
+      const actual = (await api
+        .get("/api/v4/admin/repositories")
+        .then((response) => response.json())) as RepositoryCatalogDto;
+      expect(
+        actual.repositories.filter(({ label }) =>
+          ["提交已确认", "恢复后创建"].includes(label),
+        ),
+      ).toHaveLength(2);
+    } finally {
+      await page.unroute(operations);
+      await page.unroute(directory);
+    }
+  });
+
   test("creates and switches repositories without sharing layout state", async ({
     page,
   }) => {

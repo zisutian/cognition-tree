@@ -96,6 +96,23 @@ export function RepositoryPanel({
     <ToolPanel aria-label="仓库" className="repository-panel" title={title}>
       <ToolPanelBody layout="form">
         <ToolSectionStack>
+          {view.catalogErrorMessage ? (
+            <div className="repository-catalog-error">
+              <p className="repository-warning" role="alert">
+                {view.catalogErrorMessage}
+              </p>
+              <Button
+                disabled={busy}
+                onClick={() =>
+                  void feedback.runAction(view.refreshRepositories)
+                }
+                type="button"
+                variant="secondary"
+              >
+                刷新仓库目录
+              </Button>
+            </div>
+          ) : null}
           {target.kind === "create" ? (
             <ToolSection
               className="repository-create-region"
@@ -108,23 +125,6 @@ export function RepositoryPanel({
                 onCreate={view.createRepository}
                 onError={feedback.notifyError}
               />
-              {view.catalogErrorMessage ? (
-                <div className="repository-create-catalog-error">
-                  <p className="repository-warning" role="alert">
-                    {view.catalogErrorMessage}
-                  </p>
-                  <Button
-                    disabled={busy}
-                    onClick={() =>
-                      void feedback.runAction(view.refreshRepositories)
-                    }
-                    type="button"
-                    variant="secondary"
-                  >
-                    重试普通仓库
-                  </Button>
-                </div>
-              ) : null}
             </ToolSection>
           ) : null}
 

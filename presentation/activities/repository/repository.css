@@ -79,7 +79,7 @@
   gap: var(--ui-gap-tight);
 }
 
-.repository-create-catalog-error {
+.repository-catalog-error {
   display: grid;
   justify-items: start;
   gap: var(--ui-gap-tight);

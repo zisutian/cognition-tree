@@ -23,15 +23,16 @@ import type {
   RepositoryRecoveryAction,
 } from "./repositoryViewTypes.ts";
 
-const persistenceLabels: Record<RepositoryPersistenceState["status"], string> = {
-  conflict: "仓库内容已更改",
-  error: "保存失败",
-  offline: "离线，等待同步",
-  "pending-sync": "等待远端同步",
-  saved: "已保存",
-  "saving-local": "正在保存本地副本",
-  syncing: "正在同步",
-};
+const persistenceLabels: Record<RepositoryPersistenceState["status"], string> =
+  {
+    conflict: "仓库内容已更改",
+    error: "保存失败",
+    offline: "离线，等待同步",
+    "pending-sync": "等待远端同步",
+    saved: "已保存",
+    "saving-local": "正在保存本地副本",
+    syncing: "正在同步",
+  };
 
 export type RepositoryOption = WorkspaceRepositoryDescriptor & {
   displayLabel: string;
@@ -86,18 +87,17 @@ type OrdinaryRepositoryProjectionSource = Pick<
 >;
 
 export function projectRepositoryIssueActions(
-  issue: Pick<
-    WorkspaceRepositoryCatalogIssue,
-    "code" | "id"
-  >,
+  issue: Pick<WorkspaceRepositoryCatalogIssue, "code" | "id">,
 ): RepositoryIssueActionView[] {
   if (requiresManualLocalDeletion(issue)) {
     return [];
   }
-  return [{
-    confirmation: `将删除故障仓库条目 ${issue.id}。`,
-    label: "清理",
-  }];
+  return [
+    {
+      confirmation: `将删除故障仓库条目 ${issue.id}。`,
+      label: "清理",
+    },
+  ];
 }
 
 export function projectRepositoryLocation(
@@ -108,11 +108,13 @@ export function projectRepositoryLocation(
   }
   return [
     ...(location.hostPath
-      ? [{
-          copyValue: location.hostPath,
-          label: "主机路径",
-          value: location.hostPath,
-        }]
+      ? [
+          {
+            copyValue: location.hostPath,
+            label: "主机路径",
+            value: location.hostPath,
+          },
+        ]
       : []),
     {
       copyValue: location.serverPath,
@@ -157,7 +159,9 @@ export function projectRepositoryIssues(
     return {
       ...issue,
       displayLabel: issue.id,
-      locationRows: manualLocalDeletion ? locationRows.slice(0, 1) : locationRows,
+      locationRows: manualLocalDeletion
+        ? locationRows.slice(0, 1)
+        : locationRows,
       message: projectRepositoryIssueMessage(issue),
     };
   });
@@ -206,15 +210,13 @@ function projectDeletionState(persistence: RepositoryPersistenceState) {
 export function projectOrdinaryRepositoryViewModel(
   source: OrdinaryRepositoryProjectionSource,
 ): OrdinaryRepositoryViewModel {
-  const catalog = source.catalogState.status === "ready"
-    ? source.catalogState
-    : null;
+  const catalog =
+    source.catalogState.status === "ready" ? source.catalogState : null;
   const repositories = projectRepositoryOptions(catalog?.repositories ?? []);
   const activeRepositoryId = source.activeDescriptor?.id ?? null;
   const active = repositories.find(({ id }) => id === activeRepositoryId);
-  const persistence = source.session.status === "ready"
-    ? source.session.persistence
-    : null;
+  const persistence =
+    source.session.status === "ready" ? source.session.persistence : null;
   const deletion = persistence
     ? projectDeletionState(persistence)
     : {
@@ -223,30 +225,32 @@ export function projectOrdinaryRepositoryViewModel(
           ? "仓库尚未完成挂载，当前不能安全删除。"
           : "",
       };
-  const sessionStatusLabel = source.session.status === "ready"
-    ? persistenceLabels[source.session.persistence.status]
-    : source.session.status === "loading"
-      ? "正在载入"
-      : source.session.status === "failed"
-        ? "挂载失败"
-        : "未挂载";
-  const activeSessionErrorMessage = source.session.status === "failed"
-    ? source.session.errorMessage
-    : persistence?.status === "conflict"
-      ? "普通仓库存在同步冲突，本地与远端版本均已保留，请选择处理方式。"
-      : persistence?.status === "error"
-        ? persistence.message
-        : "";
-  const activeSessionRecoveryAction = source.session.status === "failed"
-    ? { label: "重试挂载", run: source.session.retry }
-    : source.session.status === "ready" && persistence?.status === "error"
-      ? { label: "重新加载", run: source.session.reload }
-      : null;
+  const sessionStatusLabel =
+    source.session.status === "ready"
+      ? persistenceLabels[source.session.persistence.status]
+      : source.session.status === "loading"
+        ? "正在载入"
+        : source.session.status === "failed"
+          ? "挂载失败"
+          : "未挂载";
+  const activeSessionErrorMessage =
+    source.session.status === "failed"
+      ? source.session.errorMessage
+      : persistence?.status === "conflict"
+        ? "普通仓库存在同步冲突，本地与远端版本均已保留，请选择处理方式。"
+        : persistence?.status === "error"
+          ? persistence.message
+          : "";
+  const activeSessionRecoveryAction =
+    source.session.status === "failed"
+      ? { label: "重试挂载", run: source.session.retry }
+      : source.session.status === "ready" && persistence?.status === "error"
+        ? { label: "重新加载", run: source.session.reload }
+        : null;
 
   return {
     activeConflictResolution:
-      source.session.status === "ready" &&
-          persistence?.status === "conflict"
+      source.session.status === "ready" && persistence?.status === "conflict"
         ? {
             keepLocal: source.session.keepLocalConflictAndSynchronize,
             loadDetails: source.session.loadConflictDetails,
@@ -258,9 +262,12 @@ export function projectOrdinaryRepositoryViewModel(
     activeRepositoryLabel: active?.label ?? "尚未选择普通仓库",
     activeSessionErrorMessage,
     activeSessionRecoveryAction,
-    catalogErrorMessage: source.catalogState.status === "failed"
-      ? source.catalogState.errorMessage
-      : "",
+    catalogErrorMessage:
+      source.catalogState.status === "failed"
+        ? source.catalogState.errorMessage
+        : catalog?.revision === null
+          ? "目录版本暂不可用，已确认的仓库信息仍保留。请刷新目录后再修改仓库。"
+          : "",
     catalogStatus: source.catalogState.status,
     createRepository: source.createRepository,
     deleteRepository: source.deleteRepository,
@@ -272,11 +279,12 @@ export function projectOrdinaryRepositoryViewModel(
     persistenceStatusLabel: sessionStatusLabel,
     refreshRepositories: source.refreshRepositories,
     renameRepository: source.renameRepository,
-    reload: source.session.status === "ready"
-      ? source.session.reload
-      : source.session.status === "failed"
-        ? source.session.retry
-        : source.refreshRepositories,
+    reload:
+      source.session.status === "ready"
+        ? source.session.reload
+        : source.session.status === "failed"
+          ? source.session.retry
+          : source.refreshRepositories,
     repositories,
     selectRepository: source.selectRepository,
     storageLabel: active ? "本地" : source.catalogLabel,

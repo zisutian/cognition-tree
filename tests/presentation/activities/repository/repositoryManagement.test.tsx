@@ -310,46 +310,6 @@ describe("repository setup and management semantics", () => {
     });
   });
 
-  it("shows ordinary catalog recovery only in the selected create detail", () => {
-    const view = {
-      ...createRepositoryView(),
-      catalogErrorMessage: "无法读取普通仓库目录。",
-      catalogStatus: "failed" as const,
-      repositories: [],
-    };
-    const contextMarkup = renderToStaticMarkup(
-      <FeedbackProvider>
-        <RepositoryContext
-          focusRequest={null}
-          onConsumeFocusRequest={() => undefined}
-          selection={{ kind: "create" }}
-          view={view}
-        />
-      </FeedbackProvider>,
-    );
-    const detailMarkup = renderToStaticMarkup(
-      <FeedbackProvider>
-        <RepositoryPanel
-          onOpen={async () => undefined}
-          selection={{ kind: "create" }}
-          view={view}
-        />
-      </FeedbackProvider>,
-    );
-
-    expectMarkupSemantics(contextMarkup, {
-      has: [
-        ">本地</span>",
-        'aria-label="新建仓库"',
-        'data-repository-catalog="true"',
-      ],
-      lacks: [">新建仓库</span>", "无法读取普通仓库目录。"],
-    });
-    expectMarkupSemantics(detailMarkup, {
-      has: ["无法读取普通仓库目录。", ">重试普通仓库<"],
-    });
-  });
-
   it("keeps issue rows compact and moves every cleanup action to the selected detail", () => {
     const baseView = createRepositoryView();
     const issues = projectRepositoryIssues([

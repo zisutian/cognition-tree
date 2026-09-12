@@ -254,7 +254,7 @@ repository session store registry 以带值类型的 slot key 分区，React hoo
 工作台及其活动控制器的生命周期不随 Workspace 加载或切换重建。
 `WorkspaceApplicationBinding` 独占就绪 Workspace 的 React 绑定，按仓库身份挂载并在布局阶段交接视图；
 工作台只在身份匹配时消费该视图。绑定卸载清除旧视图，但不销毁设置草稿、目录选择和其他活动状态。
-registry 位于按仓库重挂载的工作台边界之上、认证边界之内，因此仓库切换保留分区，退出
+registry 位于 Workspace 绑定与工作台之上、认证边界之内，因此仓库切换保留分区，退出
 登录销毁整个页面会话；ready catalog 是有效仓库分区集合的唯一依据，删除仓库后 registry
 统一裁剪所有 slot 的对应分区。不得用模块级 Map 建立第二个页面会话 owner，也不得进入领域
 content 或服务端配置。write-only secret 随对应表单卸载
