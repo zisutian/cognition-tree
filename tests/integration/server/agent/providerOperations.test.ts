@@ -1,480 +1,54 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
-
+import { it } from "./fixtures/modelHttp.ts";
 import { createServerDataRootWriteScope } from "../../../../infrastructure/server/runtime/index.ts";
-import { createServerDeviceLoginOperations } from "../../../../infrastructure/server/runtime/deviceLoginRuntime.ts";
+
 import { createServerProviderOperations } from "../../../../infrastructure/server/runtime/providerRuntime.ts";
-import { once } from "node:events";
-import { createServer, type ServerResponse } from "node:http";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { type ServerResponse } from "node:http";
+import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, vi } from "vitest";
 import { AgentConfigurationStore } from "../../../../infrastructure/server/agent/configurationStore.ts";
-import { pinnedCodexVersion } from "../../../../infrastructure/server/agent/codexPackage.ts";
-import { createDeviceLoginProcessPort } from "../../../../infrastructure/server/agent/deviceLoginProcess.ts";
-import type { ApiRuntime } from "../../../../infrastructure/server/api/http/runtime.ts";
-import {
-  replaceFileDurably,
-} from "../../../../infrastructure/server/persistence/fileSystemPersistence.ts";
 
-const runtime: ApiRuntime = {
-  createId: () => "00000000-0000-4000-8000-000000000001",
-  now: () => new Date("2026-08-25T00:00:00.000Z"),
-  timezoneOffsetMinutes: () => 480,
-  today: () => "2026-08-25",
-};
-
+import { runtime } from "./fixtures/agentRuntime.ts";
 function writeSse(response: ServerResponse, content: string) {
   response.writeHead(200, { "Content-Type": "text/event-stream" });
-  response.write(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`);
-  response.write(`data: ${JSON.stringify({
-    choices: [{ delta: {}, finish_reason: "stop" }],
-  })}\n\n`);
+  response.write(
+    `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`,
+  );
+  response.write(
+    `data: ${JSON.stringify({
+      choices: [{ delta: {}, finish_reason: "stop" }],
+    })}\n\n`,
+  );
   response.end("data: [DONE]\n\n");
 }
 
-async function createFakeCodexProject(completeLogin: boolean, ignoreTermination = false) {
-  const projectRoot = await mkdtemp(path.join(os.tmpdir(), "ctn-device-codex-"));
-  const packageDirectory = path.join(
-    projectRoot,
-    "node_modules",
-    "@openai",
-    "codex",
-  );
-  const fakeAppServer = `
-import { writeFileSync } from "node:fs";
-import path from "node:path";
-const send = (value) => process.stdout.write(JSON.stringify(value) + "\\n");
-if (${JSON.stringify(ignoreTermination)}) process.on("SIGTERM", () => undefined);
-setInterval(() => undefined, 1000);
-let source = "";
-const handle = (request) => {
-  if (request.method === "initialize") {
-    send({ id: request.id, result: { userAgent: "fake-codex" } });
-    return;
-  }
-  if (request.method === "account/login/start") {
-    writeFileSync(path.join(process.env.CODEX_HOME, "auth.json"), JSON.stringify({
-      inheritedApiKey: process.env.OPENAI_API_KEY ?? null,
-      inheritedPersonalSecret: process.env.CTN_TEST_PERSONAL_SECRET ?? null,
-      tokens: "managed",
-    }), { mode: 0o600 });
-    send({ id: request.id, result: {
-      loginId: "codex-login-1",
-      type: "chatgptDeviceCode",
-      userCode: "ABCD-EFGH",
-      verificationUrl: "https://auth.openai.com/device",
-    } });
-    if (${JSON.stringify(completeLogin)}) {
-      setTimeout(() => send({ method: "account/login/completed", params: {
-        error: null,
-        loginId: "codex-login-1",
-        success: true,
-      } }), 10);
-    }
-    return;
-  }
-  if (request.method === "account/login/cancel") {
-    send({ id: request.id, result: {} });
-  }
-};
-process.stdin.setEncoding("utf8");
-process.stdin.on("data", (chunk) => {
-  source += chunk;
-  while (true) {
-    const boundary = source.indexOf("\\n");
-    if (boundary < 0) return;
-    const line = source.slice(0, boundary);
-    source = source.slice(boundary + 1);
-    if (line) handle(JSON.parse(line));
-  }
-});
-`;
-
-  await mkdir(path.join(packageDirectory, "bin"), { recursive: true });
-  await writeFile(path.join(packageDirectory, "package.json"), JSON.stringify({
-    type: "module",
-    version: pinnedCodexVersion,
-  }));
-  await writeFile(
-    path.join(packageDirectory, "bin", "codex.js"),
-    fakeAppServer,
-    { mode: 0o700 },
-  );
-  return projectRoot;
-}
-
-describe("Agent provider operations", () => {
-  it("observes process exit before releasing a forcibly stopped login", async () => {
-    const projectRoot = await createFakeCodexProject(false, true);
-    const credentialHome = await mkdtemp(path.join(os.tmpdir(), "ctn-device-reaping-"));
-    const process = await createDeviceLoginProcessPort({ projectRoot }).create(credentialHome);
-
-    try {
-      await process.initialize();
-      await process.start();
-      let exited = false;
-      process.onExit(() => { exited = true; });
-      await process.stop();
-      expect(exited).toBe(true);
-      expect(process.hasExited()).toBe(true);
-      await process.stop();
-    } finally {
-      await process.stop();
-      await process.cleanup();
-      await rm(projectRoot, { recursive: true, force: true });
-      await rm(credentialHome, { recursive: true, force: true });
-    }
-  });
-
-  it("completes and cancels isolated Codex device-code logins", async () => {
-    const completedProject = await createFakeCodexProject(true);
-    const cancelledProject = await createFakeCodexProject(false);
-    const expiredProject = await createFakeCodexProject(false);
-    const completedDirectory = await mkdtemp(
-      path.join(os.tmpdir(), "ctn-provider-device-completed-"),
-    );
-    const cancelledDirectory = await mkdtemp(
-      path.join(os.tmpdir(), "ctn-provider-device-cancelled-"),
-    );
-    const expiredDirectory = await mkdtemp(
-      path.join(os.tmpdir(), "ctn-provider-device-expired-"),
-    );
-    const completedStore = new AgentConfigurationStore(completedDirectory, {
-      createId: () => "codex-completed",
-    });
-    const cancelledStore = new AgentConfigurationStore(cancelledDirectory, {
-      createId: () => "codex-cancelled",
-    });
-    const expiredStore = new AgentConfigurationStore(expiredDirectory, {
-      createId: () => "codex-expired",
-    });
-    const completedOperations = createServerProviderOperations({
-      writes: createServerDataRootWriteScope(),
-      configurationStore: completedStore,
-      projectRoot: completedProject,
-      runtime,
-    });
-    const cancelledOperations = createServerProviderOperations({
-      writes: createServerDataRootWriteScope(),
-      configurationStore: cancelledStore,
-      projectRoot: cancelledProject,
-      runtime,
-    });
-    const expiredOperations = createServerProviderOperations({
-      writes: createServerDataRootWriteScope(),
-      codexDeviceLoginTtlMilliseconds: 10,
-      configurationStore: expiredStore,
-      projectRoot: expiredProject,
-      runtime,
-    });
-    process.env.OPENAI_API_KEY = "must-not-enter-device-login";
-    process.env.CTN_TEST_PERSONAL_SECRET = "must-not-enter-device-login";
-
-    try {
-      const completedInitial = await completedStore.readSnapshot();
-      const completedProvider = await completedStore.createProvider(
-        completedInitial.revision,
-        {
-          authenticationType: "chatgpt-device-code",
-          baseUrl: null,
-          kind: "codex",
-          label: "ChatGPT Codex",
-          privateNetworkAccessConfirmed: false,
-        },
-      );
-      const started = await completedOperations.startCodexDeviceLogin(
-        completedProvider.configuration.revision,
-        completedProvider.provider.id,
-      );
-
-      expect(started).toMatchObject({
-        status: "pending",
-        userCode: "ABCD-EFGH",
-        verificationUrl: "https://auth.openai.com/device",
-      });
-      await vi.waitFor(() => {
-        expect(completedOperations.getCodexDeviceLogin(started.id)?.status)
-          .toBe("succeeded");
-      });
-      const resolved = await completedStore.resolveProvider(
-        completedProvider.provider.id,
-      );
-
-      expect(resolved).toMatchObject({
-        apiKey: null,
-        provider: {
-          authenticationStatus: "configured",
-          authenticationType: "chatgpt-device-code",
-        },
-      });
-      const auth = JSON.parse(await readFile(
-        path.join(resolved!.codexHome!, "auth.json"),
-        "utf8",
-      ));
-
-      expect(auth).toMatchObject({
-        inheritedApiKey: null,
-        inheritedPersonalSecret: null,
-      });
-
-      const cancelledInitial = await cancelledStore.readSnapshot();
-      const cancelledProvider = await cancelledStore.createProvider(
-        cancelledInitial.revision,
-        {
-          authenticationType: "chatgpt-device-code",
-          baseUrl: null,
-          kind: "codex",
-          label: "Cancelled Codex",
-          privateNetworkAccessConfirmed: false,
-        },
-      );
-      const cancelling = await cancelledOperations.startCodexDeviceLogin(
-        cancelledProvider.configuration.revision,
-        cancelledProvider.provider.id,
-      );
-
-      expect(cancelledOperations.hasPendingCodexLogin(
-        cancelledProvider.provider.id,
-      )).toBe(true);
-      await expect(cancelledOperations.startCodexDeviceLogin(
-        cancelledProvider.configuration.revision,
-        cancelledProvider.provider.id,
-      )).rejects.toThrow("already pending");
-      await expect(cancelledOperations.cancelCodexDeviceLogin(cancelling.id))
-        .resolves.toMatchObject({ status: "cancelled" });
-      await expect(cancelledStore.resolveProvider(cancelledProvider.provider.id))
-        .resolves.toMatchObject({
-          codexHome: null,
-          provider: { authenticationStatus: "missing" },
-        });
-
-      const expiredInitial = await expiredStore.readSnapshot();
-      const expiredProvider = await expiredStore.createProvider(
-        expiredInitial.revision,
-        {
-          authenticationType: "chatgpt-device-code",
-          baseUrl: null,
-          kind: "codex",
-          label: "Expired Codex",
-          privateNetworkAccessConfirmed: false,
-        },
-      );
-      const expiring = await expiredOperations.startCodexDeviceLogin(
-        expiredProvider.configuration.revision,
-        expiredProvider.provider.id,
-      );
-
-      await vi.waitFor(() => {
-        expect(expiredOperations.getCodexDeviceLogin(expiring.id)?.status)
-          .toBe("expired");
-      });
-      await expect(expiredStore.resolveProvider(expiredProvider.provider.id))
-        .resolves.toMatchObject({
-          codexHome: null,
-          provider: { authenticationStatus: "missing" },
-        });
-    } finally {
-      delete process.env.OPENAI_API_KEY;
-      delete process.env.CTN_TEST_PERSONAL_SECRET;
-      await Promise.all([
-        completedOperations.dispose(),
-        cancelledOperations.dispose(),
-        expiredOperations.dispose(),
-      ]);
-      await Promise.all([
-        rm(completedProject, { force: true, recursive: true }),
-        rm(cancelledProject, { force: true, recursive: true }),
-        rm(expiredProject, { force: true, recursive: true }),
-        rm(completedDirectory, { force: true, recursive: true }),
-        rm(cancelledDirectory, { force: true, recursive: true }),
-        rm(expiredDirectory, { force: true, recursive: true }),
-      ]);
-    }
-  });
-
-  it("retains a failed TTL cleanup until device-login disposal", async () => {
-    const project = await createFakeCodexProject(false);
-    const directory = await mkdtemp(
-      path.join(os.tmpdir(), "ctn-provider-device-cleanup-"),
-    );
-    const store = new AgentConfigurationStore(directory, {
-      createId: () => "codex-cleanup-failure",
-    });
-    const cleanupDirectory = vi.fn(async () => {
-      throw new Error("injected login cleanup failure");
-    });
-    const operations = createServerDeviceLoginOperations({
-      writes: createServerDataRootWriteScope(),
-      cleanupDirectory,
-      configurationStore: store,
-      projectRoot: project,
-      runtime,
-      ttlMilliseconds: 10,
-    });
-
-    try {
-      const initial = await store.readSnapshot();
-      const created = await store.createProvider(initial.revision, {
-        authenticationType: "chatgpt-device-code",
-        baseUrl: null,
-        kind: "codex",
-        label: "Cleanup failure Codex",
-        privateNetworkAccessConfirmed: false,
-      });
-      const started = await operations.start(
-        created.configuration.revision,
-        created.provider.id,
-      );
-
-      await vi.waitFor(() => {
-        expect(operations.get(started.id)?.status).toBe("expired");
-      });
-      await expect(operations.dispose()).rejects.toThrow(
-        "injected login cleanup failure",
-      );
-      expect(cleanupDirectory).toHaveBeenCalledOnce();
-      const current = await store.readSnapshot();
-      const lease = await store.reserveProviderChange(
-        current.revision,
-        created.provider.id,
-      );
-
-      lease.release();
-    } finally {
-      await operations.dispose().catch(() => undefined);
-      await Promise.all([
-        rm(project, { force: true, recursive: true }),
-        rm(directory, { force: true, recursive: true }),
-      ]);
-    }
-  });
-
-  it("drains background credential activation before admitting migration", async () => {
-    const project = await createFakeCodexProject(true);
-    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-device-drain-"));
-    const writes = createServerDataRootWriteScope();
-    let release!: () => void;
-    const blocked = new Promise<void>(resolve => { release = resolve; });
-    let activated!: () => void;
-    const activating = new Promise<void>(resolve => { activated = resolve; });
-    let pause = false;
-    const store = new AgentConfigurationStore(directory, {
-      createId: () => "codex-drain",
-      replaceConfigurationFile: async (file, source, options) => {
-        if (pause) { pause = false; activated(); await blocked; }
-        await replaceFileDurably(file, source, options);
-      },
-    });
-    const operations = createServerProviderOperations({ configurationStore: store, projectRoot: project, runtime, writes });
-    let maintenance: Awaited<ReturnType<typeof writes.begin>> | null = null;
-    try {
-      const initial = await store.readSnapshot();
-      const provider = await store.createProvider(initial.revision, {
-        authenticationType: "chatgpt-device-code", baseUrl: null, kind: "codex",
-        label: "Drained Codex", privateNetworkAccessConfirmed: false,
-      });
-      pause = true;
-      const login = await operations.startCodexDeviceLogin(provider.configuration.revision, provider.provider.id);
-      await activating;
-      const acquired = vi.fn();
-      const pending = writes.begin().then(lease => { acquired(); return lease; });
-      await Promise.resolve();
-      expect(acquired).not.toHaveBeenCalled();
-      release();
-      maintenance = await pending;
-      await vi.waitFor(() => expect(operations.getCodexDeviceLogin(login.id)?.status).toBe("succeeded"));
-      const reloaded = new AgentConfigurationStore(directory);
-      await expect(reloaded.resolveProvider(provider.provider.id)).resolves.toMatchObject({
-        codexHome: expect.any(String), provider: { authenticationStatus: "configured" },
-      });
-    } finally {
-      release();
-      maintenance?.finish();
-      await operations.dispose();
-      await rm(project, { force: true, recursive: true });
-      await rm(directory, { force: true, recursive: true });
-    }
-  });
-
-  it("preserves possibly authoritative Codex authentication after an unknown commit", async () => {
-    const project = await createFakeCodexProject(true);
-    const directory = await mkdtemp(
-      path.join(os.tmpdir(), "ctn-provider-device-unknown-"),
-    );
-    let failAfterReplacement = false;
-    const store = new AgentConfigurationStore(directory, {
-      createId: () => "codex-unknown",
-      replaceConfigurationFile: async (file, source, options) => {
-        await replaceFileDurably(file, source, options);
-        if (failAfterReplacement) {
-          failAfterReplacement = false;
-          throw new Error("directory sync failed after replacement");
-        }
-      },
-    });
-    const operations = createServerProviderOperations({
-      writes: createServerDataRootWriteScope(),
-      configurationStore: store,
-      projectRoot: project,
-      runtime,
-    });
-
-    try {
-      const initial = await store.readSnapshot();
-      const provider = await store.createProvider(initial.revision, {
-        authenticationType: "chatgpt-device-code",
-        baseUrl: null,
-        kind: "codex",
-        label: "Unknown Codex",
-        privateNetworkAccessConfirmed: false,
-      });
-
-      failAfterReplacement = true;
-      const started = await operations.startCodexDeviceLogin(
-        provider.configuration.revision,
-        provider.provider.id,
-      );
-
-      await vi.waitFor(() => {
-        expect(operations.getCodexDeviceLogin(started.id)).toMatchObject({
-          errorMessage: expect.stringContaining("unknown"),
-          status: "failed",
-        });
-      });
-      const reloaded = new AgentConfigurationStore(directory);
-
-      await expect(reloaded.resolveProvider(provider.provider.id)).resolves
-        .toMatchObject({
-          codexHome: expect.any(String),
-          provider: { authenticationStatus: "configured" },
-        });
-    } finally {
-      await operations.dispose();
-      await rm(project, { force: true, recursive: true });
-      await rm(directory, { force: true, recursive: true });
-    }
-  });
-
-  it("discovers Ollama and verifies the pinned single-json mode explicitly", async () => {
+describe("Provider discovery and conformance", () => {
+  it("discovers Ollama and verifies the pinned single-json mode explicitly", async ({
+    modelHttp,
+  }) => {
     let completion = 0;
     const completionBodies: Array<Record<string, unknown>> = [];
     const showBodies: Array<Record<string, unknown>> = [];
     const requests: string[] = [];
-    const server = createServer(async (request, response) => {
+    const endpoint = await modelHttp(async (request, response) => {
       requests.push(request.url ?? "");
       if (request.url === "/api/tags") {
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({
-          models: [{ model: "qwen3:8b" }, { name: "qwen3:8b" }],
-        }));
+        response.end(
+          JSON.stringify({
+            models: [{ model: "qwen3:8b" }, { name: "qwen3:8b" }],
+          }),
+        );
         return;
       }
       if (request.url === "/api/ps") {
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({
-          models: [{ context_length: 24_576, name: "qwen3:8b" }],
-        }));
+        response.end(
+          JSON.stringify({
+            models: [{ context_length: 24_576, name: "qwen3:8b" }],
+          }),
+        );
         return;
       }
       let body = "";
@@ -483,9 +57,11 @@ describe("Agent provider operations", () => {
       if (request.url === "/api/show") {
         showBodies.push(JSON.parse(body) as Record<string, unknown>);
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({
-          model_info: { "qwen3.context_length": 262_144 },
-        }));
+        response.end(
+          JSON.stringify({
+            model_info: { "qwen3.context_length": 262_144 },
+          }),
+        );
         return;
       }
       completionBodies.push(JSON.parse(body) as Record<string, unknown>);
@@ -496,24 +72,20 @@ describe("Agent provider operations", () => {
           ? JSON.stringify({ arguments: {}, name: "describe_syntax" })
           : completion === 2
             ? JSON.stringify({
-              arguments: {
-                body: "- Conformance",
-                parentFolderId: null,
-                title: "Conformance",
-              },
-              name: "stage_workspace_create_note",
-            })
+                arguments: {
+                  body: "- Conformance",
+                  parentFolderId: null,
+                  title: "Conformance",
+                },
+                name: "stage_workspace_create_note",
+              })
             : "符合性验证完成。",
       );
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
-    const endpoint = `http://127.0.0.1:${address.port}`;
-    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-ops-"),
+    );
     const ids = ["ollama", "writer"];
     const store = new AgentConfigurationStore(directory, {
       createId: () => ids.shift()!,
@@ -556,14 +128,16 @@ describe("Agent provider operations", () => {
       });
 
       expect(await operations.probe(provider.provider.id)).toEqual({
-        modelContexts: [{
-          declaredMaximumContextTokens: 262_144,
-          model: "qwen3:8b",
-          residentContext: {
-            allocatedContextTokens: 24_576,
-            status: "loaded",
+        modelContexts: [
+          {
+            declaredMaximumContextTokens: 262_144,
+            model: "qwen3:8b",
+            residentContext: {
+              allocatedContextTokens: 24_576,
+              status: "loaded",
+            },
           },
-        }],
+        ],
         models: ["qwen3:8b"],
         probedAt: "2026-08-25T00:00:00.000Z",
         reachable: true,
@@ -612,19 +186,21 @@ describe("Agent provider operations", () => {
         required: ["body", "parentFolderId", "title"],
         type: "object",
       });
-      expect(completionBodies.every(({ max_tokens: maxTokens }) =>
-        maxTokens === 512
-      )).toBe(true);
+      expect(
+        completionBodies.every(
+          ({ max_tokens: maxTokens }) => maxTokens === 512,
+        ),
+      ).toBe(true);
     } finally {
       await operations.dispose();
-      server.close();
-      await once(server, "close");
       await rm(directory, { force: true, recursive: true });
     }
   });
 
   it("probes Codex authentication state without fetching provider metadata", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-ops-"),
+    );
     const fetchFn = vi.fn();
     const store = new AgentConfigurationStore(directory, {
       createId: () => "codex-probe",
@@ -661,14 +237,20 @@ describe("Agent provider operations", () => {
   });
 
   it("probes OpenAI model ids with the configured Bearer credential", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
-    const fetchFn = vi.fn<typeof fetch>(async () =>
-      new Response(JSON.stringify({
-        data: [{ id: "gpt-5" }, { id: "gpt-4.1" }, { id: "gpt-5" }],
-      }), {
-        headers: { "Content-Type": "application/json" },
-        status: 200,
-      })
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-ops-"),
+    );
+    const fetchFn = vi.fn<typeof fetch>(
+      async () =>
+        new Response(
+          JSON.stringify({
+            data: [{ id: "gpt-5" }, { id: "gpt-4.1" }, { id: "gpt-5" }],
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+            status: 200,
+          },
+        ),
     );
     const store = new AgentConfigurationStore(directory, {
       createId: () => "openai-probe",
@@ -713,30 +295,35 @@ describe("Agent provider operations", () => {
   });
 
   it("rejects invalid Provider metadata transports", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
-    const fetchFn = vi.fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(null, {
-        headers: { Location: "https://redirected.example/models" },
-        status: 302,
-      }))
-      .mockResolvedValueOnce(new Response(
-        new Uint8Array(1024 * 1024 + 1),
-        {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-ops-"),
+    );
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          headers: { Location: "https://redirected.example/models" },
+          status: 302,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(new Uint8Array(1024 * 1024 + 1), {
           headers: { "Content-Type": "application/json" },
           status: 200,
-        },
-      ))
-      .mockResolvedValueOnce(new Response(
-        Uint8Array.from([0x7b, 0x22, 0xff, 0x22, 0x7d]),
-        {
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(Uint8Array.from([0x7b, 0x22, 0xff, 0x22, 0x7d]), {
           headers: { "Content-Type": "application/json" },
           status: 200,
-        },
-      ))
-      .mockResolvedValueOnce(new Response("{}", {
-        headers: { "Content-Type": "text/plain" },
-        status: 200,
-      }));
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response("{}", {
+          headers: { "Content-Type": "text/plain" },
+          status: 200,
+        }),
+      );
     const operations = createServerProviderOperations({
       writes: createServerDataRootWriteScope(),
       configurationStore: new AgentConfigurationStore(directory),
@@ -745,14 +332,18 @@ describe("Agent provider operations", () => {
     });
 
     try {
-      await expect(operations.discoverOllama("http://127.0.0.1:12345"))
-        .rejects.toThrow("Provider redirects are not allowed");
-      await expect(operations.discoverOllama("http://127.0.0.1:12345"))
-        .rejects.toThrow("Provider response exceeded the size limit");
-      await expect(operations.discoverOllama("http://127.0.0.1:12345"))
-        .rejects.toThrow("Provider response is invalid UTF-8");
-      await expect(operations.discoverOllama("http://127.0.0.1:12345"))
-        .rejects.toThrow("Provider response must use application/json");
+      await expect(
+        operations.discoverOllama("http://127.0.0.1:12345"),
+      ).rejects.toThrow("Provider redirects are not allowed");
+      await expect(
+        operations.discoverOllama("http://127.0.0.1:12345"),
+      ).rejects.toThrow("Provider response exceeded the size limit");
+      await expect(
+        operations.discoverOllama("http://127.0.0.1:12345"),
+      ).rejects.toThrow("Provider response is invalid UTF-8");
+      await expect(
+        operations.discoverOllama("http://127.0.0.1:12345"),
+      ).rejects.toThrow("Provider response must use application/json");
       expect(fetchFn).toHaveBeenCalledTimes(4);
     } finally {
       await operations.dispose();
@@ -761,17 +352,24 @@ describe("Agent provider operations", () => {
   });
 
   it("times out a stalled Provider metadata request", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
-    const fetchFn = vi.fn<typeof fetch>((_input, init) =>
-      new Promise<Response>((_resolve, reject) => {
-        const signal = init?.signal;
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-ops-"),
+    );
+    const fetchFn = vi.fn<typeof fetch>(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal;
 
-        if (!signal) {
-          reject(new Error("Provider request did not include an abort signal"));
-          return;
-        }
-        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
-      })
+          if (!signal) {
+            reject(
+              new Error("Provider request did not include an abort signal"),
+            );
+            return;
+          }
+          signal.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          });
+        }),
     );
     const operations = createServerProviderOperations({
       writes: createServerDataRootWriteScope(),
@@ -799,7 +397,9 @@ describe("Agent provider operations", () => {
 
   it("rejects metadata discovery before making a request", async () => {
     const fetchFn = vi.fn();
-    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-ops-"),
+    );
     const operations = createServerProviderOperations({
       writes: createServerDataRootWriteScope(),
       configurationStore: new AgentConfigurationStore(directory),
@@ -808,8 +408,9 @@ describe("Agent provider operations", () => {
     });
 
     try {
-      await expect(operations.discoverOllama("http://169.254.169.254"))
-        .rejects.toThrow("empty, mixed, or forbidden");
+      await expect(
+        operations.discoverOllama("http://169.254.169.254"),
+      ).rejects.toThrow("empty, mixed, or forbidden");
       expect(fetchFn).not.toHaveBeenCalled();
     } finally {
       await operations.dispose();
@@ -817,21 +418,27 @@ describe("Agent provider operations", () => {
     }
   });
 
-  it("reports unknown Ollama context facts without changing the profile", async () => {
-    const server = createServer(async (request, response) => {
+  it("reports unknown Ollama context facts without changing the profile", async ({
+    modelHttp,
+  }) => {
+    const endpoint = await modelHttp(async (request, response) => {
       if (request.url === "/api/tags") {
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({
-          models: [
-            { name: "configured-model" },
-            { name: "not-loaded-model" },
-          ],
-        }));
+        response.end(
+          JSON.stringify({
+            models: [
+              { name: "configured-model" },
+              { name: "not-loaded-model" },
+            ],
+          }),
+        );
         return;
       }
       if (request.url === "/api/ps") {
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ models: [{ name: "configured-model" }] }));
+        response.end(
+          JSON.stringify({ models: [{ name: "configured-model" }] }),
+        );
         return;
       }
       if (request.url === "/api/show") {
@@ -845,12 +452,9 @@ describe("Agent provider operations", () => {
       response.writeHead(404).end();
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
-    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-ops-"),
+    );
     const store = new AgentConfigurationStore(directory);
     const operations = createServerProviderOperations({
       writes: createServerDataRootWriteScope(),
@@ -862,26 +466,29 @@ describe("Agent provider operations", () => {
       const initial = await store.readSnapshot();
       const provider = await store.createProvider(initial.revision, {
         authenticationType: "none",
-        baseUrl: `http://127.0.0.1:${address.port}`,
+        baseUrl: endpoint,
         kind: "ollama",
         label: "Local Ollama",
         privateNetworkAccessConfirmed: false,
       });
-      const profile = await store.createProfile(provider.configuration.revision, {
-        label: "Configured model",
-        maxResidentSessions: 1,
-        model: "configured-model",
-        parameters: {
-          historyBudgetCharacters: 65_536,
-          kind: "chat",
-          maxOutputTokens: 1_024,
-          maxToolSteps: 8,
-          reasoningEffort: "model-default",
-          toolCallMode: "single-json",
+      const profile = await store.createProfile(
+        provider.configuration.revision,
+        {
+          label: "Configured model",
+          maxResidentSessions: 1,
+          model: "configured-model",
+          parameters: {
+            historyBudgetCharacters: 65_536,
+            kind: "chat",
+            maxOutputTokens: 1_024,
+            maxToolSteps: 8,
+            reasoningEffort: "model-default",
+            toolCallMode: "single-json",
+          },
+          providerId: provider.provider.id,
+          timeoutMilliseconds: 60_000,
         },
-        providerId: provider.provider.id,
-        timeoutMilliseconds: 60_000,
-      });
+      );
       const notLoadedProfile = await store.createProfile(
         profile.configuration.revision,
         {
@@ -923,30 +530,26 @@ describe("Agent provider operations", () => {
       );
     } finally {
       await operations.dispose();
-      server.close();
-      await once(server, "close");
       await rm(directory, { force: true, recursive: true });
     }
   });
 
-  it("cancels an active conformance request without recording a result", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+  it("cancels an active conformance request without recording a result", async ({
+    modelHttp,
+  }) => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-ops-"),
+    );
     let resolveCompletionStarted!: () => void;
     const completionStarted = new Promise<void>((resolve) => {
       resolveCompletionStarted = resolve;
     });
-    const server = createServer((_request, response) => {
+    const endpoint = await modelHttp((_request, response) => {
       response.writeHead(200, { "Content-Type": "text/event-stream" });
       response.write(": waiting\n\n");
       resolveCompletionStarted();
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
-    const endpoint = `http://127.0.0.1:${address.port}`;
     const ids = ["ollama", "writer"];
     const store = new AgentConfigurationStore(directory, {
       createId: () => ids.shift()!,
@@ -997,17 +600,19 @@ describe("Agent provider operations", () => {
         expect(operations.getConformance(started.id)?.status).toBe("cancelled");
       });
       expect((await store.readSnapshot()).profiles[0]?.conformance).toBeNull();
-      await vi.waitFor(() => expect(operations.hasActiveOperations()).toBe(false));
+      await vi.waitFor(() =>
+        expect(operations.hasActiveOperations()).toBe(false),
+      );
     } finally {
       await operations.dispose();
-      server.close();
-      await once(server, "close");
       await rm(directory, { force: true, recursive: true });
     }
   });
 
   it("serializes conformance starts for the same profile", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-ops-"),
+    );
     const store = new AgentConfigurationStore(directory);
     const operations = createServerProviderOperations({
       writes: createServerDataRootWriteScope(),
@@ -1024,21 +629,24 @@ describe("Agent provider operations", () => {
         label: "Local Ollama",
         privateNetworkAccessConfirmed: false,
       });
-      const profile = await store.createProfile(provider.configuration.revision, {
-        label: "Local writer",
-        maxResidentSessions: 1,
-        model: "qwen3.8:27b",
-        parameters: {
-          historyBudgetCharacters: 65_536,
-          kind: "chat",
-          maxOutputTokens: 2_048,
-          maxToolSteps: 8,
-          reasoningEffort: "model-default",
-          toolCallMode: "native",
+      const profile = await store.createProfile(
+        provider.configuration.revision,
+        {
+          label: "Local writer",
+          maxResidentSessions: 1,
+          model: "qwen3.8:27b",
+          parameters: {
+            historyBudgetCharacters: 65_536,
+            kind: "chat",
+            maxOutputTokens: 2_048,
+            maxToolSteps: 8,
+            reasoningEffort: "model-default",
+            toolCallMode: "native",
+          },
+          providerId: provider.provider.id,
+          timeoutMilliseconds: 900_000,
         },
-        providerId: provider.provider.id,
-        timeoutMilliseconds: 900_000,
-      });
+      );
       const starts = await Promise.allSettled([
         operations.startConformance(
           profile.configuration.revision,
@@ -1050,8 +658,12 @@ describe("Agent provider operations", () => {
         ),
       ]);
 
-      expect(starts.filter(({ status }) => status === "fulfilled")).toHaveLength(1);
-      expect(starts.filter(({ status }) => status === "rejected")).toHaveLength(1);
+      expect(
+        starts.filter(({ status }) => status === "fulfilled"),
+      ).toHaveLength(1);
+      expect(starts.filter(({ status }) => status === "rejected")).toHaveLength(
+        1,
+      );
       expect(starts.find(({ status }) => status === "rejected")).toMatchObject({
         reason: expect.objectContaining({
           message: "A conformance check is already running for this profile",
@@ -1064,7 +676,9 @@ describe("Agent provider operations", () => {
   });
 
   it("rejects every new Provider operation after disposal", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-provider-ops-"));
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "ctn-provider-ops-"),
+    );
     const operations = createServerProviderOperations({
       writes: createServerDataRootWriteScope(),
       configurationStore: new AgentConfigurationStore(directory),
@@ -1075,13 +689,16 @@ describe("Agent provider operations", () => {
       await operations.dispose();
       const message = "Agent provider operations are closing";
 
-      await expect(operations.discoverOllama("http://127.0.0.1:11434"))
-        .rejects.toThrow(message);
+      await expect(
+        operations.discoverOllama("http://127.0.0.1:11434"),
+      ).rejects.toThrow(message);
       await expect(operations.probe("provider-id")).rejects.toThrow(message);
-      await expect(operations.startCodexDeviceLogin("revision", "provider-id"))
-        .rejects.toThrow(message);
-      await expect(operations.startConformance("revision", "profile-id"))
-        .rejects.toThrow(message);
+      await expect(
+        operations.startCodexDeviceLogin("revision", "provider-id"),
+      ).rejects.toThrow(message);
+      await expect(
+        operations.startConformance("revision", "profile-id"),
+      ).rejects.toThrow(message);
     } finally {
       await operations.dispose();
       await rm(directory, { force: true, recursive: true });

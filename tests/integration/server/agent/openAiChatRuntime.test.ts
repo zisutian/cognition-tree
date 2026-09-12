@@ -1,19 +1,12 @@
+import { it } from "./fixtures/modelHttp.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  createServer,
-  type IncomingMessage,
-  type ServerResponse,
-} from "node:http";
-import { once } from "node:events";
+import { type IncomingMessage, type ServerResponse } from "node:http";
+
 import { Type } from "@sinclair/typebox";
-import { describe, expect, it, vi } from "vitest";
-import {
-  OpenAiChatRuntime,
-} from "../../../../infrastructure/server/agent/openAiChatRuntime.ts";
-import type {
-  OpenAiChatAgentProfile,
-} from "../../../../application/agentHost/runtimeProfiles.ts";
+import { describe, expect, vi } from "vitest";
+import { OpenAiChatRuntime } from "../../../../infrastructure/server/agent/openAiChatRuntime.ts";
+import type { OpenAiChatAgentProfile } from "../../../../application/agentHost/runtimeProfiles.ts";
 
 async function readJson(request: IncomingMessage) {
   let source = "";
@@ -31,9 +24,11 @@ function writeSse(response: ServerResponse, values: unknown[]) {
     ? "tool_calls"
     : "stop";
 
-  response.write(`data: ${JSON.stringify({
-    choices: [{ delta: {}, finish_reason: finishReason }],
-  })}\n\n`);
+  response.write(
+    `data: ${JSON.stringify({
+      choices: [{ delta: {}, finish_reason: finishReason }],
+    })}\n\n`,
+  );
   response.end("data: [DONE]\n\n");
 }
 
@@ -54,168 +49,184 @@ function profile(baseUrl: string): OpenAiChatAgentProfile {
   };
 }
 
+const sessionContext = {
+  instructions: "shared instructions",
+  profileId: "openai-test",
+  sessionId: "00000000-0000-4000-8000-000000000001",
+};
+
 const journalCreateTool = {
   description: "Stage Journal entry creation",
-  inputSchema: Type.Object({ body: Type.String() }, {
-    additionalProperties: false,
-  }),
+  inputSchema: Type.Object(
+    { body: Type.String() },
+    {
+      additionalProperties: false,
+    },
+  ),
   name: "stage_journal_create_entry",
 } as const;
 
 describe("OpenAI-compatible Agent runtime", () => {
-  it("rejects reasoning-only length completions without emitting empty deltas", async () => {
-    const server = createServer((_request, response) => {
+  it("rejects reasoning-only length completions without emitting empty deltas", async ({
+    modelHttp,
+  }) => {
+    const endpoint = await modelHttp((_request, response) => {
       response.writeHead(200, { "Content-Type": "text/event-stream" });
       for (const reasoning of ["Thinking", " about", " tools"]) {
-        response.write(`data: ${JSON.stringify({
-          choices: [{
-            delta: { content: "", reasoning },
-            finish_reason: null,
-          }],
-        })}\n\n`);
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [
+              {
+                delta: { content: "", reasoning },
+                finish_reason: null,
+              },
+            ],
+          })}\n\n`,
+        );
       }
-      response.write(`data: ${JSON.stringify({
-        choices: [{ delta: {}, finish_reason: "length" }],
-      })}\n\n`);
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: {}, finish_reason: "length" }],
+        })}\n\n`,
+      );
       response.end("data: [DONE]\n\n");
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
     const session = await new OpenAiChatRuntime(
-      profile(`http://127.0.0.1:${address.port}/v1`),
+      profile(`${endpoint}/v1`),
       "server-secret",
     ).openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: { domain: "journal", entryIds: null },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const deltas: string[] = [];
     const executeTool = vi.fn();
 
     try {
-      await expect(session.runTurn({
-        executeTool,
-        messages: [{ content: "创建一条日记", role: "user" }],
-        onEvent(event) {
-          if (event.type === "text-delta") deltas.push(event.textDelta);
-        },
-        scope: { domain: "journal", entryIds: null },
-        signal: new AbortController().signal,
-        tools: [journalCreateTool],
-      })).rejects.toThrow(/output token limit/i);
+      await expect(
+        session.runTurn({
+          executeTool,
+          messages: [{ content: "创建一条日记", role: "user" }],
+          onEvent(event) {
+            if (event.type === "text-delta") deltas.push(event.textDelta);
+          },
+          scope: { domain: "journal", entryIds: null },
+          signal: new AbortController().signal,
+          tools: [journalCreateTool],
+        }),
+      ).rejects.toThrow(/output token limit/i);
       expect(deltas).toEqual([]);
       expect(executeTool).not.toHaveBeenCalled();
     } finally {
       await session.dispose();
-      server.close();
-      await once(server, "close");
     }
   });
 
-  it("keeps reasoning private while streaming the final natural-language reply", async () => {
-    const server = createServer((_request, response) => {
+  it("keeps reasoning private while streaming the final natural-language reply", async ({
+    modelHttp,
+  }) => {
+    const endpoint = await modelHttp((_request, response) => {
       response.writeHead(200, { "Content-Type": "text/event-stream" });
-      response.write(`data: ${JSON.stringify({
-        choices: [{
-          delta: { content: "", reasoning: "private reasoning" },
-          finish_reason: null,
-        }],
-      })}\n\n`);
-      response.write(`data: ${JSON.stringify({
-        choices: [{ delta: { content: "完成。" }, finish_reason: null }],
-      })}\n\n`);
-      response.write(`data: ${JSON.stringify({
-        choices: [{ delta: {}, finish_reason: "stop" }],
-      })}\n\n`);
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: { content: "", reasoning: "private reasoning" },
+              finish_reason: null,
+            },
+          ],
+        })}\n\n`,
+      );
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "完成。" }, finish_reason: null }],
+        })}\n\n`,
+      );
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: {}, finish_reason: "stop" }],
+        })}\n\n`,
+      );
       response.end("data: [DONE]\n\n");
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
     const session = await new OpenAiChatRuntime(
-      profile(`http://127.0.0.1:${address.port}/v1`),
+      profile(`${endpoint}/v1`),
       "server-secret",
     ).openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: { domain: "journal", entryIds: null },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const deltas: string[] = [];
 
     try {
-      await expect(session.runTurn({
-        executeTool: vi.fn(),
-        messages: [{ content: "创建一条日记", role: "user" }],
-        onEvent(event) {
-          if (event.type === "text-delta") deltas.push(event.textDelta);
-        },
-        scope: { domain: "journal", entryIds: null },
-        signal: new AbortController().signal,
-        tools: [journalCreateTool],
-      })).resolves.toEqual({ finalText: "完成。", toolCalls: 0 });
+      await expect(
+        session.runTurn({
+          executeTool: vi.fn(),
+          messages: [{ content: "创建一条日记", role: "user" }],
+          onEvent(event) {
+            if (event.type === "text-delta") deltas.push(event.textDelta);
+          },
+          scope: { domain: "journal", entryIds: null },
+          signal: new AbortController().signal,
+          tools: [journalCreateTool],
+        }),
+      ).resolves.toEqual({ finalText: "完成。", toolCalls: 0 });
       expect(deltas).toEqual(["\u5b8c\u6210\u3002"]);
       expect(JSON.stringify(deltas)).not.toContain("private reasoning");
     } finally {
       await session.dispose();
-      server.close();
-      await once(server, "close");
     }
   });
 
-  it("passes reasoning back only in transient tool history", async () => {
+  it("passes reasoning back only in transient tool history", async ({
+    modelHttp,
+  }) => {
     const requests: Record<string, unknown>[] = [];
-    const server = createServer(async (request, response) => {
+    const endpoint = await modelHttp(async (request, response) => {
       requests.push(await readJson(request));
       if (requests.length === 1) {
         response.writeHead(200, { "Content-Type": "text/event-stream" });
-        response.write(`data: ${JSON.stringify({
-          choices: [{
-            delta: {
-              content: "",
-              reasoning: "choose the journal tool",
-              tool_calls: [{
-                function: {
-                  arguments: JSON.stringify({ body: "Agent entry" }),
-                  name: "stage_journal_create_entry",
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [
+              {
+                delta: {
+                  content: "",
+                  reasoning: "choose the journal tool",
+                  tool_calls: [
+                    {
+                      function: {
+                        arguments: JSON.stringify({ body: "Agent entry" }),
+                        name: "stage_journal_create_entry",
+                      },
+                      id: "call-reasoning",
+                      index: 0,
+                    },
+                  ],
                 },
-                id: "call-reasoning",
-                index: 0,
-              }],
-            },
-            finish_reason: null,
-          }],
-        })}\n\n`);
-        response.write(`data: ${JSON.stringify({
-          choices: [{ delta: {}, finish_reason: "tool_calls" }],
-        })}\n\n`);
+                finish_reason: null,
+              },
+            ],
+          })}\n\n`,
+        );
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: {}, finish_reason: "tool_calls" }],
+          })}\n\n`,
+        );
         response.end("data: [DONE]\n\n");
         return;
       }
       writeSse(response, [{ choices: [{ delta: { content: "已暂存。" } }] }]);
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
     const session = await new OpenAiChatRuntime(
-      profile(`http://127.0.0.1:${address.port}/v1`),
+      profile(`${endpoint}/v1`),
       "server-secret",
     ).openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: { domain: "journal", entryIds: null },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const deltas: string[] = [];
 
@@ -230,57 +241,54 @@ describe("OpenAI-compatible Agent runtime", () => {
         signal: new AbortController().signal,
         tools: [journalCreateTool],
       });
-      expect(requests[1]?.messages).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          reasoning: "choose the journal tool",
-          role: "assistant",
-        }),
-      ]));
+      expect(requests[1]?.messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            reasoning: "choose the journal tool",
+            role: "assistant",
+          }),
+        ]),
+      );
       expect(JSON.stringify(deltas)).not.toContain("choose the journal tool");
     } finally {
       await session.dispose();
-      server.close();
-      await once(server, "close");
     }
   });
 
-  it("rejects streams that end without a finish reason", async () => {
-    const server = createServer((_request, response) => {
+  it("rejects streams that end without a finish reason", async ({
+    modelHttp,
+  }) => {
+    const endpoint = await modelHttp((_request, response) => {
       response.writeHead(200, { "Content-Type": "text/event-stream" });
-      response.write(`data: ${JSON.stringify({
-        choices: [{ delta: { content: "unfinished" } }],
-      })}\n\n`);
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "unfinished" } }],
+        })}\n\n`,
+      );
       response.end("data: [DONE]\n\n");
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
     const session = await new OpenAiChatRuntime(
-      profile(`http://127.0.0.1:${address.port}/v1`),
+      profile(`${endpoint}/v1`),
       "server-secret",
     ).openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: { domain: "journal", entryIds: null },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
 
     try {
-      await expect(session.runTurn({
-        executeTool: vi.fn(),
-        messages: [{ content: "respond", role: "user" }],
-        onEvent: vi.fn(),
-        scope: { domain: "journal", entryIds: null },
-        signal: new AbortController().signal,
-        tools: [journalCreateTool],
-      })).rejects.toThrow(/without a finish reason/i);
+      await expect(
+        session.runTurn({
+          executeTool: vi.fn(),
+          messages: [{ content: "respond", role: "user" }],
+          onEvent: vi.fn(),
+          scope: { domain: "journal", entryIds: null },
+          signal: new AbortController().signal,
+          tools: [journalCreateTool],
+        }),
+      ).rejects.toThrow(/without a finish reason/i);
     } finally {
       await session.dispose();
-      server.close();
-      await once(server, "close");
     }
   });
 
@@ -293,97 +301,104 @@ describe("OpenAI-compatible Agent runtime", () => {
       runtimeProfile,
       "server-secret",
     ).openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: { domain: "journal", entryIds: null },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const events: unknown[] = [];
 
     try {
-      await expect(session.runTurn({
-        executeTool: vi.fn(),
-        messages: [{ content: "hello", role: "user" }],
-        onEvent(event) {
-          events.push(event);
+      await expect(
+        session.runTurn({
+          executeTool: vi.fn(),
+          messages: [{ content: "hello", role: "user" }],
+          onEvent(event) {
+            events.push(event);
+          },
+          scope: { domain: "journal", entryIds: null },
+          signal: new AbortController().signal,
+          tools: [],
+        }),
+      ).rejects.toMatchObject({ name: "AgentContextLimitError" });
+      expect(events).toEqual([
+        {
+          reason: "会话历史预算已达到",
+          type: "compaction-required",
         },
-        scope: { domain: "journal", entryIds: null },
-        signal: new AbortController().signal,
-        tools: [],
-      })).rejects.toMatchObject({ name: "AgentContextLimitError" });
-      expect(events).toEqual([{
-        reason: "会话历史预算已达到",
-        type: "compaction-required",
-      }]);
+      ]);
     } finally {
       await session.dispose();
     }
   });
 
-  it("rejects streamed state that exceeds the completion character budget", async () => {
-    const server = createServer((_request, response) => {
-      writeSse(response, [{
-        choices: [{ delta: { content: "x".repeat(513) } }],
-      }]);
+  it("rejects streamed state that exceeds the completion character budget", async ({
+    modelHttp,
+  }) => {
+    const endpoint = await modelHttp((_request, response) => {
+      writeSse(response, [
+        {
+          choices: [{ delta: { content: "x".repeat(513) } }],
+        },
+      ]);
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
     const session = await new OpenAiChatRuntime(
       {
-        ...profile(`http://127.0.0.1:${address.port}/v1`),
+        ...profile(`${endpoint}/v1`),
         historyBudgetCharacters: 512,
       },
       "server-secret",
     ).openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: { domain: "journal", entryIds: null },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const onEvent = vi.fn();
 
     try {
-      await expect(session.runTurn({
-        executeTool: vi.fn(),
-        messages: [{ content: "respond", role: "user" }],
-        onEvent,
-        scope: { domain: "journal", entryIds: null },
-        signal: new AbortController().signal,
-        tools: [],
-      })).rejects.toThrow(/completion exceeded.*character budget/i);
+      await expect(
+        session.runTurn({
+          executeTool: vi.fn(),
+          messages: [{ content: "respond", role: "user" }],
+          onEvent,
+          scope: { domain: "journal", entryIds: null },
+          signal: new AbortController().signal,
+          tools: [],
+        }),
+      ).rejects.toThrow(/completion exceeded.*character budget/i);
       expect(onEvent).not.toHaveBeenCalled();
     } finally {
       await session.dispose();
-      server.close();
-      await once(server, "close");
     }
   });
 
-  it("streams text and executes sequential tool calls through the supplied port", async () => {
+  it("streams text and executes sequential tool calls through the supplied port", async ({
+    modelHttp,
+  }) => {
     const requests: Record<string, unknown>[] = [];
-    const server = createServer(async (request, response) => {
+    const endpoint = await modelHttp(async (request, response) => {
       requests.push(await readJson(request));
       if (requests.length === 1) {
-        writeSse(response, [{
-          choices: [{
-            delta: {
-              tool_calls: [{
-                function: {
-                  arguments: JSON.stringify({
-                    body: "Agent entry",
-                  }),
-                  name: "stage_journal_create_entry",
+        writeSse(response, [
+          {
+            choices: [
+              {
+                delta: {
+                  tool_calls: [
+                    {
+                      function: {
+                        arguments: JSON.stringify({
+                          body: "Agent entry",
+                        }),
+                        name: "stage_journal_create_entry",
+                      },
+                      id: "call-1",
+                      index: 0,
+                    },
+                  ],
                 },
-                id: "call-1",
-                index: 0,
-              }],
-            },
-          }],
-        }]);
+              },
+            ],
+          },
+        ]);
         return;
       }
       writeSse(response, [
@@ -392,20 +407,13 @@ describe("OpenAI-compatible Agent runtime", () => {
       ]);
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
     const runtime = new OpenAiChatRuntime(
-      profile(`http://127.0.0.1:${address.port}/v1`),
+      profile(`${endpoint}/v1`),
       "server-secret",
     );
     const session = await runtime.openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: { domain: "journal", entryIds: null },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const executeTool = vi.fn(async () => ({ staged: true }));
     const deltas: string[] = [];
@@ -446,114 +454,113 @@ describe("OpenAI-compatible Agent runtime", () => {
       expect(JSON.stringify(requests[1])).toContain('"role":"tool"');
     } finally {
       await session.dispose();
-      server.close();
-      await once(server, "close");
     }
   });
 
-  it("rejects multiple native calls without executing either tool", async () => {
+  it("rejects multiple native calls without executing either tool", async ({
+    modelHttp,
+  }) => {
     let requestCount = 0;
-    const server = createServer((_request, response) => {
+    const endpoint = await modelHttp((_request, response) => {
       requestCount += 1;
       if (requestCount === 1) {
-        writeSse(response, [{
-          choices: [{
-            delta: {
-              tool_calls: [{
-                function: { arguments: "{}", name: "list" },
-                id: "call-list",
-                index: 0,
-              }, {
-                function: {
-                  arguments: JSON.stringify({ query: "ctn" }),
-                  name: "search",
+        writeSse(response, [
+          {
+            choices: [
+              {
+                delta: {
+                  tool_calls: [
+                    {
+                      function: { arguments: "{}", name: "list" },
+                      id: "call-list",
+                      index: 0,
+                    },
+                    {
+                      function: {
+                        arguments: JSON.stringify({ query: "ctn" }),
+                        name: "search",
+                      },
+                      id: "call-search",
+                      index: 1,
+                    },
+                  ],
                 },
-                id: "call-search",
-                index: 1,
-              }],
-            },
-          }],
-        }]);
+              },
+            ],
+          },
+        ]);
         return;
       }
       writeSse(response, [{ choices: [{ delta: { content: "完成" } }] }]);
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
     const session = await new OpenAiChatRuntime(
-      profile(`http://127.0.0.1:${address.port}/v1`),
+      profile(`${endpoint}/v1`),
       "server-secret",
     ).openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: {
         domain: "workspace",
         repositoryId: "repository-1",
         target: { kind: "repository" },
       },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const executeTool = vi.fn(async () => ({ ok: true }));
 
     try {
-      await expect(session.runTurn({
-        executeTool,
-        messages: [{ content: "inspect", role: "user" }],
-        onEvent: vi.fn(),
-        scope: {
-          domain: "workspace",
-          repositoryId: "repository-1",
-          target: { kind: "repository" },
-        },
-        signal: new AbortController().signal,
-        tools: [
-          { description: "List", inputSchema: { type: "object" }, name: "list" },
-          {
-            description: "Search",
-            inputSchema: { type: "object" },
-            name: "search",
+      await expect(
+        session.runTurn({
+          executeTool,
+          messages: [{ content: "inspect", role: "user" }],
+          onEvent: vi.fn(),
+          scope: {
+            domain: "workspace",
+            repositoryId: "repository-1",
+            target: { kind: "repository" },
           },
-        ],
-      })).resolves.toEqual({ finalText: "完成", toolCalls: 0 });
+          signal: new AbortController().signal,
+          tools: [
+            {
+              description: "List",
+              inputSchema: { type: "object" },
+              name: "list",
+            },
+            {
+              description: "Search",
+              inputSchema: { type: "object" },
+              name: "search",
+            },
+          ],
+        }),
+      ).resolves.toEqual({ finalText: "完成", toolCalls: 0 });
       expect(executeTool).not.toHaveBeenCalled();
     } finally {
       await session.dispose();
-      server.close();
-      await once(server, "close");
     }
   });
 
-  it("aborts an active stream when the session is cancelled", async () => {
+  it("aborts an active stream when the session is cancelled", async ({
+    modelHttp,
+  }) => {
     let response!: ServerResponse;
     let resolveReceived!: () => void;
     const received = new Promise<void>((resolve) => {
       resolveReceived = resolve;
     });
-    const server = createServer((_request, current) => {
+    const endpoint = await modelHttp((_request, current) => {
       response = current;
       current.writeHead(200, { "Content-Type": "text/event-stream" });
       current.flushHeaders();
       resolveReceived();
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
     const runtime = new OpenAiChatRuntime(
-      profile(`http://127.0.0.1:${address.port}/v1`),
+      profile(`${endpoint}/v1`),
       "server-secret",
     );
     const session = await runtime.openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: { collectionIds: null, domain: "todo" },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const turn = session.runTurn({
       executeTool: vi.fn(),
@@ -571,18 +578,18 @@ describe("OpenAI-compatible Agent runtime", () => {
     } finally {
       response.end();
       await session.dispose();
-      server.close();
-      await once(server, "close");
     }
   });
 
-  it("corrects a text tool envelope without displaying or executing it", async () => {
+  it("corrects a text tool envelope without displaying or executing it", async ({
+    modelHttp,
+  }) => {
     const envelope = JSON.stringify({
       arguments: { body: "Agent entry" },
       name: "stage_journal_create_entry",
     });
     let requestCount = 0;
-    const server = createServer((_request, response) => {
+    const endpoint = await modelHttp((_request, response) => {
       requestCount += 1;
       if (requestCount === 1) {
         writeSse(response, [
@@ -592,38 +599,37 @@ describe("OpenAI-compatible Agent runtime", () => {
         return;
       }
       if (requestCount === 2) {
-        writeSse(response, [{
-          choices: [{
-            delta: {
-              tool_calls: [{
-                function: {
-                  arguments: JSON.stringify({ body: "Agent entry" }),
-                  name: "stage_journal_create_entry",
+        writeSse(response, [
+          {
+            choices: [
+              {
+                delta: {
+                  tool_calls: [
+                    {
+                      function: {
+                        arguments: JSON.stringify({ body: "Agent entry" }),
+                        name: "stage_journal_create_entry",
+                      },
+                      id: "call-corrected",
+                      index: 0,
+                    },
+                  ],
                 },
-                id: "call-corrected",
-                index: 0,
-              }],
-            },
-          }],
-        }]);
+              },
+            ],
+          },
+        ]);
         return;
       }
       writeSse(response, [{ choices: [{ delta: { content: "已暂存。" } }] }]);
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
     const session = await new OpenAiChatRuntime(
-      profile(`http://127.0.0.1:${address.port}/v1`),
+      profile(`${endpoint}/v1`),
       "server-secret",
     ).openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: { domain: "journal", entryIds: null },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const executeTool = vi.fn(async () => ({ staged: true }));
     const deltas: string[] = [];
@@ -645,30 +651,21 @@ describe("OpenAI-compatible Agent runtime", () => {
       expect(executeTool).toHaveBeenCalledOnce();
     } finally {
       await session.dispose();
-      server.close();
-      await once(server, "close");
     }
   });
 
-  it("preserves ordinary JSON as assistant content", async () => {
+  it("preserves ordinary JSON as assistant content", async ({ modelHttp }) => {
     const content = JSON.stringify({ answer: "structured on request" });
-    const server = createServer((_request, response) => {
+    const endpoint = await modelHttp((_request, response) => {
       writeSse(response, [{ choices: [{ delta: { content } }] }]);
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
     const session = await new OpenAiChatRuntime(
-      profile(`http://127.0.0.1:${address.port}/v1`),
+      profile(`${endpoint}/v1`),
       "server-secret",
     ).openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: { domain: "journal", entryIds: null },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const deltas: string[] = [];
 
@@ -688,34 +685,31 @@ describe("OpenAI-compatible Agent runtime", () => {
       expect(deltas).toEqual([content]);
     } finally {
       await session.dispose();
-      server.close();
-      await once(server, "close");
     }
   });
 
-  it("corrects malformed text tool JSON without displaying it", async () => {
+  it("corrects malformed text tool JSON without displaying it", async ({
+    modelHttp,
+  }) => {
     const invalid = '{"name":"stage_journal_create_entry","arguments":';
     let requestCount = 0;
-    const server = createServer((_request, response) => {
+    const endpoint = await modelHttp((_request, response) => {
       requestCount += 1;
-      writeSse(response, [{
-        choices: [{ delta: { content: requestCount === 1 ? invalid : "请重试。" } }],
-      }]);
+      writeSse(response, [
+        {
+          choices: [
+            { delta: { content: requestCount === 1 ? invalid : "请重试。" } },
+          ],
+        },
+      ]);
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
     const session = await new OpenAiChatRuntime(
-      profile(`http://127.0.0.1:${address.port}/v1`),
+      profile(`${endpoint}/v1`),
       "server-secret",
     ).openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: { domain: "journal", entryIds: null },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const deltas: string[] = [];
 
@@ -735,66 +729,71 @@ describe("OpenAI-compatible Agent runtime", () => {
       expect(deltas).toEqual([result.finalText]);
     } finally {
       await session.dispose();
-      server.close();
-      await once(server, "close");
     }
   });
 
-  it("corrects invalid native arguments without executing or displaying them", async () => {
+  it("corrects invalid native arguments without executing or displaying them", async ({
+    modelHttp,
+  }) => {
     const requests: Record<string, unknown>[] = [];
-    const server = createServer(async (request, response) => {
+    const endpoint = await modelHttp(async (request, response) => {
       requests.push(await readJson(request));
       if (requests.length === 1) {
-        writeSse(response, [{
-          choices: [{
-            delta: {
-              content: "I will call a tool.",
-              tool_calls: [{
-                function: {
-                  arguments: "{}",
-                  name: "stage_journal_create_entry",
+        writeSse(response, [
+          {
+            choices: [
+              {
+                delta: {
+                  content: "I will call a tool.",
+                  tool_calls: [
+                    {
+                      function: {
+                        arguments: "{}",
+                        name: "stage_journal_create_entry",
+                      },
+                      id: "call-1",
+                      index: 0,
+                    },
+                  ],
                 },
-                id: "call-1",
-                index: 0,
-              }],
-            },
-          }],
-        }]);
+              },
+            ],
+          },
+        ]);
         return;
       }
       if (requests.length === 2) {
-        writeSse(response, [{
-          choices: [{
-            delta: {
-              tool_calls: [{
-                function: {
-                  arguments: JSON.stringify({ body: "Agent entry" }),
-                  name: "stage_journal_create_entry",
+        writeSse(response, [
+          {
+            choices: [
+              {
+                delta: {
+                  tool_calls: [
+                    {
+                      function: {
+                        arguments: JSON.stringify({ body: "Agent entry" }),
+                        name: "stage_journal_create_entry",
+                      },
+                      id: "call-2",
+                      index: 0,
+                    },
+                  ],
                 },
-                id: "call-2",
-                index: 0,
-              }],
-            },
-          }],
-        }]);
+              },
+            ],
+          },
+        ]);
         return;
       }
       writeSse(response, [{ choices: [{ delta: { content: "完成" } }] }]);
     });
 
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-
-    if (!address || typeof address === "string") throw new Error("Missing port");
     const session = await new OpenAiChatRuntime(
-      profile(`http://127.0.0.1:${address.port}/v1`),
+      profile(`${endpoint}/v1`),
       "server-secret",
     ).openSession({
-      instructions: "shared instructions",
-      profileId: "openai-test",
+      ...sessionContext,
       scope: { domain: "journal", entryIds: null },
-      sessionId: "00000000-0000-4000-8000-000000000001",
     });
     const deltas: string[] = [];
     const executeTool = vi.fn(async () => ({ staged: true }));
@@ -820,13 +819,9 @@ describe("OpenAI-compatible Agent runtime", () => {
       });
       expect(deltas).toEqual(["完成"]);
       expect(JSON.stringify(requests[1])).toContain("/body");
-      expect(JSON.stringify(requests[1])).not.toContain(
-        "I will call a tool.",
-      );
+      expect(JSON.stringify(requests[1])).not.toContain("I will call a tool.");
     } finally {
       await session.dispose();
-      server.close();
-      await once(server, "close");
     }
   });
 });
