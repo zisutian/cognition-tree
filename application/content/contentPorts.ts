@@ -61,8 +61,8 @@ export type ContentCatalogSession = {
     id: string,
     label: string,
     content: WorkspaceRepositoryContent,
-  ): Promise<{ id: string; label: string }>;
-  rename(id: string, label: string): Promise<{ id: string; label: string }>;
+  ): Promise<WorkspaceRepositoryDescriptor>;
+  rename(id: string, label: string): Promise<WorkspaceRepositoryDescriptor>;
   delete(id: string): Promise<void>;
 };
 

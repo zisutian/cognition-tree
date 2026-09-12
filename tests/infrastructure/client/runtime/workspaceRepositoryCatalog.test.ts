@@ -504,9 +504,13 @@ describe("HTTP workspace repository catalog", () => {
     ).resolves.toEqual({ revision: revisionC });
   });
 
-  it.each(["create", "rename", "delete"])(
-    "keeps a confirmed %s visible when cache updates fail and the service goes offline",
-    async (operation) => {
+  it.each(
+    ["create", "rename", "delete"].flatMap((operation) =>
+      [revisionC, null].map((afterRevision) => ({ operation, afterRevision })),
+    ),
+  )(
+    "keeps confirmed $operation visible through cache failure and disconnect (revision $afterRevision)",
+    async ({ operation, afterRevision }) => {
       const cache = createMemoryRepositoryClientCache();
       let offline = false;
       const changed = {
@@ -521,9 +525,10 @@ describe("HTTP workspace repository catalog", () => {
         fetch: async (_input, init) => {
           if (init?.method === "POST") {
             offline = true;
-            return jsonResponse(
-              receipt(operation === "delete" ? undefined : changed),
-            );
+            return jsonResponse({
+              ...receipt(operation === "delete" ? undefined : changed),
+              afterRevision,
+            });
           }
           if (offline) throw new TypeError("Service disconnected");
           return jsonResponse(serverCatalog);
@@ -581,6 +586,11 @@ describe("HTTP workspace repository catalog", () => {
             operation === "delete" ? null : changed.id,
           );
         }
+        await expect(
+          controller.createRepository({
+            name: "Blocked without a fresh revision",
+          }),
+        ).rejects.toThrow("请刷新仓库目录");
         // A fresh remote snapshot can still replace the retained display.
         offline = false;
         await controller.reload();

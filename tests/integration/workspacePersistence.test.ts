@@ -211,6 +211,7 @@ describe("workspace persistence integration", () => {
       repository: created.descriptor,
       afterRevision: created.revision,
     });
+    if (!created.revision) throw new Error("Expected a complete catalog receipt");
     await server.catalog.renameRepository(created.descriptor.id, {
       label: "外部改名",
     });

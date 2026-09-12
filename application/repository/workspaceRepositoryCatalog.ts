@@ -42,7 +42,7 @@ export type RepositoryMutationBasis = {
   operationId: string;
 };
 export type RepositoryMutationResult = {
-  revision: `sha256:${string}`;
+  revision: `sha256:${string}` | null;
   descriptor: WorkspaceRepositoryDescriptor;
 };
 export type DeleteWorkspaceRepositoryInput = RepositoryMutationBasis & {
@@ -57,7 +57,7 @@ export type WorkspaceRepositoryCatalog = {
   ): Promise<RepositoryMutationResult>;
   deleteRepository(
     input: DeleteWorkspaceRepositoryInput,
-  ): Promise<{ revision: `sha256:${string}` }>;
+  ): Promise<{ revision: `sha256:${string}` | null }>;
   renameRepository(
     input: RepositoryMutationBasis & {
       id: string;

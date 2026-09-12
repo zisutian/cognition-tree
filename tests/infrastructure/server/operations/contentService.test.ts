@@ -24,6 +24,99 @@ const journal = { domain: "journal" as const };
 const todo = { domain: "todo" as const };
 
 describe("local semantic content use cases on real storage", () => {
+  it.each(["create", "rename", "delete"] as const)(
+    "preserves a confirmed catalog %s when the following directory read fails",
+    async (kind) => {
+      const value = await fixture();
+      if (kind !== "create")
+        await value.apply(
+          { domain: "catalog" },
+          { kind: "create-repository", name: workspace.repository },
+        );
+      const { basis } = await value.service.query({ kind: "catalog" });
+      const command =
+        kind === "create"
+          ? { kind: "create-repository" as const, name: workspace.repository }
+          : kind === "rename"
+            ? {
+                kind: "rename-repository" as const,
+                repository: workspace.repository,
+                name: "已确认改名",
+              }
+            : {
+                kind: "delete-repository" as const,
+                repository: workspace.repository,
+              };
+      const events: string[] = [];
+      const service = new ContentService({
+        ...value.ports,
+        catalog: {
+          run: (operation) =>
+            value.catalog.runContentCatalog((session) => {
+              let reads = 0;
+              return operation({
+                ...session,
+                read: async () => {
+                  if (++reads > 1)
+                    throw new Error("Directory read unavailable after commit");
+                  return session.read();
+                },
+              });
+            }),
+        },
+        onCatalogChanged: (_id, event) => {
+          events.push(event);
+        },
+      });
+      const request = {
+        scope: { domain: "catalog" as const },
+        basis,
+        command,
+        operationId: randomUUID(),
+      };
+      const result = await service.execute(request);
+      expect(result).toMatchObject({
+        status: "committed",
+        afterRevision: null,
+        audit: "recorded",
+        error: { code: "catalog_refresh_failed" },
+        review: {
+          resources: [
+            {
+              actions: [
+                kind === "rename"
+                  ? "renamed"
+                  : kind === "create"
+                    ? "created"
+                    : "deleted",
+              ],
+            },
+          ],
+        },
+      });
+      const actual = await value.catalog.listRepositories();
+      if (kind === "delete") expect(actual.repositories).toEqual([]);
+      else expect(result.repository).toEqual(actual.repositories[0]);
+      expect(await service.result(request.operationId)).toEqual(result);
+      const reopenedLedger = new OperationLedger(
+        path.join(value.root, "server-state"),
+        20,
+      );
+      await reopenedLedger.initialize();
+      expect(
+        await reopenedLedger.getContentOperation(request.operationId),
+      ).toEqual(result);
+      expect(await service.execute(request)).toEqual(result);
+      expect(events).toEqual([
+        kind === "rename"
+          ? "updated"
+          : kind === "create"
+            ? "created"
+            : "deleted",
+      ]);
+      expect(await value.catalog.listRepositories()).toEqual(actual);
+    },
+  );
   it("keeps real Journal content unchanged when the operation ledger failed startup", async () => {
     const value = await fixture();
     const ledger = new OperationLedger(

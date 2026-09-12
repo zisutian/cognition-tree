@@ -41,7 +41,7 @@ export function createHttpWorkspaceCatalogBackend({
           command,
         },
       )) as ContentOperationResultDto;
-      if (result.status !== "committed" || !result.afterRevision)
+      if (result.status !== "committed")
         throw new WorkspaceRepositoryRemoteError(
           `${result.error?.message ?? "操作尚未完成"}（操作 ID：${result.operationId}）`,
           {
@@ -59,7 +59,7 @@ export function createHttpWorkspaceCatalogBackend({
       throw error;
     });
   const descriptorResult = (result: ContentOperationResultDto) => {
-    if (!result.repository || !result.afterRevision)
+    if (!result.repository)
       throw new Error(
         `已提交，但仓库收据不完整。请查询操作 ${result.operationId}。`,
       );
@@ -91,7 +91,7 @@ export function createHttpWorkspaceCatalogBackend({
           kind: "delete-repository",
           repository: input.repository,
         })
-      ).afterRevision!,
+      ).afterRevision,
     }),
     listRepositories: () =>
       withWorkspaceApiAdapterErrors(async () => {

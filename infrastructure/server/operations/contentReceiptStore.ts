@@ -72,7 +72,14 @@ export class ContentReceiptStore {
         if (
           receipt &&
           (receipt.operationId !== operationId ||
-            (receipt.status === "committed" && !receipt.afterRevision))
+            (receipt.status === "committed" &&
+              !receipt.afterRevision &&
+              !(
+                receipt.scope.domain === "catalog" &&
+                receipt.error?.code === "catalog_refresh_failed" &&
+                receipt.preparation &&
+                receipt.review
+              )))
         )
           throw new Error("Content receipt identity or outcome is invalid.");
         return { formatVersion: 2, receipt };

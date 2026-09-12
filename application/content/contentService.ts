@@ -1,16 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { DomainValidationError } from "../../core/errors/index.ts";
-import {
-  readCommandRuntimeNow,
-  summarizeContentBlockChanges,
-  type ContentChangeReview,
-} from "../commands/index.ts";
-import type {
-  ContentOperationOutcome,
-  ContentOperationRecorder,
-} from "../operations/index.ts";
-import { createInitialRepositoryContent } from "../workspace/index.ts";
+import { readCommandRuntimeNow } from "../commands/index.ts";
 import type { ContentOperationRequest } from "./contentCommand.ts";
 import type { ContentServicePorts } from "./contentPorts.ts";
 import {
@@ -18,11 +8,8 @@ import {
   queryContent,
   type ContentQuery,
 } from "./contentQuery.ts";
-import {
-  commandFailure,
-  requireRevision,
-  ContentBasisMismatchError,
-} from "./commandSupport.ts";
+import { commandFailure, ContentBasisMismatchError } from "./commandSupport.ts";
+import { executeCatalogContentCommand } from "./catalogCommand.ts";
 import { executeJournalContentCommand } from "./journalCommand.ts";
 import { resolveNamedContent } from "./targetResolution.ts";
 import { executeTodoContentCommand } from "./todoCommand.ts";
@@ -69,7 +56,8 @@ export class ContentService {
           )
             throw new ContentBasisMismatchError();
           if (request.scope.domain === "catalog")
-            return await this.#executeCatalog(
+            return await executeCatalogContentCommand(
+              this.#ports,
               request,
               timestamp,
               recordPrepared,
@@ -118,153 +106,6 @@ export class ContentService {
           );
         } catch (error) {
           return commandFailure(error);
-        }
-      },
-    );
-  }
-
-  #executeCatalog(
-    request: ContentOperationRequest,
-    timestamp: string,
-    recordPrepared: ContentOperationRecorder,
-  ) {
-    return this.#ports.catalog.run(
-      async (session): Promise<ContentOperationOutcome> => {
-        const before = await session.read();
-        requireRevision(
-          contentCatalogRevision(before, this.#ports.digest),
-          request.basis.baseRevision,
-        );
-        const command = request.command;
-        if (
-          command.kind !== "create-repository" &&
-          command.kind !== "rename-repository" &&
-          command.kind !== "delete-repository"
-        )
-          throw new DomainValidationError(
-            "Catalog scope only accepts repository management commands.",
-          );
-        const previous =
-          command.kind === "create-repository"
-            ? null
-            : resolveNamedContent(
-                before.repositories.map(({ id, label }) => ({
-                  id,
-                  name: label,
-                  path: label,
-                })),
-                command.repository,
-              );
-        const name =
-          command.kind === "delete-repository"
-            ? null
-            : await session.validateName(command.name, previous?.id);
-        const createId = this.#ports.runtime.createId;
-        const initialContent =
-          command.kind === "create-repository"
-            ? createInitialRepositoryContent({
-                createBlockId: createId,
-                createNoteId: () => `note-${createId()}`,
-                createSyntaxFileId: () => `syntax-${createId()}`,
-                createWorkspaceId: () => `workspace-${createId()}`,
-                name: name!,
-                timestamp,
-              })
-            : null;
-        const id = previous?.id ?? (await session.allocateId());
-        const expectedAfter = {
-          ...before,
-          repositories:
-            command.kind === "create-repository"
-              ? [...before.repositories, { id, label: name! }]
-              : command.kind === "delete-repository"
-                ? before.repositories.filter((item) => item.id !== id)
-                : before.repositories.map((item) =>
-                    item.id === id ? { ...item, label: name! } : item,
-                  ),
-        };
-        await recordPrepared({
-          repositoryId: id,
-          expectedAfterRevision: contentCatalogRevision(
-            expectedAfter,
-            this.#ports.digest,
-          ),
-          targets: [
-            {
-              type: "repository",
-              resourceId: id,
-              actions: [
-                command.kind === "create-repository"
-                  ? "created"
-                  : command.kind === "rename-repository"
-                    ? "renamed"
-                    : "deleted",
-              ],
-              before: previous
-                ? { label: previous.name, path: previous.path }
-                : null,
-              after: name ? { label: name, path: name } : null,
-            },
-          ],
-        });
-        try {
-          if (command.kind === "create-repository") {
-            await session.create(id, name!, initialContent!);
-          } else if (command.kind === "rename-repository")
-            await session.rename(previous!.id, name!);
-          else await session.delete(previous!.id);
-          const after = await session.read();
-          const next = after.repositories.find((item) => item.id === id);
-          const review: ContentChangeReview = {
-            storeLabel: null,
-            resources: [
-              {
-                type: "repository",
-                resourceId: id!,
-                actions: [
-                  command.kind === "create-repository"
-                    ? "created"
-                    : command.kind === "rename-repository"
-                      ? "renamed"
-                      : "deleted",
-                ],
-                before: previous
-                  ? { label: previous.name, path: previous.path }
-                  : null,
-                after: next ? { label: next.label, path: next.label } : null,
-                blockSummary: summarizeContentBlockChanges([]),
-                diff: [],
-              },
-            ],
-          };
-          const result: ContentOperationOutcome = {
-            status: "committed",
-            ...(next ? { repository: next } : {}),
-            afterRevision: contentCatalogRevision(after, this.#ports.digest),
-            changeMetadata: { resourceIds: [id!], blockIds: [] },
-            review,
-            error: null,
-          };
-          try {
-            this.#ports.onCatalogChanged(
-              id!,
-              command.kind === "create-repository"
-                ? "created"
-                : command.kind === "rename-repository"
-                  ? "updated"
-                  : "deleted",
-              timestamp,
-            );
-          } catch {
-            result.error = {
-              code: "notification_failed",
-              message:
-                "Repository change was committed, but its notification failed. Refresh the directory.",
-            };
-          }
-          return result;
-        } catch (error) {
-          return commandFailure(error, true);
         }
       },
     );
