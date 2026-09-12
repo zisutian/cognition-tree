@@ -36,20 +36,21 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
   async getContentOperation(
     operationId: string,
   ): Promise<ContentOperationResult | null> {
+    await this.store.prepareContentReceipts();
     const known = this.#undurableResults.get(operationId);
     if (known) return structuredClone(known);
     const receipt = await this.receipts.read(operationId);
     const completing = this.#inFlight.get(operationId);
     if (receipt && receipt.status !== "pending" && completing)
       return structuredClone(await completing.promise);
-    return receipt ? this.#project(receipt) : null;
+    return receipt ? this.#project(receipt, !!completing) : null;
   }
 
-  #project(receipt: ContentOperationResult): ContentOperationResult {
-    if (
-      receipt.status === "pending" &&
-      !this.#inFlight.has(receipt.operationId)
-    )
+  #project(
+    receipt: ContentOperationResult,
+    running: boolean,
+  ): ContentOperationResult {
+    if (receipt.status === "pending" && !running)
       return {
         ...receipt,
         status: "indeterminate",
@@ -63,6 +64,13 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
     return receipt.audit === "pending" && receipt.status !== "pending"
       ? { ...receipt, audit: "failed" }
       : receipt;
+  }
+
+  #existing(receipt: ContentOperationResult, intent: ContentOperationIntent) {
+    if (receipt.digest !== intent.digest)
+      throw new ContentOperationIdempotencyError();
+    // A persisted intent owned by another execution is never replayed.
+    return this.#project(receipt, false);
   }
 
   async runContentOperation(
@@ -92,33 +100,24 @@ export class ContentOperationLedger implements ContentOperationLedgerPort {
       recordPrepared: ContentOperationRecorder,
     ) => Promise<ContentOperationOutcome>,
   ): Promise<ContentOperationResult> {
+    await this.store.prepareContentReceipts();
     const known = this.#undurableResults.get(intent.operationId);
     if (known) {
       if (known.digest !== intent.digest)
         throw new ContentOperationIdempotencyError();
       return known;
     }
+    const stored = await this.receipts.read(intent.operationId);
+    if (stored) return this.#existing(stored, intent);
+    // Known outcomes remain readable after audit failure; new writes require
+    // current ledger admission before reserving their independent receipt.
+    await this.store.read(() => undefined);
     const existing = await this.receipts.mutate(intent.operationId, (state) => {
       const previous = state.receipt;
       if (previous) {
-        if (previous.digest !== intent.digest)
-          throw new ContentOperationIdempotencyError();
-        // An existing persisted intent is never replayed, including across processes.
         return {
           changed: false,
-          result:
-            previous.status === "pending"
-              ? {
-                  ...previous,
-                  status: "indeterminate" as const,
-                  audit: "failed" as const,
-                  error: {
-                    code: "operation_indeterminate",
-                    message:
-                      "The process ended before a durable result was recorded. Inspect this operation and its affected content; it will not be replayed.",
-                  },
-                }
-              : this.#project(previous),
+          result: this.#existing(previous, intent),
         };
       }
       state.receipt = {

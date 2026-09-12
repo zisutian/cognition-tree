@@ -8,6 +8,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ContentOperationIdempotencyError,
+  OperationAuditUnavailableError,
   type ContentOperationIntent,
   type ContentOperationOutcome,
 } from "../../../../application/operations/index.ts";
@@ -290,12 +291,87 @@ it("persists the content result independently of an audit write failure", async 
     return committed;
   });
   expect(result).toMatchObject({ status: "committed", audit: "failed" });
+  expect(await ledger.getContentOperation(intent.operationId)).toEqual(result);
+  const blocked = vi.fn(async () => committed);
+  expect(await ledger.runContentOperation(intent, blocked)).toEqual(result);
+  expect(blocked).not.toHaveBeenCalled();
   const reopened = new OperationLedger(root, 1);
   await reopened.initialize();
   const execute = vi.fn(async () => committed);
   expect(await reopened.runContentOperation(intent, execute)).toEqual(result);
   expect(execute).not.toHaveBeenCalled();
 });
+
+it("keeps independent committed receipts readable but refuses new writes after ledger authority becomes unavailable", async () => {
+  const root = await temporaryRoot();
+  const ledger = new OperationLedger(root, 1);
+  const result = await ledger.runContentOperation(
+    intent,
+    async () => committed,
+  );
+  const { writeFile } = await import("node:fs/promises");
+  await writeFile(
+    path.join(root, "operations-v1", "operations.json"),
+    "{invalid",
+  );
+  expect((await ledger.status()).status).toBe("unavailable");
+  expect(await ledger.getContentOperation(intent.operationId)).toEqual(result);
+  const execute = vi.fn(async () => committed);
+  expect(await ledger.runContentOperation(intent, execute)).toEqual(result);
+  await expect(
+    ledger.runContentOperation(
+      { ...intent, operationId: "after-ledger-failure" },
+      execute,
+    ),
+  ).rejects.toBeInstanceOf(OperationAuditUnavailableError);
+  expect(execute).not.toHaveBeenCalled();
+});
+
+it.each(["query", "repeat"])(
+  "prepares legacy receipt authority before %s without explicit initialization",
+  async (action) => {
+    const root = await temporaryRoot();
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    const directory = path.join(root, "operations-v1");
+    await mkdir(directory, { mode: 0o700 });
+    const receipt = {
+      ...intent,
+      ...committed,
+      status: "pending",
+      afterRevision: null,
+      preparation: null,
+      audit: "pending",
+      updatedAt: intent.occurredAt,
+    };
+    await writeFile(
+      path.join(directory, "operations.json"),
+      JSON.stringify({
+        formatVersion: 3,
+        contentReceipts: [receipt],
+        agentReceipts: [],
+        auditEntries: [],
+      }),
+      { mode: 0o600 },
+    );
+    const ledger = new OperationLedger(root, 1);
+    const execute = vi.fn(async () => committed);
+    const result =
+      action === "query"
+        ? await ledger.getContentOperation(intent.operationId)
+        : await ledger.runContentOperation(intent, execute);
+    expect(result).toMatchObject({
+      operationId: intent.operationId,
+      status: "indeterminate",
+      afterRevision: null,
+    });
+    expect(execute).not.toHaveBeenCalled();
+    expect(
+      JSON.parse(
+        await readFile(path.join(directory, "operations.json"), "utf8"),
+      ),
+    ).not.toHaveProperty("contentReceipts");
+  },
+);
 
 it("resumes a legacy receipt migration after the index replacement fails", async () => {
   const root = await temporaryRoot();

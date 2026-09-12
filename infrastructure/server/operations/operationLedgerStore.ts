@@ -30,6 +30,7 @@ export class OperationLedgerStore {
   readonly #partition: SecureJsonPartition<OperationLedgerState>;
   readonly #stateDirectory: string;
   #unavailableMessage: string | null = null;
+  #contentReceiptsPrepared = false;
 
   constructor(
     stateDirectory: string,
@@ -97,6 +98,17 @@ export class OperationLedgerStore {
         this.#markUnavailable(error);
         return this.#currentStatus();
       }
+    });
+  }
+
+  /** Old receipts must reach their sole authority before any lookup or admission. */
+  prepareContentReceipts(): Promise<void> {
+    return this.#enqueue(async () => {
+      if (this.#contentReceiptsPrepared) return;
+      await this.#mutatePartition(() => ({
+        changed: false,
+        result: undefined,
+      }));
     });
   }
 
@@ -215,7 +227,7 @@ export class OperationLedgerStore {
       throw new OperationAuditUnavailableError(this.#unavailableMessage);
     }
     try {
-      return await this.#partition.mutate(async (state) => {
+      const result = await this.#partition.mutate(async (state) => {
         const legacy = state[legacyContentReceipts];
         if (legacy) {
           await this.#migrateContentReceipts(legacy);
@@ -224,6 +236,8 @@ export class OperationLedgerStore {
         const result = await operation(state);
         return { ...result, changed: result.changed || legacy !== undefined };
       });
+      this.#contentReceiptsPrepared = true;
+      return result;
     } catch (error) {
       if (error instanceof SecureStatePartitionError) {
         this.#markUnavailable(error);

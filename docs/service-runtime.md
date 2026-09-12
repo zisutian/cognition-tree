@@ -69,6 +69,8 @@ AgentSessionSnapshot。两类 SSE 都不是正文真值来源。
 
 operations-v1 的 formatVersion 4 只保存 auditEntries 和 agentReceipts；内容收据按操作 ID 分文件保存在 content-operations-v1，各自加锁和持久化，不受单个总账本文件的累计容量限制。读取兼容旧 formatVersion 2/3：先逐项持久化原有内容收据，再移除旧索引中的副本；迁移中断可重入，冲突副本拒绝覆盖。内容收据文件当前使用 formatVersion 2，兼容原有无 preparation 的记录；业务内容格式版本不变。
 
+内容收据的首次读取和提交都经过同一个旧记录准备屏障，不依赖调用方记得显式初始化。迁移或启动准备失败时不能创建新意图或执行内容命令；新操作还要检查当前账本可用性。准备完成后，独立收据与已知提交仍可查询，即使审计分区随后不可用；这不授予新写入权限。
+
 本机内容用例由 application/content 拥有。先持久化操作 ID、请求摘要、scope、命令和基线版本，再加载权威快照并定位，最后通过领域 prepared store 执行一次 CAS。短账本事务不持有内容锁；Workspace 的目录准入覆盖名称解析、存储访问与提交，仓库管理也使用该目录队列。普通浏览器的三方同步不进入此 exact-CAS 用例。
 
 CAS 前必须持久化 preparation：包含仓库身份、已解析目标的身份与前后名称/路径、预期写入后的存储版本。afterRevision 只来自真实提交收据；预期版本不冒充已提交结果。中断后可将查询取得的 basis.baseRevision 与预期版本核对，但不会因此自动重放或将结果改为成功。

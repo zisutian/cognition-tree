@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { ContentService } from "../../../../application/content/index.ts";
+import { OperationAuditUnavailableError } from "../../../../application/operations/index.ts";
 import { OperationLedger } from "../../../../infrastructure/server/operations/index.ts";
 import { replaceFileDurably } from "../../../../infrastructure/server/persistence/index.ts";
 import { createContentServiceFixture } from "./contentServiceFixture.ts";
@@ -23,6 +24,34 @@ const journal = { domain: "journal" as const };
 const todo = { domain: "todo" as const };
 
 describe("local semantic content use cases on real storage", () => {
+  it("keeps real Journal content unchanged when the operation ledger failed startup", async () => {
+    const value = await fixture();
+    const ledger = new OperationLedger(
+      path.join(value.root, "unavailable-ledger"),
+      1,
+      {
+        replaceStateFile: async (target, text) => {
+          if (path.basename(target) === "operations.json")
+            throw new Error("Audit directory is not writable");
+          await replaceFileDurably(target, text);
+        },
+      },
+    );
+    expect((await ledger.initialize()).status).toBe("unavailable");
+    const service = new ContentService({ ...value.ports, ledger });
+    const before = await service.query({ kind: "directory", scope: journal });
+    await expect(
+      service.execute({
+        operationId: randomUUID(),
+        scope: journal,
+        basis: before.basis,
+        command: { kind: "create-entry", body: "- 不应写入" },
+      }),
+    ).rejects.toBeInstanceOf(OperationAuditUnavailableError);
+    expect(await service.query({ kind: "directory", scope: journal })).toEqual(
+      before,
+    );
+  });
   it("does not commit content if prepared target evidence cannot be persisted", async () => {
     const value = await fixture();
     const ledger = new OperationLedger(
