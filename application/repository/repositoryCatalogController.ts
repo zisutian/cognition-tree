@@ -129,7 +129,19 @@ export function createRepositoryCatalogController({
     try {
       const catalogData = await catalog.listRepositories();
 
-      if (operationGeneration === generation) publishCatalog(catalogData);
+      if (operationGeneration === generation) {
+        // Cached data can seed a view, but cannot roll back facts this
+        // controller has already received from the service or a commit.
+        publishCatalog(
+          catalogData.revision === null && previous.status === "ready"
+            ? {
+                revision: null,
+                issues: previous.issues,
+                repositories: previous.repositories,
+              }
+            : catalogData,
+        );
+      }
     } catch (error) {
       if (operationGeneration !== generation) return;
       if (previous.status === "ready") {
@@ -226,17 +238,22 @@ export function createRepositoryCatalogController({
         });
         if (disposed || generation !== operationGeneration) return;
         let nextCatalog: WorkspaceRepositoryCatalogData;
+        const committedCatalog = {
+          revision,
+          issues: previous.issues.filter(({ id }) => id !== input.id),
+          repositories: previous.repositories.filter(
+            ({ id }) => id !== input.id,
+          ),
+        };
 
         try {
-          nextCatalog = await catalog.listRepositories();
+          const refreshed = await catalog.listRepositories();
+          nextCatalog =
+            refreshed.revision === null
+              ? { ...committedCatalog, revision: null }
+              : refreshed;
         } catch {
-          nextCatalog = {
-            revision,
-            issues: previous.issues.filter(({ id }) => id !== input.id),
-            repositories: previous.repositories.filter(
-              ({ id }) => id !== input.id,
-            ),
-          };
+          nextCatalog = committedCatalog;
         }
         if (disposed || generation !== operationGeneration) return;
         const preferredRepositoryId =

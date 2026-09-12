@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it, vi } from "vitest";
+import { createRepositoryCatalogController } from "../../../../application/repository/index.ts";
 import type { WorkspaceRepositoryPreparation } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation";
 import { createHttpRepositoryCacheIdentity } from "../../../../infrastructure/client/http/httpRepositoryIdentity";
 import { createMemoryRepositoryClientCache } from "../../../../infrastructure/client/repository/repositoryClientCache";
@@ -132,7 +133,7 @@ describe("HTTP workspace repository catalog", () => {
     ]);
   });
 
-  it("renames only catalog metadata through PATCH and refreshes the cache", async () => {
+  it("renames catalog metadata through content operations and refreshes the cache", async () => {
     const cache = createMemoryRepositoryClientCache();
     const calls: Array<{
       body?: BodyInit | null;
@@ -502,4 +503,91 @@ describe("HTTP workspace repository catalog", () => {
       }),
     ).resolves.toEqual({ revision: revisionC });
   });
+
+  it.each(["create", "rename", "delete"])(
+    "keeps a confirmed %s visible when cache updates fail and the service goes offline",
+    async (operation) => {
+      const cache = createMemoryRepositoryClientCache();
+      let offline = false;
+      const changed = {
+        ...descriptor,
+        id: operation === "create" ? "created" : descriptor.id,
+        label: "New label",
+      };
+      const backend = createHttpWorkspaceRepositoryCatalog({
+        baseUrl: "http://api.test",
+        cache,
+        preparation,
+        fetch: async (_input, init) => {
+          if (init?.method === "POST") {
+            offline = true;
+            return jsonResponse(
+              receipt(operation === "delete" ? undefined : changed),
+            );
+          }
+          if (offline) throw new TypeError("Service disconnected");
+          return jsonResponse(serverCatalog);
+        },
+      });
+      let active: string | null = descriptor.id;
+      const controller = createRepositoryCatalogController({
+        catalog: backend,
+        activeRepositorySelection: {
+          load: () => active,
+          save: (id) => {
+            active = id;
+          },
+          clear: () => {
+            active = null;
+          },
+        },
+        createOperationId: () => basis.operationId,
+      });
+      try {
+        await controller.reload();
+        cache.catalogs.save = vi.fn(async () => {
+          throw new Error("Cache is unavailable");
+        });
+        cache.renameRepositoryAtomically = vi.fn(async () => {
+          throw new Error("Cache is unavailable");
+        });
+        cache.deleteRepositoryAtomically = vi.fn(async () => {
+          throw new Error("Cache is unavailable");
+        });
+        if (operation === "create")
+          await controller.createRepository({ name: changed.label });
+        else if (operation === "rename")
+          await controller.renameRepository({
+            id: descriptor.id,
+            name: changed.label,
+          });
+        else await controller.deleteRepository({ id: descriptor.id });
+        const expected =
+          operation === "create"
+            ? [changed, descriptor]
+            : operation === "rename"
+              ? [changed]
+              : [];
+        expect(controller.getSnapshot().state).toMatchObject({
+          repositories: expected,
+        });
+        for (let attempt = 0; attempt < 2; attempt++) {
+          await controller.reload();
+          expect(controller.getSnapshot().state).toMatchObject({
+            repositories: expected,
+            revision: null,
+          });
+          expect(controller.getSnapshot().activeDescriptor?.id ?? null).toBe(
+            operation === "delete" ? null : changed.id,
+          );
+        }
+        // A fresh remote snapshot can still replace the retained display.
+        offline = false;
+        await controller.reload();
+        expect(controller.getSnapshot().state).toMatchObject(serverCatalog);
+      } finally {
+        controller.dispose();
+      }
+    },
+  );
 });

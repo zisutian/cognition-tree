@@ -143,6 +143,13 @@ transform 必须返回 covered unit ids，repository 在任何 rebase 前验证�
 `merge`、`projectChanges` 与 prepared store port，不导入三个内容领域、HTTP 或
 基础设施。本机命令先提交会使旧 Agent proposal 过期；Agent 或浏览器先提交也会使旧本机命令返回版本冲突。外部命令的意图和持久收据流程见[服务运行](service-runtime.md)，调用规则见[API 与 CLI 集成](api-integration.md)。
 
+## 仓库目录状态
+
+仓库目录控制器拥有当前页面接受的目录。缓存可在首次加载时提供离线展示，
+但无版本的缓存不能覆盖控制器已接受的服务端目录或已提交的创建、重命名、删除结果。
+后续离线刷新保留这些对象与选择，同时将目录 revision 置空，阻止基于离线数据写入。
+重新取得有版本的服务端目录后，以该目录更新展示。缓存保存失败不改变已确认的提交结果。
+
 ## Todo 周期查询
 
 Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前
