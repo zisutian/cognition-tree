@@ -54,7 +54,6 @@ async function fixture() {
   async function start() { await coordinator.start(initial.revision, destination); }
   async function wait(status: string) {
     await vi.waitFor(async () => expect((await coordinator.current())?.status).toBe(status));
-    await new Promise((resolve) => setTimeout(resolve, 5));
   }
   return { root, initial, source, destination, coordinator, barrier, restart, bootstrap, records, faults, dependencies, start, wait };
 }
@@ -115,7 +114,7 @@ describe("durable migration reconciliation", () => {
     f.restart.mockRejectedValueOnce(new Error("restart unavailable"));
     await f.start();
     await f.wait("restarting");
-    expect(await f.coordinator.current()).toMatchObject({ commitOutcome: "committed", errorMessage: expect.stringContaining("restart unavailable") });
+    await vi.waitFor(async () => expect(await f.coordinator.current()).toMatchObject({ commitOutcome: "committed", errorMessage: expect.stringContaining("restart unavailable") }));
     expect(f.barrier.isClosed()).toBe(true);
     const current = (await f.coordinator.current())!;
     await f.coordinator.reconcile(current.id);
