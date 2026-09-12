@@ -451,18 +451,62 @@ describe("local semantic content use cases on real storage", () => {
       (await value.read(todo, "今日计划")).tasks[0]?.recurrence,
     ).toMatchObject({ active: true, rule: { kind: "daily", interval: 1 } });
   });
-  it("rejects catalog input before commit and maintains syntax configuration through named commands", async () => {
+  it("rejects a duplicate repository name without changing the directory", async () => {
     const value = await fixture();
     await value.apply(
       { domain: "catalog" },
       { kind: "create-repository", name: workspace.repository },
     );
+    const before = await value.service.query({ kind: "catalog" });
     expect(
       await value.apply(
         { domain: "catalog" },
         { kind: "create-repository", name: workspace.repository },
       ),
     ).toMatchObject({ status: "failed" });
+    expect(await value.service.query({ kind: "catalog" })).toEqual(before);
+  });
+
+  it.each([journal, todo])(
+    "validates the $domain syntax before committing",
+    async (scope) => {
+      const value = await fixture();
+      const current = await value.service.query({
+        kind: "syntax",
+        scope,
+        includeSource: true,
+      });
+      if (current.kind !== "syntax") throw new Error("Expected syntax");
+      expect(
+        await value.apply(scope, {
+          kind: "update-syntax",
+          syntax: null,
+          source: current.files[0]!.source!,
+        }),
+      ).toMatchObject({ status: "committed" });
+      expect(
+        await value.apply(scope, {
+          kind: "update-syntax",
+          syntax: null,
+          source: "invalid",
+        }),
+      ).toMatchObject({ status: "failed" });
+      expect(
+        await value.service.query({
+          kind: "syntax",
+          scope,
+          includeSource: true,
+        }),
+      ).toEqual(current);
+    },
+  );
+
+  it("maintains named Workspace syntax and raw edits after removing the active syntax", async () => {
+    const value = await fixture();
+    await value.apply(
+      { domain: "catalog" },
+      { kind: "create-repository", name: workspace.repository },
+    );
     await value.apply(workspace, {
       kind: "create-note",
       parent: null,
@@ -556,28 +600,6 @@ describe("local semantic content use cases on real storage", () => {
         },
       }),
     ).toMatchObject({ status: "failed" });
-    for (const scope of [journal, todo]) {
-      const current = await value.service.query({
-        kind: "syntax",
-        scope,
-        includeSource: true,
-      });
-      if (current.kind !== "syntax") throw new Error("Expected syntax");
-      expect(
-        await value.apply(scope, {
-          kind: "update-syntax",
-          syntax: null,
-          source: current.files[0]!.source!,
-        }),
-      ).toMatchObject({ status: "committed" });
-      expect(
-        await value.apply(scope, {
-          kind: "update-syntax",
-          syntax: null,
-          source: "invalid",
-        }),
-      ).toMatchObject({ status: "failed" });
-    }
   });
 
   it("applies multiple exact replacements atomically and rejects ambiguous or overlapping edits without writes", async () => {
