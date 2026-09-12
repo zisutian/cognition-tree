@@ -94,6 +94,28 @@ export function createCheckpointReloadReconciler({
 
     const activeRepositoryId = state.catalog.activeRepositoryId;
 
+    // A checkpoint already represented by this session is consumed. A later
+    // local commit must not be compared to it while its own event is in flight.
+    if (
+      activeRepositoryId &&
+      state.workspaceRemoteRevision !== null &&
+      state.workspaceRemoteRevision === latestCheckpoint.workspaces[activeRepositoryId]
+    ) {
+      workspaceAttemptedSequences.set(activeRepositoryId, sequence);
+    }
+    if (
+      state.journalRemoteRevision !== null &&
+      state.journalRemoteRevision === latestCheckpoint.journal
+    ) {
+      journalAttemptedSequence = sequence;
+    }
+    if (
+      state.todoRemoteRevision !== null &&
+      state.todoRemoteRevision === latestCheckpoint.todo
+    ) {
+      todoAttemptedSequence = sequence;
+    }
+
     if (
       activeRepositoryId &&
       state.workspaceRemoteRevision !== null &&

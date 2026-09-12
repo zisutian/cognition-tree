@@ -41,6 +41,54 @@ function notification({
 }
 
 describe("checkpoint reload reconciler", () => {
+  it("does not reload a newer local commit against an already observed matching checkpoint", () => {
+    let listener: (event: DomainChangeNotification) => void = () => undefined;
+    const event = notification();
+    const state: CheckpointReloadState = {
+      catalog: {
+        activeRepositoryId: "repository-a",
+        knownRepositoryIds: ["repository-a", "repository-b"],
+      },
+      journalPersistenceStatus: "saved",
+      journalRemoteRevision: event.checkpoint.journal,
+      todoPersistenceStatus: "saved",
+      todoRemoteRevision: event.checkpoint.todo,
+      workspacePersistenceStatus: "saved",
+      workspaceRemoteRevision: event.checkpoint.workspaces["repository-a"]!,
+    };
+    const actions = {
+      reloadCatalog: vi.fn(async () => undefined),
+      reloadJournal: vi.fn(async () => undefined),
+      reloadTodo: vi.fn(async () => undefined),
+      reloadWorkspace: vi.fn(async () => undefined),
+    };
+    const reconciler = createCheckpointReloadReconciler({
+      actions,
+      getState: () => state,
+      source: {
+        dispose() {},
+        start() {},
+        subscribe(next) { listener = next; return () => undefined; },
+      },
+    });
+    reconciler.start();
+    listener(event);
+    // Our committed response can arrive before its event-stream notification.
+    state.journalRemoteRevision = "sha256:journal-own-commit";
+    state.todoRemoteRevision = "sha256:todo-own-commit";
+    state.workspaceRemoteRevision = "sha256:workspace-own-commit";
+    reconciler.notifyStateChanged();
+    expect(actions.reloadJournal).not.toHaveBeenCalled();
+    expect(actions.reloadTodo).not.toHaveBeenCalled();
+    expect(actions.reloadWorkspace).not.toHaveBeenCalled();
+    // A genuinely new remote checkpoint must still cause a refresh.
+    listener(notification({ sequence: 2 }));
+    expect(actions.reloadJournal).toHaveBeenCalledOnce();
+    expect(actions.reloadTodo).toHaveBeenCalledOnce();
+    expect(actions.reloadWorkspace).toHaveBeenCalledOnce();
+    reconciler.dispose();
+  });
+
   it("owns stream lifecycle and reloads each stale mounted projection once", async () => {
     let listener: (event: DomainChangeNotification) => void = () => undefined;
     const state: CheckpointReloadState = {
@@ -217,9 +265,17 @@ describe("checkpoint reload reconciler", () => {
     await Promise.resolve();
     expect(reloadWorkspace).not.toHaveBeenCalled();
 
-    listener(notification({ sequence: 2 }));
-    state.workspaceRemoteRevision = "sha256:workspace-still-old";
-    reconciler.notifyStateChanged();
+    const externalEdit = notification({ sequence: 2 });
+    listener({
+      ...externalEdit,
+      checkpoint: {
+        ...externalEdit.checkpoint,
+        workspaces: {
+          ...externalEdit.checkpoint.workspaces,
+          "repository-a": "sha256:workspace-external-edit",
+        },
+      },
+    });
     await vi.waitFor(() => expect(reloadWorkspace).toHaveBeenCalledOnce());
   });
 });
