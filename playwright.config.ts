@@ -5,9 +5,7 @@ process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 
 const requestedWorkers = process.env.CTN_E2E_WORKERS
   ? Number(process.env.CTN_E2E_WORKERS)
-  : process.env.CI
-    ? 2
-    : 4;
+  : 2;
 
 if (!Number.isSafeInteger(requestedWorkers) || requestedWorkers < 1) {
   throw new Error("CTN_E2E_WORKERS must be a positive integer.");

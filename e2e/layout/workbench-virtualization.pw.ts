@@ -1,33 +1,40 @@
 import { expect } from "@playwright/test";
 
 import {
-  seedLargeTreeRepository,
-  seedWorkbenchRepository,
+  seedLargeDirectoryRepository,
+  seedLargeStructureRepository,
 } from "../support/repositorySeeds";
-import { test } from "../support/e2eTest";
-import {
-  getActivityButton,
-  openRepositoryFromContext,
-  openWorkbench,
-} from "../support/workbenchPage";
+import { test as base } from "../support/e2eTest";
+import { openWorkbench } from "../support/workbenchPage";
 
-const repositoryId = "virtual-collections";
-const largeRepositoryId = "repository-large";
+const test = base.extend<{
+  directoryRepository: string;
+  structureRepository: string;
+}>({
+  directoryRepository: [
+    async ({ api }, use) => {
+      const id = "virtual-directory";
+      await seedLargeDirectoryRepository(api, id);
+      await use(id);
+    },
+    { timeout: 30_000 },
+  ],
+  structureRepository: [
+    async ({ api }, use) => {
+      const id = "virtual-structure";
+      await seedLargeStructureRepository(api, id);
+      await use(id);
+    },
+    { timeout: 30_000 },
+  ],
+});
 
 test.describe("virtual collection scrolling", () => {
-  test.beforeEach(async ({ api }) => {
-    await seedWorkbenchRepository(api, repositoryId);
-  });
-
-  test("virtualizes large directory and structure trees", async ({
-    api,
+  test("virtualizes a 601-note directory and reveals its final row", async ({
+    directoryRepository,
     page,
   }) => {
-    await seedLargeTreeRepository(api, largeRepositoryId);
-    await openWorkbench(page, repositoryId);
-    await getActivityButton(page, "仓库").click();
-    await openRepositoryFromContext(page, largeRepositoryId);
-    await getActivityButton(page, "笔记").click();
+    await openWorkbench(page, directoryRepository);
 
     const context = page.locator(".activity-context-content");
     const directoryTree = context.getByRole("tree");
@@ -46,12 +53,13 @@ test.describe("virtual collection scrolling", () => {
       element.scrollTop = element.scrollHeight;
     });
     await expect(context.getByTitle("Large Note 599")).toBeVisible();
+  });
 
-    await context.evaluate((element) => {
-      element.scrollTop = 0;
-    });
-    await context.getByTitle("Large Structure").click();
-
+  test("virtualizes a 600-block structure and reveals its final row", async ({
+    structureRepository,
+    page,
+  }) => {
+    await openWorkbench(page, structureRepository);
     const detailScroll = page.locator(".app-detail .ui-panel-body-scroll");
     const structureTree = detailScroll.getByRole("tree");
 

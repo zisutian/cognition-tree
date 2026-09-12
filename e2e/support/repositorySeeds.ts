@@ -9,8 +9,7 @@ import {
   type RepositoryNoteDto,
   type RepositoryTreeNodeDto,
 } from "../../contracts/workspace/types";
-import type { CreateLocalRepositoryWithId } from
-  "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog";
+import type { CreateLocalRepositoryWithId } from "../../infrastructure/server/repository/workspace/local/localRepositoryCatalog";
 import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
 import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types";
 import { initializeCtnSourceBlockMetadata } from "../../core/ctn/metadata/sourceMetadata";
@@ -24,8 +23,7 @@ export const e2eTimestamp = "2026-01-01T00:00:00.000Z";
 export const e2eAlphaFirstBlockTimestamp = "2026-01-02T00:00:00.000Z";
 export const e2eAlphaSecondBlockTimestamp = "2026-01-03T00:00:00.000Z";
 
-const e2eDefaultSyntaxFileId =
-  "syntax-00000000-0000-4000-8000-000000000001";
+const e2eDefaultSyntaxFileId = "syntax-00000000-0000-4000-8000-000000000001";
 
 function resolveE2ERepositoryPath(
   repositoryRoot: string,
@@ -42,10 +40,7 @@ export async function seedNoncurrentLocalRepository(
   repositoryRoot: string,
   repositoryId: string,
 ) {
-  const repositoryPath = resolveE2ERepositoryPath(
-    repositoryRoot,
-    repositoryId,
-  );
+  const repositoryPath = resolveE2ERepositoryPath(repositoryRoot, repositoryId);
   const revision = `sha256:${"a".repeat(64)}`;
   const controlPath = path.join(repositoryPath, ".ctn");
 
@@ -143,8 +138,7 @@ export function createSeedSource(
 
   return initializeCtnSourceBlockMetadata(source, syntax, {
     createdAt: e2eTimestamp,
-    createId: () =>
-      `00000000-0000-4000-8000-${String(++id).padStart(12, "0")}`,
+    createId: () => `00000000-0000-4000-8000-${String(++id).padStart(12, "0")}`,
     reservedIds: new Set(),
     updatedAt: e2eTimestamp,
   });
@@ -201,10 +195,12 @@ async function createRepository({
       syntax: syntaxConfigured
         ? {
             activeFileId: e2eDefaultSyntaxFileId,
-            files: [{
-              id: e2eDefaultSyntaxFileId,
-              source: syntaxSource,
-            }],
+            files: [
+              {
+                id: e2eDefaultSyntaxFileId,
+                source: syntaxSource,
+              },
+            ],
           }
         : { activeFileId: null, files: [] },
       workspace: {
@@ -267,12 +263,13 @@ export async function seedWorkbenchRepository(
       {
         id: "note-alpha",
         source: createSeedSourceWithBlockTimestamps(
-          alphaSource ?? [
-            "Alpha",
-            "\t: [[Beta]]",
-            "\t- Alpha 子项",
-            ...searchBlocks.map((text) => `\t: ${text}`),
-          ].join("\n"),
+          alphaSource ??
+            [
+              "Alpha",
+              "\t: [[Beta]]",
+              "\t- Alpha 子项",
+              ...searchBlocks.map((text) => `\t: ${text}`),
+            ].join("\n"),
           0,
           [
             e2eTimestamp,
@@ -393,12 +390,34 @@ export async function seedRawRepository(api: APIRequestContext, id: string) {
   });
 }
 
-export async function seedLargeTreeRepository(
+export async function seedLargeDirectoryRepository(
   api: APIRequestContext,
   id: string,
 ) {
-  const noteCount = 600;
-  const structureNote: SeedNote = {
+  const notes: SeedNote[] = [
+    {
+      id: "directory-anchor",
+      source: createSeedSource("Directory Anchor", 1_000_000),
+    },
+    ...Array.from({ length: 600 }, (_, index) => ({
+      id: `large-note-${index}`,
+      source: createSeedSource(`Large Note ${index}`, 2_000_000 + index),
+    })),
+  ];
+  await createRepository({
+    api,
+    id,
+    notes,
+    tree: notes.map((note) => ({ kind: "note", noteId: note.id })),
+    workspaceName: "大目录回归仓库",
+  });
+}
+
+export async function seedLargeStructureRepository(
+  api: APIRequestContext,
+  id: string,
+) {
+  const note: SeedNote = {
     id: "large-structure",
     source: createSeedSource(
       [
@@ -408,22 +427,11 @@ export async function seedLargeTreeRepository(
       1_000_000,
     ),
   };
-  const notes: SeedNote[] = Array.from({ length: noteCount }, (_, index) => ({
-    id: `large-note-${index}`,
-    source: createSeedSource(`Large Note ${index}`, 2_000_000 + index),
-  }));
-
   await createRepository({
     api,
     id,
-    notes: [structureNote, ...notes],
-    tree: [
-      { kind: "note", noteId: structureNote.id },
-      ...notes.map((note) => ({
-        kind: "note" as const,
-        noteId: note.id,
-      })),
-    ],
-    workspaceName: "大树回归仓库",
+    notes: [note],
+    tree: [{ kind: "note", noteId: note.id }],
+    workspaceName: "大结构回归仓库",
   });
 }

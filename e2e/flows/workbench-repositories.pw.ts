@@ -7,7 +7,6 @@ import {
 } from "../../presentation/ui/workbench/frameResize";
 import {
   removeE2ELocalRepository,
-  seedLargeTreeRepository,
   seedNoncurrentLocalRepository,
   seedRawRepository,
   seedWorkbenchRepository,
@@ -22,7 +21,6 @@ import {
 
 const repositoryId = "repository-flows";
 const rawRepositoryId = "repository-raw";
-const largeRepositoryId = "repository-large";
 const externalRepositoryId = "repository-external";
 const unsupportedRepositoryId = "default";
 
@@ -438,16 +436,15 @@ test.describe("repository management", () => {
     page,
     repositoryRoot,
   }) => {
-    await seedLargeTreeRepository(api, largeRepositoryId);
     const catalogResponse = await api.get("/api/v4/admin/repositories");
     const catalog = (await catalogResponse.json()) as RepositoryCatalogDto;
     const remainingRepository = catalog.repositories.find(
-      ({ id }) => id === largeRepositoryId,
+      ({ id }) => id === repositoryId,
     );
 
     expect(catalogResponse.ok()).toBe(true);
     expect(remainingRepository).toBeDefined();
-    await removeOtherWorkbenchRepositories(api, largeRepositoryId);
+    await removeOtherWorkbenchRepositories(api, repositoryId);
 
     await seedNoncurrentLocalRepository(
       repositoryRoot,
@@ -455,7 +452,7 @@ test.describe("repository management", () => {
     );
 
     try {
-      await openWorkbench(page, largeRepositoryId);
+      await openWorkbench(page, repositoryId);
       await getActivityButton(page, "仓库").click();
       await page.getByRole("button", { name: "删除仓库", exact: true }).click();
 

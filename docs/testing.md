@@ -84,14 +84,14 @@ Dark Modern 样板、控件与问题面板：
 `build` 包含前端构建、包体积门槛与服务端编译。保留现有门槛，不为本轮界面修改放宽限制。
 另需在独立临时源码副本中验证开发 `./start.sh` 的健康、网页和内容调用，再通过 `pnpm release:smoke <候选目录>` 验证编译入口。两个启动脚本均不接受模式参数；验收不启动正式数据目录，也不替换可用版。
 Vitest 默认限制为 2 个 worker，避免多个真实文件系统和子进程测试争抢资源；可用 `--maxWorkers` 显式调整并记录。保留原有超时与断言，不通过重试掩盖失败。
-E2E 并发数可用 `CTN_E2E_WORKERS` 调整；同一结果应记录采用的配置。
+E2E 同样默认使用 2 个 worker，避免多个独立开发服务的首次加载挤占流程超时；可用 `CTN_E2E_WORKERS` 调整，并记录验收采用的配置。
 
 容量对照在修改前后各运行一次相同命令，保留输出中的 dataset、timings、memory、verification 和 validationCounts。
 若修改了容量参数或同时运行其他重负载任务，不能把结果作为同配置的性能对照。时间和内存会受环境波动影响，复用次数和内容完整性需分别判断。
 
 当前桌面验收使用 Chromium 默认 1280×720，保留独立滚动、长内容、侧栏调整及八活动导航。其他尺寸、浏览器和设备不属于本轮扩展范围。历史验收报告只在项目外层的本地 reports 中补充，不是测试前置条件。进程终止恢复只证明进程恢复；真实断电、真实模型和其他平台分别记录。
 
-仓库浏览器回归分别位于 `e2e/flows/workbench-repositories.pw.ts`（管理与恢复）、`e2e/flows/workbench-workspace-sync.pw.ts`（保存与外部变化）、`e2e/layout/workbench-virtualization.pw.ts`（大树可见区域与滚动），各文件直接消费当前用例的 API fixture。
+仓库浏览器回归分别位于 `e2e/flows/workbench-repositories.pw.ts`（管理与恢复）、`e2e/flows/workbench-workspace-sync.pw.ts`（保存与外部变化）、`e2e/layout/workbench-virtualization.pw.ts`（大树可见区域与滚动），各文件直接消费当前用例的 API fixture。大目录（601 篇笔记）与大结构（600 个块）分别验证，真实造数属于各自的 fixture，并独立限制在 30 秒；交互场景仍使用全局 30 秒超时。这个准备预算与交互预算分开记录，不把二者相加后的耗时视为原先整体 30 秒的性能对照。
 
 ## 本机内容接口回归
 
