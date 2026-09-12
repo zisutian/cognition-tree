@@ -25,11 +25,8 @@ sourceImportCorpus,
 } from "./sourceGraph";
 
 const layeredTestModules = import.meta.glob([
-  "../application/**/*.{ts,tsx}",
-  "../contracts/**/*.{ts,tsx}",
-  "../core/**/*.{ts,tsx}",
-  "../infrastructure/**/*.{ts,tsx}",
-  "../presentation/**/*.{ts,tsx}",
+  "../unit/{application,contracts,core,infrastructure,presentation}/**/*.{ts,tsx}",
+  "../support/{application,contracts,core,infrastructure,presentation}/**/*.{ts,tsx}",
 ], {
   eager: true,
   import: "default",
@@ -60,7 +57,7 @@ const dependencyTextPolicies = createDependencyTextPolicies({
 
 function auditTestLayerImports() {
   return Object.entries(layeredTestModules).flatMap(([filePath, source]) => {
-    const testLayer = filePath.split("/")[1] ?? "";
+    const testLayer = filePath.split("/")[2] ?? "";
     const allowed = testLayerImports[testLayer] ?? [];
 
     return readModuleImports({ [filePath]: source }, filePath).flatMap(

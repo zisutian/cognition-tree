@@ -48,8 +48,8 @@
     contracts/        API registry、领域 contract 与 wire 解析
     tooling/          CLI、构建、Git、基准脚本与专用 TypeScript 配置
     docs/             文档索引以及产品、架构、工程、使用与界面约定
-    tests/            单元、UI、contract 与架构测试
-    e2e/              浏览器流程测试
+    tests/            unit、integration、architecture、documentation 与共享夹具
+    e2e/              flows、layout 与浏览器共享夹具
 
 ## 文档导航
 

@@ -41,6 +41,8 @@ export default defineConfig({
     },
   },
   test: {
+    include: ["tests/**/*.test.{ts,tsx}"],
+    maxWorkers: 2,
     css: {
       include: [/\?raw(?:&|$)/],
     },

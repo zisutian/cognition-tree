@@ -1,0 +1,284 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import {
+  expect,
+  type APIRequestContext,
+} from "@playwright/test";
+import type { WorkspaceRepositorySnapshotDto } from "../../contracts/workspace/types";
+import { appResizeKeyboardStep } from "../../presentation/ui/workbench/frameResize";
+import {
+  seedInteractionRepository,
+  seedWorkbenchRepository,
+} from "../support/repositorySeeds";
+import { test } from "../support/e2eTest";
+import {
+  getActivityButton,
+  openRepositoryFromContext,
+  openWorkbench,
+  selectNotesMode,
+} from "../support/workbenchPage";
+
+const repositoryId = "workbench-structure";
+const interactionRepositoryId = "workbench-structure-interactions";
+
+test.describe("directory and structure operation flows", () => {
+  let api: APIRequestContext;
+
+  test.beforeEach(async ({ api: testApi }) => {
+    api = testApi;
+    await seedWorkbenchRepository(api, repositoryId);
+    await seedInteractionRepository(api, interactionRepositoryId);
+  });
+
+  test("preserves directory and layout behavior across activities", async ({
+    page,
+  }) => {
+    await openWorkbench(page, repositoryId);
+
+    const noteContext = page.locator(".app-context");
+    const treeSurface = noteContext.locator(".ui-directory-tree-surface");
+    const folder = noteContext.getByTitle("资料");
+    const alpha = noteContext.getByTitle("Alpha");
+    const gamma = noteContext.getByTitle("Gamma");
+    const contextResize = page.getByRole("separator", {
+      name: "调整上下文区宽度",
+    });
+    const initialContextWidth = Number(
+      await contextResize.getAttribute("aria-valuenow"),
+    );
+
+    await expect(alpha).toBeVisible();
+    await gamma.dragTo(folder);
+    await expect(
+      folder.locator("xpath=ancestor::li[1]").getByTitle("Gamma"),
+    ).toBeVisible();
+
+    const treeSurfaceBox = await treeSurface.boundingBox();
+
+    expect(treeSurfaceBox).not.toBeNull();
+    await noteContext.getByTitle("Gamma").dragTo(treeSurface, {
+      targetPosition: {
+        x: 12,
+        y: Math.max(1, (treeSurfaceBox?.height ?? 1) - 2),
+      },
+    });
+    await expect(
+      treeSurface.locator(
+        ":scope > .ui-directory-tree > li > .ui-tree-row-frame",
+      ).getByTitle("Gamma"),
+    ).toBeVisible();
+
+    await noteContext.getByTitle("Gamma").click({ button: "right" });
+    const directoryMenu = page.getByRole("menu", { name: "目录操作" });
+    const moveMenuItem = directoryMenu.getByRole("menuitem", {
+      name: "移动到…",
+    });
+
+    await expect(directoryMenu.getByRole("menuitem")).toHaveCount(1);
+    await expect(directoryMenu).not.toContainText("删除");
+    await expect(moveMenuItem).toBeFocused();
+    await moveMenuItem.press("Escape");
+    await expect(directoryMenu).toBeHidden();
+    await expect(noteContext.getByTitle("Gamma")).toBeFocused();
+
+    await noteContext.getByTitle("Gamma").click({ button: "right" });
+    await directoryMenu.getByRole("menuitem", { name: "移动到…" }).click();
+
+    const moveQuickPick = page.getByRole("dialog", { name: "移动到" });
+    const moveSearch = moveQuickPick.getByRole("combobox", { name: "移动到" });
+
+    await expect(moveSearch).toBeFocused();
+    await moveSearch.fill("资料");
+    await moveSearch.press("ArrowDown");
+    await expect(moveQuickPick.getByRole("option", { name: /资料/ }))
+      .toHaveAttribute("aria-selected", "true");
+    await moveSearch.press("Enter");
+    await expect(
+      folder.locator("xpath=ancestor::li[1]").getByTitle("Gamma"),
+    ).toBeVisible();
+
+    await folder.click();
+    await expect(alpha).toBeHidden();
+    await expect(noteContext.getByRole("button", {
+      name: "重命名文件夹 资料",
+    })).toBeVisible();
+    await folder.press("Escape");
+    await expect(noteContext.getByRole("button", {
+      name: "重命名文件夹 资料",
+    })).toHaveCount(0);
+    await folder.click();
+    await expect(alpha).toBeVisible();
+    await alpha.click();
+    await noteContext.getByRole("button", { name: "新建笔记" }).click();
+    const rootUnnamedNote = noteContext.getByTitle("未命名笔记").locator("..");
+
+    await expect(rootUnnamedNote).toBeVisible();
+    await expect(
+      folder.locator("xpath=ancestor::li[1]").getByTitle("未命名笔记"),
+    ).toHaveCount(0);
+    const deleteNoteButton = rootUnnamedNote.getByRole("button", {
+      name: "删除笔记 未命名笔记",
+    });
+
+    await deleteNoteButton.click();
+    const cancelDeleteButton = rootUnnamedNote.getByRole("button", {
+      name: "取消删除笔记 未命名笔记",
+    });
+    const confirmDeleteButton = rootUnnamedNote.getByRole("button", {
+      name: "确认删除笔记 未命名笔记",
+    });
+
+    await expect(confirmDeleteButton).toBeVisible();
+    await cancelDeleteButton.click();
+    await expect(rootUnnamedNote).toBeVisible();
+
+    await deleteNoteButton.click();
+    await confirmDeleteButton.click();
+    await expect(rootUnnamedNote).toBeHidden();
+
+    await contextResize.focus();
+    await contextResize.press("ArrowRight");
+    await expect(contextResize).toHaveAttribute(
+      "aria-valuenow",
+      String(initialContextWidth + appResizeKeyboardStep),
+    );
+
+    await selectNotesMode(page, "结构");
+    const structureOperationContext = page.locator(".app-context");
+
+    await expect(
+      structureOperationContext.getByRole("radio", {
+        name: "笔记间迁移",
+        exact: true,
+      }),
+    ).toHaveAttribute("aria-checked", "true");
+    const structureColumns = page.locator(".structure-operation-column");
+    const sourceStructure = structureColumns.first();
+    const targetStructure = structureColumns.nth(1);
+    const sourceStructureRow = sourceStructure
+      .getByRole("treeitem")
+      .first()
+      .getByRole("button");
+    const movedStructureTitle = await sourceStructureRow.getAttribute("title");
+
+    expect(movedStructureTitle).not.toBeNull();
+    await sourceStructureRow.click({ button: "right" });
+
+    const structureMenu = page.getByRole("menu", { name: "结构块操作" });
+
+    await expect(structureMenu.getByRole("menuitem")).toHaveCount(1);
+    await structureMenu.getByRole("menuitem", { name: "移动到…" }).click();
+
+    const structureMoveQuickPick = page.getByRole("dialog", {
+      name: "移动结构块",
+    });
+
+    await structureMoveQuickPick
+      .getByRole("option", { name: /文末根块/ })
+      .click();
+    await expect(targetStructure.getByTitle(movedStructureTitle ?? "")).toBeVisible();
+
+    await page.getByRole("radio", { name: "笔记内迁移", exact: true }).click();
+    await structureOperationContext.getByTitle("Beta").click();
+    await expect(
+      page.getByRole("radio", { name: "笔记内迁移", exact: true }),
+    ).toHaveAttribute("aria-checked", "true");
+
+    await selectNotesMode(page, "编辑");
+    await expect(contextResize).toHaveAttribute(
+      "aria-valuenow",
+      String(initialContextWidth + appResizeKeyboardStep),
+    );
+
+    await selectNotesMode(page, "结构");
+    await expect(
+      page.getByRole("radio", { name: "笔记内迁移", exact: true }),
+    ).toHaveAttribute("aria-checked", "true");
+    await expect(
+      page.getByRole("region", { name: "结构操作" }).getByText(
+        "笔记结构 · Beta",
+        { exact: true },
+      ),
+    ).toBeVisible();
+  });
+
+  test("moves structure blocks through pointer drag targets", async ({
+    page,
+  }) => {
+    await openWorkbench(page, repositoryId);
+    await getActivityButton(page, "仓库").click();
+    await openRepositoryFromContext(page, interactionRepositoryId);
+    await selectNotesMode(page, "结构");
+
+    const columns = page.locator(".structure-operation-column");
+    const sourceColumn = columns.first();
+    const targetColumn = columns.nth(1);
+
+    await expect(
+      sourceColumn.getByText("源笔记 · Source", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      targetColumn.getByText("目标笔记 · Target", { exact: true }),
+    ).toBeVisible();
+
+    const sourceChild = sourceColumn.getByTitle("组分: Source Child");
+    const targetChild = targetColumn.getByTitle("组分: Target Child");
+
+    await sourceChild.dragTo(targetChild);
+    await expect(sourceColumn.getByTitle("组分: Source Child")).toBeHidden();
+    await expect(targetColumn.getByTitle("组分: Source Child")).toBeVisible();
+
+    await expect.poll(async () => {
+      const response = await api.get(
+        `/api/v4/sync/workspaces/${interactionRepositoryId}`,
+      );
+      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
+      const targetSource = snapshot.content.workspace.notes.find(
+        ({ id }) => id === "interaction-target",
+      )?.source ?? "";
+      const editableLines = targetSource
+        .split("\n")
+        .filter((line) => !line.trimStart().startsWith("@ctn-block"));
+
+      return editableLines.includes("\t\t- Source Child");
+    }).toBe(true);
+
+    await page.getByRole("radio", { name: "笔记内迁移", exact: true }).click();
+    await page.locator(".app-context").getByTitle("Target").click();
+
+    const structureColumn = page.locator(".structure-operation-column");
+
+    await expect(
+      structureColumn.getByText("笔记结构 · Target", { exact: true }),
+    ).toBeVisible();
+
+    const nestedSourceChild = structureColumn.getByTitle(
+      "组分: Source Child",
+    );
+    const targetSibling = structureColumn.getByTitle("组分: Target Child");
+    const targetSiblingBox = await targetSibling.boundingBox();
+
+    expect(targetSiblingBox).not.toBeNull();
+    await nestedSourceChild.dragTo(targetSibling, {
+      targetPosition: {
+        x: 12,
+        y: Math.max(1, Math.floor((targetSiblingBox?.height ?? 1) * 0.75)),
+      },
+    });
+    await expect.poll(async () => {
+      const response = await api.get(
+        `/api/v4/sync/workspaces/${interactionRepositoryId}`,
+      );
+      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
+      const targetSource = snapshot.content.workspace.notes.find(
+        ({ id }) => id === "interaction-target",
+      )?.source ?? "";
+      const editableLines = targetSource
+        .split("\n")
+        .filter((line) => !line.trimStart().startsWith("@ctn-block"));
+
+      return editableLines.includes("\t- Source Child") &&
+        !editableLines.includes("\t\t- Source Child");
+    }).toBe(true);
+  });
+});

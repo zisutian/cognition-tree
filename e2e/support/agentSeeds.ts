@@ -4,7 +4,7 @@ import { expect, type APIRequestContext } from "@playwright/test";
 import {
   AgentSessionSnapshotSchema,
   parseAgentSchema,
-} from "../../contracts/agent";
+} from "../../contracts/agent/index";
 import { buildApiOperationPath } from "../../contracts/api/registry";
 import { e2eAgentProfileId } from "./fakeAgentRuntime";
 

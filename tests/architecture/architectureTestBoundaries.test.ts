@@ -4,8 +4,6 @@ import type { TextCorpus } from "../support/textPolicy";
 
 const architectureTestModules = import.meta.glob([
   "./*.ts",
-  "../presentation/designContract.test.ts",
-  "../presentation/uiConstraintCatalog.ts",
   "../support/workflowTextPolicies.ts",
 ], {
   eager: true,
@@ -48,7 +46,7 @@ describe("architecture test infrastructure boundaries", () => {
       "./dependencyConstraintCatalog.ts",
       "./e2eConstraintCatalog.ts",
       "./ownershipConstraintCatalog.ts",
-      "../presentation/uiConstraintCatalog.ts",
+      "./uiConstraintCatalog.ts",
     ];
     const forbiddenRuntimeOwners = new Set([
       "./sourceCorpus",
@@ -102,9 +100,9 @@ describe("architecture test infrastructure boundaries", () => {
       "../support/workflowTextPolicies.ts",
     ]);
     expect(workflowFactoryConsumers).toEqual([
-      "../presentation/uiConstraintCatalog.ts imports ../support/workflowTextPolicies",
+      "./uiConstraintCatalog.ts imports ../support/workflowTextPolicies",
       "./e2eConstraintCatalog.ts imports ../support/workflowTextPolicies",
-    ]);
+    ].sort());
   });
 
   it("keeps each catalog wired only by its test composition root", () => {
@@ -121,11 +119,11 @@ describe("architecture test infrastructure boundaries", () => {
       .sort();
 
     expect(catalogImports).toEqual([
-      "../presentation/designContract.test.ts imports ./uiConstraintCatalog",
+      "./designContract.test.ts imports ./uiConstraintCatalog",
       "./dependencyBoundaries.test.ts imports ./dependencyConstraintCatalog",
       "./e2eBoundaries.test.ts imports ./e2eConstraintCatalog",
       "./ownershipBoundaries.test.ts imports ./ownershipConstraintCatalog",
-    ]);
+    ].sort());
     expect(
       Object.keys(architectureTestModules).filter((filePath) =>
         filePath.endsWith("/constraintCatalog.ts") ||
@@ -136,7 +134,7 @@ describe("architecture test infrastructure boundaries", () => {
 
   it("keeps UI design composition leaf-based without file rereads", () => {
     const designImports = importsFrom(
-      "../presentation/designContract.test.ts",
+      "./designContract.test.ts",
     );
 
     expect(designImports).toContain(

@@ -14,7 +14,7 @@ export function createE2eTextPolicies(
       corpus: e2eSpecModules,
       matches: Object.keys(e2eSpecModules).length,
       name: "E2E composition-root fixture",
-      pattern: /from "\.\/support\/e2eTest"/,
+      pattern: /from "\.\.\/support\/e2eTest"/,
     },
     forbidTextPolicy(
       "order-dependent E2E suites",

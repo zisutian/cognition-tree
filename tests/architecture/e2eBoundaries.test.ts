@@ -5,7 +5,7 @@ import {
   type TextCorpus,
 } from "../support/textPolicy";
 
-const e2eSpecModules = import.meta.glob("../../e2e/*.pw.ts", {
+const e2eSpecModules = import.meta.glob("../../e2e/**/*.pw.ts", {
   eager: true,
   import: "default",
   query: "?raw",
