@@ -107,6 +107,7 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
             <label className="syntax-setting-line">
               <span className="syntax-setting-label">缩进宽度</span>
               <InputControl
+                disabled={!syntax.canMutate}
                 aria-label="缩进宽度"
                 className="syntax-number-control"
                 data-syntax-field-id={syntaxFieldIds.tabDisplayWidth}

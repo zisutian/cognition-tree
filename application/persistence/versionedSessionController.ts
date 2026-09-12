@@ -27,6 +27,7 @@ export type VersionedSessionReadyState<
   LocalRevision extends string,
   Location,
 > = {
+  canMutate: boolean;
   content: Content;
   location: Location;
   persistence: VersionedRepositoryPersistenceState<Revision>;
@@ -212,12 +213,12 @@ export function createVersionedSessionController<
     state = next;
     listeners.forEach((listener) => listener());
   };
-  const canMutate = () =>
+  const mutationAvailable = () =>
     !disposed &&
     !quiesced &&
     active !== null &&
-    active.queue !== null &&
-    state.status === "ready";
+    active.queue !== null;
+  const canMutate = () => mutationAvailable() && state.status === "ready";
   const requireOpen = () => {
     if (disposed) {
       throw new VersionedSessionUnavailableError(label);
@@ -263,6 +264,7 @@ export function createVersionedSessionController<
     const visible = session.optimisticHead ?? snapshot;
 
     publish({
+      canMutate: mutationAvailable(),
       content: visible.content,
       location: repository.location,
       persistence: session.persistence,
@@ -271,6 +273,10 @@ export function createVersionedSessionController<
       status: "ready",
       storageLabel: repository.label,
     });
+  };
+  const quiesce = (session: Session) => {
+    quiesced = true;
+    publishReady(session);
   };
   const installQueue = (
     session: Session,
@@ -446,7 +452,7 @@ export function createVersionedSessionController<
     const activeRepository = requireRepository();
     const expectedTransition = ++transitionVersion;
 
-    quiesced = true;
+    quiesce(session);
     try {
       await queue.prepareForReload();
       session.queue = null;
@@ -485,7 +491,7 @@ export function createVersionedSessionController<
       const activeRepository = requireRepository();
       const expectedTransition = ++transitionVersion;
 
-      quiesced = true;
+      quiesce(session);
       try {
         await queue.prepareForDiscard();
         session.queue = null;
@@ -546,12 +552,13 @@ export function createVersionedSessionController<
     async prepareForRemoval() {
       const { queue, session } = requireActive();
 
-      quiesced = true;
+      quiesce(session);
       try {
         await queue.prepareForDiscard();
         session.queue = null;
       } catch (error) {
         quiesced = false;
+        publishReady(session);
         throw error;
       }
       let resumed = false;
@@ -577,7 +584,7 @@ export function createVersionedSessionController<
       try {
         await queue.flushLocal();
         if (queue.hasActiveSync()) {
-          quiesced = true;
+          quiesce(session);
           await queue.prepareForReload();
           session.queue = null;
           const snapshot = await activeRepository.loadSnapshot();
@@ -608,7 +615,7 @@ export function createVersionedSessionController<
           return;
         }
 
-        quiesced = true;
+        quiesce(session);
         const syncStartedDuringLoad = queue.hasActiveSync();
         await queue.prepareForReload();
         session.queue = null;

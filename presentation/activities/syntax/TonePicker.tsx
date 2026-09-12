@@ -17,6 +17,7 @@ import {
 const defaultCustomTone = "#397c72";
 
 type TonePickerProps = {
+  disabled?: boolean;
   ariaLabel: string;
   customToneLabel: string;
   fieldId?: string;
@@ -59,6 +60,7 @@ export function getToneSwatchStyle(
 }
 
 export function TonePicker({
+  disabled = false,
   ariaLabel,
   customToneLabel,
   fieldId,
@@ -82,6 +84,7 @@ export function TonePicker({
       panelRole="dialog"
       renderTrigger={({ isOpen, panelId, toggle, triggerRef }) => (
         <Button
+          disabled={disabled}
           aria-controls={panelId}
           aria-expanded={isOpen}
           aria-haspopup="dialog"
@@ -118,6 +121,7 @@ export function TonePicker({
 
               return (
                 <Button
+                  disabled={disabled}
                   aria-label={option.label}
                   className={
                     value === option.value
@@ -146,6 +150,7 @@ export function TonePicker({
 
           <div className="syntax-tone-custom-row">
             <Button
+              disabled={disabled}
               className={
                 isCustomValue
                   ? "syntax-tone-custom-button is-selected"
@@ -168,6 +173,7 @@ export function TonePicker({
               {customToneLabel}
             </Button>
             <ColorControl
+              disabled={disabled}
               aria-label="自定义颜色"
               value={customTone}
               onChange={(event) => {

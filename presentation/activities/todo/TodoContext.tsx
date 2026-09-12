@@ -126,7 +126,7 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
       <div className="context-toolbar">
         <Button
           aria-label="新建事项集合"
-          disabled={creating}
+          disabled={creating || !view.canMutate}
           onClick={() => {
             setCreating(true);
             setCreateValue("");
@@ -151,6 +151,7 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
                       : [
                           {
                             ariaLabel: `重命名事项集合 ${collection.name}`,
+                    disabled: !view.canMutate,
                             label: "改",
                             onSelect: () => {
                               setEditing({
@@ -162,6 +163,7 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
                           },
                           {
                             ariaLabel: `删除事项集合 ${collection.name}`,
+                            disabled: !view.canMutate,
                             label: "删",
                             onSelect: () => setPendingDelete(collection),
                             tone: "danger",
@@ -169,6 +171,7 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
                         ]}
                     confirmation={pendingDelete?.id === collection.id
                       ? {
+                          disabled: !view.canMutate,
                           cancelAriaLabel:
                             `取消删除事项集合 ${collection.name}`,
                           confirmAriaLabel:
@@ -181,9 +184,13 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
                 )
                 : undefined}
               buttonProps={{
-                draggable: editing?.id !== collection.id,
+                draggable: view.canMutate && editing?.id !== collection.id,
                 onDragEnd: () => setDragState(null),
                 onDragStart: (event) => {
+                  if (!view.canMutate) {
+                    event.preventDefault();
+                    return;
+                  }
                   event.dataTransfer.effectAllowed = "move";
                   event.dataTransfer.setData(collectionDragType, collection.id);
                   event.dataTransfer.setData("text/plain", collection.id);
@@ -206,6 +213,7 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
               inlineRename={editing?.id === collection.id
                 ? {
                     ariaLabel: `重命名事项集合 ${collection.name}`,
+                    disabled: !view.canMutate,
                     inputProps: {
                       "aria-invalid": editing.errorMessage ? true : undefined,
                     },
@@ -220,10 +228,12 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
                 : undefined}
               key={collection.id}
               label={collection.name}
-              onBeginRename={() => {
-                setEditing({ id: collection.id, value: collection.name });
-                setPendingDelete(null);
-              }}
+              onBeginRename={view.canMutate
+                ? () => {
+                    setEditing({ id: collection.id, value: collection.name });
+                    setPendingDelete(null);
+                  }
+                : undefined}
               onSelect={() => {
                 setEditing(null);
                 setPendingDelete(null);
@@ -247,7 +257,8 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
                   );
                 },
                 onDragOver: (event) => {
-                  if (!dragState || dragState.sourceId === collection.id) return;
+                  if (!view.canMutate || !dragState ||
+                    dragState.sourceId === collection.id) return;
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "move";
                   setDragState({
@@ -258,6 +269,10 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
                 },
                 onDrop: (event) => {
                   event.preventDefault();
+                  if (!view.canMutate) {
+                    setDragState(null);
+                    return;
+                  }
                   const sourceId = (
                     event.dataTransfer.getData(collectionDragType) ||
                     event.dataTransfer.getData("text/plain") ||
@@ -291,6 +306,7 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
               icon={<ListChecks aria-hidden="true" size={13} />}
               inlineRename={{
                 ariaLabel: "新建事项集合名称",
+                disabled: !view.canMutate,
                 inputProps: {
                   "aria-invalid": createErrorMessage ? true : undefined,
                 },

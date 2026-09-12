@@ -180,6 +180,7 @@ export function useTodoApplication({
           index: prepared.index,
           ...mutations,
           openCollectionLine,
+          canMutate: readyState.canMutate,
           persistence: readyState.persistence,
           selectCollection,
           today,

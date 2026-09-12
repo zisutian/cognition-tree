@@ -51,6 +51,7 @@ export function useWorkspaceApplication(
   } = session;
   const selection = useWorkspaceSelection({ commands, workspace });
   const syntax = useSyntaxRuntime({
+    canMutate: session.canMutate(),
     activeFileId: syntaxCatalog.activeFileId,
     activateSyntaxFile,
     activeSyntax: workspaceSyntax?.syntax ?? null,

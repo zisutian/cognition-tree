@@ -34,6 +34,7 @@ function InlineRuleRow({
       tabIndex={-1}
     >
       <InputControl
+        disabled={!syntax.canMutate}
         aria-label="名称"
         sizing="container"
         data-syntax-field-id={createSyntaxRuleFieldId(
@@ -59,6 +60,7 @@ function InlineRuleRow({
             : (
               <>
                 <InputControl
+                  disabled={!syntax.canMutate}
                   aria-label="开始"
                   sizing="container"
                   data-syntax-field-id={createSyntaxRuleFieldId(
@@ -75,6 +77,7 @@ function InlineRuleRow({
                   }
                 />
                 <InputControl
+                  disabled={!syntax.canMutate}
                   aria-label="结束"
                   sizing="container"
                   data-syntax-field-id={createSyntaxRuleFieldId(
@@ -97,6 +100,7 @@ function InlineRuleRow({
         ? <span className="syntax-readonly">{rule.marker}</span>
         : (
           <InputControl
+            disabled={!syntax.canMutate}
             aria-label="符号"
             sizing="container"
             data-syntax-field-id={createSyntaxRuleFieldId(
@@ -117,6 +121,7 @@ function InlineRuleRow({
         {rule.kind === "paired" ? "成对" : "单个"}
       </span>
       <TonePicker
+        disabled={!syntax.canMutate}
         ariaLabel={`${rule.label}颜色`}
         customToneLabel={syntax.customToneLabel}
         fieldId={createSyntaxRuleFieldId("inline", rule.id, "tone")}
@@ -130,6 +135,7 @@ function InlineRuleRow({
         ? <SyntaxRuleSpacer />
         : (
           <Button
+            disabled={!syntax.canMutate}
             aria-label="删除行内规则"
             onClick={() => syntax.actions.removeInline(rule.id)}
             title="删除"
@@ -160,6 +166,7 @@ export function InlineRuleRows({
       ))}
       <div className="syntax-rule-actions">
         <Button
+          disabled={!syntax.canMutate}
           onClick={() => syntax.actions.addInline("paired")}
           type="button"
           variant="secondary"
@@ -168,6 +175,7 @@ export function InlineRuleRows({
           成对符号
         </Button>
         <Button
+          disabled={!syntax.canMutate}
           onClick={() => syntax.actions.addInline("single")}
           type="button"
           variant="secondary"

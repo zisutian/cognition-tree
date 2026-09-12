@@ -49,7 +49,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
 
     return pending ? await pending === true : false;
   };
-  const mutationBlocked = busy || view.hasDraftErrors;
+  const mutationBlocked = busy || view.hasDraftErrors || !view.workspaceCanMutate;
 
   useEffect(() => {
     const selectedFileId = view.selectedTarget.kind === "workspace-file"
@@ -212,7 +212,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
                           : []),
                         {
                           ariaLabel: `重命名语法 ${file.name}`,
-                          disabled: busy || !view.actions,
+                          disabled: busy || !view.actions || !view.workspaceCanMutate,
                           label: "改",
                           onSelect: () => beginRename(file),
                         },
@@ -254,7 +254,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
               inlineRename={renamingFile?.id === file.id
                 ? {
                     ariaLabel: `重命名语法 ${file.name}`,
-                    disabled: busy,
+                    disabled: busy || !view.workspaceCanMutate,
                     inputProps: {
                       "aria-invalid": renamingFile.errorMessage
                         ? true

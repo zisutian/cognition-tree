@@ -9,12 +9,14 @@ import {
 type SyntaxKind = SyntaxViewModel["kindOptions"][number]["value"];
 
 export function SyntaxKindPicker({
+  disabled = false,
   ariaLabel,
   fieldId,
   options,
   value,
   onChange,
 }: {
+  disabled?: boolean;
   ariaLabel: string;
   fieldId?: string;
   options: SyntaxViewModel["kindOptions"];
@@ -36,6 +38,7 @@ export function SyntaxKindPicker({
       panelRole="listbox"
       renderTrigger={({ isOpen, panelId, toggle, triggerRef }) => (
         <Button
+          disabled={disabled}
           aria-controls={panelId}
           aria-expanded={isOpen}
           aria-haspopup="listbox"
@@ -59,6 +62,7 @@ export function SyntaxKindPicker({
 
             return (
               <Button
+                disabled={disabled}
                 aria-selected={isSelected}
                 className={
                   isSelected

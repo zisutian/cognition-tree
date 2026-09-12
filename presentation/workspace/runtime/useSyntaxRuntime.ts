@@ -20,6 +20,7 @@ type WorkspaceSyntaxRuntimeFile = {
 };
 
 type UseSyntaxRuntimeOptions = {
+  canMutate: boolean;
   activeFileId: string | null;
   activateSyntaxFile: (fileId: string) => Promise<void>;
   activeSyntax: CtnCompiledSyntax | null;
@@ -88,6 +89,7 @@ function selectExistingFileId(
 }
 
 export function useSyntaxRuntime({
+  canMutate,
   activeFileId,
   activateSyntaxFile,
   activeSyntax,
@@ -208,6 +210,7 @@ export function useSyntaxRuntime({
   );
 
   return {
+    canMutate,
     activeFileId,
     catalogNameConflictMessage,
     createSyntaxFile: createFile,

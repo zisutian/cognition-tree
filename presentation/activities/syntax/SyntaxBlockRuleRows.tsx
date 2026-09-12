@@ -18,6 +18,7 @@ import { SyntaxRuleSpacer } from "./SyntaxRuleLayout.tsx";
 import { TonePicker } from "./TonePicker.tsx";
 
 function SyntaxToneCells({
+  disabled,
   backgroundOptions,
   customToneLabel,
   label,
@@ -26,6 +27,7 @@ function SyntaxToneCells({
   tone,
   onChange,
 }: {
+  disabled: boolean;
   backgroundOptions: AvailableSyntaxViewModel["backgroundToneOptions"];
   customToneLabel: string;
   label: string;
@@ -37,6 +39,7 @@ function SyntaxToneCells({
   return (
     <>
       <TonePicker
+        disabled={disabled}
         ariaLabel={`${label}背景色`}
         customToneLabel={customToneLabel}
         options={backgroundOptions}
@@ -45,6 +48,7 @@ function SyntaxToneCells({
         onChange={(nextTone) => onChange({ tone: nextTone })}
       />
       <TonePicker
+        disabled={disabled}
         ariaLabel={`${label}文字色`}
         customToneLabel={customToneLabel}
         options={textColorOptions}
@@ -74,6 +78,7 @@ export function TitleAndRootRows({
           <span className="syntax-readonly">首行</span>
           <span className="syntax-readonly">标题</span>
           <SyntaxToneCells
+            disabled={!syntax.canMutate}
             backgroundOptions={syntax.backgroundToneOptions}
             customToneLabel={syntax.customToneLabel}
             label="首行标题"
@@ -97,6 +102,7 @@ export function TitleAndRootRows({
             {syntax.selectedTarget.kind === "journal" ? "正文" : "概念"}
           </span>
           <SyntaxToneCells
+            disabled={!syntax.canMutate}
             backgroundOptions={syntax.backgroundToneOptions}
             customToneLabel={syntax.customToneLabel}
             label={syntax.rootRuleLabel}
@@ -139,6 +145,7 @@ export function BlockRuleRows({
               )
               : (
                 <InputControl
+                  disabled={!syntax.canMutate}
                   aria-label="名称"
                   sizing="container"
                   data-syntax-field-id={createSyntaxRuleFieldId(
@@ -163,6 +170,7 @@ export function BlockRuleRows({
               )
               : (
                 <InputControl
+                  disabled={!syntax.canMutate}
                   aria-label="标记"
                   sizing="container"
                   data-syntax-field-id={createSyntaxRuleFieldId(
@@ -183,6 +191,7 @@ export function BlockRuleRows({
               ? <span className="syntax-readonly">普通块</span>
               : (
                 <SyntaxKindPicker
+                  disabled={!syntax.canMutate}
                   ariaLabel="角色"
                   fieldId={createSyntaxRuleFieldId(
                     "block",
@@ -199,6 +208,7 @@ export function BlockRuleRows({
                 />
               )}
             <TonePicker
+              disabled={!syntax.canMutate}
               ariaLabel={`${rule.label}背景色`}
               customToneLabel={syntax.customToneLabel}
               fieldId={createSyntaxRuleFieldId(
@@ -214,6 +224,7 @@ export function BlockRuleRows({
               }
             />
             <TonePicker
+              disabled={!syntax.canMutate}
               ariaLabel={`${rule.label}${isTodoItem ? "颜色" : "文字色"}`}
               customToneLabel={syntax.customToneLabel}
               fieldId={createSyntaxRuleFieldId("block", rule.id, "textColor")}
@@ -228,6 +239,7 @@ export function BlockRuleRows({
               ? <SyntaxRuleSpacer />
               : (
                 <Button
+                  disabled={!syntax.canMutate}
                   aria-label="删除块规则"
                   onClick={() => syntax.actions.removeBlock(rule.id)}
                   type="button"
@@ -241,6 +253,7 @@ export function BlockRuleRows({
       })}
       <div className="syntax-rule-actions">
         <Button
+          disabled={!syntax.canMutate}
           onClick={syntax.actions.addBlock}
           type="button"
           variant="secondary"

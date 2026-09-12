@@ -34,6 +34,8 @@ type SyntaxDraftActionProjection = ReturnType<typeof createSyntaxDraftActions>;
 
 export type SyntaxViewModel = SyntaxProjection &
   Omit<SyntaxDraftActionProjection, "actions"> & {
+    canMutate: boolean;
+    workspaceCanMutate: boolean;
     actions: SyntaxDraftActionProjection["actions"] | null;
     activeFileId: string | null;
     activateFile: (fileId: string) => Promise<void>;

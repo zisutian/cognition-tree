@@ -79,6 +79,10 @@ function createView(
   content: TodoContent,
   activeCollectionId = todoCollectionId(1),
   today: TodoLocalDate = "2026-07-18",
+  lifecycle: Pick<
+    Parameters<typeof createTodoViewModel>[0],
+    "canMutate" | "persistence"
+  > = { canMutate: true, persistence: { status: "saved" } },
 ) {
   const actions = createActions();
   const selectCollection = vi.fn();
@@ -92,7 +96,7 @@ function createView(
     index: createTodoParseIndex(content),
     ...actions,
     openCollectionLine,
-    persistence: { status: "saved" },
+    ...lifecycle,
     selectCollection,
     today,
     updateActiveBodyLine: vi.fn(),
@@ -102,6 +106,19 @@ function createView(
 }
 
 describe("Todo CTN view model", () => {
+  it.each([true, false])("uses session mutation capability during a conflict (allowed %s)", (canMutate) => {
+    const { view } = createView(createContent(), todoCollectionId(1), "2026-07-18", {
+      canMutate,
+      persistence: {
+        status: "conflict",
+        remoteRevision: `sha256:${"a".repeat(64)}`,
+      },
+    });
+    expect(view.canMutate).toBe(canMutate);
+    expect(view.editor.readOnly).toBe(!canMutate);
+    expect(view.syntax.canMutate).toBe(canMutate);
+  });
+
   it("projects source order, nested structure, and sidecar completion", () => {
     const { view } = createView(createContent());
 

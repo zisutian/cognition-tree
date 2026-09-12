@@ -20,6 +20,7 @@ import { useCtnSyntaxDraftRuntime } from "../../syntax/index.ts";
 
 
 type SystemSyntaxSource = CtnSyntaxDraftRuntimeSource & {
+  canMutate: boolean;
   updateSource: (source: string) => void | Promise<void>;
 };
 
@@ -300,6 +301,12 @@ export function useSyntaxActivity({
 
   return {
     ...view,
+    canMutate: selectedTarget.kind === "journal"
+      ? journalSyntax?.canMutate ?? false
+      : selectedTarget.kind === "todo"
+        ? todoSyntax?.canMutate ?? false
+        : workspace?.canMutate ?? false,
+    workspaceCanMutate: workspace?.canMutate ?? false,
     actions: draftActions?.actions ?? null,
     activeFileId: workspace?.activeFileId ?? null,
     activateFile,

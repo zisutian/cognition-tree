@@ -74,6 +74,7 @@ export function JournalContext({ view }: JournalViewProps) {
       <div className="context-toolbar">
         <Button
           aria-label="新建日记"
+          disabled={!view.canMutate}
           onClick={() => submitJournalEntryCreation({
             createEntry: view.createEntry,
             runAction: feedback.runAction,
@@ -134,6 +135,7 @@ export function JournalContext({ view }: JournalViewProps) {
                                       ? undefined
                                       : [{
                                           ariaLabel: `删除日记 ${entry.title}`,
+                                          disabled: !view.canMutate,
                                           label: "删",
                                           onSelect: () => setPendingDelete(entry),
                                           tone: "danger",
@@ -141,6 +143,7 @@ export function JournalContext({ view }: JournalViewProps) {
                                     confirmation={pendingDelete?.id === entry.id
                                       ? {
                                           cancelAriaLabel: `取消删除日记 ${entry.title}`,
+                                          disabled: !view.canMutate,
                                           confirmAriaLabel: `确认删除日记 ${entry.title}`,
                                           onCancel: () => setPendingDelete(null),
                                           onConfirm: confirmDelete,

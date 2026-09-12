@@ -104,6 +104,7 @@ export type JournalCalendarYearView = {
 };
 
 export type JournalViewModel = {
+  canMutate: boolean;
   activeEntry: {
     createdAt: string;
     id: JournalEntryId;
@@ -166,6 +167,7 @@ export type JournalViewModel = {
   persistence: JournalPersistenceState;
   selectEntry: (entryId: JournalEntryId) => void;
   syntax: {
+    canMutate: boolean;
     syntax: CtnCompiledSyntax;
     source: string;
     updateSource: (source: string) => void;
@@ -173,6 +175,7 @@ export type JournalViewModel = {
 };
 
 type JournalViewModelInput = {
+  canMutate: boolean;
   activeBodyPosition: JournalActiveBodyPosition | null;
   activeEntryId: JournalEntryId | null;
   content: JournalContent;
@@ -378,6 +381,7 @@ function findJournalOutlineNodeAtLine(
 }
 
 export function createJournalViewModel({
+  canMutate,
   activeBodyPosition,
   activeEntryId,
   consumeFocusRequest,
@@ -439,6 +443,7 @@ export function createJournalViewModel({
   };
 
   return {
+    canMutate,
     activeEntry: activeParsed
       ? {
           createdAt: activeParsed.entry.createdAt,
@@ -465,7 +470,7 @@ export function createJournalViewModel({
           : null,
       onActiveLineChange: updateActiveBodyLine,
       onConsumeFocusTarget: consumeFocusRequest,
-      readOnly: persistence.status === "conflict",
+      readOnly: !canMutate,
       stats: {
         lineCount: (activeProjection?.source ?? "").split("\n").length,
         rootCount: bodyRoots.length,
@@ -551,6 +556,7 @@ export function createJournalViewModel({
     persistence,
     selectEntry,
     syntax: {
+      canMutate,
       syntax: index.syntax,
       source: content.syntaxSource,
       updateSource: updateSyntaxSource,

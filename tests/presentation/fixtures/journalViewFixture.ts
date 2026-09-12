@@ -8,6 +8,7 @@ export function createJournalView(
   overrides: Partial<JournalViewModel> = {},
 ): JournalViewModel {
   return {
+    canMutate: true,
     activeEntry: {
       createdAt: "2026-01-02T03:04:05.000Z",
       id: "journal-entry-00000000-0000-4000-8000-000000000001",
@@ -71,6 +72,7 @@ export function createJournalView(
     },
     selectEntry: () => undefined,
     syntax: {
+      canMutate: true,
       syntax: defaultJournalSyntax,
       source: defaultJournalSyntaxSource,
       updateSource: () => undefined,

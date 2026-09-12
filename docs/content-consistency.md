@@ -130,6 +130,10 @@ exact proof。repository 在同一解决操作中校验证明、rebase 并继续
 失败，新的本地权威 snapshot 与明确 sync error 一并交接，不能退回旧 conflict；若远端
 再次形成重叠修改，则必须返回另一份完整 conflict snapshot。
 
+会话 ready 投影中的 `canMutate` 同时约束编辑器、目录动作、待办勾选/周期和语法控件。
+进入 reload、冲突解决或删除准备的暂停阶段时立即发布不可修改状态；安装结果或恢复队列后
+再次发布可修改状态。界面不得从 conflict 标签自行推导只读，也不得另存一份可修改状态。
+
 完整 conflict 发布后仍允许普通编辑与 stage；repository 接受后的 snapshot 是内容、
 revision、pending 和 conflict 的唯一权威。每次 stage 在 local-revision CAS 下重新计算
 仍未处理的单元；只有未处理集合为空才恢复同步。保存队列只负责调度和按 transition

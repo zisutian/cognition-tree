@@ -772,11 +772,13 @@ describe("versioned session controller", () => {
     releaseSync.resolve();
     await vi.waitFor(() => expect(harness.getLoadCount()).toBe(2));
     expect(controller.canMutate()).toBe(false);
+    expect(controller.getState()).toMatchObject({ status: "ready", canMutate: false });
     await expect(controller.flushPendingChanges()).resolves.toBeUndefined();
 
     reloadSnapshot.resolve(harness.getSnapshot());
     await reload;
     expect(controller.canMutate()).toBe(true);
+    expect(controller.getState()).toMatchObject({ status: "ready", canMutate: true });
     controller.dispose();
   });
 

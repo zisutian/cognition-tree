@@ -8,6 +8,7 @@ export function createTodoView(
   overrides: Partial<TodoViewModel> = {},
 ): TodoViewModel {
   return {
+    canMutate: true,
     activeCollection: {
       createdAt: "2026-07-18T01:00:00.000Z",
       id: "todo-collection-00000000-0000-4000-8000-000000000001",
@@ -122,6 +123,7 @@ export function createTodoView(
     setBlockRecurrence: () => undefined,
     stopBlockRecurrence: () => undefined,
     syntax: {
+      canMutate: true,
       syntax: defaultTodoSyntax,
       source: defaultTodoSyntaxSource,
       updateSource: () => undefined,

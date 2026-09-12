@@ -91,6 +91,7 @@ describe("Todo panels", () => {
     const editorMarkup = renderToStaticMarkup(
       <FeedbackProvider activeActivityId="todo">
         <TodoRecurrenceEditor
+          disabled={false}
           node={recurringNode}
           onCancel={() => undefined}
           onConfirm={() => undefined}
@@ -100,6 +101,7 @@ describe("Todo panels", () => {
     const stoppedEditorMarkup = renderToStaticMarkup(
       <FeedbackProvider activeActivityId="todo">
         <TodoRecurrenceEditor
+          disabled={false}
           node={{
             ...recurringNode,
             recurrence: {

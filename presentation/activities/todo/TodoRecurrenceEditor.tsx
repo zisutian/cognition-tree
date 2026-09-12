@@ -45,10 +45,12 @@ function requirePositiveInteger(value: string, label: string) {
 }
 
 export function TodoRecurrenceEditor({
+  disabled,
   node,
   onCancel,
   onConfirm,
 }: {
+  disabled: boolean;
   node: TodoBlockView;
   onCancel: () => void;
   onConfirm: (rule: TodoRecurrenceRule | null) => void;
@@ -66,6 +68,7 @@ export function TodoRecurrenceEditor({
   const [errorMessage, setErrorMessage] = useState("");
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (disabled) return;
     try {
       let nextRule: TodoRecurrenceRule | null;
 
@@ -198,7 +201,7 @@ export function TodoRecurrenceEditor({
         </p>
       ) : null}
       <div className="todo-recurrence-actions">
-        <Button type="submit" variant="primary">确定</Button>
+        <Button disabled={disabled} type="submit" variant="primary">确定</Button>
         <Button onClick={onCancel} type="button">取消</Button>
       </div>
     </form>

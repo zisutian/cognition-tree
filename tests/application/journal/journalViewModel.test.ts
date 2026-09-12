@@ -29,12 +29,13 @@ function createViewContent() {
 }
 
 describe("journal view model", () => {
-  it("projects grouped entries, body-only editor state and structure details", () => {
+  it.each([true, false])("projects grouped entries and session mutation capability during a conflict (allowed %s)", (canMutate) => {
     const content = createViewContent();
     const index = createJournalParseIndex(content);
     const openEntryLine = vi.fn();
     const updateEntryBody = vi.fn();
     const view = createJournalViewModel({
+      canMutate,
       activeBodyPosition: { entryId: journalEntryId(2), lineNumber: 2 },
       activeEntryId: journalEntryId(2),
       consumeFocusRequest: vi.fn(),
@@ -52,13 +53,19 @@ describe("journal view model", () => {
       },
       index,
       openEntryLine,
-      persistence: { status: "saved" },
+      persistence: {
+        status: "conflict",
+        remoteRevision: `sha256:${"a".repeat(64)}`,
+      },
       selectEntry: vi.fn(),
       toggleCalendarKey: vi.fn(),
       updateActiveBodyLine: vi.fn(),
       updateEntryBody,
     });
 
+    expect(view.canMutate).toBe(canMutate);
+    expect(view.editor.readOnly).toBe(!canMutate);
+    expect(view.syntax.canMutate).toBe(canMutate);
     expect(view.calendar.years).toHaveLength(1);
     expect(view.calendar.years[0]?.months[0]?.entries.map(
       ({ id, isActive }) => ({ id, isActive }),
@@ -130,6 +137,7 @@ describe("journal view model", () => {
     const content = createViewContent();
     const openEntryLine = vi.fn();
     const view = createJournalViewModel({
+      canMutate: true,
       activeBodyPosition: null,
       activeEntryId: journalEntryId(2),
       consumeFocusRequest: vi.fn(),
@@ -167,6 +175,7 @@ describe("journal view model", () => {
   it("projects an empty repository without inventing an active entry", () => {
     const content = createEmptyJournalContent();
     const view = createJournalViewModel({
+      canMutate: true,
       activeBodyPosition: null,
       activeEntryId: null,
       consumeFocusRequest: vi.fn(),

@@ -78,6 +78,7 @@ function TodoStructureNodes({
                 <CheckboxControl
                   aria-label={`${node.completed ? "标记未完成" : "标记完成"} ${node.text}`}
                   checked={node.completed}
+                  disabled={!view.canMutate}
                   onChange={() => feedback.runAction(() =>
                     view.toggleBlock(collectionId, node.id)
                   )}
@@ -128,6 +129,7 @@ function TodoStructureNodes({
             </div>
             {editingRecurrence ? (
               <TodoRecurrenceEditor
+                disabled={!view.canMutate}
                 key={`${node.id}:${node.recurrence?.active ? "active" : "plain"}`}
                 node={node}
                 onCancel={() => setRecurrenceEditorBlockId(null)}

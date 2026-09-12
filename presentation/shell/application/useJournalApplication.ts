@@ -247,6 +247,7 @@ export function useJournalApplication({
           index: prepared.index,
           openEntryLine,
           openWorkspaceNote,
+          canMutate: readyState.canMutate,
           persistence: readyState.persistence,
           selectEntry,
           toggleCalendarKey,

@@ -92,6 +92,7 @@ export type TodoActiveCollectionView = {
 };
 
 export type TodoViewModel = TodoMutationActions & {
+  canMutate: boolean;
   activeCollection: TodoActiveCollectionView | null;
   collections: TodoCollectionListItem[];
   diagnostics: TodoDiagnostics;
@@ -131,6 +132,7 @@ export type TodoViewModel = TodoMutationActions & {
   persistence: TodoPersistenceState;
   selectCollection: (collectionId: TodoCollectionId) => void;
   syntax: {
+    canMutate: boolean;
     syntax: CtnCompiledSyntax;
     source: string;
     updateSource: (source: string) => void;
@@ -138,6 +140,7 @@ export type TodoViewModel = TodoMutationActions & {
 };
 
 type TodoViewModelInput = TodoMutationActions & {
+  canMutate: boolean;
   activeBodyPosition: TodoActiveBodyPosition | null;
   activeCollectionId: TodoCollectionId | null;
   consumeFocusRequest: (requestId: number) => void;
@@ -253,6 +256,7 @@ function findBlockAtLine(nodes: TodoBlockView[], lineNumber: number) {
 
 export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
   const {
+    canMutate,
     activeBodyPosition,
     activeCollectionId,
     consumeFocusRequest,
@@ -332,6 +336,7 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
   };
 
   return {
+    canMutate,
     ...actions,
     activeCollection: activeParsed
       ? {
@@ -409,7 +414,7 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
         : null,
       onActiveLineChange: updateActiveBodyLine,
       onConsumeFocusTarget: consumeFocusRequest,
-      readOnly: persistence.status === "conflict",
+      readOnly: !canMutate,
       syntax: index.syntax,
       updateBody(change) {
         if (activeCollectionId) {
@@ -436,6 +441,7 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
     persistence,
     selectCollection,
     syntax: {
+      canMutate,
       syntax: index.syntax,
       source: content.syntaxSource,
       updateSource: actions.updateSyntaxSource,

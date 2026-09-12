@@ -14,6 +14,8 @@ export function createSyntaxView(
 
   return {
     ...syntax,
+    canMutate: true,
+    workspaceCanMutate: true,
     activeFileId: "syntax-default",
     activateFile: async () => undefined,
     actions: {

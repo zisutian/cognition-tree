@@ -44,6 +44,9 @@ Dark Modern 样板、控件与问题面板：
 
     pnpm exec playwright test e2e/workbench-migration.pw.ts e2e/workbench-layout.pw.ts
 
+内置日记和代办的保存回归在真实服务上制造冲突，验证继续编辑、恢复基线后自动同步，
+以及延迟冲突解决响应时编辑器、目录和语法控件共同禁用、完成后恢复。
+
 修改共享 UI 后运行现有调用方的浏览器流程。保留笔记、日记、代办的输入法、撤销重做、选择区、保存前 flush 和冲突后继续编辑回归。
 不要因为样式重构而删除这些业务证明。
 
