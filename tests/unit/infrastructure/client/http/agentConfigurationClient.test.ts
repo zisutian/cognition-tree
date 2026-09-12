@@ -15,7 +15,7 @@ const status = {
 } as const;
 
 describe("HTTP Agent configuration client", () => {
-  it("starts, polls, and cancels conformance through short v3 requests", async () => {
+  it("starts, polls, and cancels conformance through short v4 requests", async () => {
     const requests: Array<{ method: string; url: string }> = [];
     const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       requests.push({ method: init?.method ?? "GET", url: String(input) });

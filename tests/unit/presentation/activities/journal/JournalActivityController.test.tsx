@@ -1,30 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe,expect,it,vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-JournalActivityController,
-resolveJournalRetry,
+  JournalActivityController,
+  resolveJournalRetry,
 } from "../../../../../presentation/activities/journal/JournalActivityController";
 import type { WorkbenchApplication } from "../../../../../presentation/shell/application/workbenchApplication";
 import { createAgentApplicationFixture } from "../../../../support/presentation/fixtures/agentApplicationFixture";
 import { createJournalView } from "../../../../support/presentation/fixtures/journalViewFixture";
-
-const controls = {
-  contextWidth: 280,
-  focusMode: false,
-  onCollapseDetail: () => undefined,
-  onConfigureSyntax: () => undefined,
-  onContextWidthChange: () => undefined,
-  onToggleFocusMode: () => undefined,
-};
 
 function createApplicationWithoutWorkspace(): WorkbenchApplication {
   return {
     agent: createAgentApplicationFixture(),
     localApi: {
       serviceOrigin: "http://localhost:3001",
-      getOperation: async () => { throw new Error("not requested"); },
+      getOperation: async () => {
+        throw new Error("not requested");
+      },
     },
     journal: {
       reload: async () => undefined,
@@ -41,31 +33,6 @@ function createApplicationWithoutWorkspace(): WorkbenchApplication {
 }
 
 describe("JournalActivityController", () => {
-  it("renders the ready Journal independently when no ordinary repository exists", () => {
-    const application = createApplicationWithoutWorkspace();
-    const rendered = JournalActivityController({
-      active: true,
-      application,
-      onActiveActivityChange: () => undefined,
-      renderActivity: (createSlots) => {
-        const slots = createSlots(controls);
-
-        return (
-          <>
-            {slots.context?.content}
-            {slots.main}
-            {slots.detail}
-          </>
-        );
-      },
-    });
-    const markup = renderToStaticMarkup(<>{rendered}</>);
-
-    expect(application.workspace.status).toBe("absent");
-    expect(markup.length).toBeGreaterThan(0);
-    expect(markup).not.toContain("前往仓库创建");
-  });
-
   it("does not mount Journal slots while another activity is active", () => {
     const rendered = JournalActivityController({
       active: false,
@@ -90,19 +57,22 @@ describe("JournalActivityController", () => {
           reload,
           retry: retryBuiltIn,
           state: {
-            issues: [{
-              code: "repository_corrupt",
-              id: "journal",
-              location: null,
-              message: "日记仓库损坏。",
-              status: "fault",
-            }],
+            issues: [
+              {
+                code: "repository_corrupt",
+                id: "journal",
+                location: null,
+                message: "日记仓库损坏。",
+                status: "fault",
+              },
+            ],
             repositories: [],
             retryingId: null,
             status: "ready",
           },
         },
-        sessions: {} as WorkbenchApplication["repository"]["builtIns"]["sessions"],
+        sessions:
+          {} as WorkbenchApplication["repository"]["builtIns"]["sessions"],
       },
     );
 

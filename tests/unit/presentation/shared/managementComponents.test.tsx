@@ -13,7 +13,7 @@ import {
 } from "../../../../presentation/ui/shared/ManagementList";
 import { StatusBadge } from "../../../../presentation/ui/shared/StatusPresentation";
 
-import { Button, EmptyState } from "../../../../presentation/ui/shared/primitives";
+import { Button } from "../../../../presentation/ui/shared/primitives";
 import { InputControl } from "../../../../presentation/ui/shared/controls";
 
 describe("shared management components", () => {
@@ -24,6 +24,7 @@ describe("shared management components", () => {
           {(accessibility) => <InputControl {...accessibility} />}
         </FieldRow>
         <FieldRow
+          description="用于识别连接"
           errorMessage="名称不能为空"
           fieldId="provider-name"
           label="Provider"
@@ -39,6 +40,14 @@ describe("shared management components", () => {
     expect(markup).toContain('for="profile-name"');
     expect(markup).not.toContain("profile-name-description");
     expect(markup).toContain('aria-invalid="true"');
+    const providerInput = markup.match(
+      /<input[^>]*id="provider-name"[^>]*>/,
+    )?.[0];
+    expect(providerInput).toContain(
+      'aria-describedby="provider-name-description provider-name-error"',
+    );
+    expect(markup).toContain('id="provider-name-description"');
+    expect(markup).toContain('id="provider-name-error"');
     expect(markup).toContain("名称不能为空");
   });
 
@@ -54,7 +63,6 @@ describe("shared management components", () => {
             title="本地 Ollama"
           />
         </ManagementList>
-        <EmptyState compact description="尚无记录" title="操作记录" />
       </>,
     );
 

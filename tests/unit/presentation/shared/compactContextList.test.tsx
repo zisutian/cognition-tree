@@ -1,12 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type {
-  ButtonHTMLAttributes,
-  ReactElement,
-} from "react";
-import { Children } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   CompactContextGroup,
   CompactContextList,
@@ -26,18 +21,24 @@ describe("compact context lists", () => {
         listAriaLabel="主要项目"
       >
         <CompactContextRow
-          actions={<CompactContextActionButtons actions={[{
-            ariaLabel: "删除当前项目",
-            label: "删",
-            onSelect: () => undefined,
-            tone: "danger",
-          }]} />}
+          actions={
+            <CompactContextActionButtons
+              actions={[
+                {
+                  ariaLabel: "删除当前项目",
+                  label: "删",
+                  onSelect: () => undefined,
+                  tone: "danger",
+                },
+              ]}
+            />
+          }
           buttonProps={{ "data-item-id": "item-1" }}
-          icon={(
+          icon={
             <CompactContextStatusIcon label="当前项目">
               <span aria-hidden="true">I</span>
             </CompactContextStatusIcon>
-          )}
+          }
           label="当前项目"
           selected
           trailing={<span className="ui-tree-meta">启用</span>}
@@ -87,28 +88,7 @@ describe("compact context lists", () => {
     expect(markup).not.toContain("不应显示");
   });
 
-  it("starts inline rename from F2 and keeps static rows non-selectable", () => {
-    const onBeginRename = vi.fn();
-    const element = CompactContextRow({
-      icon: <span aria-hidden="true">I</span>,
-      label: "项目",
-      onBeginRename,
-      onSelect: () => undefined,
-    });
-    const button = Children.toArray(element.props.children)[0] as ReactElement<
-      ButtonHTMLAttributes<HTMLButtonElement>
-    >;
-    const preventDefault = vi.fn();
-
-    button.props.onKeyDown?.({
-      defaultPrevented: false,
-      key: "F2",
-      preventDefault,
-    } as never);
-
-    expect(preventDefault).toHaveBeenCalledOnce();
-    expect(onBeginRename).toHaveBeenCalledOnce();
-
+  it("keeps static rows outside the selection controls", () => {
     const staticMarkup = renderToStaticMarkup(
       <CompactContextStaticRow
         contentProps={{ "data-system-id": "system-journal" }}

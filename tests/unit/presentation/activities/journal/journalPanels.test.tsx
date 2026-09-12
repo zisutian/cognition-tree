@@ -57,23 +57,27 @@ describe("Journal panels", () => {
             expanded: true,
             key: "2026",
             label: "2026 年",
-            months: [{
-              entries: [activeEntry, olderJanuaryEntry],
-              expanded: true,
-              key: "2026-01",
-              label: "1 月",
-            }],
+            months: [
+              {
+                entries: [activeEntry, olderJanuaryEntry],
+                expanded: true,
+                key: "2026-01",
+                label: "1 月",
+              },
+            ],
           },
           {
             expanded: true,
             key: "2025",
             label: "2025 年",
-            months: [{
-              entries: [decemberEntry],
-              expanded: true,
-              key: "2025-12",
-              label: "12 月",
-            }],
+            months: [
+              {
+                entries: [decemberEntry],
+                expanded: true,
+                key: "2025-12",
+                label: "12 月",
+              },
+            ],
           },
         ],
       },
@@ -82,12 +86,16 @@ describe("Journal panels", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        'aria-current="page"', `aria-label="删除日记 ${activeEntry.title}"`,
+        'aria-current="page"',
+        `aria-label="删除日记 ${activeEntry.title}"`,
         ">删<",
       ],
       lacks: ["2 日", "31 日", 'role="alertdialog"'],
       ordered: [
-        "2026 年", activeEntry.title, olderJanuaryEntry.title, "2025 年",
+        "2026 年",
+        activeEntry.title,
+        olderJanuaryEntry.title,
+        "2025 年",
       ],
     });
   });
@@ -112,15 +120,11 @@ describe("Journal panels", () => {
     });
   });
 
-  it("renders the editor read-only while the repository is conflicted", () => {
+  it("respects the projected read-only capability", () => {
     const base = createJournalView();
     const view = {
       ...base,
       editor: { ...base.editor, readOnly: true },
-      persistence: {
-        remoteRevision: `sha256:${"a".repeat(64)}` as const,
-        status: "conflict" as const,
-      },
     };
     const markup = renderToStaticMarkup(
       <JournalEditorPanel
@@ -164,15 +168,13 @@ describe("Journal panels", () => {
       },
     };
     const markup = renderToStaticMarkup(
-      <JournalDetailPanel
-        onCollapseDetail={() => undefined}
-        view={view}
-      />,
+      <JournalDetailPanel onCollapseDetail={() => undefined} view={view} />,
     );
 
     expectMarkupSemantics(markup, {
       has: [
-        "当前块创建", "当前块更新",
+        "当前块创建",
+        "当前块更新",
         'dateTime="2026-01-02T03:04:06.000Z"',
         'dateTime="2026-01-02T03:05:06.000Z"',
       ],

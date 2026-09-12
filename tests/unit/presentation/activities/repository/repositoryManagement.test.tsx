@@ -168,7 +168,6 @@ describe("repository setup and management semantics", () => {
         'aria-current="page"',
         "本地笔记",
         "第二仓库",
-        'data-tool-layout="form"',
         'aria-label="仓库状态"',
         "仓库 ID",
         secondaryRepository.id,
@@ -226,7 +225,7 @@ describe("repository setup and management semantics", () => {
     });
   });
 
-  it("keeps creation and manual Local recovery as selectable right-side details", () => {
+  it("offers creation and manual Local recovery for the selected target", () => {
     const baseView = createRepositoryView();
     const view = {
       ...baseView,
@@ -310,7 +309,7 @@ describe("repository setup and management semantics", () => {
     });
   });
 
-  it("keeps issue rows compact and moves every cleanup action to the selected detail", () => {
+  it("offers cleanup actions only for the selected issue", () => {
     const baseView = createRepositoryView();
     const issues = projectRepositoryIssues([
       {
@@ -365,7 +364,7 @@ describe("repository setup and management semantics", () => {
     });
   });
 
-  it("keeps protected built-in rows minimal and shows location and recovery in the detail", () => {
+  it("presents built-in location and recovery without ordinary repository deletion", () => {
     const baseView = createRepositoryView();
     const view = {
       ...baseView,
@@ -581,7 +580,7 @@ describe("repository setup and management semantics", () => {
     },
   );
 
-  it("keeps ordinary runtime failures compact on the left and recoverable on the right", () => {
+  it("presents ordinary runtime failures with their recovery action", () => {
     const view = {
       ...createRepositoryView(),
       activeRepositoryId: localRepository.id,

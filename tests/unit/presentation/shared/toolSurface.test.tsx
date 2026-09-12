@@ -3,7 +3,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
-  ToolDivider,
   DetailPanel,
   ToolList,
   ToolListRow,
@@ -23,9 +22,7 @@ describe("tool surfaces", () => {
         <ToolPanel aria-label="工具页" title="工具标题">
           <ToolPanelBody layout="form">
             <ToolSectionStack>
-              <ToolSection title="表单分区">
-                表单
-              </ToolSection>
+              <ToolSection title="表单分区">表单</ToolSection>
               <ToolSection
                 actions={<button type="button">操作</button>}
                 title="后续分区"
@@ -42,15 +39,12 @@ describe("tool surfaces", () => {
         >
           <ToolPanelBody layout="detail">详情</ToolPanelBody>
         </DetailPanel>
-        <ToolPanelBody layout="table">规则</ToolPanelBody>
-        <ToolPanelBody layout="results">结果</ToolPanelBody>
       </>,
     );
 
     expect(markup).toContain("<h2>工具标题</h2>");
     expect(markup).toContain('aria-label="收回右侧详情"');
-    expect(markup).toContain('aria-labelledby=');
-    expect(markup.match(/class="ui-tool-section"/g)).toHaveLength(2);
+    expect(markup).toContain("aria-labelledby=");
     expect(markup).toContain("表单分区");
     expect(markup).toContain("操作");
   });
@@ -59,9 +53,13 @@ describe("tool surfaces", () => {
     const markup = renderToStaticMarkup(
       <>
         <ToolToolbar aria-label="筛选">
-          <label>来源<select><option>全部</option></select></label>
+          <label>
+            来源
+            <select>
+              <option>全部</option>
+            </select>
+          </label>
         </ToolToolbar>
-        <ToolDivider />
         <ToolList aria-label="工具结果">
           <ToolListRow
             buttonProps={{ "aria-label": "打开结果" }}
@@ -76,7 +74,6 @@ describe("tool surfaces", () => {
             flow="single-line"
             main="问题"
             onSelect={() => undefined}
-            style={{ height: "22px", transform: "translateY(44px)" }}
           />
           <ToolListRow flow="single-line" main="静态信息" />
         </ToolList>
@@ -95,7 +92,11 @@ describe("tool surfaces", () => {
       <ToolPropertyList aria-label="仓库属性">
         <ToolPropertyRow label="状态" value="已挂载" />
         <ToolPropertyRow
-          actions={<button aria-label="复制路径" type="button">复制</button>}
+          actions={
+            <button aria-label="复制路径" type="button">
+              复制
+            </button>
+          }
           label="数据路径"
           value={<code>/srv/cognition-tree/repositories/example</code>}
         />

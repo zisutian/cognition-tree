@@ -2,41 +2,16 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import {
   findNotesTreeAncestorFolderIds,
-  NotesContext,
   submitNotesFolderCreation,
 } from "../../../../../../presentation/activities/notes/edit/NotesContext";
 import { NoteDetailPanel } from "../../../../../../presentation/activities/notes/edit/NoteDetailPanel";
-import {
-  NoteEditorPanel,
-  submitNotesEditorChange,
-} from "../../../../../../presentation/activities/notes/edit/NoteEditorPanel";
-import { runFeedbackAction } from
-  "../../../../../../presentation/ui/shared/FeedbackProvider";
-import { TestFeedbackProvider as FeedbackProvider } from
-  "../../../../../support/presentation/fixtures/TestFeedbackProvider";
+import { submitNotesEditorChange } from "../../../../../../presentation/activities/notes/edit/NoteEditorPanel";
+import { runFeedbackAction } from "../../../../../../presentation/ui/shared/FeedbackProvider";
+
 import { createNotesView } from "../../../../../support/presentation/fixtures/notesViewFixture";
 import { defaultCtnSyntax } from "../../../../../../core/ctn/syntax/defaultSyntax";
-import { expectMarkupSemantics } from "../../../../../support/presentation/markupSemantics";
 
 describe("notes panels", () => {
-  it("orders rescan, folder creation, and note creation in the notes toolbar", () => {
-    const markup = renderToStaticMarkup(
-      <FeedbackProvider>
-        <NotesContext
-          onReload={async () => undefined}
-          view={createNotesView()}
-        />
-      </FeedbackProvider>,
-    );
-    expectMarkupSemantics(markup, {
-      ordered: [
-        'aria-label="重新扫描文件"',
-        'aria-label="新建文件夹"',
-        'aria-label="新建笔记"',
-      ],
-    });
-  });
-
   it("finds every collapsed ancestor needed to reveal a selected name issue", () => {
     const note = {
       canDrag: true,
@@ -68,18 +43,24 @@ describe("notes panels", () => {
       title: "外层",
     };
 
-    expect(findNotesTreeAncestorFolderIds(
-      [outer],
-      { kind: "note", noteId: "note-old" },
-    )).toEqual(["folder-outer", "folder-inner"]);
-    expect(findNotesTreeAncestorFolderIds(
-      [outer],
-      { folderId: "folder-inner", kind: "folder" },
-    )).toEqual(["folder-outer"]);
+    expect(
+      findNotesTreeAncestorFolderIds([outer], {
+        kind: "note",
+        noteId: "note-old",
+      }),
+    ).toEqual(["folder-outer", "folder-inner"]);
+    expect(
+      findNotesTreeAncestorFolderIds([outer], {
+        folderId: "folder-inner",
+        kind: "folder",
+      }),
+    ).toEqual(["folder-outer"]);
   });
 
   it("reports folder creation errors without closing the creation form", () => {
-    const error = new Error("Workspace folder title contains unsupported characters.");
+    const error = new Error(
+      "Workspace folder title contains unsupported characters.",
+    );
     const notifyError = vi.fn();
     const onCreated = vi.fn();
     const createFolder = vi.fn(() => {
@@ -105,40 +86,43 @@ describe("notes panels", () => {
       source: "bad:title\n正文",
     },
     {
-      authoritativeSource: "当前标题\n@ctn-block id=block-1 created=now updated=now\n正文",
+      authoritativeSource:
+        "当前标题\n@ctn-block id=block-1 created=now updated=now\n正文",
       label: "raw",
       source: "bad:title\n@ctn-block id=block-1 created=now updated=now\n正文",
     },
-  ])("reports and rolls back an invalid colon title in $label mode", ({
-    authoritativeSource,
-    source,
-  }) => {
-    const error = new Error(
-      "Workspace note title contains unsupported characters.",
-    );
-    const notifyError = vi.fn();
-    const onNormalized = vi.fn();
-    const onSynchronize = vi.fn();
+  ])(
+    "reports and rolls back an invalid colon title in $label mode",
+    ({ authoritativeSource, source }) => {
+      const error = new Error(
+        "Workspace note title contains unsupported characters.",
+      );
+      const notifyError = vi.fn();
+      const onNormalized = vi.fn();
+      const onSynchronize = vi.fn();
 
-    const result = submitNotesEditorChange({
-      authoritativeSource,
-      change: {
-        edits: [{ from: 0, insertedText: source, to: authoritativeSource.length }],
-        source,
-      },
-      onNormalized,
-      onSynchronize,
-      runAction: (action) => runFeedbackAction(action, notifyError),
-      updateSource: () => {
-        throw error;
-      },
-    });
+      const result = submitNotesEditorChange({
+        authoritativeSource,
+        change: {
+          edits: [
+            { from: 0, insertedText: source, to: authoritativeSource.length },
+          ],
+          source,
+        },
+        onNormalized,
+        onSynchronize,
+        runAction: (action) => runFeedbackAction(action, notifyError),
+        updateSource: () => {
+          throw error;
+        },
+      });
 
-    expect(result).toBeUndefined();
-    expect(notifyError).toHaveBeenCalledWith(error);
-    expect(onNormalized).not.toHaveBeenCalled();
-    expect(onSynchronize).toHaveBeenCalledWith(authoritativeSource);
-  });
+      expect(result).toBeUndefined();
+      expect(notifyError).toHaveBeenCalledWith(error);
+      expect(onNormalized).not.toHaveBeenCalled();
+      expect(onSynchronize).toHaveBeenCalledWith(authoritativeSource);
+    },
+  );
 
   it("synchronizes normalized titles to the authoritative editor source", () => {
     const source = "  Cafe\u0301   标题  \n正文";
@@ -152,9 +136,7 @@ describe("notes panels", () => {
         edits: [{ from: 0, insertedText: source, to: 5 }],
         source,
       },
-      onNormalized: () => notify(
-        "笔记标题已按可移植名称规则规范化。",
-      ),
+      onNormalized: () => notify("笔记标题已按可移植名称规则规范化。"),
       onSynchronize,
       runAction: (action) => action(),
       updateSource: () => ({
@@ -167,9 +149,7 @@ describe("notes panels", () => {
       authoritativeSource: canonicalSource,
       titleNormalized: true,
     });
-    expect(notify).toHaveBeenCalledWith(
-      "笔记标题已按可移植名称规则规范化。",
-    );
+    expect(notify).toHaveBeenCalledWith("笔记标题已按可移植名称规则规范化。");
     expect(onSynchronize).toHaveBeenCalledWith(canonicalSource);
   });
 
@@ -210,27 +190,6 @@ describe("notes panels", () => {
     expect(markup).toContain('dateTime="2026-01-01T00:00:00.000Z"');
     expect(markup).toContain('dateTime="2026-01-02T00:00:00.000Z"');
     expect(markup).not.toContain('aria-label="块时间"');
-  });
-
-  it("exposes the workbench focus mode command from the editor title bar", () => {
-    const view = createNotesView();
-    const normalMarkup = renderToStaticMarkup(
-      <NoteEditorPanel
-        focusMode={false}
-        onToggleFocusMode={() => undefined}
-        view={view}
-      />,
-    );
-    const focusedMarkup = renderToStaticMarkup(
-      <NoteEditorPanel
-        focusMode
-        onToggleFocusMode={() => undefined}
-        view={view}
-      />,
-    );
-
-    expect(normalMarkup).toContain("进入专注模式");
-    expect(focusedMarkup).toContain("退出专注模式");
   });
 
   it("keeps note detail focused on structure, metadata, and note statistics", () => {

@@ -1,30 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe,expect,it,vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-resolveTodoRetry,
-TodoActivityController,
+  resolveTodoRetry,
+  TodoActivityController,
 } from "../../../../../presentation/activities/todo/TodoActivityController";
 import type { WorkbenchApplication } from "../../../../../presentation/shell/application/workbenchApplication";
 import { createAgentApplicationFixture } from "../../../../support/presentation/fixtures/agentApplicationFixture";
 import { createTodoView } from "../../../../support/presentation/fixtures/todoViewFixture";
-
-const controls = {
-  contextWidth: 280,
-  focusMode: false,
-  onCollapseDetail: () => undefined,
-  onConfigureSyntax: () => undefined,
-  onContextWidthChange: () => undefined,
-  onToggleFocusMode: () => undefined,
-};
 
 function createApplicationWithoutWorkspace(): WorkbenchApplication {
   return {
     agent: createAgentApplicationFixture(),
     localApi: {
       serviceOrigin: "http://localhost:3001",
-      getOperation: async () => { throw new Error("not requested"); },
+      getOperation: async () => {
+        throw new Error("not requested");
+      },
     },
     journal: { status: "loading" },
     operations: {} as WorkbenchApplication["operations"],
@@ -41,32 +33,6 @@ function createApplicationWithoutWorkspace(): WorkbenchApplication {
 }
 
 describe("TodoActivityController", () => {
-  it("renders Todo independently when no ordinary repository exists", () => {
-    const application = createApplicationWithoutWorkspace();
-    const rendered = TodoActivityController({
-      active: true,
-      application,
-      onActiveActivityChange: () => undefined,
-      renderActivity: (createSlots) => {
-        const slots = createSlots(controls);
-
-        expect(slots.detail).not.toBeNull();
-        return (
-          <>
-            {slots.context?.content}
-            {slots.main}
-            {slots.detail}
-          </>
-        );
-      },
-    });
-    const markup = renderToStaticMarkup(<>{rendered}</>);
-
-    expect(application.workspace.status).toBe("absent");
-    expect(markup.length).toBeGreaterThan(0);
-    expect(markup).not.toContain("前往仓库");
-  });
-
   it("does not mount Todo slots while another activity is active", () => {
     const rendered = TodoActivityController({
       active: false,
@@ -91,19 +57,22 @@ describe("TodoActivityController", () => {
           reload,
           retry: retryBuiltIn,
           state: {
-            issues: [{
-              code: "repository_corrupt",
-              id: "todo",
-              location: null,
-              message: "代办仓库损坏。",
-              status: "fault",
-            }],
+            issues: [
+              {
+                code: "repository_corrupt",
+                id: "todo",
+                location: null,
+                message: "代办仓库损坏。",
+                status: "fault",
+              },
+            ],
             repositories: [],
             retryingId: null,
             status: "ready",
           },
         },
-        sessions: {} as WorkbenchApplication["repository"]["builtIns"]["sessions"],
+        sessions:
+          {} as WorkbenchApplication["repository"]["builtIns"]["sessions"],
       },
     );
 

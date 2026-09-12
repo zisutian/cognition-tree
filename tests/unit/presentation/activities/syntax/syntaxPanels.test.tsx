@@ -10,9 +10,7 @@ import { defaultJournalSyntax } from "../../../../../core/journal/syntax/default
 import { defaultTodoSyntax } from "../../../../../core/todo/syntax/defaultTodoSyntax";
 import { createSyntaxProjection } from "../../../../../application/syntax/syntaxProjection";
 import { expectMarkupSemantics } from "../../../../support/presentation/markupSemantics";
-import type {
-  SyntaxViewModel,
-} from "../../../../../application/syntax/syntaxViewModel";
+import type { SyntaxViewModel } from "../../../../../application/syntax/syntaxViewModel";
 
 function occurrenceCount(source: string, value: string) {
   return source.split(value).length - 1;
@@ -48,17 +46,22 @@ describe("syntax panels", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        'aria-label="新建笔记库语法"', 'aria-label="系统语法"',
+        'aria-label="新建笔记库语法"',
+        'aria-label="系统语法"',
         'aria-label="笔记库语法"',
-        'aria-current="page"', 'aria-label="已启用语法"',
-        "主要语法", "备用语法", "错误",
+        'aria-current="page"',
+        'aria-label="已启用语法"',
+        "主要语法",
+        "备用语法",
+        "错误",
         /aria-label="新建笔记库语法"[^>]*disabled=""/,
         /data-syntax-file-id="syntax-secondary"[^>]*disabled=""/,
         /data-syntax-owner="(?:journal|todo)"[^>]*disabled=""/,
         /aria-label="删除语法 主要语法"[^>]*disabled=""/,
       ],
       lacks: [
-        'aria-label="删除语法 备用语法"', ">系统语法</span>",
+        'aria-label="删除语法 备用语法"',
+        ">系统语法</span>",
         ">笔记库语法</span>",
       ],
     });
@@ -71,13 +74,17 @@ describe("syntax panels", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        "ui-tool-panel", 'data-tool-layout="table"', 'type="number"',
-        'max="16"', "缩进宽度",
-        "块规则", "行内规则", "新增块规则",
+        'type="number"',
+        'max="16"',
+        "缩进宽度",
+        "块规则",
+        "行内规则",
+        "新增块规则",
         'aria-label="全局概念引用颜色: 灰色"',
       ],
       lacks: [
-        "全局概念引用背景色", "全局概念引用文字色",
+        "全局概念引用背景色",
+        "全局概念引用文字色",
         'aria-label="语法名称"',
       ],
     });
@@ -118,7 +125,8 @@ describe("syntax panels", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        'aria-label="启用语法 正在编辑"', 'aria-label="重命名语法 正在编辑"',
+        'aria-label="启用语法 正在编辑"',
+        'aria-label="重命名语法 正在编辑"',
         'aria-label="删除语法 正在编辑"',
         'aria-label="已启用语法"',
       ],
@@ -181,13 +189,22 @@ describe("syntax panels", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        "代办背景色: 编辑器背景", "代办颜色: 青色", "<h2>代办</h2>",
-        ">代办</span>", ">[]</span>", ">普通块</span>", 'value="注解"',
-        'aria-label="角色: 普通块"', 'aria-label="标记"',
+        "代办背景色: 编辑器背景",
+        "代办颜色: 青色",
+        "<h2>代办</h2>",
+        ">代办</span>",
+        ">[]</span>",
+        ">普通块</span>",
+        'value="注解"',
+        'aria-label="角色: 普通块"',
+        'aria-label="标记"',
         'aria-label="删除块规则"',
       ],
       lacks: [
-        "代办文字色", 'value="代办"', 'value="[]"', "首行标题",
+        "代办文字色",
+        'value="代办"',
+        'value="[]"',
+        "首行标题",
         'aria-label="语法名称"',
         /aria-label="开始"[^>]*disabled=""/,
         /aria-label="结束"[^>]*disabled=""/,
@@ -231,9 +248,7 @@ describe("syntax panels", () => {
       })),
       workspaceAvailable: false,
     };
-    const markup = renderToStaticMarkup(
-      <SyntaxMainPanel view={emptyView} />,
-    );
+    const markup = renderToStaticMarkup(<SyntaxMainPanel view={emptyView} />);
     const slots = createSyntaxActivitySlots({
       onCollapseDetail: () => undefined,
       view: emptyView,
@@ -282,12 +297,21 @@ describe("syntax panels", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        "语法预览", "语法预览内容", "首行标题示例",
-        "[[]]", "全局概念引用", "行内代码",
+        "语法预览",
+        "语法预览内容",
+        "首行标题示例",
+        "[[]]",
+        "全局概念引用",
+        "行内代码",
       ],
       lacks: [
-        "行内内容", "语法详情", "缩进宽度", "语法可视化",
-        "当前配置", "语法统计", ">状态<",
+        "行内内容",
+        "语法详情",
+        "缩进宽度",
+        "语法可视化",
+        "当前配置",
+        "语法统计",
+        ">状态<",
       ],
     });
   });

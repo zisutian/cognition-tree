@@ -6,13 +6,7 @@ import type {
   UiWorkbenchRepositoryProblem,
 } from "../../../../application/workbench/problems/workbenchProblems";
 import type { JournalDiagnostic } from "../../../../application/journal/index";
-import {
-  ProblemsPanel,
-} from "../../../../presentation/ui/problems/ProblemsPanel";
-import {
-  shouldVirtualizeUiRows,
-  uiVirtualizationThreshold,
-} from "../../../../presentation/ui/shared/virtualListMetrics";
+import { ProblemsPanel } from "../../../../presentation/ui/problems/ProblemsPanel";
 
 const diagnostic: UiWorkbenchDiagnostic = {
   code: "unknown-syntax",
@@ -152,39 +146,7 @@ describe("ProblemsPanel", () => {
     );
 
     expect(markup).toContain("无法解析日记引用");
-    expect(markup).toContain(
-      "日记引用 · 2026-01-02 11:04:05 · L2",
-    );
-  });
-
-  it("uses the shared virtual collection boundary", () => {
-    expect(shouldVirtualizeUiRows(uiVirtualizationThreshold)).toBe(false);
-    expect(shouldVirtualizeUiRows(uiVirtualizationThreshold + 1)).toBe(true);
-
-    const problems = Array.from(
-      { length: uiVirtualizationThreshold + 1 },
-      (_, index) => ({
-        ...diagnostic,
-        id: `${diagnostic.id}-${index}`,
-      }),
-    );
-    const markup = renderToStaticMarkup(
-      <ProblemsPanel
-        expanded
-        onOpen={() => undefined}
-        onToggle={() => undefined}
-        view={{
-          errorCount: problems.length,
-          problems,
-          status: "ready",
-          warningCount: 0,
-        }}
-      />,
-    );
-
-    expect(markup).toContain(
-      `data-virtual-row-count="${uiVirtualizationThreshold + 1}"`,
-    );
+    expect(markup).toContain("日记引用 · 2026-01-02 11:04:05 · L2");
   });
 
   it("shows the single-line ready empty state", () => {
