@@ -106,17 +106,11 @@ async function waitForTerminal(
   coordinator: DataRootMigrationCoordinator,
   id: string,
 ) {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  return vi.waitFor(async () => {
     const status = await coordinator.get(id);
-
-    if (status.status === "failed") return status;
-    if (status.status === "restarting") {
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      return coordinator.get(id);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-  throw new Error("migration did not finish");
+    expect(["failed", "restarting"]).toContain(status.status);
+    return status;
+  });
 }
 
 afterEach(async () => {
