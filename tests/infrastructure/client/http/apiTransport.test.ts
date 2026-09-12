@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   apiMaximumJsonResponseBytes,
   HttpApiResponseError,
@@ -18,20 +18,43 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe("HTTP API transport", () => {
+  it("does not dispatch a mutation whose caller has already cancelled", async () => {
+    const caller = new AbortController();
+    caller.abort(new DOMException("Editor session closed", "AbortError"));
+    const fetchRequest = vi.fn(async () => jsonResponse({ saved: true }));
+    await expect(
+      requestApiJson(
+        fetchRequest,
+        "http://api.test",
+        "/api/v4/content/operations",
+        {
+          method: "POST",
+          signal: caller.signal,
+          body: "{}",
+        },
+      ),
+    ).rejects.toThrow("Editor session closed");
+    expect(fetchRequest).not.toHaveBeenCalled();
+  });
   it("resolves API endpoints without repository-specific path semantics", () => {
-    expect(resolveApiUrl("https://api.test/base", "/api/v4/content/events"))
-      .toBe("https://api.test/base/api/v4/content/events");
+    expect(
+      resolveApiUrl("https://api.test/base", "/api/v4/content/events"),
+    ).toBe("https://api.test/base/api/v4/content/events");
   });
 
   it("preserves structured API failure facts in a neutral response error", async () => {
     const request = requestApiJson(
-      async () => jsonResponse({
-        code: "resource_conflict",
-        details: { currentRevision: `sha256:${"a".repeat(64)}` },
-        message: "content changed",
-        requestId: "request-1",
-        retryable: true,
-      }, 409),
+      async () =>
+        jsonResponse(
+          {
+            code: "resource_conflict",
+            details: { currentRevision: `sha256:${"a".repeat(64)}` },
+            message: "content changed",
+            requestId: "request-1",
+            retryable: true,
+          },
+          409,
+        ),
       "https://api.test",
       "/api/v4/content/resource",
     );
@@ -49,34 +72,41 @@ describe("HTTP API transport", () => {
   });
 
   it("classifies network failure without inventing repository errors", async () => {
-    await expect(requestApiJson(
-      async () => {
-        throw new TypeError("network unavailable");
-      },
-      "https://api.test",
-      "/api/v4/content/resource",
-    )).rejects.toBeInstanceOf(HttpApiUnavailableError);
+    await expect(
+      requestApiJson(
+        async () => {
+          throw new TypeError("network unavailable");
+        },
+        "https://api.test",
+        "/api/v4/content/resource",
+      ),
+    ).rejects.toBeInstanceOf(HttpApiUnavailableError);
   });
 
   it("rejects oversized declarations and invalid UTF-8 before JSON parsing", async () => {
-    await expect(requestApiJson(
-      async () => new Response("{}", {
-        headers: {
-          "Content-Length": String(apiMaximumJsonResponseBytes + 1),
-          "Content-Type": "application/json",
-        },
-      }),
-      "https://api.test",
-      "/api/v4/content/resource",
-    )).rejects.toThrow(/exceeds the size limit/i);
-    await expect(requestApiJson(
-      async () => new Response(
-        new Uint8Array([0x7b, 0xff, 0x7d]),
-        { headers: { "Content-Type": "application/json" } },
+    await expect(
+      requestApiJson(
+        async () =>
+          new Response("{}", {
+            headers: {
+              "Content-Length": String(apiMaximumJsonResponseBytes + 1),
+              "Content-Type": "application/json",
+            },
+          }),
+        "https://api.test",
+        "/api/v4/content/resource",
       ),
-      "https://api.test",
-      "/api/v4/content/resource",
-    )).rejects.toThrow(/invalid UTF-8/i);
+    ).rejects.toThrow(/exceeds the size limit/i);
+    await expect(
+      requestApiJson(
+        async () =>
+          new Response(new Uint8Array([0x7b, 0xff, 0x7d]), {
+            headers: { "Content-Type": "application/json" },
+          }),
+        "https://api.test",
+        "/api/v4/content/resource",
+      ),
+    ).rejects.toThrow(/invalid UTF-8/i);
   });
 
   it("cancels a body when a no-content operation returns the wrong status", async () => {
@@ -90,11 +120,13 @@ describe("HTTP API transport", () => {
       },
     });
 
-    await expect(requestApiNoContent(
-      async () => new Response(body, { status: 200 }),
-      "https://api.test",
-      "/api/v4/content/resource",
-    )).rejects.toThrow(/204 No Content/i);
+    await expect(
+      requestApiNoContent(
+        async () => new Response(body, { status: 200 }),
+        "https://api.test",
+        "/api/v4/content/resource",
+      ),
+    ).rejects.toThrow(/204 No Content/i);
     expect(cancelled).toBe(true);
   });
 });

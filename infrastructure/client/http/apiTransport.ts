@@ -288,6 +288,8 @@ async function requestApiResponse<Result>(
   );
 
   try {
+    if (init?.signal?.aborted) abortFromCaller();
+    controller.signal.throwIfAborted();
     const response = await fetchFn(resolveApiUrl(baseUrl, endpoint), {
       ...init,
       credentials: "same-origin",
