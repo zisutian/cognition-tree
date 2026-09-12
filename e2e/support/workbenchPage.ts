@@ -62,8 +62,8 @@ export async function openRepositoryFromContext(
     await openButton.click();
   }
   await expect(currentMarker).toBeVisible();
-  // Catalog selection precedes the keyed workspace-session mount. Wait for
-  // that mount so a following context action is not sent to a transient tree.
+  // The workbench remains mounted, while its workspace binding loads the
+  // selected repository. Wait for that session before checking its contents.
   await expect(
     page.locator('dl[aria-label="仓库状态"]')
       .locator(".ui-tool-property-row dd")

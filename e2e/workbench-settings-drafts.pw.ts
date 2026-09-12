@@ -6,7 +6,9 @@ import { test } from "./support/e2eTest";
 import { seedDiagnosticsRepository } from "./support/repositorySeeds";
 import {
   getWorkbenchStatus,
-  getProblemsToggle, getActivityButton, openWorkbench
+  getProblemsToggle,
+  getActivityButton,
+  openWorkbench,
 } from "./support/workbenchPage";
 
 const repositoryId = "settings-draft-navigation";
@@ -115,6 +117,39 @@ test("retains a draft across failed save and refresh, then saves the selected ob
   await expect(panel).toBeVisible();
   await getActivityButton(page, "笔记").click();
   await expect(page.getByRole("region", { name: "笔记编辑" })).toBeVisible();
+});
+
+test("retains settings input and navigation protection when the workspace finishes loading", async ({
+  page,
+  responseGates,
+}) => {
+  const loading = await responseGates.hold(
+    `**/api/v4/sync/workspaces/${repositoryId}`,
+    "GET",
+  );
+  await page.reload();
+  await loading.arrived;
+  await getActivityButton(page, "设置").click();
+  await page
+    .locator(".settings-context")
+    .getByRole("button", { name: "E2E provider", exact: true })
+    .click();
+  const panel = page.getByRole("region", { name: "模型服务设置" });
+  const name = panel.getByRole("textbox", {
+    name: "Provider 名称",
+    exact: true,
+  });
+  await name.fill("Keep while workspace loads");
+  await expect(getWorkbenchStatus(page)).toContainText("先在编辑区保存或放弃");
+  loading.release();
+  await getProblemsToggle(page).click();
+  await expect(
+    page.getByRole("button", { name: /未知行首符号 !/ }),
+  ).toBeVisible();
+  await expect(name).toHaveValue("Keep while workspace loads");
+  await getActivityButton(page, "笔记").click();
+  await expect(panel).toBeVisible();
+  await expect(name).toHaveValue("Keep while workspace loads");
 });
 
 test("keeps inputs when the saved configuration advances or the object is removed", async ({

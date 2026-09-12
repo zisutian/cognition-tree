@@ -2,24 +2,23 @@ import { createWorkbenchNavigation } from "./workbench/workbenchNavigation.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-useEffect,
-useMemo,
-useRef,
-useState,
-useSyncExternalStore,
-type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
 } from "react";
 import { createProblemCenter } from "../../application/problems/index.ts";
 import type {
-OwnerAuthenticationController,
-OwnerAuthenticationState,
+  OwnerAuthenticationController,
+  OwnerAuthenticationState,
 } from "../../application/system/index.ts";
 import { projectWorkspaceSessionApplication } from "../../application/workspace/index.ts";
 import type { OfficialClientApi } from "../../infrastructure/client/http/index.ts";
 import {
-createClientAgentRuntime,
-createClientSystemConfigurationRuntime,
-createWorkbenchRuntime,
+  createClientAgentRuntime,
+  createClientSystemConfigurationRuntime,
+  createWorkbenchRuntime,
 } from "../../infrastructure/client/runtime/index.ts";
 
 import { clientApplicationScheduler } from "../../infrastructure/client/platform/index.ts";
@@ -27,7 +26,7 @@ import type { ActivityId } from "../ui/index.ts";
 import { RepositorySessionStateProvider } from "../ui/index.ts";
 import { useWorkbenchApplicationBindings } from "./application/useWorkbenchApplicationBindings.ts";
 import { projectUnavailableWorkspace } from "./application/workbenchApplicationProjection.ts";
-import { ReadyWorkspaceWorkbench } from "./workbench/ReadyWorkspaceWorkbench.tsx";
+import { WorkspaceApplicationBinding } from "./workbench/WorkspaceApplicationBinding.tsx";
 import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench.tsx";
 
 export function AuthenticatedWorkbenchRoot({
@@ -160,41 +159,20 @@ export function AuthenticatedWorkbenchRoot({
     systemConfigurationController,
   ]);
 
-  let workbench: ReactNode;
+  const readySession =
+    snapshot.workspace.status === "ready"
+      ? projectWorkspaceSessionApplication(
+          controller.workspace,
+          snapshot.workspace,
+        )
+      : null;
+  const repositoryId =
+    readySession?.status === "ready"
+      ? (snapshot.catalog.activeDescriptor?.id ?? null)
+      : null;
 
-  if (snapshot.workspace.status === "ready") {
-    const session = projectWorkspaceSessionApplication(
-      controller.workspace,
-      snapshot.workspace,
-    );
-
-    if (session.status !== "ready") {
-      throw new Error("Ready Workspace projection lost its ready state.");
-    }
-    workbench = (
-      <ReadyWorkspaceWorkbench
-        scheduler={workbenchRuntime.applicationServices.scheduler}
-        activeActivityId={activeActivityId}
-        agent={applications.agent}
-        localApi={applications.localApi}
-        controller={controller}
-        feedbackController={feedbackController}
-        journal={applications.journal}
-        key={snapshot.catalog.activeDescriptor?.id}
-        onActiveActivityChange={navigation.request}
-        onInteractionStateChange={navigation.reportInteraction}
-        interaction={interaction}
-        operations={applications.operations}
-        repository={applications.repository}
-        search={applications.search}
-        session={session}
-        snapshot={snapshot}
-        system={applications.system}
-        todo={applications.todo}
-      />
-    );
-  } else {
-    workbench = (
+  return (
+    <RepositorySessionStateProvider repositoryIds={repositorySessionIds}>
       <WorkspaceWorkbench
         activeActivityId={activeActivityId}
         feedbackController={feedbackController}
@@ -202,16 +180,26 @@ export function AuthenticatedWorkbenchRoot({
           ...applications,
           workspace: projectUnavailableWorkspace(controller, snapshot),
         }}
+        workspaceRepositoryId={repositoryId}
+        bindWorkspace={(onChange) =>
+          readySession?.status === "ready" && repositoryId ? (
+            <WorkspaceApplicationBinding
+              key={repositoryId}
+              repositoryId={repositoryId}
+              scheduler={workbenchRuntime.applicationServices.scheduler}
+              controller={controller}
+              feedbackController={feedbackController}
+              onActiveActivityChange={navigation.request}
+              session={readySession}
+              snapshot={snapshot}
+              onChange={onChange}
+            />
+          ) : null
+        }
         onActiveActivityChange={navigation.request}
         onInteractionStateChange={navigation.reportInteraction}
         interaction={interaction}
       />
-    );
-  }
-
-  return (
-    <RepositorySessionStateProvider repositoryIds={repositorySessionIds}>
-      {workbench}
     </RepositorySessionStateProvider>
   );
 }

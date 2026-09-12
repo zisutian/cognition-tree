@@ -1,7 +1,14 @@
 import type { ActivityInteractionState } from "../../ui/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { WorkbenchDiagnostics } from "../../../application/workbench/index.ts";
 import type { SyntaxFocusTarget } from "../../../application/syntax/index.ts";
 import type { WorkbenchApplication } from "../application/workbenchApplication.ts";
@@ -16,6 +23,7 @@ import {
   useWorkbenchLayout,
 } from "../../ui/index.ts";
 
+import type { BoundWorkspaceApplication } from "./WorkspaceApplicationBinding.tsx";
 import { PlaceholderPanel } from "./PlaceholderPanel.tsx";
 import { WorkbenchProblemsController } from "./WorkbenchProblemsController.tsx";
 
@@ -44,7 +52,9 @@ export function WorkspaceWorkbench({
   activeActivityId,
   interaction,
   onInteractionStateChange,
-  application,
+  application: sourceApplication,
+  bindWorkspace,
+  workspaceRepositoryId,
   feedbackController,
   onActiveActivityChange,
 }: {
@@ -55,12 +65,29 @@ export function WorkspaceWorkbench({
     state: ActivityInteractionState,
   ): void;
   application: WorkbenchApplication;
+  workspaceRepositoryId: string | null;
+  bindWorkspace(
+    onChange: (value: BoundWorkspaceApplication | null) => void,
+  ): ReactNode;
   feedbackController: WorkbenchActivityFeedbackController;
   onActiveActivityChange: (
     activityId: ActivityId,
     beforeChange?: () => boolean | void,
   ) => void;
 }) {
+  const [boundWorkspace, setBoundWorkspace] =
+    useState<BoundWorkspaceApplication | null>(null);
+  const application: WorkbenchApplication =
+    workspaceRepositoryId !== null &&
+    boundWorkspace?.repositoryId === workspaceRepositoryId
+      ? {
+          ...sourceApplication,
+          workspace: {
+            status: "ready",
+            application: boundWorkspace.application,
+          },
+        }
+      : sourceApplication;
   const workbench = useWorkbenchLayout(
     application.repository.activeDescriptor?.id ?? globalWorkbenchSessionId,
   );
@@ -119,67 +146,71 @@ export function WorkspaceWorkbench({
   }, [activeActivityId]);
 
   return (
-    <FeedbackProvider
-      activeActivityId={activeActivityId}
-      controller={feedbackController}
-    >
-      <WorkbenchProblemsController
+    <>
+      {bindWorkspace(setBoundWorkspace)}
+      <FeedbackProvider
         activeActivityId={activeActivityId}
-        application={application}
-        onOpenSystemSyntax={openSystemSyntax}
-        onActiveActivityChange={requestActivityChange}
-        statusMessage={interaction.statusMessage}
-        syntaxDiagnostics={syntaxProblems}
-        workbench={workbench}
+        controller={feedbackController}
       >
-        {({ problemsSlot, statusBarSlot }) => {
-          const renderActivity: RenderActivity = (createActivitySlots) => (
-            <AppView
-              activityItems={activityDescriptors}
-              activeActivityId={activeActivityId}
-              createActivitySlots={createActivitySlots}
-              onActiveActivityChange={requestActivityChange}
-              problemsSlot={problemsSlot}
-              statusBarSlot={statusBarSlot}
-              workbench={workbench}
-            />
-          );
-          const controllerProps = {
-            application,
-            onActiveActivityChange: requestActivityChange,
-            onInteractionStateChange,
-            onConsumeSystemSyntaxFocusRequest: consumeSystemSyntaxFocusRequest,
-            onSyntaxLeaveBlockedChange: setSyntaxLeaveBlocked,
-            onSyntaxProblemsChange: updateSyntaxProblems,
-            renderActivity,
-            systemSyntaxFocusRequest,
-          };
+        <WorkbenchProblemsController
+          activeActivityId={activeActivityId}
+          application={application}
+          onOpenSystemSyntax={openSystemSyntax}
+          onActiveActivityChange={requestActivityChange}
+          statusMessage={interaction.statusMessage}
+          syntaxDiagnostics={syntaxProblems}
+          workbench={workbench}
+        >
+          {({ problemsSlot, statusBarSlot }) => {
+            const renderActivity: RenderActivity = (createActivitySlots) => (
+              <AppView
+                activityItems={activityDescriptors}
+                activeActivityId={activeActivityId}
+                createActivitySlots={createActivitySlots}
+                onActiveActivityChange={requestActivityChange}
+                problemsSlot={problemsSlot}
+                statusBarSlot={statusBarSlot}
+                workbench={workbench}
+              />
+            );
+            const controllerProps = {
+              application,
+              onActiveActivityChange: requestActivityChange,
+              onInteractionStateChange,
+              onConsumeSystemSyntaxFocusRequest:
+                consumeSystemSyntaxFocusRequest,
+              onSyntaxLeaveBlockedChange: setSyntaxLeaveBlocked,
+              onSyntaxProblemsChange: updateSyntaxProblems,
+              renderActivity,
+              systemSyntaxFocusRequest,
+            };
 
-          return (
-            <>
-              {activityDescriptors.map(({ id, Controller }) => {
-                const active = activeActivityId === id;
+            return (
+              <>
+                {activityDescriptors.map(({ id, Controller }) => {
+                  const active = activeActivityId === id;
 
-                return active || retainedActivityIds.has(id) ? (
-                  <Suspense
-                    fallback={
-                      active ? (
-                        <ActivityLoadingView
-                          activeActivityId={id}
-                          renderActivity={renderActivity}
-                        />
-                      ) : null
-                    }
-                    key={id}
-                  >
-                    <Controller {...controllerProps} active={active} />
-                  </Suspense>
-                ) : null;
-              })}
-            </>
-          );
-        }}
-      </WorkbenchProblemsController>
-    </FeedbackProvider>
+                  return active || retainedActivityIds.has(id) ? (
+                    <Suspense
+                      fallback={
+                        active ? (
+                          <ActivityLoadingView
+                            activeActivityId={id}
+                            renderActivity={renderActivity}
+                          />
+                        ) : null
+                      }
+                      key={id}
+                    >
+                      <Controller {...controllerProps} active={active} />
+                    </Suspense>
+                  ) : null;
+                })}
+              </>
+            );
+          }}
+        </WorkbenchProblemsController>
+      </FeedbackProvider>
+    </>
   );
 }

@@ -251,6 +251,9 @@ Shell 的 workbenchNavigation 是应用内活动导航入口，只接收活动�
 Settings 的页内选择和未提交表单、Search 的查询草稿、Notes 的模式/图谱筛选/图谱设置
 以及工作台布局都属于页面会话状态；SearchController 拥有查询草稿，Presentation 拥有设置表单和布局。需要跨仓库保留的状态由显式
 repository session store registry 以带值类型的 slot key 分区，React hook 只订阅当前仓库。
+工作台及其活动控制器的生命周期不随 Workspace 加载或切换重建。
+`WorkspaceApplicationBinding` 独占就绪 Workspace 的 React 绑定，按仓库身份挂载并在布局阶段交接视图；
+工作台只在身份匹配时消费该视图。绑定卸载清除旧视图，但不销毁设置草稿、目录选择和其他活动状态。
 registry 位于按仓库重挂载的工作台边界之上、认证边界之内，因此仓库切换保留分区，退出
 登录销毁整个页面会话；ready catalog 是有效仓库分区集合的唯一依据，删除仓库后 registry
 统一裁剪所有 slot 的对应分区。不得用模块级 Map 建立第二个页面会话 owner，也不得进入领域
