@@ -77,30 +77,6 @@
   margin-top: auto;
 }
 
-.activity-bar .ui-button {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 100%;
-  height: var(--app-activity-width);
-  color: var(--color-fg-muted);
-}
-
-.activity-bar .ui-button:hover,
-.activity-bar .ui-button.is-active {
-  color: var(--color-fg-strong);
-}
-
-.activity-bar .ui-button.is-active::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: calc(var(--ui-border-width) * 2);
-  background: var(--color-accent);
-  content: "";
-}
-
 .app-context {
   grid-area: context;
   position: relative;

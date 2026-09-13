@@ -4,15 +4,7 @@ import type {
   SyntaxTone,
   SyntaxToneOption,
 } from "../../../application/syntax/index.ts";
-import {
-  Popover,
-  ColorControl,
-  Button,
-  isCustomTone,
-} from "../../ui/index.ts";
-
-
-
+import { Popover, ColorControl, Button, isCustomTone } from "../../ui/index.ts";
 
 const defaultCustomTone = "#397c72";
 
@@ -89,12 +81,13 @@ export function TonePicker({
           aria-expanded={isOpen}
           aria-haspopup="dialog"
           aria-label={`${ariaLabel}: ${getToneLabel(value, options, customToneLabel)}`}
-          className={showLabel ? "syntax-tone-button" : "syntax-tone-button is-compact"}
+          className="syntax-tone-button"
+          sizing="container"
           data-syntax-field-id={fieldId}
           onClick={toggle}
           ref={triggerRef}
           type="button"
-          variant="bare"
+          variant="secondary"
         >
           <span
             aria-hidden="true"
@@ -123,16 +116,13 @@ export function TonePicker({
                 <Button
                   disabled={disabled}
                   aria-label={option.label}
-                  className={
-                    value === option.value
-                      ? "syntax-tone-tile is-selected"
-                      : "syntax-tone-tile"
-                  }
+                  className="syntax-tone-tile"
+                  aria-pressed={value === option.value}
                   key={option.value}
                   onClick={selectOption}
                   title={option.label}
                   type="button"
-                  variant="bare"
+                  variant="icon"
                 >
                   <span
                     aria-hidden="true"
@@ -151,17 +141,15 @@ export function TonePicker({
           <div className="syntax-tone-custom-row">
             <Button
               disabled={disabled}
-              className={
-                isCustomValue
-                  ? "syntax-tone-custom-button is-selected"
-                  : "syntax-tone-custom-button"
-              }
+              className="syntax-tone-custom-button"
+              aria-pressed={isCustomValue}
+              sizing="container"
               onClick={() => {
                 selectTone(customTone);
                 close();
               }}
               type="button"
-              variant="bare"
+              variant="secondary"
             >
               <span
                 aria-hidden="true"

@@ -24,6 +24,12 @@ test("Provider controls and directory disclosure retain the current draft and na
   const permission = panel.getByRole("checkbox", {
     name: "确认 Provider 私网访问",
   });
+  await panel
+    .getByText("允许连接此服务使用的私有网络地址。", { exact: true })
+    .click();
+  await expect(permission).toBeChecked();
+  await panel.getByRole("button", { name: "放弃修改", exact: true }).click();
+  await expect(permission).not.toBeChecked();
   await permission.focus();
   await permission.press("Space");
   await expect(permission).toBeChecked();

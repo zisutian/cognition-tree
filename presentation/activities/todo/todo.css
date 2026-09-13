@@ -18,13 +18,6 @@
   background: var(--color-selected);
 }
 
-.todo-structure-row input {
-  width: var(--ui-symbol-size);
-  height: var(--ui-symbol-size);
-  margin: 0;
-  accent-color: var(--color-accent);
-  cursor: pointer;
-}
 
 .todo-structure-label {
   display: block;
@@ -112,38 +105,6 @@
   gap: var(--ui-gap-tight);
   color: var(--color-fg-muted);
   font-size: var(--ui-control-font-size);
-}
-
-.todo-recurrence-field .ui-control {
-  width: 100%;
-}
-
-.todo-recurrence-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: calc(var(--ui-gap-tight) / 2);
-}
-
-.todo-recurrence-weekdays label {
-  display: grid;
-  place-items: center;
-  min-width: 0;
-  min-height: var(--ui-control-height);
-  border-radius: var(--ui-radius);
-  color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  cursor: pointer;
-}
-
-.todo-recurrence-weekdays input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.todo-recurrence-weekdays label:has(input:checked) {
-  color: var(--color-fg-strong);
-  background: var(--color-selected);
 }
 
 .todo-recurrence-actions {

@@ -20,16 +20,16 @@ function ActivityGroup({
         const Icon = item.icon;
 
         return (
-          <Button variant="bare"
+          <Button
+            variant="activity"
             aria-current={item.id === activeActivityId ? "page" : undefined}
             aria-label={item.label}
-            className={item.id === activeActivityId ? "is-active" : ""}
             key={item.id}
             onClick={() => onActivityChange(item.id)}
             title={item.label}
             type="button"
           >
-            <Icon aria-hidden="true" size={24} strokeWidth={1.5} />
+            <Icon aria-hidden="true" strokeWidth={1.5} />
           </Button>
         );
       })}

@@ -1,8 +1,4 @@
-import type {
-  ButtonHTMLAttributes,
-  HTMLAttributes,
-  ReactNode,
-} from "react";
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import { forwardRef } from "react";
 import { ChevronRight } from "lucide-react";
 
@@ -21,7 +17,10 @@ export function Panel({
   ...props
 }: PanelProps) {
   return (
-    <section className={cx("ui-panel", `ui-panel-${tone}`, className)} {...props}>
+    <section
+      className={cx("ui-panel", `ui-panel-${tone}`, className)}
+      {...props}
+    >
       {children}
     </section>
   );
@@ -64,7 +63,7 @@ export function DetailPanel({
   return (
     <Panel className={className} tone="detail" {...props}>
       <PanelHeader
-        actions={(
+        actions={
           <>
             {actions}
             <Button
@@ -77,7 +76,7 @@ export function DetailPanel({
               <ChevronRight aria-hidden="true" size={14} />
             </Button>
           </>
-        )}
+        }
         title={title}
       />
       {children}
@@ -90,12 +89,7 @@ type PanelBodyProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 export const PanelBody = forwardRef<HTMLDivElement, PanelBodyProps>(
-  function PanelBody({
-    children,
-    className,
-    scroll = false,
-    ...props
-  }, ref) {
+  function PanelBody({ children, className, scroll = false, ...props }, ref) {
     return (
       <div
         className={cx(
@@ -129,14 +123,31 @@ export function Section({
 }
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "bare" | "danger" | "ghost" | "icon" | "primary" | "secondary";
+  variant?:
+    | "activity"
+    | "bare"
+    | "danger"
+    | "ghost"
+    | "icon"
+    | "primary"
+    | "secondary"
+    | "underlined";
+  sizing?: "container" | "content";
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  function Button({ className, variant = "secondary", ...props }, ref) {
+  function Button(
+    { className, variant = "secondary", sizing = "content", ...props },
+    ref,
+  ) {
     return (
       <button
-        className={cx("ui-button", `ui-button-${variant}`, className)}
+        className={cx(
+          "ui-button",
+          `ui-button-${variant}`,
+          sizing === "container" && "ui-button-container",
+          className,
+        )}
         ref={ref}
         {...props}
       />
@@ -148,14 +159,14 @@ export function ToggleButton({
   className,
   pressed,
   ...props
-}: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-pressed"> & {
+}: Omit<ButtonProps, "aria-pressed" | "variant"> & {
   pressed: boolean;
 }) {
   return (
     <Button
-      variant="bare"
+      variant="secondary"
       aria-pressed={pressed}
-      className={cx("ui-toggle-button", pressed && "is-active", className)}
+      className={className}
       type="button"
       {...props}
     />

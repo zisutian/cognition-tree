@@ -192,7 +192,7 @@ export function BlockRuleRows({
               : (
                 <SyntaxKindPicker
                   disabled={!syntax.canMutate}
-                  ariaLabel="角色"
+                  ariaLabel={`${rule.label}角色`}
                   fieldId={createSyntaxRuleFieldId(
                     "block",
                     rule.id,

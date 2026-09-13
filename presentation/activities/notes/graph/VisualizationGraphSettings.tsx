@@ -117,6 +117,7 @@ export function VisualizationGraphSettings({
           title="图谱设置"
           type="button"
           variant="secondary"
+          sizing="container"
         >
           <Settings2 aria-hidden="true" size={14} />
           图谱设置
@@ -202,6 +203,7 @@ export function VisualizationGraphSettings({
             onClick={onReset}
             type="button"
             variant="secondary"
+          sizing="container"
           >
             恢复默认设置
           </Button>

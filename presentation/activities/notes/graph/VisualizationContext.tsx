@@ -71,7 +71,7 @@ export function VisualizationContext({
         </div>
       ) : null}
       <ToggleButton
-        className="graph-context-toggle"
+        sizing="container"
         onClick={() => view.setHideIsolated(!hideIsolated)}
         pressed={hideIsolated}
       >
@@ -84,6 +84,7 @@ export function VisualizationContext({
           title="重置图谱视图"
           type="button"
           variant="secondary"
+          sizing="container"
         >
           <RotateCcw aria-hidden="true" size={14} />
           重置视图

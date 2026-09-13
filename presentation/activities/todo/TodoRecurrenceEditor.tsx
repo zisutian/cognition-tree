@@ -1,23 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState, type FormEvent } from "react";
-import type {
-  TodoBlockView,
-} from "../../../application/todo/index.ts";
+import type { TodoBlockView } from "../../../application/todo/index.ts";
 import type {
   TodoIsoWeekday,
   TodoRecurrenceRule,
 } from "../../../core/todo/index.ts";
 
 import {
-  CheckboxControl,
+  CheckboxGroup,
   Button,
   ChoiceGroup,
   InputControl,
   useFeedback,
 } from "../../ui/index.ts";
-
-
 
 type RecurrenceMode = "daily" | "monthly" | "none" | "weekly";
 
@@ -120,10 +116,11 @@ export function TodoRecurrenceEditor({
       {node.recurrence ? (
         <p className="todo-recurrence-summary">
           {node.recurrence.active
-            ? `完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount}${node.recurrence.nextOccurrenceDate
-              ? ` · 下次 ${node.recurrence.nextOccurrenceDate}`
-              : " · 暂无下次"
-            }`
+            ? `完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount}${
+                node.recurrence.nextOccurrenceDate
+                  ? ` · 下次 ${node.recurrence.nextOccurrenceDate}`
+                  : " · 暂无下次"
+              }`
             : `历史完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount} · 周期已停止`}
         </p>
       ) : null}
@@ -148,6 +145,7 @@ export function TodoRecurrenceEditor({
         <label className="todo-recurrence-field">
           <span>每隔</span>
           <InputControl
+            sizing="container"
             aria-label="重复间隔"
             inputMode="numeric"
             min={1}
@@ -156,33 +154,32 @@ export function TodoRecurrenceEditor({
             type="number"
             value={interval}
           />
-          <span>{mode === "daily" ? "天" : mode === "weekly" ? "周" : "月"}</span>
+          <span>
+            {mode === "daily" ? "天" : mode === "weekly" ? "周" : "月"}
+          </span>
         </label>
       ) : null}
       {mode === "weekly" ? (
-        <div aria-label="重复星期" className="todo-recurrence-weekdays">
-          {weekdays.map((weekday) => (
-            <label key={weekday.value}>
-              <CheckboxControl
-                checked={selectedWeekdays.includes(weekday.value)}
-                onChange={(event) => {
-                  setSelectedWeekdays((current) =>
-                    event.currentTarget.checked
-                      ? [...current, weekday.value]
-                      : current.filter((value) => value !== weekday.value)
-                  );
-                  setErrorMessage("");
-                }}
-              />
-              <span>{weekday.label}</span>
-            </label>
-          ))}
-        </div>
+        <CheckboxGroup
+          aria-label="重复星期"
+          layout="wrap"
+          options={weekdays.map((weekday) => ({
+            ...weekday,
+            ariaLabel: `星期${weekday.label}`,
+            disabled,
+          }))}
+          values={selectedWeekdays}
+          onChange={(values) => {
+            setSelectedWeekdays(values);
+            setErrorMessage("");
+          }}
+        />
       ) : null}
       {mode === "monthly" ? (
         <label className="todo-recurrence-field">
           <span>第</span>
           <InputControl
+            sizing="container"
             aria-label="每月日期"
             inputMode="numeric"
             max={31}
@@ -201,8 +198,12 @@ export function TodoRecurrenceEditor({
         </p>
       ) : null}
       <div className="todo-recurrence-actions">
-        <Button disabled={disabled} type="submit" variant="primary">确定</Button>
-        <Button onClick={onCancel} type="button">取消</Button>
+        <Button disabled={disabled} type="submit" variant="primary">
+          确定
+        </Button>
+        <Button onClick={onCancel} type="button">
+          取消
+        </Button>
       </div>
     </form>
   );

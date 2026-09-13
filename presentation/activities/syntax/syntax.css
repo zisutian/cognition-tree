@@ -131,51 +131,10 @@
   min-width: 0;
 }
 
-.syntax-tone-picker,
-.syntax-kind-picker {
+.syntax-tone-picker {
   position: relative;
   min-width: 0;
   min-height: var(--ui-control-height);
-}
-
-.syntax-tone-button,
-.syntax-tone-custom-button,
-.syntax-kind-button,
-.syntax-kind-option {
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
-  color: var(--color-fg);
-  background: transparent;
-  font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
-  cursor: pointer;
-}
-
-.syntax-kind-button {
-  justify-content: center;
-  gap: calc(var(--ui-gap-tight) / 2);
-  width: 100%;
-  min-height: var(--ui-control-height);
-  padding: 0 var(--ui-gap-tight);
-  background: var(--color-input);
-}
-
-.syntax-kind-button span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.syntax-tone-button {
-  justify-content: space-between;
-  gap: var(--ui-gap-tight);
-  width: 100%;
-  min-height: var(--ui-control-height);
-  padding: 0 var(--ui-gap-tight);
 }
 
 .syntax-tone-button > span:nth-child(2) {
@@ -185,29 +144,6 @@
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.syntax-tone-button.is-compact {
-  justify-content: center;
-  gap: calc(var(--ui-gap-tight) / 2);
-  padding: 0 var(--ui-gap-tight);
-}
-
-.syntax-tone-button:hover,
-.syntax-kind-button:hover,
-.syntax-kind-option:hover,
-.syntax-tone-custom-button:hover,
-.syntax-tone-tile:hover {
-  background: var(--color-hover);
-}
-
-.syntax-tone-button:focus-visible,
-.syntax-kind-button:focus-visible,
-.syntax-kind-option:focus-visible,
-.syntax-tone-custom-button:focus-visible,
-.syntax-tone-tile:focus-visible {
-  outline: none;
-  background: var(--color-hover);
 }
 
 .syntax-dropdown-menu {
@@ -227,41 +163,6 @@
   width: calc(var(--ui-control-height) * 7);
 }
 
-.syntax-kind-menu {
-  width: calc(var(--ui-control-height) * 4.5);
-}
-
-.syntax-kind-list {
-  display: grid;
-  gap: calc(var(--ui-gap-tight) / 2);
-}
-
-.syntax-kind-option {
-  position: relative;
-  justify-content: center;
-  min-height: var(--ui-control-height);
-  padding: 0 calc(var(--ui-gap) + var(--ui-icon-size)) 0 var(--ui-gap);
-  background: transparent;
-  text-align: center;
-}
-
-.syntax-kind-option.is-selected {
-  color: var(--color-fg-strong);
-  background: var(--color-selected);
-}
-
-.syntax-kind-option span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.syntax-kind-option svg {
-  position: absolute;
-  right: var(--ui-gap-tight);
-}
-
 .syntax-tone-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -270,21 +171,6 @@
 
 .syntax-tone-tile {
   position: relative;
-  display: grid;
-  place-items: center;
-  width: calc(var(--ui-control-height) - var(--ui-gap-tight));
-  height: calc(var(--ui-control-height) - var(--ui-gap-tight));
-  padding: 0;
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
-  background: var(--color-input);
-  cursor: pointer;
-}
-
-.syntax-tone-tile.is-selected,
-.syntax-tone-custom-button.is-selected {
-  color: var(--color-fg);
-  background: var(--color-selected);
 }
 
 .syntax-tone-tile svg {
@@ -297,13 +183,6 @@
   grid-template-columns: minmax(0, 1fr) calc(var(--ui-control-height) + var(--ui-gap-tight));
   align-items: center;
   gap: var(--ui-gap-tight);
-}
-
-.syntax-tone-custom-button {
-  justify-content: flex-start;
-  gap: var(--ui-gap-tight);
-  min-height: var(--ui-control-height);
-  padding: 0 var(--ui-gap-tight);
 }
 
 .syntax-tone-swatch {

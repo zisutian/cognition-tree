@@ -43,6 +43,13 @@ test.describe("syntax activity flows", () => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "语法").click();
 
+    const role = page.getByRole("combobox", { name: "定义角色", exact: true });
+    await role.focus();
+    const originalRole = await role.inputValue();
+    await role.press("End");
+    await role.press("Enter");
+    await expect(role).toHaveValue("multiline");
+    await role.selectOption(originalRole);
     const titleTonePicker = page.getByRole("button", {
       name: /^首行标题背景色:/,
     });
@@ -197,7 +204,7 @@ test.describe("syntax activity flows", () => {
       .toHaveCount(0);
     await expect(todoItemRow.getByRole("textbox", { name: "标记" }))
       .toHaveCount(0);
-    await expect(todoItemRow.getByRole("button", { name: /^角色:/ }))
+    await expect(todoItemRow.getByRole("combobox", { name: "代办角色" }))
       .toHaveCount(0);
     await expect(todoItemRow.getByText("代办", { exact: true })).toBeVisible();
     await expect(todoItemRow.getByText("[]", { exact: true })).toBeVisible();

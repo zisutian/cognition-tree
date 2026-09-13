@@ -18,12 +18,3 @@
   font-size: var(--ui-body-font-size);
   line-height: var(--ui-body-line-height);
 }
-
-.ui-tool-toolbar .ui-button,
-.ui-tool-toolbar .ui-control {
-  --ui-control-height: var(--ui-row-height);
-  --ui-control-font-size: var(--ui-body-font-size);
-
-  min-height: var(--ui-row-height);
-  font-size: var(--ui-body-font-size);
-}

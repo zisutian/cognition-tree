@@ -201,6 +201,20 @@ test.describe("Todo activity flows", () => {
     });
 
     await expect(recurrenceForm).toBeVisible();
+    await recurrenceForm.getByRole("radio", { name: "周", exact: true }).click();
+    const weekdays = recurrenceForm.getByRole("group", { name: "重复星期" });
+    await weekdays.getByText("一", { exact: true }).click();
+    await expect(weekdays.getByRole("checkbox", { name: "星期一" })).not.toBeChecked();
+    await recurrenceForm.getByRole("button", { name: "确定", exact: true }).click();
+    await expect(recurrenceForm.getByRole("status")).toHaveText("每周重复至少选择一个星期。");
+    const tuesday = weekdays.getByRole("checkbox", { name: "星期二" });
+    await tuesday.focus();
+    await tuesday.press("Space");
+    await expect(tuesday).toBeChecked();
+    await expect(tuesday).toBeFocused();
+    await recurrenceForm.getByRole("button", { name: "取消", exact: true }).click();
+    await detail.getByRole("button", { name: "配置周期 第一项" }).click();
+    await expect(recurrenceForm.getByRole("radio", { name: "日", exact: true })).toBeChecked();
     await recurrenceForm.getByRole("spinbutton", { name: "重复间隔" })
       .fill("2");
     await recurrenceForm.getByRole("button", { name: "确定" }).click();

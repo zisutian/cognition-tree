@@ -305,10 +305,6 @@
   gap: calc(var(--ui-gap-tight) / 2);
 }
 
-.agent-technical-value .ui-button {
-  flex: 0 0 auto;
-}
-
 .agent-technical-change-list li {
   display: flex;
   flex-wrap: wrap;

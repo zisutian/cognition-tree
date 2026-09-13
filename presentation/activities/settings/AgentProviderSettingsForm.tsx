@@ -138,12 +138,12 @@ export function AgentProviderSettingsForm({
             <FieldRow
               fieldId="settings-provider-private-network"
               label="允许私网访问"
-              description="允许连接此服务使用的私有网络地址。"
             >
               {(accessibility) => (
                 <CheckboxControl
                   {...accessibility}
                   aria-label="确认 Provider 私网访问"
+                  label="允许连接此服务使用的私有网络地址。"
                   onChange={(event) =>
                     onChange({
                       ...draft,

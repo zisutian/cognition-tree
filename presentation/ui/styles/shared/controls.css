@@ -70,81 +70,24 @@
   gap: var(--ui-gap-tight);
 }
 
-.ui-toggle-button {
-  width: fit-content;
-  max-width: 100%;
-}
-
-.ui-choice-option,
-.ui-toggle-button {
-  display: inline-flex;
+.ui-choice-option {
   flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  gap: var(--ui-gap-tight);
-  min-width: 0;
-  min-height: var(--ui-control-height);
-  padding: 0 var(--ui-gap-tight);
-  overflow: hidden;
-  border: var(--ui-border-width) solid var(--color-border-strong);
-  border-radius: 0;
-  color: var(--color-fg-muted);
-  background: var(--color-input);
-  font: inherit;
-  font-size: var(--ui-control-font-size);
-  font-weight: var(--ui-emphasis-weight);
-  line-height: var(--ui-control-line-height);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
 }
 
-.ui-choice-group-joined > :first-child {
+.ui-choice-group-segmented.ui-choice-group-joined > :first-child {
   border-radius: var(--ui-radius) 0 0 var(--ui-radius);
 }
 
-.ui-choice-group-joined > :not(:first-child) {
+.ui-choice-group-segmented.ui-choice-group-joined > :not(:first-child) {
   margin-left: calc(var(--ui-border-width) * -1);
 }
 
-.ui-choice-group-joined > :last-child {
+.ui-choice-group-segmented.ui-choice-group-joined > :last-child {
   border-radius: 0 var(--ui-radius) var(--ui-radius) 0;
 }
 
-.ui-choice-group-joined > :only-child,
-.ui-toggle-button,
-.ui-choice-group-wrap > .ui-choice-option {
+.ui-choice-group-segmented.ui-choice-group-joined > :only-child {
   border-radius: var(--ui-radius);
-}
-
-.ui-choice-option:hover:not(:disabled),
-.ui-toggle-button:hover:not(:disabled) {
-  border-color: var(--color-fg-subtle);
-  color: var(--color-fg);
-  background: var(--color-hover);
-}
-
-.ui-choice-option:focus-visible,
-.ui-toggle-button:focus-visible {
-  position: relative;
-  z-index: 1;
-  border-color: var(--color-accent);
-  outline: none;
-}
-
-.ui-choice-option.is-active,
-.ui-toggle-button.is-active {
-  position: relative;
-  z-index: 1;
-  border-color: var(--color-accent);
-  color: var(--color-fg-strong);
-  background: var(--color-selected);
-}
-
-.ui-choice-option:disabled,
-.ui-toggle-button:disabled {
-  color: var(--color-fg-disabled);
-  cursor: not-allowed;
 }
 
 .ui-range-control {
@@ -228,12 +171,44 @@
 }
 
 .ui-checkbox-control {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
   flex: none;
   width: var(--ui-symbol-size);
   height: var(--ui-symbol-size);
   margin: var(--ui-gap-tight) 0;
-  accent-color: var(--color-accent);
+  padding: 0;
+  border: var(--ui-border-width) solid var(--color-border-strong);
+  border-radius: var(--ui-radius);
+  background: var(--color-input);
+  vertical-align: middle;
   cursor: pointer;
+}
+
+.ui-checkbox-control::before {
+  content: "";
+  width: 8px;
+  height: 4px;
+  border: solid var(--color-fg-strong);
+  border-width: 0 0 2px 2px;
+  transform: translateY(-1px) rotate(-45deg);
+  visibility: hidden;
+}
+
+.ui-checkbox-control:checked::before {
+  visibility: visible;
+}
+
+.ui-checkbox-control:indeterminate::before {
+  height: 0;
+  border-left: 0;
+  transform: none;
+  visibility: visible;
+}
+
+.ui-checkbox-control:hover:not(:disabled) {
+  border-color: var(--color-fg-subtle);
 }
 
 .ui-checkbox-control:focus-visible {
@@ -248,35 +223,31 @@
 
 .ui-checkbox-group {
   display: flex;
-  flex-direction: column;
   gap: var(--ui-gap-tight);
   min-width: 0;
+}
+
+.ui-checkbox-group-stack {
+  flex-direction: column;
+}
+
+.ui-checkbox-group-wrap {
+  flex-wrap: wrap;
+  column-gap: var(--ui-gap);
 }
 
 .ui-checkbox-option {
-  display: flex;
+  display: inline-flex;
   align-items: flex-start;
   gap: var(--ui-gap-tight);
   min-width: 0;
+  color: var(--color-fg);
+  line-height: var(--ui-control-line-height);
   overflow-wrap: anywhere;
+  cursor: pointer;
 }
 
-.ui-choice-group-subtle .ui-choice-option {
-  min-height: var(--ui-form-control-height);
-  margin: 0;
-  padding-inline: var(--ui-panel-padding);
-  border: 0;
-  border-bottom: calc(var(--ui-border-width) * 2) solid transparent;
-  border-radius: 0;
-  background: transparent;
-  font-weight: var(--ui-body-weight);
-}
-
-.ui-choice-group-subtle .ui-choice-option.is-active {
-  border-bottom-color: var(--color-accent);
-  color: var(--color-fg-strong);
-}
-
-.ui-choice-group-subtle .ui-choice-option:hover:not(:disabled) {
-  background: var(--color-hover);
+.ui-checkbox-option:has(:disabled) {
+  color: var(--color-fg-disabled);
+  cursor: not-allowed;
 }

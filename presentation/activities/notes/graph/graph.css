@@ -15,15 +15,6 @@
   line-height: var(--ui-micro-line-height);
 }
 
-.graph-context-field .ui-control,
-.graph-context-toggle {
-  width: 100%;
-}
-
-.graph-context-toggle {
-  justify-content: flex-start;
-}
-
 .graph-context-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -31,15 +22,6 @@
   min-width: 0;
 }
 
-.graph-context-actions .ui-button {
-  justify-content: center;
-  width: 100%;
-  min-width: 0;
-  padding: 0 var(--ui-gap-tight);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .graph-canvas {
   position: relative;

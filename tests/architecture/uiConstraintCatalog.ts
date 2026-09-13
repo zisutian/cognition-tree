@@ -103,6 +103,20 @@ export function createUiTextPolicies({
       name: "diagnostic rail styling",
       pattern: /\.has-diagnostics::after/,
     },
+    {
+      allowedPath: /^presentation\/ui\/styles\/shared\/primitives\.css$/,
+      corpus: styleModules,
+      matches: 1,
+      name: "button variants and interaction styling ownership",
+      pattern: /\.ui-button(?:-(?:primary|secondary|icon|bare|activity|underlined|ghost|danger|container)|:|\[)/,
+    },
+    {
+      allowedPath: /^presentation\/ui\/styles\/shared\/controls\.css$/,
+      corpus: styleModules,
+      matches: 1,
+      name: "checkbox visual and label layout ownership",
+      pattern: /\.ui-checkbox-(?:control|option|group)\b/,
+    },
     ...createWorkflowTextPolicies(uiTestModules),
     ...(
       [

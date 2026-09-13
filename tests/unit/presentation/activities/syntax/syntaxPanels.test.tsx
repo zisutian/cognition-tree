@@ -196,7 +196,7 @@ describe("syntax panels", () => {
         ">[]</span>",
         ">普通块</span>",
         'value="注解"',
-        'aria-label="角色: 普通块"',
+        'aria-label="注解角色"',
         'aria-label="标记"',
         'aria-label="删除块规则"',
       ],
@@ -211,7 +211,7 @@ describe("syntax panels", () => {
         'aria-label="删除行内规则"',
       ],
     });
-    expect(occurrenceCount(markup, 'aria-label="角色: 普通块"')).toBe(1);
+    expect(occurrenceCount(markup, 'aria-label="注解角色"')).toBe(1);
     expect(occurrenceCount(markup, 'aria-label="标记"')).toBe(1);
     expect(occurrenceCount(markup, 'aria-label="删除块规则"')).toBe(1);
   });
