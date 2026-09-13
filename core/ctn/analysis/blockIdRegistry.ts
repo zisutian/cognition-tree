@@ -1,19 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type {
-  CtnCanonicalSourceAnalysis,
-} from "./sourceAnalysis.ts";
+import type { CtnCanonicalSourceAnalysis } from "./sourceAnalysis.ts";
 
 export class CtnBlockIdConflictError<OwnerId extends string> extends Error {
   readonly blockId: string;
   readonly firstOwnerId: OwnerId;
   readonly secondOwnerId: OwnerId;
 
-  constructor(
-    blockId: string,
-    firstOwnerId: OwnerId,
-    secondOwnerId: OwnerId,
-  ) {
+  constructor(blockId: string, firstOwnerId: OwnerId, secondOwnerId: OwnerId) {
     super(
       `Duplicate CTN block id ${blockId} in ${firstOwnerId} and ${secondOwnerId}.`,
     );
@@ -43,48 +37,46 @@ export type CtnBlockIdRegistryChange<OwnerId extends string> = {
 export function createCtnBlockIdRegistry<OwnerId extends string>(
   entries: readonly CtnBlockIdRegistryEntry<OwnerId>[],
 ): CtnBlockIdRegistry<OwnerId> {
-  const blockIdsByOwner = new Map<OwnerId, ReadonlySet<string>>();
-  const ownerByBlockId = new Map<string, OwnerId>();
-
-  for (const { analysis, ownerId } of entries) {
-    const blockIds = new Set<string>();
-
-    for (const block of analysis.document.blocks) {
-      const existingOwnerId = ownerByBlockId.get(block.id);
-
-      if (existingOwnerId !== undefined) {
-        throw new CtnBlockIdConflictError(
-          block.id,
-          existingOwnerId,
-          ownerId,
-        );
-      }
-      blockIds.add(block.id);
-      ownerByBlockId.set(block.id, ownerId);
-    }
-    blockIdsByOwner.set(ownerId, blockIds);
-  }
-
-  return {
-    blockIds: new Set(ownerByBlockId.keys()),
-    blockIdsByOwner,
-    ownerByBlockId,
-  };
+  return updateCtnBlockIdRegistry<OwnerId>(
+    {
+      blockIds: new Set(),
+      blockIdsByOwner: new Map(),
+      ownerByBlockId: new Map(),
+    },
+    entries.map((entry) => ({ entry, ownerId: entry.ownerId })),
+  );
 }
 
-export function replaceCtnBlockIdRegistryOwner<OwnerId extends string>(
+function retainsBlockOwnership<OwnerId extends string>(
   registry: CtnBlockIdRegistry<OwnerId>,
-  entry: CtnBlockIdRegistryEntry<OwnerId> | null,
-  ownerId: OwnerId,
-): CtnBlockIdRegistry<OwnerId> {
-  return updateCtnBlockIdRegistry(registry, [{ entry, ownerId }]);
+  changes: readonly CtnBlockIdRegistryChange<OwnerId>[],
+) {
+  const owners = new Set<OwnerId>();
+  for (const { entry, ownerId } of changes) {
+    if (owners.has(ownerId)) return false;
+    owners.add(ownerId);
+    const previous = registry.blockIdsByOwner.get(ownerId);
+    if (!entry) {
+      if (previous) return false;
+      continue;
+    }
+    if (!previous || previous.size !== entry.analysis.document.blocks.length)
+      return false;
+    const next = new Set(entry.analysis.document.blocks.map(({ id }) => id));
+    if (
+      next.size !== previous.size ||
+      [...next].some((id) => !previous.has(id))
+    )
+      return false;
+  }
+  return true;
 }
 
 export function updateCtnBlockIdRegistry<OwnerId extends string>(
   registry: CtnBlockIdRegistry<OwnerId>,
   changes: readonly CtnBlockIdRegistryChange<OwnerId>[],
 ): CtnBlockIdRegistry<OwnerId> {
-  if (changes.length === 0) {
+  if (changes.length === 0 || retainsBlockOwnership(registry, changes)) {
     return registry;
   }
   const blockIdsByOwner = new Map(registry.blockIdsByOwner);
@@ -107,11 +99,7 @@ export function updateCtnBlockIdRegistry<OwnerId extends string>(
       const existingOwnerId = ownerByBlockId.get(block.id);
 
       if (existingOwnerId !== undefined) {
-        throw new CtnBlockIdConflictError(
-          block.id,
-          existingOwnerId,
-          ownerId,
-        );
+        throw new CtnBlockIdConflictError(block.id, existingOwnerId, ownerId);
       }
       blockIds.add(block.id);
       ownerByBlockId.set(block.id, ownerId);
