@@ -2,7 +2,7 @@
 
 import type { IncomingMessage } from "node:http";
 import type { ApiPrincipalDto } from "../../../../contracts/api/index.ts";
-import { isLoopbackAddress } from "../../network/index.ts";
+import { isLoopbackAddress, normalizeNetworkHost } from "../../network/index.ts";
 
 export const ownerSessionCookieName = "ctn_owner_session";
 export const ownerSessionMaxAgeSeconds = 12 * 60 * 60;
@@ -52,10 +52,6 @@ export class ApiSecurityError extends Error {
   }
 }
 
-function normalizeHostname(hostname: string) {
-  return hostname.trim().toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
-}
-
 function parseHostPattern(value: string): HostPattern {
   const source = value.trim();
 
@@ -83,7 +79,7 @@ function parseHostPattern(value: string): HostPattern {
   if (explicitPort && (Number(explicitPort) < 1 || Number(explicitPort) > 65_535)) {
     throw new Error(`Invalid API host: ${value}`);
   }
-  const hostname = normalizeHostname(url.hostname);
+  const hostname = normalizeNetworkHost(url.hostname);
   const normalizedHost = hostname.includes(":") ? `[${hostname}]` : hostname;
 
   return {
