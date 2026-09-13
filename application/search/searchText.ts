@@ -10,16 +10,9 @@ export function normalizeSearchText(value: string) {
   return value.normalize("NFKC").toLocaleLowerCase("und");
 }
 
-type NormalizedGrapheme = {
-  normalizedEnd: number;
-  normalizedStart: number;
-  sourceEnd: number;
-  sourceStart: number;
-};
-
 type Segment = { index: number; segment: string };
 
-function segmentGraphemes(source: string): Segment[] {
+function* segmentGraphemes(source: string): Iterable<Segment> {
   const Segmenter = (
     Intl as typeof Intl & {
       Segmenter?: new (
@@ -32,79 +25,65 @@ function segmentGraphemes(source: string): Segment[] {
   ).Segmenter;
 
   if (Segmenter) {
-    return [...new Segmenter("und", { granularity: "grapheme" }).segment(
-      source,
-    )];
+    yield* new Segmenter("und", { granularity: "grapheme" }).segment(source);
+    return;
   }
-  const result: Segment[] = [];
   let index = 0;
 
   for (const segment of source) {
-    result.push({ index, segment });
+    yield { index, segment };
     index += segment.length;
   }
-  return result;
-}
-
-function createNormalizedSourceMap(source: string) {
-  let normalized = "";
-  const graphemes: NormalizedGrapheme[] = [];
-
-  for (const current of segmentGraphemes(source)) {
-    const segment = normalizeSearchText(current.segment);
-    const normalizedStart = normalized.length;
-
-    normalized += segment;
-    graphemes.push({
-      normalizedEnd: normalized.length,
-      normalizedStart,
-      sourceEnd: current.index + current.segment.length,
-      sourceStart: current.index,
-    });
-  }
-  return { graphemes, normalized };
 }
 
 function sourceRangeForNormalizedRange(
   source: string,
-  graphemes: readonly NormalizedGrapheme[],
   from: number,
   to: number,
 ) {
-  const first = graphemes.find(({ normalizedEnd }) => normalizedEnd > from);
-  let last: NormalizedGrapheme | undefined;
+  let normalizedOffset = 0;
+  let sourceStart: number | null = null;
 
-  for (let index = graphemes.length - 1; index >= 0; index -= 1) {
-    if (graphemes[index]!.normalizedStart < to) {
-      last = graphemes[index];
-      break;
+  for (const current of segmentGraphemes(source)) {
+    const normalizedEnd =
+      normalizedOffset + normalizeSearchText(current.segment).length;
+    if (sourceStart === null && normalizedEnd > from)
+      sourceStart = current.index;
+    if (normalizedEnd >= to) {
+      return {
+        from: sourceStart ?? current.index,
+        to: current.index + current.segment.length,
+      };
     }
+    normalizedOffset = normalizedEnd;
   }
-
-  return {
-    from: first?.sourceStart ?? source.length,
-    to: last?.sourceEnd ?? first?.sourceEnd ?? source.length,
-  };
+  return { from: sourceStart ?? source.length, to: source.length };
 }
 
-export function createSearchSnippet(source: string, normalizedQuery: string) {
-  const mapped = createNormalizedSourceMap(source);
-  const position = mapped.normalized.indexOf(normalizedQuery);
+function createSearchSnippet(
+  source: string,
+  normalizedSource: string,
+  normalizedQuery: string,
+) {
+  if (normalizedSource.length <= 160) return source;
+  // Locate the match in the same whole-text normalization used for matching.
+  // Per-grapheme casing can differ (for example, a final Greek sigma).
+  const position = normalizedSource.indexOf(normalizedQuery);
   const normalizedStart = Math.max(0, position < 0 ? 0 : position - 48);
   const normalizedEnd = Math.min(
-    mapped.normalized.length,
+    normalizedSource.length,
     Math.max(
       normalizedStart + 160,
       position < 0 ? 0 : position + normalizedQuery.length,
     ),
   );
+  // Only map the prefix needed to reach this snippet; do not allocate a map
+  // for the rest of a large multiline block.
   const range = sourceRangeForNormalizedRange(
     source,
-    mapped.graphemes,
     normalizedStart,
     normalizedEnd,
   );
-
   return `${range.from > 0 ? "…" : ""}${source.slice(range.from, range.to)}${
     range.to < source.length ? "…" : ""
   }`;
@@ -141,26 +120,35 @@ export function projectSearchDocumentResults(
   const blockResults: SearchResult[] = [];
 
   for (const block of document.blocks) {
-    const text = block.body === null
-      ? block.text
-      : `${block.text}\n${block.body}`;
+    const text =
+      block.body === null ? block.text : `${block.text}\n${block.body}`;
 
-    if (!normalizeSearchText(text).includes(normalizedQuery)) continue;
-    blockResults.push(createResult(document, {
-      blockId: block.blockId,
-      snippet: createSearchSnippet(text, normalizedQuery),
-      updatedAt: block.updatedAt,
-    }));
+    const normalizedText = normalizeSearchText(text);
+    if (!normalizedText.includes(normalizedQuery)) continue;
+    blockResults.push(
+      createResult(document, {
+        blockId: block.blockId,
+        snippet: createSearchSnippet(text, normalizedText, normalizedQuery),
+        updatedAt: block.updatedAt,
+      }),
+    );
   }
   if (blockResults.length > 0) return blockResults;
   const titleOrDocument = `${document.title}\n${document.editableText}`;
 
-  return normalizeSearchText(titleOrDocument).includes(normalizedQuery)
-    ? [createResult(document, {
-        blockId: null,
-        snippet: createSearchSnippet(titleOrDocument, normalizedQuery),
-        updatedAt: document.updatedAt,
-      })]
+  const normalizedText = normalizeSearchText(titleOrDocument);
+  return normalizedText.includes(normalizedQuery)
+    ? [
+        createResult(document, {
+          blockId: null,
+          snippet: createSearchSnippet(
+            titleOrDocument,
+            normalizedText,
+            normalizedQuery,
+          ),
+          updatedAt: document.updatedAt,
+        }),
+      ]
     : [];
 }
 
@@ -172,13 +160,14 @@ function compareBlockIds(left: string | null, right: string | null) {
 }
 
 export function sortSearchResults(results: SearchResult[]) {
-  return results.sort((left, right) =>
-    right.updatedAt.localeCompare(left.updatedAt) ||
-    left.domain.localeCompare(right.domain) ||
-    (left.domain === "workspace" ? left.repositoryId : "").localeCompare(
-      right.domain === "workspace" ? right.repositoryId : "",
-    ) ||
-    left.resourceId.localeCompare(right.resourceId) ||
-    compareBlockIds(left.blockId, right.blockId)
+  return results.sort(
+    (left, right) =>
+      right.updatedAt.localeCompare(left.updatedAt) ||
+      left.domain.localeCompare(right.domain) ||
+      (left.domain === "workspace" ? left.repositoryId : "").localeCompare(
+        right.domain === "workspace" ? right.repositoryId : "",
+      ) ||
+      left.resourceId.localeCompare(right.resourceId) ||
+      compareBlockIds(left.blockId, right.blockId),
   );
 }
