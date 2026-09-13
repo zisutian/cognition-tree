@@ -394,28 +394,6 @@ export function equalLocalManagedWorkingTreeState(
     equalLocalManagedDirectories(left.directories, right.directories);
 }
 
-export async function localWorkingTreeMatchesTarget(
-  rootDir: string,
-  targetFiles: LocalManagedFileSet,
-  targetDirectories: readonly string[],
-) {
-  const current = await captureLocalManagedWorkingTreeState(rootDir);
-
-  if (
-    current.files.size !== targetFiles.size ||
-    !equalLocalManagedDirectories(
-      current.directories,
-      new Set(targetDirectories),
-    )
-  ) {
-    return false;
-  }
-  for (const [relativePath, target] of targetFiles) {
-    if (current.files.get(relativePath) !== target) return false;
-  }
-  return true;
-}
-
 function parentDirectories(relativePath: string) {
   const result: string[] = [];
   let current = path.posix.dirname(relativePath);

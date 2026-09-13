@@ -64,7 +64,6 @@ import {
 import {
   captureLocalManagedWorkingTreeState,
   equalLocalManagedWorkingTreeState,
-  localWorkingTreeMatchesTarget,
   targetDirectoriesFromFilesAndIndex,
 } from "./workingTreeTransactionState.ts";
 
@@ -337,11 +336,12 @@ export class WorkspaceFileStore implements WorkspaceRepositoryStore {
         .filter((entry) => entry.kind === "folder")
         .map((entry) => entry.path),
     );
-    if (!(await localWorkingTreeMatchesTarget(
-      this.#rootDir,
-      projection.files,
-      targetDirectories,
-    ))) {
+    // The before/after capture already proves the projection's input is stable.
+    // Compare that captured state; a transaction rechecks it before any write.
+    if (!equalLocalManagedWorkingTreeState(observedAfter, {
+      directories: new Set(targetDirectories),
+      files: projection.files,
+    })) {
       await commitLocalWorkingTreeTransaction({
         baseRevision: metadata.currentRevision,
         expectedCurrentState: observedAfter,

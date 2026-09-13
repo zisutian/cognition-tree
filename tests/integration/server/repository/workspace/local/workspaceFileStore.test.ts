@@ -12,6 +12,7 @@ import {
   rename,
   rm,
   symlink,
+  utimes,
   writeFile,
 } from "node:fs/promises";
 import os from "node:os";
@@ -378,6 +379,35 @@ describe("WorkspaceFileStore Local working tree", () => {
       expect(deleted.content.workspace.notes).toEqual([addedNote]);
       await expect(lstat(path.join(rootDir, ".ctn", "note-metadata", "note-test.json")))
         .rejects.toMatchObject({ code: "ENOENT" });
+    });
+  });
+
+  it("reuses unchanged snapshots but rereads bytes when size and timestamps stay the same", async () => {
+    await withTempDir(async (rootDir) => {
+      await createFileRepository(rootDir);
+      const store = createStore(rootDir);
+      const base = await store.loadSnapshot();
+      const notePath = path.join(rootDir, "资料", "本地笔记库.ctn");
+      const before = await lstat(notePath);
+
+      expect(await store.loadSnapshot()).toBe(base);
+      await writeFile(notePath, "本地笔记库\n\t: 更改");
+      await utimes(notePath, before.atime, before.mtime);
+      const after = await lstat(notePath);
+      expect(after.size).toBe(before.size);
+      expect(after.mtime.getTime()).toBe(before.mtime.getTime());
+
+      const changed = await store.loadSnapshot();
+      expect(changed.revision).not.toBe(base.revision);
+      expect(changed.content.workspace.notes[0]!.id).toBe("note-test");
+      expect(changed.content.workspace.notes[0]!.source).toContain("\t: 更改");
+      expect(await store.loadSnapshot()).toBe(changed);
+      expect(await readFile(notePath, "utf8")).toBe("本地笔记库\n\t: 更改");
+      await expect(prepareAndCommitWorkspaceContent(store, {
+        baseRevision: base.revision,
+        content: base.content,
+      })).rejects.toMatchObject({ name: "WorkspaceRevisionConflictError" });
+      expect(await readFile(notePath, "utf8")).toBe("本地笔记库\n\t: 更改");
     });
   });
 
