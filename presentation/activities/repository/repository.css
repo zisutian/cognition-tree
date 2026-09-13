@@ -62,14 +62,6 @@
   white-space: pre-wrap;
 }
 
-.repository-operation-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ui-gap-tight);
-  padding: 0 var(--ui-gap-tight);
-}
-
 .repository-create {
   display: grid;
   gap: var(--ui-gap-tight);
@@ -87,18 +79,6 @@
   color: var(--color-warning);
   font-size: var(--ui-micro-font-size);
   line-height: var(--ui-micro-line-height);
-}
-
-.repository-danger-zone-content {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: start;
-  gap: var(--ui-gap-tight);
-  padding: 0 var(--ui-gap-tight);
-}
-
-.repository-danger-zone-content.is-confirming {
-  display: block;
 }
 
 .repository-inline-confirmation {

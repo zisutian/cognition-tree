@@ -1,5 +1,6 @@
 .ui-tool-section-stack {
   display: grid;
+  gap: var(--ui-section-gap, var(--ui-gap));
   min-width: 0;
 }
 
@@ -7,16 +8,10 @@
   display: grid;
   gap: var(--ui-gap-tight);
   min-width: 0;
-  padding: var(--ui-gap-tight);
 }
 
-.ui-tool-section + .ui-tool-section {
-  margin-top: var(--ui-gap-tight);
-}
-
-.ui-tool-section-danger {
-  border-left: calc(var(--ui-border-width) * 2) solid var(--color-error);
-  background: var(--color-error-soft);
+.ui-tool-section-danger > .ui-tool-section-header h3 {
+  color: var(--color-error);
 }
 
 .ui-tool-section:focus {

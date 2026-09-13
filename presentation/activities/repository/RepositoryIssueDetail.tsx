@@ -49,7 +49,7 @@ export function RepositoryIssueDetail({
             该格式不受支持，请在文件系统中手工删除上述目录。
           </p>
         ) : null}
-        <div className="repository-operation-strip">
+        <div className="ui-actions">
           {manualDeletion ? (
             <Button
               disabled={busy}

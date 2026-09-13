@@ -95,7 +95,7 @@ export function RepositoryConflictActions({
 }) {
   return (
     <ToolSection title="同步冲突">
-      <div className="repository-operation-strip">
+      <div className="ui-actions">
         <Button
           disabled={busy}
           onClick={() => onRunAction(resolution.keepLocal)}

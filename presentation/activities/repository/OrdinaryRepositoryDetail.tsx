@@ -42,7 +42,7 @@ export function OrdinaryRepositoryDetail({
             ? "当前正在使用此仓库。"
             : "打开此仓库后，可编辑笔记、整理结构和查看图谱。"}
         </p>
-        <div className="repository-operation-strip">
+        <div className="ui-actions">
           <Button
             disabled={busy}
             onClick={() => onRunAction(() => onOpen(repository.id))}
@@ -62,7 +62,7 @@ export function OrdinaryRepositoryDetail({
       ) : null}
       {recoveryAction || !active ? (
         <ToolSection title="操作">
-          <div className="repository-operation-strip">
+          <div className="ui-actions">
             {recoveryAction ? (
               <Button
                 disabled={busy}

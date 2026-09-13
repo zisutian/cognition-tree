@@ -34,10 +34,6 @@
   cursor: pointer;
 }
 
-.todo-structure-label:focus-visible {
-  outline: none;
-}
-
 .todo-structure-item.is-completed > .todo-structure-row .block-text {
   color: var(--color-fg-muted);
   text-decoration: line-through;

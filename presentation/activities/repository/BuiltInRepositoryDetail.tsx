@@ -35,7 +35,7 @@ export function BuiltInRepositoryDetail({
     return (
       <>
         <ToolSection title="操作">
-          <div className="repository-operation-strip">
+          <div className="ui-actions">
             <Button
               disabled={busy || view.retryingBuiltInId !== null}
               onClick={() => onRunAction(() => view.retryBuiltIn(issue.id))}
@@ -85,7 +85,7 @@ export function BuiltInRepositoryDetail({
         ? null
         : (
             <ToolSection title="操作">
-              <div className="repository-operation-strip">
+              <div className="ui-actions">
                 <Button
                   disabled={busy}
                   onClick={() => onRunAction(

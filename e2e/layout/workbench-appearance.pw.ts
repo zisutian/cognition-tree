@@ -128,6 +128,14 @@ test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, asyn
   expect(fields.every(({ above, aligned }) => above && aligned)).toBe(true);
   expect((await name.boundingBox())!.height).toBe(26);
   await expectWorkbenchGeometry(page);
+  const formLeft = (await name.boundingBox())!.x;
+  for (const target of [
+    panel.getByRole("heading", { name: "连接与认证", exact: true }),
+    panel.getByRole("button", { name: "探测", exact: true }),
+    panel.getByRole("button", { name: "删除 Provider", exact: true }),
+  ]) {
+    expect((await target.boundingBox())!.x).toBe(formLeft);
+  }
   await page.screenshot({ path: testInfo.outputPath("provider.png") });
 
   const titleBefore = await panel.getByRole("heading").first().boundingBox();
@@ -168,5 +176,9 @@ test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, asyn
   await expect(
     page.getByRole("textbox", { name: "服务地址", exact: true }),
   ).toBeVisible();
+  await expectWorkbenchGeometry(page);
+  await page.getByRole("button", { name: "工作台布局", exact: true }).click();
+  const width = page.getByRole("spinbutton", { name: "左侧栏宽度", exact: true });
+  expect((await width.boundingBox())!.x).toBe(formLeft);
   await expectWorkbenchGeometry(page);
 });

@@ -449,7 +449,6 @@
 
 .detail-line-button:hover,
 .detail-line-button:focus-visible {
-  outline: none;
   background: var(--color-hover);
 }
 

@@ -25,7 +25,10 @@ import {
   formatAgentScopeLabel,
 } from "./agentViewLabels.ts";
 
-export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
+export function AgentConversationPanel({ agent, onBeginCreateSession }: {
+  agent: AgentApplication;
+  onBeginCreateSession(): void;
+}) {
   const feedback = useFeedback();
   const sendAction = useExclusiveAsyncAction();
   const [draft, setDraft] = useState("");
@@ -53,6 +56,8 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
         <EmptyState
           compact
           title="创建或选择一个 Agent 会话"
+          description="创建会话时选择内容范围；已有会话可从左侧继续。"
+          action={<Button onClick={onBeginCreateSession} type="button" variant="primary">新建会话</Button>}
         />
       </ToolPanel>
     );

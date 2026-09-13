@@ -33,7 +33,8 @@ test.describe("Agent activity flows", () => {
     await getActivityButton(page, "智能体").click();
     const context = page.getByRole("complementary", { name: "智能体", exact: true });
 
-    await context.getByRole("button", { name: "新建会话" }).click();
+    await page.getByRole("region", { name: "Agent 对话", exact: true })
+      .getByRole("button", { name: "新建会话", exact: true }).click();
     let createPanel = page.getByRole("region", { name: "新建 Agent 会话" });
 
     await expect(createPanel).toContainText("需要在设置中完成配置");

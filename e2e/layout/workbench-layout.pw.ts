@@ -228,7 +228,14 @@ for (const viewport of [{ width: 1280, height: 720 }]) {
         for (const row of await rows.all())
           expect((await row.boundingBox())!.height).toBe(22);
       }
-      if (name === "仓库") await expectRepositoryDetails(page);
+      if (name === "仓库") {
+        await expectRepositoryDetails(page);
+        const repositoryPanel = page.getByRole("region", { name: "仓库", exact: true });
+        const left = (await repositoryPanel.getByRole("heading", { name: "使用仓库", exact: true }).boundingBox())!.x;
+        for (const label of ["继续编辑笔记", "删除仓库"]) {
+          expect((await repositoryPanel.getByRole("button", { name: label, exact: true }).boundingBox())!.x).toBe(left);
+        }
+      }
       if (name === "智能体" || name === "搜索")
         await expect(page.locator(".app-detail")).toHaveCount(0);
       await page.screenshot({ path: testInfo.outputPath(`${name}.png`) });

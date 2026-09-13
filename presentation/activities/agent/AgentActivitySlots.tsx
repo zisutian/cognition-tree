@@ -56,7 +56,7 @@ export function createAgentActivitySlots({
     main: creatingSession ? (
       <AgentSessionCreatePanel agent={agent} onCreated={onSelectSession} />
     ) : (
-      <AgentConversationPanel agent={agent} />
+      <AgentConversationPanel agent={agent} onBeginCreateSession={onBeginCreateSession} />
     ),
   };
 }

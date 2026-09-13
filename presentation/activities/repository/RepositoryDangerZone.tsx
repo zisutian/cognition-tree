@@ -6,7 +6,6 @@ import type {
 
 import {
   Button,
-  cx,
   ToolSection,
 } from "../../ui/index.ts";
 
@@ -37,12 +36,6 @@ export function RepositoryDangerZone({
       title="危险区"
       tone="danger"
     >
-      <div
-        className={cx(
-          "repository-danger-zone-content",
-          confirming && "is-confirming",
-        )}
-      >
         {confirming ? (
           <RepositoryDeleteConfirmation
             key={repository.id}
@@ -61,7 +54,6 @@ export function RepositoryDangerZone({
             删除仓库
           </Button>
         )}
-      </div>
     </ToolSection>
   );
 }

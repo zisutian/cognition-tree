@@ -42,7 +42,6 @@
 .ui-tool-list-row-target.is-interactive:hover,
 .ui-tool-list-row-target.is-interactive:focus-visible {
   background: var(--color-hover);
-  outline: none;
 }
 
 .ui-tool-list-row-leading,
@@ -105,5 +104,4 @@
 .ui-tool-list-row-actions > button:focus-visible {
   color: var(--color-fg-strong);
   background: var(--color-hover);
-  outline: none;
 }

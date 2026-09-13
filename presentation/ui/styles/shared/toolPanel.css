@@ -35,5 +35,6 @@
 }
 
 .ui-tool-panel-body-form {
+  --ui-section-gap: var(--ui-form-field-gap);
   padding: calc(var(--ui-form-padding) - var(--ui-panel-padding));
 }

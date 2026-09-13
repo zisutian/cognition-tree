@@ -318,7 +318,11 @@ test.describe("Todo activity flows", () => {
     const panel = page.getByRole("region", { name: "代办编辑" });
 
     await expect(panel).toContainText("还没有事项集合");
-    await createCollection(context, "无普通仓库");
+    await panel.getByRole("button", { name: "新建事项集合", exact: true }).click();
+    const nameInput = context.getByRole("textbox", { name: "新建事项集合名称", exact: true });
+    await nameInput.fill("无普通仓库");
+    await nameInput.press("Enter");
+    await expect(context.getByRole("button", { name: "无普通仓库", exact: true })).toBeVisible();
     await panel.locator(".source-editor .cm-content").click();
     await page.keyboard.insertText("[] 仍可保存");
     await waitForTodoContent(api, (content) =>

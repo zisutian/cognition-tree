@@ -148,7 +148,8 @@ export function SearchPanel({
         {state.status === "idle" ? (
           <EmptyState
             compact
-            title="尚未搜索"
+            title="搜索笔记、日记和代办"
+            description="在左侧输入标题或正文，按 Enter 开始搜索。"
           />
         ) : state.status === "loading" ? (
           <EmptyState
