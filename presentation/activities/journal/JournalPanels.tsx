@@ -1,4 +1,5 @@
 import {
+  Trash2,
   CalendarDays,
   ChevronDown,
   ChevronRight,
@@ -136,12 +137,13 @@ export function JournalContext({ view }: JournalViewProps) {
                                       : [{
                                           ariaLabel: `删除日记 ${entry.title}`,
                                           disabled: !view.canMutate,
-                                          label: "删",
+                                          icon: Trash2,
                                           onSelect: () => setPendingDelete(entry),
                                           tone: "danger",
                                         }]}
                                     confirmation={pendingDelete?.id === entry.id
                                       ? {
+                                          tone: "danger",
                                           cancelAriaLabel: `取消删除日记 ${entry.title}`,
                                           disabled: !view.canMutate,
                                           confirmAriaLabel: `确认删除日记 ${entry.title}`,

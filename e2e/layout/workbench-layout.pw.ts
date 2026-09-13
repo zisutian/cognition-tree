@@ -192,6 +192,20 @@ for (const viewport of [{ width: 1280, height: 720 }]) {
         page.getByRole("region", { name: label!, exact: true }),
       ).toBeVisible();
       await expectFrameFits(page);
+      if (["笔记", "日记", "代办", "语法", "仓库"].includes(name)) {
+        const actions = page.locator(".app-context")
+          .getByRole("button", { name: /^(重命名|删除|打开仓库|启用语法)/ });
+        expect(await actions.count()).toBeGreaterThan(0);
+        for (const action of await actions.all()) {
+          await expectExposed(action);
+          const box = (await action.boundingBox())!;
+          expect({ width: box.width, height: box.height }).toEqual({ width: 22, height: 22 });
+          const glyph = action.locator("svg");
+          await expect(glyph).toHaveCount(1);
+          expect((await glyph.boundingBox())!.width).toBe(16);
+          await expect(action).toHaveAttribute("title", /.+/);
+        }
+      }
       if (name === "仓库") await expectRepositoryDetails(page);
       if (name === "智能体" || name === "搜索")
         await expect(page.locator(".app-detail")).toHaveCount(0);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { ListChecks, Plus } from "lucide-react";
+import { Pencil, Trash2, ListChecks, Plus } from "lucide-react";
 import { useEffect, useState, type DragEvent } from "react";
 import type {
   TodoCollectionListItem,
@@ -152,7 +152,7 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
                           {
                             ariaLabel: `重命名事项集合 ${collection.name}`,
                     disabled: !view.canMutate,
-                            label: "改",
+                            icon: Pencil,
                             onSelect: () => {
                               setEditing({
                                 id: collection.id,
@@ -164,7 +164,7 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
                           {
                             ariaLabel: `删除事项集合 ${collection.name}`,
                             disabled: !view.canMutate,
-                            label: "删",
+                            icon: Trash2,
                             onSelect: () => setPendingDelete(collection),
                             tone: "danger",
                           },
@@ -172,6 +172,7 @@ export function TodoContext({ view }: { view: TodoViewModel }) {
                     confirmation={pendingDelete?.id === collection.id
                       ? {
                           disabled: !view.canMutate,
+                          tone: "danger",
                           cancelAriaLabel:
                             `取消删除事项集合 ${collection.name}`,
                           confirmAriaLabel:

@@ -383,6 +383,7 @@ export function DirectoryTreeRow({
               }} />
             ) : isDeletePending ? (
               <CompactContextActionButtons confirmation={{
+                tone: "danger",
                 cancelAriaLabel: `取消删除${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
                 confirmAriaLabel: `确认删除${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
                 onCancel: () => setPendingDeleteNode(null),
@@ -393,8 +394,7 @@ export function DirectoryTreeRow({
                 ...(onRenameNode
                   ? [{
                     ariaLabel: `重命名${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
-                    label: "改",
-                    icon: <Pencil aria-hidden="true" size={16} />,
+                    icon: Pencil,
                     onSelect: () => {
                       setEditingNode({ key: nodeKey, title: node.title });
                       setPendingDeleteNode(null);
@@ -404,8 +404,7 @@ export function DirectoryTreeRow({
                 ...(onDeleteNode
                   ? [{
                     ariaLabel: `删除${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
-                    label: "删",
-                    icon: <Trash2 aria-hidden="true" size={16} />,
+                    icon: Trash2,
                     onSelect: () => {
                       setEditingNode(null);
                       setPendingDeleteNode(node);

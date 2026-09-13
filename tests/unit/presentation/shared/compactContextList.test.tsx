@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { renderToStaticMarkup } from "react-dom/server";
@@ -26,7 +27,7 @@ describe("compact context lists", () => {
               actions={[
                 {
                   ariaLabel: "删除当前项目",
-                  label: "删",
+                  icon: Trash2,
                   onSelect: () => undefined,
                   tone: "danger",
                 },

@@ -65,8 +65,7 @@
   border-radius: var(--ui-radius);
 }
 
-.ui-tree-row,
-.ui-tree-actions button {
+.ui-tree-row {
   min-height: var(--ui-row-height);
   border-radius: var(--ui-radius);
 }
@@ -245,28 +244,8 @@
   opacity: 1;
 }
 
-.ui-tree-actions button {
-  min-width: calc(var(--ui-control-height) + var(--ui-gap-tight));
-  padding: 0 var(--ui-gap-tight);
-  color: var(--color-fg-muted);
-  background: transparent;
-  font-size: var(--ui-micro-font-size);
-  cursor: pointer;
-}
-
-.ui-tree-actions .ui-tree-action-danger,
-.ui-tree-actions .ui-tree-action-confirm {
+.ui-tree-actions .ui-tree-action-danger:not(:disabled) {
   color: var(--color-error);
-}
-
-.ui-tree-actions button:hover {
-  color: var(--color-fg-strong);
-  background: var(--color-hover);
-}
-
-.ui-tree-actions button:disabled {
-  color: var(--color-fg-disabled);
-  cursor: not-allowed;
 }
 
 .has-diagnostics {

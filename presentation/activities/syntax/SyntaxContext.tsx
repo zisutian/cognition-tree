@@ -1,4 +1,6 @@
 import {
+  Pencil,
+  Trash2,
   AlertTriangle,
   Check,
   FileCode2,
@@ -204,7 +206,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
                           ? [{
                               ariaLabel: `启用语法 ${file.name}`,
                               disabled: mutationBlocked,
-                              label: "用",
+                              icon: Check,
                               onSelect: () => void runOperation(
                                 () => view.activateFile(file.id),
                               ),
@@ -213,13 +215,13 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
                         {
                           ariaLabel: `重命名语法 ${file.name}`,
                           disabled: busy || !view.actions || !view.workspaceCanMutate,
-                          label: "改",
+                          icon: Pencil,
                           onSelect: () => beginRename(file),
                         },
                         {
                           ariaLabel: `删除语法 ${file.name}`,
                           disabled: mutationBlocked,
-                          label: "删",
+                          icon: Trash2,
                           onSelect: () => {
                             setRenamingFile(null);
                             setPendingDeleteFile(file);
@@ -229,6 +231,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
                       ]}
                   confirmation={pendingDeleteFile?.id === file.id
                     ? {
+                        tone: "danger",
                         cancelAriaLabel: `取消删除语法 ${file.name}`,
                         confirmAriaLabel: `确认删除语法 ${file.name}`,
                         disabled: mutationBlocked,

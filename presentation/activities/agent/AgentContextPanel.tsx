@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { MessageSquare, Plus } from "lucide-react";
+import { Trash2, MessageSquare, Plus } from "lucide-react";
 import type { AgentApplication } from "../../../application/agent/index.ts";
 import {
   Button,
@@ -60,7 +60,7 @@ export function AgentContextPanel({
                   actions={[{
                     ariaLabel: `删除会话 ${session.id}`,
                     disabled: state.operationStatus === "working",
-                    label: "删",
+                    icon: Trash2,
                     onSelect: () => {
                       void feedback.runAction(
                         () => controller.deleteSession(session.id),

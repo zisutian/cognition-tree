@@ -1,4 +1,4 @@
-import {
+import { FolderOpen, Pencil,
   AlertTriangle,
   CalendarDays,
   Check,
@@ -226,7 +226,7 @@ export function RepositoryContext({
                             ? [{
                                 ariaLabel: `打开仓库 ${repository.label}`,
                                 disabled: busy,
-                                label: "开",
+                                icon: FolderOpen,
                                 onSelect: () => {
                                   void feedback.runAction(() =>
                                     view.selectRepository(repository.id)
@@ -237,7 +237,7 @@ export function RepositoryContext({
                           {
                             ariaLabel: `重命名仓库 ${repository.label}`,
                             disabled: busy,
-                            label: "改",
+                            icon: Pencil,
                             onSelect: () => beginRename(repository),
                           },
                         ]}

@@ -88,7 +88,6 @@ describe("Journal panels", () => {
       has: [
         'aria-current="page"',
         `aria-label="删除日记 ${activeEntry.title}"`,
-        ">删<",
       ],
       lacks: ["2 日", "31 日", 'role="alertdialog"'],
       ordered: [

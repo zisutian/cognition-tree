@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Check, ChevronDown, ChevronRight, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, X, type LucideIcon } from "lucide-react";
 import type {
   ButtonHTMLAttributes,
   HTMLAttributes,
@@ -59,8 +59,7 @@ export type CompactContextInlineRename = {
 export type CompactContextAction = {
   ariaLabel: string;
   disabled?: boolean;
-  label: string;
-  icon?: ReactNode;
+  icon: LucideIcon;
   onSelect: () => void;
   title?: string;
   tone?: "danger" | "default";
@@ -69,6 +68,7 @@ export type CompactContextAction = {
 export type CompactContextActionConfirmation = {
   cancelAriaLabel: string;
   confirmAriaLabel: string;
+  tone?: "danger" | "default";
   disabled?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -84,42 +84,46 @@ export function CompactContextActionButtons({
   if (confirmation) {
     return (
       <>
-        <Button variant="bare"
+        <Button variant="icon"
           aria-label={confirmation.confirmAriaLabel}
-          className="ui-tree-action-confirm"
+          className={confirmation.tone === "danger" ? "ui-tree-action-danger" : undefined}
           disabled={confirmation.disabled}
           onClick={confirmation.onConfirm}
           title="确认"
           type="button"
         >
-          <Check aria-hidden="true" size={16} />
+          <Check aria-hidden="true" />
         </Button>
-        <Button variant="bare"
+        <Button variant="icon"
           aria-label={confirmation.cancelAriaLabel}
           disabled={confirmation.disabled}
           onClick={confirmation.onCancel}
           title="取消"
           type="button"
         >
-          <X aria-hidden="true" size={16} />
+          <X aria-hidden="true" />
         </Button>
       </>
     );
   }
 
-  return actions.map((action) => (
-    <Button variant="bare"
-      aria-label={action.ariaLabel}
-      className={action.tone === "danger" ? "ui-tree-action-danger" : undefined}
-      disabled={action.disabled}
-      key={`${action.label}:${action.ariaLabel}`}
-      onClick={action.onSelect}
-      title={action.title ?? action.label}
-      type="button"
-    >
-      {action.icon ?? action.label}
-    </Button>
-  ));
+  return actions.map((action) => {
+    const Icon = action.icon;
+    return (
+      <Button
+        variant="icon"
+        aria-label={action.ariaLabel}
+        className={action.tone === "danger" ? "ui-tree-action-danger" : undefined}
+        disabled={action.disabled}
+        key={action.ariaLabel}
+        onClick={action.onSelect}
+        title={action.title ?? action.ariaLabel}
+        type="button"
+      >
+        <Icon aria-hidden="true" />
+      </Button>
+    );
+  });
 }
 
 export type CompactContextListProps = HTMLAttributes<HTMLUListElement>;
