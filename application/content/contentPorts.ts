@@ -6,7 +6,10 @@ import type {
 } from "../repository/index.ts";
 import type { CommandRuntime } from "../commands/index.ts";
 import type { JournalDomainVersions } from "../journal/index.ts";
-import type { ContentOperationLedgerPort } from "../operations/index.ts";
+import type {
+  ContentOperationLedgerPort,
+  ContentOperationScope,
+} from "../operations/index.ts";
 import type { PreparedVersionedStore } from "../persistence/index.ts";
 import type { TodoDomainVersions } from "../todo/index.ts";
 import type {
@@ -24,6 +27,11 @@ import type {
   TodoParseIndex,
 } from "../../core/todo/index.ts";
 import type { DomainChangeSet } from "../../core/sync/index.ts";
+
+export type ContentScope = Exclude<
+  ContentOperationScope,
+  { domain: "catalog" }
+>;
 
 export type ContentReadBasis = {
   baseRevision: `sha256:${string}`;

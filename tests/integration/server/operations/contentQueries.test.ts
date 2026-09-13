@@ -39,6 +39,56 @@ function search(result: ContentQueryResult) {
   return result;
 }
 
+it("searches Todo text without task-state work and calculates only the requested block state", async () => {
+  const value = await createContentServiceFixture();
+  fixtures.push(value);
+  const todo = { domain: "todo" } as const;
+  await value.apply(todo, {
+    kind: "create-collection",
+    name: "局部查询",
+    body: "[] 学习\n[] 复习",
+  });
+  const full = await value.read(todo, "局部查询");
+  const selected = full.document.blocks[0]!.blockId;
+  let dateReads = 0;
+  let stateVersions = 0;
+  value.ports.runtime.today = () => {
+    dateReads += 1;
+    return "2026-09-09";
+  };
+  const versions = value.ports.versions.todo;
+  value.ports.versions.todo = {
+    ...versions,
+    itemState(...args) {
+      stateVersions += 1;
+      return versions.itemState(...args);
+    },
+  };
+
+  const matches = search(
+    await value.service.query({
+      kind: "search",
+      scope: todo,
+      text: "学习",
+      limit: 10,
+    }),
+  );
+  expect(matches.results.map(({ blockId }) => blockId)).toEqual([selected]);
+  expect(dateReads).toBe(0);
+  expect(stateVersions).toBe(0);
+
+  const partial = await value.read(todo, "局部查询", selected);
+  expect(partial.tasks).toEqual(
+    full.tasks.filter(({ blockId }) => blockId === selected),
+  );
+  expect(partial.document.blocks.map(({ blockId }) => blockId)).toEqual([
+    selected,
+  ]);
+  expect(dateReads).toBe(1);
+  expect(stateVersions).toBe(1);
+  expect(partial.basis).toEqual(full.basis);
+});
+
 it("pages root and relative folders without losing hierarchy and invalidates changed snapshots", async () => {
   const value = await fixture();
   expect(

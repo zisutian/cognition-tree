@@ -12,6 +12,7 @@ export function projectTodoItemStates(
   parsed: ParsedTodoIndexCollection,
   today: TodoLocalDate,
   version: TodoDomainVersions["itemState"],
+  onlyBlockIds?: ReadonlySet<string>,
 ) {
   const ordinaryCompletionById = new Map(
     parsed.collection.completions.map(({ blockId, completedAt }) => [
@@ -20,32 +21,38 @@ export function projectTodoItemStates(
     ]),
   );
   const recurrenceById = new Map(
-    parsed.collection.recurrences.map((recurrence) => {
-      const projection = projectTodoRecurrence(recurrence, today);
+    parsed.collection.recurrences
+      .filter(({ blockId }) => !onlyBlockIds || onlyBlockIds.has(blockId))
+      .map((recurrence) => {
+        const projection = projectTodoRecurrence(recurrence, today);
 
-      return [
-        recurrence.blockId,
-        {
-          active: projection.active,
-          completedAt: projection.active
-            ? projection.completedAt
-            : (ordinaryCompletionById.get(recurrence.blockId) ?? null),
-          recurrence: {
+        return [
+          recurrence.blockId,
+          {
             active: projection.active,
-            completedCount: projection.completedCount,
-            currentOccurrenceDate: projection.currentOccurrenceDate,
-            nextOccurrenceDate: projection.nextOccurrenceDate,
-            rule:
-              projection.currentStage?.rule ?? recurrence.stages.at(-1)!.rule,
-            totalCount: projection.totalCount,
+            completedAt: projection.active
+              ? projection.completedAt
+              : (ordinaryCompletionById.get(recurrence.blockId) ?? null),
+            recurrence: {
+              active: projection.active,
+              completedCount: projection.completedCount,
+              currentOccurrenceDate: projection.currentOccurrenceDate,
+              nextOccurrenceDate: projection.nextOccurrenceDate,
+              rule:
+                projection.currentStage?.rule ?? recurrence.stages.at(-1)!.rule,
+              totalCount: projection.totalCount,
+            },
           },
-        },
-      ] as const;
-    }),
+        ] as const;
+      }),
   );
 
   return parsed.analysis.document.blocks
-    .filter(({ rule }) => rule.semanticId === todoItemSemanticType)
+    .filter(
+      ({ id, rule }) =>
+        rule.semanticId === todoItemSemanticType &&
+        (!onlyBlockIds || onlyBlockIds.has(id)),
+    )
     .map((block) => {
       const recurrence = recurrenceById.get(block.id);
       const completedAt =

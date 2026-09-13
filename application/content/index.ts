@@ -4,12 +4,9 @@ export { ContentTargetError, resolveNamedContent } from "./targetResolution.ts";
 export type { NamedContentResource } from "./targetResolution.ts";
 
 export { queryContent, contentCatalogRevision } from "./contentQuery.ts";
+export type { ContentQuery, ContentQueryResult } from "./contentQuery.ts";
 export type {
-  ContentQuery,
-  ContentQueryResult,
   ContentScope,
-} from "./contentQuery.ts";
-export type {
   ContentReadBasis,
   ContentCatalogSession,
   ContentServicePorts,

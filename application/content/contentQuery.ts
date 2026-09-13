@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  projectContentDocument,
-  projectUnparsedContentDocument,
   projectContentSyntaxGuide,
   readCommandRuntimeNow,
   type ContentDocument,
@@ -13,19 +11,11 @@ import {
   type SearchDocument,
 } from "../search/index.ts";
 import type { ContentOperationScope } from "../operations/index.ts";
-import type { PreparedVersionedSnapshot } from "../persistence/index.ts";
-import { projectTodoItemStates, type TodoItemState } from "../todo/index.ts";
-import type {
-  WorkspaceRepositoryContent,
-  WorkspaceRepositoryPreparation,
-} from "../workspace/index.ts";
+import type { TodoItemState } from "../todo/index.ts";
 import {
   CtnContentEditError,
   projectCtnContentRange,
-  type CtnCanonicalSourceAnalysis,
-  type CtnCompiledSyntax,
 } from "../../core/ctn/index.ts";
-import { listWorkspaceResourcePaths } from "../../core/workspace/index.ts";
 import { DomainValidationError } from "../../core/errors/index.ts";
 import { contentPage } from "./contentPage.ts";
 import {
@@ -35,14 +25,17 @@ import {
 import type {
   ContentReadBasis,
   ContentCatalog,
-  ContentRevision,
+  ContentScope,
   ContentServicePorts,
 } from "./contentPorts.ts";
 
-export type ContentScope = Exclude<
-  ContentOperationScope,
-  { domain: "catalog" }
->;
+import {
+  createWorkspaceContentReadContext,
+  createJournalContentReadContext,
+  createTodoContentReadContext,
+  type ContentReadContext,
+} from "./contentReadContext.ts";
+
 export type ContentQuery =
   | { kind: "catalog" }
   | {
@@ -112,22 +105,6 @@ export type ContentQueryResult = {
       nextCursor: string | null;
     }
 );
-
-type QueryDocument = {
-  analysis: CtnCanonicalSourceAnalysis | null;
-  document: ContentDocument;
-  tasks: TodoItemState[];
-};
-type ContentReadContext = {
-  scope: ContentScope;
-  basis: ContentReadBasis;
-  resources: NamedContentResource[];
-  syntax: CtnCompiledSyntax | null;
-  syntaxFiles: { id: string; name: string; source: string }[];
-  active: string | null;
-  syntaxForFile(id: string): CtnCompiledSyntax;
-  read(resource: NamedContentResource): QueryDocument;
-};
 
 export function contentCatalogRevision(
   catalog: {
@@ -225,7 +202,7 @@ function readQuery(
       context.resources.filter(({ kind }) => kind !== "folder"),
       query.resource,
     );
-    const { analysis, document, tasks } = context.read(resource);
+    const { analysis, document } = context.read(resource);
     if (!analysis && query.blockId)
       throw new CtnContentEditError(
         "missing-block",
@@ -267,7 +244,7 @@ function readQuery(
           : document.diagnostics,
       },
       range: { from: range.from, to: range.to },
-      tasks: tasks.filter(({ blockId }) => ids.has(blockId)),
+      tasks: context.readTasks?.(resource, ids) ?? [],
     };
   }
   if (!query.text.trim())
@@ -288,15 +265,21 @@ function readQuery(
               repositoryId: context.scope.repository,
             }
           : { ...document, title: resource.path, domain: context.scope.domain };
-      for (const match of projectSearchDocumentResults(input, {
+      const documentMatches = projectSearchDocumentResults(input, {
         query: searchText,
-      }))
+      });
+      if (documentMatches.length === 0) continue;
+      const lineByBlockId = new Map(
+        document.blocks.map((block) => [block.blockId, block.lineNumber]),
+      );
+      for (const match of documentMatches)
         yield {
           resource,
           blockId: match.blockId,
           lineNumber:
-            document.blocks.find(({ blockId }) => blockId === match.blockId)
-              ?.lineNumber ?? null,
+            match.blockId === null
+              ? null
+              : (lineByBlockId.get(match.blockId) ?? null),
           snippet: match.snippet,
         };
     }
@@ -318,64 +301,6 @@ function readQuery(
     kind: query.kind,
     results: page.items,
     nextCursor: page.nextCursor,
-  };
-}
-
-function workspaceReadContext(
-  scope: Extract<ContentScope, { domain: "workspace" }>,
-  snapshot: PreparedVersionedSnapshot<
-    WorkspaceRepositoryContent,
-    WorkspaceRepositoryPreparation,
-    ContentRevision
-  >,
-  ports: ContentServicePorts,
-  repositoryId: string,
-): ContentReadContext {
-  const preparation = snapshot.projection;
-  return {
-    scope,
-    basis: { baseRevision: snapshot.revision, repositoryId },
-    resources: listWorkspaceResourcePaths(preparation.workspace),
-    syntax: preparation.workspaceSyntax?.syntax ?? null,
-    active: snapshot.content.syntax.activeFileId,
-    syntaxFiles: snapshot.content.syntax.files.map((file) => ({
-      ...file,
-      name: preparation.syntaxById.get(file.id)!.syntax.name,
-    })),
-    syntaxForFile: (id) => preparation.syntaxById.get(id)!.syntax,
-    read(resource) {
-      const parsed = preparation.analysisIndex?.getParsedNote(resource.id);
-      const { header, note } = preparation.workspace.noteEntryById.get(
-        resource.id,
-      )!;
-      if (!parsed)
-        return {
-          analysis: null,
-          document: projectUnparsedContentDocument({
-            source: note.source,
-            createdAt: header.createdAt,
-            resourceId: resource.id,
-            textMode: "body",
-            title: resource.name,
-            updatedAt: header.updatedAt,
-            version: ports.versions.workspace.note(note.source),
-          }),
-          tasks: [],
-        };
-      return {
-        analysis: parsed.analysis,
-        document: projectContentDocument({
-          analysis: parsed.analysis,
-          createdAt: header.createdAt,
-          resourceId: resource.id,
-          textMode: "body",
-          title: resource.name,
-          updatedAt: header.updatedAt,
-          version: ports.versions.workspace.note(parsed.source),
-        }),
-        tasks: [],
-      };
-    },
   };
 }
 
@@ -412,119 +337,26 @@ export async function queryContent(
       );
       const store = await session.getStore(repository.id);
       return readQuery(
-        workspaceReadContext(
-          { domain: "workspace", repository: repository.name },
+        createWorkspaceContentReadContext(
           await store.loadSnapshot(),
-          ports,
-          repository.id,
+          repository,
+          ports.versions.workspace,
         ),
         query,
         ports.digest,
       );
     });
   }
-  if (query.scope.domain === "journal") {
-    const snapshot = await (await ports.journal()).loadSnapshot();
-    const index = snapshot.projection;
-    const resources = index.entries.map(({ entry, title }) => ({
-      id: entry.id,
-      kind: "entry" as const,
-      name: title,
-      path: title,
-    }));
-    return readQuery(
-      {
-        scope: query.scope,
-        basis: { baseRevision: snapshot.revision, repositoryId: null },
-        resources,
-        syntax: index.syntax,
-        active: "journal",
-        syntaxFiles: [
-          {
-            id: "journal",
-            name: index.syntax.name,
-            source: snapshot.content.syntaxSource,
-          },
-        ],
-        syntaxForFile: () => index.syntax,
-        read(resource) {
-          const parsed = index.entries.find(
-            ({ entry }) => entry.id === resource.id,
-          )!;
-          const analysis = index.getParsedEntry(parsed.entry.id)!.analysis;
-          return {
-            analysis,
-            document: projectContentDocument({
-              analysis,
-              createdAt: parsed.entry.createdAt,
-              resourceId: resource.id,
-              textMode: "body",
-              title: resource.name,
-              updatedAt: parsed.entry.updatedAt,
-              version: ports.versions.journal.entry(parsed.entry.source),
-            }),
-            tasks: [],
-          };
-        },
-      },
-      query,
-      ports.digest,
-    );
-  }
-  const snapshot = await (await ports.todo()).loadSnapshot();
-  const index = snapshot.projection;
-  return readQuery(
-    {
-      scope: query.scope,
-      basis: { baseRevision: snapshot.revision, repositoryId: null },
-      resources: index.collections.map(({ collection, name }) => ({
-        id: collection.id,
-        kind: "collection",
-        name,
-        path: name,
-      })),
-      syntax: index.syntax,
-      active: "todo",
-      syntaxFiles: [
-        {
-          id: "todo",
-          name: index.syntax.name,
-          source: snapshot.content.syntaxSource,
-        },
-      ],
-      syntaxForFile: () => index.syntax,
-      read(resource) {
-        const collection = index.collections.find(
-          ({ collection }) => collection.id === resource.id,
-        )!;
-        const parsed = index.getParsedCollection(collection.collection.id)!;
-        const blocks = parsed.analysis.document.blocks;
-        return {
-          analysis: parsed.analysis,
-          document: projectContentDocument({
-            analysis: parsed.analysis,
-            createdAt: blocks[0]!.metadata.createdAt,
-            resourceId: resource.id,
-            textMode: "body",
-            title: resource.name,
-            updatedAt: blocks.reduce(
-              (latest, block) =>
-                latest > block.metadata.updatedAt
-                  ? latest
-                  : block.metadata.updatedAt,
-              blocks[0]!.metadata.updatedAt,
-            ),
-            version: ports.versions.todo.collection(parsed),
-          }),
-          tasks: projectTodoItemStates(
-            parsed,
-            ports.runtime.today(readCommandRuntimeNow(ports.runtime).date),
-            ports.versions.todo.itemState,
-          ),
-        };
-      },
-    },
-    query,
-    ports.digest,
-  );
+  const context =
+    query.scope.domain === "journal"
+      ? createJournalContentReadContext(
+          await (await ports.journal()).loadSnapshot(),
+          ports.versions.journal,
+        )
+      : createTodoContentReadContext(
+          await (await ports.todo()).loadSnapshot(),
+          ports.versions.todo,
+          () => ports.runtime.today(readCommandRuntimeNow(ports.runtime).date),
+        );
+  return readQuery(context, query, ports.digest);
 }
