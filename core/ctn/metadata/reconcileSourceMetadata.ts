@@ -15,7 +15,10 @@ import {
   formatCtnBlockMetadataLine,
   type CtnBlockMetadataRecord,
 } from "./blockMetadata.ts";
-import { createCtnBlockIdAllocator } from "./blockIdAllocator.ts";
+import {
+  createCtnBlockIdAllocator,
+  type CtnBlockIdAllocator,
+} from "./blockIdAllocator.ts";
 import {
   assertCtnEditableSourceChange,
   mapCtnTextOffset,
@@ -478,14 +481,20 @@ export function reconcileCtnSourceBlockMetadata(
     previousEditableDocument,
     previousEditableSource,
   });
-  const idAllocator = createCtnBlockIdAllocator(createId, reservedIds);
-
-  previousDocument.blocks.forEach((block) => idAllocator.reserve(block.id));
-  assignedIds.forEach((id) => idAllocator.reserve(id));
+  let idAllocator: CtnBlockIdAllocator | null = null;
 
   assignNewBlockIds({
     assignedIds,
-    allocateId: idAllocator.allocate,
+    allocateId() {
+      // Text edits retaining all anchors need no global allocation scope.
+      if (!idAllocator) {
+        const allocator = createCtnBlockIdAllocator(createId, reservedIds);
+        previousDocument.blocks.forEach((block) => allocator.reserve(block.id));
+        assignedIds.forEach((id) => allocator.reserve(id));
+        idAllocator = allocator;
+      }
+      return idAllocator.allocate();
+    },
     candidateDocument,
   });
 

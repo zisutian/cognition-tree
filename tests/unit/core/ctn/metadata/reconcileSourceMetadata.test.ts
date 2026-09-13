@@ -118,6 +118,42 @@ function parse(source: string) {
 }
 
 describe("reconcileCtnSourceBlockMetadata", () => {
+  it("reserves prior and external identities when the first new block requests allocation", () => {
+    const previousAnalysis = analyzeCtnSource({
+      mode: { kind: "canonical-document" },
+      source: addTestCtnBlockMetadata("Title\nRoot"),
+      syntax: defaultCtnSyntax,
+    });
+    const source = "Title\nSibling\nRoot";
+    const candidateAnalysis = analyzeCtnSource({
+      mode: { kind: "editable-document" },
+      source,
+      syntax: defaultCtnSyntax,
+    });
+    const candidates = [1, 2, 900, 901].map(createTestBlockId);
+    let attempts = 0;
+    const result = reconcileCtnSourceBlockMetadata(
+      previousAnalysis,
+      candidateAnalysis,
+      createReplacementChange(
+        previousAnalysis.editableProjection.source,
+        source,
+      ),
+      {
+        createId: () => candidates[attempts++]!,
+        reservedIds: new Set([createTestBlockId(900)]),
+        timestamp: changedTimestamp,
+        touchTitle: true,
+      },
+    );
+    expect(attempts).toBe(4);
+    expect(result.analysis.document.blocks.map(({ id }) => id)).toEqual([
+      createTestBlockId(1),
+      createTestBlockId(901),
+      createTestBlockId(2),
+    ]);
+  });
+
   it("preserves stable ids and updates the title plus the directly edited block", () => {
     const previousSource = addTestCtnBlockMetadata(
       "Title\nRoot\n\t: Child",
