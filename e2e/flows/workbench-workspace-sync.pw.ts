@@ -241,7 +241,7 @@ test.describe("Workspace synchronization", () => {
       .click();
     await expect(conflictSection).toBeHidden();
     await getActivityButton(page, "笔记").click();
-    await page.locator(".app-context").getByTitle("本地恢复副本", { exact: true }).click();
+    await page.locator(".app-context").getByRole("button", { name: "Alpha 本地恢复副本", exact: true }).click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "conflict-local-first conflict-local-latest",
     );
