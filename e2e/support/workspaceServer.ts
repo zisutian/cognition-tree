@@ -9,7 +9,7 @@ import { DataRootMigrationCoordinator } from "../../application/system/dataRootM
 import { createDataRootMigrationFileOperations } from "../../infrastructure/server/system/dataRootMigrationFiles.ts";
 import { FileDataRootMigrationRecordStore } from "../../infrastructure/server/system/dataRootMigrationRecordStore.ts";
 import { ApiMaintenanceGate } from "../../infrastructure/server/api/http/maintenanceGate.ts";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
@@ -315,60 +315,91 @@ export async function startE2EWorkspaceServer({
     });
   });
 
-  const { createServer: createViteServer } = await import("vite");
-
-  vite = await createViteServer({
-    appType: "spa",
-    server: { hmr: { server }, middlewareMode: { server } },
-  });
-
-  server.headersTimeout = 10_000;
-  server.keepAliveTimeout = 5_000;
-  server.maxHeadersCount = 100;
-  server.requestTimeout = 30_000;
-
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, host, () => {
-      server.off("error", reject);
-      resolve();
-    });
-  });
-  const address = server.address() as AddressInfo;
-  const baseUrl = `http://${host}:${address.port}`;
-
-  security.allowedOrigins.push(baseUrl);
-
-  return {
-    baseUrl,
-    repositoryDirectory,
-    migrationDestination,
-    reset: resetRuntime,
-    async close() {
-      closing = true;
-      if (restartTimer) clearTimeout(restartTimer);
-      restartTimer = null;
-      await resetQueue;
-      await settleApiServerLifecyclePhases([
-        [
-          () =>
-            closeApiServer({
-              server,
-              closeLongLivedConnections: () => {
-                runtime.eventHub.dispose();
-                runtime.agentService.closeEventStreams();
-              },
-              closeOwnedResources: () =>
-                settleApiServerLifecycleOperations([
-                  () => runtime.agentService.dispose(),
-                  () => vite?.close() ?? Promise.resolve(),
-                ]),
-            }),
-        ],
-        [() => runtime.catalog.dispose()],
-        [() => rm(migrationParent, { recursive: true, force: true })],
+  async function close() {
+    closing = true;
+    if (restartTimer) clearTimeout(restartTimer);
+    restartTimer = null;
+    await resetQueue;
+    const closeLongLivedConnections = () => {
+      runtime.eventHub.dispose();
+      runtime.agentService.closeEventStreams();
+    };
+    const closeOwnedResources = () =>
+      settleApiServerLifecycleOperations([
+        () => runtime.agentService.dispose(),
+        () => vite?.close() ?? Promise.resolve(),
       ]);
-      if (restartError) throw restartError;
-    },
-  };
+
+    await settleApiServerLifecyclePhases([
+      [
+        () =>
+          server.listening
+            ? closeApiServer({
+                server,
+                closeLongLivedConnections,
+                closeOwnedResources,
+              })
+            : settleApiServerLifecyclePhases([
+                [closeLongLivedConnections],
+                [closeOwnedResources],
+              ]),
+      ],
+      [() => runtime.catalog.dispose()],
+      [() => rm(migrationParent, { recursive: true, force: true })],
+    ]);
+    if (restartError) throw restartError;
+  }
+
+  try {
+    const { createServer: createViteServer } = await import("vite");
+
+    vite = await createViteServer({
+      appType: "spa",
+      server: { hmr: { server }, middlewareMode: { server } },
+    });
+    // Compile the real HTML entry and its static imports before timing browser
+    // interactions. Lazy activities still load through the real Vite server.
+    const html = await readFile(
+      path.join(vite.config.root, "index.html"),
+      "utf8",
+    );
+    await vite.transformIndexHtml("/", html);
+    await vite.environments.client.waitForRequestsIdle();
+
+    server.headersTimeout = 10_000;
+    server.keepAliveTimeout = 5_000;
+    server.maxHeadersCount = 100;
+    server.requestTimeout = 30_000;
+
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, host, () => {
+        server.off("error", reject);
+        resolve();
+      });
+    });
+    const address = server.address() as AddressInfo;
+    const baseUrl = `http://${host}:${address.port}`;
+
+    security.allowedOrigins.push(baseUrl);
+
+    return {
+      baseUrl,
+      close,
+      repositoryDirectory,
+      migrationDestination,
+      reset: resetRuntime,
+    };
+  } catch (error) {
+    // Startup owns resources too, even when no fixture handle was returned.
+    await settleApiServerLifecyclePhases([
+      [
+        () => {
+          throw error;
+        },
+      ],
+      [close],
+    ]);
+    throw error;
+  }
 }
