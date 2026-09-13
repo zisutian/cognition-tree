@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { AgentApplication } from "../../../application/agent/index.ts";
-import type { ActivitySlots } from "../../ui/index.ts";
+import { Plus } from "lucide-react";
+import { Button, type ActivitySlots } from "../../ui/index.ts";
 import { AgentContextPanel } from "./AgentContextPanel.tsx";
 import { AgentConversationPanel } from "./AgentConversationPanel.tsx";
 import { AgentProposalPanel } from "./AgentProposalPanel.tsx";
@@ -23,11 +24,21 @@ export function createAgentActivitySlots({
 }): ActivitySlots {
   return {
     context: {
+      actions: (
+        <Button
+          aria-label="新建会话"
+          title="新建会话"
+          variant="icon"
+          type="button"
+          onClick={onBeginCreateSession}
+        >
+          <Plus aria-hidden="true" />
+        </Button>
+      ),
       content: (
         <AgentContextPanel
           agent={agent}
           creatingSession={creatingSession}
-          onBeginCreateSession={onBeginCreateSession}
           onSelectSession={onSelectSession}
         />
       ),

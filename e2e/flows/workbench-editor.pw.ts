@@ -184,7 +184,7 @@ test.describe("editor workbench flows", () => {
     await page.keyboard.press("Escape");
     await expect(page.locator(".app-context")).toBeVisible();
 
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
     const titleLine = editorPanel.locator(".ctn-line-title").filter({
       hasText: "Alpha",
     });
@@ -198,7 +198,7 @@ test.describe("editor workbench flows", () => {
       editorPanel.getByRole("heading", { name: "Beta", exact: true }),
     ).toBeVisible();
 
-    await page.locator(".app-context").getByTitle("Gamma").click();
+    await page.locator(".app-context").getByTitle("Gamma", { exact: true }).click();
     await page
       .locator(".source-editor .ctn-inline")
       .filter({ hasText: "<Missing>" })
@@ -211,7 +211,7 @@ test.describe("editor workbench flows", () => {
 
   test("keeps undo history isolated when switching notes", async ({ page }) => {
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
 
     const editorContent = page.locator(".source-editor .cm-content");
 
@@ -222,7 +222,7 @@ test.describe("editor workbench flows", () => {
       "alpha-only-edit",
     );
 
-    await page.locator(".app-context").getByTitle("Beta").click();
+    await page.locator(".app-context").getByTitle("Beta", { exact: true }).click();
     await editorContent.click();
     await page.keyboard.press("Control+Z");
 
@@ -234,7 +234,7 @@ test.describe("editor workbench flows", () => {
 
   test("edits multiline syntax as ordinary colored source", async ({ page }) => {
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Gamma").click();
+    await page.locator(".app-context").getByTitle("Gamma", { exact: true }).click();
 
     const editor = page.locator(".source-editor");
     const lines = editor.locator(".cm-line");
@@ -375,7 +375,7 @@ test.describe("editor workbench flows", () => {
     page,
   }) => {
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
 
     const editor = page.locator(".source-editor");
     const detail = page.locator(".app-detail");
@@ -428,7 +428,7 @@ test.describe("editor workbench flows", () => {
       e2eAlphaFirstBlockTimestamp,
     );
 
-    await page.locator(".app-context").getByTitle("Beta").click();
+    await page.locator(".app-context").getByTitle("Beta", { exact: true }).click();
     await expect(blockTime).toHaveCount(0);
     await expect(noteCreatedTime).toHaveAttribute("datetime", e2eTimestamp);
     await expect(noteUpdatedTime).toHaveAttribute("datetime", e2eTimestamp);
@@ -438,7 +438,7 @@ test.describe("editor workbench flows", () => {
     page,
   }) => {
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
     await expect(page.locator(".source-editor")).not.toContainText("@ctn-block");
     await page.locator(".app-detail").getByRole("treeitem").first()
       .getByRole("button").click();

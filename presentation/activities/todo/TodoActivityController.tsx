@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { RepositoryApplication } from "../../../application/repository/index.ts";
-import type { TodoApplication } from "../../../application/todo/index.ts";
+import { useTodoContext } from "./useTodoContext.tsx";
+import type {
+  TodoApplication,
+  TodoViewModel,
+} from "../../../application/todo/index.ts";
 import { createTodoActivitySlots } from "./TodoActivitySlots.tsx";
 import type { ActivityControllerProps } from "../../ui/index.ts";
 import {
@@ -9,19 +13,14 @@ import {
   resolveBuiltInActivityRetry,
 } from "../unavailable/index.ts";
 
-type TodoBuiltInsApplication = ActivityControllerProps<TodoActivityApplication>[
-  "application"
-]["repository"]["builtIns"];
+type TodoBuiltInsApplication =
+  ActivityControllerProps<TodoActivityApplication>["application"]["repository"]["builtIns"];
 
 export function resolveTodoRetry(
   todo: Exclude<TodoApplication, { status: "ready" }>,
   builtIns: TodoBuiltInsApplication,
 ) {
-  return resolveBuiltInActivityRetry(
-    todo,
-    builtIns.catalog,
-    "todo",
-  );
+  return resolveBuiltInActivityRetry(todo, builtIns.catalog, "todo");
 }
 
 export function TodoActivityController({
@@ -51,15 +50,32 @@ export function TodoActivityController({
     }));
   }
 
+  return <ReadyTodoActivity renderActivity={renderActivity} view={todo.view} />;
+}
+
+function ReadyTodoActivity({
+  renderActivity,
+  view,
+}: {
+  renderActivity: TodoActivityControllerProps["renderActivity"];
+  view: TodoViewModel;
+}) {
+  const { context, creation } = useTodoContext(view);
   return renderActivity((controls) =>
     createTodoActivitySlots({
+      context,
+      creation,
       focusMode: controls.focusMode,
       onCollapseDetail: controls.onCollapseDetail,
       onToggleFocusMode: controls.onToggleFocusMode,
-      view: todo.view,
-    })
+      view,
+    }),
   );
 }
 
-export type TodoActivityApplication = { todo: TodoApplication; repository: Pick<RepositoryApplication, "builtIns">; };
-export type TodoActivityControllerProps = ActivityControllerProps<TodoActivityApplication>;
+export type TodoActivityApplication = {
+  todo: TodoApplication;
+  repository: Pick<RepositoryApplication, "builtIns">;
+};
+export type TodoActivityControllerProps =
+  ActivityControllerProps<TodoActivityApplication>;

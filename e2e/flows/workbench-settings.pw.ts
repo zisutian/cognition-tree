@@ -224,7 +224,7 @@ test.describe("settings activity flows", () => {
     await expect(selection).toHaveValue(e2eAgentUnavailableProfileId);
     await getActivityButton(page, "智能体").click();
     await page
-      .locator(".agent-context")
+      .getByRole("complementary", { name: "智能体", exact: true })
       .getByRole("button", { name: "新建会话" })
       .click();
     const createPanel = page.getByRole("region", { name: "新建 Agent 会话" });

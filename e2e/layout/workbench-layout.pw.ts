@@ -193,18 +193,40 @@ for (const viewport of [{ width: 1280, height: 720 }]) {
       ).toBeVisible();
       await expectFrameFits(page);
       if (["笔记", "日记", "代办", "语法", "仓库"].includes(name)) {
-        const actions = page.locator(".app-context")
+        const actions = page
+          .locator(".app-context")
           .getByRole("button", { name: /^(重命名|删除|打开仓库|启用语法)/ });
         expect(await actions.count()).toBeGreaterThan(0);
         for (const action of await actions.all()) {
           await expectExposed(action);
           const box = (await action.boundingBox())!;
-          expect({ width: box.width, height: box.height }).toEqual({ width: 22, height: 22 });
+          expect({ width: box.width, height: box.height }).toEqual({
+            width: 22,
+            height: 22,
+          });
           const glyph = action.locator("svg");
           await expect(glyph).toHaveCount(1);
           expect((await glyph.boundingBox())!.width).toBe(16);
           await expect(action).toHaveAttribute("title", /.+/);
         }
+      }
+      if (["日记", "代办", "智能体"].includes(name)) {
+        const context = page.getByRole("complementary", { name, exact: true });
+        const create = context.getByRole("button", { name: /^新建/ });
+        await expectExposed(create);
+        const header = (await context
+          .getByRole("heading", { name, exact: true })
+          .boundingBox())!;
+        const action = (await create.boundingBox())!;
+        expect(
+          Math.abs(header.y + header.height / 2 - action.y - action.height / 2),
+        ).toBeLessThanOrEqual(1);
+      }
+      if (["笔记", "日记", "代办"].includes(name)) {
+        const rows = page.locator(".app-context .ui-tree-row");
+        expect(await rows.count()).toBeGreaterThan(0);
+        for (const row of await rows.all())
+          expect((await row.boundingBox())!.height).toBe(22);
       }
       if (name === "仓库") await expectRepositoryDetails(page);
       if (name === "智能体" || name === "搜索")

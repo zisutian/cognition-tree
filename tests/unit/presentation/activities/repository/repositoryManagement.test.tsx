@@ -191,7 +191,6 @@ describe("repository setup and management semantics", () => {
         ">本地</span>",
         "本地笔记",
         "第二仓库",
-        'aria-label="新建仓库"',
       ],
     });
     expect(markup.match(/aria-label="新建仓库"/g) ?? []).toHaveLength(1);
@@ -290,7 +289,6 @@ describe("repository setup and management semantics", () => {
       ordered: [
         ">本地</span>",
         'data-repository-issue-id="default"',
-        'aria-label="新建仓库"',
       ],
     });
     expectMarkupSemantics(issueMarkup, {

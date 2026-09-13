@@ -52,7 +52,7 @@ test.describe("virtual collection scrolling", () => {
     await context.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
-    await expect(context.getByTitle("Large Note 599")).toBeVisible();
+    await expect(context.getByTitle("Large Note 599", { exact: true })).toBeVisible();
   });
 
   test("virtualizes a 600-block structure and reveals its final row", async ({
@@ -76,6 +76,6 @@ test.describe("virtual collection scrolling", () => {
     await detailScroll.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
-    await expect(structureTree.getByTitle("组分: Block 599")).toBeVisible();
+    await expect(structureTree.getByTitle("组分: Block 599", { exact: true })).toBeVisible();
   });
 });

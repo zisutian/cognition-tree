@@ -101,7 +101,7 @@ test.describe("syntax activity flows", () => {
     );
 
     await getActivityButton(page, "笔记").click();
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
     const reference = page.locator(".source-editor .ctn-inline").filter({
       hasText: "[[Beta]]",
     });
@@ -265,7 +265,7 @@ test.describe("syntax activity flows", () => {
     await page.getByRole("button", { name: "撤销无效更改" }).click();
     await expect(indentWidth).toHaveValue("8");
     await getActivityButton(page, "笔记").click();
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
 
     const editor = page.locator(".source-editor");
 

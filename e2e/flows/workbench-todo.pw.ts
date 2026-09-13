@@ -94,7 +94,7 @@ test.describe("Todo activity flows", () => {
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
 
     await getActivityButton(page, "代办").click();
-    const context = page.locator(".todo-context");
+    const context = page.getByRole("complementary", { name: "代办", exact: true });
     const panel = page.getByRole("region", { name: "代办编辑" });
     const detail = page.getByRole("region", { name: "代办结构" });
     await expect(context).toBeVisible();
@@ -274,7 +274,7 @@ test.describe("Todo activity flows", () => {
 
     await page.reload();
     await getActivityButton(page, "代办").click();
-    const reloadedContext = page.locator(".todo-context");
+    const reloadedContext = page.getByRole("complementary", { name: "代办", exact: true });
     const reloadedPanel = page.getByRole("region", { name: "代办编辑" });
 
     await expect(collectionRows(reloadedContext))
@@ -300,7 +300,7 @@ test.describe("Todo activity flows", () => {
     await expect(page.getByLabel("尚未创建笔记仓库")).toBeVisible();
     await getActivityButton(page, "代办").click();
 
-    const context = page.locator(".todo-context");
+    const context = page.getByRole("complementary", { name: "代办", exact: true });
     const panel = page.getByRole("region", { name: "代办编辑" });
 
     await expect(panel).toContainText("还没有事项集合");

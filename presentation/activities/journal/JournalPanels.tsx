@@ -16,7 +16,6 @@ import {
   CtnEditorPanel,
 } from "../../editor/index.ts";
 
-
 import {
   CompactContextList,
   CompactContextActionButtons,
@@ -27,9 +26,6 @@ import {
   Panel,
   useReferenceNavigation,
 } from "../../ui/index.ts";
-
-
-
 
 type JournalViewProps = {
   view: JournalViewModel;
@@ -45,6 +41,27 @@ export function submitJournalEntryCreation({
   return runAction(() => {
     createEntry();
   });
+}
+
+export function JournalContextActions({ view }: JournalViewProps) {
+  const feedback = useFeedback();
+  return (
+    <Button
+      aria-label="新建日记"
+      disabled={!view.canMutate}
+      onClick={() =>
+        submitJournalEntryCreation({
+          createEntry: view.createEntry,
+          runAction: feedback.runAction,
+        })
+      }
+      title="新建日记"
+      type="button"
+      variant="icon"
+    >
+      <Plus aria-hidden="true" size={14} />
+    </Button>
+  );
 }
 
 export function JournalContext({ view }: JournalViewProps) {
@@ -72,21 +89,6 @@ export function JournalContext({ view }: JournalViewProps) {
 
   return (
     <div className="activity-context-content journal-context">
-      <div className="context-toolbar">
-        <Button
-          aria-label="新建日记"
-          disabled={!view.canMutate}
-          onClick={() => submitJournalEntryCreation({
-            createEntry: view.createEntry,
-            runAction: feedback.runAction,
-          })}
-          title="新建日记"
-          type="button"
-          variant="icon"
-        >
-          <Plus aria-hidden="true" size={14} />
-        </Button>
-      </div>
       {view.calendar.years.length > 0 ? (
         <div className="journal-calendar-scroll">
           <CompactContextList
@@ -102,9 +104,11 @@ export function JournalContext({ view }: JournalViewProps) {
                   variant="bare"
                   onClick={() => view.calendar.toggle(`year:${year.key}`)}
                 >
-                  {year.expanded
-                    ? <ChevronDown aria-hidden="true" />
-                    : <ChevronRight aria-hidden="true" />}
+                  {year.expanded ? (
+                    <ChevronDown aria-hidden="true" />
+                  ) : (
+                    <ChevronRight aria-hidden="true" />
+                  )}
                   <span className="ui-tree-text">{year.label}</span>
                 </Button>
                 {year.expanded ? (
@@ -117,11 +121,14 @@ export function JournalContext({ view }: JournalViewProps) {
                           type="button"
                           variant="bare"
                           onClick={() =>
-                            view.calendar.toggle(`month:${month.key}`)}
+                            view.calendar.toggle(`month:${month.key}`)
+                          }
                         >
-                          {month.expanded
-                            ? <ChevronDown aria-hidden="true" />
-                            : <ChevronRight aria-hidden="true" />}
+                          {month.expanded ? (
+                            <ChevronDown aria-hidden="true" />
+                          ) : (
+                            <ChevronRight aria-hidden="true" />
+                          )}
                           <span className="ui-tree-text">{month.label}</span>
                         </Button>
                         {month.expanded ? (
@@ -130,32 +137,44 @@ export function JournalContext({ view }: JournalViewProps) {
                           >
                             {month.entries.map((entry) => (
                               <CompactContextRow
-                                actions={entry.isActive ? (
-                                  <CompactContextActionButtons
-                                    actions={pendingDelete?.id === entry.id
-                                      ? undefined
-                                      : [{
-                                          ariaLabel: `删除日记 ${entry.title}`,
-                                          disabled: !view.canMutate,
-                                          icon: Trash2,
-                                          onSelect: () => setPendingDelete(entry),
-                                          tone: "danger",
-                                        }]}
-                                    confirmation={pendingDelete?.id === entry.id
-                                      ? {
-                                          tone: "danger",
-                                          cancelAriaLabel: `取消删除日记 ${entry.title}`,
-                                          disabled: !view.canMutate,
-                                          confirmAriaLabel: `确认删除日记 ${entry.title}`,
-                                          onCancel: () => setPendingDelete(null),
-                                          onConfirm: confirmDelete,
-                                        }
-                                      : undefined}
-                                  />
-                                ) : undefined}
-                                className={pendingDelete?.id === entry.id
-                                  ? "is-delete-pending"
-                                  : undefined}
+                                actions={
+                                  entry.isActive ? (
+                                    <CompactContextActionButtons
+                                      actions={
+                                        pendingDelete?.id === entry.id
+                                          ? undefined
+                                          : [
+                                              {
+                                                ariaLabel: `删除日记 ${entry.title}`,
+                                                disabled: !view.canMutate,
+                                                icon: Trash2,
+                                                onSelect: () =>
+                                                  setPendingDelete(entry),
+                                                tone: "danger",
+                                              },
+                                            ]
+                                      }
+                                      confirmation={
+                                        pendingDelete?.id === entry.id
+                                          ? {
+                                              tone: "danger",
+                                              cancelAriaLabel: `取消删除日记 ${entry.title}`,
+                                              disabled: !view.canMutate,
+                                              confirmAriaLabel: `确认删除日记 ${entry.title}`,
+                                              onCancel: () =>
+                                                setPendingDelete(null),
+                                              onConfirm: confirmDelete,
+                                            }
+                                          : undefined
+                                      }
+                                    />
+                                  ) : undefined
+                                }
+                                className={
+                                  pendingDelete?.id === entry.id
+                                    ? "is-delete-pending"
+                                    : undefined
+                                }
                                 icon={<CalendarDays aria-hidden="true" />}
                                 key={entry.id}
                                 label={entry.title}
@@ -199,10 +218,13 @@ export function JournalEditorPanel({
         <EmptyState
           action={
             <Button
-              onClick={() => submitJournalEntryCreation({
-                createEntry: view.createEntry,
-                runAction: feedback.runAction,
-              })}
+              disabled={!view.canMutate}
+              onClick={() =>
+                submitJournalEntryCreation({
+                  createEntry: view.createEntry,
+                  runAction: feedback.runAction,
+                })
+              }
               type="button"
               variant="primary"
             >

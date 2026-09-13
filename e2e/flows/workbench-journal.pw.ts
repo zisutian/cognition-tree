@@ -95,7 +95,7 @@ test.describe("Journal activity flows", () => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "日记").click();
 
-    const context = page.locator(".journal-context");
+    const context = page.getByRole("complementary", { name: "日记", exact: true });
     const editorPanel = page.getByRole("region", { name: "日记编辑" });
     const editor = editorPanel.locator(".source-editor");
 
@@ -146,8 +146,8 @@ test.describe("Journal activity flows", () => {
 
     const detail = page.getByRole("region", { name: "日记详情" });
 
-    await expect(detail.getByTitle("正文: 今日整理")).toBeVisible();
-    await expect(detail.getByTitle("组分: 完成日记界面")).toBeVisible();
+    await expect(detail.getByTitle("正文: 今日整理", { exact: true })).toBeVisible();
+    await expect(detail.getByTitle("组分: 完成日记界面", { exact: true })).toBeVisible();
     await expect(detail.getByLabel("日记统计")).toContainText("2块");
     await expect.poll(async () => {
       const snapshot = await readJournalSnapshot(api);
@@ -203,7 +203,7 @@ test.describe("Journal activity flows", () => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "日记").click();
 
-    const context = page.locator(".journal-context");
+    const context = page.getByRole("complementary", { name: "日记", exact: true });
 
     await context.getByRole("button", { name: "新建日记" }).click();
     let entries = await waitForJournalEntryCount(api, 1);

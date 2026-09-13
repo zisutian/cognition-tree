@@ -33,7 +33,7 @@ test.describe("Workspace synchronization", () => {
   }) => {
     await seedWorkbenchRepository(api, externalRepositoryId);
     await openWorkbench(page, externalRepositoryId);
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
     await expect(page.getByLabel("笔记编辑")).not.toContainText(
       "外部文件修改已载入",
     );
@@ -57,7 +57,7 @@ test.describe("Workspace synchronization", () => {
     const response = await rescanResponse;
 
     expect(response.ok(), await response.text()).toBe(true);
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "外部文件修改已载入",
     );
@@ -119,7 +119,7 @@ test.describe("Workspace synchronization", () => {
   }) => {
     await seedRawRepository(api, rawRepositoryId);
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
 
     const editor = page.locator(".source-editor .cm-content");
 
@@ -130,19 +130,19 @@ test.describe("Workspace synchronization", () => {
     await openRepositoryFromContext(page, rawRepositoryId);
     await getActivityButton(page, "笔记").click();
     await expect(
-      page.locator(".app-context").getByTitle("原始笔记"),
+      page.locator(".app-context").getByTitle("原始笔记", { exact: true }),
     ).toBeVisible();
 
     await getActivityButton(page, "仓库").click();
     await openRepositoryFromContext(page, repositoryId);
     await getActivityButton(page, "笔记").click();
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "immediate-switch-local",
     );
 
     await page.reload();
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "immediate-switch-local",
     );
@@ -157,7 +157,7 @@ test.describe("Workspace synchronization", () => {
       route.abort(),
     );
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
 
     const snapshotResponse = await api.get(
       `/api/v4/sync/workspaces/${repositoryId}`,
@@ -241,7 +241,7 @@ test.describe("Workspace synchronization", () => {
       .click();
     await expect(conflictSection).toBeHidden();
     await getActivityButton(page, "笔记").click();
-    await page.locator(".app-context").getByTitle("本地恢复副本").click();
+    await page.locator(".app-context").getByTitle("本地恢复副本", { exact: true }).click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "conflict-local-first conflict-local-latest",
     );

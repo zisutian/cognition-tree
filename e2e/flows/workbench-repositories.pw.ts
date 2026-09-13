@@ -151,7 +151,7 @@ test.describe("repository management", () => {
     await getActivityButton(page, "笔记").click();
     await expect(page.getByLabel("笔记编辑")).toBeVisible();
     await expect(
-      page.locator(".app-context").getByTitle("未命名笔记"),
+      page.locator(".app-context").getByTitle("未命名笔记", { exact: true }),
     ).toBeVisible();
     await expect(contextResize).toHaveAttribute(
       "aria-valuenow",
@@ -176,7 +176,7 @@ test.describe("repository management", () => {
     );
     await getActivityButton(page, "笔记").click();
     await expect(
-      page.locator(".app-context").getByTitle("Alpha"),
+      page.locator(".app-context").getByTitle("Alpha", { exact: true }),
     ).toBeVisible();
     await expect(contextResize).toHaveAttribute(
       "aria-valuenow",
@@ -248,7 +248,7 @@ test.describe("repository management", () => {
 
     await openWorkbench(page, repositoryId);
     await expect(
-      page.locator(".app-context").getByTitle("Alpha"),
+      page.locator(".app-context").getByTitle("Alpha", { exact: true }),
     ).toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(3);
     const initialProbe = await readProbe();
@@ -257,7 +257,7 @@ test.describe("repository management", () => {
     await openRepositoryFromContext(page, rawRepositoryId);
     await getActivityButton(page, "笔记").click();
     await expect(
-      page.locator(".app-context").getByTitle("原始笔记"),
+      page.locator(".app-context").getByTitle("原始笔记", { exact: true }),
     ).toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(3);
     await expect
@@ -272,7 +272,7 @@ test.describe("repository management", () => {
     await openRepositoryFromContext(page, repositoryId);
     await getActivityButton(page, "笔记").click();
     await expect(
-      page.locator(".app-context").getByTitle("Alpha"),
+      page.locator(".app-context").getByTitle("Alpha", { exact: true }),
     ).toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(3);
     await expect
@@ -345,7 +345,7 @@ test.describe("repository management", () => {
     ).toHaveCount(0);
     await getActivityButton(page, "笔记").click();
     await expect(
-      page.locator(".app-context").getByTitle("原始笔记"),
+      page.locator(".app-context").getByTitle("原始笔记", { exact: true }),
     ).toBeVisible();
   });
 

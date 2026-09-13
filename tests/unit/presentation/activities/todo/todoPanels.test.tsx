@@ -2,7 +2,7 @@
 
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "vitest";
-import { TodoContext } from "../../../../../presentation/activities/todo/TodoContext";
+import { useTodoContext } from "../../../../../presentation/activities/todo/useTodoContext";
 import { TodoDetailPanel } from "../../../../../presentation/activities/todo/TodoDetailPanel";
 import { TodoEditorPanel } from "../../../../../presentation/activities/todo/TodoEditorPanel";
 import { TodoRecurrenceEditor } from "../../../../../presentation/activities/todo/TodoRecurrenceEditor";
@@ -11,10 +11,15 @@ import { TestFeedbackProvider as FeedbackProvider } from
 import { createTodoView } from "../../../../support/presentation/fixtures/todoViewFixture";
 import { expectMarkupSemantics } from "../../../../support/presentation/markupSemantics";
 
+function TodoContextFixture() {
+  const { context } = useTodoContext(createTodoView());
+  return <>{context.actions}{context.content}</>;
+}
+
 describe("Todo panels", () => {
   it("renders ordered collections and actions only on the selected row", () => {
     const markup = renderToStaticMarkup(
-      <TodoContext view={createTodoView()} />,
+      <TodoContextFixture />,
     );
 
     expectMarkupSemantics(markup, {
@@ -141,6 +146,7 @@ describe("Todo panels", () => {
   it("mounts the CTN body editor and shows an empty collection entry point", () => {
     const editorMarkup = renderToStaticMarkup(
       <TodoEditorPanel
+        creation={{ disabled: false, begin: () => undefined }}
         focusMode={false}
         onToggleFocusMode={() => undefined}
         view={createTodoView()}
@@ -149,6 +155,7 @@ describe("Todo panels", () => {
     const base = createTodoView();
     const markup = renderToStaticMarkup(
       <TodoEditorPanel
+        creation={{ disabled: false, begin: () => undefined }}
         focusMode={false}
         onToggleFocusMode={() => undefined}
         view={{

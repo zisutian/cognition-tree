@@ -3,6 +3,7 @@ import type { ActivitySlots } from "../../ui/index.ts";
 import "./journal.css";
 import {
   JournalContext,
+  JournalContextActions,
   JournalDetailPanel,
   JournalEditorPanel,
 } from "./JournalPanels.tsx";
@@ -20,14 +21,12 @@ export function createJournalActivitySlots({
 }): ActivitySlots {
   return {
     context: {
+      actions: <JournalContextActions view={view} />,
       content: <JournalContext view={view} />,
       title: "日记",
     },
     detail: view.activeEntry ? (
-      <JournalDetailPanel
-        onCollapseDetail={onCollapseDetail}
-        view={view}
-      />
+      <JournalDetailPanel onCollapseDetail={onCollapseDetail} view={view} />
     ) : null,
     main: (
       <JournalEditorPanel

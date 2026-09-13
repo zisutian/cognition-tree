@@ -31,7 +31,7 @@ test.describe("Agent activity flows", () => {
     await getActivityButton(page, "日记").click();
     await expect(page.getByRole("region", { name: "日记编辑" })).toBeVisible();
     await getActivityButton(page, "智能体").click();
-    const context = page.locator(".agent-context");
+    const context = page.getByRole("complementary", { name: "智能体", exact: true });
 
     await context.getByRole("button", { name: "新建会话" }).click();
     let createPanel = page.getByRole("region", { name: "新建 Agent 会话" });
