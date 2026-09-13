@@ -315,7 +315,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     id: "core/errors",
-    responsibility: "Domain-independent diagnostic structure",
+    responsibility: "Domain-independent validation and missing-object errors",
     scope: "tree",
     publicEntries: ["core/errors/index.ts"],
     dependencies: [],
@@ -338,7 +338,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   {
     id: "core/sync",
     responsibility:
-      "Pure three-way merge primitives and unresolved conflict units",
+      "Pure domain transitions and content change-set models",
     scope: "tree",
     publicEntries: ["core/sync/index.ts"],
     dependencies: ["core/ctn"],
@@ -937,7 +937,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     id: "tooling/cli",
     rootFiles: ["ctn"],
     responsibility:
-      "Trusted-client command line protocol and local credential adapters",
+      "Local content HTTP command line client using public API contracts",
     scope: "tree",
     publicEntries: ["tooling/cli/index.ts"],
     dependencies: ["contracts/content", "contracts/api"],

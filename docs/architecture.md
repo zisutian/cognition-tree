@@ -137,7 +137,10 @@ store revision 变化使其 stale；删除批准后必须再经过独立 destruc
 
 application/search/SearchIndex 是三领域资源投影、Unicode 归一化、grapheme
 源码偏移、片段、过滤、排序、fault 与 cursor 的唯一 owner。过滤在命中折叠前
-执行；缓存按来源 revision 和 corpus key 失效，查询 LRU 有界。presentation
+执行；缓存按来源 revision 和 corpus key 失效，查询 LRU 有界。来源快照读取、文档加载
+或结果投影失败只隔离该来源；成功 revision 与来源 fault 共同参与最终游标身份，恢复
+后旧的部分结果游标失效。完整查询缓存命中时不重新加载来源文档。匹配和片段定位共用
+整段文字的 Unicode 归一化结果；grapheme 只映射源码边界，长摘要只映射到所需末端。presentation
 只提交 SearchQuery 和打开 ContentDestination，不解析 CTN、扫描仓库或换算
 行号。SearchController 的响应式 state 只保存会影响渲染的查询事实；高频 scrollTop
 由独立 viewport cell 持有，切换 Activity 时显式读取，不通过静默替换 state 或每次滚动
@@ -175,6 +178,10 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 ## 本机内容用例
 
 application/content 是外部内容调用的显式协调根：目标解析、目录版本、一次 CAS 与操作收据由该模块协调，平台能力通过端口注入。各领域公开的中立 command preparation 与 review 同时被此模块和 Agent 使用；Agent 自己保留会话、暂存提案和审批。
+
+本机查询协调器拥有目录准入、名称解析和版本；contentReadContext 只从已准备的领域
+快照建立读模型，使用 parse index 的资源查找能力。任务状态仍委托 application/todo，
+只在读取需要的任务块时计算；目录、文字搜索与语法说明不计算完成或周期状态。
 
 Core CTN 独占精确文本替换、块文字、插入、子树和移动范围计算；Core Workspace 独占逻辑目录路径。Application 不复制语法或身份规则。CTN 文档与写作指南投影归 application/commands，Todo 任务状态投影归 application/todo；HTTP 只做 wire 适配。Contracts 公共内容模块拥有中立命令与收据 schema，Agent 工具协议消费它，API catalog 只聚合操作。
 

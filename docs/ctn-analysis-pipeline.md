@@ -40,6 +40,11 @@ Workspace、Journal 和 Todo 会话各自持有 parse index 与共享 block ID r
 override 差量替换对应文档。创建和结构移动同样返回已构建的 canonical analysis。未变化
 文档只能复用旧索引，不能被热编辑路径访问。
 
+身份注册表只由共享 block ID registry 创建与更新。增量更新核对受影响 owner 的身份集合；
+纯文字变化保留全部身份时复用原注册表，增删或跨 owner 移动仍原子登记并拒绝重复 ID。
+metadata 协调器仅在需要分配新块身份时建立分配器，分配前仍登记旧文档和外部保留身份。
+这些复用以不可变分析结果和实际身份集合为依据，不以时间戳或全局可变缓存代替校验。
+
 ## 失效规则
 
 - `blockGrammarKey` 变化：重新分析并按 owner policy 重建受影响文档的 block metadata。

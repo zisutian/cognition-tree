@@ -81,8 +81,9 @@ E2E 按独立功能域造数。完整 repository、Journal、Todo 与 API 状态
 
 五个源码层保持根级平行；文档、单元测试和 E2E 作为一等工程目录保留在根部。构建、Git、基准脚本和专用配置归 tooling。
 
-tests 的第一层镜像被验证的生产层：core、application、infrastructure、
-contracts、presentation；跨层流程进入 integration，通用 fixture 进入 support。
+tests 的第一层按验证边界组织为 unit、integration、architecture、documentation 与
+support；unit 内再镜像 core、application、infrastructure、contracts、presentation 等
+生产职责。跨层流程进入 integration，通用 fixture 进入 support。
 测试不得沿用已经不存在的历史技术目录，也不得为了导入方便建立转发文件。
 
 同一产品切片的 controller、view、局部状态和样式应共置；只有确实跨切片复用的
