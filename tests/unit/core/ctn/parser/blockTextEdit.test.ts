@@ -92,6 +92,31 @@ function stripMoveResult<Result extends Record<string, unknown>>(result: Result)
 }
 
 describe("ctn block text edit", () => {
+  it.each(["within", "between"] as const)("moves a large multiline block %s documents with its identity intact", (mode) => {
+    const body = "x\n".repeat(140_000);
+    const multiline = `\`\`\`\n${body}\`\`\``;
+    const sourceText = addTestCtnBlockMetadata(`Source\n${multiline}\n: Keep`);
+    const sourceBlock = parseBlocks(sourceText)[1];
+    const targetText = addTestCtnBlockMetadata("Target\n: Existing", defaultCtnSyntax, 100);
+    const result = mode === "within"
+      ? moveCtnBlockWithinText({ sourceText, sourceBlock, targetPosition: { kind: "end" } })
+      : moveCtnBlockText({ sourceText, sourceBlock, targetText, targetPosition: { kind: "end" } });
+    const movedText = "nextTargetText" in result ? result.nextTargetText : result.nextText;
+
+    expect(result.status).toBe("moved");
+    expect(stripTestCtnBlockMetadata(movedText)).toBe(
+      mode === "within" ? `Source\n: Keep\n${multiline}` : `Target\n: Existing\n${multiline}`,
+    );
+    if ("nextSourceText" in result) {
+      expect(stripTestCtnBlockMetadata(result.nextSourceText)).toBe("Source\n: Keep");
+    }
+    expect(parseBlocks(movedText).at(-1)).toMatchObject({
+      id: sourceBlock.id,
+      metadata: { createdAt: sourceBlock.metadata.createdAt, updatedAt: movedTimestamp },
+    });
+    expect(stripTestCtnBlockMetadata(sourceText)).toBe(`Source\n${multiline}\n: Keep`);
+  });
+
   it("moves a whole subtree between source texts and rewrites indentation", () => {
     const sourceText = addTestCtnBlockMetadata(
       "Source Title\nRoot\n\t: Definition\n\t\t- Component\nSibling",

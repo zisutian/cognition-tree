@@ -120,15 +120,12 @@ function insertBlockLinesBeforeLine(
   blockLines: readonly string[],
   lineNumber: number,
 ) {
-  const lines = [...sourceLines];
-  const insertionIndex = Math.max(0, Math.min(lineNumber - 1, lines.length));
+  const insertionIndex = Math.max(0, Math.min(lineNumber - 1, sourceLines.length));
 
-  if (blockLines.length === 0) {
-    return lines;
-  }
-
-  lines.splice(insertionIndex, 0, ...blockLines);
-  return lines;
+  return sourceLines.slice(0, insertionIndex).concat(
+    blockLines,
+    sourceLines.slice(insertionIndex),
+  );
 }
 
 function rewriteStructuralIndent(
