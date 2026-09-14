@@ -36,6 +36,22 @@ function currentStage(
   ) ?? null;
 }
 
+function nextOccurrenceDate(recurrence: TodoRecurrence, today: TodoLocalDate) {
+  let next: TodoLocalDate | null = null;
+
+  for (const stage of recurrence.stages) {
+    if (stage.endsBefore && compareTodoLocalDates(stage.endsBefore, today) <= 0) {
+      continue;
+    }
+    const candidate = getNextTodoRecurrenceStageOccurrence(stage, today);
+
+    if (candidate && (!next || compareTodoLocalDates(candidate, next) < 0)) {
+      next = candidate;
+    }
+  }
+  return next;
+}
+
 export function projectTodoRecurrence(
   recurrence: TodoRecurrence,
   today: TodoLocalDate,
@@ -60,8 +76,8 @@ export function projectTodoRecurrence(
     completedCount: recurrence.completions.length,
     currentOccurrenceDate,
     currentStage: stage,
-    nextOccurrenceDate: stage
-      ? getNextTodoRecurrenceStageOccurrence(stage, today)
+    nextOccurrenceDate: active
+      ? nextOccurrenceDate(recurrence, today)
       : null,
     totalCount: recurrence.stages.reduce(
       (count, candidate) =>
