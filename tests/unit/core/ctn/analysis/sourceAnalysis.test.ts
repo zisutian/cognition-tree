@@ -18,7 +18,12 @@ import type {
 } from "../../../../../core/ctn/syntax/types";
 import {
   addTestCtnBlockMetadata,
+  createTestBlockId,
+  testBlockTimestamp,
 } from "../../../../support/core/ctn/metadata/sourceMetadataFixture";
+import { initializeCtnSourceBlockMetadataAnalysis } from "../../../../../core/ctn/metadata/sourceMetadata";
+import { projectCtnCanonicalBlockBody } from "../../../../../core/ctn/analysis/editableProjection";
+import { getCtnEditableLineNumber } from "../../../../../core/ctn/metadata/editableSource";
 
 function compileWorkspace(
   update: (definition: CtnSyntaxDefinition) => void,
@@ -58,6 +63,31 @@ function analyzeEditable(
 }
 
 describe("CTN source analysis", () => {
+  it.each(["Title\n```", "Title\n```\n", "Title\n```\n```", "Title\n```\n```\n"])(
+    "preserves empty multiline ranges through canonicalization: %j",
+    (editableSource) => {
+      let nextId = 0;
+      const { source, analysis } = initializeCtnSourceBlockMetadataAnalysis(editableSource, defaultCtnSyntax, {
+        createId: () => createTestBlockId(++nextId),
+        createdAt: testBlockTimestamp,
+        updatedAt: testBlockTimestamp,
+        reservedIds: new Set(),
+      });
+      const reparsed = analyzeCtnSource({ source, syntax: defaultCtnSyntax, mode: { kind: "canonical-document" } });
+
+      expect(analysis.document).toEqual(reparsed.document);
+      expect(analysis.editableProjection).toEqual(reparsed.editableProjection);
+      expect(analysis.editableProjection.document.blocks[1].multilineRange)
+        .toEqual(analyzeEditable(editableSource).document.blocks[1].multilineRange);
+      for (const candidate of [analysis, reparsed]) {
+        expect(candidate.editableProjection.source).toBe(editableSource);
+        expect(projectCtnCanonicalBlockBody(candidate, candidate.document.blocks[1])).toBe("");
+        expect(getCtnEditableLineNumber(candidate.editableProjection, candidate.sourceText.lines.length + 1))
+          .toBe(candidate.editableProjection.lineCount + 1);
+      }
+    },
+  );
+
   it("builds canonical title/root/block trees with resolved rules", () => {
     const analysis = analyzeCanonical(`Document Title
 Root

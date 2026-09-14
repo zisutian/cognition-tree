@@ -109,6 +109,11 @@ function createEditableProjection(
     );
   }
   const projectedSourceText = createCtnSourceTextFromLines(editableLines);
+  // An empty unterminated multiline body starts one line beyond EOF.
+  editableLineNumberByCanonicalLineNumber.set(
+    sourceText.lines.length + 1,
+    projectedSourceText.lines.length + 1,
+  );
   const projectLineNumber = (lineNumber: number) =>
     editableLineNumberByCanonicalLineNumber.get(lineNumber) ??
       projectedSourceText.lines.length;
@@ -302,6 +307,10 @@ export function canonicalizeCtnEditableAnalysis({
     );
   }
   const canonicalSourceText = createCtnSourceText(canonicalSource);
+  canonicalLineByEditableLine.set(
+    analysis.sourceText.lines.length + 1,
+    canonicalSourceText.lines.length + 1,
+  );
 
   if (
     canonicalSourceText.lines.length !==
@@ -412,12 +421,7 @@ export function canonicalizeCtnEditableAnalysis({
     CtnBlockMetadataRecord
   >();
 
-  for (
-    let editableLineNumber = 1;
-    editableLineNumber <= analysis.sourceText.lines.length;
-    editableLineNumber += 1
-  ) {
-    const canonicalLineNumber = canonicalLine(editableLineNumber);
+  for (const [editableLineNumber, canonicalLineNumber] of canonicalLineByEditableLine) {
     const block = blocksStartingAtLine.get(editableLineNumber);
 
     editableLineNumberByCanonicalLineNumber.set(
