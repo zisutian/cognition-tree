@@ -1,6 +1,6 @@
 .ui-form-layout {
   display: grid;
-  gap: var(--ui-gap-tight);
+  gap: var(--ui-gap);
   width: min(100%, var(--ui-form-max-width));
 }
 
@@ -15,10 +15,10 @@
 .ui-field-label {
   min-height: var(--ui-control-height);
   padding-top: calc(
-    (var(--ui-control-height) - var(--ui-control-font-size)) / 2
+    (var(--ui-control-height) - var(--ui-font-size)) / 2
   );
   color: var(--color-fg-muted);
-  font-size: var(--ui-control-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .ui-field-control {
@@ -27,15 +27,11 @@
   min-width: 0;
 }
 
-.ui-field-description {
+.ui-field-error {
   margin: 0;
-  color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
-}
-
-.ui-field-description.is-error {
   color: var(--color-error);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 .ui-form-actions {
@@ -51,8 +47,8 @@
 .ui-form-error {
   margin: 0;
   color: var(--color-error);
-  font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 .ui-form-fields {
@@ -64,7 +60,7 @@
 
 .ui-form-layout-stacked {
   --ui-control-height: var(--ui-form-control-height);
-  gap: var(--ui-form-field-gap);
+  gap: var(--ui-section-gap);
 }
 
 .ui-form-layout-stacked > .ui-field-row {

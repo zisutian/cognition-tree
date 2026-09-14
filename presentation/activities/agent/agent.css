@@ -16,7 +16,7 @@
   display: grid;
   gap: var(--ui-gap-tight);
   color: var(--color-fg-muted);
-  font-size: var(--ui-control-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .agent-scope-options {
@@ -31,7 +31,7 @@
 .agent-scope-options legend,
 .agent-scope-options p {
   color: var(--color-fg-muted);
-  font-size: var(--ui-body-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .agent-scope-options p {
@@ -71,7 +71,7 @@
 .agent-session-label > span,
 .agent-session-state {
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .agent-session-state {
@@ -133,7 +133,7 @@
 
 .agent-message > span {
   color: var(--color-fg-muted);
-  font-size: var(--ui-body-font-size);
+  font-size: var(--ui-font-size);
   font-weight: var(--ui-emphasis-weight);
 }
 
@@ -155,7 +155,7 @@
   justify-content: space-between;
   gap: var(--ui-gap-tight);
   color: var(--color-fg-muted);
-  font-size: var(--ui-body-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .agent-proposal-body {
@@ -220,7 +220,7 @@
   border-radius: var(--ui-radius);
   color: var(--color-fg-muted);
   background: var(--color-panel-strong);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-font-size);
   white-space: nowrap;
 }
 
@@ -229,7 +229,7 @@
   margin: 0;
   padding: 0 var(--ui-gap-tight);
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .agent-review-path-change {
@@ -246,7 +246,7 @@
   overflow-x: auto;
   border-top: var(--ui-border-width) solid var(--color-border);
   font-family: var(--font-code);
-  font-size: var(--ui-code-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .agent-line-diff-hunk + .agent-line-diff-hunk {
@@ -315,7 +315,7 @@
 .agent-technical-change-list strong,
 .agent-technical-change-list > li > span:not(.agent-technical-value) {
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .agent-technical-diff-list li {
@@ -331,7 +331,7 @@
   padding: var(--ui-gap-tight);
   background: var(--color-hover);
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .agent-technical-diff-list pre {
@@ -366,7 +366,7 @@
 .agent-error,
 .agent-muted {
   margin: 0;
-  font-size: var(--ui-control-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .agent-error {

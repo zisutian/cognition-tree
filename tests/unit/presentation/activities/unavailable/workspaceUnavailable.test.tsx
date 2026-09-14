@@ -11,7 +11,6 @@ describe("workspace unavailable activity", () => {
       {
         has: [
           "尚未创建笔记仓库",
-          "请先前往仓库活动创建一个普通仓库。",
           ">前往仓库<",
         ],
         lacks: ["重试挂载"],
@@ -20,7 +19,7 @@ describe("workspace unavailable activity", () => {
     [
       "loading",
       { status: "loading", storageLabel: "服务端仓库" },
-      { has: ["正在载入笔记仓库", "正在从服务端仓库读取内容。"] },
+      { has: ["正在载入笔记仓库"] },
     ],
     [
       "failed",

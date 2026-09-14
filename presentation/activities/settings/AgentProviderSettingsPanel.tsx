@@ -71,7 +71,7 @@ export function AgentProviderSettingsPanel({
   const errorMessage =
     draft.errorMessage ??
     (draft.stale
-      ? "配置已更新或对象已移除，请放弃修改并重新载入。"
+      ? "配置已过期或对象已移除"
       : state.errorMessage);
   useSettingsInteraction(report, { ...draft, submitting: busy, errorMessage });
   const discard = () => {
@@ -98,7 +98,7 @@ export function AgentProviderSettingsPanel({
         const saved = result.providers.find((item) =>
           id ? item.id === id : !beforeIds.has(item.id),
         );
-        if (!saved) throw new Error("服务已响应保存，请刷新配置以确认对象。");
+        if (!saved) throw new Error("服务已响应，保存结果待确认");
         savedId = saved.id;
         return {
           revision: result.revision,

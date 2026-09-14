@@ -319,8 +319,8 @@
 }
 .repository-create-error {
   margin: 0;
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 .repository-create-error {

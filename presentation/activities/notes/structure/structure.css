@@ -59,8 +59,8 @@
   border: var(--ui-border-width) dashed var(--color-border-strong);
   border-radius: var(--ui-radius);
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 .structure-operation-drop-target.is-active {

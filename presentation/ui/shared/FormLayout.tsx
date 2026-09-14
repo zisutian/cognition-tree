@@ -27,7 +27,6 @@ export function FieldRow({
   children,
   className,
   controlKind = "field",
-  description,
   errorMessage,
   fieldId,
   label,
@@ -35,15 +34,12 @@ export function FieldRow({
   children(accessibility: FieldControlAccessibility): ReactNode;
   className?: string;
   controlKind?: "field" | "group";
-  description?: ReactNode;
   errorMessage?: ReactNode;
   fieldId: string;
   label: ReactNode;
 }) {
   const hasError = errorMessage !== undefined;
-  const descriptionId = description === undefined ? undefined : `${fieldId}-description`;
   const errorId = hasError ? `${fieldId}-error` : undefined;
-  const describedBy = [descriptionId, errorId].filter(Boolean).join(" ");
 
   return (
     <div className={cx("ui-field-row", className)}>
@@ -52,17 +48,14 @@ export function FieldRow({
         : <label className="ui-field-label" htmlFor={fieldId}>{label}</label>}
       <div className="ui-field-control">
         {children({
-          ...(describedBy ? { "aria-describedby": describedBy } : {}),
+          ...(errorId ? { "aria-describedby": errorId } : {}),
           ...(hasError ? { "aria-invalid": true } : {}),
           ...(controlKind === "group" ? { "aria-labelledby": `${fieldId}-label` } : {}),
           id: fieldId,
         })}
-        {descriptionId ? (
-          <p className="ui-field-description" id={descriptionId}>{description}</p>
-        ) : null}
         {hasError ? (
           <p
-            className="ui-field-description is-error"
+            className="ui-field-error"
             id={errorId}
           >
             {errorMessage}

@@ -8,7 +8,7 @@
   padding: 0 var(--ui-gap);
   background: var(--color-panel);
   color: var(--color-fg);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .workbench-status-problems {

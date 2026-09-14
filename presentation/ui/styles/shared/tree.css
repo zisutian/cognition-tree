@@ -79,8 +79,8 @@
   padding: 0 var(--ui-gap-tight);
   color: var(--color-fg);
   background: transparent;
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
   text-align: left;
   cursor: pointer;
 }
@@ -193,9 +193,9 @@
 .ui-structure-marker {
   justify-self: start;
   color: var(--color-link);
-  font-size: var(--ui-code-font-size);
+  font-size: var(--ui-font-size);
   font-weight: var(--ui-emphasis-weight);
-  line-height: var(--ui-code-line-height);
+  line-height: var(--ui-line-height);
   white-space: nowrap;
 }
 
@@ -210,8 +210,8 @@
 .ui-tree-meta,
 .ui-badge {
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
   font-variant-numeric: var(--ui-numeric-font-variant);
 }
 

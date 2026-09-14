@@ -157,7 +157,7 @@ export function DirectoryTreeRow({
       setEditingNode(null);
     } else {
       setEditingNode((current) => current?.key === nodeKey
-        ? { ...current, errorMessage: "重命名失败，请修正后重试。" }
+        ? { ...current, errorMessage: "重命名失败" }
         : current);
     }
   };

@@ -113,8 +113,7 @@ export function AgentProviderSettingsForm({
           {draft.authenticationType === "api-key" ? (
             <FieldRow
               fieldId="settings-provider-api-key"
-              label="API Key"
-              description={editing ? "留空保留已保存的密钥。" : undefined}
+              label={editing ? "更换 API Key" : "API Key"}
             >
               {(accessibility) => (
                 <InputControl
@@ -137,13 +136,13 @@ export function AgentProviderSettingsForm({
           {draft.kind !== "codex" ? (
             <FieldRow
               fieldId="settings-provider-private-network"
-              label="允许私网访问"
+              label="私网访问"
             >
               {(accessibility) => (
                 <CheckboxControl
                   {...accessibility}
                   aria-label="确认 Provider 私网访问"
-                  label="允许连接此服务使用的私有网络地址。"
+                  label="允许"
                   onChange={(event) =>
                     onChange({
                       ...draft,

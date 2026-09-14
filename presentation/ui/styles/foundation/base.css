@@ -1,8 +1,8 @@
 :root {
   font-family: var(--font-ui);
-  font-size: var(--ui-root-font-size);
+  font-size: var(--ui-font-size);
   font-weight: var(--ui-body-weight);
-  line-height: var(--ui-root-line-height);
+  line-height: var(--ui-line-height);
   color: var(--color-fg);
   background: var(--color-editor);
   color-scheme: dark;
@@ -33,6 +33,23 @@ textarea {
 
 button {
   border: 0;
+}
+
+h1, h2, h3, h4, h5, h6, p, pre {
+  margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6, small {
+  font-size: inherit;
+}
+
+h1, h2, h3, h4, h5, h6, strong, b {
+  font-weight: var(--ui-emphasis-weight);
+}
+
+code, pre, kbd, samp {
+  font-family: var(--font-code);
+  font-size: inherit;
 }
 
 input,

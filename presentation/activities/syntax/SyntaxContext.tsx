@@ -79,7 +79,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
     if (view.hasDraftErrors || view.nameConflictMessage) {
       setRenamingFile({
         ...renamingFile,
-        errorMessage: view.nameConflictMessage || "语法名称无效，请修正后重试。",
+        errorMessage: view.nameConflictMessage || "语法名称无效",
       });
     } else {
       setRenamingFile(null);
@@ -125,7 +125,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
     } else {
       setRenamingFile({
         ...renamingFile,
-        errorMessage: "重命名失败，请修正后重试。",
+        errorMessage: "重命名失败",
       });
     }
   };
@@ -179,7 +179,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
           disabled={mutationBlocked || !view.workspaceAvailable}
           onClick={() => void runOperation(view.createFile)}
           title={view.hasDraftErrors
-            ? "请先修复或撤销当前语法错误"
+            ? "语法包含错误"
             : "新建笔记库语法"}
           type="button"
           variant="icon"

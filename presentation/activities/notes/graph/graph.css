@@ -10,9 +10,9 @@
 
 .graph-context-label {
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-font-size);
   font-weight: var(--ui-emphasis-weight);
-  line-height: var(--ui-micro-line-height);
+  line-height: var(--ui-line-height);
 }
 
 .graph-context-actions {
@@ -88,9 +88,9 @@
   margin: 0;
   padding: 0 var(--ui-gap-tight);
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-font-size);
   font-weight: var(--ui-emphasis-weight);
-  line-height: var(--ui-micro-line-height);
+  line-height: var(--ui-line-height);
 }
 
 .graph-settings-row {
@@ -103,8 +103,8 @@
   padding: 0 var(--ui-gap-tight);
   border-radius: var(--ui-radius);
   color: var(--color-fg);
-  font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 .graph-settings-row:hover {

@@ -18,7 +18,7 @@
   border: var(--ui-border-width) solid var(--color-error);
   border-radius: var(--ui-radius);
   color: var(--color-error);
-  font-size: var(--ui-control-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .syntax-file-error {
@@ -63,8 +63,8 @@
   min-width: 0;
   overflow: hidden;
   color: var(--color-fg-muted);
-  font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -93,8 +93,8 @@
 
 .syntax-rule-header {
   min-height: var(--ui-row-height);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 .syntax-number-control {
@@ -189,9 +189,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(var(--ui-icon-size) - var(--ui-gap));
-  min-width: calc(var(--ui-icon-size) - var(--ui-gap));
-  height: calc(var(--ui-icon-size) - var(--ui-gap));
+  width: var(--ui-action-icon-size);
+  min-width: var(--ui-action-icon-size);
+  height: var(--ui-action-icon-size);
   border: var(--ui-border-width) solid transparent;
   border-radius: var(--ui-radius);
   background: var(--color-input);
@@ -199,8 +199,8 @@
 
 .syntax-tone-swatch span {
   display: block;
-  width: calc(var(--ui-control-height) - var(--ui-panel-padding) - var(--ui-gap-tight));
-  height: calc(var(--ui-control-height) - var(--ui-panel-padding) - var(--ui-gap-tight));
+  width: calc(var(--ui-action-icon-size) / 2);
+  height: calc(var(--ui-action-icon-size) / 2);
   border-radius: var(--ui-radius);
   background: var(--ctn-tone-neutral);
 }
@@ -270,8 +270,8 @@
   border-radius: 0;
   color: var(--color-fg);
   background: var(--ctn-tone-background, transparent);
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 .syntax-render-line.is-inline {
@@ -280,9 +280,9 @@
 
 .syntax-render-marker {
   color: var(--color-link);
-  font-size: var(--ui-code-font-size);
+  font-size: var(--ui-font-size);
   font-weight: var(--ui-emphasis-weight);
-  line-height: var(--ui-code-line-height);
+  line-height: var(--ui-line-height);
   white-space: nowrap;
 }
 

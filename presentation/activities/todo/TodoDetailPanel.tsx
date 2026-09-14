@@ -200,7 +200,7 @@ export function TodoDetailPanel({
           />
         ) : (
           <p className="context-empty">
-            使用代办符号添加事项后，这里会显示层级结构。
+            暂无事项
           </p>
         )}
       </PanelBody>

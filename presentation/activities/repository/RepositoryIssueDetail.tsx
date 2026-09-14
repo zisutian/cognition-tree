@@ -46,7 +46,7 @@ export function RepositoryIssueDetail({
       <ToolSection title="处理">
         {manualDeletion ? (
           <p className="repository-manual-removal">
-            该格式不受支持，请在文件系统中手工删除上述目录。
+            此格式仅支持手动删除
           </p>
         ) : null}
         <div className="ui-actions">

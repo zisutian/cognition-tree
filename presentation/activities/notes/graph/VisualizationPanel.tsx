@@ -73,7 +73,6 @@ export function VisualizationPanel({
             />
           ) : (
             <EmptyState
-              description={emptyMessage.description}
               title={emptyMessage.title}
             />
           )}

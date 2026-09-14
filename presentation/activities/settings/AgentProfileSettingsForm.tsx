@@ -51,7 +51,7 @@ export function AgentProfileSettingsForm({
                 required
                 value={draft.providerId}
               >
-                <option value="">请选择</option>
+                <option value="">未选择</option>
                 {providers.map((provider) => (
                   <option key={provider.id} value={provider.id}>
                     {provider.label}

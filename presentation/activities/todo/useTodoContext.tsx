@@ -82,7 +82,7 @@ export function useTodoContext(view: TodoViewModel): {
       setCreateValue("");
       setCreateErrorMessage("");
     } else {
-      setCreateErrorMessage("创建失败，请修正后重试。");
+      setCreateErrorMessage("创建失败");
     }
   };
   const submitRename = () => {
@@ -109,7 +109,7 @@ export function useTodoContext(view: TodoViewModel): {
     if (renamed === true) {
       setEditing(null);
     } else {
-      setEditing({ ...draft, errorMessage: "重命名失败，请修正后重试。" });
+      setEditing({ ...draft, errorMessage: "重命名失败" });
     }
   };
   const confirmDelete = () => {

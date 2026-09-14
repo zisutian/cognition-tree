@@ -148,8 +148,7 @@ export function SearchPanel({
         {state.status === "idle" ? (
           <EmptyState
             compact
-            title="搜索笔记、日记和代办"
-            description="在左侧输入标题或正文，按 Enter 开始搜索。"
+            title="尚未搜索"
           />
         ) : state.status === "loading" ? (
           <EmptyState
@@ -183,7 +182,6 @@ export function SearchPanel({
                 重试
               </Button>
             )}
-            description="所选搜索来源当前均不可读取。"
             title="搜索来源不可用"
           />
         ) : (

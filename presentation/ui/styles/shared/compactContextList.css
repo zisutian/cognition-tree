@@ -22,9 +22,9 @@
   margin: 0;
   padding: 0 var(--ui-gap-tight);
   color: var(--color-fg);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-font-size);
   font-weight: var(--ui-emphasis-weight);
-  line-height: var(--ui-micro-line-height);
+  line-height: var(--ui-line-height);
 }
 
 .ui-compact-context-group-title > span:last-child:not(:first-child) {

@@ -82,8 +82,8 @@
 .todo-recurrence-summary,
 .todo-recurrence-error {
   margin: 0;
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 .todo-recurrence-summary {
@@ -100,7 +100,7 @@
   align-items: center;
   gap: var(--ui-gap-tight);
   color: var(--color-fg-muted);
-  font-size: var(--ui-control-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .todo-recurrence-actions {

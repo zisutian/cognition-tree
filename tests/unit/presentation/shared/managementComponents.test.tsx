@@ -24,7 +24,6 @@ describe("shared management components", () => {
           {(accessibility) => <InputControl {...accessibility} />}
         </FieldRow>
         <FieldRow
-          description="用于识别连接"
           errorMessage="名称不能为空"
           fieldId="provider-name"
           label="Provider"
@@ -38,15 +37,15 @@ describe("shared management components", () => {
     );
 
     expect(markup).toContain('for="profile-name"');
-    expect(markup).not.toContain("profile-name-description");
+    expect(markup.match(/<input[^>]*id="profile-name"[^>]*>/)?.[0])
+      .not.toContain("aria-describedby");
     expect(markup).toContain('aria-invalid="true"');
     const providerInput = markup.match(
       /<input[^>]*id="provider-name"[^>]*>/,
     )?.[0];
     expect(providerInput).toContain(
-      'aria-describedby="provider-name-description provider-name-error"',
+      'aria-describedby="provider-name-error"',
     );
-    expect(markup).toContain('id="provider-name-description"');
     expect(markup).toContain('id="provider-name-error"');
     expect(markup).toContain("名称不能为空");
   });

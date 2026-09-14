@@ -39,7 +39,7 @@ export function SystemConfigurationPanel({
   });
   const { cancel, reconnect } = useSystemReconnect(navigation);
   const errorMessage = draft.stale
-    ? "服务设置已在其他位置更新。请放弃修改并载入最新设置。"
+    ? "服务设置已在其他位置更新"
     : state.errorMessage;
   useSettingsInteraction(report, { ...draft, errorMessage });
   const busy = state.operationStatus === "working" || draft.submitting;

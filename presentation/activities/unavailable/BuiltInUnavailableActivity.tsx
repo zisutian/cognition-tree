@@ -62,13 +62,11 @@ export function BuiltInUnavailableActivity({
       : catalog.state.status === "failed"
         ? "内置数据无法载入"
         : `${label}尚未就绪`;
-  const description = application.status === "loading"
-    ? `正在读取受保护的内置${label}仓库。`
-    : application.status === "failed"
-      ? application.errorMessage
-      : catalog.state.status === "failed"
-        ? catalog.state.errorMessage
-        : `内置${label}数据正在等待创建或重新连接。`;
+  const description = application.status === "failed"
+    ? application.errorMessage
+    : catalog.state.status === "failed"
+      ? catalog.state.errorMessage
+      : undefined;
   const retry = resolveBuiltInActivityRetry(application, catalog, builtInId);
 
   return (

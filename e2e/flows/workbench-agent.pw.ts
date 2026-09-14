@@ -37,7 +37,7 @@ test.describe("Agent activity flows", () => {
       .getByRole("button", { name: "新建会话", exact: true }).click();
     let createPanel = page.getByRole("region", { name: "新建 Agent 会话" });
 
-    await expect(createPanel).toContainText("需要在设置中完成配置");
+    await expect(createPanel).toContainText("未配置");
     await expect(
       createPanel.getByRole("button", { name: "创建会话" }),
     ).toBeDisabled();

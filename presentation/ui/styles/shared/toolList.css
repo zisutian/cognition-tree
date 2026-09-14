@@ -27,9 +27,9 @@
   color: var(--color-fg);
   background: transparent;
   font-family: inherit;
-  font-size: var(--ui-body-font-size);
+  font-size: var(--ui-font-size);
   font-weight: var(--ui-body-weight);
-  line-height: var(--ui-body-line-height);
+  line-height: var(--ui-line-height);
   text-align: left;
   min-height: var(--ui-row-height);
   padding: 0 var(--ui-gap-tight);
@@ -53,8 +53,8 @@
 .ui-tool-list-row-leading,
 .ui-tool-list-row-meta {
   color: var(--color-fg-muted);
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 .ui-tool-list-row-wrap .ui-tool-list-row-main {
@@ -95,8 +95,8 @@
   color: var(--color-fg-muted);
   background: transparent;
   font-family: inherit;
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
   cursor: pointer;
 }
 

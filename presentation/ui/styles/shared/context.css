@@ -40,8 +40,8 @@
   margin: 0;
   overflow: hidden;
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

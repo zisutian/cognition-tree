@@ -65,7 +65,6 @@ export function OperationsSettingsPanel({
         {loading && entries.length === 0 ? (
           <EmptyState
             compact
-            description="正在读取操作账本。"
             title="正在加载"
           />
         ) : entries.length === 0 ? (

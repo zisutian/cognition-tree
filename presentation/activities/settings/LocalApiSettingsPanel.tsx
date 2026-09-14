@@ -66,12 +66,11 @@ export function LocalApiSettingsPanel({
   return (
     <SettingsPage title="本机 API" errorMessage={errorMessage}>
       <ToolSectionStack>
-        <ToolSection title="连接与能力">
+        <ToolSection>
           <FormLayout layout="stacked">
             <FieldRow
               fieldId="local-api-origin"
               label="服务地址"
-              description="本机调用不需要密钥。请求仍会校验连接来源、Host 和 Origin；携带旧 Bearer 的请求会被拒绝。"
             >
               {(attributes) => (
                 <InputControl
@@ -82,24 +81,6 @@ export function LocalApiSettingsPanel({
               )}
             </FieldRow>
           </FormLayout>
-          <p>
-            支持笔记、日记、待办、仓库管理及 CTN
-            语法。系统配置、凭据和数据迁移继续在设置中管理。
-          </p>
-          <p>
-            以仓库名称、笔记标题或目录中的相对路径定位。同名时提供完整相对路径；读取结果包含提交所需版本。
-          </p>
-        </ToolSection>
-        <ToolSection title="调用方式">
-          <p>
-            在对话中确认修改后，由本机客户端直接提交。内置智能体仍使用原有提案审批。
-          </p>
-          <pre className="local-api-example">{`./ctn --server ${api.serviceOrigin} catalog\n./ctn --server ${api.serviceOrigin} directory workspace --repository '仓库名称' > read.json\n./ctn --server ${api.serviceOrigin} apply --from read.json --file command.json`}</pre>
-          <p>
-            每次修改复用读取结果中的完整 basis（身份与版本）。CLI 可通过 --from
-            读取，自动生成操作 ID
-            并在发送前显示。版本过期时重新读取并确认修改；结果不确定时先查询收据和受影响内容，不自动重放。
-          </p>
         </ToolSection>
         <ToolSection title="查询操作结果">
           <form

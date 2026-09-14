@@ -24,7 +24,7 @@
 
 .owner-login-card h1 {
   color: var(--color-fg-strong);
-  font-size: var(--ui-title-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .owner-login-card p,

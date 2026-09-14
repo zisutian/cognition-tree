@@ -27,13 +27,13 @@ export function useSettingsInteraction(
 ) {
   const navigationBlocked = dirty || stale || submitting;
   const statusMessage = submitting
-    ? "设置 · 正在提交，请稍候"
+    ? "设置 · 正在提交"
     : errorMessage
       ? `设置 · ${errorMessage}`
       : stale
-        ? "设置已更新或对象已移除，请放弃修改并重新载入"
+        ? "设置 · 配置已过期或对象已移除"
         : dirty
-          ? "设置有未保存修改，请先在编辑区保存或放弃后再切换"
+          ? "设置 · 未保存修改"
           : "";
   useLayoutEffect(() => {
     report({ navigationBlocked, statusMessage });

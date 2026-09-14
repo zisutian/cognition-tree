@@ -6,7 +6,7 @@ import type {
 import { resolveLinkedNodeId } from "./referenceGraphCanvasModel.ts";
 import type { GraphDisplaySettings } from "./referenceGraphSettings.ts";
 
-function readCanvasColor(canvas: HTMLCanvasElement, name: string) {
+function readCanvasToken(canvas: HTMLCanvasElement, name: string) {
   return getComputedStyle(canvas).getPropertyValue(name).trim();
 }
 
@@ -20,6 +20,9 @@ export type ReferenceGraphCanvasTheme = {
   edgeStrongColor: string;
   editorColor: string;
   fontFamily: string;
+  fontSize: string;
+  fontWeight: string;
+  emphasisWeight: string;
   mutedNodeColor: string;
   nodeColor: string;
   selectedColor: string;
@@ -30,19 +33,22 @@ export type ReferenceGraphCanvasTheme = {
 export function readReferenceGraphCanvasTheme(
   canvas: HTMLCanvasElement,
 ): ReferenceGraphCanvasTheme {
-  const edgeColor = readCanvasColor(canvas, "--color-graph-edge");
+  const edgeColor = readCanvasToken(canvas, "--color-graph-edge");
 
   return {
-    activeNodeColor: readCanvasColor(canvas, "--color-link"),
+    activeNodeColor: readCanvasToken(canvas, "--color-link"),
     edgeColor,
-    edgeStrongColor: readCanvasColor(canvas, "--color-accent") || edgeColor,
-    editorColor: readCanvasColor(canvas, "--color-editor"),
-    fontFamily: readCanvasColor(canvas, "--font-ui") || "sans-serif",
-    mutedNodeColor: readCanvasColor(canvas, "--color-fg-subtle"),
-    nodeColor: readCanvasColor(canvas, "--color-fg-muted"),
-    selectedColor: readCanvasColor(canvas, "--color-accent"),
-    textColor: readCanvasColor(canvas, "--color-fg-strong"),
-    textMutedColor: readCanvasColor(canvas, "--color-fg-muted"),
+    edgeStrongColor: readCanvasToken(canvas, "--color-accent") || edgeColor,
+    editorColor: readCanvasToken(canvas, "--color-editor"),
+    fontFamily: readCanvasToken(canvas, "--font-ui") || "sans-serif",
+    fontSize: readCanvasToken(canvas, "--ui-font-size"),
+    fontWeight: readCanvasToken(canvas, "--ui-body-weight"),
+    emphasisWeight: readCanvasToken(canvas, "--ui-emphasis-weight"),
+    mutedNodeColor: readCanvasToken(canvas, "--color-fg-subtle"),
+    nodeColor: readCanvasToken(canvas, "--color-fg-muted"),
+    selectedColor: readCanvasToken(canvas, "--color-accent"),
+    textColor: readCanvasToken(canvas, "--color-fg-strong"),
+    textMutedColor: readCanvasToken(canvas, "--color-fg-muted"),
   };
 }
 
@@ -410,7 +416,7 @@ export function drawGraph({
         node.title.length > 22 ? `${node.title.slice(0, 21)}…` : node.title;
 
       context.globalAlpha = labelOpacity;
-      context.font = `${isSelected || isHovered ? 600 : 500} 12px ${theme.fontFamily}`;
+      context.font = `${isSelected || isHovered ? theme.emphasisWeight : theme.fontWeight} ${theme.fontSize} ${theme.fontFamily}`;
       context.textAlign = "center";
       context.textBaseline = "top";
       context.lineWidth = 4;

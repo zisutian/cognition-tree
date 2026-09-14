@@ -39,7 +39,7 @@
   min-height: 0;
   color: var(--color-fg);
   background: transparent;
-  font-family: var(--font-content);
+  font-family: var(--font-ui);
   font-size: var(--ctn-editor-font-size);
   font-weight: var(--ui-body-weight);
   line-height: var(--ctn-editor-line-height);
@@ -61,7 +61,7 @@
   width: max-content;
   min-width: 100%;
   min-height: 100%;
-  padding: calc(var(--ui-panel-padding) - calc(var(--ui-border-width) * 2));
+  padding: var(--ui-gap);
 }
 
 .source-editor .cm-line {
@@ -84,7 +84,7 @@
   min-width: calc(var(--ui-control-height) + var(--ui-gap));
   padding:
     0
-    calc(var(--ui-panel-padding) - calc(var(--ui-border-width) * 2))
+    var(--ui-gap)
     0
     var(--ui-gap);
   font-variant-numeric: var(--ui-numeric-font-variant);
@@ -108,7 +108,7 @@
 }
 
 .source-editor .ctn-marker {
-  font-weight: var(--ctn-editor-strong-weight);
+  font-weight: var(--ui-emphasis-weight);
 }
 
 .source-editor .ctn-todo-checkbox {
@@ -127,7 +127,7 @@
   margin-right: calc(var(--ui-gap-tight) / 2);
   color: var(--color-accent);
   font-family: var(--font-code);
-  font-size: var(--ui-micro-font-size);
+  font-size: var(--ui-font-size);
   font-variant-numeric: var(--ui-numeric-font-variant);
   line-height: var(--ui-inline-symbol-line-height);
   vertical-align: 0.04em;
@@ -145,11 +145,11 @@
 }
 
 .source-editor .ctn-block-text-concept {
-  font-weight: var(--ctn-editor-strong-weight);
+  font-weight: var(--ui-emphasis-weight);
 }
 
 .source-editor .cm-line.ctn-line-title {
-  font-weight: var(--ctn-editor-strong-weight);
+  font-weight: var(--ui-emphasis-weight);
 }
 
 .source-editor .ctn-line:not(.ctn-tone-default) {

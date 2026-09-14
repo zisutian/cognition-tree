@@ -86,7 +86,7 @@ describe("startSyntaxCatalogMutation", () => {
     await expect(startSyntaxCatalogMutation({
       draftIsValid: false,
       mutate,
-    })).rejects.toThrow("请先修复或撤销");
+    })).rejects.toThrow("语法文件包含无效更改");
     expect(mutate).not.toHaveBeenCalled();
   });
 });
@@ -130,7 +130,7 @@ describe("syntax catalog name conflicts", () => {
     await expect(startSyntaxCatalogMutation({
       draftIsValid: !conflictMessage,
       mutate,
-    })).rejects.toThrow("请先修复或撤销");
+    })).rejects.toThrow("语法文件包含无效更改");
     expect(mutate).not.toHaveBeenCalled();
 
     const fixedPersistence = startCtnSyntaxDraftPersistence({

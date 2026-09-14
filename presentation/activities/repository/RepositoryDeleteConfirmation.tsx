@@ -44,7 +44,7 @@ export function RepositoryDeleteConfirmation({
     >
       <div className="repository-delete-choice">
         <label className="repository-delete-confirmation-field">
-          <span>永久删除前请输入仓库名称</span>
+          <span>仓库名称</span>
           <InputControl
             autoComplete="off"
             disabled={busy}

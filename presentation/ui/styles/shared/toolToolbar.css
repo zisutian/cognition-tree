@@ -6,7 +6,7 @@
   gap: var(--ui-gap-tight);
   min-width: 0;
   min-height: var(--ui-row-height);
-  padding: 0 var(--ui-gap-tight);
+  padding: var(--ui-gap-tight) 0;
   border-bottom: var(--ui-border-width) solid var(--color-border);
 }
 
@@ -15,6 +15,6 @@
   align-items: center;
   gap: calc(var(--ui-gap-tight) / 2);
   color: var(--color-fg-muted);
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }

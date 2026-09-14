@@ -113,7 +113,7 @@ test("Provider controls and directory disclosure retain the current draft and na
     name: "确认 Provider 私网访问",
   });
   await panel
-    .getByText("允许连接此服务使用的私有网络地址。", { exact: true })
+    .getByText("允许", { exact: true })
     .click();
   await expect(permission).toBeChecked();
   await panel.getByRole("button", { name: "放弃修改", exact: true }).click();
@@ -131,7 +131,7 @@ test("Provider controls and directory disclosure retain the current draft and na
   await expect(permission).toBeChecked();
   await getActivityButton(page, "笔记").click();
   await expect(panel).toBeVisible();
-  await expect(getWorkbenchStatus(page)).toContainText("保存或放弃");
+  await expect(getWorkbenchStatus(page)).toContainText("未保存修改");
   await group.press("Enter");
   await expect(
     page.getByRole("button", { name: /^E2E provider(?: 待处理)?$/ }),

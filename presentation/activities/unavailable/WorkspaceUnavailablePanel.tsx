@@ -22,11 +22,7 @@ export function WorkspaceUnavailablePanel({
     : workspace.status === "failed"
       ? "笔记仓库无法挂载"
       : "尚未创建笔记仓库";
-  const description = workspace.status === "loading"
-    ? `正在从${workspace.storageLabel}读取内容。`
-    : workspace.status === "failed"
-      ? workspace.errorMessage
-      : "请先前往仓库活动创建一个普通仓库。";
+  const description = workspace.status === "failed" ? workspace.errorMessage : undefined;
 
   return (
     <Panel aria-label={title} className="placeholder-panel">

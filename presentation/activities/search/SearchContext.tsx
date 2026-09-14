@@ -47,7 +47,7 @@ export function SearchContext({
           onChange={(event) =>
             controller.updateDraft({ query: event.currentTarget.value })
           }
-          placeholder="输入标题或正文"
+          placeholder="标题或正文"
           sizing="container"
           type="search"
           value={state.draft.query}

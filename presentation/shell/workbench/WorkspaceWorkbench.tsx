@@ -41,7 +41,6 @@ function ActivityLoadingView({
     detail: null,
     main: (
       <PlaceholderPanel
-        description="正在载入活动模块。"
         title={`正在加载${label}`}
       />
     ),
@@ -98,7 +97,7 @@ export function WorkspaceWorkbench({
     (blocked: boolean) =>
       onInteractionStateChange("syntax", {
         navigationBlocked: blocked,
-        statusMessage: blocked ? "语法包含未解决的问题，请先处理后再切换" : "",
+        statusMessage: blocked ? "语法 · 存在未解决的问题" : "",
       }),
     [onInteractionStateChange],
   );

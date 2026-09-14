@@ -231,7 +231,7 @@ for (const viewport of [{ width: 1280, height: 720 }]) {
       if (name === "仓库") {
         await expectRepositoryDetails(page);
         const repositoryPanel = page.getByRole("region", { name: "仓库", exact: true });
-        const left = (await repositoryPanel.getByRole("heading", { name: "使用仓库", exact: true }).boundingBox())!.x;
+        const left = (await repositoryPanel.locator(".ui-panel-header h2").boundingBox())!.x;
         for (const label of ["继续编辑笔记", "删除仓库"]) {
           expect((await repositoryPanel.getByRole("button", { name: label, exact: true }).boundingBox())!.x).toBe(left);
         }

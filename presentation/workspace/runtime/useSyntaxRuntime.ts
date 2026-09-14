@@ -65,7 +65,7 @@ export function startSyntaxCatalogMutation<T>({
 }) {
   if (!draftIsValid) {
     return Promise.reject(
-      new Error("请先修复或撤销当前语法文件中的无效更改。"),
+      new Error("语法文件包含无效更改"),
     );
   }
 

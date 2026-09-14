@@ -15,7 +15,7 @@ export function SyntaxUnavailablePanel({
             打开语法
           </Button>
         }
-        description="当前仓库没有语法配置。笔记原文仍可在笔记活动中编辑。"
+        description="缺少语法配置"
         title={`${featureName}不可用`}
       />
     </Panel>

@@ -35,6 +35,6 @@
   margin: 0;
   padding: var(--ui-gap-tight);
   color: var(--color-fg-muted);
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }

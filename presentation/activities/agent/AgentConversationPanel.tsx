@@ -56,7 +56,6 @@ export function AgentConversationPanel({ agent, onBeginCreateSession }: {
         <EmptyState
           compact
           title="创建或选择一个 Agent 会话"
-          description="创建会话时选择内容范围；已有会话可从左侧继续。"
           action={<Button onClick={onBeginCreateSession} type="button" variant="primary">新建会话</Button>}
         />
       </ToolPanel>
@@ -147,7 +146,7 @@ export function AgentConversationPanel({ agent, onBeginCreateSession }: {
             disabled={!canSend}
             maxLength={100_000}
             onChange={(event) => setDraft(event.currentTarget.value)}
-            placeholder={canSend ? "描述希望 Agent 完成的修改…" : "当前会话暂不能接收新消息"}
+            placeholder={canSend ? "消息" : "会话不可用"}
             rows={4}
             value={draft}
           />

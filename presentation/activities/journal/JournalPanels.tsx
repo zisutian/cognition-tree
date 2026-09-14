@@ -231,7 +231,6 @@ export function JournalEditorPanel({
               新建日记
             </Button>
           }
-          description="手动创建后即可在这里记录正文。"
           title="还没有日记"
         />
       </Panel>

@@ -141,7 +141,7 @@ export function useSyntaxActivity({
 
   const assertCanLeave = useCallback(() => {
     if (hasDraftErrors) {
-      throw new Error("请先修复或撤销当前语法文件中的无效更改。");
+      throw new Error("语法文件包含无效更改");
     }
   }, [hasDraftErrors]);
   const selectTarget = useCallback(async (target: SyntaxTarget) => {

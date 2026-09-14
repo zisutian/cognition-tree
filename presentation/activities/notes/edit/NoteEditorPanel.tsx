@@ -87,7 +87,6 @@ export function NoteEditorPanel({
               新建笔记
             </Button>
           }
-          description="从左侧目录选择或创建笔记。"
           title="没有活动笔记"
         />
       </Panel>

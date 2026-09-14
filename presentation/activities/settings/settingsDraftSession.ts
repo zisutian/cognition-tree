@@ -133,7 +133,7 @@ export function createSettingsDraftSession<Value>(initial: Value) {
           publish({
             submitting: false,
             errorMessage:
-              error instanceof Error ? error.message : "保存失败，请重试。",
+              error instanceof Error ? error.message : "保存失败",
           });
         throw error;
       }

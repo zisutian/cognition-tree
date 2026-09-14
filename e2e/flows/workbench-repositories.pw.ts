@@ -397,7 +397,7 @@ test.describe("repository management", () => {
       await expect(issueRow).toBeFocused();
       await expect(issueRow).toContainText("故障");
       await expect(repositoryPanel).toContainText(
-        "请在文件系统中手工删除上述目录。",
+        "此格式仅支持手动删除",
       );
       await expect(repositoryStatus).toContainText(
         `/host/e2e-repositories/${unsupportedRepositoryId}`,
@@ -463,7 +463,7 @@ test.describe("repository management", () => {
       await expect(confirmation).toBeVisible();
       await confirmation
         .getByRole("textbox", {
-          name: "永久删除前请输入仓库名称",
+          name: "仓库名称",
         })
         .fill(remainingRepository?.label ?? "");
       await confirmation.getByRole("button", { name: "永久删除" }).click();

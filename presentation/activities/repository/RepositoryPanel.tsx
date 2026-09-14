@@ -149,7 +149,6 @@ export function RepositoryPanel({
 
           {target.kind === "ordinary-repository" && !ordinaryRepository ? (
             <EmptyState
-              description="该仓库已不在目录中，请从左侧选择其他项目。"
               title="仓库不可用"
             />
           ) : null}
@@ -169,7 +168,6 @@ export function RepositoryPanel({
 
           {target.kind === "ordinary-issue" && !target.issue ? (
             <EmptyState
-              description="该问题已经消失，请从左侧选择其他项目。"
               title="仓库问题已解决"
             />
           ) : null}

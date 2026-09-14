@@ -230,7 +230,7 @@ describe("syntax panels", () => {
     );
 
     expectMarkupSemantics(markup, {
-      has: ["撤销无效更改", "修复或撤销前不能离开此配置"],
+      has: ["撤销无效更改", "语法包含无效更改"],
       lacks: ['aria-label="语法名称"', message],
     });
   });

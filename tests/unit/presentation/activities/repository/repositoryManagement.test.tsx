@@ -100,7 +100,7 @@ describe("repository inline deletion confirmation", () => {
     expectMarkupSemantics(markup, {
       has: [
         "永久删除",
-        "永久删除前请输入仓库名称",
+        "仓库名称",
         'value=""',
         /<button[^>]*disabled=""[^>]*>永久删除<\/button>/,
       ],
@@ -294,7 +294,7 @@ describe("repository setup and management semantics", () => {
     expectMarkupSemantics(issueMarkup, {
       has: [
         "仓库格式不受支持，需要手工删除该目录。",
-        "请在文件系统中手工删除上述目录。",
+        "此格式仅支持手动删除",
         "/home/zisu/notes/default",
         'aria-label="复制主机路径"',
         ">重新检查<",

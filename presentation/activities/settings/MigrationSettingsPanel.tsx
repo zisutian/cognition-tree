@@ -141,14 +141,14 @@ export function MigrationSettingsPanel({
                     cancel();
                     setDestination(event.currentTarget.value);
                   }}
-                  placeholder="尚未占用的绝对路径"
+                  placeholder="新目录绝对路径"
                   value={destination}
                 />
               )}
             </FieldRow>
           </FormLayout>
           {confirming ? (
-            <p>迁移期间将暂停写入。源目录会保留；确认迁移到上方目标目录。</p>
+            <p>迁移期间暂停写入，源目录保留。</p>
           ) : null}
           <div className="ui-actions">
             <ConfirmAction

@@ -14,8 +14,8 @@
 
 .repository-row-status {
   color: var(--color-fg-subtle);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
   white-space: nowrap;
 }
 
@@ -43,8 +43,8 @@
 .repository-manual-removal {
   margin: 0 0 var(--ui-gap-tight);
   color: var(--color-warning);
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 .repository-identity-value {
@@ -55,8 +55,8 @@
 
 .repository-location-path {
   font-family: var(--font-code);
-  font-size: var(--ui-code-font-size);
-  line-height: var(--ui-code-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
   overflow-wrap: anywhere;
   user-select: text;
   white-space: pre-wrap;
@@ -77,8 +77,8 @@
 .repository-warning {
   margin: var(--ui-gap-tight) 0 0;
   color: var(--color-warning);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 .repository-inline-confirmation {
@@ -89,7 +89,7 @@
   border-radius: var(--ui-radius);
   background: var(--color-panel);
   color: var(--color-fg-muted);
-  font-size: var(--ui-control-font-size);
+  font-size: var(--ui-font-size);
 }
 
 .repository-delete-choice {

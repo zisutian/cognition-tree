@@ -55,8 +55,8 @@ export function OwnerCredentialSettingsPanel({
         <>
           <p>
             {awaiting
-              ? "请保存新密钥，再明确激活。"
-              : "新密钥已激活，请妥善保存。"}
+              ? "新密钥待激活"
+              : "新密钥已激活"}
           </p>
           <ToolPropertyList aria-label="所有者密钥">
             <ToolPropertyRow
@@ -75,11 +75,11 @@ export function OwnerCredentialSettingsPanel({
           </ToolPropertyList>
         </>
       ) : snapshot?.ownerCredentialRotationPending ? (
-        <p>服务中有待激活轮换，当前页面没有明文密钥；重新准备将替换该轮换。</p>
+        <p>待激活密钥不在当前页面；重新准备将替换它。</p>
       ) : null}
       {awaiting && state.errorMessage ? (
         <p>
-          激活结果可能未知。请保留新密钥并刷新状态；若旧会话失效，请用新密钥重新登录。
+          新密钥激活结果尚未确认
         </p>
       ) : null}
       <div className="ui-actions">

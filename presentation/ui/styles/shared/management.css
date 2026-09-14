@@ -7,8 +7,8 @@
   border-radius: var(--ui-radius);
   color: var(--color-fg-muted);
   background: var(--color-hover);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
   white-space: nowrap;
 }
 
@@ -62,7 +62,7 @@
 .ui-management-row-title-text {
   overflow: hidden;
   color: var(--color-fg);
-  font-size: var(--ui-body-font-size);
+  font-size: var(--ui-font-size);
   font-weight: var(--ui-emphasis-weight);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -87,8 +87,8 @@
 .ui-management-row-details {
   min-width: 0;
   color: var(--color-fg-muted);
-  font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
   overflow-wrap: anywhere;
 }
 

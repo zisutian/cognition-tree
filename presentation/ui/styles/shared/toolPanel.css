@@ -9,16 +9,16 @@
 .ui-tool-panel-content {
   display: grid;
   align-content: start;
-  gap: var(--ui-gap-tight);
+  gap: var(--ui-gap);
   width: 100%;
   min-width: 0;
-  padding: var(--ui-gap-tight) 0;
+  padding: var(--ui-gap) 0;
 }
 
 .ui-tool-panel-body-form > .ui-tool-panel-content {
   width: min(100%, var(--ui-form-max-width));
   margin: 0;
-  gap: var(--ui-form-field-gap);
+  gap: var(--ui-section-gap);
 }
 
 .ui-tool-panel-body-results > .ui-tool-panel-content {
@@ -32,9 +32,4 @@
 
 .ui-tool-panel-body-detail > .ui-tool-panel-content {
   width: 100%;
-}
-
-.ui-tool-panel-body-form {
-  --ui-section-gap: var(--ui-form-field-gap);
-  padding: calc(var(--ui-form-padding) - var(--ui-panel-padding));
 }

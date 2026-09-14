@@ -53,8 +53,8 @@
 .ui-quick-pick-option small,
 .ui-quick-pick-empty {
   color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
 }
 
 .ui-quick-pick-empty {

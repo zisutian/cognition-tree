@@ -23,6 +23,27 @@ async function expectWorkbenchGeometry(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
     viewport.width,
   );
+  const typography = await page.locator("body").evaluate((body) => {
+    const sizes = new Set<string>();
+    const weights = new Set<string>();
+    const families = new Set<string>();
+    const texts = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+    for (let text = texts.nextNode(); text; text = texts.nextNode()) {
+      const element = text.parentElement;
+      if (!text.textContent?.trim() || !element ||
+        element.closest(".source-editor, svg, script, style")) continue;
+      const box = element.getBoundingClientRect();
+      if (box.width <= 1 || box.height <= 1) continue;
+      const style = getComputedStyle(element);
+      sizes.add(style.fontSize);
+      weights.add(style.fontWeight);
+      families.add(style.fontFamily);
+    }
+    return { sizes: [...sizes], weights: [...weights], families: [...families] };
+  });
+  expect(typography.sizes).toEqual(["13px"]);
+  expect(typography.weights.every((weight) => ["400", "600"].includes(weight))).toBe(true);
+  expect(typography.families.length).toBeLessThanOrEqual(2);
   for (const selector of [".app-context", ".app-main-region", ".app-detail"]) {
     const panels = page.locator(selector);
     if (selector !== ".app-detail") await expect(panels).toBeVisible();
@@ -122,14 +143,20 @@ test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, asyn
       return {
         above: label.bottom <= control.top,
         aligned: Math.abs(label.left - control.left) <= 1,
+        top: row.getBoundingClientRect().top,
+        bottom: row.getBoundingClientRect().bottom,
       };
     }),
   );
   expect(fields.every(({ above, aligned }) => above && aligned)).toBe(true);
+  const fieldGaps = fields.slice(1).map((field, index) =>
+    Math.round(field.top - fields[index].bottom));
+  expect(new Set(fieldGaps).size).toBe(1);
   expect((await name.boundingBox())!.height).toBe(26);
   await expectWorkbenchGeometry(page);
   const formLeft = (await name.boundingBox())!.x;
   for (const target of [
+    panel.locator(".ui-panel-header h2"),
     panel.getByRole("heading", { name: "连接与认证", exact: true }),
     panel.getByRole("button", { name: "探测", exact: true }),
     panel.getByRole("button", { name: "删除 Provider", exact: true }),

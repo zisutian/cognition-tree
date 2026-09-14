@@ -2,8 +2,6 @@
   --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei UI",
     sans-serif;
-  --font-content: "Noto Sans CJK SC", "Source Han Sans SC", "PingFang SC",
-    "Microsoft YaHei", sans-serif;
   --font-code: "Cascadia Code", "SFMono-Regular", Consolas,
     "Noto Sans Mono CJK SC", monospace;
 
@@ -71,16 +69,14 @@
   --app-status-bar-height: 22px;
   --app-problems-height: 200px;
   --ui-border-width: 1px;
-  --ui-panel-padding: 10px;
+  --ui-panel-padding: 12px;
   --ui-panel-header-height: 40px;
-  --ui-panel-header-padding: 12px;
-  --ui-gap: 6px;
+  --ui-gap: 8px;
   --ui-gap-tight: 4px;
   --ui-control-height: 22px;
   --ui-form-control-height: 26px;
-  --ui-form-field-gap: 16px;
+  --ui-section-gap: 16px;
   --ui-form-max-width: 720px;
-  --ui-form-padding: 24px;
   --ui-icon-size: 22px;
   --ui-action-icon-size: 16px;
   --ui-activity-icon-size: 24px;
@@ -89,31 +85,17 @@
   --ui-tree-indent: 14px;
   --ui-radius: 4px;
   --ui-selection-radius: 6px;
-  --ui-selection-padding-inline: 8px;
   --ui-focus-outline: 1px solid var(--color-accent);
   --ui-z-overlay: 100;
 
-  --ui-root-font-size: 13px;
-  --ui-root-line-height: 1.35;
-  --ui-title-font-size: 14px;
-  --ui-title-line-height: 1.35;
-  --ui-title-weight: 600;
-  --ui-body-font-size: 13px;
-  --ui-body-line-height: 1.35;
+  --ui-font-size: 13px;
+  --ui-line-height: 1.4;
   --ui-body-weight: 400;
   --ui-emphasis-weight: 600;
-  --ui-control-font-size: 13px;
-  --ui-control-line-height: 1.35;
-  --ui-micro-font-size: 13px;
-  --ui-micro-line-height: 1.35;
   --ui-inline-symbol-line-height: 1;
-  --ui-code-font-size: 13px;
-  --ui-code-line-height: 1.35;
-  --ui-code-weight: 400;
   --ui-numeric-font-variant: tabular-nums;
   --ctn-editor-font-size: 14px;
   --ctn-editor-line-height: 1.5;
-  --ctn-editor-strong-weight: 700;
 }
 
 .source-editor {

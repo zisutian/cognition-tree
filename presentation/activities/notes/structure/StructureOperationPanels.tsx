@@ -17,7 +17,7 @@ export function StructureOperationMainPanel({
   if (view.noteTree.length === 0) {
     return (
       <Panel className="structure-operation-panel" aria-label="结构操作">
-        <EmptyState description="没有可操作笔记。" title="结构操作" />
+        <EmptyState title="没有可操作笔记" />
       </Panel>
     );
   }

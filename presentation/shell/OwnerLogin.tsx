@@ -37,7 +37,6 @@ export function OwnerLogin({
     <main className="owner-login">
       <form className="owner-login-card" onSubmit={submit}>
         <h1>登录认知树</h1>
-        <p>请输入由本机“设置 → 服务”创建的所有者密钥。</p>
         {state.errorMessage ? <p role="alert">{state.errorMessage}</p> : null}
         <label>
           <span>所有者密钥</span>

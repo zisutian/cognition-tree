@@ -36,12 +36,7 @@ export function OrdinaryRepositoryDetail({
 
   return (
     <>
-      <ToolSection title="使用仓库">
-        <p>
-          {active
-            ? "当前正在使用此仓库。"
-            : "打开此仓库后，可编辑笔记、整理结构和查看图谱。"}
-        </p>
+      <ToolSection>
         <div className="ui-actions">
           <Button
             disabled={busy}

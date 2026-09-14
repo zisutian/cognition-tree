@@ -34,7 +34,6 @@ export function TodoEditorPanel({
               新建事项集合
             </Button>
           }
-          description="创建集合后，使用代办符号逐行记录事项。"
           title="还没有事项集合"
         />
       </Panel>

@@ -70,7 +70,6 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
         title="语法配置"
       >
         <EmptyState
-          description="请等待对应仓库就绪，或在左侧选择其他语法配置。"
           title="语法配置暂不可用"
         />
       </ToolPanel>
@@ -88,7 +87,7 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
       <ToolPanelBody layout="table">
         {syntax.hasDraftErrors ? (
           <div className="syntax-invalid-draft" role="alert">
-            <span>当前更改无效；修复或撤销前不能离开此配置。</span>
+            <span>语法包含无效更改</span>
             <Button
               onClick={syntax.revertInvalidChanges}
               type="button"

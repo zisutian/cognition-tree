@@ -38,7 +38,7 @@ test("blocks directory, activities and problem navigation without replay, then u
   });
   await name.fill("Unsaved provider");
   const footer = getWorkbenchStatus(page);
-  await expect(footer).toContainText("先在编辑区保存或放弃");
+  await expect(footer).toContainText("未保存修改");
   await page
     .locator(".settings-context")
     .getByRole("button", { name: "路径显示", exact: true })
@@ -61,7 +61,7 @@ test("blocks directory, activities and problem navigation without replay, then u
   // Advancing browser time proves this is persistent state, not a short feedback toast.
   await page.clock.install();
   await page.clock.fastForward(10_000);
-  await expect(footer).toContainText("先在编辑区保存或放弃");
+  await expect(footer).toContainText("未保存修改");
   await panel.getByRole("button", { name: "放弃修改" }).click();
   await expect(name).toHaveValue("E2E provider");
   await expect(panel).toBeVisible();
@@ -140,7 +140,7 @@ test("retains settings input and navigation protection when the workspace finish
     exact: true,
   });
   await name.fill("Keep while workspace loads");
-  await expect(getWorkbenchStatus(page)).toContainText("先在编辑区保存或放弃");
+  await expect(getWorkbenchStatus(page)).toContainText("未保存修改");
   loading.release();
   await getProblemsToggle(page).click();
   await expect(
@@ -177,7 +177,7 @@ test("keeps inputs when the saved configuration advances or the object is remove
   });
   expect(updated.ok()).toBe(true);
   await page.getByRole("button", { name: "刷新设置状态", exact: true }).click();
-  await expect(panel.getByRole("alert")).toContainText("配置已更新");
+  await expect(panel.getByRole("alert")).toContainText("配置已过期");
   await expect(name).toHaveValue("My draft");
   await expect(
     panel.getByRole("button", { name: "保存 Provider" }),
@@ -197,7 +197,7 @@ test("keeps inputs when the saved configuration advances or the object is remove
   });
   expect(newest.ok()).toBe(true);
   await page.getByRole("button", { name: "刷新设置状态", exact: true }).click();
-  await expect(panel.getByRole("alert")).toContainText("配置已更新");
+  await expect(panel.getByRole("alert")).toContainText("配置已过期");
   await expect(name).toHaveValue("E2E provider");
   await getActivityButton(page, "笔记").click();
   await expect(panel).toBeVisible();

@@ -188,7 +188,7 @@ export function AgentSessionCreatePanel({
                   >
                     {preferredProfile?.availability === "available"
                       ? "可用"
-                      : "需要在设置中完成配置"}
+                      : preferredProfile ? "不可用" : "未配置"}
                   </StatusBadge>
                 )}
               />

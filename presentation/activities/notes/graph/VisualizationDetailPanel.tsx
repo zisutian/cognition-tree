@@ -61,14 +61,14 @@ export function VisualizationDetailPanel({
             </dl>
           </div>
         ) : (
-          <p className="ui-muted">选择图中的笔记节点查看详情。</p>
+          <p className="ui-muted">未选择笔记</p>
         )}
-        <div aria-hidden="true" className="detail-divider" />
         {activeNode ? (
-          <AdjacentReferenceList activeNodeId={activeNode.id} graph={graph} />
-        ) : (
-          <p className="ui-muted">这个节点暂无引用关系。</p>
-        )}
+          <>
+            <div aria-hidden="true" className="detail-divider" />
+            <AdjacentReferenceList activeNodeId={activeNode.id} graph={graph} />
+          </>
+        ) : null}
         <div aria-hidden="true" className="detail-divider" />
         <MostReferencedList
           graph={graph}

@@ -1,6 +1,6 @@
 .ui-tool-section-stack {
   display: grid;
-  gap: var(--ui-section-gap, var(--ui-gap));
+  gap: var(--ui-section-gap);
   min-width: 0;
 }
 
@@ -43,9 +43,9 @@
 
 .ui-tool-section-heading h3 {
   color: var(--color-fg-muted);
-  font-size: var(--ui-body-font-size);
+  font-size: var(--ui-font-size);
   font-weight: var(--ui-emphasis-weight);
-  line-height: var(--ui-body-line-height);
+  line-height: var(--ui-line-height);
 }
 
 .ui-tool-section-actions {
