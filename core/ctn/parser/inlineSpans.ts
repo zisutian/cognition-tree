@@ -28,12 +28,33 @@ type InlineRangeBoundary = {
   startOffset: number;
 };
 
+function createCloserLookup(text: string) {
+  const searches = new Map<string, { from: number; index: number }>();
+
+  return (close: string, from: number) => {
+    const previous = searches.get(close);
+
+    // Reuse the already searched suffix while scanning forward, including misses.
+    if (
+      previous && from >= previous.from &&
+      (previous.index < 0 || from <= previous.index)
+    ) {
+      return previous.index;
+    }
+    const index = text.indexOf(close, from);
+
+    searches.set(close, { from, index });
+    return index;
+  };
+}
+
 function collectPairedRuleBoundaries(
   text: string,
   inlineMatcher: readonly CtnInlineRule[],
 ): InlineRangeBoundary[] {
   const pairedRules = inlineMatcher.filter((rule) => rule.kind === "paired");
   const boundaries: InlineRangeBoundary[] = [];
+  const findCloser = createCloserLookup(text);
 
   for (let index = 0; index < text.length; index += 1) {
     const rule = pairedRules.find((candidate) =>
@@ -44,7 +65,7 @@ function collectPairedRuleBoundaries(
       continue;
     }
 
-    const closeIndex = text.indexOf(rule.close, index + rule.open.length);
+    const closeIndex = findCloser(rule.close, index + rule.open.length);
 
     if (closeIndex < 0) {
       continue;
@@ -63,9 +84,17 @@ function collectPairedRuleBoundaries(
 }
 
 function isInsideBoundary(offset: number, boundaries: InlineRangeBoundary[]) {
-  return boundaries.some(
-    (boundary) => offset >= boundary.startOffset && offset < boundary.endOffset,
-  );
+  let low = 0;
+  let high = boundaries.length;
+
+  // Paired ranges are sorted and disjoint, so find the first range ending later.
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+
+    if (boundaries[middle].endOffset <= offset) low = middle + 1;
+    else high = middle;
+  }
+  return low < boundaries.length && boundaries[low].startOffset <= offset;
 }
 
 function expandSingleMarkerRange(
@@ -105,6 +134,7 @@ export function parseInlineSpans(
   const spans: CtnInlineSpan[] = [];
   let index = 0;
   const pairedBoundaries = collectPairedRuleBoundaries(text, inlineMatcher);
+  const findCloser = createCloserLookup(text);
 
   while (index < text.length) {
     const matchedRule = inlineMatcher.find((rule) =>
@@ -119,7 +149,7 @@ export function parseInlineSpans(
     }
 
     if (matchedRule.kind === "paired") {
-      const closeIndex = text.indexOf(
+      const closeIndex = findCloser(
         matchedRule.close,
         index + matchedRule.open.length,
       );
