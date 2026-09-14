@@ -15,6 +15,9 @@
   --color-input: #313131;
   --color-hover: #2a2d2e;
   --color-selected: #37373d;
+  --color-selection-hover: #2c2c2c;
+  --color-selection-active: #3b3b3b;
+  --color-selection-active-hover: #454545;
   --color-border: #2b2b2b;
   --color-border-strong: #3c3c3c;
   --color-fg: #cccccc;
@@ -69,7 +72,8 @@
   --app-problems-height: 200px;
   --ui-border-width: 1px;
   --ui-panel-padding: 10px;
-  --ui-panel-header-height: 35px;
+  --ui-panel-header-height: 40px;
+  --ui-panel-header-padding: 12px;
   --ui-gap: 6px;
   --ui-gap-tight: 4px;
   --ui-control-height: 22px;
@@ -83,15 +87,17 @@
   --ui-symbol-size: 13px;
   --ui-row-height: 22px;
   --ui-tree-indent: 14px;
-  --ui-radius: 2px;
+  --ui-radius: 4px;
+  --ui-selection-radius: 6px;
+  --ui-selection-padding-inline: 8px;
   --ui-focus-outline: 1px solid var(--color-accent);
   --ui-z-overlay: 100;
 
   --ui-root-font-size: 13px;
   --ui-root-line-height: 1.35;
-  --ui-title-font-size: 13px;
-  --ui-title-line-height: 1.2;
-  --ui-title-weight: 400;
+  --ui-title-font-size: 14px;
+  --ui-title-line-height: 1.35;
+  --ui-title-weight: 600;
   --ui-body-font-size: 13px;
   --ui-body-line-height: 1.35;
   --ui-body-weight: 400;

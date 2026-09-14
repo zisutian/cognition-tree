@@ -11,6 +11,26 @@ import {
 import { ToggleButton } from "../../../../presentation/ui/shared/primitives";
 
 describe("shared controls", () => {
+  it.each(["disabled", "missing"])("keeps an enabled radio reachable when the current value is %s", (value) => {
+    const markup = renderToStaticMarkup(
+      <ChoiceGroup
+        ariaLabel="可用范围"
+        mode="single"
+        options={[
+          { label: "不可用", value: "disabled", disabled: true },
+          { label: "可用", value: "available" },
+          { label: "其他", value: "other" },
+        ]}
+        value={value}
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup.match(/<button[^>]*>可用<\/button>/)?.[0]).toContain('tabindex="0"');
+    expect(markup.match(/<button[^>]*>不可用<\/button>/)?.[0]).toContain('tabindex="-1"');
+    expect(markup.match(/tabindex="0"/g)).toHaveLength(1);
+  });
+
   it("renders a single choice as a radio group", () => {
     const markup = renderToStaticMarkup(
       <ChoiceGroup

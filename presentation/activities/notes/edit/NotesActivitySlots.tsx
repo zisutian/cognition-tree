@@ -41,7 +41,6 @@ export function createNotesWorkspaceActivitySlots({
         <div className="notes-workspace-context">
           <ChoiceGroup
             ariaLabel="笔记视图"
-            appearance="subtle"
             className="notes-mode-switch"
             mode="single"
             options={notesModes.map(({ id, label }) => ({

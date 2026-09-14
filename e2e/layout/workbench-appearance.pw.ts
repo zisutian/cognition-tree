@@ -117,7 +117,7 @@ test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, asyn
     rows.map((row) => {
       const label = row.querySelector("label")!.getBoundingClientRect();
       const control = row
-        .querySelector("input,select")!
+        .querySelector(".ui-checkbox-option,input,select")!
         .getBoundingClientRect();
       return {
         above: label.bottom <= control.top,

@@ -27,7 +27,7 @@
     上下文区显示目录；主区显示完整可编辑笔记；详情区显示统计、笔记时间、结构和当前块时间。
     编辑模式的“文件”分组标题右侧只使用图标，从左到右固定为“重新扫描文件、新建文件夹、新建笔记”。扫描期间三个按钮禁用；失败进入全局 Problems。
     canonical 标题行使用加粗字重，概念强调仍由语义类型独立决定。
-    左侧标题下使用共享 ChoiceGroup 的轻量外观在“编辑、结构、图谱”之间切换，保持 radiogroup 的方向键及单一 Tab 焦点语义。模式、图谱筛选/设置以及图谱视口在当前页面会话内按仓库保留，仓库之间不得共享坐标缓存；编辑面板在模式切换时保持挂载，当前笔记、光标和撤销历史不重置。结构模式显示双文档结构操作；图谱模式显示引用画布和节点详情。
+    左侧标题下使用共享 ChoiceGroup 在“编辑、结构、图谱”之间切换，与其他单选、多选和开关共用圆角选中底色，不再提供单独的下划线外观。保持 radiogroup 的方向键及单一 Tab 焦点语义。模式、图谱筛选/设置以及图谱视口在当前页面会话内按仓库保留，仓库之间不得共享坐标缓存；编辑面板在模式切换时保持挂载，当前笔记、光标和撤销历史不重置。结构模式显示双文档结构操作；图谱模式显示引用画布和节点详情。
 
 日记：
 
@@ -70,7 +70,7 @@
 
 其他：
 
-    搜索左侧首行是查询框与图标提交按钮；只在 Enter 或该按钮时提交。范围只显示“本地仓库 / 日记 / 代办”三个多选分段，“本地仓库”代表全部普通仓库；不显示逐仓库列表、更多条件或时间限制。主区标题栏显示上次提交的搜索词；修改草稿或切换 Activity 后继续保留旧结果与滚动位置，并在条件变化时显示“条件已修改”。结果按资源分组，来源、仓库和更新时间作为次级元数据，整篇/块匹配使用固定 marker 列；未开始搜索时省略右栏，搜索后右侧显示已提交条件、资源数、命中数与来源故障，点击命中仍直接打开内容。
+    搜索左侧首行是查询框与图标提交按钮；只在 Enter 或该按钮时提交。范围只显示“本地仓库 / 日记 / 代办”三个可独立切换的共享选项，“本地仓库”代表全部普通仓库；不显示逐仓库列表、更多条件或时间限制。主区标题栏显示上次提交的搜索词；修改草稿或切换 Activity 后继续保留旧结果与滚动位置，并在条件变化时显示“条件已修改”。结果按资源分组，来源、仓库和更新时间作为次级元数据，整篇/块匹配使用固定 marker 列；未开始搜索时省略右栏，搜索后右侧显示已提交条件、资源数、命中数与来源故障，点击命中仍直接打开内容。
     设置左侧按“界面、服务、智能体、API 访问、审计”分组列出对象。组标题可折叠且初始展开；折叠只影响目录可见性，不改变当前对象或草稿。刷新位于设置标题右侧，Provider 和 Profile的创建按钮位于所属目录组；选择对象后主区直接编辑，不重复显示分类标签或管理列表。审计记录在主区浏览，右侧跟随所选记录，不把记录展开进目录。
     设置标题操作区固定显示保存和放弃，正文滚动不会带走操作。未保存、基线过期或正在提交时，设置内部选择与离开活动均被阻止；底栏只提示持续状态，不提供保存、放弃操作或弹窗。保存、放弃或未过期草稿恢复原值后，用户自行重新导航，不重放被阻止的请求。外部更新和对象删除保留输入；一旦过期，改回旧值或后续刷新都不会解除限制，明确放弃后才重新载入。
     右侧只显示当前对象的已保存事实、关联对象和必要说明。界面偏好、默认 Profile、本地发现和新建表单没有有用详情时省略右栏。界面偏好和默认 Profile 即时生效；筛选、发现参数不构成配置草稿。
@@ -103,13 +103,13 @@ Problems 默认关闭，关闭时不占据编辑区。面板标题显示“问�
     活动栏宽度：48px。
     详情折叠宽度：36px。
     主工作区最小宽度：420px。
-    面板标题高度：35px。
+    面板标题最小高度：40px；标题栏水平内边距：12px。
     面板内边距：10px；高密度正文节奏：4px。
-    树行、输入框、选择、切换和按钮：22px。
-    常规圆角：2px；活动按钮为连续 48px 点击区域。
+    树行、紧凑输入框和操作按钮：22px；选择与切换最小高度：26px。
+    常规圆角：4px；选择面圆角：6px。活动按钮保留连续 48px 点击区域，选中底色内收。
     Problems 展开高度：120px 到 360px，默认 200px。
 
-    面板标题：13px / 400。
+    面板标题：14px / 600，与 13px 正文及功能选项区分；三栏标题统一基线、字重和留白，不把静态名称画成可点击选项。
     正文、列表、树：13px / 400。
     小标题、控件、辅助文字和代码：13px / 400 或 600。
     编辑器正文：14px；标题使用 strong-weight token。
@@ -124,7 +124,7 @@ Problems 默认关闭，关闭时不占据编辑区。面板标题显示“问�
 
 工作台配色参考 [VS Code Dark Modern](https://github.com/microsoft/vscode/blob/main/extensions/theme-defaults/themes/dark_modern.json)。完整颜色、字体和尺度由 [theme.css](../presentation/ui/styles/foundation/theme.css) 唯一提供，页面不维护自己的颜色表。
 
-活动栏、侧栏和底栏使用深灰，编辑区略亮；活动选中标记、主操作与键盘焦点统一使用蓝色。CodeMirror 的内容强调色和 CTN 语义颜色保持独立。selected、focus、drag 和 diagnostic 继续表达不同状态。面板通过背景、间距和位置分层，不为每个标题或列表行增加装饰性细线；阴影只用于菜单、tooltip 和浮层。
+活动栏、侧栏和底栏使用深灰，编辑区略亮。功能、单选、多选和复选标签共用 selection 角色颜色：未选中时透明，悬停时轻灰，选中时使用更明确的中性灰底；不使用拼接边框或蓝色下划线表达选中。主操作与键盘焦点仍使用蓝色。CodeMirror 的内容强调色和 CTN 语义颜色保持独立。selected、focus、drag 和 diagnostic 继续表达不同状态。面板通过背景、间距和位置分层，不为每个标题或列表行增加装饰性细线；阴影只用于菜单、tooltip 和浮层。
 
 ## 6. 共享结构
 
@@ -144,7 +144,7 @@ Problems 默认关闭，关闭时不占据编辑区。面板标题显示“问�
 
 控件：
 
-    InputControl、SelectControl、TextareaControl、CheckboxControl、CheckboxGroup、ChoiceGroup、RangeControl、ColorControl、Button 和 ToggleButton 是全软件表单与操作控件的唯一所有者；包括共享组件在内的普通 React 按钮都组合 Button，原生表单元素只由共享控件实现。Activity 不得直接渲染原生按钮或普通输入。按钮基础、图标、活动栏与下划线外观，以及选中、焦点、禁用样式均由 Button 提供；ToggleButton 与 ChoiceGroup 只拥有切换和键盘语义，视觉状态直接来自 aria-pressed/aria-checked。需要占满容器时显式传入 sizing，不在页面重写共享控件尺寸。CheckboxControl 唯一拥有方形复选框及可点击标签布局；CheckboxGroup 只组合成员与选择状态，支持纵向或换行排列。Provider 私网许可、会话成员和代办周期星期复用这套能力，不能隐藏 checkbox 再伪装成另一套按钮；FieldRow 的 group 类型通过 aria-labelledby 关联组标题。ChoiceGroup 以判别联合分别提供单选 radiogroup 和多选 aria-pressed 语义。笔记模式选择保留 radiogroup 键盘语义；设置目录使用按钮导航，不伪装成标签页。CodeMirror 的 DOM checkbox 仅保留宿主生命周期、位置和领域命令适配，与 React checkbox 共用视觉契约；内容语义颜色保持独立。
+    InputControl、SelectControl、TextareaControl、CheckboxControl、CheckboxGroup、ChoiceGroup、RangeControl、ColorControl、Button 和 ToggleButton 是全软件表单与操作控件的唯一所有者；包括共享组件在内的普通 React 按钮都组合 Button，原生表单元素只由共享控件实现。Activity 不得直接渲染原生按钮或普通输入。按钮基础、图标、活动栏与 selection 外观，以及选中、焦点、禁用样式均由 Button 提供；ToggleButton 与 ChoiceGroup 只拥有切换和键盘语义，视觉状态直接来自 aria-pressed/aria-checked。需要占满容器时显式传入 sizing，不在页面重写共享控件尺寸。CheckboxControl 唯一拥有方形复选框及可点击标签布局，标签底色和圆角复用 selection 角色 token，点击区域随文字取宽并支持长标签换行；CheckboxGroup 只组合成员与选择状态，支持纵向或换行排列。Provider 私网许可、会话成员和代办周期星期复用这套能力，不能隐藏 checkbox 再伪装成另一套按钮；FieldRow 的 group 类型通过 aria-labelledby 关联组标题。ChoiceGroup 以判别联合分别提供单选 radiogroup 和多选 aria-pressed 语义，选项间保持 4px 间距，默认允许换行。单选使用一个可用选项作为 Tab 入口，方向键和 Home/End 跳过禁用项；多选保留各自的 Tab 入口和独立 Space/Enter 切换。笔记模式选择保留 radiogroup 键盘语义；设置目录使用按钮导航，不伪装成标签页。CodeMirror 的 DOM checkbox 仅保留宿主生命周期、位置和领域命令适配，与 React checkbox 共用视觉契约；内容语义颜色保持独立。
     普通输入使用 content 尺度，从 72px 随值扩展并在 320px 封顶；结构输入使用 container 尺度占满容器。FormLayout、FieldRow 和 FormActions 统一拥有横向标签列、纵向标签布局、说明、错误关联和操作行；description 与错误分别获得稳定 ID 并通过 aria-describedby 关联控件。纵向表单输入使用 320px 阅读宽度，地址等长值显式使用 container 尺度。ManagementList/ManagementRow 独占主区管理列表，CompactContextList 继续只服务左侧上下文区，二者不得混用业务语义。
     FormSaveActions 和 FormError 统一提交展示与错误反馈，保存规则、版本判断和敏感操作仍由对应控制器拥有。RepositoryCreateForm 属于仓库，SyntaxUnavailablePanel 属于笔记，通用表单不包含领域呈现。
     StatusBadge 统一呈现状态；EmptyState 的 compact 模式用于详情栏和顶部对齐空白页。Activity 只组合业务布局、局部 presentation 状态和回调，不复制私有表单行或管理卡片。ToolPanelBody 拥有正文宽度和内边距，ToolSection 不再增加一层缩进；标题、表单与管理操作保持同一左边界。危险操作放在末尾，用标题和实际操作按钮提示，不给整个分区铺设红底或装饰性左线。

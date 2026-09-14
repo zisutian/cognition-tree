@@ -63,31 +63,16 @@
   align-items: center;
   width: fit-content;
   min-width: 0;
+  max-width: 100%;
+  gap: var(--ui-gap-tight);
 }
 
 .ui-choice-group-wrap {
   flex-wrap: wrap;
-  gap: var(--ui-gap-tight);
 }
 
 .ui-choice-option {
   flex: 0 0 auto;
-}
-
-.ui-choice-group-segmented.ui-choice-group-joined > :first-child {
-  border-radius: var(--ui-radius) 0 0 var(--ui-radius);
-}
-
-.ui-choice-group-segmented.ui-choice-group-joined > :not(:first-child) {
-  margin-left: calc(var(--ui-border-width) * -1);
-}
-
-.ui-choice-group-segmented.ui-choice-group-joined > :last-child {
-  border-radius: 0 var(--ui-radius) var(--ui-radius) 0;
-}
-
-.ui-choice-group-segmented.ui-choice-group-joined > :only-child {
-  border-radius: var(--ui-radius);
 }
 
 .ui-range-control {
@@ -180,7 +165,7 @@
   margin: var(--ui-gap-tight) 0;
   padding: 0;
   border: var(--ui-border-width) solid var(--color-border-strong);
-  border-radius: var(--ui-radius);
+  border-radius: calc(var(--ui-selection-radius) / 2);
   background: var(--color-input);
   vertical-align: middle;
   cursor: pointer;
@@ -198,6 +183,12 @@
 
 .ui-checkbox-control:checked::before {
   visibility: visible;
+}
+
+.ui-checkbox-control:checked,
+.ui-checkbox-control:indeterminate {
+  border-color: var(--color-fg-muted);
+  background: var(--color-selection-active);
 }
 
 .ui-checkbox-control:indeterminate::before {
@@ -240,11 +231,44 @@
   display: inline-flex;
   align-items: flex-start;
   gap: var(--ui-gap-tight);
+  width: fit-content;
+  max-width: 100%;
   min-width: 0;
-  color: var(--color-fg);
+  min-height: var(--ui-form-control-height);
+  padding: calc(var(--ui-gap-tight) / 2) var(--ui-selection-padding-inline);
+  border: var(--ui-border-width) solid transparent;
+  border-radius: var(--ui-selection-radius);
+  color: var(--color-fg-muted);
   line-height: var(--ui-control-line-height);
   overflow-wrap: anywhere;
   cursor: pointer;
+}
+
+.ui-checkbox-option > .ui-checkbox-control {
+  margin-block: calc(var(--ui-gap-tight) / 2);
+}
+
+.ui-checkbox-option:hover:not(:has(:disabled)) {
+  color: var(--color-fg);
+  background: var(--color-selection-hover);
+}
+
+.ui-checkbox-option:has(:checked, :indeterminate) {
+  color: var(--color-fg-strong);
+  background: var(--color-selection-active);
+}
+
+.ui-checkbox-option:has(:checked, :indeterminate):hover:not(:has(:disabled)) {
+  background: var(--color-selection-active-hover);
+}
+
+.ui-checkbox-option:has(:focus-visible) {
+  outline: var(--ui-focus-outline);
+  outline-offset: 2px;
+}
+
+.ui-checkbox-option > .ui-checkbox-control:focus-visible {
+  outline: none;
 }
 
 .ui-checkbox-option:has(:disabled) {

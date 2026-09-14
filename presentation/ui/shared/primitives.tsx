@@ -131,7 +131,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
     | "icon"
     | "primary"
     | "secondary"
-    | "underlined";
+    | "selection";
   sizing?: "container" | "content";
 };
 
@@ -164,7 +164,7 @@ export function ToggleButton({
 }) {
   return (
     <Button
-      variant="secondary"
+      variant="selection"
       aria-pressed={pressed}
       className={className}
       type="button"

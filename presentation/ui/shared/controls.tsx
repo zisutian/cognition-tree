@@ -155,8 +155,7 @@ type ChoiceGroupBase<Value extends string> = {
   ariaLabel: string;
   className?: string;
   id?: string;
-  layout?: "joined" | "wrap";
-  appearance?: "segmented" | "subtle";
+  layout?: "inline" | "wrap";
   options: readonly ChoiceOption<Value>[];
 };
 
@@ -197,21 +196,20 @@ export function ChoiceGroup<Value extends string>(
 ) {
   const {
     ariaLabel,
-    appearance = "segmented",
     className,
     id,
-    layout = "joined",
+    layout = "wrap",
     mode,
     options,
   } = props;
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const selectedIndex =
     mode === "single"
-      ? Math.max(
-          0,
-          options.findIndex(({ value }) => value === props.value),
-        )
+      ? options.findIndex(({ value, disabled }) => value === props.value && !disabled)
       : -1;
+  const tabStopIndex = selectedIndex >= 0
+    ? selectedIndex
+    : options.findIndex(({ disabled }) => !disabled);
   const onSingleKeyDown = (
     event: KeyboardEvent<HTMLButtonElement>,
     currentIndex: number,
@@ -248,7 +246,6 @@ export function ChoiceGroup<Value extends string>(
       className={cx(
         "ui-choice-group",
         `ui-choice-group-${layout}`,
-        `ui-choice-group-${appearance}`,
         className,
       )}
       role={mode === "single" ? "radiogroup" : "group"}
@@ -262,7 +259,7 @@ export function ChoiceGroup<Value extends string>(
 
         return (
           <Button
-            variant={appearance === "subtle" ? "underlined" : "secondary"}
+            variant="selection"
             {...(mode === "single"
               ? { "aria-checked": selected, role: "radio" }
               : { "aria-pressed": selected })}
@@ -286,7 +283,7 @@ export function ChoiceGroup<Value extends string>(
               refs.current[index] = element;
             }}
             tabIndex={
-              mode === "single" ? (index === selectedIndex ? 0 : -1) : 0
+              mode === "single" ? (index === tabStopIndex ? 0 : -1) : 0
             }
             type="button"
           >
