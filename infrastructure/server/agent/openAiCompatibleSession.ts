@@ -31,6 +31,7 @@ type CompatibleChatProfile = OllamaAgentProfile | OpenAiChatAgentProfile;
 export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
   readonly #apiKey: string | null;
   #activeController: AbortController | null = null;
+  #disposed = false;
   readonly #instructions: string;
   readonly #profile: CompatibleChatProfile;
   readonly #beforeRequest: () => Promise<void>;
@@ -52,11 +53,15 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
   }
 
   async dispose() {
+    this.#disposed = true;
     this.#activeController?.abort();
-    this.#activeController = null;
   }
 
   async runTurn(request: AgentRuntimeTurnRequest) {
+    request.signal.throwIfAborted();
+    if (this.#disposed) {
+      throw new AgentRuntimeProtocolError("OpenAI-compatible session is disposed");
+    }
     if (this.#activeController) {
       throw new Error("OpenAI-compatible session already has an active turn");
     }
@@ -87,6 +92,7 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
       let toolCalls = 0;
 
       for (let step = 0; step <= this.#profile.maxToolSteps; step += 1) {
+        controller.signal.throwIfAborted();
         if (
           countChatHistoryCharacters(messages) >=
             this.#profile.historyBudgetCharacters
@@ -98,6 +104,7 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
           throw new AgentContextLimitError();
         }
         await this.#beforeRequest();
+        controller.signal.throwIfAborted();
         const response = await fetch(openAiChatEndpoint(this.#profile.baseUrl), {
           body: JSON.stringify({
             messages,
@@ -142,6 +149,7 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
         let streamedCharacters = 0;
 
         for await (const data of readOpenAiChatSse(response)) {
+          controller.signal.throwIfAborted();
           if (data === "[DONE]") break;
           let parsed: unknown;
 
@@ -180,6 +188,7 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
           }
           appendOpenAiToolDelta(pending, chunk.toolCalls);
         }
+        controller.signal.throwIfAborted();
         if (finishReason === null) {
           throw new AgentRuntimeProtocolError(
             "OpenAI-compatible runtime ended without a finish reason",
@@ -236,8 +245,10 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
             };
 
             await request.onEvent({ call, type: "tool-call" });
+            controller.signal.throwIfAborted();
             const result = await request.executeTool(call);
 
+            controller.signal.throwIfAborted();
             messages.push({
               content: messageText,
               ...(reasoningText ? { reasoning: reasoningText } : {}),
@@ -288,6 +299,7 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
           finalText = messageText;
           for (const textDelta of messageDeltas) {
             await request.onEvent({ textDelta, type: "text-delta" });
+            controller.signal.throwIfAborted();
           }
           return { finalText, toolCalls };
         }
@@ -338,8 +350,10 @@ export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
         };
 
         await request.onEvent({ call: toolCall, type: "tool-call" });
+        controller.signal.throwIfAborted();
         const result = await request.executeTool(toolCall);
 
+        controller.signal.throwIfAborted();
         messages.push({
           content: messageText || null,
           ...(reasoningText ? { reasoning: reasoningText } : {}),

@@ -188,6 +188,14 @@ describe("Codex app-server Agent runtime", () => {
         scope: { domain: "journal", entryIds: null },
         sessionId: "00000000-0000-4000-8000-000000000001",
       });
+      await expect(session.runTurn({
+        executeTool: async () => undefined,
+        messages: [{ content: "already cancelled", role: "user" }],
+        onEvent: () => { throw new Error("Cancelled turns must not emit events"); },
+        scope: { domain: "journal", entryIds: null },
+        signal: AbortSignal.abort(new Error("Owner cancelled before start")),
+        tools: [],
+      })).rejects.toThrow("Owner cancelled before start");
       const result = await session.runTurn({
         executeTool: async () => undefined,
         messages: [{ content: "reason inside the hard scope", role: "user" }],

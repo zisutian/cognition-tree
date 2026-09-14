@@ -195,6 +195,24 @@ async function waitForProposal(service: AgentService, sessionId: string) {
   return service.getSession(sessionId).proposals[0]!;
 }
 
+function nextTurnCompletion(service: AgentService, sessionId: string) {
+  return new Promise<void>((resolve) => {
+    service.connectEvents({
+      afterSequence: service.getSession(sessionId).sequence,
+      sessionId,
+      sink: {
+        open() {},
+        close() {},
+        onClose() {},
+        send(event) {
+          if (event.type === "turn-completed") resolve();
+          return true;
+        },
+      },
+    });
+  });
+}
+
 function createTwoEntries(request: AgentRuntimeTurnRequest) {
   return (async () => {
     const syntax = await request.executeTool({
@@ -663,6 +681,74 @@ describe("Agent service proposal lifecycle", () => {
       expect(fixture.cancelRuntime).toHaveBeenCalledOnce();
       expect(fixture.disposeRuntime).toHaveBeenCalledOnce();
     } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  it("does not start the runtime after cancellation during scope admission", async () => {
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    const fixture = await createFixture(async () => ({ finalText: "late reply", toolCalls: 0 }));
+    try {
+      const session = await fixture.service.createSession({ profileId, scope: journalScope });
+      const getStore = fixture.builtInCatalog.getStore.bind(fixture.builtInCatalog);
+      vi.spyOn(fixture.builtInCatalog, "getStore").mockImplementationOnce(async (domain) => {
+        entered();
+        await gate;
+        return getStore(domain);
+      });
+      const completed = nextTurnCompletion(fixture.service, session.id);
+      fixture.service.sendMessage(session.id, "Cancel during scope check");
+      await started;
+      await fixture.service.cancel(session.id);
+      release();
+      await completed;
+      expect(fixture.runTurn).not.toHaveBeenCalled();
+      expect(fixture.service.getSession(session.id).messages.map(({ role }) => role)).toEqual(["user"]);
+    } finally {
+      release();
+      await fixture.cleanup();
+    }
+  });
+
+  it.each(["reply", "final-text", "tool", "compaction", "compaction-event"] as const)("ignores a late %s after cancellation", async (completion) => {
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    const fixture = await createFixture(async (request) => {
+      entered();
+      await gate;
+      if (completion === "compaction") throw new AgentContextLimitError();
+      if (completion === "compaction-event") {
+        await request.onEvent({ type: "compaction-required", reason: "late compaction" });
+      } else if (completion === "tool") {
+        await request.executeTool({
+          arguments: { body: "late entry" },
+          callId: uuid(190),
+          name: "stage_journal_create_entry",
+        });
+      } else if (completion === "reply") {
+        await request.onEvent({ type: "text-delta", textDelta: "late reply" });
+      }
+      return { finalText: "late reply", toolCalls: 0 };
+    });
+    try {
+      const session = await fixture.service.createSession({ profileId, scope: journalScope });
+      const completed = nextTurnCompletion(fixture.service, session.id);
+      fixture.service.sendMessage(session.id, "Cancel this turn");
+      await started;
+      await fixture.service.cancel(session.id);
+      release();
+      await completed;
+      expect(fixture.runTurn).toHaveBeenCalledOnce();
+      expect(fixture.service.getSession(session.id).proposals).toEqual([]);
+      expect(fixture.service.getSession(session.id).messages.map(({ content }) => content))
+        .toEqual(["Cancel this turn"]);
+    } finally {
+      release();
       await fixture.cleanup();
     }
   });

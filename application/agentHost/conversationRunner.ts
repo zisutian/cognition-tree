@@ -76,8 +76,15 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
   }
 
   async executeTool(record: Record, call: AgentRuntimeToolCall) {
+    const signal = record.abortController?.signal;
+
+    if (!signal) {
+      throw new AgentScopeViolationError("Tools require an active Agent turn");
+    }
+    signal.throwIfAborted();
     const execution = await this.#tools.execute(record, call);
 
+    signal.throwIfAborted();
     if (execution.proposal) {
       record.controller.putProposal(execution.proposal);
       this.#emitProposal(record, execution.proposal);
@@ -139,6 +146,7 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
           role: "user",
         }],
         onEvent: (event) => {
+          signal.throwIfAborted();
           if (event.type !== "text-delta") return;
           record.controller.appendAssistantMessage(messageId, event.textDelta);
           record.events.emit({
@@ -151,6 +159,7 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
         signal,
         tools: [],
       });
+      signal.throwIfAborted();
       const summary = record.controller.snapshot().messages.find(({ id }) =>
         id === messageId
       );
@@ -173,6 +182,7 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
       this.#emitSnapshot(record);
     } catch (error) {
       record.abortController = null;
+      record.controller.discardEmptyAssistantMessage(messageId);
       if (isAbort(error, signal)) {
         this.#completeCancelled(record, turnId);
         return;
@@ -216,6 +226,7 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
         signal,
         this.#protocol.toolsForScope(scope),
       );
+      signal.throwIfAborted();
       controller.discardEmptyAssistantMessage(messageId);
       controller.finishTurn(turnId);
       record.abortController = null;
@@ -256,6 +267,7 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
     let compacted = false;
 
     while (true) {
+      signal.throwIfAborted();
       let compactedThisAttempt = false;
       const beforeLength = record.controller.snapshot().messages.find(({ id }) =>
         id === messageId
@@ -263,11 +275,15 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
 
       try {
         const result = await record.runtimeSession.runTurn({
-          executeTool: (call) => this.executeTool(record, call),
+          executeTool: (call) => {
+            signal.throwIfAborted();
+            return this.executeTool(record, call);
+          },
           messages: record.controller.snapshot().messages.map(
             ({ content, role }) => ({ content, role }),
           ),
           onEvent: async (event) => {
+            signal.throwIfAborted();
             if (event.type === "text-delta") {
               record.controller.appendAssistantMessage(messageId, event.textDelta);
               record.events.emit({
@@ -286,6 +302,7 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
           signal,
           tools,
         });
+        signal.throwIfAborted();
         const current = record.controller.snapshot().messages.find(({ id }) =>
           id === messageId
         );
@@ -302,6 +319,7 @@ export class AgentConversationRunner<Record extends AgentConversationRecord> {
         }
         return;
       } catch (error) {
+        signal.throwIfAborted();
         if (!(error instanceof AgentContextLimitError)) throw error;
         if (compactedThisAttempt) continue;
         if (compacted) throw error;

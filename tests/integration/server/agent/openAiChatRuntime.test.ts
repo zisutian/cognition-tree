@@ -67,6 +67,67 @@ const journalCreateTool = {
 } as const;
 
 describe("OpenAI-compatible Agent runtime", () => {
+  for (const state of ["aborted", "disposed"] as const) {
+    it(`does not send a request from an ${state} session turn`, async ({ modelHttp }) => {
+      let requests = 0;
+      const endpoint = await modelHttp((_request, response) => {
+        requests += 1;
+        writeSse(response, [{ choices: [{ delta: { content: "late reply" } }] }]);
+      });
+      const session = await new OpenAiChatRuntime(profile(`${endpoint}/v1`), "fixture-key")
+        .openSession({ ...sessionContext, scope: { domain: "journal", entryIds: null } });
+      const abort = new AbortController();
+      if (state === "aborted") abort.abort();
+      else await session.dispose();
+      try {
+        await expect(session.runTurn({
+          executeTool: vi.fn(), messages: [{ content: "cancelled", role: "user" }],
+          onEvent: vi.fn(), scope: { domain: "journal", entryIds: null },
+          signal: abort.signal, tools: [],
+        })).rejects.toThrow();
+        expect(requests).toBe(0);
+      } finally {
+        await session.dispose();
+      }
+    });
+  }
+
+  it("does not send a request when disposed during request admission", async ({ modelHttp }) => {
+    let requests = 0;
+    const endpoint = await modelHttp((_request, response) => {
+      requests += 1;
+      writeSse(response, [{ choices: [{ delta: { content: "late reply" } }] }]);
+    });
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    const session = await new OpenAiChatRuntime(
+      profile(`${endpoint}/v1`),
+      "fixture-key",
+      async () => { entered(); await gate; },
+    ).openSession({ ...sessionContext, scope: { domain: "journal", entryIds: null } });
+    const turn = session.runTurn({
+      executeTool: vi.fn(),
+      messages: [{ content: "cancelled", role: "user" }],
+      onEvent: vi.fn(),
+      scope: { domain: "journal", entryIds: null },
+      signal: new AbortController().signal,
+      tools: [],
+    });
+    const rejected = expect(turn).rejects.toThrow();
+    try {
+      await started;
+      await session.dispose();
+      release();
+      await rejected;
+      expect(requests).toBe(0);
+    } finally {
+      release();
+      await session.dispose();
+    }
+  });
+
   it("rejects reasoning-only length completions without emitting empty deltas", async ({
     modelHttp,
   }) => {

@@ -204,6 +204,7 @@ class CodexRuntimeSession implements AgentRuntimeSession {
   }
 
   async runTurn(request: AgentRuntimeTurnRequest) {
+    request.signal.throwIfAborted();
     if (this.#disposed) {
       throw new AgentRuntimeProtocolError("Codex session is disposed");
     }
