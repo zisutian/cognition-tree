@@ -3,11 +3,13 @@ import type {
   RepositoryOption,
   RepositoryViewModel,
 } from "../../../application/repository/index.ts";
+import { createClassNames } from "../../ui/index.ts";
+const cx = createClassNames();
 
-import { Button, ToolSection } from "../../ui/index.ts";
+import { Button, Section } from "../../ui/index.ts";
 
-import { RepositoryDangerZone } from "./RepositoryDangerZone.tsx";
 import { RepositoryConflictActions } from "./RepositoryConflictResolution.tsx";
+import { RepositoryDangerZone } from "./RepositoryDangerZone.tsx";
 
 export function OrdinaryRepositoryDetail({
   busy,
@@ -36,8 +38,8 @@ export function OrdinaryRepositoryDetail({
 
   return (
     <>
-      <ToolSection>
-        <div className="ui-actions">
+      <Section>
+        <div className={cx("ui-actions")}>
           <Button
             disabled={busy}
             onClick={() => onRunAction(() => onOpen(repository.id))}
@@ -47,7 +49,7 @@ export function OrdinaryRepositoryDetail({
             {active ? "继续编辑笔记" : "打开仓库"}
           </Button>
         </div>
-      </ToolSection>
+      </Section>
       {active && view.activeConflictResolution ? (
         <RepositoryConflictActions
           busy={busy}
@@ -56,8 +58,8 @@ export function OrdinaryRepositoryDetail({
         />
       ) : null}
       {recoveryAction || !active ? (
-        <ToolSection title="操作">
-          <div className="ui-actions">
+        <Section title="操作">
+          <div className={cx("ui-actions")}>
             {recoveryAction ? (
               <Button
                 disabled={busy}
@@ -81,7 +83,7 @@ export function OrdinaryRepositoryDetail({
               </Button>
             ) : null}
           </div>
-        </ToolSection>
+        </Section>
       ) : null}
       <RepositoryDangerZone
         busy={busy}

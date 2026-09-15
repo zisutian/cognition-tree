@@ -8,7 +8,6 @@ import { createAgentApplicationFixture } from "../../../../support/presentation/
 function renderSlot(slot: React.ReactNode) {
   return renderToStaticMarkup(<>{slot}</>);
 }
-const controls = { onCollapseDetail: () => undefined };
 
 describe("Agent proposal presentation", () => {
   it("presents proposal changes and destructive confirmation without exposing full internal identities", () => {
@@ -122,18 +121,16 @@ describe("Agent proposal presentation", () => {
         agent,
         creatingSession: false,
         onBeginCreateSession: () => undefined,
-        onCollapseDetail: controls.onCollapseDetail,
         onSelectSession: () => undefined,
-      }).detail,
+      }).detail?.content,
     );
     const conversationMarkup = renderSlot(
       createAgentActivitySlots({
         agent,
         creatingSession: false,
         onBeginCreateSession: () => undefined,
-        onCollapseDetail: controls.onCollapseDetail,
         onSelectSession: () => undefined,
-      }).main,
+      }).main.content,
     );
 
     expect(markup).toContain("测试仓库");
@@ -178,9 +175,8 @@ describe("Agent proposal presentation", () => {
         },
         creatingSession: false,
         onBeginCreateSession: () => undefined,
-        onCollapseDetail: controls.onCollapseDetail,
         onSelectSession: () => undefined,
-      }).detail,
+      }).detail?.content,
     );
 
     expect(destructiveMarkup).toContain("第 1 份");

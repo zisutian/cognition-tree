@@ -1,18 +1,17 @@
 import { useMemo } from "react";
 import type { VisualizationViewModel } from "../../../../application/workspace/index.ts";
 import {
+  createClassNames,
   EmptyState,
-  Panel,
-  PanelBody,
+  Page,
+  PageBody,
 } from "../../../ui/index.ts";
 import { ReferenceGraphCanvas } from "./ReferenceGraphCanvas.tsx";
+import graphStyles from "./graph.module.css";
 import { getEmptyGraphMessage } from "./graphEmptyState.ts";
-import {
-  createVisibleReferenceGraph,
-} from "./referenceGraphView.ts";
-import type {
-  ReferenceGraphSession,
-} from "./useReferenceGraphSession.ts";
+import { createVisibleReferenceGraph } from "./referenceGraphView.ts";
+import type { ReferenceGraphSession } from "./useReferenceGraphSession.ts";
+const cx = createClassNames(graphStyles);
 
 export function VisualizationPanel({
   session,
@@ -42,10 +41,8 @@ export function VisualizationPanel({
     ],
   );
   const topologyVariant = `${
-    mode === "local" ? visualization.activeNoteId ?? "none" : "global"
-  }:${mode}:${localDepth}:${
-    hideIsolated ? 1 : 0
-  }:${query}`;
+    mode === "local" ? (visualization.activeNoteId ?? "none") : "global"
+  }:${mode}:${localDepth}:${hideIsolated ? 1 : 0}:${query}`;
   const emptyMessage = getEmptyGraphMessage({
     graphNodeCount: visualization.graph.nodes.length,
     hasActiveNote: Boolean(visualization.activeNoteId),
@@ -55,9 +52,9 @@ export function VisualizationPanel({
   });
 
   return (
-    <Panel className="visualization-panel" aria-label="引用图谱">
-      <PanelBody className="graph-body">
-        <div className="graph-canvas">
+    <Page aria-label="引用图谱">
+      <PageBody scroll={false}>
+        <div className={cx("graph-canvas")}>
           {visibleGraph.nodes.length > 0 ? (
             <ReferenceGraphCanvas
               controller={session.getController(
@@ -72,12 +69,10 @@ export function VisualizationPanel({
               onSelectNote={visualization.onSelectNote}
             />
           ) : (
-            <EmptyState
-              title={emptyMessage.title}
-            />
+            <EmptyState title={emptyMessage.title} />
           )}
         </div>
-      </PanelBody>
-    </Panel>
+      </PageBody>
+    </Page>
   );
 }

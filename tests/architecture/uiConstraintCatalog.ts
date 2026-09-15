@@ -6,7 +6,7 @@ import {
 import { createWorkflowTextPolicies } from "../support/workflowTextPolicies";
 
 const activityStyleScope = /^presentation\/activities\/.*\.css$/;
-const sharedStyleScope = /^presentation\/ui\/styles\/shared\//;
+const sharedStyleScope = /^presentation\/ui\/shared\/.*\.module\.css$/;
 const nonFoundationUiStyleScope = (filePath: string) =>
   filePath.endsWith(".css") &&
   !filePath.startsWith("presentation/ui/styles/foundation/");
@@ -30,7 +30,7 @@ export function createUiTextPolicies({
 
   return [
     {
-      allowedPath: /^presentation\/ui\/shared\/primitives\.tsx$/,
+      allowedPath: /^presentation\/ui\/shared\/Button\.tsx$/,
       corpus: presentationModules,
       matches: 1,
       name: "native button ownership",
@@ -44,16 +44,16 @@ export function createUiTextPolicies({
       pattern: /<(?:input|select|textarea)\b/,
     },
     {
-      allowedPath: /^presentation\/ui\/shared\/primitives\.tsx$/,
+      allowedPath: /^presentation\/ui\/AppFrame\.tsx$/,
       corpus: presentationModules,
       matches: 1,
-      name: "right detail panel shell ownership",
-      pattern: /tone="detail"/,
+      name: "right detail region composition ownership",
+      pattern: /position="detail"/,
     },
     forbidTextPolicy(
       "Activity ownership of shared ui-* selectors",
       styleModules,
-      /^\s*\.ui-[\w-]/m,
+      /\.ui-[\w-]/m,
       activityStyleScope,
     ),
     forbidTextPolicy(
@@ -97,26 +97,44 @@ export function createUiTextPolicies({
       activityStyleScope,
     ),
     {
-      allowedPath: /^presentation\/ui\/styles\/shared\/tree\.css$/,
+      allowedPath: /^presentation\/ui\/shared\/tree\/Tree\.module\.css$/,
       corpus: styleModules,
       matches: 1,
       name: "diagnostic rail styling",
       pattern: /\.has-diagnostics::after/,
     },
     {
-      allowedPath: /^presentation\/ui\/styles\/shared\/primitives\.css$/,
+      allowedPath: /^presentation\/ui\/shared\/Button\.module\.css$/,
       corpus: styleModules,
       matches: 1,
       name: "button variants and interaction styling ownership",
-      pattern: /\.ui-button(?:-(?:primary|secondary|icon|bare|activity|selection|ghost|danger|container)|:|\[)/,
+      pattern:
+        /\.ui-button(?:-(?:primary|secondary|icon|bare|activity|selection|ghost|danger|container)|:|\[)/,
     },
     {
-      allowedPath: /^presentation\/ui\/styles\/shared\/controls\.css$/,
+      allowedPath: /^presentation\/ui\/shared\/Controls\.module\.css$/,
       corpus: styleModules,
       matches: 1,
       name: "checkbox visual and label layout ownership",
       pattern: /\.ui-checkbox-(?:control|option|group)\b/,
     },
+    forbidTextPolicy(
+      "Activity descendant overrides of native controls",
+      styleModules,
+      /[ >](?:button|input|select|textarea|label)(?:[:\[.# >]|\s*\{)/m,
+      activityStyleScope,
+    ),
+    forbidTextPolicy(
+      "legacy surface implementations",
+      presentationModules,
+      /\b(?:ToolPanel|ToolPanelBody|ToolSection|ToolSectionStack|DetailPanel|PanelHeader)\b/,
+    ),
+    forbidTextPolicy(
+      "Activity bodies redefining the region layout",
+      presentationModules,
+      /<PageBody\b[^>]*\blayout=/,
+      /^presentation\/activities\//,
+    ),
     ...createWorkflowTextPolicies(uiTestModules),
     ...(
       [
@@ -151,7 +169,7 @@ export function createUiTextPolicies({
       return {
         allowedPath: (filePath) => filePath.startsWith(`${directory}/`),
         corpus: sourceModules,
-        matches: 1,
+        matches: { min: 1 },
         name: `${relativeStylePath} co-located Activity style owner`,
         pattern: new RegExp(`["']\\./${fileName.split(".").join("\\.")}["']`),
       };
@@ -177,18 +195,15 @@ export function createUiConstraintCatalog({
       "ui/styles/index.css",
       "ui/styles/foundation/theme.css",
       "ui/styles/foundation/base.css",
-      "ui/styles/frame/frame.css",
-      "ui/styles/frame/problems.css",
-      "ui/styles/shared/primitives.css",
-      "ui/styles/shared/controls.css",
-      "ui/styles/shared/toolPanel.css",
-      "ui/styles/shared/toolSection.css",
-      "ui/styles/shared/toolToolbar.css",
-      "ui/styles/shared/toolProperties.css",
-      "ui/styles/shared/toolList.css",
-      "ui/styles/shared/forms.css",
-      "ui/styles/shared/management.css",
-      "ui/styles/shared/tree.css",
+      "ui/RegionFrame.module.css",
+      "ui/AppFrame.module.css",
+      "ui/shared/Page.module.css",
+      "ui/shared/Section.module.css",
+      "ui/shared/Button.module.css",
+      "ui/shared/Controls.module.css",
+      "ui/shared/FormLayout.module.css",
+      "ui/shared/Popover.module.css",
+      "ui/shared/tree/Tree.module.css",
     ],
     requiredThemeTokens: [
       "--font-ui",
@@ -225,6 +240,12 @@ export function createUiConstraintCatalog({
       ["--app-detail-width", `${appDetailDefaultWidth}px`],
       ["--app-problems-height", `${appProblemsDefaultHeight}px`],
       ["--ui-row-height", `${uiVirtualRowHeightPx}px`],
+      ["--ui-control-height", "28px"],
+      ["--ui-toolbar-height", "36px"],
+      ["--ui-panel-header-height", "40px"],
+      ["--ui-panel-padding", "12px"],
+      ["--ui-font-size", "13px"],
+      ["--ctn-editor-font-size", "14px"],
       ["--ui-tree-indent", `${defaultStructureTreeIndentWidthPx}px`],
     ] as const,
   } as const;

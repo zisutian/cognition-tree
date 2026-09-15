@@ -1,20 +1,20 @@
-import { removeOtherWorkbenchRepositories } from "../support/contentOperations";
 import { expect } from "@playwright/test";
 import type { RepositoryCatalogDto } from "../../contracts/workspace/types";
 import {
   appContextDefaultWidth,
   appResizeKeyboardStep,
 } from "../../presentation/ui/workbench/frameResize";
+import { removeOtherWorkbenchRepositories } from "../support/contentOperations";
+import { test } from "../support/e2eTest";
 import {
   removeE2ELocalRepository,
   seedNoncurrentLocalRepository,
   seedRawRepository,
   seedWorkbenchRepository,
 } from "../support/repositorySeeds";
-import { test } from "../support/e2eTest";
 import {
-  getProblemsToggle,
   getActivityButton,
+  getProblemsToggle,
   openRepositoryFromContext,
   openWorkbench,
 } from "../support/workbenchPage";
@@ -72,7 +72,7 @@ test.describe("repository management", () => {
       await page.getByRole("button", { name: "创建仓库", exact: true }).click();
       await expect(
         page
-          .getByRole("region", { name: "仓库", exact: true })
+          .locator('[data-region-header="main"]')
           .getByRole("heading", { name: "提交已确认", exact: true }),
       ).toBeVisible();
       const refresh = page.getByRole("button", {
@@ -95,7 +95,7 @@ test.describe("repository management", () => {
       await page.getByRole("button", { name: "创建仓库", exact: true }).click();
       await expect(
         page
-          .getByRole("region", { name: "仓库", exact: true })
+          .locator('[data-region-header="main"]')
           .getByRole("heading", { name: "恢复后创建", exact: true }),
       ).toBeVisible();
       expect(mutations).toBe(2);
@@ -396,9 +396,7 @@ test.describe("repository management", () => {
       await repositoryProblem.click();
       await expect(issueRow).toBeFocused();
       await expect(issueRow).toContainText("故障");
-      await expect(repositoryPanel).toContainText(
-        "此格式仅支持手动删除",
-      );
+      await expect(repositoryPanel).toContainText("此格式仅支持手动删除");
       await expect(repositoryStatus).toContainText(
         `/host/e2e-repositories/${unsupportedRepositoryId}`,
       );

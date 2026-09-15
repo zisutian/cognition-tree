@@ -1,32 +1,31 @@
 import {
-  Pencil,
-  Trash2,
   AlertTriangle,
   Check,
   FileCode2,
   ListChecks,
   NotebookPen,
+  Pencil,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type {
   SyntaxFileView,
   SyntaxViewModel,
 } from "../../../application/syntax/index.ts";
-import { syntaxFieldIds } from
-  "../../../application/syntax/index.ts";
+import { syntaxFieldIds } from "../../../application/syntax/index.ts";
 import {
+  Button,
   CompactContextActionButtons,
   CompactContextList,
   CompactContextRow,
   CompactContextStatusIcon,
-  useFeedback,
-  Button,
+  createClassNames,
   useExclusiveAsyncAction,
+  useFeedback,
 } from "../../ui/index.ts";
-
-
-
+import syntaxStyles from "./syntax.module.css";
+const cx = createClassNames(syntaxStyles);
 
 export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
   const feedback = useFeedback();
@@ -39,24 +38,27 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
     id: string;
     value: string;
   } | null>(null);
-  const [renameSubmittedFileId, setRenameSubmittedFileId] =
-    useState<string | null>(null);
+  const [renameSubmittedFileId, setRenameSubmittedFileId] = useState<
+    string | null
+  >(null);
   const runOperation = async (operation: () => Promise<unknown>) => {
     const pending = operationAction.run(() =>
       feedback.runAction(async () => {
         await operation();
         return true;
-      })
+      }),
     );
 
-    return pending ? await pending === true : false;
+    return pending ? (await pending) === true : false;
   };
-  const mutationBlocked = busy || view.hasDraftErrors || !view.workspaceCanMutate;
+  const mutationBlocked =
+    busy || view.hasDraftErrors || !view.workspaceCanMutate;
 
   useEffect(() => {
-    const selectedFileId = view.selectedTarget.kind === "workspace-file"
-      ? view.selectedTarget.fileId
-      : null;
+    const selectedFileId =
+      view.selectedTarget.kind === "workspace-file"
+        ? view.selectedTarget.fileId
+        : null;
 
     if (renamingFile && renamingFile.id !== selectedFileId) {
       setRenamingFile(null);
@@ -139,48 +141,61 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
   };
 
   return (
-    <div className="activity-context-content syntax-context">
+    <div className={cx("activity-context-content syntax-context")}>
       <CompactContextList aria-label="系统语法">
         {view.systemConfigurations.map((configuration) => (
           <CompactContextRow
             buttonProps={{
               "data-syntax-owner": configuration.owner,
             }}
-            className={configuration.hasErrors ? "has-diagnostics" : undefined}
-            disabled={busy || !configuration.available ||
-              (view.hasDraftErrors && !configuration.isSelected)}
-            icon={configuration.owner === "journal"
-              ? <NotebookPen aria-hidden="true" size={13} />
-              : <ListChecks aria-hidden="true" size={13} />}
+            className={cx(
+              configuration.hasErrors ? "has-diagnostics" : undefined,
+            )}
+            disabled={
+              busy ||
+              !configuration.available ||
+              (view.hasDraftErrors && !configuration.isSelected)
+            }
+            icon={
+              configuration.owner === "journal" ? (
+                <NotebookPen aria-hidden="true" size={13} />
+              ) : (
+                <ListChecks aria-hidden="true" size={13} />
+              )
+            }
             key={configuration.owner}
             label={configuration.label}
             selected={configuration.isSelected}
-            title={configuration.available
-              ? `${configuration.label}语法`
-              : `${configuration.label}语法暂不可用`}
-            trailing={configuration.hasErrors ? (
-              <span className="ui-tree-meta syntax-file-error">
-                <AlertTriangle aria-hidden="true" size={12} />
-                错误
-              </span>
-            ) : null}
+            title={
+              configuration.available
+                ? `${configuration.label}语法`
+                : `${configuration.label}语法暂不可用`
+            }
+            trailing={
+              configuration.hasErrors ? (
+                <span className={cx("ui-tree-meta syntax-file-error")}>
+                  <AlertTriangle aria-hidden="true" size={12} />
+                  错误
+                </span>
+              ) : null
+            }
             onSelect={() => {
-              void runOperation(() => view.selectTarget({
-                kind: configuration.owner,
-              }));
+              void runOperation(() =>
+                view.selectTarget({
+                  kind: configuration.owner,
+                }),
+              );
             }}
           />
         ))}
       </CompactContextList>
 
-      <div className="context-toolbar">
+      <div className={cx("context-toolbar")}>
         <Button
           aria-label="新建笔记库语法"
           disabled={mutationBlocked || !view.workspaceAvailable}
           onClick={() => void runOperation(view.createFile)}
-          title={view.hasDraftErrors
-            ? "语法包含错误"
-            : "新建笔记库语法"}
+          title={view.hasDraftErrors ? "语法包含错误" : "新建笔记库语法"}
           type="button"
           variant="icon"
         >
@@ -189,120 +204,146 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
       </div>
       <CompactContextList
         aria-label="笔记库语法"
-        className="syntax-workspace-group"
+        className={cx("syntax-workspace-group")}
       >
         {view.files.map((file) => {
-          const switchingBlocked = busy ||
-            (view.hasDraftErrors && !file.isSelected);
+          const switchingBlocked =
+            busy || (view.hasDraftErrors && !file.isSelected);
 
           return (
             <CompactContextRow
-              actions={file.isSelected && renamingFile?.id !== file.id ? (
-                <CompactContextActionButtons
-                  actions={pendingDeleteFile?.id === file.id
-                    ? undefined
-                    : [
-                        ...(!file.isActive
-                          ? [{
-                              ariaLabel: `启用语法 ${file.name}`,
+              actions={
+                file.isSelected && renamingFile?.id !== file.id ? (
+                  <CompactContextActionButtons
+                    actions={
+                      pendingDeleteFile?.id === file.id
+                        ? undefined
+                        : [
+                            ...(!file.isActive
+                              ? [
+                                  {
+                                    ariaLabel: `启用语法 ${file.name}`,
+                                    disabled: mutationBlocked,
+                                    icon: Check,
+                                    onSelect: () =>
+                                      void runOperation(() =>
+                                        view.activateFile(file.id),
+                                      ),
+                                  },
+                                ]
+                              : []),
+                            {
+                              ariaLabel: `重命名语法 ${file.name}`,
+                              disabled:
+                                busy ||
+                                !view.actions ||
+                                !view.workspaceCanMutate,
+                              icon: Pencil,
+                              onSelect: () => beginRename(file),
+                            },
+                            {
+                              ariaLabel: `删除语法 ${file.name}`,
                               disabled: mutationBlocked,
-                              icon: Check,
-                              onSelect: () => void runOperation(
-                                () => view.activateFile(file.id),
-                              ),
-                            }]
-                          : []),
-                        {
-                          ariaLabel: `重命名语法 ${file.name}`,
-                          disabled: busy || !view.actions || !view.workspaceCanMutate,
-                          icon: Pencil,
-                          onSelect: () => beginRename(file),
-                        },
-                        {
-                          ariaLabel: `删除语法 ${file.name}`,
-                          disabled: mutationBlocked,
-                          icon: Trash2,
-                          onSelect: () => {
-                            setRenamingFile(null);
-                            setPendingDeleteFile(file);
-                          },
-                          tone: "danger" as const,
-                        },
-                      ]}
-                  confirmation={pendingDeleteFile?.id === file.id
-                    ? {
-                        tone: "danger",
-                        cancelAriaLabel: `取消删除语法 ${file.name}`,
-                        confirmAriaLabel: `确认删除语法 ${file.name}`,
-                        disabled: mutationBlocked,
-                        onCancel: () => setPendingDeleteFile(null),
-                        onConfirm: () => void confirmDelete(),
-                      }
-                    : undefined}
-                />
-              ) : undefined}
+                              icon: Trash2,
+                              onSelect: () => {
+                                setRenamingFile(null);
+                                setPendingDeleteFile(file);
+                              },
+                              tone: "danger" as const,
+                            },
+                          ]
+                    }
+                    confirmation={
+                      pendingDeleteFile?.id === file.id
+                        ? {
+                            tone: "danger",
+                            cancelAriaLabel: `取消删除语法 ${file.name}`,
+                            confirmAriaLabel: `确认删除语法 ${file.name}`,
+                            disabled: mutationBlocked,
+                            onCancel: () => setPendingDeleteFile(null),
+                            onConfirm: () => void confirmDelete(),
+                          }
+                        : undefined
+                    }
+                  />
+                ) : undefined
+              }
               buttonProps={{
                 "data-syntax-file-id": file.id,
               }}
-              className={[
-                file.hasErrors ? "has-diagnostics" : "",
-                pendingDeleteFile?.id === file.id ? "is-delete-pending" : "",
-              ].filter(Boolean).join(" ") || undefined}
+              className={cx(
+                [
+                  file.hasErrors ? "has-diagnostics" : "",
+                  pendingDeleteFile?.id === file.id ? "is-delete-pending" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ") || undefined,
+              )}
               disabled={switchingBlocked}
-              icon={file.isActive ? (
-                <CompactContextStatusIcon label="已启用语法">
-                  <Check aria-hidden="true" size={13} strokeWidth={2.4} />
-                </CompactContextStatusIcon>
-              ) : <FileCode2 aria-hidden="true" size={13} />}
-              inlineRename={renamingFile?.id === file.id
-                ? {
-                    ariaLabel: `重命名语法 ${file.name}`,
-                    disabled: busy || !view.workspaceCanMutate,
-                    inputProps: {
-                      "aria-invalid": renamingFile.errorMessage
-                        ? true
-                        : undefined,
-                      "data-syntax-field-id": syntaxFieldIds.name,
-                      maxLength: view.constraints.name.maxLength,
-                      title: renamingFile.errorMessage,
-                    },
-                    onCancel: () => {
-                      setRenamingFile(null);
-                      setRenameSubmittedFileId(null);
-                    },
-                    onChange: (value) => {
-                      setRenamingFile({ id: file.id, value });
-                      setRenameSubmittedFileId(null);
-                    },
-                    onSubmit: submitRename,
-                    value: renamingFile.value,
-                  }
-                : undefined}
+              icon={
+                file.isActive ? (
+                  <CompactContextStatusIcon label="已启用语法">
+                    <Check aria-hidden="true" size={13} strokeWidth={2.4} />
+                  </CompactContextStatusIcon>
+                ) : (
+                  <FileCode2 aria-hidden="true" size={13} />
+                )
+              }
+              inlineRename={
+                renamingFile?.id === file.id
+                  ? {
+                      ariaLabel: `重命名语法 ${file.name}`,
+                      disabled: busy || !view.workspaceCanMutate,
+                      inputProps: {
+                        "aria-invalid": renamingFile.errorMessage
+                          ? true
+                          : undefined,
+                        "data-syntax-field-id": syntaxFieldIds.name,
+                        maxLength: view.constraints.name.maxLength,
+                        title: renamingFile.errorMessage,
+                      },
+                      onCancel: () => {
+                        setRenamingFile(null);
+                        setRenameSubmittedFileId(null);
+                      },
+                      onChange: (value) => {
+                        setRenamingFile({ id: file.id, value });
+                        setRenameSubmittedFileId(null);
+                      },
+                      onSubmit: submitRename,
+                      value: renamingFile.value,
+                    }
+                  : undefined
+              }
               key={file.id}
               label={file.name}
               rowClassName="syntax-file-row"
               selected={file.isSelected}
               title={file.name}
-              trailing={file.hasErrors ? (
-                <span className="ui-tree-meta syntax-file-error">
-                  <AlertTriangle aria-hidden="true" size={12} />
-                  错误
-                </span>
-              ) : null}
+              trailing={
+                file.hasErrors ? (
+                  <span className={cx("ui-tree-meta syntax-file-error")}>
+                    <AlertTriangle aria-hidden="true" size={12} />
+                    错误
+                  </span>
+                ) : null
+              }
               onSelect={() => {
                 setPendingDeleteFile(null);
                 setRenamingFile(null);
-                void runOperation(() => view.selectTarget({
-                  fileId: file.id,
-                  kind: "workspace-file",
-                }));
+                void runOperation(() =>
+                  view.selectTarget({
+                    fileId: file.id,
+                    kind: "workspace-file",
+                  }),
+                );
               }}
             />
           );
         })}
       </CompactContextList>
       {view.files.length === 0 ? (
-        <p className="context-empty">当前笔记库没有语法文件。</p>
+        <p className={cx("context-empty")}>当前笔记库没有语法文件。</p>
       ) : null}
     </div>
   );

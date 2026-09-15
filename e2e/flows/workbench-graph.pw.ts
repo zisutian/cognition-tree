@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { expect } from "@playwright/test";
+import { test } from "../support/e2eTest";
 import { readGraphCanvasNodes } from "../support/graphCanvas";
 import { seedWorkbenchRepository } from "../support/repositorySeeds";
-import { test } from "../support/e2eTest";
 import { openWorkbench, selectNotesMode } from "../support/workbenchPage";
 
 const visualizationRepositoryId = "workbench-visualization-view";
@@ -80,7 +80,7 @@ test.describe("graph activity flows", () => {
     ).toHaveCount(0);
     await expect(
       main.getByRole("heading", { name: "引用图谱", exact: true }),
-    ).toHaveCount(0);
+    ).toHaveCount(1);
     await expect(canvas).toBeVisible();
     const initialBox = await canvas.boundingBox();
 

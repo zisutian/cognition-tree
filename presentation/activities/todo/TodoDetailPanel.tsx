@@ -1,3 +1,6 @@
+import { ListAction, createClassNames } from "../../ui/index.ts";
+import todoStyles from "./todo.module.css";
+const cx = createClassNames(todoStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Repeat2 } from "lucide-react";
@@ -8,15 +11,13 @@ import type {
   TodoViewModel,
 } from "../../../application/todo/index.ts";
 import {
-  useFeedback,
-  CheckboxControl,
   Button,
-  DetailPanel,
-  PanelBody,
-  cx,
+  CheckboxControl,
+  Page,
+  PageBody,
   getStructureTreeRowStyle,
+  useFeedback,
 } from "../../ui/index.ts";
-
 
 import { TodoRecurrenceEditor } from "./TodoRecurrenceEditor.tsx";
 
@@ -41,7 +42,7 @@ function TodoStructureNodes({
 
   return (
     <ul
-      className="ui-tree ui-structure-tree todo-structure-tree"
+      className={cx("ui-tree ui-structure-tree todo-structure-tree")}
       role={depth === 0 ? "tree" : "group"}
     >
       {nodes.map((node) => {
@@ -74,30 +75,31 @@ function TodoStructureNodes({
                 indentUnitCount: view.editor.syntax.tabDisplayWidth,
               })}
             >
-              <span className="ui-structure-prefix">
+              <span className={cx("ui-structure-prefix")}>
                 <CheckboxControl
                   aria-label={`${node.completed ? "标记未完成" : "标记完成"} ${node.text}`}
                   checked={node.completed}
                   disabled={!view.canMutate}
-                  onChange={() => feedback.runAction(() =>
-                    view.toggleBlock(collectionId, node.id)
-                  )}
+                  onChange={() =>
+                    feedback.runAction(() =>
+                      view.toggleBlock(collectionId, node.id),
+                    )
+                  }
                 />
               </span>
-              <Button
-                className="todo-structure-label"
+              <ListAction
+                kind="text"
                 onClick={() => view.outline.onSelectLine(node.lineNumber)}
                 title={`${node.label}: ${node.text} · L${node.lineNumber}`}
                 type="button"
-                variant="bare"
               >
-                <span className="block-text">{node.text}</span>
-              </Button>
-              <span className="ui-tree-meta todo-structure-meta">
+                <span className={cx("block-text")}>{node.text}</span>
+              </ListAction>
+              <span className={cx("ui-tree-meta todo-structure-meta")}>
                 {node.recurrence?.progress ? (
                   <span
                     aria-label={node.recurrence.progress.ariaLabel}
-                    className="todo-recurrence-progress"
+                    className={cx("todo-recurrence-progress")}
                     role="img"
                     title={node.recurrence.progress.ariaLabel}
                   >
@@ -108,17 +110,17 @@ function TodoStructureNodes({
                 {selected ? (
                   <Button
                     aria-label={`配置周期 ${node.text}`}
-                    className={cx(
-                      "todo-recurrence-button",
-                      node.recurrence?.progress && "is-active",
-                    )}
+                    aria-pressed={Boolean(node.recurrence?.progress)}
                     onClick={() =>
                       setRecurrenceEditorBlockId(
                         editingRecurrence ? null : node.id,
-                      )}
-                    title={node.recurrence?.progress
-                      ? node.recurrence.progress.ariaLabel
-                      : "配置周期"}
+                      )
+                    }
+                    title={
+                      node.recurrence?.progress
+                        ? node.recurrence.progress.ariaLabel
+                        : "配置周期"
+                    }
                     type="button"
                     variant="icon"
                   >
@@ -161,33 +163,23 @@ function TodoStructureNodes({
   );
 }
 
-export function TodoDetailPanel({
-  onCollapseDetail,
-  view,
-}: {
-  onCollapseDetail: () => void;
-  view: TodoViewModel;
-}) {
-  const [recurrenceEditorBlockId, setRecurrenceEditorBlockId] =
-    useState<string | null>(null);
+export function TodoDetailPanel({ view }: { view: TodoViewModel }) {
+  const [recurrenceEditorBlockId, setRecurrenceEditorBlockId] = useState<
+    string | null
+  >(null);
   const selectedBlockId = view.outline.activeBlock?.id ?? null;
 
   useEffect(() => {
     setRecurrenceEditorBlockId((current) =>
-      current === selectedBlockId ? current : null
+      current === selectedBlockId ? current : null,
     );
   }, [selectedBlockId]);
 
   if (!view.activeCollection) return null;
 
   return (
-    <DetailPanel
-      aria-label="代办结构"
-      className="todo-detail-panel"
-      onCollapse={onCollapseDetail}
-      title="结构"
-    >
-      <PanelBody scroll>
+    <Page aria-label="代办结构">
+      <PageBody scroll>
         {view.outline.nodes.length > 0 ? (
           <TodoStructureNodes
             collectionId={view.activeCollection.id}
@@ -199,11 +191,9 @@ export function TodoDetailPanel({
             view={view}
           />
         ) : (
-          <p className="context-empty">
-            暂无事项
-          </p>
+          <p className={cx("context-empty")}>暂无事项</p>
         )}
-      </PanelBody>
-    </DetailPanel>
+      </PageBody>
+    </Page>
   );
 }

@@ -1,26 +1,23 @@
 import { ArrowLeftRight } from "lucide-react";
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type MouseEvent,
-} from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
 import {
   Button,
-  Section,
-  useFeedback,
   ContextMenu,
-  type ContextMenuPosition,
+  Section,
   StructureTree,
+  createClassNames,
+  useFeedback,
+  type ContextMenuPosition,
 } from "../../../ui/index.ts";
-
-
+import structureStyles from "./structure.module.css";
+const cx = createClassNames(structureStyles);
 
 import {
   blockLineDragDataType,
   createBlockLineDragPayload,
 } from "./blockLineDrag.ts";
+import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick.tsx";
 import {
   findBlockByLineNumber,
   useSelectedBlockLines,
@@ -31,7 +28,6 @@ import {
   canDropStructureBlockAtEnd,
   emptySelectedLineNumbers,
 } from "./structureOperationDropTargets.tsx";
-import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick.tsx";
 
 export function StructureOperationPairView({
   view,
@@ -62,9 +58,8 @@ export function StructureOperationPairView({
   );
   const selectedLineNumbers = useSelectedBlockLines(sourceBlock);
   const keepMountedLineNumbers = useMemo(
-    () => draggingLineNumber
-      ? new Set([Number(draggingLineNumber)])
-      : undefined,
+    () =>
+      draggingLineNumber ? new Set([Number(draggingLineNumber)]) : undefined,
     [draggingLineNumber],
   );
   const showEndDropTarget = canDropStructureBlockAtEnd(draggingLineNumber);
@@ -92,7 +87,7 @@ export function StructureOperationPairView({
   const dropLine = (lineNumber: string, position: string) => {
     setSourceLineNumber(lineNumber);
     runAction(() =>
-      view.onMoveStructureBlockBetweenNotes(lineNumber, position)
+      view.onMoveStructureBlockBetweenNotes(lineNumber, position),
     );
     finishDrag();
   };
@@ -114,11 +109,8 @@ export function StructureOperationPairView({
   };
 
   return (
-    <div className="structure-operation-grid">
-      <Section
-        className="structure-operation-column"
-        title={`源笔记 · ${view.sourceNote?.title ?? "未选择"}`}
-      >
+    <div className={cx("structure-operation-grid")}>
+      <Section scroll title={`源笔记 · ${view.sourceNote?.title ?? "未选择"}`}>
         {view.sourceRoots.length > 0 ? (
           <StructureTree
             getRowProps={(node) => ({
@@ -136,21 +128,22 @@ export function StructureOperationPairView({
                 event.dataTransfer.setData("text/plain", payload);
                 startDrag(node.lineNumber);
               },
-              onContextMenu: (event) =>
-                openMoveContext(event, node.lineNumber),
+              onContextMenu: (event) => openMoveContext(event, node.lineNumber),
             })}
             indentUnitCount={view.indentUnitCount}
             keepMountedLineNumbers={keepMountedLineNumbers}
             nodes={view.sourceRoots}
             selectedLineNumbers={selectedLineNumbers}
             selectedRootLineNumber={sourceBlock?.lineNumber ?? null}
-            onSelectLine={(lineNumber) => setSourceLineNumber(String(lineNumber))}
+            onSelectLine={(lineNumber) =>
+              setSourceLineNumber(String(lineNumber))
+            }
           />
         ) : (
-          <p className="ui-muted">源笔记没有可移动块。</p>
+          <p className={cx("ui-muted")}>源笔记没有可移动块。</p>
         )}
       </Section>
-      <div className="structure-operation-pair-swap">
+      <div className={cx("structure-operation-pair-swap")}>
         <Button
           aria-label="交换源笔记和目标笔记"
           disabled={
@@ -167,7 +160,7 @@ export function StructureOperationPairView({
         </Button>
       </div>
       <Section
-        className="structure-operation-column"
+        scroll
         title={`目标笔记 · ${view.targetNote?.title ?? "未选择"}`}
       >
         {showEndDropTarget && view.targetRoots.length === 0 ? (
@@ -205,21 +198,23 @@ export function StructureOperationPairView({
             ) : null}
           </>
         ) : (
-          <p className="ui-muted">目标笔记没有结构。</p>
+          <p className={cx("ui-muted")}>目标笔记没有结构。</p>
         )}
       </Section>
       <ContextMenu
         ariaLabel="结构块操作"
-        items={moveContext
-          ? [
-              {
-                id: "move-to",
-                label: "移动到…",
-                onSelect: () =>
-                  setMoveSourceLineNumber(moveContext.lineNumber),
-              },
-            ]
-          : []}
+        items={
+          moveContext
+            ? [
+                {
+                  id: "move-to",
+                  label: "移动到…",
+                  onSelect: () =>
+                    setMoveSourceLineNumber(moveContext.lineNumber),
+                },
+              ]
+            : []
+        }
         position={moveContext?.position ?? null}
         onClose={() => setMoveContext(null)}
       />

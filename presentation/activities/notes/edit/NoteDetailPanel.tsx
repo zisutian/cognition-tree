@@ -1,13 +1,7 @@
 import type { NotesViewModel } from "../../../../application/workspace/index.ts";
 import { CtnDocumentDetailPanel } from "../../../editor/index.ts";
 
-export function NoteDetailPanel({
-  onCollapseDetail,
-  view,
-}: {
-  onCollapseDetail: () => void;
-  view: NotesViewModel;
-}) {
+export function NoteDetailPanel({ view }: { view: NotesViewModel }) {
   if (!view.activeNote) {
     return null;
   }
@@ -22,16 +16,17 @@ export function NoteDetailPanel({
       blockMetadata={selectedBlock?.metadata ?? null}
       documentLabel="笔记"
       documentMetadata={view.activeNote}
-      onCollapseDetail={onCollapseDetail}
       stats={view.editor.stats}
-      structure={view.editor.mode === "ctn"
-        ? {
-            indentUnitCount: view.editor.syntax.tabDisplayWidth,
-            nodes: view.outline.nodes,
-            onSelectLine: view.outline.onSelectLine,
-            selectedLineNumbers,
-          }
-        : null}
+      structure={
+        view.editor.mode === "ctn"
+          ? {
+              indentUnitCount: view.editor.syntax.tabDisplayWidth,
+              nodes: view.outline.nodes,
+              onSelectLine: view.outline.onSelectLine,
+              selectedLineNumbers,
+            }
+          : null
+      }
     />
   );
 }

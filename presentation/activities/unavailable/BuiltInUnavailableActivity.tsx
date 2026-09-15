@@ -1,15 +1,9 @@
 import type {
-  BuiltInId,
   BuiltInCatalogApplication,
+  BuiltInId,
 } from "../../../application/repository/index.ts";
 
-import {
-  useFeedback,
-  Button,
-  EmptyState,
-  Panel,
-} from "../../ui/index.ts";
-
+import { Button, EmptyState, Page, useFeedback } from "../../ui/index.ts";
 
 type BuiltInUnavailableApplication =
   | { status: "loading" }
@@ -31,12 +25,11 @@ export function resolveBuiltInActivityRetry(
   const catalogState = catalog.state;
 
   if (application.status === "unavailable") {
-    const hasIssue = catalogState.status === "ready" &&
+    const hasIssue =
+      catalogState.status === "ready" &&
       catalogState.issues.some(({ id }) => id === builtInId);
 
-    return hasIssue
-      ? () => catalog.retry(builtInId)
-      : catalog.reload;
+    return hasIssue ? () => catalog.retry(builtInId) : catalog.reload;
   }
   return catalogState.status === "failed" ? catalog.reload : null;
 }
@@ -55,24 +48,26 @@ export function BuiltInUnavailableActivity({
   onOpenRepository: () => void;
 }) {
   const feedback = useFeedback();
-  const title = application.status === "loading"
-    ? `正在载入${label}`
-    : application.status === "failed"
-      ? `${label}无法挂载`
+  const title =
+    application.status === "loading"
+      ? `正在载入${label}`
+      : application.status === "failed"
+        ? `${label}无法挂载`
+        : catalog.state.status === "failed"
+          ? "内置数据无法载入"
+          : `${label}尚未就绪`;
+  const description =
+    application.status === "failed"
+      ? application.errorMessage
       : catalog.state.status === "failed"
-        ? "内置数据无法载入"
-        : `${label}尚未就绪`;
-  const description = application.status === "failed"
-    ? application.errorMessage
-    : catalog.state.status === "failed"
-      ? catalog.state.errorMessage
-      : undefined;
+        ? catalog.state.errorMessage
+        : undefined;
   const retry = resolveBuiltInActivityRetry(application, catalog, builtInId);
 
   return (
-    <Panel aria-label={title} className="placeholder-panel">
+    <Page aria-label={title} kind="empty">
       <EmptyState
-        action={(
+        action={
           <>
             {retry ? (
               <Button
@@ -83,18 +78,14 @@ export function BuiltInUnavailableActivity({
                 重试
               </Button>
             ) : null}
-            <Button
-              onClick={onOpenRepository}
-              type="button"
-              variant="primary"
-            >
+            <Button onClick={onOpenRepository} type="button" variant="primary">
               前往仓库
             </Button>
           </>
-        )}
+        }
         description={description}
         title={title}
       />
-    </Panel>
+    </Page>
   );
 }

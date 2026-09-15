@@ -4,10 +4,7 @@ import type {
   RepositoryViewModel,
 } from "../../../application/repository/index.ts";
 
-import {
-  Button,
-  ToolSection,
-} from "../../ui/index.ts";
+import { Button, Section } from "../../ui/index.ts";
 
 import { RepositoryDeleteConfirmation } from "./RepositoryDeleteConfirmation.tsx";
 
@@ -31,29 +28,25 @@ export function RepositoryDangerZone({
   const active = repository.id === view.activeRepositoryId;
 
   return (
-    <ToolSection
-      className="repository-danger-zone"
-      title="危险区"
-      tone="danger"
-    >
-        {confirming ? (
-          <RepositoryDeleteConfirmation
-            key={repository.id}
-            repository={repository}
-            onCancel={onCancel}
-            onDelete={onDelete}
-          />
-        ) : (
-          <Button
-            disabled={busy || (active && view.deletionBlocked)}
-            onClick={onStart}
-            type="button"
-            variant="danger"
-          >
-            <Trash2 aria-hidden="true" size={13} />
-            删除仓库
-          </Button>
-        )}
-    </ToolSection>
+    <Section title="危险区" tone="danger">
+      {confirming ? (
+        <RepositoryDeleteConfirmation
+          key={repository.id}
+          repository={repository}
+          onCancel={onCancel}
+          onDelete={onDelete}
+        />
+      ) : (
+        <Button
+          disabled={busy || (active && view.deletionBlocked)}
+          onClick={onStart}
+          type="button"
+          variant="danger"
+        >
+          <Trash2 aria-hidden="true" size={13} />
+          删除仓库
+        </Button>
+      )}
+    </Section>
   );
 }

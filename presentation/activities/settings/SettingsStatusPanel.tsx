@@ -1,22 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ReactNode } from "react";
-import { DetailPanel, ToolPanelBody } from "../../ui/index.ts";
+import { Page, PageBody } from "../../ui/index.ts";
 
-export function SettingsStatusPanel({
-  children,
-  onCollapseDetail,
-}: {
-  children: ReactNode;
-  onCollapseDetail(): void;
-}) {
+export function SettingsStatusPanel({ children }: { children: ReactNode }) {
   return (
-    <DetailPanel
-      aria-label="设置状态"
-      onCollapse={onCollapseDetail}
-      title="状态"
-    >
-      <ToolPanelBody layout="detail">{children}</ToolPanelBody>
-    </DetailPanel>
+    <Page aria-label="设置状态">
+      <PageBody>{children}</PageBody>
+    </Page>
   );
 }

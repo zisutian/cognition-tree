@@ -2,16 +2,17 @@ import type {
   AvailableSyntaxViewModel,
   SyntaxTone,
 } from "../../../application/syntax/index.ts";
+import { createClassNames } from "../../ui/index.ts";
+import syntaxStyles from "./syntax.module.css";
+const cx = createClassNames(syntaxStyles);
 
 import {
-  PanelBody,
-  cx,
-  DetailPanel,
+  Page,
+  PageBody,
   createToneStyle,
   getTextColorClassName,
   getToneClassName,
 } from "../../ui/index.ts";
-
 
 import {
   getInlinePreviewMarker,
@@ -35,14 +36,10 @@ function SyntaxRenderLine({
 
   return (
     <div
-      className={cx(
-        "syntax-render-line",
-        toneClassName,
-        inline && "is-inline",
-      )}
+      className={cx("syntax-render-line", toneClassName, inline && "is-inline")}
       style={createToneStyle(tone, inline ? "default" : textColor)}
     >
-      <span className="syntax-render-marker">{marker}</span>
+      <span className={cx("syntax-render-marker")}>{marker}</span>
       <span
         className={cx(
           "syntax-render-text",
@@ -57,22 +54,15 @@ function SyntaxRenderLine({
 }
 
 export function SyntaxDetailPanel({
-  onCollapseDetail,
   view,
 }: {
-  onCollapseDetail: () => void;
   view: AvailableSyntaxViewModel;
 }) {
   return (
-    <DetailPanel
-      aria-label="语法预览"
-      onCollapse={onCollapseDetail}
-      title="语法预览"
-    >
-      <PanelBody className="detail-panel-stack" scroll>
-        <div aria-label="语法预览内容" className="syntax-render-list">
-          {view.selectedTarget.kind === "workspace-file" &&
-              view.draft.title ? (
+    <Page aria-label="语法预览">
+      <PageBody scroll>
+        <div aria-label="语法预览内容" className={cx("syntax-render-list")}>
+          {view.selectedTarget.kind === "workspace-file" && view.draft.title ? (
             <SyntaxRenderLine
               marker="T"
               textColor={view.draft.title.textColor}
@@ -107,7 +97,7 @@ export function SyntaxDetailPanel({
             />
           ))}
         </div>
-      </PanelBody>
-    </DetailPanel>
+      </PageBody>
+    </Page>
   );
 }

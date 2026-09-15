@@ -1,12 +1,11 @@
-export function SyntaxRuleHeader({
-  kind,
-}: {
-  kind: "block" | "inline";
-}) {
+import { createClassNames } from "../../ui/index.ts";
+import syntaxStyles from "./syntax.module.css";
+const cx = createClassNames(syntaxStyles);
+export function SyntaxRuleHeader({ kind }: { kind: "block" | "inline" }) {
   const inline = kind === "inline";
 
   return (
-    <div className="syntax-rule-row syntax-rule-header">
+    <div className={cx("syntax-rule-row syntax-rule-header")}>
       <span>名称</span>
       <span>{inline ? "符号" : "标记"}</span>
       <span>类型</span>
@@ -18,5 +17,5 @@ export function SyntaxRuleHeader({
 }
 
 export function SyntaxRuleSpacer() {
-  return <span aria-hidden="true" className="syntax-rule-spacer" />;
+  return <span aria-hidden="true" className={cx("syntax-rule-spacer")} />;
 }

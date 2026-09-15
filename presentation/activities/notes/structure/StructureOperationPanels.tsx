@@ -1,11 +1,5 @@
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
-import {
-  EmptyState,
-  Panel,
-  PanelBody,
-  PanelHeader,
-  cx,
-} from "../../../ui/index.ts";
+import { EmptyState, Page, PageBody } from "../../../ui/index.ts";
 import { StructureOperationPairView } from "./StructureOperationPairView.tsx";
 import { StructureOperationStructureView } from "./StructureOperationStructureView.tsx";
 
@@ -16,22 +10,21 @@ export function StructureOperationMainPanel({
 }) {
   if (view.noteTree.length === 0) {
     return (
-      <Panel className="structure-operation-panel" aria-label="结构操作">
+      <Page aria-label="结构操作">
         <EmptyState title="没有可操作笔记" />
-      </Panel>
+      </Page>
     );
   }
 
   return (
-    <Panel className="structure-operation-panel" aria-label="结构操作">
-      <PanelHeader title="结构操作" />
-      <PanelBody className={cx("structure-operation-body", view.mode)}>
+    <Page aria-label="结构操作">
+      <PageBody scroll={false}>
         {view.mode === "withinNote" ? (
           <StructureOperationStructureView view={view} />
         ) : (
           <StructureOperationPairView view={view} />
         )}
-      </PanelBody>
-    </Panel>
+      </PageBody>
+    </Page>
   );
 }

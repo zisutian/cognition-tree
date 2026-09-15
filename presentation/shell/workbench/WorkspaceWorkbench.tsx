@@ -9,23 +9,23 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { WorkbenchDiagnostics } from "../../../application/workbench/index.ts";
 import type { SyntaxFocusTarget } from "../../../application/syntax/index.ts";
+import type { WorkbenchDiagnostics } from "../../../application/workbench/index.ts";
+import type { ActivityId, RenderActivity } from "../../ui/index.ts";
+import AppView from "../../ui/index.ts";
 import type { WorkbenchApplication } from "../application/workbenchApplication.ts";
 import { activityDescriptors, getActivityLabel } from "./activityCatalog.tsx";
-import type { RenderActivity, ActivityId } from "../../ui/index.ts";
-import AppView from "../../ui/index.ts";
 
 import {
   FeedbackProvider,
-  type WorkbenchActivityFeedbackController,
   globalWorkbenchSessionId,
   useWorkbenchLayout,
+  type WorkbenchActivityFeedbackController,
 } from "../../ui/index.ts";
 
-import type { BoundWorkspaceApplication } from "./WorkspaceApplicationBinding.tsx";
 import { PlaceholderPanel } from "./PlaceholderPanel.tsx";
 import { WorkbenchProblemsController } from "./WorkbenchProblemsController.tsx";
+import type { BoundWorkspaceApplication } from "./WorkspaceApplicationBinding.tsx";
 
 function ActivityLoadingView({
   activeActivityId,
@@ -39,11 +39,11 @@ function ActivityLoadingView({
   return renderActivity(() => ({
     context: null,
     detail: null,
-    main: (
-      <PlaceholderPanel
-        title={`正在加载${label}`}
-      />
-    ),
+    main: {
+      title: label,
+      layout: "detail",
+      content: <PlaceholderPanel title={`正在加载${label}`} />,
+    },
   }));
 }
 

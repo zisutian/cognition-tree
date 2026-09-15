@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { expect, type APIRequestContext } from "@playwright/test";
+import { appResizeKeyboardStep } from "../../presentation/ui/workbench/frameResize";
+import { test } from "../support/e2eTest";
 import {
   seedDiagnosticsRepository,
   seedWorkbenchRepository,
 } from "../support/repositorySeeds";
-import { test } from "../support/e2eTest";
 import {
-  getWorkbenchStatus,
-  getProblemsToggle,
   getActivityButton,
+  getProblemsToggle,
+  getWorkbenchStatus,
   openRepositoryFromContext,
   openWorkbench,
 } from "../support/workbenchPage";
-import { appResizeKeyboardStep } from "../../presentation/ui/workbench/frameResize";
 
 const repositoryId = "problems-base";
 const diagnosticsRepositoryId = "problems";
@@ -66,7 +66,7 @@ test.describe("workbench diagnostics", () => {
     ).toEqual({ fontSize: "13px", height: "22px" });
     await documentProblem.click();
     await expect(
-      page.getByLabel("笔记编辑").getByRole("heading", {
+      page.locator('[data-region-header="main"]').getByRole("heading", {
         name: "Diagnostics",
         exact: true,
       }),
@@ -105,7 +105,9 @@ test.describe("workbench diagnostics", () => {
     await getActivityButton(page, "笔记").click();
     await page.getByRole("button", { name: "进入专注模式" }).click();
     await expect(page.locator(".app-context")).toHaveCount(0);
-    await expect(page.getByRole("complementary", { name: "问题", exact: true })).toBeHidden();
+    await expect(
+      page.getByRole("complementary", { name: "问题", exact: true }),
+    ).toBeHidden();
     await page.keyboard.press("Control+Shift+M");
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
 
@@ -136,7 +138,7 @@ test.describe("workbench diagnostics", () => {
 
     await getActivityButton(page, "设置").click();
     const settingsContext = page.locator(".settings-context");
-    const settingsPanel = page.locator(".settings-panel");
+    const settingsPanel = page.getByRole("region", { name: "界面设置" });
 
     const interfaceSection = settingsContext.getByRole("button", {
       name: "工作台布局",
@@ -165,7 +167,9 @@ test.describe("workbench diagnostics", () => {
     await expect(apiSection).not.toHaveAttribute("aria-current", "page");
     await expect(auditSection).not.toHaveAttribute("aria-current", "page");
     await expect(
-      settingsPanel.getByRole("heading", { name: "工作台布局" }),
+      page
+        .locator('[data-region-header="main"]')
+        .getByRole("heading", { name: "工作台布局" }),
     ).toBeVisible();
     await expect(
       settingsPanel.getByRole("spinbutton", { name: "左侧栏宽度" }),
@@ -247,15 +251,15 @@ test.describe("workbench diagnostics", () => {
     await expect(persistenceProblem).toHaveCount(1);
     await getActivityButton(page, "笔记").click();
     await expect(persistenceProblem).toHaveCount(1);
-    await expect(getWorkbenchStatus(page)).toContainText(
-      "保存失败",
-    );
+    await expect(getWorkbenchStatus(page)).toContainText("保存失败");
     await getActivityButton(page, "语法").click();
     await expect(persistenceProblem).toHaveCount(1);
     await expect(getWorkbenchStatus(page)).toHaveText("");
     await expect(
       persistenceProblem.getByRole("button", { name: /^关闭操作错误/ }),
     ).toHaveCount(0);
-    await expect(page.locator(".syntax-panel .ui-status")).toHaveCount(0);
+    await expect(page.locator('[data-region="main"] .ui-status')).toHaveCount(
+      0,
+    );
   });
 });

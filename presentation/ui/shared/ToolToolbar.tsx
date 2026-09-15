@@ -1,18 +1,16 @@
+import toolbarStyles from "./Toolbar.module.css";
+import { createClassNames } from "./classNames.ts";
+const cx = createClassNames(toolbarStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { HTMLAttributes } from "react";
-import { cx } from "./primitives.tsx";
 
 export function ToolToolbar({
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div
-      className={cx("ui-tool-toolbar", className)}
-      role="group"
-      {...props}
-    />
+    <div className={cx("ui-tool-toolbar", className)} role="group" {...props} />
   );
 }
 

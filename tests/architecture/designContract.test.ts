@@ -8,25 +8,25 @@ import {
   appProblemsDefaultHeight,
 } from "../../presentation/ui/workbench/frameResize";
 import { auditTextPolicies, type TextCorpus } from "../support/textPolicy";
+import { presentationModules, sourceModules } from "./sourceCorpus";
 import {
-  createUiTextPolicies,
   createUiConstraintCatalog,
+  createUiTextPolicies,
 } from "./uiConstraintCatalog";
-import {
-  presentationModules,
-  sourceModules,
-} from "./sourceCorpus";
 
 const styleModules = import.meta.glob("../../presentation/**/*.css", {
   eager: true,
   import: "default",
   query: "?raw",
 }) as TextCorpus;
-const uiTestModules = import.meta.glob(["../unit/presentation/**/*.test.ts", "../unit/presentation/**/*.test.tsx"], {
-  eager: true,
-  import: "default",
-  query: "?raw",
-}) as TextCorpus;
+const uiTestModules = import.meta.glob(
+  ["../unit/presentation/**/*.test.ts", "../unit/presentation/**/*.test.tsx"],
+  {
+    eager: true,
+    import: "default",
+    query: "?raw",
+  },
+) as TextCorpus;
 const uiConstraintCatalog = createUiConstraintCatalog({
   appContextDefaultWidth,
   appDetailDefaultWidth,
@@ -50,7 +50,7 @@ function readCustomProperties(source: string) {
 describe("UI design contract", () => {
   it("keeps style layers explicit and Activity CSS owned by its view", () => {
     const uiStylePaths = Object.keys(styleModules)
-      .filter((path) => path.startsWith("../../presentation/ui/styles"))
+      .filter((path) => path.startsWith("../../presentation/ui/"))
       .map((path) => path.replace("../../presentation/", ""));
     const globalStyleEntry = readStyle("ui/styles/index.css");
     expect(
@@ -59,9 +59,11 @@ describe("UI design contract", () => {
       ),
     ).toEqual([]);
     expect(globalStyleEntry).not.toContain("./activities/");
-    expect(globalStyleEntry).toContain("./frame/problems.css");
-    expect(globalStyleEntry).toContain("./shared/toolPanel.css");
-    expect(globalStyleEntry).toContain("./shared/controls.css");
+    expect(globalStyleEntry.match(/@import[^;]+;/g)).toEqual([
+      '@import "./foundation/theme.css";',
+      '@import "./foundation/base.css";',
+      '@import "./shared/blockText.css";',
+    ]);
   });
 
   it("enforces the declared source-level UI policies", () => {

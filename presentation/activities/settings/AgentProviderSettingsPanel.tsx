@@ -1,3 +1,5 @@
+import { createClassNames } from "../../ui/index.ts";
+const cx = createClassNames();
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
@@ -9,17 +11,17 @@ import {
   Button,
   ConfirmAction,
   FormSaveActions,
+  Section,
   ToolPropertyList,
   ToolPropertyRow,
-  ToolSection,
   useFeedback,
 } from "../../ui/index.ts";
+import { AgentProviderSettingsForm } from "./AgentProviderSettingsForm.tsx";
 import {
   agentProviderDraftFrom,
   agentProviderInput,
   createAgentProviderDraft,
 } from "./agentSettingsDraft.ts";
-import { AgentProviderSettingsForm } from "./AgentProviderSettingsForm.tsx";
 import { SettingsPage } from "./SettingsPage.tsx";
 import type { SettingsTarget } from "./settingsTypes.ts";
 import { useSettingsDraft } from "./useSettingsDraft.ts";
@@ -70,9 +72,7 @@ export function AgentProviderSettingsPanel({
   const unavailable = !configuration || (id !== null && !provider);
   const errorMessage =
     draft.errorMessage ??
-    (draft.stale
-      ? "配置已过期或对象已移除"
-      : state.errorMessage);
+    (draft.stale ? "配置已过期或对象已移除" : state.errorMessage);
   useSettingsInteraction(report, { ...draft, submitting: busy, errorMessage });
   const discard = () => {
     draft.discard();
@@ -111,7 +111,6 @@ export function AgentProviderSettingsPanel({
     });
   return (
     <SettingsPage
-      title={provider?.label ?? (id ? "Provider 已移除" : "新建 Provider")}
       label="模型服务设置"
       errorMessage={errorMessage}
       actions={
@@ -142,8 +141,8 @@ export function AgentProviderSettingsPanel({
         }}
       />
       {provider ? (
-        <ToolSection title="连接与认证">
-          <div className="ui-actions">
+        <Section title="连接与认证">
+          <div className={cx("ui-actions")}>
             <Button
               disabled={busy || draft.dirty || draft.stale}
               onClick={() =>
@@ -219,10 +218,10 @@ export function AgentProviderSettingsPanel({
               />
             </ToolPropertyList>
           ) : null}
-        </ToolSection>
+        </Section>
       ) : null}
       {provider ? (
-        <ToolSection title="删除服务">
+        <Section title="删除服务">
           <ConfirmAction
             confirming={confirming === "delete"}
             disabled={busy || loginPending || draft.dirty || draft.stale}
@@ -236,7 +235,7 @@ export function AgentProviderSettingsPanel({
               })
             }
           />
-        </ToolSection>
+        </Section>
       ) : null}
     </SettingsPage>
   );

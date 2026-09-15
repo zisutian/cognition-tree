@@ -12,12 +12,12 @@ import type { StructureOperationActivityViewModel } from "../../../../applicatio
 import {
   ChoiceGroup,
   CompactContextStatusIcon,
+  createClassNames,
   NoteTree,
   TreeMoveQuickPick,
   type TreeNode,
 } from "../../../ui/index.ts";
-
-
+const cx = createClassNames();
 
 type StructureOperationDirectoryMode = "betweenNotes" | "withinNote";
 type StructureOperationNoteStatus = "source" | "structure" | "target" | "";
@@ -138,7 +138,7 @@ export function StructureOperationContext({
               <ChevronDown aria-hidden="true" size={13} />
             )
           ) : (
-            <span aria-hidden="true" className="ui-tree-toggle-spacer" />
+            <span aria-hidden="true" className={cx("ui-tree-toggle-spacer")} />
           )}
           <Folder aria-hidden="true" size={13} />
         </>
@@ -149,7 +149,7 @@ export function StructureOperationContext({
 
     return (
       <>
-        <span aria-hidden="true" className="ui-tree-toggle-spacer" />
+        <span aria-hidden="true" className={cx("ui-tree-toggle-spacer")} />
         {status ? (
           <StructureOperationDirectoryStatusIcon status={status} />
         ) : (
@@ -159,12 +159,10 @@ export function StructureOperationContext({
     );
   };
   const activeNoteId =
-    view.mode === "withinNote"
-      ? view.structureNoteId
-      : view.sourceNoteId;
+    view.mode === "withinNote" ? view.structureNoteId : view.sourceNoteId;
 
   return (
-    <div className="activity-context-content">
+    <div className={cx("activity-context-content")}>
       <ChoiceGroup
         ariaLabel="结构操作模式"
         mode="single"
@@ -176,7 +174,9 @@ export function StructureOperationContext({
         onChange={view.onSetMode}
       />
       <NoteTree
-        activeNode={activeNoteId ? { kind: "note", noteId: activeNoteId } : null}
+        activeNode={
+          activeNoteId ? { kind: "note", noteId: activeNoteId } : null
+        }
         collapsedFolderIds={collapsedFolderIds}
         nodes={view.noteTree}
         renderNodeLeading={renderNodeLeading}

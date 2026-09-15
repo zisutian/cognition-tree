@@ -4,14 +4,15 @@ import type { NotesViewModel } from "../../../../application/workspace/index.ts"
 import {
   Button,
   CompactContextGroupHeader,
+  createClassNames,
   InputControl,
   NoteTree,
   TreeMoveQuickPick,
   type TreeNode,
-  useFeedback,
   useExclusiveAsyncAction,
+  useFeedback,
 } from "../../../ui/index.ts";
-
+const cx = createClassNames();
 
 export function submitNotesFolderCreation({
   directory,
@@ -38,19 +39,23 @@ export function findNotesTreeAncestorFolderIds(
   activeNode: NotesViewModel["directory"]["activeNode"],
 ) {
   if (!activeNode) return [];
-  const pending = nodes.map((node) => ({
-    ancestors: [] as string[],
-    node,
-  })).reverse();
+  const pending = nodes
+    .map((node) => ({
+      ancestors: [] as string[],
+      node,
+    }))
+    .reverse();
 
   while (pending.length > 0) {
     const current = pending.pop();
 
     if (!current) continue;
     if (
-      (activeNode.kind === "note" && current.node.kind === "note" &&
+      (activeNode.kind === "note" &&
+        current.node.kind === "note" &&
         current.node.noteId === activeNode.noteId) ||
-      (activeNode.kind === "folder" && current.node.kind === "folder" &&
+      (activeNode.kind === "folder" &&
+        current.node.kind === "folder" &&
         current.node.folderId === activeNode.folderId)
     ) {
       return current.ancestors;
@@ -58,7 +63,11 @@ export function findNotesTreeAncestorFolderIds(
     if (current.node.kind === "folder") {
       const ancestors = [...current.ancestors, current.node.folderId];
 
-      for (let index = current.node.children.length - 1; index >= 0; index -= 1) {
+      for (
+        let index = current.node.children.length - 1;
+        index >= 0;
+        index -= 1
+      ) {
         pending.push({ ancestors, node: current.node.children[index] });
       }
     }
@@ -92,9 +101,8 @@ export function NotesContext({
     const activeNode = directory.activeNode;
 
     if (!activeNode) return;
-    const activeNodeId = activeNode.kind === "note"
-      ? activeNode.noteId
-      : activeNode.folderId;
+    const activeNodeId =
+      activeNode.kind === "note" ? activeNode.noteId : activeNode.folderId;
 
     if (lastActiveNodeIdsRef.current[activeNode.kind] === activeNodeId) return;
     lastActiveNodeIdsRef.current[activeNode.kind] = activeNodeId;
@@ -158,42 +166,48 @@ export function NotesContext({
   };
 
   return (
-    <div className="activity-context-content">
-      <CompactContextGroupHeader headingId="notes-files-heading" label="文件" actions={<>
-        <Button
-          aria-label="重新扫描文件"
-          disabled={reloading}
-          onClick={reload}
-          title="重新扫描文件"
-          type="button"
-          variant="icon"
-        >
-          <RefreshCw aria-hidden="true" size={16} />
-        </Button>
-        <Button
-          aria-label="新建文件夹"
-          disabled={reloading}
-          onClick={() => setCreatingFolder(true)}
-          title="新建文件夹"
-          type="button"
-          variant="icon"
-        >
-          <FolderPlus aria-hidden="true" size={16} />
-        </Button>
-        <Button
-          aria-label="新建笔记"
-          disabled={reloading}
-          onClick={directory.createNote}
-          title="新建笔记"
-          type="button"
-          variant="icon"
-        >
-          <Plus aria-hidden="true" size={16} />
-        </Button>
-      </>} />
+    <div className={cx("activity-context-content")}>
+      <CompactContextGroupHeader
+        headingId="notes-files-heading"
+        label="文件"
+        actions={
+          <>
+            <Button
+              aria-label="重新扫描文件"
+              disabled={reloading}
+              onClick={reload}
+              title="重新扫描文件"
+              type="button"
+              variant="icon"
+            >
+              <RefreshCw aria-hidden="true" size={16} />
+            </Button>
+            <Button
+              aria-label="新建文件夹"
+              disabled={reloading}
+              onClick={() => setCreatingFolder(true)}
+              title="新建文件夹"
+              type="button"
+              variant="icon"
+            >
+              <FolderPlus aria-hidden="true" size={16} />
+            </Button>
+            <Button
+              aria-label="新建笔记"
+              disabled={reloading}
+              onClick={directory.createNote}
+              title="新建笔记"
+              type="button"
+              variant="icon"
+            >
+              <Plus aria-hidden="true" size={16} />
+            </Button>
+          </>
+        }
+      />
       {creatingFolder ? (
         <form
-          className="directory-create-row"
+          className={cx("directory-create-row")}
           onSubmit={(event) => {
             event.preventDefault();
             createFolder();
@@ -211,8 +225,16 @@ export function NotesContext({
               }
             }}
           />
-          <Button type="submit" variant="secondary">确定</Button>
-          <Button onClick={() => setCreatingFolder(false)} type="button" variant="ghost">取消</Button>
+          <Button type="submit" variant="secondary">
+            确定
+          </Button>
+          <Button
+            onClick={() => setCreatingFolder(false)}
+            type="button"
+            variant="ghost"
+          >
+            取消
+          </Button>
         </form>
       ) : null}
       <NoteTree
@@ -235,7 +257,7 @@ export function NotesContext({
         onMove={directory.moveTreeNode}
       />
       {directory.noteTree.length === 0 ? (
-        <p className="context-empty">没有笔记。</p>
+        <p className={cx("context-empty")}>没有笔记。</p>
       ) : null}
     </div>
   );

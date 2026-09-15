@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { ContentOpenOutcome } from "../../../application/navigation/index.ts";
 import type { RepositoryApplication } from "../../../application/repository/index.ts";
-import type { WorkbenchSearchFacade } from "../../../application/workbench/index.ts";
 import type {
   SearchControllerState,
   SearchResult,
 } from "../../../application/search/index.ts";
-import type { ContentOpenOutcome } from "../../../application/navigation/index.ts";
+import type { WorkbenchSearchFacade } from "../../../application/workbench/index.ts";
 
+import type { ActivityControllerProps } from "../../ui/index.ts";
 import { useWorkbenchFeedback } from "../../ui/index.ts";
 import { createSearchActivitySlots } from "./SearchActivitySlots.tsx";
-import type { ActivityControllerProps } from "../../ui/index.ts";
 
 export function SearchActivityController({
   active,
@@ -50,10 +50,9 @@ export function SearchActivityController({
     });
   };
 
-  return renderActivity(({ onCollapseDetail }) =>
+  return renderActivity(() =>
     createSearchActivitySlots({
       controller: application.search.controller,
-      onCollapseDetail,
       onOpenResult: openResult,
       repositories,
       state: application.search.state,

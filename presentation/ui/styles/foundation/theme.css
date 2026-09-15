@@ -1,9 +1,10 @@
 :root {
-  --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei UI",
-    sans-serif;
-  --font-code: "Cascadia Code", "SFMono-Regular", Consolas,
-    "Noto Sans Mono CJK SC", monospace;
+  --font-ui:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei UI", sans-serif;
+  --font-code:
+    "Cascadia Code", "SFMono-Regular", Consolas, "Noto Sans Mono CJK SC",
+    monospace;
 
   --color-activity: #181818;
   --color-context: #181818;
@@ -73,18 +74,21 @@
   --ui-panel-header-height: 40px;
   --ui-gap: 8px;
   --ui-gap-tight: 4px;
-  --ui-control-height: 22px;
-  --ui-form-control-height: 26px;
+  --ui-control-height: 28px;
+  --ui-form-control-height: var(--ui-control-height);
   --ui-section-gap: 16px;
+  --ui-toolbar-height: 36px;
+  --ui-popover-width: 320px;
+  --ui-popover-compact-width: 224px;
   --ui-form-max-width: 720px;
-  --ui-icon-size: 22px;
+  --ui-icon-size: var(--ui-control-height);
   --ui-action-icon-size: 16px;
   --ui-activity-icon-size: 24px;
   --ui-symbol-size: 13px;
   --ui-row-height: 22px;
   --ui-tree-indent: 14px;
-  --ui-radius: 4px;
-  --ui-selection-radius: 6px;
+  --ui-radius: 6px;
+  --ui-selection-radius: var(--ui-radius);
   --ui-focus-outline: 1px solid var(--color-accent);
   --ui-z-overlay: 100;
 

@@ -1,6 +1,23 @@
+import compactContextListStyles from "./CompactContextList.module.css";
+import contentStyles from "./Content.module.css";
+import managementListStyles from "./ManagementList.module.css";
+import { createClassNames } from "./classNames.ts";
+import treeStyles from "./tree/Tree.module.css";
+const cx = createClassNames(
+  contentStyles,
+  managementListStyles,
+  compactContextListStyles,
+  treeStyles,
+);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Check, ChevronDown, ChevronRight, X, type LucideIcon } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import type {
   ButtonHTMLAttributes,
   HTMLAttributes,
@@ -10,7 +27,8 @@ import type {
   MouseEvent,
   ReactNode,
 } from "react";
-import { Button, SymbolSlot, cx } from "./primitives.tsx";
+import { Button } from "./Button.tsx";
+import { SymbolSlot } from "./SymbolSlot.tsx";
 import { InputControl } from "./controls.tsx";
 
 export function CompactContextStatusIcon({
@@ -23,7 +41,7 @@ export function CompactContextStatusIcon({
   return (
     <SymbolSlot
       aria-label={label}
-      className="ui-tree-status"
+      className={cx("ui-tree-status")}
       title={label}
       tone="strong"
     >
@@ -84,9 +102,15 @@ export function CompactContextActionButtons({
   if (confirmation) {
     return (
       <>
-        <Button variant="icon"
+        <Button
+          variant="icon"
+          density="list"
           aria-label={confirmation.confirmAriaLabel}
-          className={confirmation.tone === "danger" ? "ui-tree-action-danger" : undefined}
+          className={cx(
+            confirmation.tone === "danger"
+              ? "ui-tree-action-danger"
+              : undefined,
+          )}
           disabled={confirmation.disabled}
           onClick={confirmation.onConfirm}
           title="确认"
@@ -94,7 +118,9 @@ export function CompactContextActionButtons({
         >
           <Check aria-hidden="true" />
         </Button>
-        <Button variant="icon"
+        <Button
+          variant="icon"
+          density="list"
           aria-label={confirmation.cancelAriaLabel}
           disabled={confirmation.disabled}
           onClick={confirmation.onCancel}
@@ -112,8 +138,11 @@ export function CompactContextActionButtons({
     return (
       <Button
         variant="icon"
+        density="list"
         aria-label={action.ariaLabel}
-        className={action.tone === "danger" ? "ui-tree-action-danger" : undefined}
+        className={cx(
+          action.tone === "danger" ? "ui-tree-action-danger" : undefined,
+        )}
         disabled={action.disabled}
         key={action.ariaLabel}
         onClick={action.onSelect}
@@ -155,26 +184,35 @@ export function CompactContextGroupHeader({
   headingId,
   label,
   onToggle,
-}: Pick<CompactContextGroupProps, "actions" | "count" | "expanded" | "headingId" | "label" | "onToggle">) {
+}: Pick<
+  CompactContextGroupProps,
+  "actions" | "count" | "expanded" | "headingId" | "label" | "onToggle"
+>) {
   return (
-    <div className="ui-compact-context-group-heading">
-      <h3 className="ui-compact-context-group-title" id={headingId}>
+    <div className={cx("ui-compact-context-group-heading")}>
+      <h3 className={cx("ui-compact-context-group-title")} id={headingId}>
         {onToggle ? (
           <Button
             aria-expanded={expanded}
             aria-controls={`${headingId}-list`}
-            className="ui-compact-context-group-toggle"
+            className={cx("ui-compact-context-group-toggle")}
             onClick={onToggle}
             type="button"
             variant="bare"
           >
-            {expanded ? <ChevronDown aria-hidden="true" size={16} /> : <ChevronRight aria-hidden="true" size={16} />}
+            {expanded ? (
+              <ChevronDown aria-hidden="true" size={16} />
+            ) : (
+              <ChevronRight aria-hidden="true" size={16} />
+            )}
             <span>{label}</span>
           </Button>
-        ) : <span>{label}</span>}
+        ) : (
+          <span>{label}</span>
+        )}
         {count === undefined ? null : <span>{count}</span>}
       </h3>
-      {actions ? <span className="ui-actions">{actions}</span> : null}
+      {actions ? <span className={cx("ui-actions")}>{actions}</span> : null}
     </div>
   );
 }
@@ -206,7 +244,7 @@ export function CompactContextGroup({
       />
       <CompactContextList
         aria-label={listAriaLabel}
-        className={listClassName}
+        className={cx(listClassName)}
         hidden={!expanded}
         id={`${headingId}-list`}
       >
@@ -343,7 +381,7 @@ export function CompactContextRow({
     >
       {inlineRename ? (
         <form
-          className="ui-compact-context-inline-rename"
+          className={cx("ui-compact-context-inline-rename")}
           onSubmit={(event) => {
             event.preventDefault();
             inlineRename.onSubmit();
@@ -354,7 +392,7 @@ export function CompactContextRow({
             {...inlineRename.inputProps}
             aria-label={inlineRename.ariaLabel}
             autoFocus
-            className="ui-input-tree"
+            className={cx("ui-input-tree")}
             disabled={inlineRename.disabled}
             onChange={(event) => inlineRename.onChange(event.target.value)}
             onKeyDown={(event) => {
@@ -366,7 +404,7 @@ export function CompactContextRow({
             sizing="container"
             value={inlineRename.value}
           />
-          <span className="ui-tree-actions">
+          <span className={cx("ui-tree-actions")}>
             <CompactContextActionButtons
               confirmation={{
                 cancelAriaLabel: `${inlineRename.ariaLabel}，取消`,
@@ -379,7 +417,8 @@ export function CompactContextRow({
           </span>
         </form>
       ) : (
-        <Button variant="bare"
+        <Button
+          variant="bare"
           {...buttonProps}
           aria-current={selected ? "page" : undefined}
           className={cx(
@@ -395,14 +434,16 @@ export function CompactContextRow({
           type="button"
         >
           {icon}
-          <span className="ui-tree-text">{label}</span>
+          <span className={cx("ui-tree-text")}>{label}</span>
           {trailing ? (
-            <span className="ui-compact-context-trailing">{trailing}</span>
+            <span className={cx("ui-compact-context-trailing")}>
+              {trailing}
+            </span>
           ) : null}
         </Button>
       )}
       {actions && !inlineRename && selected ? (
-        <span className="ui-tree-actions">{actions}</span>
+        <span className={cx("ui-tree-actions")}>{actions}</span>
       ) : null}
     </li>
   );

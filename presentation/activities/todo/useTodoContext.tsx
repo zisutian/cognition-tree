@@ -1,22 +1,24 @@
+import { createClassNames } from "../../ui/index.ts";
+import todoStyles from "./todo.module.css";
+const cx = createClassNames(todoStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Pencil, Trash2, ListChecks, Plus } from "lucide-react";
+import { ListChecks, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState, type DragEvent } from "react";
 import type {
   TodoCollectionListItem,
   TodoViewModel,
 } from "../../../application/todo/index.ts";
 import {
+  Button,
   CompactContextActionButtons,
   CompactContextList,
   CompactContextRow,
-  useFeedback,
   getListReorderIndex,
   getListRowDropPlacement,
-  type ListRowDropPlacement,
-  Button,
-  cx,
+  useFeedback,
   type ActivitySlots,
+  type ListRowDropPlacement,
 } from "../../ui/index.ts";
 
 type CollectionDraft = {
@@ -150,8 +152,8 @@ export function useTodoContext(view: TodoViewModel): {
         </Button>
       ),
       content: (
-        <div className="activity-context-content todo-context">
-          <div className="todo-collection-scroll">
+        <div className={cx("activity-context-content todo-context")}>
+          <div className={cx("todo-collection-scroll")}>
             <CompactContextList aria-label="事项集合">
               {view.collections.map((collection, index) => (
                 <CompactContextRow
@@ -359,7 +361,7 @@ export function useTodoContext(view: TodoViewModel): {
               ) : null}
             </CompactContextList>
             {view.collections.length === 0 && !creating ? (
-              <p className="context-empty">没有事项集合。</p>
+              <p className={cx("context-empty")}>没有事项集合。</p>
             ) : null}
           </div>
         </div>

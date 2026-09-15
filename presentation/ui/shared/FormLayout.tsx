@@ -1,7 +1,14 @@
+import styles from "./FormLayout.module.css";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { HTMLAttributes, ReactNode } from "react";
-import { cx } from "./primitives.tsx";
+import { cx as joinClasses } from "./classNames.ts";
+import { ControlSizingContext } from "./ControlSizing.ts";
+
+function cx(...names: Array<string | false | null | undefined>) {
+  const tokens = joinClasses(...names).split(/\s+/);
+  return joinClasses(...tokens, ...tokens.map((name) => styles[name]));
+}
 
 export type FieldControlAccessibility = Readonly<{
   "aria-describedby"?: string;
@@ -14,12 +21,16 @@ export function FormLayout({
   className,
   layout = "columns",
   ...props
-}: HTMLAttributes<HTMLDivElement> & { layout?: "columns" | "stacked" }) {
+}: HTMLAttributes<HTMLDivElement> & {
+  layout?: "columns" | "stacked" | "compact";
+}) {
   return (
-    <div
-      className={cx("ui-form-layout", `ui-form-layout-${layout}`, className)}
-      {...props}
-    />
+    <ControlSizingContext value="container">
+      <div
+        className={cx("ui-form-layout", `ui-form-layout-${layout}`, className)}
+        {...props}
+      />
+    </ControlSizingContext>
   );
 }
 
@@ -43,21 +54,26 @@ export function FieldRow({
 
   return (
     <div className={cx("ui-field-row", className)}>
-      {controlKind === "group"
-        ? <span className="ui-field-label" id={`${fieldId}-label`}>{label}</span>
-        : <label className="ui-field-label" htmlFor={fieldId}>{label}</label>}
-      <div className="ui-field-control">
+      {controlKind === "group" ? (
+        <span className={cx("ui-field-label")} id={`${fieldId}-label`}>
+          {label}
+        </span>
+      ) : (
+        <label className={cx("ui-field-label")} htmlFor={fieldId}>
+          {label}
+        </label>
+      )}
+      <div className={cx("ui-field-control")}>
         {children({
           ...(errorId ? { "aria-describedby": errorId } : {}),
           ...(hasError ? { "aria-invalid": true } : {}),
-          ...(controlKind === "group" ? { "aria-labelledby": `${fieldId}-label` } : {}),
+          ...(controlKind === "group"
+            ? { "aria-labelledby": `${fieldId}-label` }
+            : {}),
           id: fieldId,
         })}
         {hasError ? (
-          <p
-            className="ui-field-error"
-            id={errorId}
-          >
+          <p className={cx("ui-field-error")} id={errorId}>
             {errorMessage}
           </p>
         ) : null}

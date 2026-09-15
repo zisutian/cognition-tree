@@ -1,7 +1,16 @@
+import managementListStyles from "./ManagementList.module.css";
+import toolListStyles from "./ToolList.module.css";
+import { createClassNames } from "./classNames.ts";
+const cx = createClassNames(toolListStyles, managementListStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ButtonHTMLAttributes, HTMLAttributes, LiHTMLAttributes, ReactNode } from "react";
-import { Button, cx } from "./primitives.tsx";
+import type {
+  ButtonHTMLAttributes,
+  HTMLAttributes,
+  LiHTMLAttributes,
+  ReactNode,
+} from "react";
+import { Button } from "./Button.tsx";
 
 export function ToolList({
   className,
@@ -30,13 +39,13 @@ type ToolListRowCommonProps = Omit<
 
 type ToolListRowInteractionProps =
   | {
-    buttonProps?: ToolListRowButtonProps;
-    onSelect: () => void;
-  }
+      buttonProps?: ToolListRowButtonProps;
+      onSelect: () => void;
+    }
   | {
-    buttonProps?: never;
-    onSelect?: never;
-  };
+      buttonProps?: never;
+      onSelect?: never;
+    };
 
 export function ToolListRow({
   actions,
@@ -51,9 +60,9 @@ export function ToolListRow({
 }: ToolListRowCommonProps & ToolListRowInteractionProps) {
   const content = (
     <>
-      <span className="ui-tool-list-row-leading">{leading}</span>
-      <span className="ui-tool-list-row-main">{main}</span>
-      <span className="ui-tool-list-row-meta">{meta}</span>
+      <span className={cx("ui-tool-list-row-leading")}>{leading}</span>
+      <span className={cx("ui-tool-list-row-main")}>{main}</span>
+      <span className={cx("ui-tool-list-row-meta")}>{meta}</span>
     </>
   );
 
@@ -67,8 +76,9 @@ export function ToolListRow({
       {...props}
     >
       {onSelect ? (
-        <Button variant="bare"
-          className="ui-tool-list-row-target is-interactive"
+        <Button
+          variant="bare"
+          className={cx("ui-tool-list-row-target is-interactive")}
           onClick={onSelect}
           type="button"
           {...buttonProps}
@@ -76,10 +86,10 @@ export function ToolListRow({
           {content}
         </Button>
       ) : (
-        <div className="ui-tool-list-row-target">{content}</div>
+        <div className={cx("ui-tool-list-row-target")}>{content}</div>
       )}
       {actions ? (
-        <div className="ui-tool-list-row-actions">{actions}</div>
+        <div className={cx("ui-tool-list-row-actions")}>{actions}</div>
       ) : null}
     </li>
   );

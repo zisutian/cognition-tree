@@ -5,34 +5,31 @@ import type {
   WorkbenchWorkspaceState,
   WorkspaceApplication,
 } from "../../workspace/index.ts";
-import { useNotesActivity } from "./edit/useNotesActivity.ts";
 import {
   createNotesActivitySlots,
   createNotesWorkspaceActivitySlots,
   type NotesMode,
 } from "./edit/NotesActivitySlots.tsx";
-import { useStructureOperationActivity } from "./structure/useStructureOperationActivity.ts";
-import { useStructureOperationState } from "./structure/useStructureOperationState.ts";
-import { createStructureOperationActivitySlots } from "./structure/StructureOperationActivitySlots.tsx";
-import { useVisualizationActivity } from "./graph/useVisualizationActivity.ts";
-import { useVisualizationFilter } from "./graph/useVisualizationFilter.ts";
-import { createVisualizationActivitySlots } from "./graph/VisualizationActivitySlots.tsx";
+import { useNotesActivity } from "./edit/useNotesActivity.ts";
 import {
   useReferenceGraphSession,
   type ReferenceGraphSession,
 } from "./graph/useReferenceGraphSession.ts";
+import { useVisualizationActivity } from "./graph/useVisualizationActivity.ts";
+import { useVisualizationFilter } from "./graph/useVisualizationFilter.ts";
+import { createVisualizationActivitySlots } from "./graph/VisualizationActivitySlots.tsx";
+import { createStructureOperationActivitySlots } from "./structure/StructureOperationActivitySlots.tsx";
+import { useStructureOperationActivity } from "./structure/useStructureOperationActivity.ts";
+import { useStructureOperationState } from "./structure/useStructureOperationState.ts";
 
 import type { ActivityControllerProps } from "../../ui/index.ts";
-import { renderWorkspaceUnavailableActivity } from "../unavailable/index.ts";
 import {
-  useRepositorySessionState,
   createRepositorySessionKey,
+  useRepositorySessionState,
 } from "../../ui/index.ts";
+import { renderWorkspaceUnavailableActivity } from "../unavailable/index.ts";
 
-
-const notesModeSessionKey = createRepositorySessionKey<NotesMode>(
-  "notes-mode",
-);
+const notesModeSessionKey = createRepositorySessionKey<NotesMode>("notes-mode");
 
 function ActiveNotesActivity({
   application,
@@ -76,14 +73,12 @@ function ActiveNotesActivity({
     createNotesWorkspaceActivitySlots({
       edit: createNotesActivitySlots({
         focusMode: controls.focusMode,
-        onCollapseDetail: controls.onCollapseDetail,
         onReload: application.reload,
         onToggleFocusMode: controls.onToggleFocusMode,
         repositoryName,
         view,
       }),
       graph: createVisualizationActivitySlots({
-        onCollapseDetail: controls.onCollapseDetail,
         onConfigureSyntax: controls.onConfigureSyntax,
         session: visualizationSession,
         shell: application.shell,
@@ -97,7 +92,7 @@ function ActiveNotesActivity({
         shell: application.shell,
         view: structure,
       }),
-    })
+    }),
   );
 }
 
@@ -107,8 +102,8 @@ export function NotesActivityController({
   onActiveActivityChange,
   renderActivity,
 }: NotesActivityControllerProps) {
-  const repositoryId = application.repository.activeDescriptor?.id ??
-    "workspace-unavailable";
+  const repositoryId =
+    application.repository.activeDescriptor?.id ?? "workspace-unavailable";
   const [mode, setMode] = useRepositorySessionState<NotesMode>(
     notesModeSessionKey,
     repositoryId,
@@ -133,15 +128,21 @@ export function NotesActivityController({
       mode={mode}
       onModeChange={setMode}
       repositoryId={repositoryId}
-      repositoryName={application.repository.activeDescriptor?.label ??
+      repositoryName={
+        application.repository.activeDescriptor?.label ??
         (application.repository.session.status === "absent"
           ? "笔记"
-          : application.repository.session.storageLabel)}
+          : application.repository.session.storageLabel)
+      }
       renderActivity={renderActivity}
       visualizationSession={visualizationSession}
     />
   );
 }
 
-export type NotesActivityApplication = { repository: Pick<RepositoryApplication, "activeDescriptor" | "session">; workspace: WorkbenchWorkspaceState; };
-export type NotesActivityControllerProps = ActivityControllerProps<NotesActivityApplication>;
+export type NotesActivityApplication = {
+  repository: Pick<RepositoryApplication, "activeDescriptor" | "session">;
+  workspace: WorkbenchWorkspaceState;
+};
+export type NotesActivityControllerProps =
+  ActivityControllerProps<NotesActivityApplication>;

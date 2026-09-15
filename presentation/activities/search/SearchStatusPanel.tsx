@@ -1,13 +1,11 @@
-import type {
-  SearchControllerState,
-} from "../../../application/search/index.ts";
+import type { SearchControllerState } from "../../../application/search/index.ts";
 import {
-  DetailPanel,
-  ToolPanelBody,
+  Page,
+  PageBody,
+  Section,
+  SectionStack,
   ToolPropertyList,
   ToolPropertyRow,
-  ToolSection,
-  ToolSectionStack,
 } from "../../ui/index.ts";
 import { groupSearchResults } from "./SearchPanel.tsx";
 import { searchDomainLabels } from "./searchViewTypes.ts";
@@ -19,40 +17,32 @@ function searchStatusLabel(state: SearchControllerState) {
   return "未搜索";
 }
 
-export function SearchStatusPanel({
-  onCollapseDetail,
-  state,
-}: {
-  onCollapseDetail: () => void;
-  state: SearchControllerState;
-}) {
+export function SearchStatusPanel({ state }: { state: SearchControllerState }) {
   const criteria = state.submitted ?? state.draft;
   const groups = groupSearchResults(state.results);
 
   return (
-    <DetailPanel
-      aria-label="搜索状态"
-      onCollapse={onCollapseDetail}
-      title="状态"
-    >
-      <ToolPanelBody layout="detail">
-        <ToolSectionStack>
-          <ToolSection title="搜索">
+    <Page aria-label="搜索状态">
+      <PageBody>
+        <SectionStack>
+          <Section title="搜索">
             <ToolPropertyList aria-label="搜索状态">
               <ToolPropertyRow label="状态" value={searchStatusLabel(state)} />
               <ToolPropertyRow label="搜索词" value={criteria.query || "—"} />
               <ToolPropertyRow
                 label="范围"
-                value={criteria.domains.map((domain) =>
-                  searchDomainLabels[domain]
-                ).join("、") || "—"}
+                value={
+                  criteria.domains
+                    .map((domain) => searchDomainLabels[domain])
+                    .join("、") || "—"
+                }
               />
               <ToolPropertyRow label="资源" value={groups.length} />
               <ToolPropertyRow label="命中" value={state.results.length} />
             </ToolPropertyList>
-          </ToolSection>
+          </Section>
           {state.faults.length > 0 || state.errorMessage ? (
-            <ToolSection title="故障" tone="danger">
+            <Section title="故障" tone="danger">
               <ToolPropertyList aria-label="搜索故障">
                 {state.errorMessage ? (
                   <ToolPropertyRow label="错误" value={state.errorMessage} />
@@ -65,10 +55,10 @@ export function SearchStatusPanel({
                   />
                 ))}
               </ToolPropertyList>
-            </ToolSection>
+            </Section>
           ) : null}
-        </ToolSectionStack>
-      </ToolPanelBody>
-    </DetailPanel>
+        </SectionStack>
+      </PageBody>
+    </Page>
   );
 }

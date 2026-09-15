@@ -1,6 +1,9 @@
-import { Button } from "./primitives.tsx";
 import { useRef, type KeyboardEvent } from "react";
+import { Button } from "./Button.tsx";
+import overlayStyles from "./Overlay.module.css";
 import { Overlay } from "./Overlay.tsx";
+import { createClassNames } from "./classNames.ts";
+const cx = createClassNames(overlayStyles);
 
 export type ContextMenuItem = {
   disabled?: boolean;
@@ -36,19 +39,24 @@ export function ContextMenu({
       return;
     }
 
-    const items = itemRefs.current.filter(
-      (item): item is HTMLButtonElement => Boolean(item && !item.disabled),
+    const items = itemRefs.current.filter((item): item is HTMLButtonElement =>
+      Boolean(item && !item.disabled),
     );
 
     if (items.length === 0) {
       return;
     }
 
-    const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+    const currentIndex = items.indexOf(
+      document.activeElement as HTMLButtonElement,
+    );
     const direction = event.key === "ArrowDown" ? 1 : -1;
-    const nextIndex = currentIndex < 0
-      ? direction > 0 ? 0 : items.length - 1
-      : (currentIndex + direction + items.length) % items.length;
+    const nextIndex =
+      currentIndex < 0
+        ? direction > 0
+          ? 0
+          : items.length - 1
+        : (currentIndex + direction + items.length) % items.length;
 
     event.preventDefault();
     items[nextIndex]?.focus();
@@ -56,14 +64,15 @@ export function ContextMenu({
   return (
     <Overlay
       ariaLabel={ariaLabel}
-      className="ui-context-menu"
+      className={cx("ui-context-menu")}
       role="menu"
       position={{ kind: "point", ...position }}
       onDismiss={onClose}
       onKeyDown={moveFocus}
     >
       {items.map((item, index) => (
-        <Button variant="bare"
+        <Button
+          variant="bare"
           disabled={item.disabled}
           key={item.id}
           onClick={() => {

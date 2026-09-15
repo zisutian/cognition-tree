@@ -1,6 +1,9 @@
-import type { Ref } from "react";
 import { CircleX, TriangleAlert } from "lucide-react";
-import { Button } from "../shared/primitives.tsx";
+import type { Ref } from "react";
+import { Button } from "../shared/Button.tsx";
+import { createClassNames } from "../shared/classNames.ts";
+import statusBarStyles from "./StatusBar.module.css";
+const cx = createClassNames(statusBarStyles);
 
 export function StatusBar({
   errorCount,
@@ -19,12 +22,16 @@ export function StatusBar({
 }) {
   const label = expanded ? "折叠问题面板" : "展开问题面板";
   return (
-    <footer role="contentinfo" aria-label="工作台状态" className="workbench-status-bar">
+    <footer
+      role="contentinfo"
+      aria-label="工作台状态"
+      className={cx("workbench-status-bar")}
+    >
       <Button
         aria-controls="workbench-problems"
         aria-expanded={expanded}
         aria-label={`${label}，${errorCount} 个错误，${warningCount} 个警告${statusMessage ? `，${statusMessage}` : ""}`}
-        className="workbench-status-problems"
+        className={cx("workbench-status-problems")}
         onClick={onToggleProblems}
         ref={toggleButtonRef}
         title={label}
@@ -36,7 +43,11 @@ export function StatusBar({
         <TriangleAlert aria-hidden="true" size={14} />
         <span>{warningCount}</span>
       </Button>
-      <span role="status" className="workbench-status-message" title={statusMessage}>
+      <span
+        role="status"
+        className={cx("workbench-status-message")}
+        title={statusMessage}
+      >
         {statusMessage}
       </span>
     </footer>

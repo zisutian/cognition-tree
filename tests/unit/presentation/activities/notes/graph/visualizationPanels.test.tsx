@@ -1,15 +1,15 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { ReferenceGraphCanvas } from "../../../../../../presentation/activities/notes/graph/ReferenceGraphCanvas";
+import { ReferenceGraphController } from "../../../../../../presentation/activities/notes/graph/referenceGraphController";
+import { defaultReferenceGraphSettings } from "../../../../../../presentation/activities/notes/graph/referenceGraphSettings";
 import { VisualizationContext } from "../../../../../../presentation/activities/notes/graph/VisualizationContext";
 import { VisualizationDetailPanel } from "../../../../../../presentation/activities/notes/graph/VisualizationDetailPanel";
 import { VisualizationPanel } from "../../../../../../presentation/activities/notes/graph/VisualizationPanel";
-import { ReferenceGraphCanvas } from "../../../../../../presentation/activities/notes/graph/ReferenceGraphCanvas";
 import {
   createReferenceGraphSession,
   createVisualizationView,
 } from "../../../../../support/presentation/fixtures/visualizationViewFixture";
-import { defaultReferenceGraphSettings } from "../../../../../../presentation/activities/notes/graph/referenceGraphSettings";
-import { ReferenceGraphController } from "../../../../../../presentation/activities/notes/graph/referenceGraphController";
 
 describe("visualization panels", () => {
   it("exposes keyboard graph navigation and live selection status", () => {
@@ -38,7 +38,9 @@ describe("visualization panels", () => {
     );
 
     expect(markup).toContain('role="application"');
-    expect(markup).toContain('aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Enter"');
+    expect(markup).toContain(
+      'aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Enter"',
+    );
     expect(markup).toContain('aria-live="polite"');
   });
 
@@ -52,16 +54,16 @@ describe("visualization panels", () => {
       <VisualizationPanel session={session} view={view} />,
     );
 
-    expect(contextMarkup).toContain("aria-label=\"图谱控制\"");
-    expect(contextMarkup).toContain("aria-label=\"搜索笔记标题\"");
-    expect(contextMarkup).toContain("placeholder=\"笔记标题\"");
-    expect(contextMarkup).toContain("aria-pressed=\"false\"");
+    expect(contextMarkup).toContain('aria-label="图谱控制"');
+    expect(contextMarkup).toContain('aria-label="搜索笔记标题"');
+    expect(contextMarkup).toContain('placeholder="笔记标题"');
+    expect(contextMarkup).toContain('aria-pressed="false"');
     expect(contextMarkup).toContain("隐藏孤立点");
-    expect(contextMarkup).toContain("aria-label=\"重置图谱视图\"");
-    expect(contextMarkup).toContain("aria-label=\"图谱设置\"");
-    expect(panelMarkup).toContain("aria-label=\"引用图谱\"");
-    expect(panelMarkup).not.toContain("aria-label=\"图谱控制\"");
-    expect(panelMarkup).not.toContain("aria-label=\"搜索笔记标题\"");
+    expect(contextMarkup).toContain('aria-label="重置图谱视图"');
+    expect(contextMarkup).toContain('aria-label="图谱设置"');
+    expect(panelMarkup).toContain('aria-label="引用图谱"');
+    expect(panelMarkup).not.toContain('aria-label="图谱控制"');
+    expect(panelMarkup).not.toContain('aria-label="搜索笔记标题"');
   });
 
   it("renders graph statistics and reference groups", () => {
@@ -167,10 +169,7 @@ describe("visualization panels", () => {
       setQuery: () => undefined,
     });
     const markup = renderToStaticMarkup(
-      <VisualizationDetailPanel
-        onCollapseDetail={() => undefined}
-        view={view}
-      />,
+      <VisualizationDetailPanel view={view} />,
     );
 
     expect(markup).toContain("<dd>3</dd><dt>点</dt>");

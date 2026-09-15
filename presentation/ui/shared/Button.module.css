@@ -1,0 +1,139 @@
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+  min-height: var(--ui-control-height);
+  max-width: 100%;
+  width: fit-content;
+  padding: 0 var(--ui-gap);
+  border: var(--ui-border-width) solid var(--color-border-strong);
+  border-radius: var(--ui-radius);
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  line-height: var(--ui-line-height);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ui-button > svg {
+  flex: none;
+  width: var(--ui-action-icon-size);
+  height: var(--ui-action-icon-size);
+}
+.ui-button:hover:not(:disabled) {
+  background: var(--color-hover);
+}
+.ui-button:focus-visible {
+  outline: var(--ui-focus-outline);
+  outline-offset: var(--ui-border-width);
+}
+.ui-button:disabled {
+  color: var(--color-fg-disabled);
+  cursor: not-allowed;
+}
+.ui-button-container {
+  width: 100%;
+}
+.ui-button-primary {
+  border-color: transparent;
+  color: var(--color-fg-strong);
+  background: var(--color-button);
+}
+.ui-button-primary:hover:not(:disabled) {
+  background: var(--color-button-hover);
+}
+.ui-button-primary:disabled {
+  background: var(--color-panel-strong);
+}
+.ui-button-danger {
+  color: var(--color-error);
+}
+.ui-button-ghost,
+.ui-button-icon {
+  border-color: transparent;
+}
+.ui-button-icon {
+  width: var(--ui-control-height);
+  height: var(--ui-control-height);
+  padding: 0;
+}
+.ui-button-selection {
+  padding: var(--ui-gap-tight) var(--ui-gap);
+  border-width: 0;
+  color: var(--color-fg-muted);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ui-button-selection:hover:not(:disabled) {
+  color: var(--color-fg);
+  background: var(--color-selection-hover);
+}
+.ui-button[aria-pressed="true"],
+.ui-button[aria-checked="true"] {
+  border-color: transparent;
+  color: var(--color-fg-strong);
+  background: var(--color-selection-active);
+}
+.ui-button[aria-pressed="true"]:hover:not(:disabled),
+.ui-button[aria-checked="true"]:hover:not(:disabled) {
+  background: var(--color-selection-active-hover);
+}
+.ui-button-activity {
+  position: relative;
+  width: 100%;
+  height: var(--app-activity-width);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--color-fg-muted);
+}
+.ui-button-activity > svg {
+  z-index: 1;
+  width: var(--ui-activity-icon-size);
+  height: var(--ui-activity-icon-size);
+}
+.ui-button-activity::before {
+  position: absolute;
+  inset: var(--ui-gap);
+  border-radius: var(--ui-radius);
+  content: "";
+}
+.ui-button-activity:hover:not(:disabled) {
+  background: transparent;
+  color: var(--color-fg-strong);
+}
+.ui-button-activity:hover::before {
+  background: var(--color-selection-hover);
+}
+.ui-button-activity[aria-current="page"] {
+  color: var(--color-fg-strong);
+}
+.ui-button-activity[aria-current="page"]::before {
+  background: var(--color-selection-active);
+}
+/* Only shared list components can select the compact interaction surface. */
+:where(.ui-button-bare) {
+  cursor: pointer;
+  min-height: var(--ui-row-height);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: inherit;
+}
+.ui-button[data-density="list"] {
+  width: var(--ui-row-height);
+  min-height: var(--ui-row-height);
+  height: var(--ui-row-height);
+  padding: 0;
+}
+
+.ui-button-bare:focus-visible {
+  outline: var(--ui-focus-outline);
+  outline-offset: calc(-1 * var(--ui-border-width));
+}

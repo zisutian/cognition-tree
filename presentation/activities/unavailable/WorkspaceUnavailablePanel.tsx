@@ -1,13 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { Button, EmptyState, Page, useFeedback } from "../../ui/index.ts";
 import type { WorkbenchWorkspaceState } from "../../workspace/index.ts";
-import {
-  useFeedback,
-  Button,
-  EmptyState,
-  Panel,
-} from "../../ui/index.ts";
-
 
 export function WorkspaceUnavailablePanel({
   onOpenRepository,
@@ -17,15 +11,17 @@ export function WorkspaceUnavailablePanel({
   workspace: Exclude<WorkbenchWorkspaceState, { status: "ready" }>;
 }) {
   const feedback = useFeedback();
-  const title = workspace.status === "loading"
-    ? "正在载入笔记仓库"
-    : workspace.status === "failed"
-      ? "笔记仓库无法挂载"
-      : "尚未创建笔记仓库";
-  const description = workspace.status === "failed" ? workspace.errorMessage : undefined;
+  const title =
+    workspace.status === "loading"
+      ? "正在载入笔记仓库"
+      : workspace.status === "failed"
+        ? "笔记仓库无法挂载"
+        : "尚未创建笔记仓库";
+  const description =
+    workspace.status === "failed" ? workspace.errorMessage : undefined;
 
   return (
-    <Panel aria-label={title} className="placeholder-panel">
+    <Page aria-label={title} kind="empty">
       <EmptyState
         action={
           <>
@@ -46,6 +42,6 @@ export function WorkspaceUnavailablePanel({
         description={description}
         title={title}
       />
-    </Panel>
+    </Page>
   );
 }

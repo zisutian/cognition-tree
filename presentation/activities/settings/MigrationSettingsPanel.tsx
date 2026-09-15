@@ -1,3 +1,5 @@
+import { createClassNames } from "../../ui/index.ts";
+const cx = createClassNames();
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
@@ -12,9 +14,9 @@ import {
   FieldRow,
   FormLayout,
   InputControl,
+  Section,
   ToolPropertyList,
   ToolPropertyRow,
-  ToolSection,
   useFeedback,
 } from "../../ui/index.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
@@ -75,11 +77,7 @@ export function MigrationSettingsPanel({
       reconnect(null);
   };
   return (
-    <SettingsPage
-      title="数据迁移"
-      label="数据迁移设置"
-      errorMessage={state.errorMessage}
-    >
+    <SettingsPage label="数据迁移设置" errorMessage={state.errorMessage}>
       <ToolPropertyList aria-label="数据位置">
         <ToolPropertyRow
           label="本次服务位置"
@@ -92,7 +90,7 @@ export function MigrationSettingsPanel({
         />
       </ToolPropertyList>
       {migration ? (
-        <ToolSection title="当前迁移">
+        <Section title="当前迁移">
           <ToolPropertyList aria-label="数据根迁移状态">
             <ToolPropertyRow
               label="阶段"
@@ -126,10 +124,10 @@ export function MigrationSettingsPanel({
               重新对账
             </Button>
           ) : null}
-        </ToolSection>
+        </Section>
       ) : null}
       {!recovering ? (
-        <ToolSection title="迁移到新位置">
+        <Section title="迁移到新位置">
           <FormLayout layout="stacked">
             <FieldRow fieldId="settings-migration-destination" label="新数据根">
               {(accessibility) => (
@@ -147,10 +145,8 @@ export function MigrationSettingsPanel({
               )}
             </FieldRow>
           </FormLayout>
-          {confirming ? (
-            <p>迁移期间暂停写入，源目录保留。</p>
-          ) : null}
-          <div className="ui-actions">
+          {confirming ? <p>迁移期间暂停写入，源目录保留。</p> : null}
+          <div className={cx("ui-actions")}>
             <ConfirmAction
               confirming={confirming}
               disabled={busy || !destination.trim()}
@@ -181,7 +177,7 @@ export function MigrationSettingsPanel({
               放弃修改
             </Button>
           </div>
-        </ToolSection>
+        </Section>
       ) : destination ? (
         <Button
           disabled={busy}

@@ -7,30 +7,34 @@ import { Button } from "../../ui/index.ts";
 import { AgentSettingsStatus } from "./AgentSettingsStatus.tsx";
 import { OperationsSettingsStatus } from "./OperationsSettingsStatus.tsx";
 import { SettingsContext } from "./SettingsContext.tsx";
-import { SettingsPanel,type SettingsPanelProps } from "./SettingsPanel.tsx";
+import { SettingsPanel, type SettingsPanelProps } from "./SettingsPanel.tsx";
 import { SettingsStatusPanel } from "./SettingsStatusPanel.tsx";
 import { SystemSettingsStatus } from "./SystemSettingsStatus.tsx";
-import "./settings.css";
-import { settingsTargetKey,type SettingsTarget } from "./settingsTypes.ts";
+import {
+  settingsPageLabels,
+  settingsTargetKey,
+  type SettingsTarget,
+} from "./settingsTypes.ts";
 
 export function createSettingsActivitySlots(
   props: SettingsPanelProps & {
     blocked: boolean;
-    onCollapseDetail(): void;
     onRefresh(): void;
     onSelect(target: SettingsTarget): void;
   },
 ): ActivitySlots {
-  const {
-    agent,
-    blocked,
-    onCollapseDetail,
-    onRefresh,
-    onSelect,
-    operations,
-    system,
-    target,
-  } = props;
+  const { agent, blocked, onRefresh, onSelect, operations, system, target } =
+    props;
+  const title =
+    target.kind === "provider" || target.kind === "profile"
+      ? ((target.kind === "provider"
+          ? agent.configurationState.configuration?.providers
+          : agent.configurationState.configuration?.profiles
+        )?.find((item) => item.id === target.id)?.label ??
+        (target.id
+          ? `${settingsPageLabels[target.kind]} 已移除`
+          : `新建 ${settingsPageLabels[target.kind]}`))
+      : settingsPageLabels[target.kind];
   let detail: ReactNode = null;
   switch (target.kind) {
     case "network":
@@ -68,7 +72,17 @@ export function createSettingsActivitySlots(
   }
   return {
     context: {
-      actions: <Button aria-label="刷新设置状态" onClick={onRefresh} title="刷新设置状态" type="button" variant="icon"><RefreshCw aria-hidden="true" size={16} /></Button>,
+      actions: (
+        <Button
+          aria-label="刷新设置状态"
+          onClick={onRefresh}
+          title="刷新设置状态"
+          type="button"
+          variant="icon"
+        >
+          <RefreshCw aria-hidden="true" size={16} />
+        </Button>
+      ),
       content: (
         <SettingsContext
           agent={agent.configurationState}
@@ -79,11 +93,17 @@ export function createSettingsActivitySlots(
       ),
       title: "设置",
     },
-    main: <SettingsPanel {...props} key={settingsTargetKey(target)} />,
-    detail: detail ? (
-      <SettingsStatusPanel onCollapseDetail={onCollapseDetail}>
-        {detail}
-      </SettingsStatusPanel>
-    ) : null,
+    main: {
+      title,
+      layout: "form",
+      content: <SettingsPanel {...props} key={settingsTargetKey(target)} />,
+    },
+    detail: detail
+      ? {
+          title: "状态",
+          layout: "detail",
+          content: <SettingsStatusPanel>{detail}</SettingsStatusPanel>,
+        }
+      : null,
   };
 }

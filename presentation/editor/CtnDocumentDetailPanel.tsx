@@ -1,13 +1,14 @@
 import { CalendarPlus, Clock3 } from "lucide-react";
 import type { ReactNode } from "react";
 import {
-  DetailPanel,
-  PanelBody,
+  createClassNames,
+  Page,
+  PageBody,
   StructureTree,
   type StructureTreeProps,
 } from "../ui/index.ts";
-
-import "./CtnDocumentDetailPanel.css";
+import ctnDocumentDetailPanelStyles from "./CtnDocumentDetailPanel.module.css";
+const cx = createClassNames(ctnDocumentDetailPanelStyles);
 
 type CtnTimestampMetadata = {
   createdAt: string;
@@ -16,10 +17,7 @@ type CtnTimestampMetadata = {
 
 type CtnDocumentStructure = Pick<
   StructureTreeProps,
-  | "indentUnitCount"
-  | "nodes"
-  | "onSelectLine"
-  | "selectedLineNumbers"
+  "indentUnitCount" | "nodes" | "onSelectLine" | "selectedLineNumbers"
 >;
 
 const timestampFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -53,7 +51,7 @@ function TimestampValue({
   return (
     <time
       aria-label={label}
-      className="ctn-document-time-value"
+      className={cx("ctn-document-time-value")}
       dateTime={timestamp}
       title={`${label}：${timestamp}`}
     >
@@ -75,8 +73,8 @@ function TimestampRow({
   updatedLabel: string;
 }) {
   return (
-    <div aria-label={ariaLabel} className="ctn-document-time-row">
-      <span className="ctn-document-time-kind">{label}</span>
+    <div aria-label={ariaLabel} className={cx("ctn-document-time-row")}>
+      <span className={cx("ctn-document-time-kind")}>{label}</span>
       <TimestampValue
         label={`${label}创建时间`}
         timestamp={metadata.createdAt}
@@ -101,7 +99,7 @@ function CtnTimeDetails({
   documentMetadata: CtnTimestampMetadata;
 }) {
   return (
-    <div aria-label="时间信息" className="ctn-document-time-details">
+    <div aria-label="时间信息" className={cx("ctn-document-time-details")}>
       <TimestampRow
         ariaLabel={`${documentLabel}时间`}
         label={documentLabel}
@@ -124,14 +122,12 @@ export function CtnDocumentDetailPanel({
   blockMetadata,
   documentLabel,
   documentMetadata,
-  onCollapseDetail,
   stats,
   structure,
 }: {
   blockMetadata: CtnTimestampMetadata | null;
   documentLabel: string;
   documentMetadata: CtnTimestampMetadata;
-  onCollapseDetail: () => void;
   stats: {
     lineCount: ReactNode;
     rootCount: ReactNode;
@@ -140,16 +136,24 @@ export function CtnDocumentDetailPanel({
   structure: CtnDocumentStructure | null;
 }) {
   return (
-    <DetailPanel
-      aria-label={`${documentLabel}详情`}
-      onCollapse={onCollapseDetail}
-      title="结构"
-    >
-      <PanelBody className="detail-panel-stack" scroll>
-        <dl aria-label={`${documentLabel}统计`} className="detail-summary-strip">
-          <div><dd>{stats.lineCount}</dd><dt>行</dt></div>
-          <div><dd>{stats.totalBlocks}</dd><dt>块</dt></div>
-          <div><dd>{stats.rootCount}</dd><dt>根</dt></div>
+    <Page aria-label={`${documentLabel}详情`}>
+      <PageBody scroll>
+        <dl
+          aria-label={`${documentLabel}统计`}
+          className={cx("detail-summary-strip")}
+        >
+          <div>
+            <dd>{stats.lineCount}</dd>
+            <dt>行</dt>
+          </div>
+          <div>
+            <dd>{stats.totalBlocks}</dd>
+            <dt>块</dt>
+          </div>
+          <div>
+            <dd>{stats.rootCount}</dd>
+            <dt>根</dt>
+          </div>
         </dl>
         <CtnTimeDetails
           blockMetadata={blockMetadata}
@@ -159,9 +163,9 @@ export function CtnDocumentDetailPanel({
         {structure && structure.nodes.length > 0 ? (
           <StructureTree {...structure} />
         ) : (
-          <p className="ui-muted">没有可解析结构。</p>
+          <p className={cx("ui-muted")}>没有可解析结构。</p>
         )}
-      </PanelBody>
-    </DetailPanel>
+      </PageBody>
+    </Page>
   );
 }

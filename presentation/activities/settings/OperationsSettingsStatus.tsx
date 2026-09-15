@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
+  Section,
+  SectionStack,
   ToolPropertyList,
   ToolPropertyRow,
-  ToolSection,
-  ToolSectionStack,
 } from "../../ui/index.ts";
-import type { OperationsSettingsStatusView } from "./useOperationsSettingsSession.ts";
 import {
   operationResultLabel,
   operationSourceLabel,
 } from "./operationAuditPresentation.ts";
+import type { OperationsSettingsStatusView } from "./useOperationsSettingsSession.ts";
 
 export function OperationsSettingsStatus({
   session,
@@ -23,7 +23,7 @@ export function OperationsSettingsStatus({
 
   if (!entry) {
     return (
-      <ToolSection title="审计">
+      <Section title="审计">
         <ToolPropertyList aria-label="审计状态">
           <ToolPropertyRow
             label="状态"
@@ -43,12 +43,12 @@ export function OperationsSettingsStatus({
             <ToolPropertyRow label="错误" value={snapshot.errorMessage} />
           ) : null}
         </ToolPropertyList>
-      </ToolSection>
+      </Section>
     );
   }
   return (
-    <ToolSectionStack>
-      <ToolSection title={new Date(entry.updatedAt).toLocaleString()}>
+    <SectionStack>
+      <Section title={new Date(entry.updatedAt).toLocaleString()}>
         <ToolPropertyList aria-label="审计记录状态">
           <ToolPropertyRow
             label="来源"
@@ -61,7 +61,7 @@ export function OperationsSettingsStatus({
           <ToolPropertyRow label="资源" value={entry.resourceIds.length} />
           <ToolPropertyRow label="块" value={entry.blockIds.length} />
         </ToolPropertyList>
-      </ToolSection>
+      </Section>
       <details key={entry.id}>
         <summary>技术详情</summary>
         <ToolPropertyList aria-label="操作技术详情">
@@ -107,6 +107,6 @@ export function OperationsSettingsStatus({
           )}
         </ToolPropertyList>
       </details>
-    </ToolSectionStack>
+    </SectionStack>
   );
 }

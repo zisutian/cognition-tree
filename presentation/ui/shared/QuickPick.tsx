@@ -6,9 +6,12 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { Button } from "./Button.tsx";
+import overlayStyles from "./Overlay.module.css";
 import { Overlay } from "./Overlay.tsx";
-import { Button, cx } from "./primitives.tsx";
+import { createClassNames } from "./classNames.ts";
 import { InputControl } from "./controls.tsx";
+const cx = createClassNames(overlayStyles);
 
 export type QuickPickOption = {
   description?: string;
@@ -65,7 +68,8 @@ export function QuickPick({
   }
 
   const selectActiveOption = () => {
-    const option = activeIndex === null ? undefined : visibleOptions[activeIndex];
+    const option =
+      activeIndex === null ? undefined : visibleOptions[activeIndex];
 
     if (option && !option.disabled) {
       onSelect(option);
@@ -95,16 +99,21 @@ export function QuickPick({
       }
 
       const direction = event.key === "ArrowDown" ? 1 : -1;
-      let next = current === null
-        ? direction > 0 ? 0 : visibleOptions.length - 1
-        : (current + direction + visibleOptions.length) % visibleOptions.length;
+      let next =
+        current === null
+          ? direction > 0
+            ? 0
+            : visibleOptions.length - 1
+          : (current + direction + visibleOptions.length) %
+            visibleOptions.length;
 
       for (let visited = 0; visited < visibleOptions.length; visited += 1) {
         if (!visibleOptions[next]?.disabled) {
           return next;
         }
 
-        next = (next + direction + visibleOptions.length) % visibleOptions.length;
+        next =
+          (next + direction + visibleOptions.length) % visibleOptions.length;
       }
 
       return null;
@@ -112,15 +121,16 @@ export function QuickPick({
   };
   const activeOption =
     activeIndex === null ? undefined : visibleOptions[activeIndex];
-  const activeDescendant = activeOption && activeIndex !== null
-    ? `${listboxId}-option-${activeIndex}`
-    : undefined;
+  const activeDescendant =
+    activeOption && activeIndex !== null
+      ? `${listboxId}-option-${activeIndex}`
+      : undefined;
 
   return (
     <Overlay
       ariaLabel={ariaLabel}
       backdropClassName="ui-overlay-backdrop ui-quick-pick-backdrop"
-      className="ui-quick-pick"
+      className={cx("ui-quick-pick")}
       initialFocusRef={inputRef}
       modal
       role="dialog"
@@ -144,32 +154,36 @@ export function QuickPick({
           setQuery(event.target.value);
         }}
       />
-      <div className="ui-quick-pick-options" id={listboxId} role="listbox">
-          {visibleOptions.length > 0 ? (
-            visibleOptions.map((option, index) => (
-              <Button
-        variant="bare"
-                aria-selected={index === activeIndex}
-                className={cx(
-                  "ui-quick-pick-option",
-                  index === activeIndex && "is-active",
-                )}
-                disabled={option.disabled}
-                id={`${listboxId}-option-${index}`}
-                key={option.id}
-                onClick={() => onSelect(option)}
-                onPointerMove={() => setActiveIndex(index)}
-                role="option"
-                tabIndex={-1}
-                type="button"
-              >
-                <span>{option.label}</span>
-                {option.description ? <small>{option.description}</small> : null}
-              </Button>
-            ))
-          ) : (
-            <p className="ui-quick-pick-empty">{emptyMessage}</p>
-          )}
+      <div
+        className={cx("ui-quick-pick-options")}
+        id={listboxId}
+        role="listbox"
+      >
+        {visibleOptions.length > 0 ? (
+          visibleOptions.map((option, index) => (
+            <Button
+              variant="bare"
+              aria-selected={index === activeIndex}
+              className={cx(
+                "ui-quick-pick-option",
+                index === activeIndex && "is-active",
+              )}
+              disabled={option.disabled}
+              id={`${listboxId}-option-${index}`}
+              key={option.id}
+              onClick={() => onSelect(option)}
+              onPointerMove={() => setActiveIndex(index)}
+              role="option"
+              tabIndex={-1}
+              type="button"
+            >
+              <span>{option.label}</span>
+              {option.description ? <small>{option.description}</small> : null}
+            </Button>
+          ))
+        ) : (
+          <p className={cx("ui-quick-pick-empty")}>{emptyMessage}</p>
+        )}
       </div>
     </Overlay>
   );

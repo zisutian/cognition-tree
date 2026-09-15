@@ -1,0 +1,98 @@
+.ui-status-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: var(--ui-row-height);
+  padding: 0 var(--ui-gap-tight);
+  border-radius: var(--ui-radius);
+  color: var(--color-fg-muted);
+  background: var(--color-hover);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  white-space: nowrap;
+}
+
+.ui-status-badge-success {
+  color: var(--color-success);
+}
+
+.ui-status-badge-warning {
+  color: var(--color-warning);
+}
+
+.ui-status-badge-danger {
+  color: var(--color-error);
+}
+
+.ui-management-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-management-row {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+  min-height: var(--ui-row-height);
+  padding: var(--ui-gap-tight) var(--ui-gap-tight);
+}
+
+.ui-management-row.is-selected {
+  background: var(--color-selected);
+}
+
+.ui-management-row-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ui-gap);
+  min-width: 0;
+}
+
+.ui-management-row-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ui-gap);
+  min-width: 0;
+}
+
+.ui-management-row-title-text {
+  overflow: hidden;
+  color: var(--color-fg);
+  font-size: var(--ui-font-size);
+  font-weight: var(--ui-emphasis-weight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-management-row-title.is-interactive {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ui-management-row-title.is-interactive:focus-visible {
+  outline: var(--ui-border-width) solid var(--color-accent);
+  outline-offset: var(--ui-border-width);
+}
+
+.ui-management-row-details {
+  min-width: 0;
+  color: var(--color-fg-muted);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+  overflow-wrap: anywhere;
+}
+
+.ui-management-row-details {
+  display: grid;
+  gap: var(--ui-gap-tight);
+}

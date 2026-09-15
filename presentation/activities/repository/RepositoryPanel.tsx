@@ -1,22 +1,25 @@
-import { RepositoryCreateForm } from "./RepositoryCreateForm.tsx";
 import { useEffect, useState } from "react";
-import {
-  createDefaultRepositorySelection,
-  type RepositorySelection,
-} from "../../../application/repository/index.ts";
 import type {
   RepositoryOption,
   RepositoryViewModel,
 } from "../../../application/repository/index.ts";
+import {
+  createDefaultRepositorySelection,
+  type RepositorySelection,
+} from "../../../application/repository/index.ts";
+import { createClassNames } from "../../ui/index.ts";
+import repositoryStyles from "./repository.module.css";
+import { RepositoryCreateForm } from "./RepositoryCreateForm.tsx";
+const cx = createClassNames(repositoryStyles);
 
 import {
-  useFeedback,
   Button,
   EmptyState,
-  ToolPanel,
-  ToolPanelBody,
-  ToolSection,
-  ToolSectionStack,
+  Page,
+  PageBody,
+  Section,
+  SectionStack,
+  useFeedback,
 } from "../../ui/index.ts";
 
 import { BuiltInRepositoryDetail } from "./BuiltInRepositoryDetail.tsx";
@@ -25,10 +28,7 @@ import {
   RepositoryIssueDetail,
   type PendingRepositoryIssueAction,
 } from "./RepositoryIssueDetail.tsx";
-import {
-  builtInLabel,
-  selectedRepositoryTarget,
-} from "./repositoryViewHelpers.ts";
+import { selectedRepositoryTarget } from "./repositoryViewHelpers.ts";
 
 export function RepositoryPanel({
   onOpen,
@@ -67,14 +67,6 @@ export function RepositoryPanel({
     }
   }, [currentSelection, deleteRepository, pendingIssueAction]);
 
-  const title =
-    target.kind === "create"
-      ? "新建仓库"
-      : target.kind === "ordinary-repository"
-        ? (target.repository?.label ?? "普通仓库")
-        : target.kind === "ordinary-issue"
-          ? (target.issue?.id ?? "仓库问题")
-          : builtInLabel(target.id);
   const confirmIssueAction = async () => {
     const pending = pendingIssueAction;
 
@@ -93,12 +85,12 @@ export function RepositoryPanel({
   };
 
   return (
-    <ToolPanel aria-label="仓库" className="repository-panel" title={title}>
-      <ToolPanelBody layout="form">
-        <ToolSectionStack>
+    <Page aria-label="仓库">
+      <PageBody>
+        <SectionStack>
           {view.catalogErrorMessage ? (
-            <div className="repository-catalog-error">
-              <p className="repository-warning" role="alert">
+            <div className={cx("repository-catalog-error")}>
+              <p className={cx("repository-warning")} role="alert">
                 {view.catalogErrorMessage}
               </p>
               <Button
@@ -114,18 +106,14 @@ export function RepositoryPanel({
             </div>
           ) : null}
           {target.kind === "create" ? (
-            <ToolSection
-              className="repository-create-region"
-              id="repository-create-region"
-              title="新建普通仓库"
-            >
+            <Section id="repository-create-region" title="新建普通仓库">
               <RepositoryCreateForm
-                className="repository-create"
+                className={cx("repository-create")}
                 disabled={busy}
                 onCreate={view.createRepository}
                 onError={feedback.notifyError}
               />
-            </ToolSection>
+            </Section>
           ) : null}
 
           {ordinaryRepository ? (
@@ -148,9 +136,7 @@ export function RepositoryPanel({
           ) : null}
 
           {target.kind === "ordinary-repository" && !ordinaryRepository ? (
-            <EmptyState
-              title="仓库不可用"
-            />
+            <EmptyState title="仓库不可用" />
           ) : null}
 
           {target.kind === "ordinary-issue" && target.issue ? (
@@ -167,9 +153,7 @@ export function RepositoryPanel({
           ) : null}
 
           {target.kind === "ordinary-issue" && !target.issue ? (
-            <EmptyState
-              title="仓库问题已解决"
-            />
+            <EmptyState title="仓库问题已解决" />
           ) : null}
 
           {target.kind === "built-in" ? (
@@ -182,8 +166,8 @@ export function RepositoryPanel({
               onRunAction={runAction}
             />
           ) : null}
-        </ToolSectionStack>
-      </ToolPanelBody>
-    </ToolPanel>
+        </SectionStack>
+      </PageBody>
+    </Page>
   );
 }

@@ -1,6 +1,9 @@
+import contentStyles from "./Content.module.css";
+import { createClassNames } from "./classNames.ts";
+const cx = createClassNames(contentStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Button } from "./primitives.tsx";
+import { Button } from "./Button.tsx";
 
 /** The caller owns the confirmation target and the actual operation. */
 export function ConfirmAction({
@@ -19,7 +22,7 @@ export function ConfirmAction({
   onRequest(): void;
 }) {
   return confirming ? (
-    <span className="ui-actions" role="group" aria-label={`确认${label}`}>
+    <span className={cx("ui-actions")} role="group" aria-label={`确认${label}`}>
       <Button
         disabled={disabled}
         onClick={onConfirm}

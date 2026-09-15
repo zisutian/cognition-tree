@@ -1,13 +1,13 @@
 import { useState } from "react";
-import type { RepositoryOption } from
-  "../../../application/repository/index.ts";
+import type { RepositoryOption } from "../../../application/repository/index.ts";
 import {
   Button,
+  createClassNames,
   InputControl,
   useExclusiveAsyncAction,
 } from "../../ui/index.ts";
-
-
+import repositoryStyles from "./repository.module.css";
+const cx = createClassNames(repositoryStyles);
 
 export function canDeleteManagedRepositoryData(
   repository: RepositoryOption,
@@ -31,7 +31,7 @@ export function RepositoryDeleteConfirmation({
   const runDeletion = async () => {
     const pending = deletion.run(onDelete);
 
-    if (pending && await pending) {
+    if (pending && (await pending)) {
       onCancel();
     }
   };
@@ -39,11 +39,13 @@ export function RepositoryDeleteConfirmation({
   return (
     <div
       aria-label={`确认删除仓库 ${repository.label}`}
-      className="repository-inline-confirmation repository-delete-confirmation"
+      className={cx(
+        "repository-inline-confirmation repository-delete-confirmation",
+      )}
       role="group"
     >
-      <div className="repository-delete-choice">
-        <label className="repository-delete-confirmation-field">
+      <div className={cx("repository-delete-choice")}>
+        <label className={cx("repository-delete-confirmation-field")}>
           <span>仓库名称</span>
           <InputControl
             autoComplete="off"
@@ -52,12 +54,11 @@ export function RepositoryDeleteConfirmation({
             value={confirmation}
           />
         </label>
-        <div className="repository-inline-confirmation-actions">
+        <div className={cx("repository-inline-confirmation-actions")}>
           <Button
-            disabled={busy || !canDeleteManagedRepositoryData(
-              repository,
-              confirmation,
-            )}
+            disabled={
+              busy || !canDeleteManagedRepositoryData(repository, confirmation)
+            }
             onClick={() => void runDeletion()}
             type="button"
             variant="danger"

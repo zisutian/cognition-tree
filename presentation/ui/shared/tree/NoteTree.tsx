@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import {
-  ContextMenu,
-  type ContextMenuPosition,
-} from "../ContextMenu.tsx";
+import { createClassNames } from "../classNames.ts";
+import { ContextMenu, type ContextMenuPosition } from "../ContextMenu.tsx";
 import { useFeedback } from "../FeedbackProvider.tsx";
-import { cx } from "../primitives.tsx";
+import treeStyles from "./Tree.module.css";
+const cx = createClassNames(treeStyles);
+
 import { shouldVirtualizeUiRows } from "../virtualListMetrics.ts";
+import { flattenVisibleDirectoryTreeRows } from "./directoryRows.ts";
 import {
   DirectoryTreeContent,
   VirtualDirectoryTreeContent,
@@ -20,18 +21,15 @@ import {
   readTreeNodeDragPayload,
   treeNodeDragDataType,
 } from "./drag.ts";
-import { flattenVisibleDirectoryTreeRows } from "./directoryRows.ts";
-import type {
-  NoteTreeProps,
-  TreeDragState,
-  TreeNode,
-} from "./types.ts";
+import type { NoteTreeProps, TreeDragState, TreeNode } from "./types.ts";
 
 const rootDestination = { kind: "root" } as const;
 
 function isEventOverTreeRow(eventTarget: EventTarget | null) {
-  return eventTarget instanceof Element &&
-    eventTarget.closest(".ui-tree-row-frame") !== null;
+  return (
+    eventTarget instanceof Element &&
+    eventTarget.closest(".ui-tree-row-frame") !== null
+  );
 }
 
 export function NoteTree(props: NoteTreeProps) {
@@ -49,10 +47,8 @@ export function NoteTree(props: NoteTreeProps) {
     dragState?.activeDestination?.kind === "root" &&
     dragState.activeTargetCanDrop;
   const rows = useMemo(
-    () => flattenVisibleDirectoryTreeRows(
-      props.nodes,
-      props.collapsedFolderIds,
-    ),
+    () =>
+      flattenVisibleDirectoryTreeRows(props.nodes, props.collapsedFolderIds),
     [props.collapsedFolderIds, props.nodes],
   );
   const isVirtualized = shouldVirtualizeUiRows(rows.length);
@@ -173,28 +169,30 @@ export function NoteTree(props: NoteTreeProps) {
     >
       {isVirtualized ? (
         <VirtualDirectoryTreeContent
-          className={props.className}
+          className={cx(props.className)}
           context={renderContext}
           rows={rows}
         />
       ) : (
         <DirectoryTreeContent
-          className={props.className}
+          className={cx(props.className)}
           context={renderContext}
           nodes={props.nodes}
         />
       )}
       <ContextMenu
         ariaLabel="目录操作"
-        items={contextMenuNode && props.onRequestMoveNode
-          ? [
-              {
-                id: "move-to",
-                label: "移动到…",
-                onSelect: () => props.onRequestMoveNode?.(contextMenuNode),
-              },
-            ]
-          : []}
+        items={
+          contextMenuNode && props.onRequestMoveNode
+            ? [
+                {
+                  id: "move-to",
+                  label: "移动到…",
+                  onSelect: () => props.onRequestMoveNode?.(contextMenuNode),
+                },
+              ]
+            : []
+        }
         position={contextMenuPosition}
         onClose={() => {
           setContextMenuNode(null);

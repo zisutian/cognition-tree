@@ -1,7 +1,9 @@
+import toolPropertyListStyles from "./ToolPropertyList.module.css";
+import { createClassNames } from "./classNames.ts";
+const cx = createClassNames(toolPropertyListStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { HTMLAttributes, ReactNode } from "react";
-import { cx } from "./primitives.tsx";
 
 export function ToolPropertyList({
   className,
@@ -25,9 +27,9 @@ export function ToolPropertyRow({
     <div className={cx("ui-tool-property-row", className)} {...props}>
       <dt>{label}</dt>
       <dd>
-        <div className="ui-tool-property-value">{value}</div>
+        <div className={cx("ui-tool-property-value")}>{value}</div>
         {actions ? (
-          <div className="ui-tool-property-actions">{actions}</div>
+          <div className={cx("ui-tool-property-actions")}>{actions}</div>
         ) : null}
       </dd>
     </div>

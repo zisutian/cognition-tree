@@ -1,7 +1,9 @@
+import controlStyles from "./Controls.module.css";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
   forwardRef,
+  useContext,
   useRef,
   type CSSProperties,
   type HTMLAttributes,
@@ -11,11 +13,18 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
-import { Button, cx } from "./primitives.tsx";
+import { Button } from "./Button.tsx";
+import { cx as joinClasses } from "./classNames.ts";
 
 import { checkboxControlClassName } from "./controlPresentation.ts";
+import { ControlSizingContext, type ControlSizing } from "./ControlSizing.ts";
 
-export type ControlSizing = "container" | "content";
+function cx(...names: Array<string | false | null | undefined>) {
+  const tokens = joinClasses(...names).split(/\s+/);
+  return joinClasses(...tokens, ...tokens.map((name) => controlStyles[name]));
+}
+
+export type { ControlSizing } from "./ControlSizing.ts";
 
 function sizingClass(sizing: ControlSizing) {
   return `ui-control-${sizing}`;
@@ -24,13 +33,14 @@ function sizingClass(sizing: ControlSizing) {
 export const InputControl = forwardRef<
   HTMLInputElement,
   InputHTMLAttributes<HTMLInputElement> & { sizing?: ControlSizing }
->(function InputControl({ className, sizing = "content", ...props }, ref) {
+>(function InputControl({ className, sizing, ...props }, ref) {
+  const inheritedSizing = useContext(ControlSizingContext);
   return (
     <input
       className={cx(
         "ui-control",
         "ui-input-control",
-        sizingClass(sizing),
+        sizingClass(sizing ?? inheritedSizing),
         className,
       )}
       ref={ref}
@@ -56,7 +66,7 @@ export const CheckboxControl = forwardRef<
   return label === undefined ? (
     input
   ) : (
-    <label className="ui-checkbox-option">
+    <label className={cx("ui-checkbox-option")}>
       {input}
       <span>{label}</span>
     </label>
@@ -66,13 +76,14 @@ export const CheckboxControl = forwardRef<
 export const SelectControl = forwardRef<
   HTMLSelectElement,
   SelectHTMLAttributes<HTMLSelectElement> & { sizing?: ControlSizing }
->(function SelectControl({ className, sizing = "content", ...props }, ref) {
+>(function SelectControl({ className, sizing, ...props }, ref) {
+  const inheritedSizing = useContext(ControlSizingContext);
   return (
     <select
       className={cx(
         "ui-control",
         "ui-select-control",
-        sizingClass(sizing),
+        sizingClass(sizing ?? inheritedSizing),
         className,
       )}
       ref={ref}
@@ -194,22 +205,18 @@ function nextEnabledIndex<Value extends string>(
 export function ChoiceGroup<Value extends string>(
   props: ChoiceGroupProps<Value>,
 ) {
-  const {
-    ariaLabel,
-    className,
-    id,
-    layout = "wrap",
-    mode,
-    options,
-  } = props;
+  const { ariaLabel, className, id, layout = "wrap", mode, options } = props;
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const selectedIndex =
     mode === "single"
-      ? options.findIndex(({ value, disabled }) => value === props.value && !disabled)
+      ? options.findIndex(
+          ({ value, disabled }) => value === props.value && !disabled,
+        )
       : -1;
-  const tabStopIndex = selectedIndex >= 0
-    ? selectedIndex
-    : options.findIndex(({ disabled }) => !disabled);
+  const tabStopIndex =
+    selectedIndex >= 0
+      ? selectedIndex
+      : options.findIndex(({ disabled }) => !disabled);
   const onSingleKeyDown = (
     event: KeyboardEvent<HTMLButtonElement>,
     currentIndex: number,
@@ -243,11 +250,7 @@ export function ChoiceGroup<Value extends string>(
       aria-describedby={props["aria-describedby"]}
       aria-invalid={props["aria-invalid"]}
       aria-label={ariaLabel}
-      className={cx(
-        "ui-choice-group",
-        `ui-choice-group-${layout}`,
-        className,
-      )}
+      className={cx("ui-choice-group", `ui-choice-group-${layout}`, className)}
       role={mode === "single" ? "radiogroup" : "group"}
       id={id}
     >
@@ -282,9 +285,7 @@ export function ChoiceGroup<Value extends string>(
             ref={(element) => {
               refs.current[index] = element;
             }}
-            tabIndex={
-              mode === "single" ? (index === tabStopIndex ? 0 : -1) : 0
-            }
+            tabIndex={mode === "single" ? (index === tabStopIndex ? 0 : -1) : 0}
             type="button"
           >
             {option.label}
@@ -304,13 +305,18 @@ export const RangeControl = forwardRef<
     max: number;
     min: number;
     value: number;
+    valueLabel?: string;
   }
->(function RangeControl({ className, max, min, style, value, ...props }, ref) {
+>(function RangeControl(
+  { className, max, min, style, value, valueLabel, ...props },
+  ref,
+) {
   const progress = max === min ? 0 : ((value - min) / (max - min)) * 100;
 
-  return (
+  const input = (
     <input
       className={cx("ui-range-control", className)}
+      aria-valuetext={valueLabel}
       max={max}
       min={min}
       ref={ref}
@@ -324,6 +330,20 @@ export const RangeControl = forwardRef<
       value={value}
       {...props}
     />
+  );
+  return valueLabel === undefined ? (
+    input
+  ) : (
+    <div className={cx("ui-range-field")}>
+      {input}
+      <output
+        className={cx("ui-range-value")}
+        htmlFor={props.id}
+        aria-hidden="true"
+      >
+        {valueLabel}
+      </output>
+    </div>
   );
 });
 

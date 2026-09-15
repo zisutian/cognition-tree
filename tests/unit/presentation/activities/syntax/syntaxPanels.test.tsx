@@ -1,16 +1,25 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { SyntaxContext } from "../../../../../presentation/activities/syntax/SyntaxContext";
-import { createSyntaxActivitySlots } from "../../../../../presentation/activities/syntax/SyntaxActivitySlots";
-import { SyntaxDetailPanel } from "../../../../../presentation/activities/syntax/SyntaxDetailPanel";
-import { SyntaxMainPanel } from "../../../../../presentation/activities/syntax/SyntaxMainPanel";
-import { createSyntaxView } from "../../../../support/presentation/fixtures/syntaxViewFixture";
+import { createSyntaxProjection } from "../../../../../application/syntax/syntaxProjection";
+import type { SyntaxViewModel } from "../../../../../application/syntax/syntaxViewModel";
 import { createCtnSyntaxDraft } from "../../../../../core/ctn/syntax/draft";
 import { defaultJournalSyntax } from "../../../../../core/journal/syntax/defaultJournalSyntax";
 import { defaultTodoSyntax } from "../../../../../core/todo/syntax/defaultTodoSyntax";
-import { createSyntaxProjection } from "../../../../../application/syntax/syntaxProjection";
+import { createSyntaxActivitySlots } from "../../../../../presentation/activities/syntax/SyntaxActivitySlots";
+import { SyntaxContext } from "../../../../../presentation/activities/syntax/SyntaxContext";
+import { SyntaxDetailPanel } from "../../../../../presentation/activities/syntax/SyntaxDetailPanel";
+import { RegionFrame } from "../../../../../presentation/ui/RegionFrame";
+import { createSyntaxView } from "../../../../support/presentation/fixtures/syntaxViewFixture";
 import { expectMarkupSemantics } from "../../../../support/presentation/markupSemantics";
-import type { SyntaxViewModel } from "../../../../../application/syntax/syntaxViewModel";
+
+function SyntaxMainRegion({ view }: { view: SyntaxViewModel }) {
+  return (
+    <RegionFrame
+      position="main"
+      slot={createSyntaxActivitySlots({ view }).main}
+    />
+  );
+}
 
 function occurrenceCount(source: string, value: string) {
   return source.split(value).length - 1;
@@ -69,7 +78,7 @@ describe("syntax panels", () => {
 
   it("exposes syntax fields, rule actions, and inline color semantics", () => {
     const markup = renderToStaticMarkup(
-      <SyntaxMainPanel view={createSyntaxView()} />,
+      <SyntaxMainRegion view={createSyntaxView()} />,
     );
 
     expectMarkupSemantics(markup, {
@@ -141,7 +150,7 @@ describe("syntax panels", () => {
       ({ semanticId }) => semanticId === "global-reference",
     )!.id;
     const markup = renderToStaticMarkup(
-      <SyntaxMainPanel
+      <SyntaxMainRegion
         view={{
           ...base,
           ...createSyntaxProjection({ draft, owner: "journal" }),
@@ -155,7 +164,7 @@ describe("syntax panels", () => {
     );
 
     expectMarkupSemantics(markup, {
-      has: ["顶格正文", "<h2>日记</h2>", ">[[</span>", ">]]</span>"],
+      has: ["顶格正文", ">日记</h2>", ">[[</span>", ">]]</span>"],
       lacks: ["顶格概念", "首行标题", 'aria-label="语法名称"'],
     });
     expect(occurrenceCount(markup, 'aria-label="开始"')).toBe(1);
@@ -174,7 +183,7 @@ describe("syntax panels", () => {
       ({ semanticId }) => semanticId === "global-reference",
     )!.id;
     const markup = renderToStaticMarkup(
-      <SyntaxMainPanel
+      <SyntaxMainRegion
         view={{
           ...base,
           ...createSyntaxProjection({ draft, owner: "todo" }),
@@ -191,7 +200,7 @@ describe("syntax panels", () => {
       has: [
         "代办背景色: 编辑器背景",
         "代办颜色: 青色",
-        "<h2>代办</h2>",
+        ">代办</h2>",
         ">代办</span>",
         ">[]</span>",
         ">普通块</span>",
@@ -220,7 +229,7 @@ describe("syntax panels", () => {
     const view = createSyntaxView();
     const message = "语法名称“备用语法”已存在。";
     const markup = renderToStaticMarkup(
-      <SyntaxMainPanel
+      <SyntaxMainRegion
         view={{
           ...view,
           hasDraftErrors: true,
@@ -248,9 +257,8 @@ describe("syntax panels", () => {
       })),
       workspaceAvailable: false,
     };
-    const markup = renderToStaticMarkup(<SyntaxMainPanel view={emptyView} />);
+    const markup = renderToStaticMarkup(<SyntaxMainRegion view={emptyView} />);
     const slots = createSyntaxActivitySlots({
-      onCollapseDetail: () => undefined,
       view: emptyView,
     });
 
@@ -273,11 +281,10 @@ describe("syntax panels", () => {
       selectedTarget: { kind: "journal" },
     };
     const slots = createSyntaxActivitySlots({
-      onCollapseDetail: () => undefined,
       view: unavailableView,
     });
     const markup = renderToStaticMarkup(
-      <SyntaxMainPanel view={unavailableView} />,
+      <SyntaxMainRegion view={unavailableView} />,
     );
 
     expectMarkupSemantics(markup, {
@@ -289,10 +296,7 @@ describe("syntax panels", () => {
 
   it("keeps the detail panel focused on syntax preview content", () => {
     const markup = renderToStaticMarkup(
-      <SyntaxDetailPanel
-        onCollapseDetail={() => undefined}
-        view={createSyntaxView()}
-      />,
+      <SyntaxDetailPanel view={createSyntaxView()} />,
     );
 
     expectMarkupSemantics(markup, {
@@ -321,10 +325,7 @@ describe("syntax panels", () => {
 
     for (const kind of ["journal", "todo"] as const) {
       const markup = renderToStaticMarkup(
-        <SyntaxDetailPanel
-          onCollapseDetail={() => undefined}
-          view={{ ...base, selectedTarget: { kind } }}
-        />,
+        <SyntaxDetailPanel view={{ ...base, selectedTarget: { kind } }} />,
       );
 
       expectMarkupSemantics(markup, { lacks: ["首行标题示例"] });

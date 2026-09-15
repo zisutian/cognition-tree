@@ -1,7 +1,16 @@
 import { useState, type FormEvent } from "react";
-import type { CreateRepositoryRequest } from
-  "../../../application/repository/index.ts";
-import { Button, cx, InputControl, FieldRow, FormActions, FormLayout, useExclusiveAsyncAction } from "../../ui/index.ts";
+import type { CreateRepositoryRequest } from "../../../application/repository/index.ts";
+import {
+  Button,
+  createClassNames,
+  FieldRow,
+  FormActions,
+  FormLayout,
+  InputControl,
+  useExclusiveAsyncAction,
+} from "../../ui/index.ts";
+import repositoryStyles from "./repository.module.css";
+const cx = createClassNames(repositoryStyles);
 
 export type RepositoryCreateFormDraft = { name: string };
 
@@ -34,8 +43,8 @@ export function RepositoryCreateForm({
   onCreate: (input: CreateRepositoryRequest) => Promise<void>;
   onError?: (error: unknown) => void;
 }) {
-  const [draft, setDraft] = useState<RepositoryCreateFormDraft>(
-    () => createRepositoryCreateFormDraft(initialName),
+  const [draft, setDraft] = useState<RepositoryCreateFormDraft>(() =>
+    createRepositoryCreateFormDraft(initialName),
   );
   const [errorMessage, setErrorMessage] = useState("");
   const submission = useExclusiveAsyncAction();
@@ -45,7 +54,7 @@ export function RepositoryCreateForm({
     event.preventDefault();
     if (disabled) return;
     const pending = submission.run(() =>
-      onCreate(createRepositoryRequest(draft))
+      onCreate(createRepositoryRequest(draft)),
     );
 
     if (!pending) return;
@@ -82,7 +91,7 @@ export function RepositoryCreateForm({
           )}
         </FieldRow>
         {errorMessage ? (
-          <p className="repository-create-error" role="alert">
+          <p className={cx("ui-form-error")} role="alert">
             {errorMessage}
           </p>
         ) : null}

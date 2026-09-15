@@ -5,9 +5,9 @@ import { buildApiOperationPath } from "../../contracts/api/registry";
 import { test } from "../support/e2eTest";
 import { seedDiagnosticsRepository } from "../support/repositorySeeds";
 import {
-  getWorkbenchStatus,
-  getProblemsToggle,
   getActivityButton,
+  getProblemsToggle,
+  getWorkbenchStatus,
   openWorkbench,
 } from "../support/workbenchPage";
 
@@ -106,9 +106,11 @@ test("retains a draft across failed save and refresh, then saves the selected ob
   await expect(
     panel.getByRole("button", { name: "保存 Provider" }),
   ).toBeDisabled();
-  await expect(page.getByRole("region", { name: "设置状态" })).toContainText(
-    "Saved provider",
-  );
+  await expect(
+    page
+      .getByRole("region", { name: "设置状态" })
+      .getByLabel("Saved provider 状态", { exact: true }),
+  ).toBeVisible();
   await expect(
     page
       .locator(".settings-context")
@@ -237,7 +239,9 @@ test("keeps inputs when the saved configuration advances or the object is remove
   await page.getByRole("button", { name: "刷新设置状态", exact: true }).click();
   await expect(name).toHaveValue("Retain deleted input");
   await expect(
-    panel.getByRole("heading", { name: "Provider 已移除" }),
+    page
+      .locator('[data-region-header="main"]')
+      .getByRole("heading", { name: "Provider 已移除" }),
   ).toBeVisible();
   await getActivityButton(page, "日记").click();
   await expect(panel).toBeVisible();
@@ -269,9 +273,11 @@ test("creates a Provider directly from its directory group and selects its saved
       exact: true,
     }),
   ).toHaveAttribute("aria-current", "page");
-  await expect(page.getByRole("region", { name: "设置状态" })).toContainText(
-    "Local directory provider",
-  );
+  await expect(
+    page
+      .getByRole("region", { name: "设置状态" })
+      .getByLabel("Local directory provider 状态", { exact: true }),
+  ).toBeVisible();
   await panel
     .getByRole("button", { name: "删除 Provider", exact: true })
     .click();

@@ -1,4 +1,7 @@
-import { Button } from "./shared/primitives.tsx";
+import appFrameStyles from "./AppFrame.module.css";
+import { Button } from "./shared/Button.tsx";
+import { createClassNames } from "./shared/classNames.ts";
+const cx = createClassNames(appFrameStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ActivityId, ActivityNavigationItem } from "./activityTypes.ts";
@@ -15,7 +18,7 @@ function ActivityGroup({
   onActivityChange: (activityId: ActivityId) => void;
 }) {
   return (
-    <div className={className}>
+    <div className={cx(className)}>
       {activities.map((item) => {
         const Icon = item.icon;
 
@@ -47,7 +50,7 @@ export function ActivityBar({
   onActivityChange: (activityId: ActivityId) => void;
 }) {
   return (
-    <nav className="activity-bar" aria-label="工作区功能">
+    <nav className={cx("activity-bar")} aria-label="工作区功能">
       <ActivityGroup
         activeActivityId={activeActivityId}
         activities={activities.filter(({ group }) => group === "primary")}
@@ -56,7 +59,7 @@ export function ActivityBar({
       <ActivityGroup
         activeActivityId={activeActivityId}
         activities={activities.filter(({ group }) => group === "management")}
-        className="activity-group activity-group-bottom"
+        className={cx("activity-group activity-group-bottom")}
         onActivityChange={onActivityChange}
       />
     </nav>

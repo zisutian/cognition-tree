@@ -5,15 +5,18 @@ import type {
 } from "../../../../application/workspace/index.ts";
 import {
   Button,
-  ToggleButton,
   ChoiceGroup,
+  createClassNames,
+  FieldRow,
+  FormLayout,
   InputControl,
+  ToggleButton,
 } from "../../../ui/index.ts";
+import graphStyles from "./graph.module.css";
+const cx = createClassNames(graphStyles);
 
 import { VisualizationGraphSettings } from "./VisualizationGraphSettings.tsx";
-import type {
-  ReferenceGraphSession,
-} from "./useReferenceGraphSession.ts";
+import type { ReferenceGraphSession } from "./useReferenceGraphSession.ts";
 
 export function VisualizationContext({
   session,
@@ -27,57 +30,65 @@ export function VisualizationContext({
   return (
     <div
       aria-label="图谱控制"
-      className="activity-context-content graph-context"
+      className={cx("activity-context-content graph-context")}
     >
-      <label className="graph-context-field">
-        <span className="graph-context-label">搜索</span>
-        <InputControl
-          aria-label="搜索笔记标题"
-          placeholder="笔记标题"
-          sizing="container"
-          value={query}
-          onChange={(event) => view.setQuery(event.target.value)}
-        />
-      </label>
-      <div className="graph-context-field">
-        <span className="graph-context-label">范围</span>
-        <ChoiceGroup
-          ariaLabel="图谱范围"
-          mode="single"
-          options={[
-            { label: "全库", value: "global" },
-            { label: "局部", value: "local" },
-          ]}
-          value={mode}
-          onChange={view.setMode}
-        />
-      </div>
-      {mode === "local" ? (
-        <div className="graph-context-field">
-          <span className="graph-context-label">深度</span>
-          <ChoiceGroup
-            ariaLabel="局部图谱深度"
-            mode="single"
-            options={[
-              { label: "1 层", value: "1" },
-              { label: "2 层", value: "2" },
-            ]}
-            value={String(localDepth)}
-            onChange={(nextDepth) =>
-              view.setLocalDepth(
-                Number(nextDepth) as ReferenceGraphLocalDepth,
-              )}
-          />
-        </div>
-      ) : null}
+      <FormLayout layout="stacked">
+        <FieldRow fieldId="graph-query" label="搜索">
+          {(accessibility) => (
+            <InputControl
+              {...accessibility}
+              aria-label="搜索笔记标题"
+              placeholder="笔记标题"
+              sizing="container"
+              value={query}
+              onChange={(event) => view.setQuery(event.target.value)}
+            />
+          )}
+        </FieldRow>
+        <FieldRow fieldId="graph-scope" label="范围" controlKind="group">
+          {(accessibility) => (
+            <ChoiceGroup
+              {...accessibility}
+              ariaLabel="图谱范围"
+              mode="single"
+              options={[
+                { label: "全库", value: "global" },
+                { label: "局部", value: "local" },
+              ]}
+              value={mode}
+              onChange={view.setMode}
+            />
+          )}
+        </FieldRow>
+        {mode === "local" ? (
+          <FieldRow fieldId="graph-depth" label="深度" controlKind="group">
+            {(accessibility) => (
+              <ChoiceGroup
+                {...accessibility}
+                ariaLabel="局部图谱深度"
+                mode="single"
+                options={[
+                  { label: "1 层", value: "1" },
+                  { label: "2 层", value: "2" },
+                ]}
+                value={String(localDepth)}
+                onChange={(nextDepth) =>
+                  view.setLocalDepth(
+                    Number(nextDepth) as ReferenceGraphLocalDepth,
+                  )
+                }
+              />
+            )}
+          </FieldRow>
+        ) : null}
+      </FormLayout>
       <ToggleButton
-        sizing="container"
         onClick={() => view.setHideIsolated(!hideIsolated)}
         pressed={hideIsolated}
       >
         隐藏孤立点
       </ToggleButton>
-      <div className="graph-context-actions">
+      <div className={cx("graph-context-actions")}>
         <Button
           aria-label="重置图谱视图"
           onClick={session.resetView}

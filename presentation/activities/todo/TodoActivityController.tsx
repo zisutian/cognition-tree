@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { RepositoryApplication } from "../../../application/repository/index.ts";
-import { useTodoContext } from "./useTodoContext.tsx";
 import type {
   TodoApplication,
   TodoViewModel,
 } from "../../../application/todo/index.ts";
-import { createTodoActivitySlots } from "./TodoActivitySlots.tsx";
 import type { ActivityControllerProps } from "../../ui/index.ts";
 import {
   BuiltInUnavailableActivity,
   resolveBuiltInActivityRetry,
 } from "../unavailable/index.ts";
+import { createTodoActivitySlots } from "./TodoActivitySlots.tsx";
+import { useTodoContext } from "./useTodoContext.tsx";
 
 type TodoBuiltInsApplication =
   ActivityControllerProps<TodoActivityApplication>["application"]["repository"]["builtIns"];
@@ -38,15 +38,18 @@ export function TodoActivityController({
     return renderActivity(() => ({
       context: null,
       detail: null,
-      main: (
-        <BuiltInUnavailableActivity
-          application={todo}
-          builtInId="todo"
-          catalog={application.repository.builtIns.catalog}
-          label="代办"
-          onOpenRepository={() => onActiveActivityChange("repository")}
-        />
-      ),
+      main: {
+        title: "代办",
+        content: (
+          <BuiltInUnavailableActivity
+            application={todo}
+            builtInId="todo"
+            catalog={application.repository.builtIns.catalog}
+            label="代办"
+            onOpenRepository={() => onActiveActivityChange("repository")}
+          />
+        ),
+      },
     }));
   }
 
@@ -66,7 +69,6 @@ function ReadyTodoActivity({
       context,
       creation,
       focusMode: controls.focusMode,
-      onCollapseDetail: controls.onCollapseDetail,
       onToggleFocusMode: controls.onToggleFocusMode,
       view,
     }),

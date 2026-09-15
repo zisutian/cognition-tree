@@ -1,17 +1,16 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
 import {
   ContextMenu,
   type ContextMenuPosition,
   Section,
+  createClassNames,
   useFeedback,
 } from "../../../ui/index.ts";
+import structureStyles from "./structure.module.css";
+const cx = createClassNames(structureStyles);
 
-
+import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick.tsx";
 import {
   findBlockByLineNumber,
   useSelectedBlockLines,
@@ -22,7 +21,6 @@ import {
   canDropStructureBlockAtEnd,
   getBlockedStructureDropLineNumbers,
 } from "./structureOperationDropTargets.tsx";
-import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick.tsx";
 
 export function StructureOperationStructureView({
   view,
@@ -85,9 +83,11 @@ export function StructureOperationStructureView({
   };
 
   return (
-    <div className="structure-operation-grid structure-operation-grid-single">
+    <div
+      className={cx("structure-operation-grid structure-operation-grid-single")}
+    >
       <Section
-        className="structure-operation-column"
+        scroll
         title={`笔记结构 · ${view.structureNote?.title ?? "未选择"}`}
       >
         {showEndDropTarget && view.structureRoots.length === 0 ? (
@@ -135,21 +135,23 @@ export function StructureOperationStructureView({
             ) : null}
           </>
         ) : (
-          <p className="ui-muted">当前笔记结构没有可调整块。</p>
+          <p className={cx("ui-muted")}>当前笔记结构没有可调整块。</p>
         )}
       </Section>
       <ContextMenu
         ariaLabel="结构块操作"
-        items={moveContext
-          ? [
-              {
-                id: "move-to",
-                label: "移动到…",
-                onSelect: () =>
-                  setMoveSourceLineNumber(moveContext.lineNumber),
-              },
-            ]
-          : []}
+        items={
+          moveContext
+            ? [
+                {
+                  id: "move-to",
+                  label: "移动到…",
+                  onSelect: () =>
+                    setMoveSourceLineNumber(moveContext.lineNumber),
+                },
+              ]
+            : []
+        }
         position={moveContext?.position ?? null}
         onClose={() => setMoveContext(null)}
       />

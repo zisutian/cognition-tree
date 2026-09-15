@@ -1,32 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ReactNode } from "react";
-import { FormError, ToolPanel, ToolPanelBody } from "../../ui/index.ts";
+import { FormError, Page, PageBody } from "../../ui/index.ts";
 
 export function SettingsPage({
   actions,
   children,
   errorMessage,
   label,
-  title,
 }: {
   actions?: ReactNode;
   children: ReactNode;
   errorMessage?: string | null;
-  label?: string;
-  title: string;
+  label: string;
 }) {
   return (
-    <ToolPanel
-      actions={actions}
-      aria-label={label ?? title}
-      className="settings-panel"
-      title={title}
-    >
-      <ToolPanelBody layout="form">
+    <Page actions={actions} aria-label={label}>
+      <PageBody>
         <FormError message={errorMessage} />
         {children}
-      </ToolPanelBody>
-    </ToolPanel>
+      </PageBody>
+    </Page>
   );
 }

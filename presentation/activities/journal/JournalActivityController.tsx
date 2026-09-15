@@ -1,27 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { RepositoryApplication } from "../../../application/repository/index.ts";
 import type { JournalApplication } from "../../../application/journal/index.ts";
-import { createJournalActivitySlots } from "./JournalActivitySlots.tsx";
+import type { RepositoryApplication } from "../../../application/repository/index.ts";
 import type { ActivityControllerProps } from "../../ui/index.ts";
 import {
   BuiltInUnavailableActivity,
   resolveBuiltInActivityRetry,
 } from "../unavailable/index.ts";
+import { createJournalActivitySlots } from "./JournalActivitySlots.tsx";
 
-type JournalBuiltInsApplication = ActivityControllerProps<JournalActivityApplication>[
-  "application"
-]["repository"]["builtIns"];
+type JournalBuiltInsApplication =
+  ActivityControllerProps<JournalActivityApplication>["application"]["repository"]["builtIns"];
 
 export function resolveJournalRetry(
   journal: Exclude<JournalApplication, { status: "ready" }>,
   builtIns: JournalBuiltInsApplication,
 ) {
-  return resolveBuiltInActivityRetry(
-    journal,
-    builtIns.catalog,
-    "journal",
-  );
+  return resolveBuiltInActivityRetry(journal, builtIns.catalog, "journal");
 }
 
 export function JournalActivityController({
@@ -39,27 +34,33 @@ export function JournalActivityController({
     return renderActivity(() => ({
       context: null,
       detail: null,
-      main: (
-        <BuiltInUnavailableActivity
-          application={journal}
-          builtInId="journal"
-          catalog={application.repository.builtIns.catalog}
-          label="日记"
-          onOpenRepository={() => onActiveActivityChange("repository")}
-        />
-      ),
+      main: {
+        title: "日记",
+        content: (
+          <BuiltInUnavailableActivity
+            application={journal}
+            builtInId="journal"
+            catalog={application.repository.builtIns.catalog}
+            label="日记"
+            onOpenRepository={() => onActiveActivityChange("repository")}
+          />
+        ),
+      },
     }));
   }
 
   return renderActivity((controls) =>
     createJournalActivitySlots({
       focusMode: controls.focusMode,
-      onCollapseDetail: controls.onCollapseDetail,
       onToggleFocusMode: controls.onToggleFocusMode,
       view: journal.view,
     }),
   );
 }
 
-export type JournalActivityApplication = { journal: JournalApplication; repository: Pick<RepositoryApplication, "builtIns">; };
-export type JournalActivityControllerProps = ActivityControllerProps<JournalActivityApplication>;
+export type JournalActivityApplication = {
+  journal: JournalApplication;
+  repository: Pick<RepositoryApplication, "builtIns">;
+};
+export type JournalActivityControllerProps =
+  ActivityControllerProps<JournalActivityApplication>;

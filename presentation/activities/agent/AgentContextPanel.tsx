@@ -1,12 +1,15 @@
+import { createClassNames } from "../../ui/index.ts";
+import agentStyles from "./agent.module.css";
+const cx = createClassNames(agentStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Trash2, MessageSquare } from "lucide-react";
+import { MessageSquare, Trash2 } from "lucide-react";
 import type { AgentApplication } from "../../../application/agent/index.ts";
 import {
-  useFeedback,
   CompactContextActionButtons,
   CompactContextList,
   CompactContextRow,
+  useFeedback,
 } from "../../ui/index.ts";
 
 import {
@@ -26,18 +29,18 @@ export function AgentContextPanel({
   const feedback = useFeedback();
   const { controller, state } = agent;
   return (
-    <div className="activity-context-content agent-context">
+    <div className={cx("activity-context-content agent-context")}>
       {state.loadStatus === "loading" ? (
-        <p className="agent-muted">正在读取 Agent 状态…</p>
+        <p className={cx("agent-muted")}>正在读取 Agent 状态…</p>
       ) : null}
       {state.loadStatus === "failed" ? (
-        <p className="agent-error" role="alert">
+        <p className={cx("agent-error")} role="alert">
           {state.errorMessage}
         </p>
       ) : null}
       <CompactContextList
         aria-label="Agent 会话"
-        className="agent-session-list"
+        className={cx("agent-session-list")}
       >
         {state.sessions.map((session) => {
           const selected =
@@ -68,7 +71,7 @@ export function AgentContextPanel({
               icon={<MessageSquare aria-hidden="true" size={13} />}
               key={session.id}
               label={
-                <span className="agent-session-label">
+                <span className={cx("agent-session-label")}>
                   <strong>{session.profileLabel}</strong>
                   <span>
                     {session.profileModel} · v{session.profileVersion}
@@ -84,7 +87,7 @@ export function AgentContextPanel({
               selected={selected}
               title={`${session.profileLabel} · ${session.profileModel} · v${session.profileVersion} · ${formatAgentScopeLabel(session.scope)}`}
               trailing={
-                <span className="agent-session-state">
+                <span className={cx("agent-session-state")}>
                   {agentSessionStateLabels[session.state]}
                 </span>
               }
@@ -93,7 +96,7 @@ export function AgentContextPanel({
         })}
       </CompactContextList>
       {state.sessions.length === 0 ? (
-        <p className="context-empty">没有驻留中的 Agent 会话。</p>
+        <p className={cx("context-empty")}>没有驻留中的 Agent 会话。</p>
       ) : null}
     </div>
   );

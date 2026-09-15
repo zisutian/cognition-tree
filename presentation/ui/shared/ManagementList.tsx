@@ -1,7 +1,18 @@
+import { createClassNames } from "./classNames.ts";
+import contentStyles from "./Content.module.css";
+import managementListStyles from "./ManagementList.module.css";
+import toolListStyles from "./ToolList.module.css";
+import treeStyles from "./tree/Tree.module.css";
+const cx = createClassNames(
+  contentStyles,
+  toolListStyles,
+  managementListStyles,
+  treeStyles,
+);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { HTMLAttributes, ReactNode } from "react";
-import { Button, cx } from "./primitives.tsx";
+import { Button } from "./Button.tsx";
 
 export function ManagementList({
   className,
@@ -29,28 +40,33 @@ export function ManagementRow({
 }) {
   const heading = (
     <>
-      <span className="ui-management-row-title-text">{title}</span>
+      <span className={cx("ui-management-row-title-text")}>{title}</span>
       {status ? <span>{status}</span> : null}
     </>
   );
 
   return (
-    <li className={cx("ui-management-row", selected && "is-selected", className)}>
-      <div className="ui-management-row-heading">
+    <li
+      className={cx("ui-management-row", selected && "is-selected", className)}
+    >
+      <div className={cx("ui-management-row-heading")}>
         {onSelect ? (
-          <Button variant="bare"
+          <Button
+            variant="bare"
             aria-current={selected ? "true" : undefined}
-            className="ui-management-row-title is-interactive"
+            className={cx("ui-management-row-title is-interactive")}
             onClick={onSelect}
             type="button"
           >
             {heading}
           </Button>
-        ) : <div className="ui-management-row-title">{heading}</div>}
-        {actions ? <div className="ui-actions">{actions}</div> : null}
+        ) : (
+          <div className={cx("ui-management-row-title")}>{heading}</div>
+        )}
+        {actions ? <div className={cx("ui-actions")}>{actions}</div> : null}
       </div>
       {children ? (
-        <div className="ui-management-row-details">{children}</div>
+        <div className={cx("ui-management-row-details")}>{children}</div>
       ) : null}
     </li>
   );

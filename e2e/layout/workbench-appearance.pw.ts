@@ -30,8 +30,12 @@ async function expectWorkbenchGeometry(page: Page) {
     const texts = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
     for (let text = texts.nextNode(); text; text = texts.nextNode()) {
       const element = text.parentElement;
-      if (!text.textContent?.trim() || !element ||
-        element.closest(".source-editor, svg, script, style")) continue;
+      if (
+        !text.textContent?.trim() ||
+        !element ||
+        element.closest(".source-editor, svg, script, style")
+      )
+        continue;
       const box = element.getBoundingClientRect();
       if (box.width <= 1 || box.height <= 1) continue;
       const style = getComputedStyle(element);
@@ -39,10 +43,16 @@ async function expectWorkbenchGeometry(page: Page) {
       weights.add(style.fontWeight);
       families.add(style.fontFamily);
     }
-    return { sizes: [...sizes], weights: [...weights], families: [...families] };
+    return {
+      sizes: [...sizes],
+      weights: [...weights],
+      families: [...families],
+    };
   });
   expect(typography.sizes).toEqual(["13px"]);
-  expect(typography.weights.every((weight) => ["400", "600"].includes(weight))).toBe(true);
+  expect(
+    typography.weights.every((weight) => ["400", "600"].includes(weight)),
+  ).toBe(true);
   expect(typography.families.length).toBeLessThanOrEqual(2);
   for (const selector of [".app-context", ".app-main-region", ".app-detail"]) {
     const panels = page.locator(selector);
@@ -109,6 +119,7 @@ test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, asyn
     exact: true,
   });
   await expect(problems).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("problems.png") });
   expect((await main.boundingBox())!.height).toBeLessThan(closedHeight);
   await problems.getByRole("button", { name: "关闭问题面板" }).click();
   await expect(problems).toBeHidden();
@@ -149,14 +160,15 @@ test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, asyn
     }),
   );
   expect(fields.every(({ above, aligned }) => above && aligned)).toBe(true);
-  const fieldGaps = fields.slice(1).map((field, index) =>
-    Math.round(field.top - fields[index].bottom));
+  const fieldGaps = fields
+    .slice(1)
+    .map((field, index) => Math.round(field.top - fields[index].bottom));
   expect(new Set(fieldGaps).size).toBe(1);
-  expect((await name.boundingBox())!.height).toBe(26);
+  expect((await name.boundingBox())!.height).toBe(28);
   await expectWorkbenchGeometry(page);
   const formLeft = (await name.boundingBox())!.x;
   for (const target of [
-    panel.locator(".ui-panel-header h2"),
+    page.locator('[data-region-header="main"] h2'),
     panel.getByRole("heading", { name: "连接与认证", exact: true }),
     panel.getByRole("button", { name: "探测", exact: true }),
     panel.getByRole("button", { name: "删除 Provider", exact: true }),
@@ -165,14 +177,16 @@ test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, asyn
   }
   await page.screenshot({ path: testInfo.outputPath("provider.png") });
 
-  const titleBefore = await panel.getByRole("heading").first().boundingBox();
+  const titleBefore = await page
+    .locator('[data-region-header="main"] h2')
+    .boundingBox();
   await name.fill("长模型服务名称".repeat(18));
   await panel
     .getByRole("button", { name: "删除 Provider", exact: true })
     .scrollIntoViewIfNeeded();
-  expect((await panel.getByRole("heading").first().boundingBox())!.y).toBe(
-    titleBefore!.y,
-  );
+  expect(
+    (await page.locator('[data-region-header="main"] h2').boundingBox())!.y,
+  ).toBe(titleBefore!.y);
   await expectActionExposed(
     panel.getByRole("button", { name: "保存 Provider", exact: true }),
   );
@@ -189,7 +203,7 @@ test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, asyn
   await expect(toolMode).toHaveValue("native");
   await toolMode.focus();
   await toolMode.press("Home");
-  expect((await toolMode.boundingBox())!.height).toBe(26);
+  expect((await toolMode.boundingBox())!.height).toBe(28);
   await profile
     .getByRole("combobox", { name: "Profile 模型", exact: true })
     .fill("long-model-".repeat(30));
@@ -205,7 +219,10 @@ test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, asyn
   ).toBeVisible();
   await expectWorkbenchGeometry(page);
   await page.getByRole("button", { name: "工作台布局", exact: true }).click();
-  const width = page.getByRole("spinbutton", { name: "左侧栏宽度", exact: true });
+  const width = page.getByRole("spinbutton", {
+    name: "左侧栏宽度",
+    exact: true,
+  });
   expect((await width.boundingBox())!.x).toBe(formLeft);
   await expectWorkbenchGeometry(page);
 });

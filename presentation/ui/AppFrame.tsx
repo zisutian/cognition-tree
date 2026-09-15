@@ -1,14 +1,20 @@
+import appFrameStyles from "./AppFrame.module.css";
+import { RegionFrame } from "./RegionFrame.tsx";
+import { createClassNames } from "./shared/classNames.ts";
+const cx = createClassNames(appFrameStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { ChevronLeft } from "lucide-react";
+import type { CSSProperties, ReactNode } from "react";
 import type {
-  ActivityNavigationItem,
   ActivityContextSlot,
   ActivityId,
+  ActivityNavigationItem,
+  ActivityRegionSlot,
 } from "./activityTypes.ts";
-import type { CSSProperties, ReactNode } from "react";
-import { ChevronLeft } from "lucide-react";
 
 import { ActivityBar } from "./ActivityBar.tsx";
+import { Button } from "./shared/Button.tsx";
 import {
   appContextMaxWidth,
   appContextMinWidth,
@@ -17,7 +23,6 @@ import {
   appProblemsMaxHeight,
   appProblemsMinHeight,
 } from "./workbench/frameResize.ts";
-import { Button, PanelHeader, cx } from "./shared/primitives.tsx";
 import type { WorkbenchLayout } from "./workbench/useWorkbenchLayout.ts";
 
 type AppFrameStyle = CSSProperties & {
@@ -40,9 +45,9 @@ export function AppFrame({
   activeActivityId: ActivityId;
   activityItems: readonly ActivityNavigationItem[];
   contextSlot: ActivityContextSlot | null;
-  detailSlot: ReactNode | null;
+  detailSlot: ActivityRegionSlot | null;
   layout: WorkbenchLayout;
-  mainSlot: ReactNode;
+  mainSlot: ActivityRegionSlot;
   onActivityChange: (activityId: ActivityId) => void;
   problemsSlot: ReactNode;
   statusBarSlot: ReactNode;
@@ -96,20 +101,15 @@ export function AppFrame({
   };
 
   return (
-    <main className={frameClassName} style={style}>
+    <main className={cx(frameClassName)} style={style}>
       <ActivityBar
         activities={activityItems}
         activeActivityId={activeActivityId}
         onActivityChange={onActivityChange}
       />
       {showContext ? (
-        <aside className="app-context" aria-label={contextSlot.title}>
-          <PanelHeader
-            actions={contextSlot.actions}
-            headingLevel={1}
-            title={contextSlot.title}
-          />
-          <div className="app-context-body">{contextSlot.content}</div>
+        <aside className={cx("app-context")} aria-label={contextSlot.title}>
+          <RegionFrame slot={contextSlot} position="context" />
           <div
             aria-label="调整上下文区宽度"
             aria-orientation="vertical"
@@ -117,7 +117,7 @@ export function AppFrame({
             aria-valuemin={appContextMinWidth}
             aria-valuenow={contextResizeValue}
             aria-valuetext={`${contextResizeValue}px`}
-            className="app-resize-handle app-context-resize"
+            className={cx("app-resize-handle app-context-resize")}
             onKeyDown={onContextResizeKeyDown}
             onPointerDown={onContextResizeStart}
             role="separator"
@@ -125,17 +125,17 @@ export function AppFrame({
           />
         </aside>
       ) : null}
-      <section className="app-main-region">
-        <div className="app-main-content">{mainSlot}</div>
+      <section className={cx("app-main-region")}>
+        <div className={cx("app-main-content")}>
+          <RegionFrame slot={mainSlot} position="main" />
+        </div>
         <aside
           aria-label="问题"
           hidden={!showProblems || !problemsExpanded}
           id="workbench-problems"
-          className={
-            problemsExpanded
-              ? "app-problems is-expanded"
-              : "app-problems"
-          }
+          className={cx(
+            problemsExpanded ? "app-problems is-expanded" : "app-problems",
+          )}
         >
           {problemsExpanded ? (
             <div
@@ -145,7 +145,7 @@ export function AppFrame({
               aria-valuemin={appProblemsMinHeight}
               aria-valuenow={problemsResizeValue}
               aria-valuetext={`${problemsResizeValue}px`}
-              className="app-resize-handle app-problems-resize"
+              className={cx("app-resize-handle app-problems-resize")}
               onKeyDown={onProblemsResizeKeyDown}
               onPointerDown={onProblemsResizeStart}
               role="separator"
@@ -157,17 +157,15 @@ export function AppFrame({
       </section>
       {hasDetail ? (
         <aside
-          className={
-            detailCollapsed
-              ? "app-detail app-detail-collapsed"
-              : "app-detail"
-          }
+          className={cx(
+            detailCollapsed ? "app-detail app-detail-collapsed" : "app-detail",
+          )}
         >
           {detailCollapsed ? (
-            <header className="app-detail-collapsed-header">
+            <header className={cx("app-detail-collapsed-header")}>
               <Button
                 aria-label="展开右侧详情"
-                className="app-detail-toggle"
+                className={cx("app-detail-toggle")}
                 onClick={onDetailToggle}
                 title="展开右侧详情"
                 type="button"
@@ -185,13 +183,17 @@ export function AppFrame({
                 aria-valuemin={appDetailMinWidth}
                 aria-valuenow={detailResizeValue}
                 aria-valuetext={`${detailResizeValue}px`}
-                className="app-resize-handle app-detail-resize"
+                className={cx("app-resize-handle app-detail-resize")}
                 onKeyDown={onDetailResizeKeyDown}
                 onPointerDown={onDetailResizeStart}
                 role="separator"
                 tabIndex={0}
               />
-              {detailSlot}
+              <RegionFrame
+                slot={detailSlot!}
+                position="detail"
+                onCollapse={onDetailToggle}
+              />
             </>
           )}
         </aside>

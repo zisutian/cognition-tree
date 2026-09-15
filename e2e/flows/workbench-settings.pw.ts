@@ -60,9 +60,7 @@ test.use({ screenshot: "off", trace: "off" });
 
 test.describe("settings activity flows", () => {
   test.beforeEach(async ({ api }) => {
-    await Promise.all([
-      seedWorkbenchRepository(api, syntaxRepositoryId),
-    ]);
+    await Promise.all([seedWorkbenchRepository(api, syntaxRepositoryId)]);
   });
 
   test("keeps the edited provider and its details on the same object", async ({
@@ -79,7 +77,9 @@ test.describe("settings activity flows", () => {
       panel.getByRole("textbox", { name: "Provider 名称", exact: true }),
     ).toHaveValue("E2E missing provider");
     const details = page.getByRole("region", { name: "设置状态" });
-    await expect(details).toContainText("E2E missing provider");
+    await expect(
+      details.getByLabel("E2E missing provider 状态", { exact: true }),
+    ).toBeVisible();
     await expect(details).toContainText("https://e2e-missing.invalid/v1");
     await expect(details).not.toContainText("https://e2e-runtime.invalid/v1");
   });
@@ -207,7 +207,8 @@ test.describe("settings activity flows", () => {
       .getByRole("button", { name: "默认会话配置", exact: true })
       .click();
     await expect(selection).toHaveValue(e2eAgentProfileId);
-    await page.getByRole("complementary", { name: "设置", exact: true })
+    await page
+      .getByRole("complementary", { name: "设置", exact: true })
       .getByRole("button", { name: "刷新设置状态", exact: true })
       .click();
     await expect(selection).toHaveValue(e2eAgentProfileId);
@@ -235,20 +236,36 @@ test.describe("settings activity flows", () => {
   });
 });
 
-test("queries durable local API results from the main panel without a detail sidebar", async ({ api, page }) => {
+test("queries durable local API results from the main panel without a detail sidebar", async ({
+  api,
+  page,
+}) => {
   await seedWorkbenchRepository(api, syntaxRepositoryId);
-  const directory = await api.post("/api/v4/content/query", { data: { kind: "directory", scope: { domain: "journal" } } });
+  const directory = await api.post("/api/v4/content/query", {
+    data: { kind: "directory", scope: { domain: "journal" } },
+  });
   expect(directory.ok()).toBe(true);
   const operationId = `e2e-local-${Date.now()}`;
-  const submitted = await api.post("/api/v4/content/operations", { data: { operationId, basis: (await directory.json()).basis, scope: { domain: "journal" }, command: { kind: "create-entry", body: "- 浏览器收据查询" } } });
+  const submitted = await api.post("/api/v4/content/operations", {
+    data: {
+      operationId,
+      basis: (await directory.json()).basis,
+      scope: { domain: "journal" },
+      command: { kind: "create-entry", body: "- 浏览器收据查询" },
+    },
+  });
   expect(submitted.ok()).toBe(true);
   await openWorkbench(page, syntaxRepositoryId);
   await getActivityButton(page, "设置").click();
   await page.getByRole("button", { name: "本机 API", exact: true }).click();
   const panel = page.getByRole("region", { name: "本机 API", exact: true });
-  await expect(panel.getByLabel("服务地址", { exact: true })).not.toHaveValue("");
+  await expect(panel.getByLabel("服务地址", { exact: true })).not.toHaveValue(
+    "",
+  );
   await expect(page.getByRole("region", { name: "设置状态" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /新建 .*令牌/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /新建 .*令牌/ })).toHaveCount(
+    0,
+  );
   const id = panel.getByRole("textbox", { name: "操作 ID", exact: true });
   await id.fill(operationId);
   await id.press("Enter");
@@ -259,8 +276,16 @@ test("queries durable local API results from the main panel without a detail sid
   await getActivityButton(page, "笔记").click();
   await getActivityButton(page, "设置").click();
   await page.getByRole("button", { name: "本机 API", exact: true }).click();
-  await expect(panel.getByRole("textbox", { name: "操作 ID", exact: true })).toHaveValue("");
-  expect((await api.get("/api/v4/capabilities", { headers: { Authorization: "Bearer ctn_retired" } })).status()).toBe(401);
+  await expect(
+    panel.getByRole("textbox", { name: "操作 ID", exact: true }),
+  ).toHaveValue("");
+  expect(
+    (
+      await api.get("/api/v4/capabilities", {
+        headers: { Authorization: "Bearer ctn_retired" },
+      })
+    ).status(),
+  ).toBe(401);
 });
 
 test("discards Provider credentials and protects a new Profile draft", async ({

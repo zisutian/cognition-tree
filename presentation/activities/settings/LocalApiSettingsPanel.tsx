@@ -1,3 +1,6 @@
+import { createClassNames } from "../../ui/index.ts";
+import settingsStyles from "./settings.module.css";
+const cx = createClassNames(settingsStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect, useRef, useState } from "react";
@@ -10,10 +13,10 @@ import {
   FieldRow,
   FormLayout,
   InputControl,
+  Section,
+  SectionStack,
   ToolPropertyList,
   ToolPropertyRow,
-  ToolSection,
-  ToolSectionStack,
 } from "../../ui/index.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
 import {
@@ -64,14 +67,11 @@ export function LocalApiSettingsPanel({
     }
   };
   return (
-    <SettingsPage title="本机 API" errorMessage={errorMessage}>
-      <ToolSectionStack>
-        <ToolSection>
+    <SettingsPage label="本机 API" errorMessage={errorMessage}>
+      <SectionStack>
+        <Section>
           <FormLayout layout="stacked">
-            <FieldRow
-              fieldId="local-api-origin"
-              label="服务地址"
-            >
+            <FieldRow fieldId="local-api-origin" label="服务地址">
               {(attributes) => (
                 <InputControl
                   {...attributes}
@@ -81,8 +81,8 @@ export function LocalApiSettingsPanel({
               )}
             </FieldRow>
           </FormLayout>
-        </ToolSection>
-        <ToolSection title="查询操作结果">
+        </Section>
+        <Section title="查询操作结果">
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -138,14 +138,14 @@ export function LocalApiSettingsPanel({
               ))}
               <details>
                 <summary>提交详情</summary>
-                <pre className="local-api-example">
+                <pre className={cx("local-api-example")}>
                   {JSON.stringify(result, null, 2)}
                 </pre>
               </details>
             </div>
           ) : null}
-        </ToolSection>
-      </ToolSectionStack>
+        </Section>
+      </SectionStack>
     </SettingsPage>
   );
 }

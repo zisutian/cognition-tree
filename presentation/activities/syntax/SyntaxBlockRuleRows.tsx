@@ -3,15 +3,15 @@ import type {
   AvailableSyntaxViewModel,
   SyntaxTone,
 } from "../../../application/syntax/index.ts";
+import { createClassNames } from "../../ui/index.ts";
+import syntaxStyles from "./syntax.module.css";
+const cx = createClassNames(syntaxStyles);
 
 import {
   createSyntaxRuleFieldId,
   syntaxFieldIds,
 } from "../../../application/syntax/index.ts";
-import {
-  Button,
-  InputControl,
-} from "../../ui/index.ts";
+import { Button, InputControl } from "../../ui/index.ts";
 
 import { SyntaxKindPicker } from "./SyntaxKindPicker.tsx";
 import { SyntaxRuleSpacer } from "./SyntaxRuleLayout.tsx";
@@ -67,16 +67,15 @@ export function TitleAndRootRows({
 }) {
   return (
     <>
-      {syntax.selectedTarget.kind === "workspace-file" &&
-          syntax.draft.title ? (
+      {syntax.selectedTarget.kind === "workspace-file" && syntax.draft.title ? (
         <div
-          className="syntax-rule-row"
+          className={cx("syntax-rule-row")}
           data-syntax-field-id={syntaxFieldIds.title}
           tabIndex={-1}
         >
-          <span className="syntax-readonly">首行标题</span>
-          <span className="syntax-readonly">首行</span>
-          <span className="syntax-readonly">标题</span>
+          <span className={cx("syntax-readonly")}>首行标题</span>
+          <span className={cx("syntax-readonly")}>首行</span>
+          <span className={cx("syntax-readonly")}>标题</span>
           <SyntaxToneCells
             disabled={!syntax.canMutate}
             backgroundOptions={syntax.backgroundToneOptions}
@@ -92,13 +91,13 @@ export function TitleAndRootRows({
       ) : null}
       {syntax.draft.root && syntax.rootRuleLabel ? (
         <div
-          className="syntax-rule-row"
+          className={cx("syntax-rule-row")}
           data-syntax-field-id={syntaxFieldIds.root}
           tabIndex={-1}
         >
-          <span className="syntax-readonly">{syntax.rootRuleLabel}</span>
-          <span className="syntax-readonly">顶格</span>
-          <span className="syntax-readonly">
+          <span className={cx("syntax-readonly")}>{syntax.rootRuleLabel}</span>
+          <span className={cx("syntax-readonly")}>顶格</span>
+          <span className={cx("syntax-readonly")}>
             {syntax.selectedTarget.kind === "journal" ? "正文" : "概念"}
           </span>
           <SyntaxToneCells
@@ -127,101 +126,83 @@ export function BlockRuleRows({
     <>
       {syntax.draft.blocks.map((rule) => {
         const isProtected = syntax.protectedBlockRuleIds.includes(rule.id);
-        const isTodoItem = syntax.owner === "todo" &&
-          rule.semanticId === "todo-item";
+        const isTodoItem =
+          syntax.owner === "todo" && rule.semanticId === "todo-item";
 
         return (
           <div
-            className="syntax-rule-row"
+            className={cx("syntax-rule-row")}
             data-syntax-field-id={createSyntaxRuleFieldId("block", rule.id)}
             key={rule.id}
             tabIndex={-1}
           >
-            {isTodoItem
-              ? (
-                <span className="syntax-readonly">
-                  {rule.label}
-                </span>
-              )
-              : (
-                <InputControl
-                  disabled={!syntax.canMutate}
-                  aria-label="名称"
-                  sizing="container"
-                  data-syntax-field-id={createSyntaxRuleFieldId(
-                    "block",
-                    rule.id,
-                    "label",
-                  )}
-                  maxLength={syntax.constraints.label.maxLength}
-                  value={rule.label}
-                  onChange={(event) =>
-                    syntax.actions.updateBlock(rule.id, {
-                      label: event.target.value,
-                    })
-                  }
-                />
-              )}
-            {isTodoItem
-              ? (
-                <span className="syntax-readonly">
-                  {rule.marker}
-                </span>
-              )
-              : (
-                <InputControl
-                  disabled={!syntax.canMutate}
-                  aria-label="标记"
-                  sizing="container"
-                  data-syntax-field-id={createSyntaxRuleFieldId(
-                    "block",
-                    rule.id,
-                    "marker",
-                  )}
-                  maxLength={syntax.constraints.token.maxCodePoints * 2}
-                  value={rule.marker}
-                  onChange={(event) =>
-                    syntax.actions.updateBlock(rule.id, {
-                      marker: event.target.value,
-                    })
-                  }
-                />
-              )}
-            {isTodoItem
-              ? <span className="syntax-readonly">普通块</span>
-              : (
-                <SyntaxKindPicker
-                  disabled={!syntax.canMutate}
-                  ariaLabel={`${rule.label}角色`}
-                  fieldId={createSyntaxRuleFieldId(
-                    "block",
-                    rule.id,
-                    "kind",
-                  )}
-                  options={syntax.kindOptions}
-                  value={rule.kind}
-                  onChange={(kind) =>
-                    syntax.actions.updateBlock(rule.id, {
-                      kind,
-                    })
-                  }
-                />
-              )}
+            {isTodoItem ? (
+              <span className={cx("syntax-readonly")}>{rule.label}</span>
+            ) : (
+              <InputControl
+                disabled={!syntax.canMutate}
+                aria-label="名称"
+                sizing="container"
+                data-syntax-field-id={createSyntaxRuleFieldId(
+                  "block",
+                  rule.id,
+                  "label",
+                )}
+                maxLength={syntax.constraints.label.maxLength}
+                value={rule.label}
+                onChange={(event) =>
+                  syntax.actions.updateBlock(rule.id, {
+                    label: event.target.value,
+                  })
+                }
+              />
+            )}
+            {isTodoItem ? (
+              <span className={cx("syntax-readonly")}>{rule.marker}</span>
+            ) : (
+              <InputControl
+                disabled={!syntax.canMutate}
+                aria-label="标记"
+                sizing="container"
+                data-syntax-field-id={createSyntaxRuleFieldId(
+                  "block",
+                  rule.id,
+                  "marker",
+                )}
+                maxLength={syntax.constraints.token.maxCodePoints * 2}
+                value={rule.marker}
+                onChange={(event) =>
+                  syntax.actions.updateBlock(rule.id, {
+                    marker: event.target.value,
+                  })
+                }
+              />
+            )}
+            {isTodoItem ? (
+              <span className={cx("syntax-readonly")}>普通块</span>
+            ) : (
+              <SyntaxKindPicker
+                disabled={!syntax.canMutate}
+                ariaLabel={`${rule.label}角色`}
+                fieldId={createSyntaxRuleFieldId("block", rule.id, "kind")}
+                options={syntax.kindOptions}
+                value={rule.kind}
+                onChange={(kind) =>
+                  syntax.actions.updateBlock(rule.id, {
+                    kind,
+                  })
+                }
+              />
+            )}
             <TonePicker
               disabled={!syntax.canMutate}
               ariaLabel={`${rule.label}背景色`}
               customToneLabel={syntax.customToneLabel}
-              fieldId={createSyntaxRuleFieldId(
-                "block",
-                rule.id,
-                "tone",
-              )}
+              fieldId={createSyntaxRuleFieldId("block", rule.id, "tone")}
               options={syntax.backgroundToneOptions}
               showLabel={false}
               value={rule.tone}
-              onChange={(tone) =>
-                syntax.actions.updateBlock(rule.id, { tone })
-              }
+              onChange={(tone) => syntax.actions.updateBlock(rule.id, { tone })}
             />
             <TonePicker
               disabled={!syntax.canMutate}
@@ -235,23 +216,23 @@ export function BlockRuleRows({
                 syntax.actions.updateBlock(rule.id, { textColor })
               }
             />
-            {isProtected
-              ? <SyntaxRuleSpacer />
-              : (
-                <Button
-                  disabled={!syntax.canMutate}
-                  aria-label="删除块规则"
-                  onClick={() => syntax.actions.removeBlock(rule.id)}
-                  type="button"
-                  variant="icon"
-                >
-                  <Trash2 aria-hidden="true" size={13} />
-                </Button>
-              )}
+            {isProtected ? (
+              <SyntaxRuleSpacer />
+            ) : (
+              <Button
+                disabled={!syntax.canMutate}
+                aria-label="删除块规则"
+                onClick={() => syntax.actions.removeBlock(rule.id)}
+                type="button"
+                variant="icon"
+              >
+                <Trash2 aria-hidden="true" size={13} />
+              </Button>
+            )}
           </div>
         );
       })}
-      <div className="syntax-rule-actions">
+      <div className={cx("syntax-rule-actions")}>
         <Button
           disabled={!syntax.canMutate}
           onClick={syntax.actions.addBlock}

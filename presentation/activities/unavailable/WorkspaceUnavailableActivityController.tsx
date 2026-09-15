@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { RenderActivity } from "../../ui/index.ts";
 import type { WorkbenchWorkspaceState } from "../../workspace/index.ts";
 import { WorkspaceUnavailablePanel } from "./WorkspaceUnavailablePanel.tsx";
-import type { RenderActivity } from "../../ui/index.ts";
 
 export function renderWorkspaceUnavailableActivity({
   onOpenRepository,
@@ -16,12 +16,16 @@ export function renderWorkspaceUnavailableActivity({
   return renderActivity(() => ({
     context: null,
     detail: null,
-    main: (
-      <WorkspaceUnavailablePanel
-        onOpenRepository={onOpenRepository}
-        workspace={workspace}
-      />
-    ),
+    main: {
+      title: "笔记",
+      layout: "detail",
+      content: (
+        <WorkspaceUnavailablePanel
+          onOpenRepository={onOpenRepository}
+          workspace={workspace}
+        />
+      ),
+    },
   }));
 }
 

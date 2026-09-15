@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
-import type {
-  RepositoryConflictResolutionView,
-} from "../../../application/repository/index.ts";
+import type { RepositoryConflictResolutionView } from "../../../application/repository/index.ts";
 import {
   Button,
+  createClassNames,
+  Section,
   ToolPropertyList,
   ToolPropertyRow,
-  ToolSection,
 } from "../../ui/index.ts";
-
+const cx = createClassNames();
 
 export function RepositoryConflictStatus({
   resolution,
@@ -30,18 +29,20 @@ export function RepositoryConflictStatus({
     let active = true;
 
     setDetails({ status: "loading" });
-    void resolution.loadDetails().then((value) => {
-      if (active) setDetails({ ...value, status: "ready" });
-    }, (error: unknown) => {
-      if (active) {
-        setDetails({
-          message: error instanceof Error
-            ? error.message
-            : "冲突详情读取失败。",
-          status: "failed",
-        });
-      }
-    });
+    void resolution.loadDetails().then(
+      (value) => {
+        if (active) setDetails({ ...value, status: "ready" });
+      },
+      (error: unknown) => {
+        if (active) {
+          setDetails({
+            message:
+              error instanceof Error ? error.message : "冲突详情读取失败。",
+            status: "failed",
+          });
+        }
+      },
+    );
     return () => {
       active = false;
     };
@@ -58,24 +59,26 @@ export function RepositoryConflictStatus({
       ) : null}
       <ToolPropertyRow
         label="冲突单元"
-        value={details.status === "loading"
-          ? "正在读取…"
-          : details.status === "failed"
-            ? "读取失败"
-            : details.unitIds.length > 0
-              ? details.unitIds.join("、")
-              : "整仓内容"}
+        value={
+          details.status === "loading"
+            ? "正在读取…"
+            : details.status === "failed"
+              ? "读取失败"
+              : details.unitIds.length > 0
+                ? details.unitIds.join("、")
+                : "整仓内容"
+        }
       />
       {details.status === "failed" ? (
         <ToolPropertyRow
-          actions={(
+          actions={
             <Button
               onClick={() => setReloadKey((current) => current + 1)}
               type="button"
             >
               重试
             </Button>
-          )}
+          }
           label="详情错误"
           value={details.message}
         />
@@ -94,8 +97,8 @@ export function RepositoryConflictActions({
   onRunAction(action: () => Promise<void>): void;
 }) {
   return (
-    <ToolSection title="同步冲突">
-      <div className="ui-actions">
+    <Section title="同步冲突">
+      <div className={cx("ui-actions")}>
         <Button
           disabled={busy}
           onClick={() => onRunAction(resolution.keepLocal)}
@@ -119,6 +122,6 @@ export function RepositoryConflictActions({
           远端并另存本地
         </Button>
       </div>
-    </ToolSection>
+    </Section>
   );
 }

@@ -1,10 +1,14 @@
 import type {
-  RepositoryViewModel,
-  RepositorySelection,
   RepositoryFocusRequest,
+  RepositorySelection,
+  RepositoryViewModel,
 } from "../../../application/repository/index.ts";
+import { createDefaultRepositorySelection } from "../../../application/repository/index.ts";
+import {
+  builtInLabel,
+  selectedRepositoryTarget,
+} from "./repositoryViewHelpers.ts";
 
-import "./repository.css";
 import type { ActivitySlots } from "../../ui/index.ts";
 import { RepositoryContext } from "./RepositoryContext.tsx";
 import { RepositoryPanel } from "./RepositoryPanel.tsx";
@@ -14,7 +18,6 @@ export function createRepositoryActivitySlots({
   onOpen,
   focusRequest,
   onConsumeFocusRequest,
-  onCollapseDetail,
   onSelectionChange,
   selection,
   view,
@@ -22,11 +25,22 @@ export function createRepositoryActivitySlots({
   onOpen(repositoryId: string): Promise<void>;
   focusRequest: RepositoryFocusRequest | null;
   onConsumeFocusRequest: (requestId: number) => void;
-  onCollapseDetail: () => void;
   onSelectionChange?: (selection: RepositorySelection) => void;
   selection?: RepositorySelection;
   view: RepositoryViewModel;
 }): ActivitySlots {
+  const target = selectedRepositoryTarget(
+    selection ?? createDefaultRepositorySelection(view),
+    view,
+  );
+  const title =
+    target.kind === "create"
+      ? "新建仓库"
+      : target.kind === "ordinary-repository"
+        ? (target.repository?.label ?? "普通仓库")
+        : target.kind === "ordinary-issue"
+          ? (target.issue?.id ?? "仓库问题")
+          : builtInLabel(target.id);
   return {
     context: {
       content: (
@@ -40,13 +54,17 @@ export function createRepositoryActivitySlots({
       ),
       title: "仓库",
     },
-    detail: (
-      <RepositoryStatusPanel
-        onCollapseDetail={onCollapseDetail}
-        selection={selection}
-        view={view}
-      />
-    ),
-    main: <RepositoryPanel onOpen={onOpen} selection={selection} view={view} />,
+    detail: {
+      title: "仓库状态",
+      layout: "detail",
+      content: <RepositoryStatusPanel selection={selection} view={view} />,
+    },
+    main: {
+      title,
+      layout: "form",
+      content: (
+        <RepositoryPanel onOpen={onOpen} selection={selection} view={view} />
+      ),
+    },
   };
 }

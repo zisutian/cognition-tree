@@ -1,7 +1,10 @@
+import { createClassNames } from "../../../ui/index.ts";
+import graphStyles from "./graph.module.css";
 import {
   useReferenceGraphCanvasRuntime,
   type ReferenceGraphCanvasProps,
 } from "./useReferenceGraphCanvasRuntime.ts";
+const cx = createClassNames(graphStyles);
 
 export function ReferenceGraphCanvas(props: ReferenceGraphCanvasProps) {
   const runtime = useReferenceGraphCanvasRuntime(props);
@@ -12,7 +15,7 @@ export function ReferenceGraphCanvas(props: ReferenceGraphCanvasProps) {
         aria-describedby={runtime.announcementId}
         aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Enter"
         aria-label="笔记引用力导向图"
-        className="graph-force-canvas"
+        className={cx("graph-force-canvas")}
         ref={runtime.canvasRef}
         role="application"
         tabIndex={0}
@@ -27,7 +30,7 @@ export function ReferenceGraphCanvas(props: ReferenceGraphCanvasProps) {
       />
       <span
         aria-live="polite"
-        className="ui-visually-hidden"
+        className={cx("ui-visually-hidden")}
         id={runtime.announcementId}
       >
         {runtime.announcement}

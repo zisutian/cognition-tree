@@ -1,26 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-useCallback,
-useEffect,
-useLayoutEffect,
-useRef,
-useState,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
 } from "react";
 import type { AgentApplication } from "../../../application/agent/index.ts";
-import type { LocalContentAccess,OperationApplication } from "../../../application/operations/index.ts";
 import type {
-SystemApplication,
-SystemReconnectPort,
+  LocalContentAccess,
+  OperationApplication,
+} from "../../../application/operations/index.ts";
+import type {
+  SystemApplication,
+  SystemReconnectPort,
 } from "../../../application/system/index.ts";
 import {
-useFeedback,
-type ActivityControllerProps,
-type ActivityId,
-type ActivityInteractionState,
+  useFeedback,
+  type ActivityControllerProps,
+  type ActivityId,
+  type ActivityInteractionState,
 } from "../../ui/index.ts";
 import { createSettingsActivitySlots } from "./SettingsActivitySlots.tsx";
-import { settingsTargetKey,type SettingsTarget } from "./settingsTypes.ts";
+import { settingsTargetKey, type SettingsTarget } from "./settingsTypes.ts";
 import { useOperationsSettingsSession } from "./useOperationsSettingsSession.ts";
 import { idleSettingsInteraction } from "./useSettingsInteraction.ts";
 import { useSystemOwnerCredentialSession } from "./useSystemOwnerCredentialSession.ts";
@@ -97,24 +100,22 @@ export function SettingsActivityController({
     setTarget(next);
   };
   return active
-    ? renderActivity(
-        ({ contextWidth, onCollapseDetail, onContextWidthChange }) =>
-          createSettingsActivitySlots({
-            agent: application.agent,
-            localApi: application.localApi,
-            blocked: interaction.navigationBlocked,
-            navigation,
-            onCollapseDetail,
-            onCompleted: completed,
-            onRefresh: refresh,
-            onSelect: select,
-            operations,
-            owner,
-            report,
-            system: application.system,
-            target,
-            workbench: { contextWidth, onContextWidthChange },
-          }),
+    ? renderActivity(({ contextWidth, onContextWidthChange }) =>
+        createSettingsActivitySlots({
+          agent: application.agent,
+          localApi: application.localApi,
+          blocked: interaction.navigationBlocked,
+          navigation,
+          onCompleted: completed,
+          onRefresh: refresh,
+          onSelect: select,
+          operations,
+          owner,
+          report,
+          system: application.system,
+          target,
+          workbench: { contextWidth, onContextWidthChange },
+        }),
       )
     : null;
 }

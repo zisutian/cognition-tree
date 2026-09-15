@@ -3,17 +3,13 @@
 import type { TodoViewModel } from "../../../application/todo/index.ts";
 import { CtnEditor, CtnEditorPanel } from "../../editor/index.ts";
 
-import { useFeedback, Button, EmptyState, Panel } from "../../ui/index.ts";
+import { Button, EmptyState, Page, useFeedback } from "../../ui/index.ts";
 
 export function TodoEditorPanel({
   creation,
-  focusMode,
-  onToggleFocusMode,
   view,
 }: {
   creation: { disabled: boolean; begin(): void };
-  focusMode: boolean;
-  onToggleFocusMode: () => void;
   view: TodoViewModel;
 }) {
   const feedback = useFeedback();
@@ -22,7 +18,7 @@ export function TodoEditorPanel({
 
   if (!activeCollection) {
     return (
-      <Panel aria-label="代办编辑" className="ctn-editor-panel">
+      <Page aria-label="代办编辑" kind="editor">
         <EmptyState
           action={
             <Button
@@ -36,16 +32,11 @@ export function TodoEditorPanel({
           }
           title="还没有事项集合"
         />
-      </Panel>
+      </Page>
     );
   }
   return (
-    <CtnEditorPanel
-      ariaLabel="代办编辑"
-      focusMode={focusMode}
-      onToggleFocusMode={onToggleFocusMode}
-      title={activeCollection.name}
-    >
+    <CtnEditorPanel ariaLabel="代办编辑">
       <CtnEditor
         checkableBlocks={view.editor.checkableBlocks}
         contentMode={view.editor.contentMode}

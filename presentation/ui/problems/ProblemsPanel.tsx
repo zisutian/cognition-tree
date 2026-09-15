@@ -1,27 +1,26 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import {
-  X,
-  CircleX,
-  TriangleAlert,
-} from "lucide-react";
+import { CircleX, TriangleAlert, X } from "lucide-react";
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import type {
   UiWorkbenchOperationalProblem,
   UiWorkbenchProblem,
   UiWorkbenchProblems,
 } from "../../../application/workbench/index.ts";
-import { Button, PanelHeader, SymbolSlot, cx } from "../shared/primitives.tsx";
-import { ChoiceGroup } from "../shared/controls.tsx";
-import {
-  ToolList,
-  ToolListRow,
-} from "../shared/ToolList.tsx";
+import { RegionHeader } from "../RegionFrame.tsx";
+import { Button } from "../shared/Button.tsx";
+import contentStyles from "../shared/Content.module.css";
+import { SymbolSlot } from "../shared/SymbolSlot.tsx";
+import { ToolList, ToolListRow } from "../shared/ToolList.tsx";
 import { ToolToolbar } from "../shared/ToolToolbar.tsx";
+import { createClassNames } from "../shared/classNames.ts";
+import { ChoiceGroup } from "../shared/controls.tsx";
 import {
   shouldVirtualizeUiRows,
   uiVirtualOverscan,
   uiVirtualRowHeightPx,
 } from "../shared/virtualListMetrics.ts";
+import problemsPanelStyles from "./ProblemsPanel.module.css";
+const cx = createClassNames(problemsPanelStyles, contentStyles);
 
 function isOperationalProblem(
   problem: UiWorkbenchProblem,
@@ -87,33 +86,37 @@ function ProblemRow({
 
   return (
     <ToolListRow
-      actions={operational ? (
-        <>
-          {operational.requestId && onCopyRequestId ? (
-            <Button variant="bare"
-              aria-label={`复制请求编号：${operational.requestId}`}
-              onClick={() => onCopyRequestId(operational.requestId!)}
-              title={operational.requestId}
+      actions={
+        operational ? (
+          <>
+            {operational.requestId && onCopyRequestId ? (
+              <Button
+                variant="bare"
+                aria-label={`复制请求编号：${operational.requestId}`}
+                onClick={() => onCopyRequestId(operational.requestId!)}
+                title={operational.requestId}
+                type="button"
+              >
+                复制编号
+              </Button>
+            ) : null}
+            <Button
+              variant="bare"
+              aria-label={`关闭操作错误：${problem.message}`}
+              onClick={() => onDismiss(problem)}
               type="button"
             >
-              复制编号
+              关闭
             </Button>
-          ) : null}
-          <Button variant="bare"
-            aria-label={`关闭操作错误：${problem.message}`}
-            onClick={() => onDismiss(problem)}
-            type="button"
-          >
-            关闭
-          </Button>
-        </>
-      ) : null}
+          </>
+        ) : null
+      }
       buttonProps={{
         "aria-label": `打开问题：${problem.message}`,
         title: `${problem.message} · ${problem.locationLabel}`,
       }}
       flow="single-line"
-      leading={(
+      leading={
         <SymbolSlot
           aria-label={isError ? "错误" : "警告"}
           tone={isError ? "danger" : "warning"}
@@ -124,16 +127,16 @@ function ProblemRow({
             <TriangleAlert aria-hidden="true" size={13} strokeWidth={2} />
           )}
         </SymbolSlot>
-      )}
+      }
       main={problem.message}
-      meta={(
+      meta={
         <>
           {getProblemSourceLabel(problem)} · {problem.locationLabel}
           {operational && operational.occurrenceCount > 1
             ? ` · ${operational.occurrenceCount} 次 · 最近 ${operational.lastOccurredAt.slice(11, 19)}`
             : ""}
         </>
-      )}
+      }
       onSelect={() => onOpen(problem)}
       style={style}
     />
@@ -163,7 +166,7 @@ function ProblemsList({
 
   if (!virtual) {
     return (
-      <div className="problems-collection-scroll ui-scroll-surface">
+      <div className={cx("problems-collection-scroll ui-scroll-surface")}>
         <ToolList aria-label="问题列表">
           {problems.map((problem) => (
             <ProblemRow
@@ -181,13 +184,13 @@ function ProblemsList({
 
   return (
     <div
-      className="problems-collection-scroll ui-scroll-surface"
+      className={cx("problems-collection-scroll ui-scroll-surface")}
       data-virtual-row-count={problems.length}
       ref={scrollRef}
     >
       <ToolList
         aria-label="问题列表"
-        className="problems-virtual-collection"
+        className={cx("problems-virtual-collection")}
         style={{ height: `${virtualizer.getTotalSize()}px` }}
       >
         {virtualizer.getVirtualItems().map((virtualRow) => {
@@ -227,32 +230,58 @@ export function ProblemsPanel({
   onOpen: (problem: UiWorkbenchProblem) => void;
   onToggle: () => void;
 }) {
-  const [sourceFilter, setSourceFilter] = useState<"all" | UiWorkbenchProblem["source"]>("all");
-  const [severityFilter, setSeverityFilter] = useState<"all" | "error" | "warning">("all");
-  const [retryFilter, setRetryFilter] = useState<"all" | "retryable" | "terminal">("all");
-  const filteredProblems = useMemo(() => view.problems.filter((problem) => {
-    if (sourceFilter !== "all" && problem.source !== sourceFilter) return false;
-    if (severityFilter !== "all" && problem.severity !== severityFilter) {
-      return false;
-    }
-    if (retryFilter === "all") return true;
-    if (!isOperationalProblem(problem)) return false;
-    return retryFilter === "retryable" ? problem.retryable : !problem.retryable;
-  }), [retryFilter, severityFilter, sourceFilter, view.problems]);
+  const [sourceFilter, setSourceFilter] = useState<
+    "all" | UiWorkbenchProblem["source"]
+  >("all");
+  const [severityFilter, setSeverityFilter] = useState<
+    "all" | "error" | "warning"
+  >("all");
+  const [retryFilter, setRetryFilter] = useState<
+    "all" | "retryable" | "terminal"
+  >("all");
+  const filteredProblems = useMemo(
+    () =>
+      view.problems.filter((problem) => {
+        if (sourceFilter !== "all" && problem.source !== sourceFilter)
+          return false;
+        if (severityFilter !== "all" && problem.severity !== severityFilter) {
+          return false;
+        }
+        if (retryFilter === "all") return true;
+        if (!isOperationalProblem(problem)) return false;
+        return retryFilter === "retryable"
+          ? problem.retryable
+          : !problem.retryable;
+      }),
+    [retryFilter, severityFilter, sourceFilter, view.problems],
+  );
   return (
     <section className={cx("problems-panel", expanded && "is-expanded")}>
-      <PanelHeader title="问题" actions={
-        <Button aria-label="关闭问题面板" onClick={onToggle} title="关闭问题面板" type="button" variant="icon"><X aria-hidden="true" size={16} /></Button>
-      } />
+      <RegionHeader
+        title="问题"
+        actions={
+          <Button
+            aria-label="关闭问题面板"
+            onClick={onToggle}
+            title="关闭问题面板"
+            type="button"
+            variant="icon"
+          >
+            <X aria-hidden="true" size={16} />
+          </Button>
+        }
+      />
       {expanded ? (
-        <div className="problems-panel-body">
+        <div className={cx("problems-panel-body")}>
           <ToolToolbar aria-label="问题筛选">
             <label>
               来源
               <ChoiceGroup
                 ariaLabel="按来源筛选问题"
                 mode="single"
-                onChange={(value: "all" | UiWorkbenchProblem["source"]) => setSourceFilter(value)}
+                onChange={(value: "all" | UiWorkbenchProblem["source"]) =>
+                  setSourceFilter(value)
+                }
                 options={[
                   { label: "全部", value: "all" },
                   ...Object.entries(sourceLabels).map(([source, label]) => ({
@@ -268,7 +297,9 @@ export function ProblemsPanel({
               <ChoiceGroup
                 ariaLabel="按严重度筛选问题"
                 mode="single"
-                onChange={(value: "all" | "error" | "warning") => setSeverityFilter(value)}
+                onChange={(value: "all" | "error" | "warning") =>
+                  setSeverityFilter(value)
+                }
                 options={[
                   { label: "全部", value: "all" },
                   { label: "错误", value: "error" },
@@ -282,7 +313,9 @@ export function ProblemsPanel({
               <ChoiceGroup
                 ariaLabel="按可重试性筛选问题"
                 mode="single"
-                onChange={(value: "all" | "retryable" | "terminal") => setRetryFilter(value)}
+                onChange={(value: "all" | "retryable" | "terminal") =>
+                  setRetryFilter(value)
+                }
                 options={[
                   { label: "全部", value: "all" },
                   { label: "可重试", value: "retryable" },
@@ -300,7 +333,7 @@ export function ProblemsPanel({
               problems={filteredProblems}
             />
           ) : (
-            <p className="problems-empty">
+            <p className={cx("problems-empty")}>
               {view.status === "collecting"
                 ? "正在检查…"
                 : view.problems.length > 0

@@ -21,10 +21,15 @@ describe("AppFrame", () => {
     problemsExpanded = false,
   } = {}) {
     return renderToStaticMarkup(
-      <AppFrame activityItems={[]}
+      <AppFrame
+        activityItems={[]}
         activeActivityId="notes"
-        contextSlot={context ? { content: <div>context</div>, title: "笔记" } : null}
-        detailSlot={detail ? <section>detail</section> : null}
+        contextSlot={
+          context ? { content: <div>context</div>, title: "笔记" } : null
+        }
+        detailSlot={
+          detail ? { title: "详情", content: <section>detail</section> } : null
+        }
         layout={{
           contextCollapsed: false,
           contextResizeValue: appContextDefaultWidth,
@@ -47,7 +52,7 @@ describe("AppFrame", () => {
           problemsHeight: appProblemsDefaultHeight,
           problemsResizeValue: appProblemsDefaultHeight,
         }}
-        mainSlot={<section>main</section>}
+        mainSlot={{ title: "内容", content: <section>main</section> }}
         onActivityChange={() => undefined}
         problemsSlot={<div>problems</div>}
         statusBarSlot={<footer>status</footer>}
@@ -69,7 +74,8 @@ describe("AppFrame", () => {
       { detail: true },
       {
         has: [
-          "调整上下文区宽度", "调整右侧详情宽度",
+          "调整上下文区宽度",
+          "调整右侧详情宽度",
           `aria-valuenow="${appContextDefaultWidth}"`,
           `aria-valuenow="${appDetailDefaultWidth}"`,
         ],

@@ -7,11 +7,11 @@ import type {
   AgentProviderView,
 } from "../../../application/agent/index.ts";
 import {
+  Section,
+  SectionStack,
   StatusBadge,
   ToolPropertyList,
   ToolPropertyRow,
-  ToolSection,
-  ToolSectionStack,
 } from "../../ui/index.ts";
 
 import type { SettingsTarget } from "./settingsTypes.ts";
@@ -39,8 +39,8 @@ function ProviderStatus({
   const probe = state.probes[provider.id];
 
   return (
-    <ToolSectionStack>
-      <ToolSection title={provider.label}>
+    <SectionStack>
+      <Section>
         <ToolPropertyList aria-label={`${provider.label} 状态`}>
           <ToolPropertyRow label="类型" value={provider.kind} />
           <ToolPropertyRow
@@ -71,9 +71,9 @@ function ProviderStatus({
             }
           />
         </ToolPropertyList>
-      </ToolSection>
+      </Section>
       {probe ? (
-        <ToolSection title="最近探测">
+        <Section title="最近探测">
           <ToolPropertyList aria-label={`${provider.label} 探测状态`}>
             <ToolPropertyRow
               label="连接"
@@ -95,9 +95,9 @@ function ProviderStatus({
               />
             ))}
           </ToolPropertyList>
-        </ToolSection>
+        </Section>
       ) : null}
-    </ToolSectionStack>
+    </SectionStack>
   );
 }
 
@@ -126,8 +126,8 @@ function ProfileStatus({
             : "未检查";
 
   return (
-    <ToolSectionStack>
-      <ToolSection title={profile.label}>
+    <SectionStack>
+      <Section>
         <ToolPropertyList aria-label={`${profile.label} 状态`}>
           <ToolPropertyRow
             label="状态"
@@ -156,8 +156,8 @@ function ProfileStatus({
             value={`${profile.timeoutMilliseconds} ms`}
           />
         </ToolPropertyList>
-      </ToolSection>
-      <ToolSection title="符合性">
+      </Section>
+      <Section title="符合性">
         <ToolPropertyList aria-label={`${profile.label} 符合性`}>
           <ToolPropertyRow
             label="结果"
@@ -185,8 +185,8 @@ function ProfileStatus({
             <ToolPropertyRow label="原因" value={profile.unavailableReason} />
           ) : null}
         </ToolPropertyList>
-      </ToolSection>
-    </ToolSectionStack>
+      </Section>
+    </SectionStack>
   );
 }
 

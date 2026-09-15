@@ -5,23 +5,20 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import {
-  BlockText,
-  type DisplayText,
-} from "../blockText.tsx";
-import { Button, cx } from "../primitives.tsx";
+import { BlockText, type DisplayText } from "../blockText.tsx";
+import { Button } from "../Button.tsx";
+import { createClassNames } from "../classNames.ts";
+import managementListStyles from "../ManagementList.module.css";
 import { shouldVirtualizeUiRows } from "../virtualListMetrics.ts";
 import { getStructureTreeRowStyle } from "./structureIndent.ts";
 import {
   flattenStructureTreeRows,
   type StructureTreeRow as FlatStructureTreeRow,
 } from "./structureRows.ts";
-import type {
-  StructureTreeProps,
-} from "./types.ts";
-import {
-  useVirtualTreeRows,
-} from "./virtualTree.ts";
+import treeStyles from "./Tree.module.css";
+import type { StructureTreeProps } from "./types.ts";
+import { useVirtualTreeRows } from "./virtualTree.ts";
+const cx = createClassNames(managementListStyles, treeStyles);
 
 const emptyKeepMountedLineNumbers: ReadonlySet<number> = new Set();
 
@@ -36,11 +33,11 @@ function StructureTreeRowContent({
 }) {
   return (
     <>
-      <span className="ui-structure-prefix">
-        <span className="ui-structure-marker">{label}</span>
+      <span className={cx("ui-structure-prefix")}>
+        <span className={cx("ui-structure-marker")}>{label}</span>
       </span>
       <BlockText text={textDisplay} />
-      <span className="ui-tree-meta">{lineLabel}</span>
+      <span className={cx("ui-tree-meta")}>{lineLabel}</span>
     </>
   );
 }
@@ -144,15 +141,15 @@ function StructureTreeContent({
           onSelectLine={onSelectLine}
         >
           {node.children.length > 0 ? (
-              <StructureTreeContent
-                depth={depth + 1}
-                getRowProps={getRowProps}
-                indentUnitCount={indentUnitCount}
-                nodes={node.children}
-                selectedLineNumbers={selectedLineNumbers}
-                selectedRootLineNumber={selectedRootLineNumber}
-                onSelectLine={onSelectLine}
-              />
+            <StructureTreeContent
+              depth={depth + 1}
+              getRowProps={getRowProps}
+              indentUnitCount={indentUnitCount}
+              nodes={node.children}
+              selectedLineNumbers={selectedLineNumbers}
+              selectedRootLineNumber={selectedRootLineNumber}
+              onSelectLine={onSelectLine}
+            />
           ) : null}
         </StructureTreeRow>
       ))}
@@ -170,14 +167,15 @@ function VirtualStructureTree({
 }) {
   const hostRef = useRef<HTMLUListElement | null>(null);
   const pinnedIndexes = useMemo(
-    () => new Set(
-      rows.flatMap((row, index) =>
-        keepMountedLineNumbers.has(row.node.lineNumber) ||
-        props.selectedRootLineNumber === row.node.lineNumber
-          ? [index]
-          : [],
+    () =>
+      new Set(
+        rows.flatMap((row, index) =>
+          keepMountedLineNumbers.has(row.node.lineNumber) ||
+          props.selectedRootLineNumber === row.node.lineNumber
+            ? [index]
+            : [],
+        ),
       ),
-    ),
     [keepMountedLineNumbers, props.selectedRootLineNumber, rows],
   );
   const getItemKey = useCallback(
@@ -193,10 +191,7 @@ function VirtualStructureTree({
 
   return (
     <ul
-      className={cx(
-        "ui-tree ui-structure-tree ui-virtual-tree",
-        className,
-      )}
+      className={cx("ui-tree ui-structure-tree ui-virtual-tree", className)}
       data-virtual-row-count={rows.length}
       ref={hostRef}
       role="tree"

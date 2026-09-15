@@ -1,13 +1,14 @@
 import { Copy } from "lucide-react";
-import type { RepositoryLocationRow } from
-  "../../../application/repository/index.ts";
+import type { RepositoryLocationRow } from "../../../application/repository/index.ts";
 import {
   Button,
+  createClassNames,
+  Section,
   ToolPropertyList,
   ToolPropertyRow,
-  ToolSection,
 } from "../../ui/index.ts";
-
+import repositoryStyles from "./repository.module.css";
+const cx = createClassNames(repositoryStyles);
 
 export function RepositoryMetadata({
   rows,
@@ -20,15 +21,17 @@ export function RepositoryMetadata({
         <ToolPropertyRow
           key={row.label}
           label={row.label}
-          value={(
+          value={
             <span
-              className={row.label.endsWith("ID")
-                ? "repository-identity-value"
-                : undefined}
+              className={cx(
+                row.label.endsWith("ID")
+                  ? "repository-identity-value"
+                  : undefined,
+              )}
             >
               {row.value}
             </span>
-          )}
+          }
         />
       ))}
     </ToolPropertyList>
@@ -46,11 +49,11 @@ export function RepositoryLocations({
 }) {
   if (rows.length === 0) return null;
   return (
-    <ToolSection title="位置">
+    <Section title="位置">
       <ToolPropertyList aria-label="仓库位置">
         {rows.map((row) => (
           <ToolPropertyRow
-            actions={(
+            actions={
               <Button
                 aria-label={`复制${row.label}`}
                 disabled={busy}
@@ -61,17 +64,20 @@ export function RepositoryLocations({
               >
                 <Copy aria-hidden="true" size={13} />
               </Button>
-            )}
+            }
             key={row.label}
             label={row.label}
-            value={(
-              <span className="repository-location-path" title={row.value}>
+            value={
+              <span
+                className={cx("repository-location-path")}
+                title={row.value}
+              >
                 {row.value}
               </span>
-            )}
+            }
           />
         ))}
       </ToolPropertyList>
-    </ToolSection>
+    </Section>
   );
 }

@@ -1,13 +1,15 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { createJournalActivitySlots } from "../../../../../presentation/activities/journal/JournalActivitySlots";
 import {
   JournalContext,
   JournalDetailPanel,
   JournalEditorPanel,
   submitJournalEntryCreation,
 } from "../../../../../presentation/activities/journal/JournalPanels";
-import { createJournalView } from "../../../../support/presentation/fixtures/journalViewFixture";
+import { RegionFrame } from "../../../../../presentation/ui/RegionFrame";
 import { runFeedbackAction } from "../../../../../presentation/ui/shared/FeedbackProvider";
+import { createJournalView } from "../../../../support/presentation/fixtures/journalViewFixture";
 import { expectMarkupSemantics } from "../../../../support/presentation/markupSemantics";
 
 const olderJanuaryEntry = {
@@ -103,10 +105,15 @@ describe("Journal panels", () => {
     const view = createJournalView();
     const contextMarkup = renderToStaticMarkup(<JournalContext view={view} />);
     const editorMarkup = renderToStaticMarkup(
-      <JournalEditorPanel
-        focusMode={false}
-        view={view}
-        onToggleFocusMode={() => undefined}
+      <RegionFrame
+        position="main"
+        slot={
+          createJournalActivitySlots({
+            view,
+            focusMode: false,
+            onToggleFocusMode: () => undefined,
+          }).main
+        }
       />,
     );
 
@@ -125,13 +132,7 @@ describe("Journal panels", () => {
       ...base,
       editor: { ...base.editor, readOnly: true },
     };
-    const markup = renderToStaticMarkup(
-      <JournalEditorPanel
-        focusMode={false}
-        view={view}
-        onToggleFocusMode={() => undefined}
-      />,
-    );
+    const markup = renderToStaticMarkup(<JournalEditorPanel view={view} />);
 
     expectMarkupSemantics(markup, {
       has: ['data-editor-read-only="true"'],
@@ -166,9 +167,7 @@ describe("Journal panels", () => {
         },
       },
     };
-    const markup = renderToStaticMarkup(
-      <JournalDetailPanel onCollapseDetail={() => undefined} view={view} />,
-    );
+    const markup = renderToStaticMarkup(<JournalDetailPanel view={view} />);
 
     expectMarkupSemantics(markup, {
       has: [

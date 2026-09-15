@@ -1,0 +1,18 @@
+.login {
+  display: grid;
+  min-height: 100dvh;
+  padding: var(--ui-panel-padding);
+  place-items: center;
+  background: var(--color-editor);
+}
+.content {
+  width: 100%;
+  max-width: var(--ui-form-max-width);
+  min-width: 0;
+}
+.title {
+  margin: 0;
+  color: var(--color-fg-strong);
+  font: inherit;
+  font-weight: var(--ui-emphasis-weight);
+}

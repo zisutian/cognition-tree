@@ -1,27 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentApplication } from "../../../application/agent/index.ts";
 import { Plus } from "lucide-react";
+import type { AgentApplication } from "../../../application/agent/index.ts";
 import { Button, type ActivitySlots } from "../../ui/index.ts";
 import { AgentContextPanel } from "./AgentContextPanel.tsx";
 import { AgentConversationPanel } from "./AgentConversationPanel.tsx";
 import { AgentProposalPanel } from "./AgentProposalPanel.tsx";
 import { AgentSessionCreatePanel } from "./AgentSessionCreatePanel.tsx";
-import "./agent.css";
 
 export function createAgentActivitySlots({
   agent,
   creatingSession,
   onBeginCreateSession,
-  onCollapseDetail,
   onSelectSession,
 }: {
   agent: AgentApplication;
   creatingSession: boolean;
   onBeginCreateSession(): void;
-  onCollapseDetail(): void;
   onSelectSession(): void;
 }): ActivitySlots {
+  const session = agent.state.sessions.find(
+    (item) => item.id === agent.state.activeSessionId,
+  );
   return {
     context: {
       actions: (
@@ -50,13 +50,29 @@ export function createAgentActivitySlots({
         (session) =>
           session.id === agent.state.activeSessionId &&
           session.proposals.length > 0,
-      ) ? (
-        <AgentProposalPanel agent={agent} onCollapseDetail={onCollapseDetail} />
-      ) : null,
-    main: creatingSession ? (
-      <AgentSessionCreatePanel agent={agent} onCreated={onSelectSession} />
-    ) : (
-      <AgentConversationPanel agent={agent} onBeginCreateSession={onBeginCreateSession} />
-    ),
+      )
+        ? {
+            title: "Proposal",
+            layout: "detail",
+            collapseLabel: "折叠 Proposal",
+            content: <AgentProposalPanel agent={agent} />,
+          }
+        : null,
+    main: {
+      title: creatingSession
+        ? "新建会话"
+        : session
+          ? `${session.profileLabel} · ${session.profileModel}`
+          : "智能体",
+      layout: creatingSession ? "form" : "conversation",
+      content: creatingSession ? (
+        <AgentSessionCreatePanel agent={agent} onCreated={onSelectSession} />
+      ) : (
+        <AgentConversationPanel
+          agent={agent}
+          onBeginCreateSession={onBeginCreateSession}
+        />
+      ),
+    },
   };
 }

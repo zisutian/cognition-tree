@@ -1,9 +1,9 @@
 import {
-  Trash2,
   CalendarDays,
   ChevronDown,
   ChevronRight,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type {
@@ -11,19 +11,22 @@ import type {
   JournalViewModel,
 } from "../../../application/journal/index.ts";
 import {
-  CtnEditor,
   CtnDocumentDetailPanel,
+  CtnEditor,
   CtnEditorPanel,
 } from "../../editor/index.ts";
+import { createClassNames, ListAction } from "../../ui/index.ts";
+import journalStyles from "./journal.module.css";
+const cx = createClassNames(journalStyles);
 
 import {
-  CompactContextList,
-  CompactContextActionButtons,
-  CompactContextRow,
-  useFeedback,
   Button,
+  CompactContextActionButtons,
+  CompactContextList,
+  CompactContextRow,
   EmptyState,
-  Panel,
+  Page,
+  useFeedback,
   useReferenceNavigation,
 } from "../../ui/index.ts";
 
@@ -88,20 +91,19 @@ export function JournalContext({ view }: JournalViewProps) {
   };
 
   return (
-    <div className="activity-context-content journal-context">
+    <div className={cx("activity-context-content journal-context")}>
       {view.calendar.years.length > 0 ? (
-        <div className="journal-calendar-scroll">
+        <div className={cx("journal-calendar-scroll")}>
           <CompactContextList
             aria-label="日记日历"
-            className="journal-calendar-tree"
+            className={cx("journal-calendar-tree")}
           >
             {view.calendar.years.map((year) => (
-              <li className="journal-calendar-branch" key={year.key}>
-                <Button
+              <li className={cx("journal-calendar-branch")} key={year.key}>
+                <ListAction
+                  kind="context"
                   aria-expanded={year.expanded}
-                  className="ui-tree-row ui-compact-context-row journal-calendar-toggle"
                   type="button"
-                  variant="bare"
                   onClick={() => view.calendar.toggle(`year:${year.key}`)}
                 >
                   {year.expanded ? (
@@ -109,17 +111,19 @@ export function JournalContext({ view }: JournalViewProps) {
                   ) : (
                     <ChevronRight aria-hidden="true" />
                   )}
-                  <span className="ui-tree-text">{year.label}</span>
-                </Button>
+                  <span className={cx("ui-tree-text")}>{year.label}</span>
+                </ListAction>
                 {year.expanded ? (
                   <CompactContextList aria-label={`${year.label}日记`}>
                     {year.months.map((month) => (
-                      <li className="journal-calendar-branch" key={month.key}>
-                        <Button
+                      <li
+                        className={cx("journal-calendar-branch")}
+                        key={month.key}
+                      >
+                        <ListAction
+                          kind="context"
                           aria-expanded={month.expanded}
-                          className="ui-tree-row ui-compact-context-row journal-calendar-toggle"
                           type="button"
-                          variant="bare"
                           onClick={() =>
                             view.calendar.toggle(`month:${month.key}`)
                           }
@@ -129,8 +133,10 @@ export function JournalContext({ view }: JournalViewProps) {
                           ) : (
                             <ChevronRight aria-hidden="true" />
                           )}
-                          <span className="ui-tree-text">{month.label}</span>
-                        </Button>
+                          <span className={cx("ui-tree-text")}>
+                            {month.label}
+                          </span>
+                        </ListAction>
                         {month.expanded ? (
                           <CompactContextList
                             aria-label={`${month.key}日记条目`}
@@ -170,11 +176,11 @@ export function JournalContext({ view }: JournalViewProps) {
                                     />
                                   ) : undefined
                                 }
-                                className={
+                                className={cx(
                                   pendingDelete?.id === entry.id
                                     ? "is-delete-pending"
-                                    : undefined
-                                }
+                                    : undefined,
+                                )}
                                 icon={<CalendarDays aria-hidden="true" />}
                                 key={entry.id}
                                 label={entry.title}
@@ -195,26 +201,19 @@ export function JournalContext({ view }: JournalViewProps) {
           </CompactContextList>
         </div>
       ) : (
-        <p className="context-empty">没有日记。</p>
+        <p className={cx("context-empty")}>没有日记。</p>
       )}
     </div>
   );
 }
 
-export function JournalEditorPanel({
-  focusMode,
-  onToggleFocusMode,
-  view,
-}: JournalViewProps & {
-  focusMode: boolean;
-  onToggleFocusMode: () => void;
-}) {
+export function JournalEditorPanel({ view }: JournalViewProps & {}) {
   const feedback = useFeedback();
   const referenceNavigation = useReferenceNavigation(view.referenceNavigation);
 
   if (!view.activeEntry) {
     return (
-      <Panel aria-label="日记编辑" className="ctn-editor-panel">
+      <Page aria-label="日记编辑" kind="editor">
         <EmptyState
           action={
             <Button
@@ -233,17 +232,12 @@ export function JournalEditorPanel({
           }
           title="还没有日记"
         />
-      </Panel>
+      </Page>
     );
   }
 
   return (
-    <CtnEditorPanel
-      ariaLabel="日记编辑"
-      focusMode={focusMode}
-      onToggleFocusMode={onToggleFocusMode}
-      title={view.activeEntry.title}
-    >
+    <CtnEditorPanel ariaLabel="日记编辑">
       <CtnEditor
         key={view.activeEntry.id}
         contentMode={view.editor.contentMode}
@@ -261,10 +255,7 @@ export function JournalEditorPanel({
   );
 }
 
-export function JournalDetailPanel({
-  onCollapseDetail,
-  view,
-}: JournalViewProps & { onCollapseDetail: () => void }) {
+export function JournalDetailPanel({ view }: JournalViewProps) {
   if (!view.activeEntry) {
     return null;
   }
@@ -279,7 +270,6 @@ export function JournalDetailPanel({
       blockMetadata={selectedBlock?.metadata ?? null}
       documentLabel="日记"
       documentMetadata={view.activeEntry}
-      onCollapseDetail={onCollapseDetail}
       stats={view.editor.stats}
       structure={{
         indentUnitCount: view.editor.syntax.tabDisplayWidth,

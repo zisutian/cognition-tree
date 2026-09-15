@@ -1,12 +1,15 @@
 import { Search } from "lucide-react";
 import {
-  type SearchControllerView,
-  type SearchControllerState,
   searchDomains,
+  type SearchControllerState,
+  type SearchControllerView,
   type SearchDomain,
 } from "../../../application/search/index.ts";
+import { createClassNames } from "../../ui/index.ts";
+import searchStyles from "./search.module.css";
+const cx = createClassNames(searchStyles);
 
-import { ChoiceGroup, InputControl, Button } from "../../ui/index.ts";
+import { Button, ChoiceGroup, InputControl } from "../../ui/index.ts";
 
 const domainOptions = [
   { label: "本地仓库", value: "workspace" },
@@ -32,15 +35,20 @@ export function SearchContext({
   return (
     <form
       aria-label="搜索条件"
-      className="activity-context-content search-context"
+      className={cx("activity-context-content search-context")}
       onSubmit={(event) => {
         event.preventDefault();
         void controller.search();
       }}
       role="search"
     >
-      <div className="search-query-row">
-        <label htmlFor="workbench-search-query">搜索词</label>
+      <div className={cx("search-query-row")}>
+        <label
+          className={cx("ui-visually-hidden")}
+          htmlFor="workbench-search-query"
+        >
+          搜索词
+        </label>
         <InputControl
           autoComplete="off"
           id="workbench-search-query"
@@ -76,7 +84,7 @@ export function SearchContext({
       />
 
       {state.draft.domains.length === 0 ? (
-        <p className="search-context-status" role="alert">
+        <p className={cx("search-context-status")} role="alert">
           至少选择一个范围。
         </p>
       ) : null}

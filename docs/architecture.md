@@ -12,7 +12,6 @@
 
 三个内容领域互不直接依赖，也不继承统一文档库模型。它们只共享 CTN、可移植名称和值无关的 versioned persistence。Repository 不是内容领域，只管理普通 catalog、内置数据 descriptor、位置、故障和运维。
 
-
 ## 源码层次
 
 core/
@@ -49,7 +48,6 @@ contracts/
 tooling 不属于运行时源码层，只持有工程脚本和专用配置。tests 与 e2e 验证边界，
 但生产层不得反向依赖它们。可重建产物只写入 .artifacts。
 
-
 ## 依赖规则
 
     core 不依赖任何外层；Workspace、Journal、Todo 互不直接依赖。
@@ -77,7 +75,6 @@ tooling 不属于运行时源码层，只持有工程脚本和专用配置。tes
 源码和资源的唯一归属。解析失败、非字面量动态导入、未解析的相对路径、遗漏文件、
 重复归属、空扫描范围、内部路径越界和依赖循环都会失败；没有临时边界豁免。
 工程工具也进入模块检查，CLI 仅通过 Contracts 访问 API。
-
 
 ## Application 协调
 
@@ -174,7 +171,6 @@ OwnerAuthenticationController 串行执行会改变 owner session cookie 的登�
 
 Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 UUID、时间、页面事件和定时器实现由 infrastructure 注入。Problems 的选择与合并留在 application，Activity 切换和 DOM 聚焦只由 presentation 执行。
 
-
 ## 本机内容用例
 
 application/content 是外部内容调用的显式协调根：目标解析、目录版本、一次 CAS 与操作收据由该模块协调，平台能力通过端口注入。各领域公开的中立 command preparation 与 review 同时被此模块和 Agent 使用；Agent 自己保留会话、暂存提案和审批。
@@ -206,6 +202,7 @@ CLI 只导入公开 Contracts，由 registry 构造请求并校验响应；它�
     application/workspace 的 localFirstWorkspaceCatalog 串行投影内存 cache，
     并以远端观察 epoch 拒绝陈旧 list 回写；application/repository 的 cachedBuiltInCatalog
     拥有内置目录的离线回退，client/runtime 组合 HTTP、缓存端口和领域 preparation；cache 始终是离线投影，任何写入或清理失败都不能改写已完成的远端 mutation。
+
 ## Presentation 与 Problems
 
 本节只说明 Presentation 所有权与跨层边界；精确布局、交互、尺度和颜色由
@@ -226,11 +223,18 @@ controller，重新登录不得复用终态实例。领域 session 到 view appl
 原语只存在于 `presentation/ui`；Activity 只组合领域内容、局部 Presentation 状态和
 回调，不复制应用状态或领域命令。
 
-`ToolPanel`、`ToolSection`、`ToolPropertyList`、`ToolToolbar` 和 `ToolList` 分别拥有
-工具页面布局、分区、已保存属性、工具栏和结果行，各自样式与组件职责一致；普通控件、
-详情壳与 CTN 编辑器分别由 `presentation/ui/shared`、`DetailPanel` 和 CodeMirror adapter
-独占。`ActivitySlots` 只声明 context、main 与可选 detail 内容，AppFrame 独占工作台
-尺寸、折叠和专注模式。页面不得实现第二套详情壳或跨 Activity 布局状态。
+三大分区统一使用 `ActivityRegionSlot`，明确声明 title、actions、toolbar、content、footer
+与内容布局。`AppFrame` 组合分区并独占尺寸、折叠和专注模式；`RegionFrame` 唯一拥有
+分区标题、边界与内边距。活动只提供领域内容与操作，不再拥有头部或折叠按钮。
+`Page`、`PageBody` 和 `Section` 分别拥有正文组合、滚动/阅读宽度及分组；表单、结果、
+文档和会话通过明确的模板选择布局。固定操作不随正文滚走。Note/Journal/Todo 的
+编辑器面板只负责编辑内容容器，CodeMirror adapter 保留输入法、光标与撤销生命周期。
+
+控件样式与共享组件放在一起，通过 CSS Modules 隔离。公开控件接口移除 className、
+style 与裸按钮变体，活动不能覆盖内部控件。contentClasses 是内容适配器的显式样式
+组合入口，仅绑定共享样式；活动自己的样式在所属目录绑定。保留的可读 DOM 类名
+用于诊断和编辑内容适配，本身不拥有全局控件样式。全局入口只加载主题、基础 reset
+和 CTN 内容标记适配。架构检查同时约束导入方向、样式所有权与跨组件选择器。
 
 Activity 内部仍按语义拆分独立 view：Repository 的 catalog、状态、恢复与危险操作，
 Todo 的集合、编辑与周期结构，以及 Notes 的编辑、结构与图谱不因视觉相似而共享业务

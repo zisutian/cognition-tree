@@ -1,3 +1,5 @@
+import { createClassNames } from "../../ui/index.ts";
+const cx = createClassNames();
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
@@ -9,15 +11,15 @@ import {
   Button,
   ConfirmAction,
   FormSaveActions,
-  ToolSection,
+  Section,
   useFeedback,
 } from "../../ui/index.ts";
+import { AgentProfileSettingsForm } from "./AgentProfileSettingsForm.tsx";
 import {
   agentProfileDraftFrom,
   agentProfileInput,
   createAgentProfileDraft,
 } from "./agentSettingsDraft.ts";
-import { AgentProfileSettingsForm } from "./AgentProfileSettingsForm.tsx";
 import { SettingsPage } from "./SettingsPage.tsx";
 import type { SettingsTarget } from "./settingsTypes.ts";
 import { useSettingsDraft } from "./useSettingsDraft.ts";
@@ -69,9 +71,7 @@ export function AgentProfileSettingsPanel({
   const unavailable = !configuration || (id !== null && !profile);
   const errorMessage =
     draft.errorMessage ??
-    (draft.stale
-      ? "配置已过期或对象已移除"
-      : state.errorMessage);
+    (draft.stale ? "配置已过期或对象已移除" : state.errorMessage);
   useSettingsInteraction(report, { ...draft, submitting: busy, errorMessage });
   const save = () =>
     feedback.runAction(async () => {
@@ -101,7 +101,6 @@ export function AgentProfileSettingsPanel({
     });
   return (
     <SettingsPage
-      title={profile?.label ?? (id ? "Profile 已移除" : "新建 Profile")}
       label="会话配置设置"
       errorMessage={errorMessage}
       actions={
@@ -143,8 +142,8 @@ export function AgentProfileSettingsPanel({
         selectedProvider={selectedProvider}
       />
       {profile ? (
-        <ToolSection title="检查与管理">
-          <div className="ui-actions">
+        <Section title="检查与管理">
+          <div className={cx("ui-actions")}>
             {profile.parameters.kind === "chat" ? (
               running ? (
                 <Button
@@ -186,7 +185,7 @@ export function AgentProfileSettingsPanel({
               }
             />
           </div>
-        </ToolSection>
+        </Section>
       ) : null}
     </SettingsPage>
   );

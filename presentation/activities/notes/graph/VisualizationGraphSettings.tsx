@@ -1,12 +1,15 @@
-import { Check, Settings2 } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import { useId } from "react";
 import {
-  Popover,
   Button,
-  ToggleButton,
+  FieldRow,
+  FormLayout,
+  Section,
+  SectionStack,
+  Popover,
   RangeControl,
+  ToggleButton,
 } from "../../../ui/index.ts";
-
 
 import type { ReferenceGraphSettings } from "./referenceGraphSettings.ts";
 
@@ -30,22 +33,20 @@ function GraphRangeSetting({
   const inputId = useId();
   const precision = step < 0.1 ? 2 : step < 1 ? 1 : 0;
   return (
-    <label
-      className="graph-settings-row graph-settings-range"
-      htmlFor={inputId}
-    >
-      <span className="graph-settings-label">{label}</span>
-      <RangeControl
-        aria-label={label}
-        id={inputId}
-        max={maximum}
-        min={minimum}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-      <output>{value.toFixed(precision)}{suffix}</output>
-    </label>
+    <FieldRow fieldId={inputId} label={label}>
+      {(accessibility) => (
+        <RangeControl
+          {...accessibility}
+          aria-label={label}
+          max={maximum}
+          min={minimum}
+          step={step}
+          value={value}
+          valueLabel={`${value.toFixed(precision)}${suffix}`}
+          onChange={(event) => onChange(Number(event.target.value))}
+        />
+      )}
+    </FieldRow>
   );
 }
 
@@ -60,21 +61,20 @@ function GraphToggleSetting({
   value: boolean;
   onChange: (value: boolean) => void;
 }) {
+  const inputId = useId();
   return (
-    <div className="graph-settings-row graph-settings-toggle-row">
-      <span className="graph-settings-label">{label}</span>
-      <ToggleButton
-        aria-label={ariaLabel}
-        className="graph-settings-toggle"
-        onClick={() => onChange(!value)}
-        pressed={value}
-      >
-        <span className="graph-settings-toggle-icon" aria-hidden="true">
-          {value ? <Check size={12} strokeWidth={2.4} /> : null}
-        </span>
-        {value ? "显示" : "隐藏"}
-      </ToggleButton>
-    </div>
+    <FieldRow fieldId={inputId} label={label}>
+      {(accessibility) => (
+        <ToggleButton
+          {...accessibility}
+          aria-label={ariaLabel}
+          onClick={() => onChange(!value)}
+          pressed={value}
+        >
+          {value ? "显示" : "隐藏"}
+        </ToggleButton>
+      )}
+    </FieldRow>
   );
 }
 
@@ -87,25 +87,22 @@ export function VisualizationGraphSettings({
   onChange: (settings: ReferenceGraphSettings) => void;
   onReset: () => void;
 }) {
-  const updateDisplay = (
-    next: Partial<ReferenceGraphSettings["display"]>,
-  ) => onChange({
-    ...settings,
-    display: { ...settings.display, ...next },
-  });
-  const updateForces = (
-    next: Partial<ReferenceGraphSettings["forces"]>,
-  ) => onChange({
-    ...settings,
-    forces: { ...settings.forces, ...next },
-  });
+  const updateDisplay = (next: Partial<ReferenceGraphSettings["display"]>) =>
+    onChange({
+      ...settings,
+      display: { ...settings.display, ...next },
+    });
+  const updateForces = (next: Partial<ReferenceGraphSettings["forces"]>) =>
+    onChange({
+      ...settings,
+      forces: { ...settings.forces, ...next },
+    });
 
   return (
     <Popover
       ariaLabel="图谱设置"
-      className="graph-settings-popover"
-      panelClassName="graph-settings-panel"
       panelRole="dialog"
+      size="regular"
       renderTrigger={({ isOpen, panelId, toggle, triggerRef }) => (
         <Button
           aria-controls={panelId}
@@ -125,89 +122,90 @@ export function VisualizationGraphSettings({
       )}
     >
       {() => (
-        <div className="graph-settings-content">
-          <section className="graph-settings-section">
-            <h3>显示</h3>
-            <GraphToggleSetting
-              ariaLabel="显示箭头"
-              label="箭头"
-              value={settings.display.showArrows}
-              onChange={(showArrows) => updateDisplay({ showArrows })}
-            />
-            <GraphRangeSetting
-              label="文字密度"
-              maximum={100}
-              minimum={0}
-              step={5}
-              suffix="%"
-              value={settings.display.labelDensity}
-              onChange={(labelDensity) => updateDisplay({ labelDensity })}
-            />
-            <GraphRangeSetting
-              label="节点大小"
-              maximum={2}
-              minimum={0.5}
-              step={0.1}
-              suffix="×"
-              value={settings.display.nodeScale}
-              onChange={(nodeScale) => updateDisplay({ nodeScale })}
-            />
-            <GraphRangeSetting
-              label="连线粗细"
-              maximum={2}
-              minimum={0.5}
-              step={0.1}
-              suffix="×"
-              value={settings.display.linkThickness}
-              onChange={(linkThickness) => updateDisplay({ linkThickness })}
-            />
-          </section>
-          <section className="graph-settings-section">
-            <h3>力导向</h3>
-            <GraphRangeSetting
-              label="中心力"
-              maximum={1}
-              minimum={0}
-              step={0.05}
-              value={settings.forces.centerStrength}
-              onChange={(centerStrength) => updateForces({ centerStrength })}
-            />
-            <GraphRangeSetting
-              label="排斥力"
-              maximum={600}
-              minimum={50}
-              step={10}
-              value={settings.forces.repulsion}
-              onChange={(repulsion) => updateForces({ repulsion })}
-            />
-            <GraphRangeSetting
-              label="连接力"
-              maximum={1}
-              minimum={0.05}
-              step={0.05}
-              value={settings.forces.linkStrength}
-              onChange={(linkStrength) => updateForces({ linkStrength })}
-            />
-            <GraphRangeSetting
-              label="连接距离"
-              maximum={220}
-              minimum={50}
-              step={5}
-              suffix=" px"
-              value={settings.forces.linkDistance}
-              onChange={(linkDistance) => updateForces({ linkDistance })}
-            />
-          </section>
+        <SectionStack>
+          <Section title="显示">
+            <FormLayout layout="compact">
+              <GraphToggleSetting
+                ariaLabel="显示箭头"
+                label="箭头"
+                value={settings.display.showArrows}
+                onChange={(showArrows) => updateDisplay({ showArrows })}
+              />
+              <GraphRangeSetting
+                label="文字密度"
+                maximum={100}
+                minimum={0}
+                step={5}
+                suffix="%"
+                value={settings.display.labelDensity}
+                onChange={(labelDensity) => updateDisplay({ labelDensity })}
+              />
+              <GraphRangeSetting
+                label="节点大小"
+                maximum={2}
+                minimum={0.5}
+                step={0.1}
+                suffix="×"
+                value={settings.display.nodeScale}
+                onChange={(nodeScale) => updateDisplay({ nodeScale })}
+              />
+              <GraphRangeSetting
+                label="连线粗细"
+                maximum={2}
+                minimum={0.5}
+                step={0.1}
+                suffix="×"
+                value={settings.display.linkThickness}
+                onChange={(linkThickness) => updateDisplay({ linkThickness })}
+              />
+            </FormLayout>
+          </Section>
+          <Section title="力导向">
+            <FormLayout layout="compact">
+              <GraphRangeSetting
+                label="中心力"
+                maximum={1}
+                minimum={0}
+                step={0.05}
+                value={settings.forces.centerStrength}
+                onChange={(centerStrength) => updateForces({ centerStrength })}
+              />
+              <GraphRangeSetting
+                label="排斥力"
+                maximum={600}
+                minimum={50}
+                step={10}
+                value={settings.forces.repulsion}
+                onChange={(repulsion) => updateForces({ repulsion })}
+              />
+              <GraphRangeSetting
+                label="连接力"
+                maximum={1}
+                minimum={0.05}
+                step={0.05}
+                value={settings.forces.linkStrength}
+                onChange={(linkStrength) => updateForces({ linkStrength })}
+              />
+              <GraphRangeSetting
+                label="连接距离"
+                maximum={220}
+                minimum={50}
+                step={5}
+                suffix=" px"
+                value={settings.forces.linkDistance}
+                onChange={(linkDistance) => updateForces({ linkDistance })}
+              />
+            </FormLayout>
+          </Section>
           <Button
-            className="graph-settings-reset"
             onClick={onReset}
             type="button"
             variant="secondary"
-          sizing="container"
+            sizing="container"
           >
             恢复默认设置
           </Button>
-        </div>
+        </SectionStack>
       )}
     </Popover>
   );

@@ -51,7 +51,9 @@ test.describe("search activity flows", () => {
     );
     await query.press("Enter");
 
-    const groups = page.locator(".search-result-group");
+    const groups = page
+      .getByRole("list", { name: "搜索结果列表", exact: true })
+      .locator(':scope > [role="listitem"]');
 
     await expect(groups.filter({ hasText: "检索目标仓库" })).toBeVisible();
     await expect(groups.filter({ hasText: "日记" })).toBeVisible();
@@ -59,7 +61,11 @@ test.describe("search activity flows", () => {
     await expect(page.getByRole("button", { name: "加载更多" })).toBeVisible();
     await page.getByRole("button", { name: "加载更多" }).click();
     await expect(page.getByRole("button", { name: "加载更多" })).toHaveCount(0);
-    await expect(page.getByRole("region", { name: "搜索结果", exact: true }).getByRole("status")).toContainText("23 个命中");
+    await expect(
+      page
+        .getByRole("region", { name: "搜索结果", exact: true })
+        .getByRole("status"),
+    ).toContainText("23 个命中");
 
     await scopes.getByRole("button", { name: "日记", exact: true }).click();
     await scopes.getByRole("button", { name: "代办", exact: true }).click();
@@ -79,7 +85,7 @@ test.describe("search activity flows", () => {
     await expect(groups.filter({ hasText: "代办" })).toBeVisible();
 
     const workspaceGroup = groups.filter({ hasText: "检索目标仓库" });
-    const resultBody = page.locator(".ui-tool-panel-body-results");
+    const resultBody = page.locator('[data-page-layout="results"]');
     const targetHit = workspaceGroup
       .locator(".ui-tool-list-row-target")
       .filter({ hasText: "Workspace 19" });

@@ -1,37 +1,27 @@
 import type { VisualizationViewModel } from "../../../../application/workspace/index.ts";
-import {
-  DetailPanel,
-  PanelBody,
-} from "../../../ui/index.ts";
+import { createClassNames, Page, PageBody } from "../../../ui/index.ts";
 import {
   AdjacentReferenceList,
   MostReferencedList,
 } from "./VisualizationDetailLists.tsx";
+const cx = createClassNames();
 
 export function VisualizationDetailPanel({
-  onCollapseDetail,
   view,
 }: {
-  onCollapseDetail: () => void;
   view: VisualizationViewModel;
 }) {
   const visualization = view;
   const graph = visualization.graph;
   const activeNode = visualization.activeNoteId
-    ? graph.nodes.find((node) => node.id === visualization.activeNoteId) ?? null
+    ? (graph.nodes.find((node) => node.id === visualization.activeNoteId) ??
+      null)
     : null;
 
   return (
-    <DetailPanel
-      aria-label="图谱详情"
-      onCollapse={onCollapseDetail}
-      title="图谱详情"
-    >
-      <PanelBody className="detail-panel-stack" scroll>
-        <dl
-          aria-label="图谱统计"
-          className="detail-summary-strip"
-        >
+    <Page aria-label="图谱详情">
+      <PageBody scroll>
+        <dl aria-label="图谱统计" className={cx("detail-summary-strip")}>
           <div>
             <dd>{graph.stats.nodeCount}</dd>
             <dt>点</dt>
@@ -45,11 +35,11 @@ export function VisualizationDetailPanel({
             <dt>孤立</dt>
           </div>
         </dl>
-        <div aria-hidden="true" className="detail-divider" />
+        <div aria-hidden="true" className={cx("detail-divider")} />
         {activeNode ? (
-          <div className="detail-primary-row">
+          <div className={cx("detail-primary-row")}>
             <p>{activeNode.title}</p>
-            <dl className="detail-meta-line" aria-label="当前节点引用">
+            <dl className={cx("detail-meta-line")} aria-label="当前节点引用">
               <div>
                 <dd>{activeNode.referencesIn}</dd>
                 <dt>入链</dt>
@@ -61,20 +51,20 @@ export function VisualizationDetailPanel({
             </dl>
           </div>
         ) : (
-          <p className="ui-muted">未选择笔记</p>
+          <p className={cx("ui-muted")}>未选择笔记</p>
         )}
         {activeNode ? (
           <>
-            <div aria-hidden="true" className="detail-divider" />
+            <div aria-hidden="true" className={cx("detail-divider")} />
             <AdjacentReferenceList activeNodeId={activeNode.id} graph={graph} />
           </>
         ) : null}
-        <div aria-hidden="true" className="detail-divider" />
+        <div aria-hidden="true" className={cx("detail-divider")} />
         <MostReferencedList
           graph={graph}
           onSelectNote={visualization.onSelectNote}
         />
-      </PanelBody>
-    </DetailPanel>
+      </PageBody>
+    </Page>
   );
 }

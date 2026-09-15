@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { RepositoryApplication } from "../../../application/repository/index.ts";
 import { useEffect, useState } from "react";
+import type { RepositoryApplication } from "../../../application/repository/index.ts";
 import {
-  createRepositoryViewModel,
   createDefaultRepositorySelection,
+  createRepositoryViewModel,
   projectRepositoryFocusSelection,
   repositorySelectionExists,
   type RepositorySelection,
 } from "../../../application/repository/index.ts";
 
-import { createRepositoryActivitySlots } from "./RepositoryActivitySlots.tsx";
 import type { ActivityControllerProps } from "../../ui/index.ts";
+import { createRepositoryActivitySlots } from "./RepositoryActivitySlots.tsx";
 
 export function RepositoryActivityController({
   active,
@@ -68,7 +68,7 @@ export function RepositoryActivityController({
   }, [application.repository.navigation.focusRequest]);
 
   return active
-    ? renderActivity(({ onCollapseDetail }) =>
+    ? renderActivity(() =>
         createRepositoryActivitySlots({
           onOpen: async (repositoryId) => {
             let opening: Promise<void> | null = null;
@@ -78,7 +78,6 @@ export function RepositoryActivityController({
             await opening;
           },
           focusRequest: application.repository.navigation.focusRequest,
-          onCollapseDetail,
           onConsumeFocusRequest:
             application.repository.navigation.consumeFocusRequest,
           onSelectionChange: setSelection,

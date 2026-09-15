@@ -2,38 +2,45 @@
 
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "vitest";
-import { useTodoContext } from "../../../../../presentation/activities/todo/useTodoContext";
 import { TodoDetailPanel } from "../../../../../presentation/activities/todo/TodoDetailPanel";
 import { TodoEditorPanel } from "../../../../../presentation/activities/todo/TodoEditorPanel";
 import { TodoRecurrenceEditor } from "../../../../../presentation/activities/todo/TodoRecurrenceEditor";
-import { TestFeedbackProvider as FeedbackProvider } from
-  "../../../../support/presentation/fixtures/TestFeedbackProvider";
+import { useTodoContext } from "../../../../../presentation/activities/todo/useTodoContext";
+import { TestFeedbackProvider as FeedbackProvider } from "../../../../support/presentation/fixtures/TestFeedbackProvider";
 import { createTodoView } from "../../../../support/presentation/fixtures/todoViewFixture";
 import { expectMarkupSemantics } from "../../../../support/presentation/markupSemantics";
 
 function TodoContextFixture() {
   const { context } = useTodoContext(createTodoView());
-  return <>{context.actions}{context.content}</>;
+  return (
+    <>
+      {context.actions}
+      {context.content}
+    </>
+  );
 }
 
 describe("Todo panels", () => {
   it("renders ordered collections and actions only on the selected row", () => {
-    const markup = renderToStaticMarkup(
-      <TodoContextFixture />,
-    );
+    const markup = renderToStaticMarkup(<TodoContextFixture />);
 
     expectMarkupSemantics(markup, {
       has: [
-        'aria-current="page"', 'aria-label="新建事项集合"',
+        'aria-current="page"',
+        'aria-label="新建事项集合"',
         'aria-label="重命名事项集合 今天"',
-        'aria-label="删除事项集合 今天"', 'draggable="true"',
+        'aria-label="删除事项集合 今天"',
+        'draggable="true"',
         'aria-label="事项集合"',
       ],
       lacks: [
-        'id="todo-collections-heading"', ">事项集合</span>",
-        'aria-label="调整事项集合顺序 今天"', ">1/2<",
+        'id="todo-collections-heading"',
+        ">事项集合</span>",
+        'aria-label="调整事项集合顺序 今天"',
+        ">1/2<",
         'aria-label="重命名事项集合 稍后"',
-        'aria-label="删除事项集合 稍后"', 'role="alertdialog"',
+        'aria-label="删除事项集合 稍后"',
+        'role="alertdialog"',
       ],
       ordered: ["今天", "稍后"],
     });
@@ -41,18 +48,17 @@ describe("Todo panels", () => {
 
   it("renders source-backed tasks in the detail tree with independent checkboxes", () => {
     const markup = renderToStaticMarkup(
-      <TodoDetailPanel
-        onCollapseDetail={() => undefined}
-        view={createTodoView()}
-      />,
+      <TodoDetailPanel view={createTodoView()} />,
     );
 
     expectMarkupSemantics(markup, {
       has: [
         'type="checkbox" checked=""',
         'aria-label="标记未完成 已完成但保持原位"',
-        'aria-label="标记完成 未完成"', 'role="treeitem"',
-        ">L1</span>", ">L2</span>",
+        'aria-label="标记完成 未完成"',
+        'role="treeitem"',
+        ">L1</span>",
+        ">L2</span>",
       ],
       lacks: ['draggable="true"'],
       ordered: [">已完成但保持原位</span>", ">未完成</span>"],
@@ -87,10 +93,7 @@ describe("Todo panels", () => {
     };
     const markup = renderToStaticMarkup(
       <FeedbackProvider activeActivityId="todo">
-        <TodoDetailPanel
-          onCollapseDetail={() => undefined}
-          view={view}
-        />
+        <TodoDetailPanel view={view} />
       </FeedbackProvider>,
     );
     const editorMarkup = renderToStaticMarkup(
@@ -133,8 +136,10 @@ describe("Todo panels", () => {
     });
     expectMarkupSemantics(editorMarkup, {
       has: [
-        "完成 3/4 · 下次 2026-07-27", 'aria-label="周期类型"',
-        ">确定</button>", ">取消</button>",
+        "完成 3/4 · 下次 2026-07-27",
+        'aria-label="周期类型"',
+        ">确定</button>",
+        ">取消</button>",
       ],
     });
     expectMarkupSemantics(stoppedEditorMarkup, {
@@ -147,8 +152,6 @@ describe("Todo panels", () => {
     const editorMarkup = renderToStaticMarkup(
       <TodoEditorPanel
         creation={{ disabled: false, begin: () => undefined }}
-        focusMode={false}
-        onToggleFocusMode={() => undefined}
         view={createTodoView()}
       />,
     );
@@ -156,8 +159,6 @@ describe("Todo panels", () => {
     const markup = renderToStaticMarkup(
       <TodoEditorPanel
         creation={{ disabled: false, begin: () => undefined }}
-        focusMode={false}
-        onToggleFocusMode={() => undefined}
         view={{
           ...base,
           activeCollection: null,
@@ -173,5 +174,4 @@ describe("Todo panels", () => {
       has: ["还没有事项集合", "新建事项集合"],
     });
   });
-
 });

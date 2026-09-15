@@ -1,23 +1,18 @@
 import type { VisualizationViewModel } from "../../../../application/workspace/index.ts";
-import "./graph.css";
-import type { WorkspaceShell } from "../../../workspace/index.ts";
 import type { ActivitySlots } from "../../../ui/index.ts";
+import type { WorkspaceShell } from "../../../workspace/index.ts";
 import { SyntaxUnavailablePanel } from "../SyntaxUnavailablePanel.tsx";
 import { VisualizationContext } from "./VisualizationContext.tsx";
 import { VisualizationDetailPanel } from "./VisualizationDetailPanel.tsx";
 import { VisualizationPanel } from "./VisualizationPanel.tsx";
-import type {
-  ReferenceGraphSession,
-} from "./useReferenceGraphSession.ts";
+import type { ReferenceGraphSession } from "./useReferenceGraphSession.ts";
 
 export function createVisualizationActivitySlots({
-  onCollapseDetail,
   onConfigureSyntax,
   session,
   shell,
   view,
 }: {
-  onCollapseDetail: () => void;
   onConfigureSyntax: () => void;
   session: ReferenceGraphSession;
   shell: WorkspaceShell;
@@ -27,12 +22,16 @@ export function createVisualizationActivitySlots({
     return {
       context: null,
       detail: null,
-      main: (
-        <SyntaxUnavailablePanel
-          featureName="引用图谱"
-          onConfigureSyntax={onConfigureSyntax}
-        />
-      ),
+      main: {
+        title: "引用图谱",
+        layout: "canvas",
+        content: (
+          <SyntaxUnavailablePanel
+            featureName="引用图谱"
+            onConfigureSyntax={onConfigureSyntax}
+          />
+        ),
+      },
     };
   }
 
@@ -41,12 +40,15 @@ export function createVisualizationActivitySlots({
       content: <VisualizationContext session={session} view={view} />,
       title: "引用图谱",
     },
-    detail: (
-      <VisualizationDetailPanel
-        onCollapseDetail={onCollapseDetail}
-        view={view}
-      />
-    ),
-    main: <VisualizationPanel session={session} view={view} />,
+    detail: {
+      title: "图谱详情",
+      layout: "detail",
+      content: <VisualizationDetailPanel view={view} />,
+    },
+    main: {
+      title: "引用图谱",
+      layout: "canvas",
+      content: <VisualizationPanel session={session} view={view} />,
+    },
   };
 }

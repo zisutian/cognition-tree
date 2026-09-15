@@ -13,7 +13,7 @@ import {
 } from "../../../../presentation/ui/shared/ManagementList";
 import { StatusBadge } from "../../../../presentation/ui/shared/StatusPresentation";
 
-import { Button } from "../../../../presentation/ui/shared/primitives";
+import { Button } from "../../../../presentation/ui/shared/Button";
 import { InputControl } from "../../../../presentation/ui/shared/controls";
 
 describe("shared management components", () => {
@@ -37,15 +37,14 @@ describe("shared management components", () => {
     );
 
     expect(markup).toContain('for="profile-name"');
-    expect(markup.match(/<input[^>]*id="profile-name"[^>]*>/)?.[0])
-      .not.toContain("aria-describedby");
+    expect(
+      markup.match(/<input[^>]*id="profile-name"[^>]*>/)?.[0],
+    ).not.toContain("aria-describedby");
     expect(markup).toContain('aria-invalid="true"');
     const providerInput = markup.match(
       /<input[^>]*id="provider-name"[^>]*>/,
     )?.[0];
-    expect(providerInput).toContain(
-      'aria-describedby="provider-name-error"',
-    );
+    expect(providerInput).toContain('aria-describedby="provider-name-error"');
     expect(markup).toContain('id="provider-name-error"');
     expect(markup).toContain("名称不能为空");
   });

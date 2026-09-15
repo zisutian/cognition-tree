@@ -1,10 +1,10 @@
 import { expect } from "@playwright/test";
 
+import { test as base } from "../support/e2eTest";
 import {
   seedLargeDirectoryRepository,
   seedLargeStructureRepository,
 } from "../support/repositorySeeds";
-import { test as base } from "../support/e2eTest";
 import { openWorkbench } from "../support/workbenchPage";
 
 const test = base.extend<{
@@ -52,7 +52,9 @@ test.describe("virtual collection scrolling", () => {
     await context.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
-    await expect(context.getByTitle("Large Note 599", { exact: true })).toBeVisible();
+    await expect(
+      context.getByTitle("Large Note 599", { exact: true }),
+    ).toBeVisible();
   });
 
   test("virtualizes a 600-block structure and reveals its final row", async ({
@@ -60,7 +62,9 @@ test.describe("virtual collection scrolling", () => {
     page,
   }) => {
     await openWorkbench(page, structureRepository);
-    const detailScroll = page.locator(".app-detail .ui-panel-body-scroll");
+    const detailScroll = page.locator(
+      '.app-detail [data-page-layout="detail"]',
+    );
     const structureTree = detailScroll.getByRole("tree");
 
     await expect(structureTree).toBeVisible();
@@ -76,6 +80,8 @@ test.describe("virtual collection scrolling", () => {
     await detailScroll.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
-    await expect(structureTree.getByTitle("组分: Block 599", { exact: true })).toBeVisible();
+    await expect(
+      structureTree.getByTitle("组分: Block 599", { exact: true }),
+    ).toBeVisible();
   });
 });

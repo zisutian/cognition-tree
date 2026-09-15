@@ -4,7 +4,15 @@ import type {
   SyntaxTone,
   SyntaxToneOption,
 } from "../../../application/syntax/index.ts";
-import { Popover, ColorControl, Button, isCustomTone } from "../../ui/index.ts";
+import {
+  Button,
+  ColorControl,
+  createClassNames,
+  isCustomTone,
+  Popover,
+} from "../../ui/index.ts";
+import syntaxStyles from "./syntax.module.css";
+const cx = createClassNames(syntaxStyles);
 
 const defaultCustomTone = "#397c72";
 
@@ -71,9 +79,8 @@ export function TonePicker({
   return (
     <Popover
       ariaLabel={ariaLabel}
-      className="syntax-tone-picker"
-      panelClassName="syntax-dropdown-menu syntax-tone-menu"
       panelRole="dialog"
+      size="compact"
       renderTrigger={({ isOpen, panelId, toggle, triggerRef }) => (
         <Button
           disabled={disabled}
@@ -81,7 +88,6 @@ export function TonePicker({
           aria-expanded={isOpen}
           aria-haspopup="dialog"
           aria-label={`${ariaLabel}: ${getToneLabel(value, options, customToneLabel)}`}
-          className="syntax-tone-button"
           sizing="container"
           data-syntax-field-id={fieldId}
           onClick={toggle}
@@ -91,7 +97,7 @@ export function TonePicker({
         >
           <span
             aria-hidden="true"
-            className={getToneSwatchClass(value)}
+            className={cx(getToneSwatchClass(value))}
             style={getToneSwatchStyle(value)}
           >
             <span />
@@ -105,7 +111,11 @@ export function TonePicker({
     >
       {({ close }) => (
         <>
-          <div className="syntax-tone-grid" role="group" aria-label="预设颜色">
+          <div
+            className={cx("syntax-tone-grid")}
+            role="group"
+            aria-label="预设颜色"
+          >
             {options.map((option) => {
               const selectOption = () => {
                 selectTone(option.value);
@@ -116,7 +126,6 @@ export function TonePicker({
                 <Button
                   disabled={disabled}
                   aria-label={option.label}
-                  className="syntax-tone-tile"
                   aria-pressed={value === option.value}
                   key={option.value}
                   onClick={selectOption}
@@ -124,24 +133,25 @@ export function TonePicker({
                   type="button"
                   variant="icon"
                 >
-                  <span
-                    aria-hidden="true"
-                    className={getToneSwatchClass(option.value)}
-                  >
-                    <span />
+                  <span className={cx("syntax-tone-choice")}>
+                    <span
+                      aria-hidden="true"
+                      className={cx(getToneSwatchClass(option.value))}
+                    >
+                      <span />
+                    </span>
+                    {value === option.value ? (
+                      <Check aria-hidden="true" size={12} strokeWidth={2.4} />
+                    ) : null}
                   </span>
-                  {value === option.value ? (
-                    <Check aria-hidden="true" size={12} strokeWidth={2.4} />
-                  ) : null}
                 </Button>
               );
             })}
           </div>
 
-          <div className="syntax-tone-custom-row">
+          <div className={cx("syntax-tone-custom-row")}>
             <Button
               disabled={disabled}
-              className="syntax-tone-custom-button"
               aria-pressed={isCustomValue}
               sizing="container"
               onClick={() => {
@@ -153,7 +163,7 @@ export function TonePicker({
             >
               <span
                 aria-hidden="true"
-                className="syntax-tone-swatch syntax-tone-custom"
+                className={cx("syntax-tone-swatch syntax-tone-custom")}
                 style={getToneSwatchStyle(customTone)}
               >
                 <span />

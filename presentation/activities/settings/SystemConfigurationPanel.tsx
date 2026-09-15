@@ -11,12 +11,11 @@ import {
   SystemConfigurationFields,
   type SystemConfigurationPage,
 } from "./SystemConfigurationFields.tsx";
-import { settingsPageLabels } from "./settingsTypes.ts";
-import { useSystemConfigurationDraft } from "./useSystemConfigurationDraft.ts";
 import {
   useSettingsInteraction,
   type SettingsInteractionReporter,
 } from "./useSettingsInteraction.ts";
+import { useSystemConfigurationDraft } from "./useSystemConfigurationDraft.ts";
 import { useSystemReconnect } from "./useSystemReconnect.ts";
 
 export function SystemConfigurationPanel({
@@ -45,7 +44,6 @@ export function SystemConfigurationPanel({
   const busy = state.operationStatus === "working" || draft.submitting;
   return (
     <SettingsPage
-      title={settingsPageLabels[page]}
       label="服务设置"
       errorMessage={errorMessage}
       actions={

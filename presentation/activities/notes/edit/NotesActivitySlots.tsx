@@ -1,10 +1,15 @@
 import type { NotesViewModel } from "../../../../application/workspace/index.ts";
-import "./notes.css";
 import type { ActivitySlots } from "../../../ui/index.ts";
-import { ChoiceGroup } from "../../../ui/index.ts";
+import {
+  ChoiceGroup,
+  createClassNames,
+  FocusAction,
+} from "../../../ui/index.ts";
 import { NoteDetailPanel } from "./NoteDetailPanel.tsx";
 import { NoteEditorPanel } from "./NoteEditorPanel.tsx";
+import notesStyles from "./notes.module.css";
 import { NotesContext } from "./NotesContext.tsx";
+const cx = createClassNames(notesStyles);
 
 export type NotesMode = "edit" | "graph" | "structure";
 
@@ -29,28 +34,26 @@ export function createNotesWorkspaceActivitySlots({
   repositoryName: string;
   structure: ActivitySlots;
 }): ActivitySlots {
-  const current = mode === "edit"
-    ? edit
-    : mode === "structure"
-      ? structure
-      : graph;
+  const current =
+    mode === "edit" ? edit : mode === "structure" ? structure : graph;
 
   return {
     context: {
+      toolbar: (
+        <ChoiceGroup
+          ariaLabel="笔记视图"
+          mode="single"
+          options={notesModes.map(({ id, label }) => ({
+            label,
+            value: id,
+          }))}
+          value={mode}
+          onChange={onModeChange}
+        />
+      ),
       content: (
-        <div className="notes-workspace-context">
-          <ChoiceGroup
-            ariaLabel="笔记视图"
-            className="notes-mode-switch"
-            mode="single"
-            options={notesModes.map(({ id, label }) => ({
-              label,
-              value: id,
-            }))}
-            value={mode}
-            onChange={onModeChange}
-          />
-          <div className="notes-mode-context">
+        <div className={cx("notes-workspace-context")}>
+          <div className={cx("notes-mode-context")}>
             {current.context?.content ?? null}
           </div>
         </div>
@@ -58,50 +61,43 @@ export function createNotesWorkspaceActivitySlots({
       title: repositoryName,
     },
     detail: current.detail,
-    main: (
-      <div className="notes-workspace-main">
-        <section
-          aria-label="编辑视图"
-          className="notes-mode-panel"
-          hidden={mode !== "edit"}
-        >
-          {edit.main}
-        </section>
-        {mode === "structure"
-          ? (
-            <section
-              aria-label="结构视图"
-              className="notes-mode-panel"
-            >
-              {structure.main}
+    main: {
+      title: current.main.title,
+      layout: current.main.layout,
+      actions: current.main.actions,
+      content: (
+        <div className={cx("notes-workspace-main")}>
+          <section
+            aria-label="编辑视图"
+            className={cx("notes-mode-panel")}
+            hidden={mode !== "edit"}
+          >
+            {edit.main.content}
+          </section>
+          {mode === "structure" ? (
+            <section aria-label="结构视图" className={cx("notes-mode-panel")}>
+              {structure.main.content}
             </section>
-          )
-          : null}
-        {mode === "graph"
-          ? (
-            <section
-              aria-label="图谱视图"
-              className="notes-mode-panel"
-            >
-              {graph.main}
+          ) : null}
+          {mode === "graph" ? (
+            <section aria-label="图谱视图" className={cx("notes-mode-panel")}>
+              {graph.main.content}
             </section>
-          )
-          : null}
-      </div>
-    ),
+          ) : null}
+        </div>
+      ),
+    },
   };
 }
 
 export function createNotesActivitySlots({
   focusMode,
-  onCollapseDetail,
   onReload,
   onToggleFocusMode,
   repositoryName,
   view,
 }: {
   focusMode: boolean;
-  onCollapseDetail: () => void;
   onReload: () => Promise<void>;
   onToggleFocusMode: () => void;
   repositoryName: string;
@@ -112,15 +108,18 @@ export function createNotesActivitySlots({
       content: <NotesContext onReload={onReload} view={view} />,
       title: repositoryName,
     },
-    detail: view.activeNote ? (
-      <NoteDetailPanel onCollapseDetail={onCollapseDetail} view={view} />
-    ) : null,
-    main: (
-      <NoteEditorPanel
-        focusMode={focusMode}
-        onToggleFocusMode={onToggleFocusMode}
-        view={view}
-      />
-    ),
+    detail: view.activeNote
+      ? {
+          title: "结构",
+          layout: "detail",
+          content: <NoteDetailPanel view={view} />,
+        }
+      : null,
+    main: {
+      title: view.activeNote?.title ?? "笔记",
+      layout: "document",
+      actions: <FocusAction active={focusMode} onToggle={onToggleFocusMode} />,
+      content: <NoteEditorPanel view={view} />,
+    },
   };
 }

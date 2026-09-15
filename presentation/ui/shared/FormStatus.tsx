@@ -1,6 +1,9 @@
+import formStatusStyles from "./FormStatus.module.css";
+import { createClassNames } from "./classNames.ts";
+const cx = createClassNames(formStatusStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Button } from "./primitives.tsx";
+import { Button } from "./Button.tsx";
 
 export function FormSaveActions({
   busy,
@@ -37,7 +40,7 @@ export function FormSaveActions({
 
 export function FormError({ message }: { message: string | null | undefined }) {
   return message ? (
-    <p className="ui-form-error" role="alert">
+    <p className={cx("ui-form-error")} role="alert">
       {message}
     </p>
   ) : null;

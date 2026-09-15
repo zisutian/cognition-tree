@@ -1,3 +1,6 @@
+import { createClassNames } from "../../ui/index.ts";
+import todoStyles from "./todo.module.css";
+const cx = createClassNames(todoStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState, type FormEvent } from "react";
@@ -8,8 +11,8 @@ import type {
 } from "../../../core/todo/index.ts";
 
 import {
-  CheckboxGroup,
   Button,
+  CheckboxGroup,
   ChoiceGroup,
   InputControl,
   useFeedback,
@@ -110,11 +113,11 @@ export function TodoRecurrenceEditor({
   return (
     <form
       aria-label={`配置周期 ${node.text}`}
-      className="todo-recurrence-editor"
+      className={cx("todo-recurrence-editor")}
       onSubmit={submit}
     >
       {node.recurrence ? (
-        <p className="todo-recurrence-summary">
+        <p className={cx("todo-recurrence-summary")}>
           {node.recurrence.active
             ? `完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount}${
                 node.recurrence.nextOccurrenceDate
@@ -142,7 +145,7 @@ export function TodoRecurrenceEditor({
         }}
       />
       {mode !== "none" ? (
-        <label className="todo-recurrence-field">
+        <label className={cx("todo-recurrence-field")}>
           <span>每隔</span>
           <InputControl
             sizing="container"
@@ -176,7 +179,7 @@ export function TodoRecurrenceEditor({
         />
       ) : null}
       {mode === "monthly" ? (
-        <label className="todo-recurrence-field">
+        <label className={cx("todo-recurrence-field")}>
           <span>第</span>
           <InputControl
             sizing="container"
@@ -193,11 +196,11 @@ export function TodoRecurrenceEditor({
         </label>
       ) : null}
       {errorMessage ? (
-        <p className="todo-recurrence-error" role="status">
+        <p className={cx("todo-recurrence-error")} role="status">
           {errorMessage}
         </p>
       ) : null}
-      <div className="todo-recurrence-actions">
+      <div className={cx("todo-recurrence-actions")}>
         <Button disabled={disabled} type="submit" variant="primary">
           确定
         </Button>

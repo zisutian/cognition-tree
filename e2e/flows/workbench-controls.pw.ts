@@ -23,22 +23,39 @@ async function selectionSurface(control: Locator) {
   });
 }
 
-test("function switches and single, multiple and checkbox selections share surfaces while retaining keyboard semantics", async ({ api, page }, testInfo) => {
+test("function switches and single, multiple and checkbox selections share surfaces while retaining keyboard semantics", async ({
+  api,
+  page,
+}, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await seedWorkbenchRepository(api, repositoryId);
   await openWorkbench(page, repositoryId);
-  const titles = page.locator(".app-context > .ui-panel-header h1, .app-main-content .ui-panel-header h2, .app-detail .ui-panel-header h2");
+  const titles = page.locator("[data-region-header] h2");
   await expect(titles).toHaveCount(3);
-  const headings = await titles.evaluateAll((elements) => elements.map((element) => {
-    const style = getComputedStyle(element);
-    const box = element.getBoundingClientRect();
-    return { fontSize: style.fontSize, weight: style.fontWeight, center: box.y + box.height / 2 };
-  }));
-  expect(new Set(headings.map(({ fontSize, weight }) => `${fontSize}/${weight}`)).size).toBe(1);
+  const headings = await titles.evaluateAll((elements) =>
+    elements.map((element) => {
+      const style = getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return {
+        fontSize: style.fontSize,
+        weight: style.fontWeight,
+        center: box.y + box.height / 2,
+      };
+    }),
+  );
+  expect(
+    new Set(headings.map(({ fontSize, weight }) => `${fontSize}/${weight}`))
+      .size,
+  ).toBe(1);
   expect(Number(headings[0].weight)).toBeGreaterThan(400);
-  expect(Math.max(...headings.map(({ center }) => center)) - Math.min(...headings.map(({ center }) => center)))
-    .toBeLessThanOrEqual(1);
-  await page.screenshot({ path: testInfo.outputPath("titles-and-modes.png"), clip: { x: 0, y: 0, width: 1280, height: 150 } });
+  expect(
+    Math.max(...headings.map(({ center }) => center)) -
+      Math.min(...headings.map(({ center }) => center)),
+  ).toBeLessThanOrEqual(1);
+  await page.screenshot({
+    path: testInfo.outputPath("titles-and-modes.png"),
+    clip: { x: 0, y: 0, width: 1280, height: 150 },
+  });
 
   const views = page.getByRole("radiogroup", { name: "笔记视图" });
   const edit = views.getByRole("radio", { name: "编辑", exact: true });
@@ -54,16 +71,24 @@ test("function switches and single, multiple and checkbox selections share surfa
   await page.mouse.move(800, 600);
   const selectedSurface = await selectionSurface(graph);
   expect(parseFloat(selectedSurface.radius)).toBeGreaterThan(0);
-  expect(selectedSurface.background).not.toBe((await selectionSurface(edit)).background);
-  expect(await graph.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe("none");
+  expect(selectedSurface.background).not.toBe(
+    (await selectionSurface(edit)).background,
+  );
+  expect(
+    await graph.evaluate((element) => getComputedStyle(element).outlineStyle),
+  ).not.toBe("none");
 
   const scope = page.getByRole("radiogroup", { name: "图谱范围" });
   const local = scope.getByRole("radio", { name: "局部", exact: true });
   await local.click();
   await page.mouse.move(800, 600);
   expect(await selectionSurface(local)).toEqual(selectedSurface);
-  const isolated = page.getByRole("button", { name: "隐藏孤立点", exact: true });
-  if (await isolated.getAttribute("aria-pressed") === "false") await isolated.click();
+  const isolated = page.getByRole("button", {
+    name: "隐藏孤立点",
+    exact: true,
+  });
+  if ((await isolated.getAttribute("aria-pressed")) === "false")
+    await isolated.click();
   await page.mouse.move(800, 600);
   expect(await selectionSurface(isolated)).toEqual(selectedSurface);
   await isolated.press("Space");
@@ -78,9 +103,14 @@ test("function switches and single, multiple and checkbox selections share surfa
   await todo.focus();
   await todo.press("Space");
   await expect(todo).toHaveAttribute("aria-pressed", "false");
-  const workspace = domains.getByRole("button", { name: "本地仓库", exact: true });
+  const workspace = domains.getByRole("button", {
+    name: "本地仓库",
+    exact: true,
+  });
   await expect(workspace).toHaveAttribute("aria-pressed", "true");
-  await expect(domains.getByRole("button", { name: "日记", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    domains.getByRole("button", { name: "日记", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
   await todo.press("ArrowLeft");
   await expect(todo).toBeFocused();
   await todo.press("Enter");
@@ -90,14 +120,22 @@ test("function switches and single, multiple and checkbox selections share surfa
 
   await getActivityButton(page, "设置").click();
   await page.getByRole("button", { name: "E2E provider", exact: true }).click();
-  const permission = page.getByRole("checkbox", { name: "确认 Provider 私网访问" });
+  const permission = page.getByRole("checkbox", {
+    name: "确认 Provider 私网访问",
+  });
   await permission.check();
   await page.mouse.move(800, 600);
-  expect(await selectionSurface(permission.locator(".."))).toEqual(selectedSurface);
+  expect(await selectionSurface(permission.locator(".."))).toEqual(
+    selectedSurface,
+  );
   await permission.press("Space");
   await expect(permission).not.toBeChecked();
-  await expect(page.getByRole("button", { name: "放弃修改", exact: true })).toBeDisabled();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1280);
+  await expect(
+    page.getByRole("button", { name: "放弃修改", exact: true }),
+  ).toBeDisabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    1280,
+  );
 });
 
 test("Provider controls and directory disclosure retain the current draft and navigation guard", async ({
@@ -112,9 +150,7 @@ test("Provider controls and directory disclosure retain the current draft and na
   const permission = panel.getByRole("checkbox", {
     name: "确认 Provider 私网访问",
   });
-  await panel
-    .getByText("允许", { exact: true })
-    .click();
+  await panel.getByText("允许", { exact: true }).click();
   await expect(permission).toBeChecked();
   await panel.getByRole("button", { name: "放弃修改", exact: true }).click();
   await expect(permission).not.toBeChecked();

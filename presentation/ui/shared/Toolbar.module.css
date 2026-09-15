@@ -1,0 +1,22 @@
+.ui-tool-toolbar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ui-gap);
+  min-width: 0;
+  min-height: var(--ui-toolbar-height);
+  padding-block: var(--ui-gap-tight);
+}
+.ui-tool-toolbar > label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ui-gap);
+  color: var(--color-fg-muted);
+}
+.ui-tool-divider {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: var(--ui-border-width) solid var(--color-border);
+}

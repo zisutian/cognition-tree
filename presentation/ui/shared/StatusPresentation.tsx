@@ -1,7 +1,9 @@
+import managementListStyles from "./ManagementList.module.css";
+import { createClassNames } from "./classNames.ts";
+const cx = createClassNames(managementListStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { HTMLAttributes } from "react";
-import { cx } from "./primitives.tsx";
 
 export type StatusTone = "danger" | "neutral" | "success" | "warning";
 

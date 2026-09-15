@@ -1,0 +1,9 @@
+.settings-context-subgroup {
+  list-style: none;
+  padding-left: var(--ui-gap-tight);
+}
+
+.local-api-example {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

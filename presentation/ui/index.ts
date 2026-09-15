@@ -6,31 +6,14 @@ export type {
 } from "./activityController.ts";
 export type {
   ActivityId,
+  ActivityInteractionState,
   ActivityNavigationItem,
   ActivitySlots,
 } from "./activityTypes.ts";
-export {
-  Button,
-  cx,
-  DetailPanel,
-  EmptyState,
-  Panel,
-  PanelBody,
-  PanelHeader,
-  Section,
-  SymbolSlot,
-  ToggleButton,
-} from "./shared/primitives.tsx";
-export {
-  CheckboxControl,
-  CheckboxGroup,
-  ChoiceGroup,
-  ColorControl,
-  InputControl,
-  RangeControl,
-  SelectControl,
-  TextareaControl,
-} from "./shared/controls.tsx";
+export { default } from "./AppView.tsx";
+export { ProblemsPanel } from "./problems/ProblemsPanel.tsx";
+export { useWorkbenchProblemsShortcut } from "./problems/useProblemsShortcut.ts";
+export { cx } from "./shared/classNames.ts";
 export {
   CompactContextActionButtons,
   CompactContextGroup,
@@ -39,12 +22,55 @@ export {
   CompactContextRow,
   CompactContextStatusIcon,
 } from "./shared/CompactContextList.tsx";
+export { ConfirmAction } from "./shared/ConfirmAction.tsx";
 export { ContextMenu } from "./shared/ContextMenu.tsx";
 export type { ContextMenuPosition } from "./shared/ContextMenu.tsx";
+export { EmptyState } from "./shared/EmptyState.tsx";
 export {
-  createRepositorySessionKey,
-  globalWorkbenchSessionId,
-} from "./workbench/repositorySessionStore.ts";
+  FeedbackProvider,
+  runActivityFeedbackAction,
+  useFeedback,
+  useWorkbenchFeedback,
+} from "./shared/FeedbackProvider.tsx";
+export type { WorkbenchActivityFeedbackController } from "./shared/FeedbackProvider.tsx";
+export { FormError, FormSaveActions } from "./shared/FormStatus.tsx";
+export {
+  getListReorderIndex,
+  getListRowDropPlacement,
+} from "./shared/listDrag.ts";
+export type { ListRowDropPlacement } from "./shared/listDrag.ts";
+export { Page, PageBody } from "./shared/Page.tsx";
+export { Popover } from "./shared/Popover.tsx";
+export {
+  Button,
+  CheckboxControl,
+  CheckboxGroup,
+  ChoiceGroup,
+  ColorControl,
+  InputControl,
+  RangeControl,
+  SelectControl,
+  TextareaControl,
+  ToggleButton,
+} from "./shared/publicControls.ts";
+export {
+  FieldRow,
+  FormActions,
+  FormLayout,
+  ManagementList,
+  ManagementRow,
+  Section,
+  SectionStack,
+  StatusBadge,
+  ToolDivider,
+  ToolList,
+  ToolListRow,
+  ToolPropertyList,
+  ToolPropertyRow,
+  ToolToolbar,
+} from "./shared/publicSurfaces.ts";
+export { QuickPick } from "./shared/QuickPick.tsx";
+export { SymbolSlot } from "./shared/SymbolSlot.tsx";
 export {
   createToneStyle,
   getTextColorClassName,
@@ -53,56 +79,33 @@ export {
   getToneStyleDeclaration,
   isCustomTone,
 } from "./shared/tonePresentation.ts";
-export { default } from "./AppView.tsx";
 export {
-  FeedbackProvider,
-  runActivityFeedbackAction,
-  useFeedback,
-  useWorkbenchFeedback,
-} from "./shared/FeedbackProvider.tsx";
-export { FieldRow, FormActions, FormLayout } from "./shared/FormLayout.tsx";
-export {
-  getListReorderIndex,
-  getListRowDropPlacement,
-} from "./shared/listDrag.ts";
-export {
-  getStructureTreeRowStyle,
   NoteTree,
   StructureTree,
   TreeMoveQuickPick,
+  getStructureTreeRowStyle,
 } from "./shared/tree/index.ts";
-export type { ListRowDropPlacement } from "./shared/listDrag.ts";
-export { ManagementList, ManagementRow } from "./shared/ManagementList.tsx";
-export { Popover } from "./shared/Popover.tsx";
-export { ProblemsPanel } from "./problems/ProblemsPanel.tsx";
-export { QuickPick } from "./shared/QuickPick.tsx";
-export {
-  RepositorySessionStateProvider,
-  useRepositorySessionState,
-} from "./workbench/useRepositorySessionState.ts";
-export { StatusBadge } from "./shared/StatusPresentation.tsx";
 export type {
   StructureTreeProps,
   StructureTreeRowProps,
   TreeNode,
 } from "./shared/tree/index.ts";
-export { ToolPanel, ToolPanelBody } from "./shared/ToolPanel.tsx";
-export { ToolSection, ToolSectionStack } from "./shared/ToolSection.tsx";
-export { ToolDivider, ToolToolbar } from "./shared/ToolToolbar.tsx";
-export {
-  ToolPropertyList,
-  ToolPropertyRow,
-} from "./shared/ToolPropertyList.tsx";
-export { ToolList, ToolListRow } from "./shared/ToolList.tsx";
 export { useExclusiveAsyncAction } from "./shared/useExclusiveAsyncAction.ts";
 export { useReferenceNavigation } from "./shared/useReferenceNavigation.tsx";
+export {
+  createRepositorySessionKey,
+  globalWorkbenchSessionId,
+} from "./workbench/repositorySessionStore.ts";
+export {
+  RepositorySessionStateProvider,
+  useRepositorySessionState,
+} from "./workbench/useRepositorySessionState.ts";
 export { useWorkbenchLayout } from "./workbench/useWorkbenchLayout.ts";
-export { useWorkbenchProblemsShortcut } from "./problems/useProblemsShortcut.ts";
-export type { WorkbenchActivityFeedbackController } from "./shared/FeedbackProvider.tsx";
 export type { WorkbenchController } from "./workbench/useWorkbenchLayout.ts";
-export { FormError, FormSaveActions } from "./shared/FormStatus.tsx";
-export { ConfirmAction } from "./shared/ConfirmAction.tsx";
-export type { ActivityInteractionState } from "./activityTypes.ts";
 
 export { checkboxControlClassName } from "./shared/controlPresentation.ts";
 export { StatusBar } from "./workbench/StatusBar.tsx";
+
+export { FocusAction } from "./RegionFrame.tsx";
+export { createClassNames } from "./shared/contentClasses.ts";
+export { ListAction } from "./shared/ListAction.tsx";

@@ -1,3 +1,5 @@
+import { createClassNames } from "../../ui/index.ts";
+const cx = createClassNames();
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
@@ -14,11 +16,11 @@ import {
   useFeedback,
 } from "../../ui/index.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
-import type { SystemOwnerCredentialPanelView } from "./useSystemOwnerCredentialSession.ts";
 import {
   useSettingsInteraction,
   type SettingsInteractionReporter,
 } from "./useSettingsInteraction.ts";
+import type { SystemOwnerCredentialPanelView } from "./useSystemOwnerCredentialSession.ts";
 
 export function OwnerCredentialSettingsPanel({
   authentication,
@@ -46,18 +48,10 @@ export function OwnerCredentialSettingsPanel({
     errorMessage: state.errorMessage,
   });
   return (
-    <SettingsPage
-      title="所有者凭据"
-      label="所有者凭据设置"
-      errorMessage={state.errorMessage}
-    >
+    <SettingsPage label="所有者凭据设置" errorMessage={state.errorMessage}>
       {preparation ? (
         <>
-          <p>
-            {awaiting
-              ? "新密钥待激活"
-              : "新密钥已激活"}
-          </p>
+          <p>{awaiting ? "新密钥待激活" : "新密钥已激活"}</p>
           <ToolPropertyList aria-label="所有者密钥">
             <ToolPropertyRow
               label="新密钥"
@@ -77,12 +71,8 @@ export function OwnerCredentialSettingsPanel({
       ) : snapshot?.ownerCredentialRotationPending ? (
         <p>待激活密钥不在当前页面；重新准备将替换它。</p>
       ) : null}
-      {awaiting && state.errorMessage ? (
-        <p>
-          新密钥激活结果尚未确认
-        </p>
-      ) : null}
-      <div className="ui-actions">
+      {awaiting && state.errorMessage ? <p>新密钥激活结果尚未确认</p> : null}
+      <div className={cx("ui-actions")}>
         {!preparation ? (
           <Button
             disabled={busy}

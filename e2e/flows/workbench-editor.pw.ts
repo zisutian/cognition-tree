@@ -1,48 +1,47 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  expect,
-  type APIRequestContext,
-  type Locator,
-} from "@playwright/test";
+import { expect, type APIRequestContext, type Locator } from "@playwright/test";
 import type { WorkspaceRepositorySnapshotDto } from "../../contracts/workspace/types";
 import { analyzeCtnSource } from "../../core/ctn/analysis/sourceAnalysis";
 import { requireCtnSyntax } from "../../core/ctn/syntax/compiler";
 import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
 import { formatCtnSyntaxV2 } from "../../core/ctn/syntax/formatter";
+import { test } from "../support/e2eTest";
 import {
   e2eAlphaFirstBlockTimestamp,
   e2eAlphaSecondBlockTimestamp,
   e2eTimestamp,
   seedWorkbenchRepository,
 } from "../support/repositorySeeds";
-import { test } from "../support/e2eTest";
 import {
   readComputedStyleValue,
   readCtnTonePresentation,
 } from "../support/uiPresentation";
 import {
-  getWorkbenchStatus,
   getActivityButton,
+  getWorkbenchStatus,
   openWorkbench,
 } from "../support/workbenchPage";
 
 const repositoryId = "workbench-editor";
 const multilineRuleLabel = "原文块";
-const editorSyntaxSource = formatCtnSyntaxV2({
-  ...defaultCtnSyntax.definition,
-  blocks: defaultCtnSyntax.definition.blocks.map((rule) =>
-    rule.kind === "multiline"
-      ? {
-        ...rule,
-        label: multilineRuleLabel,
-        textColor: "red",
-        tone: "violet",
-      }
-      : rule
-  ),
-  tabDisplayWidth: 8,
-}, "workspace");
+const editorSyntaxSource = formatCtnSyntaxV2(
+  {
+    ...defaultCtnSyntax.definition,
+    blocks: defaultCtnSyntax.definition.blocks.map((rule) =>
+      rule.kind === "multiline"
+        ? {
+            ...rule,
+            label: multilineRuleLabel,
+            textColor: "red",
+            tone: "violet",
+          }
+        : rule,
+    ),
+    tabDisplayWidth: 8,
+  },
+  "workspace",
+);
 const editorSyntax = requireCtnSyntax(editorSyntaxSource, "workspace");
 
 type MultilineSourceGeometry = {
@@ -70,7 +69,7 @@ async function measureMultilineSourceGeometry(
       predicate: (text: string) => boolean,
     ) => {
       const line = lines.find((candidate) =>
-        predicate(candidate.textContent ?? "")
+        predicate(candidate.textContent ?? ""),
       );
 
       if (!line) throw new Error(`Missing ${description} editor line`);
@@ -100,27 +99,24 @@ async function measureMultilineSourceGeometry(
     };
 
     return {
-      bodyX: firstSourceCharacterX(requireLine(
-        "multiline body",
-        (text) => text.includes("const value = 1;"),
-      )),
-      closerX: firstSourceCharacterX(requireLine(
-        "multiline closer",
-        (text) => text.trim() === "```",
-      )),
+      bodyX: firstSourceCharacterX(
+        requireLine("multiline body", (text) =>
+          text.includes("const value = 1;"),
+        ),
+      ),
+      closerX: firstSourceCharacterX(
+        requireLine("multiline closer", (text) => text.trim() === "```"),
+      ),
       devicePixelRatio,
-      nestedMarkerX: firstSourceCharacterX(requireLine(
-        "nested calibration",
-        (text) => text.includes("缩进校准"),
-      )),
-      openerX: firstSourceCharacterX(requireLine(
-        "multiline opener",
-        (text) => text.includes("```tsx"),
-      )),
-      peerMarkerX: firstSourceCharacterX(requireLine(
-        "peer calibration",
-        (text) => text.includes("孤立笔记"),
-      )),
+      nestedMarkerX: firstSourceCharacterX(
+        requireLine("nested calibration", (text) => text.includes("缩进校准")),
+      ),
+      openerX: firstSourceCharacterX(
+        requireLine("multiline opener", (text) => text.includes("```tsx")),
+      ),
+      peerMarkerX: firstSourceCharacterX(
+        requireLine("peer calibration", (text) => text.includes("孤立笔记")),
+      ),
     };
   });
 }
@@ -153,21 +149,27 @@ test.describe("editor workbench flows", () => {
     const notesContext = page.locator(".app-context");
 
     await expect(notesContext).toHaveAccessibleName("浏览器回归仓库");
-    await expect(notesContext.getByRole("heading", {
-      level: 1,
-      name: "浏览器回归仓库",
-    })).toBeVisible();
-    const modeSwitch = notesContext.getByRole("radiogroup", { name: "笔记视图" });
+    await expect(
+      notesContext.getByRole("heading", {
+        level: 2,
+        name: "浏览器回归仓库",
+      }),
+    ).toBeVisible();
+    const modeSwitch = notesContext.getByRole("radiogroup", {
+      name: "笔记视图",
+    });
 
     await expect(modeSwitch).toBeVisible();
-    await expect(modeSwitch.getByRole("radio", { name: "编辑" }))
-      .toHaveAttribute("aria-checked", "true");
+    await expect(
+      modeSwitch.getByRole("radio", { name: "编辑" }),
+    ).toHaveAttribute("aria-checked", "true");
     await getActivityButton(page, "笔记").click();
     await expect(page.locator(".app-context")).toHaveCount(0);
     await getActivityButton(page, "笔记").click();
     await expect(modeSwitch).toBeVisible();
-    await expect(modeSwitch.getByRole("radio", { name: "编辑" }))
-      .toHaveAttribute("aria-checked", "true");
+    await expect(
+      modeSwitch.getByRole("radio", { name: "编辑" }),
+    ).toHaveAttribute("aria-checked", "true");
     await page.getByRole("button", { name: "进入专注模式" }).click();
     await expect(page.locator(".app-context")).toHaveCount(0);
     await expect(page.locator(".app-detail")).toHaveCount(0);
@@ -184,7 +186,10 @@ test.describe("editor workbench flows", () => {
     await page.keyboard.press("Escape");
     await expect(page.locator(".app-context")).toBeVisible();
 
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    await page
+      .locator(".app-context")
+      .getByTitle("Alpha", { exact: true })
+      .click();
     const titleLine = editorPanel.locator(".ctn-line-title").filter({
       hasText: "Alpha",
     });
@@ -195,10 +200,15 @@ test.describe("editor workbench flows", () => {
       .filter({ hasText: "[[Beta]]" })
       .click({ modifiers: ["Control"] });
     await expect(
-      editorPanel.getByRole("heading", { name: "Beta", exact: true }),
+      page
+        .locator('[data-region-header="main"]')
+        .getByRole("heading", { name: "Beta", exact: true }),
     ).toBeVisible();
 
-    await page.locator(".app-context").getByTitle("Gamma", { exact: true }).click();
+    await page
+      .locator(".app-context")
+      .getByTitle("Gamma", { exact: true })
+      .click();
     await page
       .locator(".source-editor .ctn-inline")
       .filter({ hasText: "<Missing>" })
@@ -211,18 +221,22 @@ test.describe("editor workbench flows", () => {
 
   test("keeps undo history isolated when switching notes", async ({ page }) => {
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    await page
+      .locator(".app-context")
+      .getByTitle("Alpha", { exact: true })
+      .click();
 
     const editorContent = page.locator(".source-editor .cm-content");
 
     await editorContent.click();
     await page.keyboard.press("Control+End");
     await page.keyboard.type(" alpha-only-edit");
-    await expect(page.getByLabel("笔记编辑")).toContainText(
-      "alpha-only-edit",
-    );
+    await expect(page.getByLabel("笔记编辑")).toContainText("alpha-only-edit");
 
-    await page.locator(".app-context").getByTitle("Beta", { exact: true }).click();
+    await page
+      .locator(".app-context")
+      .getByTitle("Beta", { exact: true })
+      .click();
     await editorContent.click();
     await page.keyboard.press("Control+Z");
 
@@ -232,9 +246,14 @@ test.describe("editor workbench flows", () => {
     );
   });
 
-  test("edits multiline syntax as ordinary colored source", async ({ page }) => {
+  test("edits multiline syntax as ordinary colored source", async ({
+    page,
+  }) => {
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Gamma", { exact: true }).click();
+    await page
+      .locator(".app-context")
+      .getByTitle("Gamma", { exact: true })
+      .click();
 
     const editor = page.locator(".source-editor");
     const lines = editor.locator(".cm-line");
@@ -245,15 +264,13 @@ test.describe("editor workbench flows", () => {
     const closer = lines.filter({ hasText: "```" }).last();
 
     const readSource = async () => {
-      const response = await api.get(
-        `/api/v4/sync/workspaces/${repositoryId}`,
-      );
+      const response = await api.get(`/api/v4/sync/workspaces/${repositoryId}`);
       const snapshot =
         (await response.json()) as WorkspaceRepositorySnapshotDto;
 
-      const source = snapshot.content.workspace.notes.find(
-        ({ id }) => id === "note-gamma",
-      )?.source ?? "";
+      const source =
+        snapshot.content.workspace.notes.find(({ id }) => id === "note-gamma")
+          ?.source ?? "";
 
       return analyzeCtnSource({
         mode: { kind: "canonical-document" },
@@ -266,23 +283,23 @@ test.describe("editor workbench flows", () => {
     await expect(codeLine).toBeVisible();
     await expect(closer).toBeVisible();
     await lines.first().click();
-    await expect.poll(() =>
-      readComputedStyleValue(editor.locator(".cm-content"), "tabSize")
-    ).toBe("8");
-    const multilineToneBackgrounds = await Promise.all([
-      opener,
-      codeLine,
-      closer,
-    ].map((line) =>
-      readCtnTonePresentation(line, "background")
-    ));
-    const multilineTextColors = await Promise.all([
-      opener.locator(".ctn-marker"),
-      codeLine.locator(".ctn-block-text"),
-      closer.locator(".ctn-block-text"),
-    ].map((content) =>
-      readComputedStyleValue(content, "color")
-    ));
+    await expect
+      .poll(() =>
+        readComputedStyleValue(editor.locator(".cm-content"), "tabSize"),
+      )
+      .toBe("8");
+    const multilineToneBackgrounds = await Promise.all(
+      [opener, codeLine, closer].map((line) =>
+        readCtnTonePresentation(line, "background"),
+      ),
+    );
+    const multilineTextColors = await Promise.all(
+      [
+        opener.locator(".ctn-marker"),
+        codeLine.locator(".ctn-block-text"),
+        closer.locator(".ctn-block-text"),
+      ].map((content) => readComputedStyleValue(content, "color")),
+    );
     const defaultEditorText = await readComputedStyleValue(editor, "color");
 
     expect(new Set(multilineToneBackgrounds).size).toBe(1);
@@ -299,14 +316,13 @@ test.describe("editor workbench flows", () => {
     await closer.click();
     await page.keyboard.press("End");
     await page.keyboard.type(" ");
-    await expect.poll(readSource).toContain(
-      "\t```tsx\n\t\tconst value = 1; // edited\n\t``` ",
-    );
+    await expect
+      .poll(readSource)
+      .toContain("\t```tsx\n\t\tconst value = 1; // edited\n\t``` ");
 
     const sourceBeforeIndent = await readSource();
     const initialGeometry = await measureMultilineSourceGeometry(editor);
-    const tabStep =
-      initialGeometry.nestedMarkerX - initialGeometry.peerMarkerX;
+    const tabStep = initialGeometry.nestedMarkerX - initialGeometry.peerMarkerX;
 
     expect(tabStep).toBeGreaterThan(0);
     expectGeometryEqual(
@@ -331,9 +347,9 @@ test.describe("editor workbench flows", () => {
     await opener.click();
     await page.keyboard.press("Home");
     await page.keyboard.press("Tab");
-    await expect.poll(readSource).toContain(
-      "\t\t```tsx\n\t\tconst value = 1; // edited\n\t``` ",
-    );
+    await expect
+      .poll(readSource)
+      .toContain("\t\t```tsx\n\t\tconst value = 1; // edited\n\t``` ");
     const indentedGeometry = await measureMultilineSourceGeometry(editor);
 
     expectGeometryEqual(
@@ -375,7 +391,10 @@ test.describe("editor workbench flows", () => {
     page,
   }) => {
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    await page
+      .locator(".app-context")
+      .getByTitle("Alpha", { exact: true })
+      .click();
 
     const editor = page.locator(".source-editor");
     const detail = page.locator(".app-detail");
@@ -393,16 +412,18 @@ test.describe("editor workbench flows", () => {
     });
 
     await referenceLine.click();
-    await expect(detail.getByRole("treeitem", { selected: true }))
-      .toContainText("Beta");
+    await expect(
+      detail.getByRole("treeitem", { selected: true }),
+    ).toContainText("Beta");
     await expect(createdTime).toHaveAttribute(
       "datetime",
       e2eAlphaFirstBlockTimestamp,
     );
 
     await itemLine.click();
-    await expect(detail.getByRole("treeitem", { selected: true }))
-      .toContainText("Alpha 子项");
+    await expect(
+      detail.getByRole("treeitem", { selected: true }),
+    ).toContainText("Alpha 子项");
     await expect(createdTime).toHaveAttribute(
       "datetime",
       e2eAlphaSecondBlockTimestamp,
@@ -415,10 +436,12 @@ test.describe("editor workbench flows", () => {
       "datetime",
       e2eAlphaSecondBlockTimestamp,
     );
-    await expect.poll(async () => updatedTime.getAttribute("datetime"))
+    await expect
+      .poll(async () => updatedTime.getAttribute("datetime"))
       .not.toBe(e2eAlphaSecondBlockTimestamp);
     await expect(noteCreatedTime).toHaveAttribute("datetime", e2eTimestamp);
-    await expect.poll(async () => noteUpdatedTime.getAttribute("datetime"))
+    await expect
+      .poll(async () => noteUpdatedTime.getAttribute("datetime"))
       .not.toBe(e2eTimestamp);
 
     await detail.getByRole("treeitem").first().getByRole("button").click();
@@ -428,7 +451,10 @@ test.describe("editor workbench flows", () => {
       e2eAlphaFirstBlockTimestamp,
     );
 
-    await page.locator(".app-context").getByTitle("Beta", { exact: true }).click();
+    await page
+      .locator(".app-context")
+      .getByTitle("Beta", { exact: true })
+      .click();
     await expect(blockTime).toHaveCount(0);
     await expect(noteCreatedTime).toHaveAttribute("datetime", e2eTimestamp);
     await expect(noteUpdatedTime).toHaveAttribute("datetime", e2eTimestamp);
@@ -438,19 +464,29 @@ test.describe("editor workbench flows", () => {
     page,
   }) => {
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
-    await expect(page.locator(".source-editor")).not.toContainText("@ctn-block");
-    await page.locator(".app-detail").getByRole("treeitem").first()
-      .getByRole("button").click();
+    await page
+      .locator(".app-context")
+      .getByTitle("Alpha", { exact: true })
+      .click();
+    await expect(page.locator(".source-editor")).not.toContainText(
+      "@ctn-block",
+    );
+    await page
+      .locator(".app-detail")
+      .getByRole("treeitem")
+      .first()
+      .getByRole("button")
+      .click();
     await expect(page.getByLabel("块时间")).toBeVisible();
     const beforeResponse = await api.get(
       `/api/v4/sync/workspaces/${repositoryId}`,
     );
-    const beforeSnapshot = (await beforeResponse.json()) as
-      WorkspaceRepositorySnapshotDto;
-    const beforeSource = beforeSnapshot.content.workspace.notes.find(
-      (note) => note.id === "note-alpha",
-    )?.source ?? "";
+    const beforeSnapshot =
+      (await beforeResponse.json()) as WorkspaceRepositorySnapshotDto;
+    const beforeSource =
+      beforeSnapshot.content.workspace.notes.find(
+        (note) => note.id === "note-alpha",
+      )?.source ?? "";
     const beforeMetadataCount =
       beforeSource.match(/^\s*@ctn-block /gm)?.length ?? 0;
 
@@ -474,25 +510,28 @@ test.describe("editor workbench flows", () => {
       data: "输入法新增",
     });
 
-    await expect.poll(async () => {
-      const response = await api.get(
-        `/api/v4/sync/workspaces/${repositoryId}`,
-      );
-      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
-      const source = snapshot.content.workspace.notes.find(
-        (note) => note.id === "note-alpha",
-      )?.source ?? "";
+    await expect
+      .poll(async () => {
+        const response = await api.get(
+          `/api/v4/sync/workspaces/${repositoryId}`,
+        );
+        const snapshot =
+          (await response.json()) as WorkspaceRepositorySnapshotDto;
+        const source =
+          snapshot.content.workspace.notes.find(
+            (note) => note.id === "note-alpha",
+          )?.source ?? "";
 
-      return {
-        contentCount: source
-          .split("\n")
-          .filter((line) => line.trim() === ": 输入法新增")
-          .length,
-        metadataCount: source.match(/^\s*@ctn-block /gm)?.length ?? 0,
-      };
-    }).toEqual({
-      contentCount: 1,
-      metadataCount: beforeMetadataCount + 1,
-    });
+        return {
+          contentCount: source
+            .split("\n")
+            .filter((line) => line.trim() === ": 输入法新增").length,
+          metadataCount: source.match(/^\s*@ctn-block /gm)?.length ?? 0,
+        };
+      })
+      .toEqual({
+        contentCount: 1,
+        metadataCount: beforeMetadataCount + 1,
+      });
   });
 });

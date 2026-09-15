@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  expect,
-  type APIRequestContext,
-} from "@playwright/test";
+import { expect, type APIRequestContext } from "@playwright/test";
 import type { WorkspaceRepositorySnapshotDto } from "../../contracts/workspace/types";
 import { appResizeKeyboardStep } from "../../presentation/ui/workbench/frameResize";
+import { test } from "../support/e2eTest";
 import {
   seedInteractionRepository,
   seedWorkbenchRepository,
 } from "../support/repositorySeeds";
-import { test } from "../support/e2eTest";
 import {
   getActivityButton,
   openRepositoryFromContext,
@@ -50,7 +47,9 @@ test.describe("directory and structure operation flows", () => {
     await expect(alpha).toBeVisible();
     await gamma.dragTo(folder);
     await expect(
-      folder.locator("xpath=ancestor::li[1]").getByTitle("Gamma", { exact: true }),
+      folder
+        .locator("xpath=ancestor::li[1]")
+        .getByTitle("Gamma", { exact: true }),
     ).toBeVisible();
 
     const treeSurfaceBox = await treeSurface.boundingBox();
@@ -63,12 +62,14 @@ test.describe("directory and structure operation flows", () => {
       },
     });
     await expect(
-      treeSurface.locator(
-        ":scope > .ui-directory-tree > li > .ui-tree-row-frame",
-      ).getByTitle("Gamma", { exact: true }),
+      treeSurface
+        .locator(":scope > .ui-directory-tree > li > .ui-tree-row-frame")
+        .getByTitle("Gamma", { exact: true }),
     ).toBeVisible();
 
-    await noteContext.getByTitle("Gamma", { exact: true }).click({ button: "right" });
+    await noteContext
+      .getByTitle("Gamma", { exact: true })
+      .click({ button: "right" });
     const directoryMenu = page.getByRole("menu", { name: "目录操作" });
     const moveMenuItem = directoryMenu.getByRole("menuitem", {
       name: "移动到…",
@@ -79,9 +80,13 @@ test.describe("directory and structure operation flows", () => {
     await expect(moveMenuItem).toBeFocused();
     await moveMenuItem.press("Escape");
     await expect(directoryMenu).toBeHidden();
-    await expect(noteContext.getByTitle("Gamma", { exact: true })).toBeFocused();
+    await expect(
+      noteContext.getByTitle("Gamma", { exact: true }),
+    ).toBeFocused();
 
-    await noteContext.getByTitle("Gamma", { exact: true }).click({ button: "right" });
+    await noteContext
+      .getByTitle("Gamma", { exact: true })
+      .click({ button: "right" });
     await directoryMenu.getByRole("menuitem", { name: "移动到…" }).click();
 
     const moveQuickPick = page.getByRole("dialog", { name: "移动到" });
@@ -90,31 +95,42 @@ test.describe("directory and structure operation flows", () => {
     await expect(moveSearch).toBeFocused();
     await moveSearch.fill("资料");
     await moveSearch.press("ArrowDown");
-    await expect(moveQuickPick.getByRole("option", { name: /资料/ }))
-      .toHaveAttribute("aria-selected", "true");
+    await expect(
+      moveQuickPick.getByRole("option", { name: /资料/ }),
+    ).toHaveAttribute("aria-selected", "true");
     await moveSearch.press("Enter");
     await expect(
-      folder.locator("xpath=ancestor::li[1]").getByTitle("Gamma", { exact: true }),
+      folder
+        .locator("xpath=ancestor::li[1]")
+        .getByTitle("Gamma", { exact: true }),
     ).toBeVisible();
 
     await folder.click();
     await expect(alpha).toBeHidden();
-    await expect(noteContext.getByRole("button", {
-      name: "重命名文件夹 资料",
-    })).toBeVisible();
+    await expect(
+      noteContext.getByRole("button", {
+        name: "重命名文件夹 资料",
+      }),
+    ).toBeVisible();
     await folder.press("Escape");
-    await expect(noteContext.getByRole("button", {
-      name: "重命名文件夹 资料",
-    })).toHaveCount(0);
+    await expect(
+      noteContext.getByRole("button", {
+        name: "重命名文件夹 资料",
+      }),
+    ).toHaveCount(0);
     await folder.click();
     await expect(alpha).toBeVisible();
     await alpha.click();
     await noteContext.getByRole("button", { name: "新建笔记" }).click();
-    const rootUnnamedNote = noteContext.getByTitle("未命名笔记", { exact: true }).locator("..");
+    const rootUnnamedNote = noteContext
+      .getByTitle("未命名笔记", { exact: true })
+      .locator("..");
 
     await expect(rootUnnamedNote).toBeVisible();
     await expect(
-      folder.locator("xpath=ancestor::li[1]").getByTitle("未命名笔记", { exact: true }),
+      folder
+        .locator("xpath=ancestor::li[1]")
+        .getByTitle("未命名笔记", { exact: true }),
     ).toHaveCount(0);
     const deleteNoteButton = rootUnnamedNote.getByRole("button", {
       name: "删除笔记 未命名笔记",
@@ -152,7 +168,9 @@ test.describe("directory and structure operation flows", () => {
         exact: true,
       }),
     ).toHaveAttribute("aria-checked", "true");
-    const structureColumns = page.locator(".structure-operation-column");
+    const structureColumns = page.getByRole("region", {
+      name: /^(源笔记|目标笔记|笔记结构) ·/,
+    });
     const sourceStructure = structureColumns.first();
     const targetStructure = structureColumns.nth(1);
     const sourceStructureRow = sourceStructure
@@ -176,7 +194,9 @@ test.describe("directory and structure operation flows", () => {
     await structureMoveQuickPick
       .getByRole("option", { name: /文末根块/ })
       .click();
-    await expect(targetStructure.getByTitle(movedStructureTitle ?? "")).toBeVisible();
+    await expect(
+      targetStructure.getByTitle(movedStructureTitle ?? ""),
+    ).toBeVisible();
 
     await page.getByRole("radio", { name: "笔记内迁移", exact: true }).click();
     await structureOperationContext.getByTitle("Beta", { exact: true }).click();
@@ -195,10 +215,9 @@ test.describe("directory and structure operation flows", () => {
       page.getByRole("radio", { name: "笔记内迁移", exact: true }),
     ).toHaveAttribute("aria-checked", "true");
     await expect(
-      page.getByRole("region", { name: "结构操作" }).getByText(
-        "笔记结构 · Beta",
-        { exact: true },
-      ),
+      page
+        .getByRole("region", { name: "结构操作" })
+        .getByText("笔记结构 · Beta", { exact: true }),
     ).toBeVisible();
   });
 
@@ -210,7 +229,9 @@ test.describe("directory and structure operation flows", () => {
     await openRepositoryFromContext(page, interactionRepositoryId);
     await selectNotesMode(page, "结构");
 
-    const columns = page.locator(".structure-operation-column");
+    const columns = page.getByRole("region", {
+      name: /^(源笔记|目标笔记|笔记结构) ·/,
+    });
     const sourceColumn = columns.first();
     const targetColumn = columns.nth(1);
 
@@ -221,41 +242,58 @@ test.describe("directory and structure operation flows", () => {
       targetColumn.getByText("目标笔记 · Target", { exact: true }),
     ).toBeVisible();
 
-    const sourceChild = sourceColumn.getByTitle("组分: Source Child", { exact: true });
-    const targetChild = targetColumn.getByTitle("组分: Target Child", { exact: true });
+    const sourceChild = sourceColumn.getByTitle("组分: Source Child", {
+      exact: true,
+    });
+    const targetChild = targetColumn.getByTitle("组分: Target Child", {
+      exact: true,
+    });
 
     await sourceChild.dragTo(targetChild);
-    await expect(sourceColumn.getByTitle("组分: Source Child", { exact: true })).toBeHidden();
-    await expect(targetColumn.getByTitle("组分: Source Child", { exact: true })).toBeVisible();
+    await expect(
+      sourceColumn.getByTitle("组分: Source Child", { exact: true }),
+    ).toBeHidden();
+    await expect(
+      targetColumn.getByTitle("组分: Source Child", { exact: true }),
+    ).toBeVisible();
 
-    await expect.poll(async () => {
-      const response = await api.get(
-        `/api/v4/sync/workspaces/${interactionRepositoryId}`,
-      );
-      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
-      const targetSource = snapshot.content.workspace.notes.find(
-        ({ id }) => id === "interaction-target",
-      )?.source ?? "";
-      const editableLines = targetSource
-        .split("\n")
-        .filter((line) => !line.trimStart().startsWith("@ctn-block"));
+    await expect
+      .poll(async () => {
+        const response = await api.get(
+          `/api/v4/sync/workspaces/${interactionRepositoryId}`,
+        );
+        const snapshot =
+          (await response.json()) as WorkspaceRepositorySnapshotDto;
+        const targetSource =
+          snapshot.content.workspace.notes.find(
+            ({ id }) => id === "interaction-target",
+          )?.source ?? "";
+        const editableLines = targetSource
+          .split("\n")
+          .filter((line) => !line.trimStart().startsWith("@ctn-block"));
 
-      return editableLines.includes("\t\t- Source Child");
-    }).toBe(true);
+        return editableLines.includes("\t\t- Source Child");
+      })
+      .toBe(true);
 
     await page.getByRole("radio", { name: "笔记内迁移", exact: true }).click();
-    await page.locator(".app-context").getByTitle("Target", { exact: true }).click();
+    await page
+      .locator(".app-context")
+      .getByTitle("Target", { exact: true })
+      .click();
 
-    const structureColumn = page.locator(".structure-operation-column");
+    const structureColumn = page.getByRole("region", {
+      name: /^(源笔记|目标笔记|笔记结构) ·/,
+    });
 
     await expect(
       structureColumn.getByText("笔记结构 · Target", { exact: true }),
     ).toBeVisible();
 
-    const nestedSourceChild = structureColumn.getByTitle(
-      "组分: Source Child",
-    );
-    const targetSibling = structureColumn.getByTitle("组分: Target Child", { exact: true });
+    const nestedSourceChild = structureColumn.getByTitle("组分: Source Child");
+    const targetSibling = structureColumn.getByTitle("组分: Target Child", {
+      exact: true,
+    });
     const targetSiblingBox = await targetSibling.boundingBox();
 
     expect(targetSiblingBox).not.toBeNull();
@@ -265,20 +303,26 @@ test.describe("directory and structure operation flows", () => {
         y: Math.max(1, Math.floor((targetSiblingBox?.height ?? 1) * 0.75)),
       },
     });
-    await expect.poll(async () => {
-      const response = await api.get(
-        `/api/v4/sync/workspaces/${interactionRepositoryId}`,
-      );
-      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
-      const targetSource = snapshot.content.workspace.notes.find(
-        ({ id }) => id === "interaction-target",
-      )?.source ?? "";
-      const editableLines = targetSource
-        .split("\n")
-        .filter((line) => !line.trimStart().startsWith("@ctn-block"));
+    await expect
+      .poll(async () => {
+        const response = await api.get(
+          `/api/v4/sync/workspaces/${interactionRepositoryId}`,
+        );
+        const snapshot =
+          (await response.json()) as WorkspaceRepositorySnapshotDto;
+        const targetSource =
+          snapshot.content.workspace.notes.find(
+            ({ id }) => id === "interaction-target",
+          )?.source ?? "";
+        const editableLines = targetSource
+          .split("\n")
+          .filter((line) => !line.trimStart().startsWith("@ctn-block"));
 
-      return editableLines.includes("\t- Source Child") &&
-        !editableLines.includes("\t\t- Source Child");
-    }).toBe(true);
+        return (
+          editableLines.includes("\t- Source Child") &&
+          !editableLines.includes("\t\t- Source Child")
+        );
+      })
+      .toBe(true);
   });
 });

@@ -1,6 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
+  projectRepositoryIssues,
+  type RepositoryOption,
+} from "../../../../../application/repository/ordinaryRepositoryViewModel";
+import { createRepositoryActivitySlots } from "../../../../../presentation/activities/repository/RepositoryActivitySlots";
+import { RepositoryContext } from "../../../../../presentation/activities/repository/RepositoryContext";
+import {
   clearRepositoryCreateFormAfterSuccess,
   createRepositoryCreateFormDraft,
   createRepositoryRequest,
@@ -10,16 +16,12 @@ import {
   canDeleteManagedRepositoryData,
   RepositoryDeleteConfirmation,
 } from "../../../../../presentation/activities/repository/RepositoryDeleteConfirmation";
-import { RepositoryContext } from "../../../../../presentation/activities/repository/RepositoryContext";
 import { RepositoryPanel } from "../../../../../presentation/activities/repository/RepositoryPanel";
 import { RepositoryStatusPanel } from "../../../../../presentation/activities/repository/RepositoryStatusPanel";
 import { copyRepositoryLocation } from "../../../../../presentation/activities/repository/repositoryViewHelpers";
-import { TestFeedbackProvider as FeedbackProvider } from "../../../../support/presentation/fixtures/TestFeedbackProvider";
-import {
-  projectRepositoryIssues,
-  type RepositoryOption,
-} from "../../../../../application/repository/ordinaryRepositoryViewModel";
+import { RegionFrame } from "../../../../../presentation/ui/RegionFrame";
 import { createRepositoryView } from "../../../../support/presentation/fixtures/repositoryViewFixture";
+import { TestFeedbackProvider as FeedbackProvider } from "../../../../support/presentation/fixtures/TestFeedbackProvider";
 import { expectMarkupSemantics } from "../../../../support/presentation/markupSemantics";
 
 const localRepository: RepositoryOption = {
@@ -56,6 +58,21 @@ const secondaryRepository: RepositoryOption = {
   },
   locationRows: [],
 };
+
+function RepositoryMainRegion(props: Parameters<typeof RepositoryPanel>[0]) {
+  return (
+    <RegionFrame
+      position="main"
+      slot={
+        createRepositoryActivitySlots({
+          ...props,
+          focusRequest: null,
+          onConsumeFocusRequest: () => undefined,
+        }).main
+      }
+    />
+  );
+}
 
 describe("repository creation form", () => {
   it("does not expose a manual repository ID and hides a redundant adapter selector", () => {
@@ -144,7 +161,7 @@ describe("repository setup and management semantics", () => {
           }}
           view={view}
         />
-        <RepositoryPanel
+        <RepositoryMainRegion
           onOpen={async () => undefined}
           selection={{
             id: secondaryRepository.id,
@@ -153,7 +170,6 @@ describe("repository setup and management semantics", () => {
           view={view}
         />
         <RepositoryStatusPanel
-          onCollapseDetail={() => undefined}
           selection={{
             id: secondaryRepository.id,
             kind: "ordinary-repository",
@@ -186,12 +202,7 @@ describe("repository setup and management semantics", () => {
         ">打开此仓库<",
         ">新建仓库</span>",
       ],
-      ordered: [
-        ">内置数据</span>",
-        ">本地</span>",
-        "本地笔记",
-        "第二仓库",
-      ],
+      ordered: [">内置数据</span>", ">本地</span>", "本地笔记", "第二仓库"],
     });
     expect(markup.match(/aria-label="新建仓库"/g) ?? []).toHaveLength(1);
     expect(markup.match(/data-repository-catalog="true"/g) ?? []).toHaveLength(
@@ -208,7 +219,7 @@ describe("repository setup and management semantics", () => {
     };
     const markup = renderToStaticMarkup(
       <FeedbackProvider>
-        <RepositoryPanel
+        <RepositoryMainRegion
           onOpen={async () => undefined}
           selection={{
             id: localRepository.id,
@@ -256,13 +267,12 @@ describe("repository setup and management semantics", () => {
     );
     const issueMarkup = renderToStaticMarkup(
       <FeedbackProvider>
-        <RepositoryPanel
+        <RepositoryMainRegion
           onOpen={async () => undefined}
           selection={{ id: "default", kind: "ordinary-issue" }}
           view={view}
         />
         <RepositoryStatusPanel
-          onCollapseDetail={() => undefined}
           selection={{ id: "default", kind: "ordinary-issue" }}
           view={view}
         />
@@ -270,7 +280,7 @@ describe("repository setup and management semantics", () => {
     );
     const createMarkup = renderToStaticMarkup(
       <FeedbackProvider>
-        <RepositoryPanel
+        <RepositoryMainRegion
           onOpen={async () => undefined}
           selection={{ kind: "create" }}
           view={view}
@@ -286,10 +296,7 @@ describe("repository setup and management semantics", () => {
         'data-repository-issue-id="default"',
       ],
       lacks: [">新建仓库</span>", "手工删除", "主机路径"],
-      ordered: [
-        ">本地</span>",
-        'data-repository-issue-id="default"',
-      ],
+      ordered: [">本地</span>", 'data-repository-issue-id="default"'],
     });
     expectMarkupSemantics(issueMarkup, {
       has: [
@@ -336,13 +343,12 @@ describe("repository setup and management semantics", () => {
     );
     const panelMarkup = renderToStaticMarkup(
       <FeedbackProvider>
-        <RepositoryPanel
+        <RepositoryMainRegion
           onOpen={async () => undefined}
           selection={{ id: "broken-second", kind: "ordinary-issue" }}
           view={view}
         />
         <RepositoryStatusPanel
-          onCollapseDetail={() => undefined}
           selection={{ id: "journal", kind: "built-in" }}
           view={view}
         />
@@ -437,7 +443,7 @@ describe("repository setup and management semantics", () => {
     );
     const journalMarkup = renderToStaticMarkup(
       <FeedbackProvider>
-        <RepositoryPanel
+        <RepositoryMainRegion
           onOpen={async () => undefined}
           selection={{
             id: "journal",
@@ -446,7 +452,6 @@ describe("repository setup and management semantics", () => {
           view={view}
         />
         <RepositoryStatusPanel
-          onCollapseDetail={() => undefined}
           selection={{ id: "journal", kind: "built-in" }}
           view={view}
         />
@@ -454,13 +459,12 @@ describe("repository setup and management semantics", () => {
     );
     const todoMarkup = renderToStaticMarkup(
       <FeedbackProvider>
-        <RepositoryPanel
+        <RepositoryMainRegion
           onOpen={async () => undefined}
           selection={{ id: "todo", kind: "built-in" }}
           view={view}
         />
         <RepositoryStatusPanel
-          onCollapseDetail={() => undefined}
           selection={{ id: "todo", kind: "built-in" }}
           view={view}
         />
@@ -513,7 +517,7 @@ describe("repository setup and management semantics", () => {
     );
     const panelMarkup = renderToStaticMarkup(
       <FeedbackProvider>
-        <RepositoryPanel
+        <RepositoryMainRegion
           onOpen={async () => undefined}
           selection={{
             id: "journal",
@@ -522,7 +526,6 @@ describe("repository setup and management semantics", () => {
           view={view}
         />
         <RepositoryStatusPanel
-          onCollapseDetail={() => undefined}
           selection={{
             id: localRepository.id,
             kind: "ordinary-repository",
@@ -555,7 +558,7 @@ describe("repository setup and management semantics", () => {
       };
       const markup = renderToStaticMarkup(
         <FeedbackProvider>
-          <RepositoryPanel
+          <RepositoryMainRegion
             onOpen={async () => undefined}
             selection={{
               id: localRepository.id,
@@ -564,7 +567,6 @@ describe("repository setup and management semantics", () => {
             view={view}
           />
           <RepositoryStatusPanel
-            onCollapseDetail={() => undefined}
             selection={{
               id: localRepository.id,
               kind: "ordinary-repository",
@@ -606,7 +608,7 @@ describe("repository setup and management semantics", () => {
     );
     const activeMarkup = renderToStaticMarkup(
       <FeedbackProvider>
-        <RepositoryPanel
+        <RepositoryMainRegion
           onOpen={async () => undefined}
           selection={{
             id: localRepository.id,
@@ -615,7 +617,6 @@ describe("repository setup and management semantics", () => {
           view={view}
         />
         <RepositoryStatusPanel
-          onCollapseDetail={() => undefined}
           selection={{
             id: localRepository.id,
             kind: "ordinary-repository",
@@ -626,7 +627,7 @@ describe("repository setup and management semantics", () => {
     );
     const inactiveMarkup = renderToStaticMarkup(
       <FeedbackProvider>
-        <RepositoryPanel
+        <RepositoryMainRegion
           onOpen={async () => undefined}
           selection={{
             id: secondaryRepository.id,
@@ -635,7 +636,6 @@ describe("repository setup and management semantics", () => {
           view={view}
         />
         <RepositoryStatusPanel
-          onCollapseDetail={() => undefined}
           selection={{
             id: secondaryRepository.id,
             kind: "ordinary-repository",

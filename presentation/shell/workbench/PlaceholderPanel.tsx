@@ -1,16 +1,9 @@
-import {
-  EmptyState,
-  Panel,
-} from "../../ui/index.ts";
+import { EmptyState, Page } from "../../ui/index.ts";
 
-export function PlaceholderPanel({
-  title,
-}: {
-  title: string;
-}) {
+export function PlaceholderPanel({ title }: { title: string }) {
   return (
-    <Panel className="placeholder-panel" aria-label={title}>
+    <Page kind="empty" aria-label={title}>
       <EmptyState title={title} />
-    </Panel>
+    </Page>
   );
 }

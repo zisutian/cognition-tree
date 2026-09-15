@@ -1,11 +1,12 @@
 import { createSearchActivitySlots } from "../../../../../presentation/activities/search/SearchActivitySlots";
+import { RegionFrame } from "../../../../../presentation/ui/RegionFrame";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type {
-  SearchControllerView,
   SearchControllerState,
+  SearchControllerView,
 } from "../../../../../application/search/searchController";
 import { SearchPanel } from "../../../../../presentation/activities/search/SearchPanel";
 
@@ -77,7 +78,6 @@ describe("SearchPanel", () => {
     };
     const searchSlots = createSearchActivitySlots({
       controller,
-      onCollapseDetail: () => undefined,
       onOpenResult: () => undefined,
       repositories: [{ id: "repository-a", label: "仓库 A" }],
       state: {
@@ -113,7 +113,9 @@ describe("SearchPanel", () => {
       },
     });
     const searchContext = renderToStaticMarkup(searchSlots.context?.content);
-    const searchMain = renderToStaticMarkup(searchSlots.main);
+    const searchMain = renderToStaticMarkup(
+      <RegionFrame position="main" slot={searchSlots.main} />,
+    );
 
     expect(searchContext).toContain('role="search"');
     expect(searchContext).toContain('aria-label="搜索"');
@@ -128,7 +130,7 @@ describe("SearchPanel", () => {
     expect(searchMain).toContain("块内共同词");
     expect(searchMain).toContain('aria-label="打开Alpha中的匹配块"');
     expect(searchMain).not.toContain("整篇共同词");
-    expect(renderToStaticMarkup(searchSlots.detail)).toContain(
+    expect(renderToStaticMarkup(searchSlots.detail?.content)).toContain(
       'aria-label="搜索状态"',
     );
 
@@ -136,7 +138,6 @@ describe("SearchPanel", () => {
       renderToStaticMarkup(
         createSearchActivitySlots({
           controller,
-          onCollapseDetail: () => undefined,
           onOpenResult: () => undefined,
           repositories: [{ id: "repository-a", label: "仓库 A" }],
           state: {
@@ -148,7 +149,7 @@ describe("SearchPanel", () => {
             },
             ...override,
           },
-        }).main,
+        }).main.content,
       );
     expect(
       renderSearchState({

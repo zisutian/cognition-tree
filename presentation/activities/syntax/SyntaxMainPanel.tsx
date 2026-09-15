@@ -1,30 +1,27 @@
-import {
-  isAvailableSyntaxViewModel,
-  type SyntaxViewModel,
-  syntaxFieldIds,
-} from "../../../application/syntax/index.ts";
 import { RotateCcw } from "lucide-react";
 import { useEffect, useRef } from "react";
+import {
+  isAvailableSyntaxViewModel,
+  syntaxFieldIds,
+  type SyntaxViewModel,
+} from "../../../application/syntax/index.ts";
+import { createClassNames } from "../../ui/index.ts";
+import syntaxStyles from "./syntax.module.css";
+const cx = createClassNames(syntaxStyles);
 
 import {
   Button,
   EmptyState,
   InputControl,
-  ToolPanel,
-  ToolPanelBody,
-  ToolSection,
-  ToolSectionStack,
+  Page,
+  PageBody,
+  Section,
+  SectionStack,
 } from "../../ui/index.ts";
 
-
-import {
-  BlockRuleRows,
-  TitleAndRootRows,
-} from "./SyntaxBlockRuleRows.tsx";
+import { BlockRuleRows, TitleAndRootRows } from "./SyntaxBlockRuleRows.tsx";
 import { InlineRuleRows } from "./SyntaxInlineRuleRows.tsx";
-import {
-  SyntaxRuleHeader,
-} from "./SyntaxRuleLayout.tsx";
+import { SyntaxRuleHeader } from "./SyntaxRuleLayout.tsx";
 
 export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
   const syntax = view;
@@ -64,29 +61,21 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
 
   if (!isAvailableSyntaxViewModel(syntax)) {
     return (
-      <ToolPanel
-        aria-label="语法配置"
-        className="syntax-panel"
-        title="语法配置"
-      >
-        <EmptyState
-          title="语法配置暂不可用"
-        />
-      </ToolPanel>
+      <Page aria-label="语法配置">
+        <EmptyState title="语法配置暂不可用" />
+      </Page>
     );
   }
 
   return (
-    <ToolPanel
-      className="syntax-panel"
+    <Page
       aria-label="语法配置"
       data-syntax-field-id={syntaxFieldIds.viewRoot}
       tabIndex={-1}
-      title={syntax.draft.name || "未命名语法"}
     >
-      <ToolPanelBody layout="table">
+      <PageBody>
         {syntax.hasDraftErrors ? (
-          <div className="syntax-invalid-draft" role="alert">
+          <div className={cx("syntax-invalid-draft")} role="alert">
             <span>语法包含无效更改</span>
             <Button
               onClick={syntax.revertInvalidChanges}
@@ -98,17 +87,13 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
             </Button>
           </div>
         ) : null}
-        <ToolSectionStack
-          aria-label="语法设置"
-          className="syntax-rule-sections"
-        >
-          <ToolSection title="基础">
-            <label className="syntax-setting-line">
-              <span className="syntax-setting-label">缩进宽度</span>
+        <SectionStack aria-label="语法设置">
+          <Section title="基础">
+            <label className={cx("syntax-setting-line")}>
+              <span className={cx("syntax-setting-label")}>缩进宽度</span>
               <InputControl
                 disabled={!syntax.canMutate}
                 aria-label="缩进宽度"
-                className="syntax-number-control"
                 data-syntax-field-id={syntaxFieldIds.tabDisplayWidth}
                 inputMode="numeric"
                 max={syntax.constraints.tabDisplayWidth.max}
@@ -121,8 +106,8 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
                 }
               />
             </label>
-          </ToolSection>
-          <ToolSection
+          </Section>
+          <Section
             data-syntax-field-id={syntaxFieldIds.blockRuleGroup}
             tabIndex={-1}
             title="块规则"
@@ -130,17 +115,17 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
             <SyntaxRuleHeader kind="block" />
             <TitleAndRootRows syntax={syntax} />
             <BlockRuleRows syntax={syntax} />
-          </ToolSection>
-          <ToolSection
+          </Section>
+          <Section
             data-syntax-field-id={syntaxFieldIds.inlineRuleGroup}
             tabIndex={-1}
             title="行内规则"
           >
             <SyntaxRuleHeader kind="inline" />
             <InlineRuleRows syntax={syntax} />
-          </ToolSection>
-        </ToolSectionStack>
-      </ToolPanelBody>
-    </ToolPanel>
+          </Section>
+        </SectionStack>
+      </PageBody>
+    </Page>
   );
 }

@@ -1,17 +1,18 @@
+import { createClassNames } from "../../ui/index.ts";
+import agentStyles from "./agent.module.css";
+const cx = createClassNames(agentStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Copy } from "lucide-react";
 import type { AgentProposalView } from "../../../application/agent/index.ts";
 import {
   Button,
-  useFeedback,
+  Section,
+  SectionStack,
   ToolPropertyList,
   ToolPropertyRow,
-  ToolSection,
-  ToolSectionStack,
+  useFeedback,
 } from "../../ui/index.ts";
-
-
 
 type ReviewResource = AgentProposalView["review"]["resources"][number];
 
@@ -48,7 +49,10 @@ export function AgentProposalReview({
 
   return (
     <>
-      <ToolSection title="变更摘要" tone={proposal.destructive ? "danger" : "default"}>
+      <Section
+        title="变更摘要"
+        tone={proposal.destructive ? "danger" : "default"}
+      >
         <p>
           {summary.created > 0 ? `新建 ${summary.created} 项` : null}
           {summary.created > 0 && summary.updated > 0 ? "，" : null}
@@ -61,12 +65,12 @@ export function AgentProposalReview({
             ? "没有可展示的资源变更"
             : null}
         </p>
-      </ToolSection>
-      <ToolSection title="逐项审查">
+      </Section>
+      <Section title="逐项审查">
         {proposal.review.resources.length === 0 ? (
-          <p className="agent-muted">没有可展示的资源变更。</p>
+          <p className={cx("agent-muted")}>没有可展示的资源变更。</p>
         ) : (
-          <ol className="agent-review-resource-list">
+          <ol className={cx("agent-review-resource-list")}>
             {proposal.review.resources.map((resource) => (
               <AgentProposalReviewResource
                 key={resource.resourceId}
@@ -75,7 +79,7 @@ export function AgentProposalReview({
             ))}
           </ol>
         )}
-      </ToolSection>
+      </Section>
       <AgentProposalTechnicalDetails proposal={proposal} />
     </>
   );
@@ -87,39 +91,43 @@ function AgentProposalReviewResource({
   resource: ReviewResource;
 }) {
   const current = resource.after ?? resource.before;
-  const pathChanged = resource.before && resource.after &&
+  const pathChanged =
+    resource.before &&
+    resource.after &&
     resource.before.path !== resource.after.path;
   const blockSummary = formatBlockSummary(resource.blockSummary);
 
   return (
-    <li className="agent-review-resource">
+    <li className={cx("agent-review-resource")}>
       <header>
         <strong>{current?.path ?? "无法识别的资源"}</strong>
-        <span className="agent-review-actions">
+        <span className={cx("agent-review-actions")}>
           {resource.actions.map((action) => (
             <span key={action}>{actionLabels[action]}</span>
           ))}
         </span>
       </header>
       {pathChanged ? (
-        <p className="agent-review-path-change">
+        <p className={cx("agent-review-path-change")}>
           <span>{resource.before?.path}</span>
           <span aria-hidden="true">→</span>
           <span>{resource.after?.path}</span>
         </p>
       ) : null}
       {blockSummary ? (
-        <p className="agent-review-block-summary">块变更：{blockSummary}</p>
+        <p className={cx("agent-review-block-summary")}>
+          块变更：{blockSummary}
+        </p>
       ) : null}
       {resource.diff.length === 0 ? (
-        <p className="agent-muted">没有正文行变更。</p>
+        <p className={cx("agent-muted")}>没有正文行变更。</p>
       ) : (
-        <div className="agent-line-diff">
+        <div className={cx("agent-line-diff")}>
           {resource.diff.map((hunk, hunkIndex) => (
-            <div className="agent-line-diff-hunk" key={hunkIndex}>
+            <div className={cx("agent-line-diff-hunk")} key={hunkIndex}>
               {hunk.lines.map((line, lineIndex) => (
                 <div
-                  className={`agent-line-diff-row is-${line.kind}`}
+                  className={cx(`agent-line-diff-row is-${line.kind}`)}
                   key={`${line.beforeLineNumber}:${line.afterLineNumber}:${lineIndex}`}
                 >
                   <span>{line.beforeLineNumber ?? ""}</span>
@@ -148,11 +156,11 @@ function AgentProposalTechnicalDetails({
   proposal: AgentProposalView;
 }) {
   return (
-    <ToolSection className="agent-proposal-technical">
-      <details>
+    <Section>
+      <details className={cx("agent-technical-details")}>
         <summary>技术详情</summary>
-        <ToolSectionStack className="agent-proposal-technical-body">
-          <ToolSection aria-label="Proposal 技术元数据">
+        <SectionStack>
+          <Section aria-label="Proposal 技术元数据">
             <ToolPropertyList aria-label="Proposal 技术元数据">
               <ToolPropertyRow
                 label="Proposal ID"
@@ -170,18 +178,18 @@ function AgentProposalTechnicalDetails({
               {proposal.store.domain === "workspace" ? (
                 <ToolPropertyRow
                   label="Repository ID"
-                  value={(
+                  value={
                     <TechnicalInlineValue value={proposal.store.repositoryId} />
-                  )}
+                  }
                 />
               ) : null}
             </ToolPropertyList>
-          </ToolSection>
-          <ToolSection title="资源变更">
+          </Section>
+          <Section title="资源变更">
             {proposal.changes.resources.length === 0 ? (
-              <p className="agent-muted">无</p>
+              <p className={cx("agent-muted")}>无</p>
             ) : (
-              <ul className="agent-technical-change-list">
+              <ul className={cx("agent-technical-change-list")}>
                 {proposal.changes.resources.map((change, index) => (
                   <li key={`${change.resourceId}:${change.kind}:${index}`}>
                     <strong>{technicalChangeLabels[change.kind]}</strong>
@@ -193,12 +201,12 @@ function AgentProposalTechnicalDetails({
                 ))}
               </ul>
             )}
-          </ToolSection>
-          <ToolSection title="块变更">
+          </Section>
+          <Section title="块变更">
             {proposal.changes.blocks.length === 0 ? (
-              <p className="agent-muted">无</p>
+              <p className={cx("agent-muted")}>无</p>
             ) : (
-              <ul className="agent-technical-change-list">
+              <ul className={cx("agent-technical-change-list")}>
                 {proposal.changes.blocks.map((change, index) => (
                   <li key={`${change.blockId}:${change.kind}:${index}`}>
                     <strong>{technicalChangeLabels[change.kind]}</strong>
@@ -209,27 +217,29 @@ function AgentProposalTechnicalDetails({
                 ))}
               </ul>
             )}
-          </ToolSection>
-          <ToolSection title="字符级 diff">
+          </Section>
+          <Section title="字符级 diff">
             {proposal.diff.length === 0 ? (
-              <p className="agent-muted">无</p>
+              <p className={cx("agent-muted")}>无</p>
             ) : (
-              <ul className="agent-technical-diff-list">
+              <ul className={cx("agent-technical-diff-list")}>
                 {proposal.diff.map((hunk, index) => (
                   <li key={`${hunk.resourceId}:${hunk.from}:${index}`}>
                     <header>
                       <TechnicalInlineValue value={hunk.resourceId} />
-                      <span>{hunk.from}–{hunk.to}</span>
+                      <span>
+                        {hunk.from}–{hunk.to}
+                      </span>
                     </header>
                     <pre>{hunk.insertedText || "（删除所选范围）"}</pre>
                   </li>
                 ))}
               </ul>
             )}
-          </ToolSection>
-        </ToolSectionStack>
+          </Section>
+        </SectionStack>
       </details>
-    </ToolSection>
+    </Section>
   );
 }
 
@@ -237,16 +247,18 @@ function TechnicalInlineValue({ value }: { value: string }) {
   const feedback = useFeedback();
 
   return (
-    <span className="agent-technical-value">
+    <span className={cx("agent-technical-value")}>
       <code>{shortTechnicalValue(value)}</code>
       <Button
         aria-label="复制完整值"
-        onClick={() => void feedback.runAction(async () => {
-          if (!navigator.clipboard) {
-            throw new Error("当前浏览器不支持复制到剪贴板。");
-          }
-          await navigator.clipboard.writeText(value);
-        })}
+        onClick={() =>
+          void feedback.runAction(async () => {
+            if (!navigator.clipboard) {
+              throw new Error("当前浏览器不支持复制到剪贴板。");
+            }
+            await navigator.clipboard.writeText(value);
+          })
+        }
         title="复制完整值"
         type="button"
         variant="icon"
@@ -267,12 +279,15 @@ function shortTechnicalValue(value: string) {
 }
 
 function summarizeResources(resources: readonly ReviewResource[]) {
-  return resources.reduce((summary, resource) => {
-    if (resource.actions.includes("created")) summary.created += 1;
-    else if (resource.actions.includes("deleted")) summary.deleted += 1;
-    else summary.updated += 1;
-    return summary;
-  }, { created: 0, deleted: 0, updated: 0 });
+  return resources.reduce(
+    (summary, resource) => {
+      if (resource.actions.includes("created")) summary.created += 1;
+      else if (resource.actions.includes("deleted")) summary.deleted += 1;
+      else summary.updated += 1;
+      return summary;
+    },
+    { created: 0, deleted: 0, updated: 0 },
+  );
 }
 
 function formatBlockSummary(summary: ReviewResource["blockSummary"]) {
@@ -282,7 +297,8 @@ function formatBlockSummary(summary: ReviewResource["blockSummary"]) {
     ["移动", summary.moved],
     ["状态修改", summary.stateUpdated],
     ["删除", summary.deleted],
-  ].filter(([, count]) => count !== 0)
+  ]
+    .filter(([, count]) => count !== 0)
     .map(([label, count]) => `${label} ${count}`)
     .join("，");
 }

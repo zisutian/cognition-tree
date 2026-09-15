@@ -1,17 +1,20 @@
+import { createClassNames } from "../../ui/index.ts";
+import settingsStyles from "./settings.module.css";
+const cx = createClassNames(settingsStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { FileCog,Plus } from "lucide-react";
-import { useState,type ReactNode } from "react";
+import { FileCog, Plus } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import type { AgentConfigurationState } from "../../../application/agent/index.ts";
 import {
-Button,
-CompactContextGroup,
-CompactContextRow,
+  Button,
+  CompactContextGroup,
+  CompactContextRow,
 } from "../../ui/index.ts";
 import {
-settingsPageLabels,
-settingsTargetKey,
-type SettingsTarget,
+  settingsPageLabels,
+  settingsTargetKey,
+  type SettingsTarget,
 } from "./settingsTypes.ts";
 
 type EntityKind = "provider" | "profile";
@@ -26,7 +29,9 @@ export function SettingsContext({
   onSelect(target: SettingsTarget): void;
   target: SettingsTarget;
 }) {
-  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const row = (item: SettingsTarget, label: string) => {
     const key = settingsTargetKey(item),
       selected = key === settingsTargetKey(target);
@@ -53,11 +58,14 @@ export function SettingsContext({
     <CompactContextGroup
       headingId={`settings-group-${id}`}
       expanded={!collapsedGroups.has(id)}
-      onToggle={() => setCollapsedGroups((current) => {
-        const next = new Set(current);
-        if (next.has(id)) next.delete(id); else next.add(id);
-        return next;
-      })}
+      onToggle={() =>
+        setCollapsedGroups((current) => {
+          const next = new Set(current);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        })
+      }
       label={label}
       listAriaLabel={label}
       actions={actions}
@@ -76,8 +84,8 @@ export function SettingsContext({
       <>
         {items.map((item) => row({ kind, id: item.id }, item.label))}
         {target.kind === kind &&
-          target.id !== null &&
-          !items.some((item) => item.id === target.id)
+        target.id !== null &&
+        !items.some((item) => item.id === target.id)
           ? row(target, `已移除的${settingsPageLabels[kind]}`)
           : null}
         {target.kind === kind && "id" in target && target.id === null
@@ -95,7 +103,7 @@ export function SettingsContext({
       </Button>,
     );
   return (
-    <div className="activity-context-content settings-context">
+    <div className={cx("activity-context-content settings-context")}>
       {group("interface", "界面", row({ kind: "interface" }, "工作台布局"))}
       {group(
         "system",
@@ -112,14 +120,14 @@ export function SettingsContext({
         <>
           {row({ kind: "agent-default" }, "默认会话配置")}
           {row({ kind: "agent-discovery" }, "本地服务发现")}
-          <li className="settings-context-subgroup">
+          <li className={cx("settings-context-subgroup")}>
             {entities(
               "provider",
               "模型服务（Provider）",
               agent.configuration?.providers ?? [],
             )}
           </li>
-          <li className="settings-context-subgroup">
+          <li className={cx("settings-context-subgroup")}>
             {entities(
               "profile",
               "会话配置（Profile）",

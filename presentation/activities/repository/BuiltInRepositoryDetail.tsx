@@ -5,16 +5,13 @@ import type {
   BuiltInOption,
   RepositoryViewModel,
 } from "../../../application/repository/index.ts";
+import { createClassNames } from "../../ui/index.ts";
+const cx = createClassNames();
 
+import { Button, EmptyState, Section } from "../../ui/index.ts";
 
-import {
-  Button,
-  EmptyState,
-  ToolSection,
-} from "../../ui/index.ts";
-
-import { builtInLabel } from "./repositoryViewHelpers.ts";
 import { RepositoryConflictActions } from "./RepositoryConflictResolution.tsx";
+import { builtInLabel } from "./repositoryViewHelpers.ts";
 
 export function BuiltInRepositoryDetail({
   busy,
@@ -34,8 +31,8 @@ export function BuiltInRepositoryDetail({
   if (issue) {
     return (
       <>
-        <ToolSection title="操作">
-          <div className="ui-actions">
+        <Section title="操作">
+          <div className={cx("ui-actions")}>
             <Button
               disabled={busy || view.retryingBuiltInId !== null}
               onClick={() => onRunAction(() => view.retryBuiltIn(issue.id))}
@@ -46,15 +43,15 @@ export function BuiltInRepositoryDetail({
               重试
             </Button>
           </div>
-        </ToolSection>
+        </Section>
       </>
     );
   }
   if (!repository) {
     return (
       <EmptyState
-        action={view.builtInCatalogStatus === "failed"
-          ? (
+        action={
+          view.builtInCatalogStatus === "failed" ? (
             <Button
               disabled={busy}
               onClick={() => onRunAction(view.reloadBuiltInCatalog)}
@@ -63,8 +60,8 @@ export function BuiltInRepositoryDetail({
             >
               重试内置数据
             </Button>
-          )
-          : undefined}
+          ) : undefined
+        }
         description={view.builtInCatalogErrorMessage || "内置数据正在载入。"}
         title={builtInLabel(id)}
       />
@@ -72,34 +69,30 @@ export function BuiltInRepositoryDetail({
   }
   return (
     <>
-      {repository.conflictResolution
-        ? (
-            <RepositoryConflictActions
-              busy={busy}
-              resolution={repository.conflictResolution}
-              onRunAction={onRunAction}
-            />
-          )
-        : null}
-      {repository.conflictResolution
-        ? null
-        : (
-            <ToolSection title="操作">
-              <div className="ui-actions">
-                <Button
-                  disabled={busy}
-                  onClick={() => onRunAction(
-                    repository.recoveryAction?.run ?? repository.reload,
-                  )}
-                  type="button"
-                  variant="secondary"
-                >
-                  <RefreshCw aria-hidden="true" size={13} />
-                  {repository.recoveryAction?.label ?? "重新加载"}
-                </Button>
-              </div>
-            </ToolSection>
-          )}
+      {repository.conflictResolution ? (
+        <RepositoryConflictActions
+          busy={busy}
+          resolution={repository.conflictResolution}
+          onRunAction={onRunAction}
+        />
+      ) : null}
+      {repository.conflictResolution ? null : (
+        <Section title="操作">
+          <div className={cx("ui-actions")}>
+            <Button
+              disabled={busy}
+              onClick={() =>
+                onRunAction(repository.recoveryAction?.run ?? repository.reload)
+              }
+              type="button"
+              variant="secondary"
+            >
+              <RefreshCw aria-hidden="true" size={13} />
+              {repository.recoveryAction?.label ?? "重新加载"}
+            </Button>
+          </div>
+        </Section>
+      )}
     </>
   );
 }

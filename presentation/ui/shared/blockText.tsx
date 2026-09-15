@@ -1,11 +1,12 @@
-import type {
-  CtnSyntaxTone,
-} from "../../../core/ctn/index.ts";
+import type { CtnSyntaxTone } from "../../../core/ctn/index.ts";
+import { createClassNames } from "./classNames.ts";
 import {
   createToneStyle,
   getTextColorClassName,
   getToneClassName,
 } from "./tonePresentation.ts";
+import treeStyles from "./tree/Tree.module.css";
+const cx = createClassNames(treeStyles);
 
 export type DisplayText = {
   displayText: string;
@@ -28,13 +29,15 @@ export type DisplayText = {
 export function BlockText({ text }: { text: DisplayText }) {
   return (
     <span
-      className={`block-text ${getTextColorClassName(text.textColor)}`}
+      className={cx(`block-text ${getTextColorClassName(text.textColor)}`)}
       style={createToneStyle("default", text.textColor)}
     >
       {text.segments.map((segment) =>
         segment.kind === "inline" ? (
           <span
-            className={`block-text-inline ${getToneClassName(segment.tone)}`}
+            className={cx(
+              `block-text-inline ${getToneClassName(segment.tone)}`,
+            )}
             key={segment.id}
             style={createToneStyle(segment.tone, "default")}
           >

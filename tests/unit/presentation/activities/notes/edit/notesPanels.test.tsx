@@ -1,15 +1,15 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { NoteDetailPanel } from "../../../../../../presentation/activities/notes/edit/NoteDetailPanel";
+import { submitNotesEditorChange } from "../../../../../../presentation/activities/notes/edit/NoteEditorPanel";
 import {
   findNotesTreeAncestorFolderIds,
   submitNotesFolderCreation,
 } from "../../../../../../presentation/activities/notes/edit/NotesContext";
-import { NoteDetailPanel } from "../../../../../../presentation/activities/notes/edit/NoteDetailPanel";
-import { submitNotesEditorChange } from "../../../../../../presentation/activities/notes/edit/NoteEditorPanel";
 import { runFeedbackAction } from "../../../../../../presentation/ui/shared/FeedbackProvider";
 
-import { createNotesView } from "../../../../../support/presentation/fixtures/notesViewFixture";
 import { defaultCtnSyntax } from "../../../../../../core/ctn/syntax/defaultSyntax";
+import { createNotesView } from "../../../../../support/presentation/fixtures/notesViewFixture";
 
 describe("notes panels", () => {
   it("finds every collapsed ancestor needed to reveal a selected name issue", () => {
@@ -179,10 +179,7 @@ describe("notes panels", () => {
 
   it("shows note timestamps independently from the active block", () => {
     const markup = renderToStaticMarkup(
-      <NoteDetailPanel
-        onCollapseDetail={() => undefined}
-        view={createNotesView()}
-      />,
+      <NoteDetailPanel view={createNotesView()} />,
     );
 
     expect(markup).toContain('aria-label="笔记时间"');
@@ -214,7 +211,6 @@ describe("notes panels", () => {
     };
     const markup = renderToStaticMarkup(
       <NoteDetailPanel
-        onCollapseDetail={() => undefined}
         view={{
           ...baseView,
           editor: {

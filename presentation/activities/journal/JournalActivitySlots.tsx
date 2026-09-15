@@ -1,6 +1,6 @@
 import type { JournalViewModel } from "../../../application/journal/index.ts";
 import type { ActivitySlots } from "../../ui/index.ts";
-import "./journal.css";
+import { FocusAction } from "../../ui/index.ts";
 import {
   JournalContext,
   JournalContextActions,
@@ -10,12 +10,10 @@ import {
 
 export function createJournalActivitySlots({
   focusMode,
-  onCollapseDetail,
   onToggleFocusMode,
   view,
 }: {
   focusMode: boolean;
-  onCollapseDetail: () => void;
   onToggleFocusMode: () => void;
   view: JournalViewModel;
 }): ActivitySlots {
@@ -25,15 +23,18 @@ export function createJournalActivitySlots({
       content: <JournalContext view={view} />,
       title: "日记",
     },
-    detail: view.activeEntry ? (
-      <JournalDetailPanel onCollapseDetail={onCollapseDetail} view={view} />
-    ) : null,
-    main: (
-      <JournalEditorPanel
-        focusMode={focusMode}
-        onToggleFocusMode={onToggleFocusMode}
-        view={view}
-      />
-    ),
+    detail: view.activeEntry
+      ? {
+          title: "结构",
+          layout: "detail",
+          content: <JournalDetailPanel view={view} />,
+        }
+      : null,
+    main: {
+      title: view.activeEntry?.title ?? "日记",
+      layout: "document",
+      actions: <FocusAction active={focusMode} onToggle={onToggleFocusMode} />,
+      content: <JournalEditorPanel view={view} />,
+    },
   };
 }

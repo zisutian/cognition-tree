@@ -3,15 +3,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
-  DetailPanel,
+  Page,
+  PageBody,
+  Section,
+  SectionStack,
   ToolList,
   ToolListRow,
-  ToolPanel,
-  ToolPanelBody,
   ToolPropertyList,
   ToolPropertyRow,
-  ToolSection,
-  ToolSectionStack,
   ToolToolbar,
 } from "../../../../presentation/ui/index";
 
@@ -19,31 +18,27 @@ describe("tool surfaces", () => {
   it("labels panels and their sections for navigation", () => {
     const markup = renderToStaticMarkup(
       <>
-        <ToolPanel aria-label="工具页" title="工具标题">
-          <ToolPanelBody layout="form">
-            <ToolSectionStack>
-              <ToolSection title="表单分区">表单</ToolSection>
-              <ToolSection
+        <Page aria-label="工具页">
+          <PageBody layout="form">
+            <SectionStack>
+              <Section title="表单分区">表单</Section>
+              <Section
                 actions={<button type="button">操作</button>}
                 title="后续分区"
               >
                 内容
-              </ToolSection>
-            </ToolSectionStack>
-          </ToolPanelBody>
-        </ToolPanel>
-        <DetailPanel
-          aria-label="工具详情"
-          onCollapse={() => undefined}
-          title="状态"
-        >
-          <ToolPanelBody layout="detail">详情</ToolPanelBody>
-        </DetailPanel>
+              </Section>
+            </SectionStack>
+          </PageBody>
+        </Page>
+        <Page aria-label="工具详情">
+          <PageBody layout="detail">详情</PageBody>
+        </Page>
       </>,
     );
 
-    expect(markup).toContain("<h2>工具标题</h2>");
-    expect(markup).toContain('aria-label="收回右侧详情"');
+    expect(markup).toContain('aria-label="工具页"');
+    expect(markup).not.toContain('aria-label="收回右侧详情"');
     expect(markup).toContain("aria-labelledby=");
     expect(markup).toContain("表单分区");
     expect(markup).toContain("操作");

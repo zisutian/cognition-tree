@@ -1,6 +1,9 @@
 import type { CSSProperties } from "react";
 import { useCallback, useMemo, useRef } from "react";
-import { cx } from "../primitives.tsx";
+import { createClassNames } from "../classNames.ts";
+import treeStyles from "./Tree.module.css";
+const cx = createClassNames(treeStyles);
+
 import { DirectoryTreeRow } from "./DirectoryTreeRow.tsx";
 import type { DirectoryTreeRow as DirectoryTreeRowModel } from "./directoryRows.ts";
 import {
@@ -34,7 +37,8 @@ export function DirectoryTreeContent({
       role={depth === 0 ? "tree" : "group"}
     >
       {nodes.map((node) => {
-        const isCollapsed = node.kind === "folder" &&
+        const isCollapsed =
+          node.kind === "folder" &&
           collapsedFolderIds?.has(node.folderId) === true;
 
         return (
@@ -71,20 +75,21 @@ export function VirtualDirectoryTreeContent({
 }) {
   const hostRef = useRef<HTMLUListElement | null>(null);
   const pinnedIndexes = useMemo(
-    () => new Set(
-      rows.flatMap((row, index) => {
-        const nodeKey = getTreeNodeReferenceKey(
-          getTreeNodeReference(row.node),
-        );
-        const pinned =
-          nodeKey === context.dragState?.sourceKey ||
-          nodeKey === context.editingNode?.key ||
-          isActiveDirectoryTreeNode(context.props.activeNode, row.node) ||
-          row.node === context.pendingDeleteNode;
+    () =>
+      new Set(
+        rows.flatMap((row, index) => {
+          const nodeKey = getTreeNodeReferenceKey(
+            getTreeNodeReference(row.node),
+          );
+          const pinned =
+            nodeKey === context.dragState?.sourceKey ||
+            nodeKey === context.editingNode?.key ||
+            isActiveDirectoryTreeNode(context.props.activeNode, row.node) ||
+            row.node === context.pendingDeleteNode;
 
-        return pinned ? [index] : [];
-      }),
-    ),
+          return pinned ? [index] : [];
+        }),
+      ),
     [
       context.dragState,
       context.editingNode,
@@ -106,10 +111,7 @@ export function VirtualDirectoryTreeContent({
 
   return (
     <ul
-      className={cx(
-        "ui-tree ui-directory-tree ui-virtual-tree",
-        className,
-      )}
+      className={cx("ui-tree ui-directory-tree ui-virtual-tree", className)}
       data-virtual-row-count={rows.length}
       ref={hostRef}
       role="tree"

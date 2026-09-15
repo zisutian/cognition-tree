@@ -1,28 +1,33 @@
 import { useLayoutEffect, useRef } from "react";
+import type {
+  SearchDomain,
+  SearchResult,
+} from "../../../application/search/index.ts";
 import {
   searchDraftsEqual,
-  type SearchControllerView,
   type SearchControllerState,
+  type SearchControllerView,
 } from "../../../application/search/index.ts";
-import type { SearchDomain, SearchResult } from "../../../application/search/index.ts";
 import {
   Button,
+  createClassNames,
   EmptyState,
+  Page,
+  PageBody,
+  Section,
+  SectionStack,
+  StatusBadge,
   ToolDivider,
   ToolList,
   ToolListRow,
-  ToolPanel,
-  ToolPanelBody,
-  ToolSection,
-  ToolSectionStack,
-  StatusBadge,
 } from "../../ui/index.ts";
+import searchStyles from "./search.module.css";
+const cx = createClassNames(searchStyles);
 
 import {
   searchDomainLabels,
   type SearchRepositoryOption,
 } from "./searchViewTypes.ts";
-
 
 export type SearchResultGroup = {
   domain: SearchDomain;
@@ -40,14 +45,11 @@ export function groupSearchResults(
   const groups = new Map<string, SearchResultGroup>();
 
   for (const result of results) {
-    const key =
-      `${result.domain}:${result.repositoryId ?? ""}:${result.resourceId}`;
+    const key = `${result.domain}:${result.repositoryId ?? ""}:${result.resourceId}`;
     const group = groups.get(key);
 
     if (group) {
-      if (
-        !group.hits.some(({ blockId }) => blockId === result.blockId)
-      ) {
+      if (!group.hits.some(({ blockId }) => blockId === result.blockId)) {
         group.hits.push(result);
       }
       if (result.updatedAt > group.updatedAt) {
@@ -59,9 +61,7 @@ export function groupSearchResults(
       domain: result.domain,
       hits: [result],
       key,
-      ...(result.repositoryId
-        ? { repositoryId: result.repositoryId }
-        : {}),
+      ...(result.repositoryId ? { repositoryId: result.repositoryId } : {}),
       resourceId: result.resourceId,
       title: result.title,
       updatedAt: result.updatedAt,
@@ -97,10 +97,10 @@ export function SearchPanel({
   const repositoryLabelById = new Map(
     repositories.map(({ id, label }) => [id, label]),
   );
-  const allSourcesFailed = state.faults.length > 0 &&
-    groups.length === 0 &&
-    !state.errorMessage;
-  const draftChanged = state.submitted !== null &&
+  const allSourcesFailed =
+    state.faults.length > 0 && groups.length === 0 && !state.errorMessage;
+  const draftChanged =
+    state.submitted !== null &&
     !searchDraftsEqual(state.draft, state.submitted);
 
   useLayoutEffect(() => {
@@ -110,32 +110,30 @@ export function SearchPanel({
   }, [controller, state.submitted]);
 
   return (
-    <ToolPanel
-      actions={state.submitted ? (
+    <Page
+      actions={
+        state.submitted ? (
           <>
-            <span className="search-header-counts">
+            <span className={cx("search-header-counts")}>
               {groups.length} 个资源 · {state.results.length} 个命中
             </span>
             {draftChanged ? (
               <StatusBadge tone="warning">条件已修改</StatusBadge>
             ) : null}
           </>
-      ) : null}
+        ) : null
+      }
       aria-label="搜索结果"
-      className="search-panel"
-      title={state.submitted
-          ? `搜索 · ${state.submitted.query}`
-          : "搜索结果"}
     >
-      <ToolPanelBody
-        layout="results"
+      <PageBody
         onScroll={(event) =>
-          controller.updateScrollTop(event.currentTarget.scrollTop)}
+          controller.updateScrollTop(event.currentTarget.scrollTop)
+        }
         ref={bodyRef}
       >
         <p
           aria-live="polite"
-          className="search-result-status"
+          className={cx("ui-visually-hidden")}
           role="status"
         >
           {state.status === "loading"
@@ -146,19 +144,13 @@ export function SearchPanel({
         </p>
 
         {state.status === "idle" ? (
-          <EmptyState
-            compact
-            title="尚未搜索"
-          />
+          <EmptyState compact title="尚未搜索" />
         ) : state.status === "loading" ? (
-          <EmptyState
-            compact
-            title="正在搜索"
-          />
+          <EmptyState compact title="正在搜索" />
         ) : state.errorMessage && groups.length === 0 ? (
           <EmptyState
             compact
-            action={(
+            action={
               <Button
                 onClick={() => void controller.search()}
                 type="button"
@@ -166,14 +158,14 @@ export function SearchPanel({
               >
                 重新搜索
               </Button>
-            )}
+            }
             description={state.errorMessage}
             title="搜索失败"
           />
         ) : allSourcesFailed ? (
           <EmptyState
             compact
-            action={(
+            action={
               <Button
                 onClick={() => void controller.search()}
                 type="button"
@@ -181,7 +173,7 @@ export function SearchPanel({
               >
                 重试
               </Button>
-            )}
+            }
             title="搜索来源不可用"
           />
         ) : (
@@ -189,7 +181,7 @@ export function SearchPanel({
             {state.faults.length > 0 ? (
               <section
                 aria-label="不可用的搜索来源"
-                className="search-faults"
+                className={cx("search-faults")}
                 role="status"
               >
                 <strong>部分来源不可用</strong>
@@ -204,7 +196,7 @@ export function SearchPanel({
                       {fault.repositoryId
                         ? ` · ${
                             repositoryLabelById.get(fault.repositoryId) ??
-                              fault.repositoryId
+                            fault.repositoryId
                           }`
                         : ""}
                       ：{fault.message}
@@ -214,39 +206,28 @@ export function SearchPanel({
               </section>
             ) : null}
             {groups.length === 0 ? (
-              <EmptyState
-                compact
-                title="没有结果"
-              />
+              <EmptyState compact title="没有结果" />
             ) : (
-              <ToolSectionStack
-                aria-label="搜索结果列表"
-                className="search-result-groups"
-                role="list"
-              >
+              <SectionStack aria-label="搜索结果列表" role="list">
                 {groups.map((group) => {
                   const repositoryLabel = group.repositoryId
-                    ? repositoryLabelById.get(group.repositoryId) ??
-                      group.repositoryId
+                    ? (repositoryLabelById.get(group.repositoryId) ??
+                      group.repositoryId)
                     : null;
 
                   return (
-                    <ToolSection
-                      className="search-result-group"
+                    <Section
                       key={group.key}
                       role="listitem"
                       title={group.title}
                     >
-                      <p className="search-result-meta">
+                      <p className={cx("search-result-meta")}>
                         {searchDomainLabels[group.domain]}
                         {repositoryLabel ? ` · ${repositoryLabel}` : ""}
                         {" · "}
                         {formatTimestamp(group.updatedAt)}
                       </p>
-                      <ToolList
-                        aria-label={`${group.title}的匹配项`}
-                        className="search-result-group-list"
-                      >
+                      <ToolList aria-label={`${group.title}的匹配项`}>
                         {group.hits.map((hit) => (
                           <ToolListRow
                             buttonProps={{
@@ -256,32 +237,32 @@ export function SearchPanel({
                             }}
                             flow="wrap"
                             key={hit.blockId ?? "document"}
-                            leading={(
-                              <span className="search-result-kind">
+                            leading={
+                              <span className={cx("search-result-kind")}>
                                 {hit.blockId ? "块匹配" : "整篇匹配"}
                               </span>
-                            )}
-                            main={(
-                              <span className="search-result-snippet">
+                            }
+                            main={
+                              <span className={cx("search-result-snippet")}>
                                 {hit.snippet}
                               </span>
-                            )}
+                            }
                             onSelect={() => onOpenResult(hit)}
                           />
                         ))}
                       </ToolList>
-                    </ToolSection>
+                    </Section>
                   );
                 })}
-              </ToolSectionStack>
+              </SectionStack>
             )}
             {state.errorMessage && groups.length > 0 ? (
-              <p className="search-page-error" role="alert">
+              <p className={cx("search-page-error")} role="alert">
                 {state.errorMessage}
               </p>
             ) : null}
             {state.cursor ? (
-              <div className="search-load-more">
+              <div className={cx("search-load-more")}>
                 <ToolDivider />
                 <Button
                   disabled={state.loadingMore}
@@ -294,7 +275,7 @@ export function SearchPanel({
             ) : null}
           </>
         )}
-      </ToolPanelBody>
-    </ToolPanel>
+      </PageBody>
+    </Page>
   );
 }

@@ -5,14 +5,12 @@ import {
   type RepositoryIssueView,
   requiresManualLocalDeletion,
 } from "../../../application/repository/index.ts";
+import { createClassNames } from "../../ui/index.ts";
+import repositoryStyles from "./repository.module.css";
+const cx = createClassNames(repositoryStyles);
 
-import type { RepositoryViewModel } from
-  "../../../application/repository/index.ts";
-import {
-  Button,
-  ToolSection,
-} from "../../ui/index.ts";
-
+import type { RepositoryViewModel } from "../../../application/repository/index.ts";
+import { Button, Section } from "../../ui/index.ts";
 
 export type PendingRepositoryIssueAction = {
   action: RepositoryIssueActionView;
@@ -43,13 +41,13 @@ export function RepositoryIssueDetail({
 
   return (
     <>
-      <ToolSection title="处理">
+      <Section title="处理">
         {manualDeletion ? (
-          <p className="repository-manual-removal">
+          <p className={cx("repository-manual-removal")}>
             此格式仅支持手动删除
           </p>
         ) : null}
-        <div className="ui-actions">
+        <div className={cx("ui-actions")}>
           {manualDeletion ? (
             <Button
               disabled={busy}
@@ -82,11 +80,13 @@ export function RepositoryIssueDetail({
         {pendingAction?.issue.id === issue.id ? (
           <div
             aria-label={`确认${pendingAction.action.label}`}
-            className="repository-inline-confirmation repository-issue-confirmation"
+            className={cx(
+              "repository-inline-confirmation repository-issue-confirmation",
+            )}
             role="group"
           >
             <p>{pendingAction.action.confirmation}</p>
-            <div className="repository-inline-confirmation-actions">
+            <div className={cx("repository-inline-confirmation-actions")}>
               <Button
                 disabled={busy}
                 onClick={onConfirmAction}
@@ -106,7 +106,7 @@ export function RepositoryIssueDetail({
             </div>
           </div>
         ) : null}
-      </ToolSection>
+      </Section>
     </>
   );
 }

@@ -4,9 +4,9 @@ import {
   FieldRow,
   FormLayout,
   InputControl,
-  ToolPanel,
-  ToolPanelBody,
-  ToolSection,
+  Page,
+  PageBody,
+  Section,
 } from "../../ui/index.ts";
 
 export type SettingsWorkbenchPreferences = {
@@ -20,13 +20,9 @@ export function InterfaceSettingsPanel({
   workbench: SettingsWorkbenchPreferences;
 }) {
   return (
-    <ToolPanel
-      aria-label="界面设置"
-      className="settings-panel"
-      title="工作台布局"
-    >
-      <ToolPanelBody layout="form">
-        <ToolSection aria-label="界面选项">
+    <Page aria-label="界面设置">
+      <PageBody>
+        <Section aria-label="界面选项">
           <FormLayout layout="stacked">
             <FieldRow fieldId="settings-context-width" label="左侧栏宽度">
               {(accessibility) => (
@@ -48,8 +44,8 @@ export function InterfaceSettingsPanel({
               )}
             </FieldRow>
           </FormLayout>
-        </ToolSection>
-      </ToolPanelBody>
-    </ToolPanel>
+        </Section>
+      </PageBody>
+    </Page>
   );
 }

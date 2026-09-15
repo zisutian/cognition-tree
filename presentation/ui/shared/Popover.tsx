@@ -7,6 +7,7 @@ import {
   type RefObject,
 } from "react";
 import { Overlay, type OverlayAnchorAlign } from "./Overlay.tsx";
+import styles from "./Popover.module.css";
 
 const focusableSelector = [
   "button:not(:disabled)",
@@ -25,16 +26,14 @@ export function Popover({
   ariaLabel,
   align = "end",
   children,
-  className,
-  panelClassName,
+  size = "regular",
   panelRole,
   renderTrigger,
 }: {
   ariaLabel: string;
   align?: OverlayAnchorAlign;
   children: (controls: { close: () => void }) => ReactNode;
-  className: string;
-  panelClassName: string;
+  size?: "compact" | "regular";
   panelRole: "dialog" | "listbox";
   renderTrigger: (controls: PopoverTriggerControls) => ReactNode;
 }) {
@@ -48,7 +47,12 @@ export function Popover({
   };
   const toggle = () => setIsOpen((current) => !current);
   const movePanelFocus = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!panelRef.current || event.target instanceof HTMLInputElement) {
+    if (
+      !panelRef.current ||
+      event.target instanceof HTMLInputElement ||
+      event.target instanceof HTMLSelectElement ||
+      event.target instanceof HTMLTextAreaElement
+    ) {
       return;
     }
 
@@ -80,12 +84,15 @@ export function Popover({
   };
 
   return (
-    <div className={className}>
+    <div className={styles.anchor}>
       {renderTrigger({ isOpen, panelId, toggle, triggerRef })}
       {isOpen ? (
         <Overlay
           ariaLabel={ariaLabel}
-          className={panelClassName}
+          className={[
+            styles.panel,
+            size === "compact" ? styles.compact : "",
+          ].join(" ")}
           id={panelId}
           role={panelRole}
           outsideRefs={[triggerRef]}

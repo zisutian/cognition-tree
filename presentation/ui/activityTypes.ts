@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import type { PageLayout } from "./shared/PageLayout.ts";
 
 export type ActivityId =
   | "agent"
@@ -13,22 +14,27 @@ export type ActivityId =
   | "repository"
   | "settings";
 
-export type ActivityContextSlot = {
+export type ActivityRegionSlot = {
+  layout?: PageLayout;
+  toolbar?: ReactNode;
+  footer?: ReactNode;
+  collapseLabel?: string;
   actions?: ReactNode;
   content: ReactNode;
   title: string;
 };
 
+export type ActivityContextSlot = ActivityRegionSlot;
+
 export type ActivitySlots = {
   context: ActivityContextSlot | null;
-  detail: ReactNode | null;
-  main: ReactNode;
+  detail: ActivityRegionSlot | null;
+  main: ActivityRegionSlot;
 };
 
 export type ActivitySlotControls = {
   contextWidth: number;
   focusMode: boolean;
-  onCollapseDetail: () => void;
   onConfigureSyntax: () => void;
   onContextWidthChange: (width: number) => void;
   onToggleFocusMode: () => void;

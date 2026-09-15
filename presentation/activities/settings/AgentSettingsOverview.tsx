@@ -1,3 +1,5 @@
+import { createClassNames } from "../../ui/index.ts";
+const cx = createClassNames();
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
@@ -47,7 +49,7 @@ export function AgentSettingsOverview({
   });
   return (
     <SettingsPage
-      title={page === "agent-default" ? "默认会话配置" : "本地服务发现"}
+      label={page === "agent-default" ? "默认会话配置" : "本地服务发现"}
       errorMessage={configurationState.errorMessage}
     >
       {page === "agent-default" ? (
@@ -97,7 +99,7 @@ export function AgentSettingsOverview({
               )}
             </FieldRow>
           </FormLayout>
-          <div className="ui-actions">
+          <div className={cx("ui-actions")}>
             <Button
               disabled={busy}
               onClick={() => void feedback.runAction(() => discover(endpoint))}

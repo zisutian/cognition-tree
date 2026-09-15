@@ -1,0 +1,40 @@
+.problems-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.problems-panel-body,
+.problems-collection-scroll {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.problems-panel-body {
+  padding: 0 var(--ui-panel-padding) var(--ui-panel-padding);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.problems-collection-scroll {
+  overflow: auto;
+}
+
+.problems-virtual-collection > li {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.problems-empty {
+  margin: 0;
+  padding: var(--ui-gap-tight);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-font-size);
+  line-height: var(--ui-line-height);
+}

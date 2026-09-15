@@ -1,10 +1,9 @@
 import type {
-  SearchControllerView,
   SearchControllerState,
+  SearchControllerView,
   SearchResult,
 } from "../../../application/search/index.ts";
 
-import "./search.css";
 import type { ActivitySlots } from "../../ui/index.ts";
 import { SearchContext } from "./SearchContext.tsx";
 import { SearchPanel } from "./SearchPanel.tsx";
@@ -13,13 +12,11 @@ import type { SearchRepositoryOption } from "./searchViewTypes.ts";
 
 export function createSearchActivitySlots({
   controller,
-  onCollapseDetail,
   onOpenResult,
   repositories,
   state,
 }: {
   controller: SearchControllerView;
-  onCollapseDetail: () => void;
   onOpenResult(result: SearchResult): void;
   repositories: SearchRepositoryOption[];
   state: SearchControllerState;
@@ -30,16 +27,24 @@ export function createSearchActivitySlots({
       title: "搜索",
     },
     detail:
-      state.submitted || state.errorMessage ? (
-        <SearchStatusPanel onCollapseDetail={onCollapseDetail} state={state} />
-      ) : null,
-    main: (
-      <SearchPanel
-        controller={controller}
-        onOpenResult={onOpenResult}
-        repositories={repositories}
-        state={state}
-      />
-    ),
+      state.submitted || state.errorMessage
+        ? {
+            title: "搜索状态",
+            layout: "detail",
+            content: <SearchStatusPanel state={state} />,
+          }
+        : null,
+    main: {
+      title: state.submitted ? `搜索 · ${state.submitted.query}` : "搜索结果",
+      layout: "results",
+      content: (
+        <SearchPanel
+          controller={controller}
+          onOpenResult={onOpenResult}
+          repositories={repositories}
+          state={state}
+        />
+      ),
+    },
   };
 }

@@ -1,12 +1,14 @@
+import { createClassNames } from "../../ui/index.ts";
+const cx = createClassNames();
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { FormEvent } from "react";
 import {
   CheckboxControl,
-  SelectControl,
-  InputControl,
   FieldRow,
   FormLayout,
+  InputControl,
+  SelectControl,
 } from "../../ui/index.ts";
 
 import {
@@ -33,7 +35,7 @@ export function AgentProviderSettingsForm({
 }) {
   return (
     <form id={formId} onSubmit={onSubmit}>
-      <fieldset className="ui-form-fields" disabled={busy}>
+      <fieldset className={cx("ui-form-fields")} disabled={busy}>
         <FormLayout layout="stacked">
           <FieldRow fieldId="settings-provider-name" label="名称">
             {(accessibility) => (
@@ -57,10 +59,12 @@ export function AgentProviderSettingsForm({
                 {...accessibility}
                 aria-label="Provider 类型"
                 onChange={(event) =>
-                  onChange(changeAgentProviderDraftKind(
-                    draft,
-                    event.currentTarget.value as AgentProviderDraft["kind"],
-                  ))
+                  onChange(
+                    changeAgentProviderDraftKind(
+                      draft,
+                      event.currentTarget.value as AgentProviderDraft["kind"],
+                    ),
+                  )
                 }
                 value={draft.kind}
               >
@@ -97,16 +101,23 @@ export function AgentProviderSettingsForm({
                 {...accessibility}
                 aria-label="Provider 认证"
                 onChange={(event) =>
-                  onChange(changeAgentProviderDraftAuthentication(
-                    draft,
-                    event.currentTarget.value as AgentProviderDraft["authenticationType"],
-                  ))
+                  onChange(
+                    changeAgentProviderDraftAuthentication(
+                      draft,
+                      event.currentTarget
+                        .value as AgentProviderDraft["authenticationType"],
+                    ),
+                  )
                 }
                 value={draft.authenticationType}
               >
-                {draft.kind !== "codex" ? <option value="none">无需认证</option> : null}
+                {draft.kind !== "codex" ? (
+                  <option value="none">无需认证</option>
+                ) : null}
                 <option value="api-key">API Key</option>
-                {draft.kind === "codex" ? <option value="chatgpt-device-code">ChatGPT 设备码</option> : null}
+                {draft.kind === "codex" ? (
+                  <option value="chatgpt-device-code">ChatGPT 设备码</option>
+                ) : null}
               </SelectControl>
             )}
           </FieldRow>

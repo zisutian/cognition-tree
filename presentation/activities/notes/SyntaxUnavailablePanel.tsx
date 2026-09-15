@@ -1,4 +1,4 @@
-import { Button, EmptyState, Panel } from "../../ui/index.ts";
+import { Button, EmptyState, Page } from "../../ui/index.ts";
 
 export function SyntaxUnavailablePanel({
   featureName,
@@ -8,7 +8,7 @@ export function SyntaxUnavailablePanel({
   onConfigureSyntax: () => void;
 }) {
   return (
-    <Panel aria-label={`${featureName}不可用`}>
+    <Page aria-label={`${featureName}不可用`}>
       <EmptyState
         action={
           <Button onClick={onConfigureSyntax} type="button" variant="primary">
@@ -18,6 +18,6 @@ export function SyntaxUnavailablePanel({
         description="缺少语法配置"
         title={`${featureName}不可用`}
       />
-    </Panel>
+    </Page>
   );
 }

@@ -3,12 +3,14 @@ import {
   flattenUiBlockSubtree,
   type UiBlockNode,
 } from "../../../../application/workspace/index.ts";
+import type { ContextMenuPosition } from "../../../ui/index.ts";
 import {
-  cx,
+  createClassNames,
   StructureTree,
   type StructureTreeRowProps,
 } from "../../../ui/index.ts";
-import type { ContextMenuPosition } from "../../../ui/index.ts";
+import structureStyles from "./structure.module.css";
+const cx = createClassNames(structureStyles);
 
 import {
   blockLineDragDataType,
@@ -115,7 +117,10 @@ export function DropTarget({
       onDragLeave={(event) => {
         const nextTarget = event.relatedTarget;
 
-        if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
+        if (
+          nextTarget instanceof Node &&
+          event.currentTarget.contains(nextTarget)
+        ) {
           return;
         }
 
@@ -199,7 +204,7 @@ export function StructureOperationTargetTree({
 }) {
   const draggedLineNumber = readPositiveLineNumber(draggingLineNumber);
   const keepMountedLineNumbers = useMemo(
-    () => draggedLineNumber ? new Set([draggedLineNumber]) : undefined,
+    () => (draggedLineNumber ? new Set([draggedLineNumber]) : undefined),
     [draggedLineNumber],
   );
   const getRowProps = (node: UiBlockNode): StructureTreeRowProps => {
@@ -314,7 +319,7 @@ export function StructureOperationTargetTree({
 
   return (
     <StructureTree
-      className="structure-operation-target-tree"
+      className={cx("structure-operation-target-tree")}
       getRowProps={getRowProps}
       indentUnitCount={indentUnitCount}
       keepMountedLineNumbers={keepMountedLineNumbers}

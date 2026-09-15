@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  ActivityNavigationItem,
   ActivityId,
+  ActivityNavigationItem,
   CreateActivitySlots,
 } from "./activityTypes.ts";
 
 import type { ReactNode } from "react";
 import { AppFrame } from "./AppFrame.tsx";
+import "./styles/index.css";
 import { useWorkbenchFocusShortcuts } from "./workbench/useWorkbenchFocusShortcuts.ts";
 import type { WorkbenchController } from "./workbench/useWorkbenchLayout.ts";
-import "./styles/index.css";
 
 type AppViewProps = {
   activeActivityId: ActivityId;
@@ -40,7 +40,6 @@ function AppView({
   const activitySlots = createActivitySlots({
     contextWidth: workbench.layout.contextResizeValue,
     focusMode: workbench.layout.focusMode,
-    onCollapseDetail: workbench.collapseDetail,
     onConfigureSyntax: configureSyntax,
     onContextWidthChange: workbench.setContextWidth,
     onToggleFocusMode: workbench.toggleFocusMode,

@@ -6,16 +6,13 @@ import {
   rawCtnEditorTabDisplayWidth,
 } from "../../../editor/index.ts";
 
-
 import {
   Button,
   EmptyState,
-  Panel,
+  Page,
   useFeedback,
   useReferenceNavigation,
 } from "../../../ui/index.ts";
-
-
 
 export function submitNotesEditorChange({
   authoritativeSource,
@@ -47,24 +44,14 @@ export function submitNotesEditorChange({
   return result;
 }
 
-export function NoteEditorPanel({
-  focusMode,
-  onToggleFocusMode,
-  view,
-}: {
-  focusMode: boolean;
-  onToggleFocusMode: () => void;
-  view: NotesViewModel;
-}) {
+export function NoteEditorPanel({ view }: { view: NotesViewModel }) {
   const feedback = useFeedback();
   const [editorSyncSource, setEditorSyncSource] = useState<{
     noteId: string;
     source: string;
   } | null>(null);
   const [editorSyncVersion, setEditorSyncVersion] = useState(0);
-  const referenceNavigation = useReferenceNavigation(
-    view.referenceNavigation,
-  );
+  const referenceNavigation = useReferenceNavigation(view.referenceNavigation);
   const activeNote = view.activeNote;
 
   useEffect(() => {
@@ -80,43 +67,45 @@ export function NoteEditorPanel({
 
   if (!activeNote) {
     return (
-      <Panel className="ctn-editor-panel" aria-label="笔记编辑">
+      <Page kind="editor" aria-label="笔记编辑">
         <EmptyState
           action={
-            <Button onClick={view.directory.createNote} type="button" variant="primary">
+            <Button
+              onClick={view.directory.createNote}
+              type="button"
+              variant="primary"
+            >
               新建笔记
             </Button>
           }
           title="没有活动笔记"
         />
-      </Panel>
+      </Page>
     );
   }
-  const editorRuntime = view.editor.mode === "raw"
-    ? {
-        contentMode: { kind: "raw" as const },
-        syntax: null,
-        tabDisplayWidth: rawCtnEditorTabDisplayWidth,
-      }
-    : {
-        contentMode: { kind: "document" as const },
-        syntax: view.editor.syntax,
-      };
+  const editorRuntime =
+    view.editor.mode === "raw"
+      ? {
+          contentMode: { kind: "raw" as const },
+          syntax: null,
+          tabDisplayWidth: rawCtnEditorTabDisplayWidth,
+        }
+      : {
+          contentMode: { kind: "document" as const },
+          syntax: view.editor.syntax,
+        };
 
   return (
-    <CtnEditorPanel
-      ariaLabel="笔记编辑"
-      focusMode={focusMode}
-      onToggleFocusMode={onToggleFocusMode}
-      title={activeNote.title}
-    >
+    <CtnEditorPanel ariaLabel="笔记编辑">
       <CtnEditor
         {...editorRuntime}
         key={activeNote.id}
         focusTarget={view.editor.focusTarget}
-        value={editorSyncSource?.noteId === activeNote.id
-          ? editorSyncSource.source
-          : view.editor.documentText}
+        value={
+          editorSyncSource?.noteId === activeNote.id
+            ? editorSyncSource.source
+            : view.editor.documentText
+        }
         valueSyncVersion={editorSyncVersion}
         onActiveLineChange={view.editor.onActiveLineChange}
         readOnly={view.editor.readOnly}
@@ -124,9 +113,8 @@ export function NoteEditorPanel({
           submitNotesEditorChange({
             authoritativeSource: view.editor.documentText,
             change,
-            onNormalized: () => feedback.notify(
-              "笔记标题已按可移植名称规则规范化。",
-            ),
+            onNormalized: () =>
+              feedback.notify("笔记标题已按可移植名称规则规范化。"),
             onSynchronize: (source) => {
               setEditorSyncSource({ noteId: activeNote.id, source });
               setEditorSyncVersion((current) => current + 1);

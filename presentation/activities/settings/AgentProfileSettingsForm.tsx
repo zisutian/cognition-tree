@@ -1,3 +1,5 @@
+import { createClassNames } from "../../ui/index.ts";
+const cx = createClassNames();
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { FormEvent } from "react";
@@ -6,10 +8,10 @@ import type {
   AgentProviderView,
 } from "../../../application/agent/index.ts";
 import {
-  InputControl,
-  SelectControl,
   FieldRow,
   FormLayout,
+  InputControl,
+  SelectControl,
 } from "../../ui/index.ts";
 
 import type { AgentProfileDraft } from "./agentSettingsDraft.ts";
@@ -35,7 +37,7 @@ export function AgentProfileSettingsForm({
 }) {
   return (
     <form id={formId} onSubmit={onSubmit}>
-      <fieldset className="ui-form-fields" disabled={busy}>
+      <fieldset className={cx("ui-form-fields")} disabled={busy}>
         <FormLayout layout="stacked">
           <FieldRow fieldId="settings-profile-provider" label="Provider">
             {(accessibility) => (
@@ -166,10 +168,13 @@ function CodexProfileFields({
             {...accessibility}
             aria-label="Profile 推理强度"
             value={draft.reasoningEffort}
-            onChange={(event) => setDraft({
-              ...draft,
-              reasoningEffort: event.currentTarget.value as AgentProfileDraft["reasoningEffort"],
-            })}
+            onChange={(event) =>
+              setDraft({
+                ...draft,
+                reasoningEffort: event.currentTarget
+                  .value as AgentProfileDraft["reasoningEffort"],
+              })
+            }
           >
             <option value="low">low</option>
             <option value="medium">medium</option>
@@ -233,10 +238,13 @@ function ChatProfileFields({
             {...accessibility}
             aria-label="Profile 工具模式"
             value={draft.toolCallMode}
-            onChange={(event) => setDraft({
-              ...draft,
-              toolCallMode: event.currentTarget.value as AgentProfileDraft["toolCallMode"],
-            })}
+            onChange={(event) =>
+              setDraft({
+                ...draft,
+                toolCallMode: event.currentTarget
+                  .value as AgentProfileDraft["toolCallMode"],
+              })
+            }
           >
             <option value="native">native</option>
             {providerKind === "ollama" ? (
@@ -252,10 +260,13 @@ function ChatProfileFields({
               {...accessibility}
               aria-label="Profile Chat 推理强度"
               value={draft.chatReasoningEffort}
-              onChange={(event) => setDraft({
-                ...draft,
-                chatReasoningEffort: event.currentTarget.value as AgentProfileDraft["chatReasoningEffort"],
-              })}
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  chatReasoningEffort: event.currentTarget
+                    .value as AgentProfileDraft["chatReasoningEffort"],
+                })
+              }
             >
               <option value="model-default">模型默认</option>
               <option value="none">关闭</option>

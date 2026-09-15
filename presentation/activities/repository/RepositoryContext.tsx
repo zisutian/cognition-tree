@@ -1,17 +1,17 @@
 import {
-  FolderOpen,
-  Pencil,
   AlertTriangle,
   CalendarDays,
   Check,
+  FolderOpen,
   HardDrive,
   ListChecks,
+  Pencil,
   Plus,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type {
-  RepositoryFocusRequest,
   BuiltInId,
+  RepositoryFocusRequest,
   RepositoryOption,
   RepositoryViewModel,
 } from "../../../application/repository/index.ts";
@@ -20,15 +20,17 @@ import {
   projectRepositoryFocusSelection,
   type RepositorySelection,
 } from "../../../application/repository/index.ts";
+import { createClassNames } from "../../ui/index.ts";
+import repositoryStyles from "./repository.module.css";
+const cx = createClassNames(repositoryStyles);
 
 import {
+  Button,
   CompactContextActionButtons,
   CompactContextGroup,
   CompactContextRow,
   CompactContextStatusIcon,
   useFeedback,
-  Button,
-  cx,
 } from "../../ui/index.ts";
 
 import { builtInIds, builtInLabel } from "./repositoryViewHelpers.ts";
@@ -128,11 +130,11 @@ export function RepositoryContext({
 
   return (
     <div
-      className="activity-context-content repository-context"
+      className={cx("activity-context-content repository-context")}
       ref={contextRef}
     >
       <CompactContextGroup
-        className="repository-group repository-system-group"
+        className={cx("repository-group repository-system-group")}
         count={builtInIds.length}
         headingId="repository-group-system"
         label="内置数据"
@@ -186,7 +188,7 @@ export function RepositoryContext({
                   {hasProblem ? (
                     <AlertTriangle
                       aria-label={`${builtInLabel(id)}数据存在问题`}
-                      className="repository-row-warning"
+                      className={cx("repository-row-warning")}
                       size={12}
                     />
                   ) : null}
@@ -198,7 +200,7 @@ export function RepositoryContext({
       </CompactContextGroup>
 
       <CompactContextGroup
-        className="repository-group"
+        className={cx("repository-group")}
         count={view.repositories.length + view.issues.length}
         actions={
           <Button
@@ -311,7 +313,7 @@ export function RepositoryContext({
                         ? "仓库名称存在问题"
                         : "仓库运行状态存在问题"
                     }
-                    className="repository-row-warning"
+                    className={cx("repository-row-warning")}
                     size={12}
                   />
                 ) : undefined
@@ -340,7 +342,9 @@ export function RepositoryContext({
               selected={selected}
               title={issue.displayLabel}
               trailing={
-                <span className="repository-row-status is-fault">故障</span>
+                <span className={cx("repository-row-status is-fault")}>
+                  故障
+                </span>
               }
             />
           );
@@ -348,10 +352,10 @@ export function RepositoryContext({
       </CompactContextGroup>
 
       {view.catalogStatus === "loading" ? (
-        <p className="context-empty">正在载入普通仓库列表。</p>
+        <p className={cx("context-empty")}>正在载入普通仓库列表。</p>
       ) : null}
       {view.repositories.length === 0 && view.issues.length === 0 ? (
-        <p className="context-empty">没有普通仓库。</p>
+        <p className={cx("context-empty")}>没有普通仓库。</p>
       ) : null}
     </div>
   );

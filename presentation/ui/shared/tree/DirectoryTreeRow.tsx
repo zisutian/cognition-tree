@@ -1,18 +1,22 @@
-import { Pencil, Trash2 } from "lucide-react";
 import {
   ChevronDown,
   ChevronRight,
   FileText,
   Folder,
+  Pencil,
+  Trash2,
 } from "lucide-react";
-import type {
-  CSSProperties,
-  DragEvent,
-  ReactNode,
-} from "react";
-import { Button, cx } from "../primitives.tsx";
-import { InputControl } from "../controls.tsx";
+import type { CSSProperties, DragEvent, ReactNode } from "react";
+import { Button } from "../Button.tsx";
+import { createClassNames } from "../classNames.ts";
 import { CompactContextActionButtons } from "../CompactContextList.tsx";
+import contentStyles from "../Content.module.css";
+import { InputControl } from "../controls.tsx";
+import managementListStyles from "../ManagementList.module.css";
+import {
+  isActiveDirectoryTreeNode,
+  type DirectoryTreeRenderContext,
+} from "./directoryTreeRender.ts";
 import {
   canDropTreeNode,
   createTreeMoveRequest,
@@ -25,11 +29,9 @@ import {
   readTreeNodeDragPayload,
   treeNodeDragDataType,
 } from "./drag.ts";
-import {
-  isActiveDirectoryTreeNode,
-  type DirectoryTreeRenderContext,
-} from "./directoryTreeRender.ts";
+import treeStyles from "./Tree.module.css";
 import type { TreeNode, TreeNodeReference } from "./types.ts";
+const cx = createClassNames(contentStyles, managementListStyles, treeStyles);
 
 type DirectoryTreeRowProps = {
   children?: ReactNode;
@@ -122,13 +124,13 @@ export function DirectoryTreeRow({
           <ChevronRight aria-hidden="true" size={13} />
         )
       ) : (
-        <span aria-hidden="true" className="ui-tree-toggle-spacer" />
+        <span aria-hidden="true" className={cx("ui-tree-toggle-spacer")} />
       )}
       <Folder aria-hidden="true" size={13} />
     </>
   ) : (
     <>
-      <span aria-hidden="true" className="ui-tree-toggle-spacer" />
+      <span aria-hidden="true" className={cx("ui-tree-toggle-spacer")} />
       <FileText aria-hidden="true" size={13} />
     </>
   );
@@ -139,9 +141,11 @@ export function DirectoryTreeRow({
       runAction(() => {
         throw new Error("名称不能为空。");
       });
-      setEditingNode((current) => current?.key === nodeKey
-        ? { ...current, errorMessage: "名称不能为空。" }
-        : current);
+      setEditingNode((current) =>
+        current?.key === nodeKey
+          ? { ...current, errorMessage: "名称不能为空。" }
+          : current,
+      );
       return;
     }
     if (nextTitle === node.title) {
@@ -156,9 +160,11 @@ export function DirectoryTreeRow({
     if (renamed === true) {
       setEditingNode(null);
     } else {
-      setEditingNode((current) => current?.key === nodeKey
-        ? { ...current, errorMessage: "重命名失败" }
-        : current);
+      setEditingNode((current) =>
+        current?.key === nodeKey
+          ? { ...current, errorMessage: "重命名失败" }
+          : current,
+      );
     }
   };
   const commitDelete = () => {
@@ -179,7 +185,7 @@ export function DirectoryTreeRow({
       aria-posinset={itemPosition}
       aria-selected={isActive}
       aria-setsize={itemSetSize}
-      className={itemClassName}
+      className={cx(itemClassName)}
       role="treeitem"
       style={itemStyle}
     >
@@ -205,7 +211,7 @@ export function DirectoryTreeRow({
             if (
               !current ||
               getTreeMoveDestinationTargetKey(current.activeDestination) !==
-              nodeKey
+                nodeKey
             ) {
               return current;
             }
@@ -250,10 +256,10 @@ export function DirectoryTreeRow({
           setDragState((current) =>
             current
               ? {
-                ...current,
-                activeDestination: destination,
-                activeTargetCanDrop,
-              }
+                  ...current,
+                  activeDestination: destination,
+                  activeTargetCanDrop,
+                }
               : current,
           );
         }}
@@ -266,7 +272,7 @@ export function DirectoryTreeRow({
           event.stopPropagation();
           const source = readTreeNodeDragPayload(
             event.dataTransfer.getData(treeNodeDragDataType) ||
-            event.dataTransfer.getData("text/plain"),
+              event.dataTransfer.getData("text/plain"),
           );
           const destination = getRowDropDestination(event, nodeReference);
 
@@ -288,22 +294,30 @@ export function DirectoryTreeRow({
         }}
       >
         {isEditing ? (
-          <div className="ui-tree-row ui-directory-tree-row ui-tree-row-editing">
+          <div
+            className={cx(
+              "ui-tree-row ui-directory-tree-row ui-tree-row-editing",
+            )}
+          >
             {leadingContent}
             <InputControl
               autoFocus
-              aria-describedby={editingNode.errorMessage
-                ? `tree-rename-error-${nodeKey}`
-                : undefined}
+              aria-describedby={
+                editingNode.errorMessage
+                  ? `tree-rename-error-${nodeKey}`
+                  : undefined
+              }
               aria-invalid={editingNode.errorMessage ? true : undefined}
               aria-label={`重命名${node.kind === "folder" ? "文件夹" : "笔记"}`}
-              className="ui-input-tree"
+              className={cx("ui-input-tree")}
               sizing="container"
               value={editingNode.title}
-              onChange={(event) => setEditingNode({
-                key: nodeKey,
-                title: event.target.value,
-              })}
+              onChange={(event) =>
+                setEditingNode({
+                  key: nodeKey,
+                  title: event.target.value,
+                })
+              }
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
@@ -316,7 +330,7 @@ export function DirectoryTreeRow({
             {node.kind === "note" ? renderNoteBadges?.(node) : null}
             {editingNode.errorMessage ? (
               <span
-                className="ui-visually-hidden"
+                className={cx("ui-visually-hidden")}
                 id={`tree-rename-error-${nodeKey}`}
               >
                 {editingNode.errorMessage}
@@ -324,10 +338,11 @@ export function DirectoryTreeRow({
             ) : null}
           </div>
         ) : (
-          <Button variant="bare"
+          <Button
+            variant="bare"
             aria-current={isActive ? "page" : undefined}
             aria-expanded={isFolder && hasChildren ? !isCollapsed : undefined}
-            className="ui-tree-row ui-directory-tree-row"
+            className={cx("ui-tree-row ui-directory-tree-row")}
             draggable={draggable}
             onClick={() => {
               setPendingDeleteNode(null);
@@ -367,52 +382,62 @@ export function DirectoryTreeRow({
             type="button"
           >
             {leadingContent}
-            <span className="ui-tree-text">{node.title}</span>
+            <span className={cx("ui-tree-text")}>{node.title}</span>
             {node.kind === "note" ? renderNoteBadges?.(node) : null}
           </Button>
         )}
         {(isActive || isEditing || isDeletePending) &&
-          (onRenameNode || onDeleteNode) ? (
-          <span className="ui-tree-actions">
+        (onRenameNode || onDeleteNode) ? (
+          <span className={cx("ui-tree-actions")}>
             {isEditing ? (
-              <CompactContextActionButtons confirmation={{
-                cancelAriaLabel: `取消重命名${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
-                confirmAriaLabel: `确认重命名${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
-                onCancel: () => setEditingNode(null),
-                onConfirm: commitRename,
-              }} />
+              <CompactContextActionButtons
+                confirmation={{
+                  cancelAriaLabel: `取消重命名${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
+                  confirmAriaLabel: `确认重命名${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
+                  onCancel: () => setEditingNode(null),
+                  onConfirm: commitRename,
+                }}
+              />
             ) : isDeletePending ? (
-              <CompactContextActionButtons confirmation={{
-                tone: "danger",
-                cancelAriaLabel: `取消删除${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
-                confirmAriaLabel: `确认删除${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
-                onCancel: () => setPendingDeleteNode(null),
-                onConfirm: commitDelete,
-              }} />
+              <CompactContextActionButtons
+                confirmation={{
+                  tone: "danger",
+                  cancelAriaLabel: `取消删除${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
+                  confirmAriaLabel: `确认删除${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
+                  onCancel: () => setPendingDeleteNode(null),
+                  onConfirm: commitDelete,
+                }}
+              />
             ) : (
-              <CompactContextActionButtons actions={[
-                ...(onRenameNode
-                  ? [{
-                    ariaLabel: `重命名${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
-                    icon: Pencil,
-                    onSelect: () => {
-                      setEditingNode({ key: nodeKey, title: node.title });
-                      setPendingDeleteNode(null);
-                    },
-                  }]
-                  : []),
-                ...(onDeleteNode
-                  ? [{
-                    ariaLabel: `删除${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
-                    icon: Trash2,
-                    onSelect: () => {
-                      setEditingNode(null);
-                      setPendingDeleteNode(node);
-                    },
-                    tone: "danger" as const,
-                  }]
-                  : []),
-              ]} />
+              <CompactContextActionButtons
+                actions={[
+                  ...(onRenameNode
+                    ? [
+                        {
+                          ariaLabel: `重命名${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
+                          icon: Pencil,
+                          onSelect: () => {
+                            setEditingNode({ key: nodeKey, title: node.title });
+                            setPendingDeleteNode(null);
+                          },
+                        },
+                      ]
+                    : []),
+                  ...(onDeleteNode
+                    ? [
+                        {
+                          ariaLabel: `删除${node.kind === "folder" ? "文件夹" : "笔记"} ${node.title}`,
+                          icon: Trash2,
+                          onSelect: () => {
+                            setEditingNode(null);
+                            setPendingDeleteNode(node);
+                          },
+                          tone: "danger" as const,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
             )}
           </span>
         ) : null}

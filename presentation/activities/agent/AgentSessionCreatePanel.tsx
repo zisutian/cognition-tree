@@ -1,3 +1,6 @@
+import { createClassNames } from "../../ui/index.ts";
+import agentStyles from "./agent.module.css";
+const cx = createClassNames(agentStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect, useMemo, useState } from "react";
@@ -8,28 +11,22 @@ import type {
 } from "../../../application/agent/index.ts";
 import {
   Button,
-  ChoiceGroup,
   CheckboxGroup,
-  SelectControl,
-  useFeedback,
+  ChoiceGroup,
   FieldRow,
   FormActions,
   FormLayout,
+  Page,
+  PageBody,
+  Section,
+  SectionStack,
+  SelectControl,
   StatusBadge,
-  ToolPanel,
-  ToolPanelBody,
   ToolPropertyList,
   ToolPropertyRow,
-  ToolSection,
-  ToolSectionStack,
   useExclusiveAsyncAction,
+  useFeedback,
 } from "../../ui/index.ts";
-
-
-
-
-
-
 
 type ScopeDomain = AgentScope["domain"];
 type WorkspaceTargetKind = Extract<
@@ -49,9 +46,9 @@ function ExactScopeOptions({
   selectedIds: readonly string[];
 }) {
   return (
-    <div className="agent-scope-options">
+    <div>
       {options.length === 0 ? (
-        <p>当前没有可选择的资源。</p>
+        <p className={cx("ui-muted")}>没有资源</p>
       ) : (
         <CheckboxGroup
           aria-label={label}
@@ -145,30 +142,26 @@ export function AgentSessionCreatePanel({
     todoCollectionIds,
     workspaceTargetKind,
   ]);
-  const preferredProfile = state.status?.profiles.find(({ id }) =>
-    id === state.preferredProfileId
-  ) ?? null;
+  const preferredProfile =
+    state.status?.profiles.find(({ id }) => id === state.preferredProfileId) ??
+    null;
   const createSession = async () => {
     if (!scope) return;
     const pending = createAction.run(() =>
       feedback.runAction(async () => {
         await controller.createSession({ scope });
         return true;
-      })
+      }),
     );
 
-    if (pending && await pending) onCreated();
+    if (pending && (await pending)) onCreated();
   };
 
   return (
-    <ToolPanel
-      aria-label="新建 Agent 会话"
-      className="agent-session-create-panel"
-      title="新建会话"
-    >
-      <ToolPanelBody layout="form">
-        <ToolSectionStack>
-          <ToolSection title="使用的 Profile">
+    <Page aria-label="新建 Agent 会话">
+      <PageBody>
+        <SectionStack>
+          <Section title="使用的 Profile">
             <ToolPropertyList aria-label="新会话 Profile">
               <ToolPropertyRow
                 label="Profile"
@@ -180,23 +173,27 @@ export function AgentSessionCreatePanel({
               />
               <ToolPropertyRow
                 label="状态"
-                value={(
+                value={
                   <StatusBadge
-                    tone={preferredProfile?.availability === "available"
-                      ? "success"
-                      : "warning"}
+                    tone={
+                      preferredProfile?.availability === "available"
+                        ? "success"
+                        : "warning"
+                    }
                   >
                     {preferredProfile?.availability === "available"
                       ? "可用"
-                      : preferredProfile ? "不可用" : "未配置"}
+                      : preferredProfile
+                        ? "不可用"
+                        : "未配置"}
                   </StatusBadge>
-                )}
+                }
               />
             </ToolPropertyList>
-          </ToolSection>
-          <ToolSection title="硬范围">
+          </Section>
+          <Section title="硬范围">
             <form
-              className="agent-create-form"
+              className={cx("agent-create-form")}
               onSubmit={(event) => {
                 event.preventDefault();
                 void createSession();
@@ -221,16 +218,14 @@ export function AgentSessionCreatePanel({
                 </FieldRow>
                 {domain === "workspace" ? (
                   <>
-                    <FieldRow
-                      fieldId="agent-session-repository"
-                      label="仓库"
-                    >
+                    <FieldRow fieldId="agent-session-repository" label="仓库">
                       {(accessibility) => (
                         <SelectControl
                           {...accessibility}
                           aria-label="仓库"
                           onChange={(event) =>
-                            setRepositoryId(event.currentTarget.value)}
+                            setRepositoryId(event.currentTarget.value)
+                          }
                           value={repositoryId}
                         >
                           <option value="">选择仓库</option>
@@ -242,33 +237,44 @@ export function AgentSessionCreatePanel({
                         </SelectControl>
                       )}
                     </FieldRow>
-                    <FieldRow fieldId="agent-session-workspace-scope" label="硬范围">
+                    <FieldRow
+                      fieldId="agent-session-workspace-scope"
+                      label="硬范围"
+                    >
                       {(accessibility) => (
                         <ChoiceGroup
                           {...accessibility}
                           ariaLabel="硬范围"
                           mode="single"
-                          onChange={(value: WorkspaceTargetKind) => setWorkspaceTargetKind(value)}
+                          onChange={(value: WorkspaceTargetKind) =>
+                            setWorkspaceTargetKind(value)
+                          }
                           options={[
                             { label: "整个仓库", value: "repository" },
-                            { disabled: !activeWorkspaceSelected, label: "文件夹及后代", value: "folder" },
-                            { disabled: !activeWorkspaceSelected, label: "精确笔记", value: "note" },
+                            {
+                              disabled: !activeWorkspaceSelected,
+                              label: "文件夹及后代",
+                              value: "folder",
+                            },
+                            {
+                              disabled: !activeWorkspaceSelected,
+                              label: "精确笔记",
+                              value: "note",
+                            },
                           ]}
                           value={workspaceTargetKind}
                         />
                       )}
                     </FieldRow>
                     {workspaceTargetKind === "folder" ? (
-                      <FieldRow
-                        fieldId="agent-session-folder"
-                        label="文件夹"
-                      >
+                      <FieldRow fieldId="agent-session-folder" label="文件夹">
                         {(accessibility) => (
                           <SelectControl
                             {...accessibility}
                             aria-label="文件夹"
                             onChange={(event) =>
-                              setFolderId(event.currentTarget.value)}
+                              setFolderId(event.currentTarget.value)
+                            }
                             value={folderId}
                           >
                             <option value="">选择文件夹</option>
@@ -290,7 +296,8 @@ export function AgentSessionCreatePanel({
                             {...accessibility}
                             aria-label="笔记"
                             onChange={(event) =>
-                              setNoteId(event.currentTarget.value)}
+                              setNoteId(event.currentTarget.value)
+                            }
                             value={noteId}
                           >
                             <option value="">选择笔记</option>
@@ -339,10 +346,7 @@ export function AgentSessionCreatePanel({
                 ) : null}
                 {domain === "todo" ? (
                   <>
-                    <FieldRow
-                      fieldId="agent-session-todo-scope"
-                      label="硬范围"
-                    >
+                    <FieldRow fieldId="agent-session-todo-scope" label="硬范围">
                       {(accessibility) => (
                         <ChoiceGroup
                           {...accessibility}
@@ -384,9 +388,9 @@ export function AgentSessionCreatePanel({
                 </FormActions>
               </FormLayout>
             </form>
-          </ToolSection>
-        </ToolSectionStack>
-      </ToolPanelBody>
-    </ToolPanel>
+          </Section>
+        </SectionStack>
+      </PageBody>
+    </Page>
   );
 }
