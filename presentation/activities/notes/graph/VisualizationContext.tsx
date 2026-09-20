@@ -32,7 +32,7 @@ export function VisualizationContext({
       aria-label="图谱控制"
       className={cx("activity-context-content graph-context")}
     >
-      <FormLayout layout="stacked">
+      <FormLayout layout="compact">
         <FieldRow fieldId="graph-query" label="搜索">
           {(accessibility) => (
             <InputControl
@@ -81,13 +81,19 @@ export function VisualizationContext({
             )}
           </FieldRow>
         ) : null}
+        <FieldRow fieldId="graph-isolated" label="筛选">
+          {(accessibility) => (
+            <ToggleButton
+              {...accessibility}
+              aria-label="隐藏孤立点"
+              onClick={() => view.setHideIsolated(!hideIsolated)}
+              pressed={hideIsolated}
+            >
+              隐藏孤立点
+            </ToggleButton>
+          )}
+        </FieldRow>
       </FormLayout>
-      <ToggleButton
-        onClick={() => view.setHideIsolated(!hideIsolated)}
-        pressed={hideIsolated}
-      >
-        隐藏孤立点
-      </ToggleButton>
       <div className={cx("graph-context-actions")}>
         <Button
           aria-label="重置图谱视图"
@@ -97,7 +103,7 @@ export function VisualizationContext({
           variant="secondary"
           sizing="container"
         >
-          <RotateCcw aria-hidden="true" size={14} />
+          <RotateCcw aria-hidden="true" />
           重置视图
         </Button>
         <VisualizationGraphSettings

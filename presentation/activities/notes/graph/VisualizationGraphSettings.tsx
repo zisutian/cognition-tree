@@ -116,7 +116,7 @@ export function VisualizationGraphSettings({
           variant="secondary"
           sizing="container"
         >
-          <Settings2 aria-hidden="true" size={14} />
+          <Settings2 aria-hidden="true" />
           图谱设置
         </Button>
       )}

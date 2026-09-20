@@ -435,3 +435,29 @@ export async function seedLargeStructureRepository(
     workspaceName: "大结构回归仓库",
   });
 }
+
+export async function seedGraphAppearanceRepository(api: APIRequestContext, id: string) {
+  const titles = [
+    "认知与学习", "注意力", "工作记忆", "长期记忆", "认知负荷", "元认知",
+    "知识组织", "概念", "分类", "引用关系", "语义网络", "渐进归纳",
+    "学习方法", "主动回忆", "间隔重复", "交错练习", "反馈", "迁移",
+    "这是一篇用于验证长标题排布的独立笔记",
+  ];
+  const targets = [
+    [1, 2, 3, 4, 5, 6, 12], [2], [3, 4], [14], [5], [12],
+    [7, 8, 9, 10, 11], [8], [11], [10], [3], [5],
+    [13, 14, 15, 16, 17], [3], [3], [17], [5], [7], [],
+  ];
+  const notes = titles.map((title, index) => ({
+    id: `graph-note-${index}`,
+    source: createSeedSource(
+      [title, ...targets[index].map((target) => `\t: [[${titles[target]}]]`)].join("\n"),
+      4_000_000 + index * 100,
+    ),
+  }));
+  await createRepository({
+    api, id, notes,
+    tree: notes.map((note) => ({ kind: "note", noteId: note.id })),
+    workspaceName: "认知笔记",
+  });
+}

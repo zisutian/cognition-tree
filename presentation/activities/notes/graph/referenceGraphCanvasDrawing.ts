@@ -4,6 +4,10 @@ import type {
   GraphTransform,
 } from "./referenceGraphCanvasModel.ts";
 import { resolveLinkedNodeId } from "./referenceGraphCanvasModel.ts";
+import {
+  placeReferenceGraphLabels,
+  type GraphLabelCandidate,
+} from "./referenceGraphLabels.ts";
 import type { GraphDisplaySettings } from "./referenceGraphSettings.ts";
 
 function readCanvasToken(canvas: HTMLCanvasElement, name: string) {
@@ -21,6 +25,8 @@ export type ReferenceGraphCanvasTheme = {
   editorColor: string;
   fontFamily: string;
   fontSize: string;
+  lineHeight: string;
+  labelGap: string;
   fontWeight: string;
   emphasisWeight: string;
   mutedNodeColor: string;
@@ -38,10 +44,12 @@ export function readReferenceGraphCanvasTheme(
   return {
     activeNodeColor: readCanvasToken(canvas, "--color-link"),
     edgeColor,
-    edgeStrongColor: readCanvasToken(canvas, "--color-accent") || edgeColor,
+    edgeStrongColor: readCanvasToken(canvas, "--color-fg-muted") || edgeColor,
     editorColor: readCanvasToken(canvas, "--color-editor"),
     fontFamily: readCanvasToken(canvas, "--font-ui") || "sans-serif",
     fontSize: readCanvasToken(canvas, "--ui-font-size"),
+    lineHeight: readCanvasToken(canvas, "--ui-line-height"),
+    labelGap: readCanvasToken(canvas, "--ui-gap"),
     fontWeight: readCanvasToken(canvas, "--ui-body-weight"),
     emphasisWeight: readCanvasToken(canvas, "--ui-emphasis-weight"),
     mutedNodeColor: readCanvasToken(canvas, "--color-fg-subtle"),
@@ -168,13 +176,12 @@ export function getReferenceGraphLabelOpacity({
   }
 
   if (nodeCount <= 8 && effectiveDensity >= 65) {
-    return 0.78;
+    return 0.9;
   }
 
-  const visiblePosition = (effectiveDensity / 100) * nodeCount;
-  const fadeSpan = Math.max(1, nodeCount * 0.12);
-
-  return clamp((visiblePosition - rank) / fadeSpan, 0, 1) * 0.78;
+  // Density chooses which labels to show; every visible label stays readable.
+  const visibleCount = Math.ceil((effectiveDensity / 100) * nodeCount);
+  return rank < visibleCount ? 0.9 : 0;
 }
 
 export function getReferenceGraphLineEndpoints({
@@ -372,6 +379,20 @@ export function drawGraph({
     ]),
   );
 
+  const labels: Array<GraphLabelCandidate & {
+    text: string;
+    opacity: number;
+    emphasized: boolean;
+  }> = [];
+  const screenNodes: Array<{ x: number; y: number; radius: number }> = [];
+  const fontSize = Number.parseFloat(theme.fontSize);
+  const labelGap = Number.parseFloat(theme.labelGap);
+  const labelHeight = fontSize * Number.parseFloat(theme.lineHeight);
+  const maxLabelWidth = Math.max(
+    fontSize,
+    Math.min(fontSize * 14, width - labelGap * 4),
+  );
+
   for (const node of nodes) {
     const isSelected = node.id === selectedNoteId;
     const isHovered = node.id === hoveredNoteId;
@@ -381,6 +402,12 @@ export function drawGraph({
       displaySettings.nodeScale,
     );
     const radius = isSelected ? baseRadius * 1.14 : baseRadius;
+    const screenNode = {
+      x: node.x * transform.scale + transform.x,
+      y: node.y * transform.scale + transform.y,
+      radius: (radius + (isSelected ? 5 : 0)) * transform.scale,
+    };
+    screenNodes.push(screenNode);
     const nodeColor = isSelected
       ? theme.selectedColor
       : isHovered
@@ -412,23 +439,62 @@ export function drawGraph({
     }) * nodeOpacity;
 
     if (labelOpacity > 0) {
-      const label =
-        node.title.length > 22 ? `${node.title.slice(0, 21)}…` : node.title;
-
-      context.globalAlpha = labelOpacity;
-      context.font = `${isSelected || isHovered ? theme.emphasisWeight : theme.fontWeight} ${theme.fontSize} ${theme.fontFamily}`;
-      context.textAlign = "center";
-      context.textBaseline = "top";
-      context.lineWidth = 4;
-      context.strokeStyle = theme.editorColor;
-      context.fillStyle = isSelected || isHovered
-        ? theme.textColor
-        : theme.textMutedColor;
-      context.strokeText(label, node.x, node.y + radius + 6);
-      context.fillText(label, node.x, node.y + radius + 6);
+      const emphasized = isSelected || isHovered;
+      context.font = `${emphasized ? theme.emphasisWeight : theme.fontWeight} ${theme.fontSize} ${theme.fontFamily}`;
+      let text = node.title;
+      if (context.measureText(text).width > maxLabelWidth) {
+        const characters = Array.from(text);
+        let start = 0;
+        let end = characters.length;
+        while (start < end) {
+          const middle = Math.ceil((start + end) / 2);
+          const trial = `${characters.slice(0, middle).join("")}…`;
+          if (context.measureText(trial).width <= maxLabelWidth) {
+            start = middle;
+          } else {
+            end = middle - 1;
+          }
+        }
+        text = `${characters.slice(0, start).join("")}…`;
+      }
+      labels.push({
+        id: node.id,
+        ...screenNode,
+        width: context.measureText(text).width,
+        height: labelHeight,
+        priority: isHovered ? 0 : isSelected ? 1
+          : 2 + (labelRanks.get(node.id) ?? nodes.length),
+        text,
+        opacity: labelOpacity,
+        emphasized,
+      });
     }
   }
 
-  context.globalAlpha = 1;
+  // Labels keep the interface font size while the graph zooms. Draw them after
+  // all nodes and links, so a later edge or node cannot paint over a title.
   context.restore();
+  const placements = placeReferenceGraphLabels({
+    candidates: labels,
+    nodes: screenNodes,
+    width,
+    height,
+    gap: labelGap,
+  });
+  for (const label of labels) {
+    const placement = placements.get(label.id);
+    if (!placement) continue;
+    context.globalAlpha = label.opacity;
+    context.font = `${label.emphasized ? theme.emphasisWeight : theme.fontWeight} ${theme.fontSize} ${theme.fontFamily}`;
+    context.textAlign = "left";
+    context.textBaseline = "top";
+    context.lineJoin = "round";
+    context.lineWidth = 4;
+    context.strokeStyle = theme.editorColor;
+    context.fillStyle = label.emphasized ? theme.textColor : theme.textMutedColor;
+    context.strokeText(label.text, placement.x, placement.y);
+    context.fillText(label.text, placement.x, placement.y);
+  }
+
+  context.globalAlpha = 1;
 }

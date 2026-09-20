@@ -172,8 +172,8 @@ describe("visualization panels", () => {
       <VisualizationDetailPanel view={view} />,
     );
 
-    expect(markup).toContain("<dd>3</dd><dt>点</dt>");
-    expect(markup).toContain("<dd>2</dd><dt>边</dt>");
+    expect(markup).toContain("<dd>3</dd><dt>笔记</dt>");
+    expect(markup).toContain("<dd>2</dd><dt>关系</dt>");
     expect(markup).toContain("Target note");
     expect(markup).toContain("入链");
     expect(markup).toContain("出链");

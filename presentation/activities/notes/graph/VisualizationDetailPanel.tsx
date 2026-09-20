@@ -24,18 +24,17 @@ export function VisualizationDetailPanel({
         <dl aria-label="图谱统计" className={cx("detail-summary-strip")}>
           <div>
             <dd>{graph.stats.nodeCount}</dd>
-            <dt>点</dt>
+            <dt>笔记</dt>
           </div>
           <div>
             <dd>{graph.stats.edgeCount}</dd>
-            <dt>边</dt>
+            <dt>关系</dt>
           </div>
           <div>
             <dd>{graph.stats.isolatedCount}</dd>
             <dt>孤立</dt>
           </div>
         </dl>
-        <div aria-hidden="true" className={cx("detail-divider")} />
         {activeNode ? (
           <div className={cx("detail-primary-row")}>
             <p>{activeNode.title}</p>
@@ -54,12 +53,8 @@ export function VisualizationDetailPanel({
           <p className={cx("ui-muted")}>未选择笔记</p>
         )}
         {activeNode ? (
-          <>
-            <div aria-hidden="true" className={cx("detail-divider")} />
-            <AdjacentReferenceList activeNodeId={activeNode.id} graph={graph} />
-          </>
+          <AdjacentReferenceList activeNodeId={activeNode.id} graph={graph} />
         ) : null}
-        <div aria-hidden="true" className={cx("detail-divider")} />
         <MostReferencedList
           graph={graph}
           onSelectNote={visualization.onSelectNote}

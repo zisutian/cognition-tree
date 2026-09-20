@@ -72,7 +72,7 @@ export const designTokens = {
   "--color-error-soft": "rgba(244, 135, 113, 0.12)",
   "--color-overlay": "rgba(0, 0, 0, 0.35)",
   "--color-success": "#6a9955",
-  "--color-graph-edge": "rgba(86, 156, 214, 0.5)",
+  "--color-graph-edge": "var(--color-fg-subtle)",
   "--shadow-float": "0 8px 24px rgba(0, 0, 0, 0.32)",
   "--ctn-tone-green": "#6a9955",
   "--ctn-tone-teal": "#4ec9b0",
