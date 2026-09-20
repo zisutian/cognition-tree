@@ -19,6 +19,7 @@ async function selectionSurface(control: Locator) {
       background: style.backgroundColor,
       radius: style.borderRadius,
       border: style.borderBottomColor,
+      height: element.getBoundingClientRect().height,
     };
   });
 }
@@ -70,6 +71,7 @@ test("function switches and single, multiple and checkbox selections share surfa
   await expect(graph).toBeFocused();
   await page.mouse.move(800, 600);
   const selectedSurface = await selectionSurface(graph);
+  expect(selectedSurface.height).toBe(22);
   expect(parseFloat(selectedSurface.radius)).toBeGreaterThan(0);
   expect(selectedSurface.background).not.toBe(
     (await selectionSurface(edit)).background,

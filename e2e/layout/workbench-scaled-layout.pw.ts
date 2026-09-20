@@ -53,7 +53,7 @@ test("keeps forms, narrow regions and anchored menus usable in a scaled desktop 
   );
   expect(sliderRows).toHaveLength(7);
   for (const row of sliderRows)
-    expect(row).toEqual({ height: 28, aligned: true });
+    expect(row).toEqual({ height: 22, aligned: true });
   await expect(
     menu.getByRole("button", { name: "恢复默认设置" }),
   ).toBeInViewport();

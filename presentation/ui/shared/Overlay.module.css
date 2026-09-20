@@ -36,9 +36,10 @@
 
 .ui-quick-pick-option {
   display: grid;
+  align-content: center;
   gap: var(--ui-gap-tight);
   min-height: var(--ui-control-height);
-  padding: var(--ui-gap-tight) var(--ui-gap);
+  padding: var(--ui-row-padding) var(--ui-gap);
   color: var(--color-fg);
   background: transparent;
   text-align: left;

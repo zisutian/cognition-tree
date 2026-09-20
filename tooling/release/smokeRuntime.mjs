@@ -63,6 +63,22 @@ try {
   await page.getByRole("button", { name: "设置", exact: true }).click();
   await page.getByRole("heading", { name: "工作台布局", exact: true }).waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 1280);
+  const geometry = await page.evaluate(() => {
+    const theme = getComputedStyle(document.documentElement);
+    return {
+      row: Number.parseFloat(theme.getPropertyValue("--ui-row-height")),
+      header: Number.parseFloat(theme.getPropertyValue("--ui-panel-header-height")),
+      fields: [...document.querySelectorAll("input.ui-control")]
+        .map(element => element.getBoundingClientRect().height),
+      headers: [...document.querySelectorAll("[data-region-header]")]
+        .map(element => element.getBoundingClientRect().height),
+    };
+  });
+  assert.ok(geometry.row > 0 && geometry.header > 0, "Generated design tokens must reach the packaged browser");
+  assert.ok(geometry.fields.length > 0 && geometry.headers.length > 0);
+  for (const height of geometry.fields) assert.equal(height, geometry.row);
+  for (const height of geometry.headers) assert.equal(height, geometry.header);
+  console.log(`Packaged UI geometry verified: rows ${geometry.row}px; headers ${geometry.header}px.`);
   assert.deepEqual(pageErrors, []);
   await browser.close(); browser = null;
   const exited = once(child, "exit"); child.kill("SIGTERM"); await exited;

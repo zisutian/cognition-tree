@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // The sole source of shared presentation values. No DOM or business dependencies.
+const rowHeight = 22;
+const spacingUnit = 4;
+const barHeight = rowHeight + spacingUnit * 2;
+
 export const designMetrics = {
-  rowHeight: 28,
-  gap: 8,
-  tightGap: 4,
-  panelPadding: 12,
-  sectionGap: 16,
-  headerHeight: 40,
-  toolbarHeight: 36,
+  rowHeight,
+  gap: spacingUnit,
+  tightGap: spacingUnit,
+  panelPadding: spacingUnit * 2,
+  sectionGap: spacingUnit * 2,
+  headerHeight: barHeight,
+  toolbarHeight: barHeight,
+  overlayViewportMargin: spacingUnit * 2,
   treeIndent: 14,
   context: { default: 280, min: 220, max: 420 },
   detail: { default: 320, min: 240, max: 500, narrowMinHeight: 200 },
@@ -103,6 +108,7 @@ export const designTokens = {
   "--ui-gap": px(designMetrics.gap),
   "--ui-gap-tight": px(designMetrics.tightGap),
   "--ui-control-height": "var(--ui-row-height)",
+  "--ui-row-padding": "max(0px, calc((var(--ui-row-height) - var(--ui-font-size) * var(--ui-line-height)) / 2))",
   "--ui-section-gap": px(designMetrics.sectionGap),
   "--ui-toolbar-height": px(designMetrics.toolbarHeight),
   "--ui-popover-width": px(designMetrics.popover.width),
@@ -115,7 +121,7 @@ export const designTokens = {
   "--ui-tree-indent": px(designMetrics.treeIndent),
   "--ui-radius": "6px",
   "--ui-selection-radius": "var(--ui-radius)",
-  "--ui-focus-outline": "1px solid var(--color-accent)",
+  "--ui-focus-outline": "var(--ui-border-width) solid var(--color-accent)",
   "--ui-z-overlay": "100",
   "--ui-font-size": "13px",
   "--ui-line-height": "1.4",

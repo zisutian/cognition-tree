@@ -67,8 +67,8 @@
   white-space: nowrap;
 }
 .ui-tool-list-row-wrap .ui-tool-list-row-target {
-  padding-top: var(--ui-gap-tight);
-  padding-bottom: var(--ui-gap-tight);
+  padding-top: var(--ui-row-padding);
+  padding-bottom: var(--ui-row-padding);
 }
 .ui-tool-list-row-actions {
   display: inline-flex;

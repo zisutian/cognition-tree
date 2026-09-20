@@ -39,9 +39,9 @@ test("keeps the shared login form stable through loading, failure and retry", as
     await expect(secret).toBeVisible();
     const field = (await secret.boundingBox())!;
     const action = (await submit.boundingBox())!;
-    expect(field.height).toBe(28);
+    expect(field.height).toBe(22);
     expect(field.width).toBe(720);
-    expect(action.height).toBe(28);
+    expect(action.height).toBe(22);
     expect(action.x + action.width).toBe(field.x + field.width);
     await secret.fill("synthetic-login-secret");
     await secret.press("Enter");

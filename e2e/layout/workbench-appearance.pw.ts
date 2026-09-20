@@ -16,9 +16,9 @@ async function expectWorkbenchGeometry(page: Page) {
   const footer = page.getByRole("contentinfo", { name: "工作台状态" });
   expect(await footer.boundingBox()).toEqual({
     x: 0,
-    y: viewport.height - 28,
+    y: viewport.height - 22,
     width: viewport.width,
-    height: 28,
+    height: 22,
   });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
     viewport.width,
@@ -61,7 +61,7 @@ async function expectWorkbenchGeometry(page: Page) {
       elements.map((element) => element.getBoundingClientRect().bottom),
     );
     for (const bottom of bottoms)
-      expect(bottom).toBeLessThanOrEqual(viewport.height - 28);
+      expect(bottom).toBeLessThanOrEqual(viewport.height - 22);
   }
 }
 
@@ -164,7 +164,7 @@ test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, asyn
     .slice(1)
     .map((field, index) => Math.round(field.top - fields[index].bottom));
   expect(new Set(fieldGaps).size).toBe(1);
-  expect((await name.boundingBox())!.height).toBe(28);
+  expect((await name.boundingBox())!.height).toBe(22);
   await expectWorkbenchGeometry(page);
   const formLeft = (await name.boundingBox())!.x;
   for (const target of [
@@ -203,7 +203,7 @@ test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, asyn
   await expect(toolMode).toHaveValue("native");
   await toolMode.focus();
   await toolMode.press("Home");
-  expect((await toolMode.boundingBox())!.height).toBe(28);
+  expect((await toolMode.boundingBox())!.height).toBe(22);
   await profile
     .getByRole("combobox", { name: "Profile 模型", exact: true })
     .fill("long-model-".repeat(30));

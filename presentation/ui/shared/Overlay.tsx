@@ -1,3 +1,4 @@
+import { designMetrics } from "../foundation/designTokens.ts";
 import {
   useEffect,
   useRef,
@@ -20,7 +21,7 @@ const focusableSelector = [
 ].join(",");
 
 const overlayStack: symbol[] = [];
-const overlayViewportMargin = 8;
+const overlayViewportMargin = designMetrics.overlayViewportMargin;
 
 export type OverlayAnchorAlign = "center" | "end" | "start";
 

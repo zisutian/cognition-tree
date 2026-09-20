@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { expect, type Locator } from "@playwright/test";
 
 import { test as base } from "../support/e2eTest";
 import {
@@ -6,6 +6,29 @@ import {
   seedLargeStructureRepository,
 } from "../support/repositorySeeds";
 import { openWorkbench } from "../support/workbenchPage";
+
+async function expectCompactVirtualRows(tree: Locator, totalRows: number) {
+  expect((await tree.boundingBox())!.height).toBe(totalRows * 22);
+  const rows = await tree.locator(".ui-virtual-tree-row").evaluateAll((items) =>
+    items.map((item) => {
+      const box = item.getBoundingClientRect();
+      return {
+        height: box.height,
+        top: box.top,
+        position: Number(item.getAttribute("aria-posinset")),
+      };
+    }).sort((a, b) => a.top - b.top),
+  );
+  expect(rows.length).toBeGreaterThan(1);
+  rows.forEach((row, index) => {
+    expect(row.height).toBe(22);
+    // The selected row can remain mounted far outside the visible window.
+    if (index) {
+      const previous = rows[index - 1];
+      expect(row.top - previous.top).toBe((row.position - previous.position) * 22);
+    }
+  });
+}
 
 const test = base.extend<{
   directoryRepository: string;
@@ -55,6 +78,7 @@ test.describe("virtual collection scrolling", () => {
     await expect(
       context.getByTitle("Large Note 599", { exact: true }),
     ).toBeVisible();
+    await expectCompactVirtualRows(directoryTree, 601);
   });
 
   test("virtualizes a 600-block structure and reveals its final row", async ({
@@ -83,5 +107,6 @@ test.describe("virtual collection scrolling", () => {
     await expect(
       structureTree.getByTitle("组分: Block 599", { exact: true }),
     ).toBeVisible();
+    await expectCompactVirtualRows(structureTree, 600);
   });
 });

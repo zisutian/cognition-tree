@@ -247,7 +247,7 @@
   max-width: 100%;
   min-width: 0;
   min-height: var(--ui-control-height);
-  padding: var(--ui-gap-tight) var(--ui-gap);
+  padding: var(--ui-row-padding) var(--ui-gap);
   border: 0 solid transparent;
   border-radius: var(--ui-selection-radius);
   color: var(--color-fg-muted);
@@ -257,7 +257,7 @@
 }
 
 .ui-checkbox-option > .ui-checkbox-control {
-  margin-block: calc(var(--ui-gap-tight) / 2);
+  margin-block: 0;
 }
 
 .ui-checkbox-option:hover:not(:has(:disabled)) {

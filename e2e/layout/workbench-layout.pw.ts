@@ -53,7 +53,7 @@ async function expectRepositoryDetails(page: Page) {
       rows: 2,
       fontSizes: ["13px"],
       alignments: ["left"],
-      minimumHeights: ["28px"],
+      minimumHeights: ["22px"],
       valueColumns: 1,
     });
   const location = page
@@ -77,7 +77,7 @@ async function expectRepositoryDetails(page: Page) {
           actionInside:
             actionBox.top >= rowBox.top && actionBox.bottom <= rowBox.bottom,
           wraps: getComputedStyle(value).overflowWrap,
-          sufficientHeight: rowBox.height >= 28,
+          sufficientHeight: rowBox.height >= 22,
         };
       }),
     )
@@ -215,7 +215,7 @@ for (const viewport of [
       for (const header of headers)
         expect(header).toEqual({
           top: 0,
-          height: 40,
+          height: 30,
           size: "13px",
           weight: "600",
         });
@@ -234,7 +234,7 @@ for (const viewport of [
             }),
         );
       for (const control of controls)
-        expect(control).toEqual({ height: 28, size: "13px", radius: "6px" });
+        expect(control).toEqual({ height: 22, size: "13px", radius: "6px" });
       if (["笔记", "日记", "代办", "语法", "仓库"].includes(name)) {
         const actions = page
           .locator(".app-context")
@@ -244,8 +244,8 @@ for (const viewport of [
           await expectExposed(action);
           const box = (await action.boundingBox())!;
           expect({ width: box.width, height: box.height }).toEqual({
-            width: 28,
-            height: 28,
+            width: 22,
+            height: 22,
           });
           const glyph = action.locator("svg");
           await expect(glyph).toHaveCount(1);
@@ -269,7 +269,7 @@ for (const viewport of [
         const rows = page.locator(".app-context .ui-tree-row");
         expect(await rows.count()).toBeGreaterThan(0);
         for (const row of await rows.all())
-          expect((await row.boundingBox())!.height).toBe(28);
+          expect((await row.boundingBox())!.height).toBe(22);
       }
       if (name === "仓库") {
         await expectRepositoryDetails(page);
@@ -312,7 +312,7 @@ for (const viewport of [
     ).toBe(resultHeader!.y);
     expect(
       await lastHit.evaluate((element) => ({
-        height: element.getBoundingClientRect().height >= 28,
+        height: element.getBoundingClientRect().height >= 22,
         fontSize: getComputedStyle(element).fontSize,
       })),
     ).toEqual({ height: true, fontSize: "13px" });
@@ -346,7 +346,7 @@ for (const viewport of [
       height: element.getBoundingClientRect().height,
       fontSize: getComputedStyle(element).fontSize,
     }));
-    expect(dimensions).toEqual({ height: 28, fontSize: "13px" });
+    expect(dimensions).toEqual({ height: 22, fontSize: "13px" });
     const values = await page
       .getByRole("region", { name: "设置状态" })
       .locator(".ui-tool-property-row dd")

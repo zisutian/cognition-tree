@@ -2,13 +2,14 @@
 
 import { expect, type Locator } from "@playwright/test";
 import { seedJournalProposal } from "../support/agentSeeds";
+import { createCrossDomainSearchSeeds } from "../support/builtInSeeds";
 import { test } from "../support/e2eTest";
 import { seedWorkbenchRepository } from "../support/repositorySeeds";
 import { getActivityButton, openWorkbench } from "../support/workbenchPage";
 
 async function expectRowHeight(locator: Locator) {
   await expect(locator).toBeVisible();
-  expect((await locator.boundingBox())!.height).toBe(28);
+  expect((await locator.boundingBox())!.height).toBe(22);
 }
 
 test("list, rename, field labels, inputs and actions share the same row height", async ({
@@ -40,7 +41,7 @@ test("list, rename, field labels, inputs and actions share the same row height",
   await input.press("Escape");
   expect(await note.boundingBox()).toEqual(rowBefore);
   await expectRowHeight(page.getByRole("contentinfo", { name: "工作台状态" }));
-  await page.screenshot({ path: testInfo.outputPath("notes-28px.png") });
+  await page.screenshot({ path: testInfo.outputPath("notes-22px.png") });
 
   await getActivityButton(page, "设置").click();
   await page
@@ -61,15 +62,15 @@ test("list, rename, field labels, inputs and actions share the same row height",
   for (const row of await page
     .locator(".app-detail .ui-tool-property-row")
     .all()) {
-    expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(28);
+    expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(22);
   }
   await panel
     .getByRole("textbox", { name: "Provider 名称", exact: true })
     .scrollIntoViewIfNeeded();
-  await page.screenshot({ path: testInfo.outputPath("form-28px.png") });
+  await page.screenshot({ path: testInfo.outputPath("form-22px.png") });
 });
 
-test("conversation uses one compact summary with aligned content and 28px session rows", async ({
+test("conversation uses one compact summary with aligned content and 22px session rows", async ({
   api,
   page,
 }, testInfo) => {
@@ -95,10 +96,54 @@ test("conversation uses one compact summary with aligned content and 28px sessio
     .boundingBox())!;
   expect(summary.x).toBe(transcript.x);
   expect(composer.x).toBe(transcript.x);
-  expect(summary.height).toBe(36);
-  expect(transcript.y - summary.y - summary.height).toBe(8);
+  expect(summary.height).toBe(30);
+  expect(transcript.y - summary.y - summary.height).toBe(4);
   await expect(conversation.getByPlaceholder("会话不可用")).toHaveCount(0);
   await page.screenshot({
     path: testInfo.outputPath("conversation-rhythm.png"),
   });
+});
+
+test("long checkbox labels wrap without clipping and remain keyboard operable", async ({
+  api,
+  e2eState,
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1024, height: 576 });
+  await seedWorkbenchRepository(api, "wrapped-options");
+  const seeds = createCrossDomainSearchSeeds("紧凑界面样例");
+  const longTitle = "用于检查换行与完整点击范围的长集合名称".repeat(8);
+  seeds.todo.collections[0].source = seeds.todo.collections[0].source.replace("跨领域检索", longTitle);
+  await e2eState.setBuiltIns(seeds);
+  await openWorkbench(page, "wrapped-options");
+  await getActivityButton(page, "智能体").click();
+  await page.getByRole("complementary", { name: "智能体", exact: true })
+    .getByRole("button", { name: "新建会话", exact: true }).click();
+  const panel = page.getByRole("region", { name: "新建 Agent 会话" });
+  await panel.getByRole("radio", { name: "Todo", exact: true }).click();
+  await panel.getByRole("radio", { name: "精确集合", exact: true }).click();
+  const checkbox = panel.getByRole("checkbox", { name: longTitle, exact: true });
+  const label = checkbox.locator("..");
+  await expect(label).toBeVisible();
+  const geometry = await label.evaluate((element) => {
+    const text = element.querySelector("span")!;
+    const box = element.getBoundingClientRect();
+    const content = text.getBoundingClientRect();
+    return {
+      height: box.height,
+      textFits: content.top >= box.top && content.bottom <= box.bottom &&
+        content.left >= box.left && content.right <= box.right,
+      noOverflow: element.scrollWidth <= element.clientWidth,
+    };
+  });
+  expect(geometry.height).toBeGreaterThan(22);
+  expect(geometry.textFits).toBe(true);
+  expect(geometry.noOverflow).toBe(true);
+  await label.click();
+  await expect(checkbox).toBeChecked();
+  await checkbox.focus();
+  await checkbox.press("Space");
+  await expect(checkbox).not.toBeChecked();
+  await expect(checkbox).toBeFocused();
+  await page.screenshot({ path: testInfo.outputPath("wrapped-options.png") });
 });

@@ -61,7 +61,7 @@
   padding: 0;
 }
 .ui-button-selection {
-  padding: var(--ui-gap-tight) var(--ui-gap);
+  padding: var(--ui-row-padding) var(--ui-gap);
   border-width: 0;
   color: var(--color-fg-muted);
   white-space: normal;
@@ -114,7 +114,7 @@
 .ui-button-activity[aria-current="page"]::before {
   background: var(--color-selection-active);
 }
-/* Only shared list components can select the compact interaction surface. */
+/* Only shared list components can select an unadorned interaction surface. */
 :where(.ui-button-bare) {
   cursor: pointer;
   min-height: var(--ui-row-height);

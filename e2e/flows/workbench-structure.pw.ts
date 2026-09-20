@@ -78,6 +78,7 @@ test.describe("directory and structure operation flows", () => {
     await expect(directoryMenu.getByRole("menuitem")).toHaveCount(1);
     await expect(directoryMenu).not.toContainText("删除");
     await expect(moveMenuItem).toBeFocused();
+    expect((await moveMenuItem.boundingBox())!.height).toBe(22);
     await moveMenuItem.press("Escape");
     await expect(directoryMenu).toBeHidden();
     await expect(
@@ -93,6 +94,7 @@ test.describe("directory and structure operation flows", () => {
     const moveSearch = moveQuickPick.getByRole("combobox", { name: "移动到" });
 
     await expect(moveSearch).toBeFocused();
+    expect((await moveSearch.boundingBox())!.height).toBe(22);
     await moveSearch.fill("资料");
     await moveSearch.press("ArrowDown");
     await expect(
