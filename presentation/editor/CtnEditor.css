@@ -58,8 +58,7 @@
 .source-editor .cm-content {
   --ctn-editor-line-inline-end: calc(var(--ui-gap-tight) / 2);
   --ctn-editor-line-inline-start: var(--ui-gap-tight);
-  width: max-content;
-  min-width: 100%;
+  /* CodeMirror's flex layout reserves gutter width and still grows for long lines. */
   min-height: 100%;
   padding: var(--ui-gap);
 }

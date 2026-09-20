@@ -322,6 +322,9 @@ test.describe("editor workbench flows", () => {
 
     const sourceBeforeIndent = await readSource();
     const initialGeometry = await measureMultilineSourceGeometry(editor);
+    expect(await editor.locator(".cm-scroller").evaluate((element) =>
+      element.scrollWidth - element.clientWidth,
+    )).toBeLessThanOrEqual(1);
     const tabStep = initialGeometry.nestedMarkerX - initialGeometry.peerMarkerX;
 
     expect(tabStep).toBeGreaterThan(0);
@@ -351,6 +354,9 @@ test.describe("editor workbench flows", () => {
       .poll(readSource)
       .toContain("\t\t```tsx\n\t\tconst value = 1; // edited\n\t``` ");
     const indentedGeometry = await measureMultilineSourceGeometry(editor);
+    expect(await editor.locator(".cm-scroller").evaluate((element) =>
+      element.scrollWidth - element.clientWidth,
+    )).toBeLessThanOrEqual(1);
 
     expectGeometryEqual(
       indentedGeometry,
@@ -385,6 +391,33 @@ test.describe("editor workbench flows", () => {
         `${coordinate} must return without geometry drift`,
       );
     }
+  });
+
+  test("scrolls long source lines while short content fits beside the gutter", async ({ page }, testInfo) => {
+    await openWorkbench(page, repositoryId);
+    const editor = page.locator(".source-editor");
+    const scroller = editor.locator(".cm-scroller");
+    const content = editor.locator(".cm-content");
+    await expect(content).toBeVisible();
+    expect(await scroller.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    await content.click();
+    await page.keyboard.press("Control+End");
+    const longText = "横向滚动验证".repeat(50);
+    await page.keyboard.insertText(longText);
+    await expect(content).toContainText(longText);
+    await expect.poll(() => scroller.evaluate(element => element.scrollWidth - element.clientWidth)).toBeGreaterThan(100);
+    await scroller.evaluate(element => { element.scrollLeft = element.scrollWidth; });
+    expect(await scroller.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+    await page.screenshot({ path: testInfo.outputPath("editor-long-line.png") });
+    await content.press("Control+Home");
+    await expect.poll(() => scroller.evaluate(element => {
+      const firstLine = element.querySelector(".cm-line")!;
+      const range = document.createRange();
+      range.selectNodeContents(firstLine);
+      const firstCharacter = range.getClientRects()[0].left;
+      const gutter = element.querySelector(".cm-gutters")!.getBoundingClientRect();
+      return firstCharacter >= gutter.right && firstCharacter < element.getBoundingClientRect().right;
+    })).toBe(true);
   });
 
   test("synchronizes the editor block with outline selection and timestamps", async ({
