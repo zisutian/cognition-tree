@@ -45,7 +45,7 @@ test.describe("workbench diagnostics", () => {
 
         return { fontSize: style.fontSize, height: style.height };
       }),
-    ).toEqual({ fontSize: "13px", height: "22px" });
+    ).toEqual({ fontSize: "13px", height: "28px" });
     await expect(getWorkbenchStatus(page)).toHaveText("");
     await expect(problemsHeader).toHaveAccessibleName(/0 个错误，2 个警告/);
     await problemsHeader.click();
@@ -63,7 +63,7 @@ test.describe("workbench diagnostics", () => {
 
         return { fontSize: style.fontSize, height: style.height };
       }),
-    ).toEqual({ fontSize: "13px", height: "22px" });
+    ).toEqual({ fontSize: "13px", height: "28px" });
     await documentProblem.click();
     await expect(
       page.locator('[data-region-header="main"]').getByRole("heading", {

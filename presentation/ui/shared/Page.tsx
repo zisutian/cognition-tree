@@ -13,22 +13,49 @@ export function Page({
   actions,
   children,
   footer,
+  summary,
   kind = "content",
   ...props
 }: Omit<HTMLAttributes<HTMLElement>, "className" | "style"> & {
   kind?: "content" | "editor" | "empty";
   actions?: ReactNode;
   footer?: ReactNode;
+  summary?: ReactNode;
 }) {
+  const layout = useContext(PageLayoutContext);
+  const reading = layout === "form" || layout === "conversation";
+  const centered = layout === "conversation";
   return (
     <section
       {...props}
       className={cx(styles.page, kind === "editor" && "ctn-editor-panel")}
       data-page-kind={kind}
     >
-      {actions ? <div className={styles.toolbar}>{actions}</div> : null}
+      {summary || actions ? (
+        <div
+          className={cx(
+            styles.toolbar,
+            reading && styles.reading,
+            centered && styles.centered,
+          )}
+          data-page-toolbar
+        >
+          {summary ? <div className={styles.summary}>{summary}</div> : null}
+          {actions ? <div className={styles.actions}>{actions}</div> : null}
+        </div>
+      ) : null}
       {children}
-      {footer ? <div className={styles.footer}>{footer}</div> : null}
+      {footer ? (
+        <div
+          className={cx(
+            styles.footer,
+            reading && styles.reading,
+            centered && styles.centered,
+          )}
+        >
+          {footer}
+        </div>
+      ) : null}
     </section>
   );
 }

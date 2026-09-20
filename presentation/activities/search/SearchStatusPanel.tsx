@@ -25,7 +25,7 @@ export function SearchStatusPanel({ state }: { state: SearchControllerState }) {
     <Page aria-label="搜索状态">
       <PageBody>
         <SectionStack>
-          <Section title="搜索">
+          <Section aria-label="搜索条件与状态">
             <ToolPropertyList aria-label="搜索状态">
               <ToolPropertyRow label="状态" value={searchStatusLabel(state)} />
               <ToolPropertyRow label="搜索词" value={criteria.query || "—"} />

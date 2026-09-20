@@ -39,9 +39,6 @@
   grid-template-columns: minmax(0, 1fr);
   gap: var(--ui-gap-tight);
 }
-.ui-form-layout-stacked > .ui-field-row > .ui-field-label {
-  min-height: 0;
-}
 .ui-form-layout-compact {
   gap: var(--ui-gap);
 }
@@ -52,8 +49,5 @@
   .ui-form-layout-columns > .ui-field-row {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--ui-gap-tight);
-  }
-  .ui-form-layout-columns > .ui-field-row > .ui-field-label {
-    min-height: 0;
   }
 }

@@ -70,20 +70,11 @@ export function AgentContextPanel({
               }
               icon={<MessageSquare aria-hidden="true" size={13} />}
               key={session.id}
-              label={
-                <span className={cx("agent-session-label")}>
-                  <strong>{session.profileLabel}</strong>
-                  <span>
-                    {session.profileModel} · v{session.profileVersion}
-                  </span>
-                  <span>{formatAgentScopeLabel(session.scope)}</span>
-                </span>
-              }
+              label={`${session.profileLabel} · ${formatAgentScopeLabel(session.scope)}`}
               onSelect={() => {
                 controller.selectSession(session.id);
                 onSelectSession();
               }}
-              rowClassName="agent-session-row"
               selected={selected}
               title={`${session.profileLabel} · ${session.profileModel} · v${session.profileVersion} · ${formatAgentScopeLabel(session.scope)}`}
               trailing={
@@ -96,7 +87,7 @@ export function AgentContextPanel({
         })}
       </CompactContextList>
       {state.sessions.length === 0 ? (
-        <p className={cx("context-empty")}>没有驻留中的 Agent 会话。</p>
+        <p className={cx("context-empty")}>没有会话</p>
       ) : null}
     </div>
   );

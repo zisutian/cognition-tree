@@ -22,18 +22,6 @@
   padding: 0;
   list-style: none;
 }
-.agent-session-label {
-  display: grid;
-  gap: var(--ui-gap-tight);
-  min-width: 0;
-}
-.agent-session-label > strong,
-.agent-session-label > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.agent-session-label > span,
 .agent-session-state {
   color: var(--color-fg-muted);
   font-size: var(--ui-font-size);
@@ -73,7 +61,7 @@
 }
 .agent-composer {
   display: grid;
-  gap: var(--ui-gap-tight);
+  gap: var(--ui-gap);
   padding: 0;
 }
 .agent-line-diff code,
@@ -237,10 +225,4 @@
 }
 .agent-muted {
   color: var(--color-fg-muted);
-}
-
-.agent-composer > div {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--ui-gap);
 }

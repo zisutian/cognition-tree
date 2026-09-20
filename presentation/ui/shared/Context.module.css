@@ -37,6 +37,9 @@
 }
 
 .context-empty {
+  display: flex;
+  align-items: center;
+  min-height: var(--ui-row-height);
   margin: 0;
   overflow: hidden;
   color: var(--color-fg-muted);

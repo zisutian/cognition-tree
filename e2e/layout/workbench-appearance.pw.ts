@@ -16,9 +16,9 @@ async function expectWorkbenchGeometry(page: Page) {
   const footer = page.getByRole("contentinfo", { name: "工作台状态" });
   expect(await footer.boundingBox()).toEqual({
     x: 0,
-    y: viewport.height - 22,
+    y: viewport.height - 28,
     width: viewport.width,
-    height: 22,
+    height: 28,
   });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
     viewport.width,
@@ -61,7 +61,7 @@ async function expectWorkbenchGeometry(page: Page) {
       elements.map((element) => element.getBoundingClientRect().bottom),
     );
     for (const bottom of bottoms)
-      expect(bottom).toBeLessThanOrEqual(viewport.height - 22);
+      expect(bottom).toBeLessThanOrEqual(viewport.height - 28);
   }
 }
 

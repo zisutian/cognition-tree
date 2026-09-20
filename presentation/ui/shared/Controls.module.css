@@ -287,9 +287,3 @@
   color: var(--color-fg-disabled);
   cursor: not-allowed;
 }
-
-.ui-input-tree {
-  height: calc(var(--ui-row-height) - var(--ui-border-width) * 2);
-  min-height: 0;
-  padding: 0 var(--ui-gap-tight);
-}

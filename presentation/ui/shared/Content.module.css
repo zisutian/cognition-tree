@@ -68,6 +68,9 @@
 }
 
 .ui-empty-state h2 {
+  display: flex;
+  align-items: center;
+  min-height: var(--ui-row-height);
   color: var(--color-fg-muted);
   font-size: var(--ui-font-size);
   font-weight: var(--ui-body-weight);
@@ -94,6 +97,8 @@
 .detail-summary-strip {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  min-height: var(--ui-row-height);
   align-items: center;
   column-gap: var(--ui-gap);
   row-gap: var(--ui-gap-tight);
@@ -145,6 +150,8 @@
 .detail-meta-line {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  min-height: var(--ui-row-height);
   gap: var(--ui-gap);
   margin: 0;
   min-width: 0;

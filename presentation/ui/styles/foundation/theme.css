@@ -67,14 +67,14 @@
   --app-detail-width: 320px;
   --app-detail-collapsed-width: 36px;
   --app-main-min-width: 420px;
-  --app-status-bar-height: 22px;
+  --app-status-bar-height: var(--ui-row-height);
   --app-problems-height: 200px;
   --ui-border-width: 1px;
   --ui-panel-padding: 12px;
   --ui-panel-header-height: 40px;
   --ui-gap: 8px;
   --ui-gap-tight: 4px;
-  --ui-control-height: 28px;
+  --ui-control-height: var(--ui-row-height);
   --ui-form-control-height: var(--ui-control-height);
   --ui-section-gap: 16px;
   --ui-toolbar-height: 36px;
@@ -85,7 +85,7 @@
   --ui-action-icon-size: 16px;
   --ui-activity-icon-size: 24px;
   --ui-symbol-size: 13px;
-  --ui-row-height: 22px;
+  --ui-row-height: 28px;
   --ui-tree-indent: 14px;
   --ui-radius: 6px;
   --ui-selection-radius: var(--ui-radius);

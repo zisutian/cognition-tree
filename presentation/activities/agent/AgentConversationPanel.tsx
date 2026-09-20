@@ -9,11 +9,11 @@ import type { AgentApplication } from "../../../application/agent/index.ts";
 import {
   Button,
   EmptyState,
+  FormActions,
   Page,
   PageBody,
   StatusBadge,
   TextareaControl,
-  ToolToolbar,
   useExclusiveAsyncAction,
   useFeedback,
 } from "../../ui/index.ts";
@@ -86,6 +86,14 @@ export function AgentConversationPanel({
 
   return (
     <Page
+      summary={
+        <span
+          aria-label="会话范围"
+          title={`Profile v${session.profileVersion}`}
+        >
+          {formatAgentScopeLabel(session.scope)}
+        </span>
+      }
       footer={
         <form
           className={cx("agent-composer")}
@@ -99,11 +107,11 @@ export function AgentConversationPanel({
             disabled={!canSend}
             maxLength={100_000}
             onChange={(event) => setDraft(event.currentTarget.value)}
-            placeholder={canSend ? "消息" : "会话不可用"}
+            placeholder="消息"
             rows={4}
             value={draft}
           />
-          <div>
+          <FormActions>
             <Button
               disabled={!canSend || draft.trim().length === 0}
               type="submit"
@@ -111,7 +119,7 @@ export function AgentConversationPanel({
             >
               发送
             </Button>
-          </div>
+          </FormActions>
         </form>
       }
       actions={
@@ -136,13 +144,9 @@ export function AgentConversationPanel({
       }
       aria-label="Agent 对话"
     >
-      <ToolToolbar aria-label="会话范围">
-        <span>{formatAgentScopeLabel(session.scope)}</span>
-        <span>Profile v{session.profileVersion}</span>
-      </ToolToolbar>
       <PageBody aria-live="polite" ref={scrollRef}>
         {session.messages.length === 0 ? (
-          <p className={cx("agent-muted")}>没有消息。</p>
+          <p className={cx("agent-muted")}>没有消息</p>
         ) : (
           <ol className={cx("agent-message-list")}>
             {session.messages.map((message) => (

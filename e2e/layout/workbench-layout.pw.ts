@@ -53,7 +53,7 @@ async function expectRepositoryDetails(page: Page) {
       rows: 2,
       fontSizes: ["13px"],
       alignments: ["left"],
-      minimumHeights: ["22px"],
+      minimumHeights: ["28px"],
       valueColumns: 1,
     });
   const location = page
@@ -77,7 +77,7 @@ async function expectRepositoryDetails(page: Page) {
           actionInside:
             actionBox.top >= rowBox.top && actionBox.bottom <= rowBox.bottom,
           wraps: getComputedStyle(value).overflowWrap,
-          sufficientHeight: rowBox.height >= 22,
+          sufficientHeight: rowBox.height >= 28,
         };
       }),
     )
@@ -244,8 +244,8 @@ for (const viewport of [
           await expectExposed(action);
           const box = (await action.boundingBox())!;
           expect({ width: box.width, height: box.height }).toEqual({
-            width: 22,
-            height: 22,
+            width: 28,
+            height: 28,
           });
           const glyph = action.locator("svg");
           await expect(glyph).toHaveCount(1);
@@ -269,7 +269,7 @@ for (const viewport of [
         const rows = page.locator(".app-context .ui-tree-row");
         expect(await rows.count()).toBeGreaterThan(0);
         for (const row of await rows.all())
-          expect((await row.boundingBox())!.height).toBe(22);
+          expect((await row.boundingBox())!.height).toBe(28);
       }
       if (name === "仓库") {
         await expectRepositoryDetails(page);
@@ -312,7 +312,7 @@ for (const viewport of [
     ).toBe(resultHeader!.y);
     expect(
       await lastHit.evaluate((element) => ({
-        height: element.getBoundingClientRect().height >= 22,
+        height: element.getBoundingClientRect().height >= 28,
         fontSize: getComputedStyle(element).fontSize,
       })),
     ).toEqual({ height: true, fontSize: "13px" });

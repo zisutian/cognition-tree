@@ -12,23 +12,15 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
     | "secondary"
     | "selection";
   sizing?: "container" | "content";
-  density?: "list" | "normal";
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   function Button(
-    {
-      className,
-      density = "normal",
-      variant = "secondary",
-      sizing = "content",
-      ...props
-    },
+    { className, variant = "secondary", sizing = "content", ...props },
     ref,
   ) {
     return (
       <button
-        data-density={density}
         className={cx(
           "ui-button",
           variant !== "bare" && buttonStyles["ui-button"],

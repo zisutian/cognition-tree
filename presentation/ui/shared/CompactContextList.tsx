@@ -104,7 +104,6 @@ export function CompactContextActionButtons({
       <>
         <Button
           variant="icon"
-          density="list"
           aria-label={confirmation.confirmAriaLabel}
           className={cx(
             confirmation.tone === "danger"
@@ -120,7 +119,6 @@ export function CompactContextActionButtons({
         </Button>
         <Button
           variant="icon"
-          density="list"
           aria-label={confirmation.cancelAriaLabel}
           disabled={confirmation.disabled}
           onClick={confirmation.onCancel}
@@ -138,7 +136,6 @@ export function CompactContextActionButtons({
     return (
       <Button
         variant="icon"
-        density="list"
         aria-label={action.ariaLabel}
         className={cx(
           action.tone === "danger" ? "ui-tree-action-danger" : undefined,
@@ -392,7 +389,6 @@ export function CompactContextRow({
             {...inlineRename.inputProps}
             aria-label={inlineRename.ariaLabel}
             autoFocus
-            className={cx("ui-input-tree")}
             disabled={inlineRename.disabled}
             onChange={(event) => inlineRename.onChange(event.target.value)}
             onKeyDown={(event) => {

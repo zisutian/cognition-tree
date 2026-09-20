@@ -126,12 +126,6 @@
   font: inherit;
   text-align: inherit;
 }
-.ui-button[data-density="list"] {
-  width: var(--ui-row-height);
-  min-height: var(--ui-row-height);
-  height: var(--ui-row-height);
-  padding: 0;
-}
 
 .ui-button-bare:focus-visible {
   outline: var(--ui-focus-outline);

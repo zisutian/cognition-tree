@@ -111,11 +111,11 @@ export function SearchPanel({
 
   return (
     <Page
-      actions={
+      summary={
         state.submitted ? (
           <>
             <span className={cx("search-header-counts")}>
-              {groups.length} 个资源 · {state.results.length} 个命中
+              {groups.length} 个结果 · {state.results.length} 处匹配
             </span>
             {draftChanged ? (
               <StatusBadge tone="warning">条件已修改</StatusBadge>

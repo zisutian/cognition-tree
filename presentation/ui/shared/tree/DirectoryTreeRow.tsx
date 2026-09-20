@@ -309,7 +309,6 @@ export function DirectoryTreeRow({
               }
               aria-invalid={editingNode.errorMessage ? true : undefined}
               aria-label={`重命名${node.kind === "folder" ? "文件夹" : "笔记"}`}
-              className={cx("ui-input-tree")}
               sizing="container"
               value={editingNode.title}
               onChange={(event) =>
