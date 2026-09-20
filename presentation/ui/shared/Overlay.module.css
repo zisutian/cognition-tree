@@ -24,13 +24,13 @@
 .ui-quick-pick {
   display: grid;
   gap: var(--ui-gap-tight);
-  width: min(520px, 100%);
+  width: min(var(--ui-quick-pick-width), 100%);
   padding: var(--ui-gap);
 }
 
 .ui-quick-pick-options {
   display: grid;
-  max-height: 320px;
+  max-height: var(--ui-quick-pick-list-height);
   overflow: auto;
 }
 
@@ -66,7 +66,7 @@
   position: fixed;
   z-index: var(--ui-z-overlay);
   display: grid;
-  min-width: 140px;
+  min-width: var(--ui-context-menu-min-width);
   padding: var(--ui-gap-tight);
 }
 

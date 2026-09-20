@@ -11,7 +11,7 @@ details > .ui-tool-property-list {
 
 .ui-tool-property-row {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-columns: var(--ui-property-label-width) minmax(0, 1fr);
   align-items: start;
   column-gap: calc(var(--ui-gap-tight) * 2);
   min-width: 0;

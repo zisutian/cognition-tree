@@ -109,3 +109,5 @@ export { StatusBar } from "./workbench/StatusBar.tsx";
 export { FocusAction } from "./RegionFrame.tsx";
 export { createClassNames } from "./shared/contentClasses.ts";
 export { ListAction } from "./shared/ListAction.tsx";
+
+export { designMetrics } from "./foundation/designTokens.ts";

@@ -94,7 +94,7 @@
   background: var(--color-selected);
 }
 
-@media (max-width: 1120px) {
+@media (max-width: design-breakpoint(workbench)) {
   .structure-operation-grid {
     grid-template-columns: minmax(0, 1fr);
   }

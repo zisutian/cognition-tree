@@ -243,8 +243,11 @@ export function createDependencyImportPolicies({
 }): readonly ImportPolicy[] {
   return [
     {
-      allows: ({ filePath, targetRoot }) =>
-        sourceLayerImports[getSourceRoot(filePath)].includes(targetRoot),
+      allows: ({ filePath, targetPath, targetRoot }) =>
+        sourceLayerImports[getSourceRoot(filePath)].includes(targetRoot) ||
+        // Build composition may read only the dependency-free presentation catalog.
+        (filePath === "../../vite.config.ts" &&
+          targetPath === "../../presentation/ui/foundation/designTokens.ts"),
       name: "five-layer direction",
     },
     {

@@ -7,7 +7,7 @@
 }
 .ui-field-row {
   display: grid;
-  grid-template-columns: 128px minmax(0, 1fr);
+  grid-template-columns: var(--ui-form-label-width) minmax(0, 1fr);
   align-items: start;
   gap: var(--ui-gap);
   min-width: 0;
@@ -43,9 +43,9 @@
   gap: var(--ui-gap);
 }
 .ui-form-layout-compact > .ui-field-row {
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: var(--ui-form-compact-label-width) minmax(0, 1fr);
 }
-@container (max-width: 360px) {
+@container (max-width: design-breakpoint(form)) {
   .ui-form-layout-columns > .ui-field-row {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--ui-gap-tight);

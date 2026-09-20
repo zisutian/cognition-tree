@@ -81,7 +81,7 @@
 }
 
 .source-editor .cm-lineNumbers .cm-gutterElement {
-  min-width: calc(var(--ui-control-height) + var(--ui-gap));
+  min-width: 36px;
   padding:
     0
     var(--ui-gap)

@@ -231,7 +231,6 @@ export function createUiConstraintCatalog({
       "--ui-gap",
       "--ui-control-height",
       "--ui-emphasis-weight",
-      "--ui-icon-size",
       "--ui-row-height",
       "--ctn-editor-font-size",
     ],

@@ -885,6 +885,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     publicEntries: [
       "presentation/ui/index.ts",
       "presentation/ui/styles/index.css",
+      "presentation/ui/foundation/designTokens.ts",
     ],
     dependencies: ["application/problems", "application/workbench", "core/ctn"],
   },
@@ -928,9 +929,9 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     id: "tooling/build",
-    responsibility: "Build cleanup and bundle verification executables",
+    responsibility: "Build cleanup, injected design catalog compilation and bundle verification",
     scope: "tree",
-    publicEntries: [],
+    publicEntries: ["tooling/build/designTokenStyles.ts"],
     dependencies: [],
   },
   {
@@ -955,7 +956,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     responsibility: "Compiler and tool configuration",
     scope: "tree",
     publicEntries: [],
-    dependencies: [],
+    dependencies: ["tooling/build", "presentation/ui"],
   },
   {
     id: "tooling/git",

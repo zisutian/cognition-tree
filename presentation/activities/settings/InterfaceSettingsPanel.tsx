@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
+  designMetrics,
   FieldRow,
   FormLayout,
   InputControl,
@@ -28,8 +29,8 @@ export function InterfaceSettingsPanel({
               {(accessibility) => (
                 <InputControl
                   {...accessibility}
-                  max={420}
-                  min={220}
+                  max={designMetrics.context.max}
+                  min={designMetrics.context.min}
                   onChange={(event) => {
                     const width = event.currentTarget.valueAsNumber;
 

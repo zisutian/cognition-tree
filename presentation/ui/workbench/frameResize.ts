@@ -1,13 +1,15 @@
-export const appContextMinWidth = 220;
-export const appContextMaxWidth = 420;
-export const appContextDefaultWidth = 280;
-export const appDetailMinWidth = 240;
-export const appDetailMaxWidth = 500;
-export const appDetailDefaultWidth = 320;
-export const appResizeKeyboardStep = 16;
-export const appProblemsMinHeight = 120;
-export const appProblemsMaxHeight = 360;
-export const appProblemsDefaultHeight = 200;
+import { designMetrics } from "../foundation/designTokens.ts";
+
+export const appContextMinWidth = designMetrics.context.min;
+export const appContextMaxWidth = designMetrics.context.max;
+export const appContextDefaultWidth = designMetrics.context.default;
+export const appDetailMinWidth = designMetrics.detail.min;
+export const appDetailMaxWidth = designMetrics.detail.max;
+export const appDetailDefaultWidth = designMetrics.detail.default;
+export const appResizeKeyboardStep = designMetrics.resizeKeyboardStep;
+export const appProblemsMinHeight = designMetrics.problems.min;
+export const appProblemsMaxHeight = designMetrics.problems.max;
+export const appProblemsDefaultHeight = designMetrics.problems.default;
 
 export function clampAppContextWidth(width: number) {
   if (!Number.isFinite(width)) {

@@ -10,7 +10,7 @@
   display: grid;
   min-height: var(--ui-row-height);
   grid-template-columns:
-    calc(var(--ui-control-height) * 2)
+    56px
     minmax(0, 1fr)
     minmax(0, 1fr);
   align-items: center;

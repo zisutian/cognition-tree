@@ -100,7 +100,7 @@
 
 .ui-structure-tree-row {
   --ui-structure-depth: 0;
-  --ui-structure-indent-width: 14px;
+  --ui-structure-indent-width: var(--ui-tree-indent);
 
   grid-template-columns:
     max-content

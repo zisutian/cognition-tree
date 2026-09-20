@@ -1,7 +1,8 @@
+import { designMetrics } from "../../foundation/designTokens.ts";
 import type { CSSProperties } from "react";
 
 export const defaultStructureTreeIndentUnitCount = 4;
-export const defaultStructureTreeIndentWidthPx = 14;
+export const defaultStructureTreeIndentWidthPx = designMetrics.treeIndent;
 
 export function normalizeStructureTreeIndentUnitCount(
   indentUnitCount = defaultStructureTreeIndentUnitCount,

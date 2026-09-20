@@ -96,7 +96,7 @@
   margin-top: var(--ui-gap-tight);
 }
 
-@media (max-width: 720px) {
+@media (max-width: design-breakpoint(repository)) {
   .repository-delete-choice {
     grid-template-columns: minmax(0, 1fr);
   }

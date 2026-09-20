@@ -32,12 +32,15 @@
   background: var(--color-selected);
 }
 .syntax-setting-line {
+  --syntax-setting-label-width: 112px;
+  --syntax-setting-input-min-width: 224px;
+  --syntax-setting-input-max-width: 336px;
   display: grid;
   grid-template-columns:
-    calc(var(--ui-control-height) * 4)
+    var(--syntax-setting-label-width)
     minmax(
-      calc(var(--ui-control-height) * 8),
-      calc(var(--ui-control-height) * 12)
+      var(--syntax-setting-input-min-width),
+      var(--syntax-setting-input-max-width)
     );
   align-items: center;
   gap: var(--ui-gap-tight);
@@ -61,22 +64,28 @@
   font-weight: var(--ui-body-weight);
 }
 .syntax-rule-row {
+  --syntax-name-min-width: 112px;
+  --syntax-name-max-width: 196px;
+  --syntax-marker-width: 56px;
+  --syntax-type-width: 84px;
+  --syntax-tone-width: 49px;
   --syntax-rule-row-width: calc(
-    var(--ui-control-height) * 15.5 + var(--ui-icon-size) +
+    var(--syntax-name-max-width) + var(--syntax-marker-width) +
+      var(--syntax-type-width) + var(--syntax-tone-width) * 2 + var(--ui-control-height) +
       var(--ui-gap-tight) * 5
   );
 
   display: grid;
   grid-template-columns:
     minmax(
-      calc(var(--ui-control-height) * 4),
-      calc(var(--ui-control-height) * 7)
+      var(--syntax-name-min-width),
+      var(--syntax-name-max-width)
     )
-    calc(var(--ui-control-height) * 2)
-    calc(var(--ui-control-height) * 3)
-    calc(var(--ui-control-height) * 1.75)
-    calc(var(--ui-control-height) * 1.75)
-    var(--ui-icon-size);
+    var(--syntax-marker-width)
+    var(--syntax-type-width)
+    var(--syntax-tone-width)
+    var(--syntax-tone-width)
+    var(--ui-control-height);
   align-items: center;
   gap: var(--ui-gap-tight);
   width: min(100%, var(--syntax-rule-row-width));
@@ -190,9 +199,10 @@
   gap: var(--ui-gap-tight);
 }
 .syntax-render-line {
+  --syntax-render-marker-min-width: 56px;
   display: grid;
   grid-template-columns:
-    minmax(calc(var(--ui-control-height) * 2), max-content)
+    minmax(var(--syntax-render-marker-min-width), max-content)
     minmax(0, 1fr);
   align-items: center;
   gap: var(--ui-gap-tight);
