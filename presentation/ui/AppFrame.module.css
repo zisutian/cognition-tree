@@ -2,9 +2,9 @@
   display: grid;
   grid-template-columns:
     var(--app-activity-width)
-    var(--app-context-width)
+    minmax(220px, var(--app-context-width))
     minmax(var(--app-main-min-width), 1fr)
-    var(--app-detail-width);
+    minmax(240px, var(--app-detail-width));
   grid-template-rows: minmax(0, 1fr) var(--app-status-bar-height);
   grid-template-areas:
     "activity context main detail"
@@ -18,7 +18,7 @@
   grid-template-columns:
     var(--app-activity-width)
     minmax(var(--app-main-min-width), 1fr)
-    var(--app-detail-width);
+    minmax(240px, var(--app-detail-width));
   grid-template-areas:
     "activity main detail"
     "status status status";
@@ -26,7 +26,7 @@
 .app-frame.no-detail {
   grid-template-columns:
     var(--app-activity-width)
-    var(--app-context-width)
+    minmax(220px, var(--app-context-width))
     minmax(var(--app-main-min-width), 1fr);
   grid-template-areas:
     "activity context main"
@@ -43,7 +43,7 @@
 .app-frame.detail-collapsed {
   grid-template-columns:
     var(--app-activity-width)
-    var(--app-context-width)
+    minmax(220px, var(--app-context-width))
     minmax(var(--app-main-min-width), 1fr)
     var(--app-detail-collapsed-width);
 }
