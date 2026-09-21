@@ -29,6 +29,7 @@ export {
 } from "./shared/FeedbackProvider.tsx";
 export type { WorkbenchActivityFeedbackController } from "./shared/FeedbackProvider.tsx";
 export { FormError, FormSaveActions } from "./shared/FormStatus.tsx";
+export { AssociatedForm } from "./shared/AssociatedForm.tsx";
 export {
   getListReorderIndex,
   getListRowDropPlacement,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { SelectControl, FieldRow, FormLayout, InputControl } from "compact-ui";
+import { SelectControl, FieldRow, InputControl } from "compact-ui";
 
 import type { SystemConfigurationInput } from "../../../application/system/index.ts";
 
@@ -15,7 +15,7 @@ export function SystemConfigurationFields({
   page: SystemConfigurationPage;
 }) {
   return (
-    <FormLayout layout="stacked">
+    <>
       {page === "network" ? (
         <>
           <FieldRow fieldId="settings-system-listen-mode" label="访问范围">
@@ -120,6 +120,6 @@ export function SystemConfigurationFields({
           )}
         </FieldRow>
       )}
-    </FormLayout>
+    </>
   );
 }

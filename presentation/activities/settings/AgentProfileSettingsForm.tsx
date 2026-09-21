@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Stack } from "compact-ui";
+import { AssociatedForm } from "../../ui/index.ts";
 import { FieldRow, InputControl, SelectControl } from "compact-ui";
 
 import type { FormEvent } from "react";
@@ -31,124 +31,122 @@ export function AgentProfileSettingsForm({
   selectedProvider: AgentProviderView | null;
 }) {
   return (
-    <form id={formId} onSubmit={onSubmit}>
-      <Stack>
-        <FieldRow fieldId="settings-profile-provider" label="Provider">
-          {(accessibility) => (
-            <SelectControl
-              disabled={busy}
-              {...accessibility}
-              aria-label="Profile Provider"
-              onChange={(event) =>
-                onChange({
-                  ...draft,
-                  providerId: event.currentTarget.value,
-                })
-              }
-              required
-              value={draft.providerId}
-            >
-              <option value="">未选择</option>
-              {providers.map((provider) => (
-                <option key={provider.id} value={provider.id}>
-                  {provider.label}
-                </option>
-              ))}
-            </SelectControl>
-          )}
-        </FieldRow>
-        <FieldRow fieldId="settings-profile-name" label="名称">
-          {(accessibility) => (
-            <InputControl
-              disabled={busy}
-              {...accessibility}
-              aria-label="Profile 名称"
-              onChange={(event) =>
-                onChange({
-                  ...draft,
-                  label: event.currentTarget.value,
-                })
-              }
-              required
-              value={draft.label}
-            />
-          )}
-        </FieldRow>
-        <FieldRow fieldId="settings-profile-model" label="模型">
-          {(accessibility) => (
-            <>
-              <InputControl
-                disabled={busy}
-                {...accessibility}
-                aria-label="Profile 模型"
-                list="agent-model-options"
-                onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    model: event.currentTarget.value,
-                  })
-                }
-                required
-                value={draft.model}
-              />
-              <datalist id="agent-model-options">
-                {modelOptions.map((model) => (
-                  <option key={model} value={model} />
-                ))}
-              </datalist>
-            </>
-          )}
-        </FieldRow>
-        <FieldRow fieldId="settings-profile-session-limit" label="会话上限">
-          {(accessibility) => (
-            <InputControl
-              disabled={busy}
-              {...accessibility}
-              aria-label="Profile 会话上限"
-              min="1"
-              onChange={(event) =>
-                onChange({
-                  ...draft,
-                  maxResidentSessions: event.currentTarget.valueAsNumber,
-                })
-              }
-              required
-              type="number"
-              value={draft.maxResidentSessions}
-            />
-          )}
-        </FieldRow>
-        <FieldRow fieldId="settings-profile-timeout" label="超时毫秒">
-          {(accessibility) => (
-            <InputControl
-              disabled={busy}
-              {...accessibility}
-              aria-label="Profile 超时"
-              min="1"
-              onChange={(event) =>
-                onChange({
-                  ...draft,
-                  timeoutMilliseconds: event.currentTarget.valueAsNumber,
-                })
-              }
-              required
-              type="number"
-              value={draft.timeoutMilliseconds}
-            />
-          )}
-        </FieldRow>
-        {selectedProvider?.kind === "codex" ? (
-          <CodexProfileFields busy={busy} draft={draft} setDraft={onChange} />
-        ) : selectedProvider ? (
-          <ChatProfileFields
-            busy={busy}
-            draft={draft}
-            providerKind={selectedProvider.kind}
-            setDraft={onChange}
+    <AssociatedForm id={formId} onSubmit={onSubmit}>
+      <FieldRow fieldId="settings-profile-provider" label="Provider">
+        {(accessibility) => (
+          <SelectControl
+            disabled={busy}
+            {...accessibility}
+            aria-label="Profile Provider"
+            onChange={(event) =>
+              onChange({
+                ...draft,
+                providerId: event.currentTarget.value,
+              })
+            }
+            required
+            value={draft.providerId}
+          >
+            <option value="">未选择</option>
+            {providers.map((provider) => (
+              <option key={provider.id} value={provider.id}>
+                {provider.label}
+              </option>
+            ))}
+          </SelectControl>
+        )}
+      </FieldRow>
+      <FieldRow fieldId="settings-profile-name" label="名称">
+        {(accessibility) => (
+          <InputControl
+            disabled={busy}
+            {...accessibility}
+            aria-label="Profile 名称"
+            onChange={(event) =>
+              onChange({
+                ...draft,
+                label: event.currentTarget.value,
+              })
+            }
+            required
+            value={draft.label}
           />
-        ) : null}
-      </Stack>
-    </form>
+        )}
+      </FieldRow>
+      <FieldRow fieldId="settings-profile-model" label="模型">
+        {(accessibility) => (
+          <>
+            <InputControl
+              disabled={busy}
+              {...accessibility}
+              aria-label="Profile 模型"
+              list="agent-model-options"
+              onChange={(event) =>
+                onChange({
+                  ...draft,
+                  model: event.currentTarget.value,
+                })
+              }
+              required
+              value={draft.model}
+            />
+            <datalist id="agent-model-options">
+              {modelOptions.map((model) => (
+                <option key={model} value={model} />
+              ))}
+            </datalist>
+          </>
+        )}
+      </FieldRow>
+      <FieldRow fieldId="settings-profile-session-limit" label="会话上限">
+        {(accessibility) => (
+          <InputControl
+            disabled={busy}
+            {...accessibility}
+            aria-label="Profile 会话上限"
+            min="1"
+            onChange={(event) =>
+              onChange({
+                ...draft,
+                maxResidentSessions: event.currentTarget.valueAsNumber,
+              })
+            }
+            required
+            type="number"
+            value={draft.maxResidentSessions}
+          />
+        )}
+      </FieldRow>
+      <FieldRow fieldId="settings-profile-timeout" label="超时毫秒">
+        {(accessibility) => (
+          <InputControl
+            disabled={busy}
+            {...accessibility}
+            aria-label="Profile 超时"
+            min="1"
+            onChange={(event) =>
+              onChange({
+                ...draft,
+                timeoutMilliseconds: event.currentTarget.valueAsNumber,
+              })
+            }
+            required
+            type="number"
+            value={draft.timeoutMilliseconds}
+          />
+        )}
+      </FieldRow>
+      {selectedProvider?.kind === "codex" ? (
+        <CodexProfileFields busy={busy} draft={draft} setDraft={onChange} />
+      ) : selectedProvider ? (
+        <ChatProfileFields
+          busy={busy}
+          draft={draft}
+          providerKind={selectedProvider.kind}
+          setDraft={onChange}
+        />
+      ) : null}
+    </AssociatedForm>
   );
 }
 

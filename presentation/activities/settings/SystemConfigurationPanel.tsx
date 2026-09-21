@@ -7,7 +7,11 @@ import type {
   SystemConfigurationState,
   SystemReconnectPort,
 } from "../../../application/system/index.ts";
-import { FormSaveActions, useFeedback } from "../../ui/index.ts";
+import {
+  AssociatedForm,
+  FormSaveActions,
+  useFeedback,
+} from "../../ui/index.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
 import {
   SystemConfigurationFields,
@@ -63,7 +67,7 @@ export function SystemConfigurationPanel({
       }
     >
       {draft.draft ? (
-        <form
+        <AssociatedForm
           id="system-settings-form"
           onSubmit={(event) => {
             event.preventDefault();
@@ -86,7 +90,7 @@ export function SystemConfigurationPanel({
             }}
             page={page}
           />
-        </form>
+        </AssociatedForm>
       ) : (
         <EmptyState title="正在读取服务设置" />
       )}

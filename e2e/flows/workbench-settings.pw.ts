@@ -84,6 +84,65 @@ test.describe("settings activity flows", () => {
     await expect(details).not.toContainText("https://e2e-runtime.invalid/v1");
   });
 
+  test("package forms validate footer submission and submit once with Enter", async ({
+    page,
+  }) => {
+    await openWorkbench(page, syntaxRepositoryId);
+    await getActivityButton(page, "设置").click();
+    await page
+      .getByRole("treeitem", { name: "E2E provider", exact: true })
+      .click();
+    const panel = page.getByRole("region", { name: "模型服务设置" });
+    const name = panel.getByRole("textbox", {
+      name: "Provider 名称",
+      exact: true,
+    });
+    const original = await name.inputValue();
+    const save = page.getByRole("button", {
+      name: "保存 Provider",
+      exact: true,
+    });
+    await expect(panel.locator("form")).toHaveCount(1);
+    const submissions: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "PATCH" && request.url().includes("agent"))
+        submissions.push(request.url());
+    });
+    await name.fill("");
+    await save.click();
+    await expect(name).toBeFocused();
+    expect(
+      await name.evaluate(
+        (input) => (input as HTMLInputElement).validity.valueMissing,
+      ),
+    ).toBe(true);
+    expect(submissions).toHaveLength(0);
+    await name.fill(`${original} updated`);
+    await name.press("Enter");
+    await expect(save).toBeDisabled();
+    expect(submissions).toHaveLength(1);
+    await name.fill(original);
+    await save.click();
+    await expect(save).toBeDisabled();
+    await page.getByRole("treeitem", { name: "保留策略", exact: true }).click();
+    const system = page.getByRole("region", { name: "服务设置" });
+    await expect(system.locator("form")).toHaveCount(1);
+    await expect(page.locator("form form")).toHaveCount(0);
+    const limit = system.getByRole("spinbutton", { name: "操作审计保留条数" });
+    const oldLimit = await limit.inputValue();
+    await limit.fill(String(Number(oldLimit) + 1));
+    const systemSave = page.getByRole("button", {
+      name: "保存服务设置",
+      exact: true,
+    });
+    await expect(systemSave).toBeEnabled();
+    await limit.press("Enter");
+    await expect(systemSave).toBeDisabled();
+    await limit.fill(oldLimit);
+    await systemSave.click();
+    await expect(systemSave).toBeDisabled();
+  });
+
   test("keeps credential preparation in the main panel and blocks navigation while pending", async ({
     page,
     responseGates,
