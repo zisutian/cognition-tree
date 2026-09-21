@@ -1,9 +1,10 @@
+import { Button, EmptyState } from "compact-ui";
 import type {
   BuiltInCatalogApplication,
   BuiltInId,
 } from "../../../application/repository/index.ts";
 
-import { Button, EmptyState, Page, useFeedback } from "../../ui/index.ts";
+import { Page, useFeedback } from "../../ui/index.ts";
 
 type BuiltInUnavailableApplication =
   | { status: "loading" }
@@ -73,12 +74,12 @@ export function BuiltInUnavailableActivity({
               <Button
                 onClick={() => void feedback.runAction(retry)}
                 type="button"
-                variant="secondary"
+                variant="normal"
               >
                 重试
               </Button>
             ) : null}
-            <Button onClick={onOpenRepository} type="button" variant="primary">
+            <Button onClick={onOpenRepository} type="button" variant="normal">
               前往仓库
             </Button>
           </>

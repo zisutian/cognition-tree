@@ -1,5 +1,5 @@
 .syntax-context {
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
 }
 .syntax-setting-label,
 .syntax-rule-header,
@@ -10,26 +10,26 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--ui-gap);
-  margin-bottom: var(--ui-gap);
-  padding: var(--ui-gap-tight) var(--ui-gap);
-  border: var(--ui-border-width) solid var(--color-error);
-  border-radius: var(--ui-radius);
-  color: var(--color-error);
-  font-size: var(--ui-font-size);
+  gap: var(--cu-gap);
+  margin-bottom: var(--cu-gap);
+  padding: var(--cu-tightGap) var(--cu-gap);
+  border: var(--cu-panelBorderWidth) solid var(--cu-color-error);
+  border-radius: var(--cu-radius);
+  color: var(--cu-color-error);
+  font-size: var(--cu-fontSize);
 }
 .syntax-file-error {
   display: inline-flex;
   align-items: center;
-  gap: var(--ui-gap-tight);
-  color: var(--color-error);
+  gap: var(--cu-tightGap);
+  color: var(--cu-color-error);
 }
 .syntax-rule-row:focus {
   outline: none;
 }
 .syntax-rule-row:focus {
-  color: var(--color-fg-strong);
-  background: var(--color-selected);
+  color: var(--cu-color-strong);
+  background: var(--cu-color-selected);
 }
 .syntax-setting-line {
   --syntax-setting-label-width: 112px;
@@ -43,25 +43,25 @@
       var(--syntax-setting-input-max-width)
     );
   align-items: center;
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
   min-width: 0;
-  min-height: var(--ui-control-height);
+  min-height: var(--cu-controlHeight);
 }
 .syntax-setting-label,
 .syntax-rule-header,
 .syntax-readonly {
   min-width: 0;
   overflow: hidden;
-  color: var(--color-fg-muted);
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
+  color: var(--cu-color-muted);
+  font-size: var(--cu-fontSize);
+  line-height: var(--cu-lineHeight);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .syntax-setting-label,
 .syntax-rule-header {
-  color: var(--color-fg-subtle);
-  font-weight: var(--ui-body-weight);
+  color: var(--cu-color-disabled);
+  font-weight: var(--cu-weight);
 }
 .syntax-rule-row {
   --syntax-name-min-width: 112px;
@@ -71,95 +71,92 @@
   --syntax-tone-width: 49px;
   --syntax-rule-row-width: calc(
     var(--syntax-name-max-width) + var(--syntax-marker-width) +
-      var(--syntax-type-width) + var(--syntax-tone-width) * 2 + var(--ui-control-height) +
-      var(--ui-gap-tight) * 5
+      var(--syntax-type-width) + var(--syntax-tone-width) * 2 +
+      var(--cu-controlHeight) + var(--cu-tightGap) * 5
   );
 
   display: grid;
   grid-template-columns:
-    minmax(
-      var(--syntax-name-min-width),
-      var(--syntax-name-max-width)
-    )
+    minmax(var(--syntax-name-min-width), var(--syntax-name-max-width))
     var(--syntax-marker-width)
     var(--syntax-type-width)
     var(--syntax-tone-width)
     var(--syntax-tone-width)
-    var(--ui-control-height);
+    var(--cu-controlHeight);
   align-items: center;
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
   width: min(100%, var(--syntax-rule-row-width));
   min-width: 0;
-  min-height: var(--ui-control-height);
+  min-height: var(--cu-controlHeight);
 }
 .syntax-rule-header {
-  min-height: var(--ui-row-height);
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
+  min-height: var(--cu-rowHeight);
+  font-size: var(--cu-fontSize);
+  line-height: var(--cu-lineHeight);
 }
 .syntax-pair-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
   min-width: 0;
 }
 .syntax-pair-fields > .syntax-readonly {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: var(--ui-control-height);
+  min-height: var(--cu-controlHeight);
 }
 .syntax-rule-spacer {
   min-width: 0;
-  min-height: var(--ui-control-height);
+  min-height: var(--cu-controlHeight);
 }
 .syntax-rule-actions {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
   width: min(100%, var(--syntax-rule-row-width));
   min-width: 0;
 }
 .syntax-tone-picker {
   position: relative;
   min-width: 0;
-  min-height: var(--ui-control-height);
+  min-height: var(--cu-controlHeight);
 }
 .syntax-tone-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
 }
 .syntax-tone-custom-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) calc(
-      var(--ui-control-height) + var(--ui-gap-tight)
+      var(--cu-controlHeight) + var(--cu-tightGap)
     );
   align-items: center;
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
 }
 .syntax-tone-swatch {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--ui-action-icon-size);
-  min-width: var(--ui-action-icon-size);
-  height: var(--ui-action-icon-size);
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
-  background: var(--color-input);
+  width: var(--cu-iconSize);
+  min-width: var(--cu-iconSize);
+  height: var(--cu-iconSize);
+  border: var(--cu-panelBorderWidth) solid transparent;
+  border-radius: var(--cu-radius);
+  background: var(--cu-color-input);
 }
 .syntax-tone-swatch span {
   display: block;
-  width: calc(var(--ui-action-icon-size) / 2);
-  height: calc(var(--ui-action-icon-size) / 2);
-  border-radius: var(--ui-radius);
+  width: calc(var(--cu-iconSize) / 2);
+  height: calc(var(--cu-iconSize) / 2);
+  border-radius: var(--cu-radius);
   background: var(--ctn-tone-neutral);
 }
 .syntax-tone-default span {
-  background: var(--color-editor);
+  background: var(--cu-color-surface);
 }
 .syntax-tone-green span {
   background: var(--ctn-tone-green);
@@ -196,7 +193,7 @@
 }
 .syntax-render-list {
   display: grid;
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
 }
 .syntax-render-line {
   --syntax-render-marker-min-width: 56px;
@@ -205,27 +202,27 @@
     minmax(var(--syntax-render-marker-min-width), max-content)
     minmax(0, 1fr);
   align-items: center;
-  gap: var(--ui-gap-tight);
-  min-height: var(--ui-row-height);
-  padding: 0 0 0 var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
+  min-height: var(--cu-rowHeight);
+  padding: 0 0 0 var(--cu-tightGap);
   border-radius: 0;
-  color: var(--color-fg);
+  color: var(--cu-color-foreground);
   background: var(--ctn-tone-background, transparent);
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
+  font-size: var(--cu-fontSize);
+  line-height: var(--cu-lineHeight);
 }
 .syntax-render-line.is-inline {
   background: transparent;
 }
 .syntax-render-marker {
-  color: var(--color-link);
-  font-size: var(--ui-font-size);
-  font-weight: var(--ui-emphasis-weight);
-  line-height: var(--ui-line-height);
+  color: var(--cu-color-accent);
+  font-size: var(--cu-fontSize);
+  font-weight: var(--cu-emphasis);
+  line-height: var(--cu-lineHeight);
   white-space: nowrap;
 }
 .syntax-render-line.is-inline .syntax-render-marker {
-  color: var(--ctn-tone-current, var(--color-fg-muted));
+  color: var(--ctn-tone-current, var(--cu-color-muted));
 }
 .syntax-render-text {
   min-width: 0;
@@ -237,8 +234,8 @@
 .syntax-tone-choice {
   display: grid;
   place-items: center;
-  width: var(--ui-action-icon-size);
-  height: var(--ui-action-icon-size);
+  width: var(--cu-iconSize);
+  height: var(--cu-iconSize);
 }
 .syntax-tone-choice > * {
   grid-area: 1 / 1;

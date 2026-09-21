@@ -1,134 +1,82 @@
 import { useState } from "react";
 import {
-  appContextDefaultWidth,
-  appDetailDefaultWidth,
-  appProblemsDefaultHeight,
-  clampAppContextWidth,
-  clampAppProblemsHeight,
-} from "./frameResize.ts";
-import {
-  useWorkbenchPanelResize,
-  type WorkbenchPanelResizeController,
-} from "./useWorkbenchPanelResize.ts";
+  initialWorkbenchLayout,
+  useDesignConfig,
+  type WorkbenchLayoutState,
+} from "compact-ui";
 import { useRepositorySessionState } from "./useRepositorySessionState.ts";
-import {
-  createRepositorySessionKey,
-} from "./repositorySessionStore.ts";
+import { createRepositorySessionKey } from "./repositorySessionStore.ts";
 
-type RepositoryProblemsLayout = {
-  expanded: boolean;
-  height: number;
-};
+const repositoryLayoutKey =
+  createRepositorySessionKey<
+    Pick<
+      WorkbenchLayoutState,
+      "contextWidth" | "bottomHeight" | "bottomExpanded"
+    >
+  >("workbench-layout");
 
-const contextWidthSessionKey = createRepositorySessionKey<number | null>(
-  "workbench-context-width",
-);
-const problemsLayoutSessionKey =
-  createRepositorySessionKey<RepositoryProblemsLayout>(
-    "workbench-problems-layout",
-  );
-
-function createRepositoryProblemsLayout(): RepositoryProblemsLayout {
-  return { expanded: false, height: appProblemsDefaultHeight };
-}
-
-export type WorkbenchLayout = WorkbenchPanelResizeController & {
-  contextCollapsed: boolean;
-  contextResizeValue: number;
-  contextWidth: number | null;
-  detailCollapsed: boolean;
-  detailResizeValue: number;
-  detailWidth: number | null;
-  focusMode: boolean;
-  onDetailToggle: () => void;
-  problemsExpanded: boolean;
-  problemsHeight: number;
-  problemsResizeValue: number;
-};
-
+/** Persist values only. Compact UI owns measuring, fitting and dragging regions. */
 export function useWorkbenchLayout(repositoryId: string) {
-  const [contextCollapsed, setContextCollapsed] = useState(false);
-  const [detailCollapsed, setDetailCollapsed] = useState(false);
-  const [contextWidth, setContextWidth] = useRepositorySessionState<number | null>(
-    contextWidthSessionKey,
+  const config = useDesignConfig();
+  const defaults = initialWorkbenchLayout(config);
+  const [global, setGlobal] = useState<
+    Omit<
+      WorkbenchLayoutState,
+      "contextWidth" | "bottomHeight" | "bottomExpanded"
+    >
+  >(() => ({
+    contextCollapsed: defaults.contextCollapsed,
+    detailCollapsed: defaults.detailCollapsed,
+    detailWidth: defaults.detailWidth,
+    focusMode: defaults.focusMode,
+  }));
+  const [repository, setRepository] = useRepositorySessionState(
+    repositoryLayoutKey,
     repositoryId,
-    () => null,
+    () => ({
+      contextWidth: defaults.contextWidth,
+      bottomHeight: defaults.bottomHeight,
+      bottomExpanded: false,
+    }),
   );
-  const [detailWidth, setDetailWidth] = useState<number | null>(null);
-  const [problemsLayout, setProblemsLayout] = useRepositorySessionState(
-    problemsLayoutSessionKey,
-    repositoryId,
-    createRepositoryProblemsLayout,
-  );
-  const [focusMode, setFocusMode] = useState(false);
-  const contextResizeValue = contextWidth ?? appContextDefaultWidth;
-  const detailResizeValue = detailWidth ?? appDetailDefaultWidth;
-  const problemsResizeValue = problemsLayout.height;
-
-  const panelResize = useWorkbenchPanelResize({
-    context: {
-      collapsed: contextCollapsed,
-      resizeValue: contextResizeValue,
-      setWidth: (width) => setContextWidth(clampAppContextWidth(width)),
-    },
-    detail: {
-      collapsed: detailCollapsed,
-      resizeValue: detailResizeValue,
-      setWidth: setDetailWidth,
-    },
-    problems: {
-      expanded: problemsLayout.expanded,
-      resizeValue: problemsResizeValue,
-      setHeight: (height) =>
-        setProblemsLayout((current) => ({
-          ...current,
-          height: clampAppProblemsHeight(height),
-        })),
-    },
-  });
-  const expandPanels = () => {
-    setFocusMode(false);
-    setContextCollapsed(false);
-    setDetailCollapsed(false);
+  const value = { ...global, ...repository };
+  const change = (next: WorkbenchLayoutState) => {
+    const { contextWidth, bottomHeight, bottomExpanded, ...shared } = next;
+    setGlobal(shared);
+    setRepository({
+      contextWidth,
+      bottomHeight,
+      bottomExpanded,
+    });
   };
-
-  const layout: WorkbenchLayout = {
-    ...panelResize,
-    contextCollapsed,
-    contextResizeValue,
-    contextWidth,
-    detailCollapsed,
-    detailResizeValue,
-    detailWidth,
-    focusMode,
-    onDetailToggle: () => setDetailCollapsed((current) => !current),
-    problemsExpanded: problemsLayout.expanded,
-    problemsHeight: problemsLayout.height,
-    problemsResizeValue,
-  };
-
   return {
-    collapseDetail: () => setDetailCollapsed(true),
-    expandPanels,
-    exitFocusMode: () => setFocusMode(false),
-    layout,
+    layout: value,
+    onLayoutChange: change,
+    expandPanels: () =>
+      change({
+        ...value,
+        focusMode: false,
+        contextCollapsed: false,
+        detailCollapsed: false,
+      }),
+    expandContext: () =>
+      change({ ...value, focusMode: false, contextCollapsed: false }),
+    exitFocusMode: () => change({ ...value, focusMode: false }),
     setContextWidth: (width: number) =>
-      setContextWidth(clampAppContextWidth(width)),
-    toggleContext: () => setContextCollapsed((current) => !current),
-    toggleFocusMode: () => setFocusMode((current) => !current),
-    toggleProblems: () => {
-      if (focusMode) {
-        setFocusMode(false);
-        setProblemsLayout((current) => ({ ...current, expanded: true }));
-        return;
-      }
-
-      setProblemsLayout((current) => ({
-        ...current,
-        expanded: !current.expanded,
-      }));
-    },
+      change({
+        ...value,
+        contextWidth: Math.max(
+          config.layout.context.min,
+          Math.min(config.layout.context.max, width),
+        ),
+      }),
+    toggleFocusMode: () => change({ ...value, focusMode: !value.focusMode }),
+    toggleProblems: () =>
+      change({
+        ...value,
+        focusMode: false,
+        bottomExpanded: value.focusMode || !value.bottomExpanded,
+      }),
   };
 }
-
 export type WorkbenchController = ReturnType<typeof useWorkbenchLayout>;

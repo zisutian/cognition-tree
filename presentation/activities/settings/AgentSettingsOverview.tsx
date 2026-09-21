@@ -1,6 +1,18 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import {
+  PropertyList as ToolPropertyList,
+  PropertyRow as ToolPropertyRow,
+} from "compact-ui";
+import {
+  Button,
+  FieldRow,
+  FormLayout,
+  InputControl,
+  SelectControl,
+} from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 const cx = createClassNames();
-// SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
 import type {
@@ -8,16 +20,7 @@ import type {
   AgentConfigurationController,
   AgentConfigurationState,
 } from "../../../application/agent/index.ts";
-import {
-  Button,
-  FieldRow,
-  FormLayout,
-  InputControl,
-  SelectControl,
-  ToolPropertyList,
-  ToolPropertyRow,
-  useFeedback,
-} from "../../ui/index.ts";
+import { useFeedback } from "../../ui/index.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
 import {
   useSettingsInteraction,
@@ -109,14 +112,17 @@ export function AgentSettingsOverview({
             </Button>
           </div>
           {configurationState.discovery ? (
-            <ToolPropertyList aria-label="发现结果">
-              <ToolPropertyRow
-                label="模型"
-                value={
-                  configurationState.discovery.models.join("、") || "未发现模型"
-                }
-              />
-            </ToolPropertyList>
+            <section aria-label="发现结果">
+              <ToolPropertyList>
+                <ToolPropertyRow
+                  label="模型"
+                  children={
+                    configurationState.discovery.models.join("、") ||
+                    "未发现模型"
+                  }
+                />
+              </ToolPropertyList>
+            </section>
           ) : null}
         </>
       )}

@@ -3,35 +3,13 @@ import {
   defaultStructureTreeIndentUnitCount,
   defaultStructureTreeIndentWidthPx,
   flattenStructureTreeRows,
-  flattenVisibleDirectoryTreeRows,
   getStructureTreeIndentWidthPx,
   normalizeStructureTreeIndentUnitCount,
   type StructureTreeNode,
 } from "../../../../presentation/ui/shared/tree/index";
 
 describe("treeProjection", () => {
-  it("flattens directory and structure trees with their own depth rules", () => {
-    const directoryNodes = [
-      {
-        canDrag: true,
-        children: [
-          {
-            canDrag: true,
-            folderId: "folder-1",
-            id: "tree-note-1",
-            kind: "note" as const,
-            noteId: "note-1",
-            parentFolderId: "folder-1",
-            title: "笔记",
-          },
-        ],
-        folderId: "folder-1",
-        id: "folder-1",
-        kind: "folder" as const,
-        parentFolderId: null,
-        title: "文件夹",
-      },
-    ];
+  it("flattens CTN structure trees with content depth", () => {
     const structureNodes: StructureTreeNode[] = [
       {
         children: [
@@ -62,21 +40,6 @@ describe("treeProjection", () => {
       },
     ];
 
-    expect(
-      flattenVisibleDirectoryTreeRows(directoryNodes).map(({ depth, node }) => [
-        node.id,
-        depth,
-      ]),
-    ).toEqual([
-      ["folder-1", 0],
-      ["tree-note-1", 1],
-    ]);
-    expect(
-      flattenVisibleDirectoryTreeRows(
-        directoryNodes,
-        new Set(["folder-1"]),
-      ).map(({ node }) => node.id),
-    ).toEqual(["folder-1"]);
     expect(
       flattenStructureTreeRows(structureNodes).map(({ depth, node }) => [
         node.id,

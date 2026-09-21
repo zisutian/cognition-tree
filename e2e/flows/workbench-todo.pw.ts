@@ -7,21 +7,14 @@ import {
   type Page,
 } from "@playwright/test";
 import type { TodoContentDto } from "../../contracts/todo/types";
-import {
-  readCtnCanonicalTitleHeader,
-} from "../../core/ctn/parser/parseCtnDocument";
+import { readCtnCanonicalTitleHeader } from "../../core/ctn/parser/parseCtnDocument";
 import { analyzeCtnSource } from "../../core/ctn/analysis/sourceAnalysis";
 import { requireCtnSyntax } from "../../core/ctn/syntax/compiler";
-import {
-  appContextDefaultWidth,
-  appContextMinWidth,
-} from "../../presentation/ui/workbench/frameResize";
-import {
-  seedWorkbenchRepository,
-} from "../support/repositorySeeds";
-import {
-  readTodoSnapshot,
-} from "../support/builtInSeeds";
+import { defaultDesignConfig } from "compact-ui";
+const appContextDefaultWidth = defaultDesignConfig.layout.context.default;
+const appContextMinWidth = defaultDesignConfig.layout.context.min;
+import { seedWorkbenchRepository } from "../support/repositorySeeds";
+import { readTodoSnapshot } from "../support/builtInSeeds";
 import { test } from "../support/e2eTest";
 import { removeOtherWorkbenchRepositories } from "../support/contentOperations";
 import {
@@ -33,7 +26,7 @@ import {
 const repositoryId = "workbench-todo";
 
 function collectionRows(context: Locator) {
-  return context.locator("[data-todo-collection-id]");
+  return context.getByRole("tree", { name: "事项集合" }).getByRole("treeitem");
 }
 
 async function setContextWidth(page: Page, width: number) {
@@ -60,12 +53,14 @@ async function waitForTodoContent(
 ) {
   let content: TodoContentDto | null = null;
 
-  await expect.poll(async () => {
-    const nextContent = (await readTodoSnapshot(api)).content;
+  await expect
+    .poll(async () => {
+      const nextContent = (await readTodoSnapshot(api)).content;
 
-    content = nextContent;
-    return predicate(nextContent);
-  }).toBe(true);
+      content = nextContent;
+      return predicate(nextContent);
+    })
+    .toBe(true);
 
   if (!content) {
     throw new Error("Todo content was not loaded.");
@@ -88,21 +83,28 @@ test.describe("Todo activity flows", () => {
 
     const problemsHeader = getProblemsToggle(page);
 
-    if (await problemsHeader.getAttribute("aria-expanded") === "false") {
+    if ((await problemsHeader.getAttribute("aria-expanded")) === "false") {
       await problemsHeader.click();
     }
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
 
     await getActivityButton(page, "代办").click();
-    const context = page.getByRole("complementary", { name: "代办", exact: true });
+    const context = page.getByRole("complementary", {
+      name: "上下文区域",
+      exact: true,
+    });
     const panel = page.getByRole("region", { name: "代办编辑" });
     const detail = page.getByRole("region", { name: "代办结构" });
     await expect(context).toBeVisible();
     await expect(panel).toBeVisible();
-    await expect(page.locator(".app-problems")).toHaveCount(1);
-    await expect(page.getByRole("separator", {
-      name: "调整上下文区宽度",
-    })).toHaveAttribute("aria-valuenow", String(appContextDefaultWidth));
+    await expect(
+      page.getByRole("complementary", { name: "底部面板", exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      page.getByRole("separator", {
+        name: "调整上下文宽度",
+      }),
+    ).toHaveAttribute("aria-valuenow", String(appContextDefaultWidth));
     await page.keyboard.press("Control+Shift+M");
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
     await page.keyboard.press("Control+Shift+M");
@@ -113,30 +115,39 @@ test.describe("Todo activity flows", () => {
     await createCollection(context, "归档");
 
     await context.getByTitle("稍后", { exact: true }).click();
-    await context.getByTitle("稍后", { exact: true }).press("F2");
+    await context
+      .getByRole("button", { name: "重命名 稍后", exact: true })
+      .click();
     let renameInput = context.getByRole("textbox", {
-      name: "重命名事项集合 稍后",
+      name: "重命名 稍后",
     });
 
     await expect(renameInput).toBeVisible();
     await renameInput.press("Escape");
     await setContextWidth(page, appContextMinWidth);
     await getActivityButton(page, "代办").click();
-    await expect(page.getByRole("separator", {
-      name: "调整上下文区宽度",
-    })).toHaveAttribute("aria-valuenow", String(appContextMinWidth));
+    await expect(
+      page.getByRole("separator", {
+        name: "调整上下文宽度",
+      }),
+    ).toHaveAttribute("aria-valuenow", String(appContextMinWidth));
     await context.getByRole("button", { name: "新建事项集合" }).click();
     const narrowCreateInput = context.getByRole("textbox", {
       name: "新建事项集合名称",
     });
 
     await expect(narrowCreateInput).toBeVisible();
-    await context.getByRole("button", {
-      name: "新建事项集合名称，取消",
-    }).click();
-    await context.getByTitle("稍后", { exact: true }).press("F2");
+    await context
+      .getByRole("button", {
+        name: "取消",
+        exact: true,
+      })
+      .click();
+    await context
+      .getByRole("button", { name: "重命名 稍后", exact: true })
+      .click();
     renameInput = context.getByRole("textbox", {
-      name: "重命名事项集合 稍后",
+      name: "重命名 稍后",
     });
     await expect(renameInput).toBeVisible();
     await renameInput.fill("计划");
@@ -146,22 +157,28 @@ test.describe("Todo activity flows", () => {
     const planRow = collectionRows(context).filter({ hasText: "计划" });
     const todayRow = collectionRows(context).filter({ hasText: "今天" });
 
-    await planRow.locator(".ui-compact-context-row").dragTo(todayRow, {
+    await planRow.dragTo(todayRow, {
       targetPosition: { x: 12, y: 1 },
     });
-    await expect(collectionRows(context))
-      .toContainText(["计划", "今天", "归档"]);
+    await expect(collectionRows(context)).toContainText([
+      "计划",
+      "今天",
+      "归档",
+    ]);
 
     await context.getByTitle("归档", { exact: true }).click();
-    await context.getByRole("button", { name: "删除事项集合 归档" }).click();
+    await context.getByRole("button", { name: "删除 归档" }).click();
     const archiveRow = collectionRows(context).filter({ hasText: "归档" });
 
-    await expect(archiveRow.getByRole("button", {
-      name: "取消删除事项集合 归档",
-    })).toBeVisible();
-    await archiveRow.getByRole("button", {
-      name: "确认删除事项集合 归档",
-    })
+    await expect(
+      archiveRow.getByRole("button", {
+        name: "取消删除",
+      }),
+    ).toBeVisible();
+    await archiveRow
+      .getByRole("button", {
+        name: "确认删除 归档",
+      })
       .click();
     await expect(context.getByTitle("归档", { exact: true })).toHaveCount(0);
 
@@ -188,50 +205,75 @@ test.describe("Todo activity flows", () => {
 
     await firstDetailLabel.click();
     await expect(firstDetailItem).toHaveAttribute("aria-selected", "true");
-    await expect(firstDetailItem.getByText("L1", { exact: true })).toBeVisible();
-    await expect(detail.getByRole("button", {
-      name: "配置周期 第一项",
-    })).toBeVisible();
-    await expect(detail.getByRole("button", {
-      name: "配置周期 第二项已修改",
-    })).toHaveCount(0);
+    await expect(
+      firstDetailItem.getByText("L1", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      detail.getByRole("button", {
+        name: "配置周期 第一项",
+      }),
+    ).toBeVisible();
+    await expect(
+      detail.getByRole("button", {
+        name: "配置周期 第二项已修改",
+      }),
+    ).toHaveCount(0);
     await detail.getByRole("button", { name: "配置周期 第一项" }).click();
     const recurrenceForm = detail.getByRole("form", {
       name: "配置周期 第一项",
     });
 
     await expect(recurrenceForm).toBeVisible();
-    await recurrenceForm.getByRole("radio", { name: "周", exact: true }).click();
+    await recurrenceForm
+      .getByRole("radio", { name: "周", exact: true })
+      .click();
     const weekdays = recurrenceForm.getByRole("group", { name: "重复星期" });
     await weekdays.getByText("一", { exact: true }).click();
-    await expect(weekdays.getByRole("checkbox", { name: "星期一" })).not.toBeChecked();
-    await recurrenceForm.getByRole("button", { name: "确定", exact: true }).click();
-    await expect(recurrenceForm.getByRole("status")).toHaveText("每周重复至少选择一个星期。");
-    const tuesday = weekdays.getByRole("checkbox", { name: "星期二" });
+    await expect(
+      weekdays.getByRole("checkbox", { name: "一", exact: true }),
+    ).not.toBeChecked();
+    await recurrenceForm
+      .getByRole("button", { name: "确定", exact: true })
+      .click();
+    await expect(recurrenceForm.getByRole("status")).toHaveText(
+      "每周重复至少选择一个星期。",
+    );
+    const tuesday = weekdays.getByRole("checkbox", { name: "二", exact: true });
     await tuesday.focus();
     await tuesday.press("Space");
     await expect(tuesday).toBeChecked();
     await expect(tuesday).toBeFocused();
-    await recurrenceForm.getByRole("button", { name: "取消", exact: true }).click();
+    await recurrenceForm
+      .getByRole("button", { name: "取消", exact: true })
+      .click();
     await detail.getByRole("button", { name: "配置周期 第一项" }).click();
-    await expect(recurrenceForm.getByRole("radio", { name: "日", exact: true })).toBeChecked();
-    await recurrenceForm.getByRole("spinbutton", { name: "重复间隔" })
+    await expect(
+      recurrenceForm.getByRole("radio", { name: "日", exact: true }),
+    ).toBeChecked();
+    await recurrenceForm
+      .getByRole("spinbutton", { name: "重复间隔" })
       .fill("2");
     await recurrenceForm.getByRole("button", { name: "确定" }).click();
     await expect(recurrenceForm).toHaveCount(0);
-    await expect(panel.getByRole("img", {
-      name: /周期任务，已完成 1\/1（完成次数\/截至今天应完成次数）/,
-    })).toBeVisible();
+    await expect(
+      panel.getByRole("img", {
+        name: /周期任务，已完成 1\/1（完成次数\/截至今天应完成次数）/,
+      }),
+    ).toBeVisible();
     await expect(panel.getByText("↻ 1/1", { exact: true })).toBeVisible();
     await expect(detail.getByText("↻ 1/1", { exact: true })).toBeVisible();
-    await panel.getByRole("checkbox", {
-      name: "标记未完成 第一项",
-    }).uncheck();
+    await panel
+      .getByRole("checkbox", {
+        name: "标记未完成 第一项",
+      })
+      .uncheck();
     await expect(panel.getByText("↻ 0/1", { exact: true })).toBeVisible();
     await expect(detail.getByText("↻ 0/1", { exact: true })).toBeVisible();
-    await panel.getByRole("checkbox", {
-      name: "标记完成 第一项",
-    }).check();
+    await panel
+      .getByRole("checkbox", {
+        name: "标记完成 第一项",
+      })
+      .check();
     await expect(panel.getByText("↻ 1/1", { exact: true })).toBeVisible();
     await expect(detail.getByText("↻ 1/1", { exact: true })).toBeVisible();
 
@@ -250,7 +292,8 @@ test.describe("Todo activity flows", () => {
         ({ blockId }) => blockId === first?.id,
       );
 
-      return content.collections.length === 2 &&
+      return (
+        content.collections.length === 2 &&
         readCtnCanonicalTitleHeader(plan.source).title === "计划" &&
         readCtnCanonicalTitleHeader(today.source).title === "今天" &&
         first?.level === 0 &&
@@ -258,7 +301,8 @@ test.describe("Todo activity flows", () => {
         !today.completions.some(({ blockId }) => blockId === first?.id) &&
         recurrence?.stages[0]?.rule.kind === "daily" &&
         recurrence.stages[0].rule.interval === 2 &&
-        recurrence.completions.length === 1;
+        recurrence.completions.length === 1
+      );
     });
 
     await detail.getByRole("button", { name: "配置周期 第一项" }).click();
@@ -268,18 +312,19 @@ test.describe("Todo activity flows", () => {
     await expect(recurrenceForm).toHaveCount(0);
     await expect(panel.getByRole("img", { name: /周期任务/ })).toHaveCount(0);
     await expect(detail.getByRole("img", { name: /周期任务/ })).toHaveCount(0);
-    await expect(detail.getByRole("button", {
-      name: "配置周期 第一项",
-    })).toHaveAttribute("title", "配置周期");
+    await expect(
+      detail.getByRole("button", {
+        name: "配置周期 第一项",
+      }),
+    ).toHaveAttribute("title", "配置周期");
     await detail.getByRole("button", { name: "配置周期 第一项" }).click();
-    await expect(recurrenceForm).toContainText(
-      "历史完成 1/1 · 周期已停止",
-    );
+    await expect(recurrenceForm).toContainText("历史完成 1/1 · 周期已停止");
     await recurrenceForm.getByRole("button", { name: "取消" }).click();
     await expect(recurrenceForm).toHaveCount(0);
     await waitForTodoContent(api, (content) => {
-      const collection = content.collections.find((candidate) =>
-        readCtnCanonicalTitleHeader(candidate.source).title === "今天"
+      const collection = content.collections.find(
+        (candidate) =>
+          readCtnCanonicalTitleHeader(candidate.source).title === "今天",
       );
       const recurrence = collection?.recurrences[0];
 
@@ -288,21 +333,26 @@ test.describe("Todo activity flows", () => {
 
     await page.reload();
     await getActivityButton(page, "代办").click();
-    const reloadedContext = page.getByRole("complementary", { name: "代办", exact: true });
+    const reloadedContext = page.getByRole("complementary", {
+      name: "上下文区域",
+      exact: true,
+    });
     const reloadedPanel = page.getByRole("region", { name: "代办编辑" });
 
-    await expect(collectionRows(reloadedContext))
-      .toContainText(["计划", "今天"]);
+    await expect(collectionRows(reloadedContext)).toContainText([
+      "计划",
+      "今天",
+    ]);
     await reloadedContext.getByTitle("今天", { exact: true }).click();
-    await expect(reloadedPanel.locator(".source-editor"))
-      .toContainText("第二项已修改");
+    await expect(reloadedPanel.locator(".source-editor")).toContainText(
+      "第二项已修改",
+    );
     await expect(
       reloadedPanel.getByRole("checkbox", { name: "标记未完成 第一项" }),
     ).toBeChecked();
     await expect(
       reloadedPanel.getByRole("img", { name: /周期任务/ }),
     ).toHaveCount(0);
-
   });
 
   test("keeps Todo usable when the ordinary repository catalog is empty", async ({
@@ -314,19 +364,31 @@ test.describe("Todo activity flows", () => {
     await expect(page.getByLabel("尚未创建笔记仓库")).toBeVisible();
     await getActivityButton(page, "代办").click();
 
-    const context = page.getByRole("complementary", { name: "代办", exact: true });
+    const context = page.getByRole("complementary", {
+      name: "上下文区域",
+      exact: true,
+    });
     const panel = page.getByRole("region", { name: "代办编辑" });
 
     await expect(panel).toContainText("还没有事项集合");
-    await panel.getByRole("button", { name: "新建事项集合", exact: true }).click();
-    const nameInput = context.getByRole("textbox", { name: "新建事项集合名称", exact: true });
+    await panel
+      .getByRole("button", { name: "新建事项集合", exact: true })
+      .click();
+    const nameInput = context.getByRole("textbox", {
+      name: "新建事项集合名称",
+      exact: true,
+    });
     await nameInput.fill("无普通仓库");
     await nameInput.press("Enter");
-    await expect(context.getByRole("button", { name: "无普通仓库", exact: true })).toBeVisible();
+    await expect(
+      context.getByRole("treeitem", { name: "无普通仓库", exact: true }),
+    ).toBeVisible();
     await panel.locator(".source-editor .cm-content").click();
     await page.keyboard.insertText("[] 仍可保存");
-    await waitForTodoContent(api, (content) =>
-      content.collections[0]?.source.includes("[] 仍可保存") === true
+    await waitForTodoContent(
+      api,
+      (content) =>
+        content.collections[0]?.source.includes("[] 仍可保存") === true,
     );
   });
 });

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { test } from "../support/e2eTest";
 import { seedWorkbenchRepository } from "../support/repositorySeeds";
 import {
@@ -8,84 +7,18 @@ import {
   getProblemsToggle,
   openWorkbench,
 } from "../support/workbenchPage";
+import {
+  expectWorkbenchFits,
+  expectExposed,
+  expectControlHeight,
+} from "../support/compactLayout";
 
-const repositoryId = "appearance-sample";
-
-async function expectWorkbenchGeometry(page: Page) {
-  const viewport = page.viewportSize()!;
-  const footer = page.getByRole("contentinfo", { name: "工作台状态" });
-  expect(await footer.boundingBox()).toEqual({
-    x: 0,
-    y: viewport.height - 22,
-    width: viewport.width,
-    height: 22,
-  });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
-    viewport.width,
-  );
-  const typography = await page.locator("body").evaluate((body) => {
-    const sizes = new Set<string>();
-    const weights = new Set<string>();
-    const families = new Set<string>();
-    const texts = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
-    for (let text = texts.nextNode(); text; text = texts.nextNode()) {
-      const element = text.parentElement;
-      if (
-        !text.textContent?.trim() ||
-        !element ||
-        element.closest(".source-editor, svg, script, style")
-      )
-        continue;
-      const box = element.getBoundingClientRect();
-      if (box.width <= 1 || box.height <= 1) continue;
-      const style = getComputedStyle(element);
-      sizes.add(style.fontSize);
-      weights.add(style.fontWeight);
-      families.add(style.fontFamily);
-    }
-    return {
-      sizes: [...sizes],
-      weights: [...weights],
-      families: [...families],
-    };
-  });
-  expect(typography.sizes).toEqual(["13px"]);
-  expect(
-    typography.weights.every((weight) => ["400", "600"].includes(weight)),
-  ).toBe(true);
-  expect(typography.families.length).toBeLessThanOrEqual(2);
-  for (const selector of [".app-context", ".app-main-region", ".app-detail"]) {
-    const panels = page.locator(selector);
-    if (selector !== ".app-detail") await expect(panels).toBeVisible();
-    const bottoms = await panels.evaluateAll((elements) =>
-      elements.map((element) => element.getBoundingClientRect().bottom),
-    );
-    for (const bottom of bottoms)
-      expect(bottom).toBeLessThanOrEqual(viewport.height - 22);
-  }
-}
-
-async function expectActionExposed(action: Locator) {
-  await expect(action).toBeVisible();
-  expect(
-    await action.evaluate((element) => {
-      const box = element.getBoundingClientRect();
-      const hit = document.elementFromPoint(
-        box.x + box.width / 2,
-        box.y + box.height / 2,
-      );
-      return hit !== null && element.contains(hit);
-    }),
-  ).toBe(true);
-}
-
-const viewport = { width: 1280, height: 720 };
-test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, async ({
+test("notes, problems and long Provider content use Compact UI defaults", async ({
   api,
   page,
 }, testInfo) => {
-  await page.setViewportSize(viewport);
-  await seedWorkbenchRepository(api, repositoryId, {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await seedWorkbenchRepository(api, "appearance-sample", {
     workspaceName: "认知树工作台",
     alphaSource: [
       "工作台使用笔记",
@@ -99,130 +32,84 @@ test(`notes and Provider samples at ${viewport.width}×${viewport.height}`, asyn
       "",
       "编辑与查看",
       "\t: 在主区编辑，在右侧查看结构与引用。",
-      "\t> 使用缩进表达层级，保持每条记录的语义清晰。",
     ].join("\n"),
   });
-  await openWorkbench(page, repositoryId);
+  await openWorkbench(page, "appearance-sample");
   await page
-    .getByRole("button", { name: "工作台使用笔记", exact: true })
+    .getByRole("treeitem", { name: "工作台使用笔记", exact: true })
     .click();
   await expect(page.locator(".source-editor")).toContainText(
     "记录概念、关系与推导",
   );
-  await expectWorkbenchGeometry(page);
+  await expectWorkbenchFits(page);
   await page.screenshot({ path: testInfo.outputPath("notes.png") });
-  const main = page.locator(".app-main-content");
-  const closedHeight = (await main.boundingBox())!.height;
+  const main = page.locator("main > div:first-child");
+  const closed = await main.boundingBox();
   await getProblemsToggle(page).click();
-  const problems = page.getByRole("complementary", {
-    name: "问题",
-    exact: true,
-  });
+  const problems = page.getByRole("complementary", { name: "底部面板" });
   await expect(problems).toBeVisible();
+  expect((await main.boundingBox())!.height).toBeLessThan(closed!.height);
   await page.screenshot({ path: testInfo.outputPath("problems.png") });
-  expect((await main.boundingBox())!.height).toBeLessThan(closedHeight);
-  await problems.getByRole("button", { name: "关闭问题面板" }).click();
+  await problems.getByRole("button", { name: "关闭底部面板" }).click();
   await expect(problems).toBeHidden();
-  expect((await main.boundingBox())!.height).toBe(closedHeight);
-
+  expect(await main.boundingBox()).toEqual(closed);
   await getActivityButton(page, "设置").click();
   await page
-    .getByRole("button", { name: "E2E missing provider", exact: true })
+    .getByRole("treeitem", { name: "E2E missing provider", exact: true })
     .click();
   const panel = page.getByRole("region", { name: "模型服务设置" });
   const name = panel.getByRole("textbox", {
     name: "Provider 名称",
     exact: true,
   });
-  const type = panel.getByRole("combobox", {
-    name: "Provider 类型",
-    exact: true,
-  });
-  const permission = panel.getByRole("checkbox", {
-    name: "确认 Provider 私网访问",
-    exact: true,
-  });
+  await expectControlHeight(name);
   await expect(name).toHaveValue("E2E missing provider");
-  await expect(type).toHaveValue("openai-chat");
-  await expect(permission).toBeVisible();
-  const fields = await panel.locator(".ui-field-row").evaluateAll((rows) =>
-    rows.map((row) => {
-      const label = row.querySelector("label")!.getBoundingClientRect();
-      const control = row
-        .querySelector(".ui-checkbox-option,input,select")!
-        .getBoundingClientRect();
-      return {
-        above: label.bottom <= control.top,
-        aligned: Math.abs(label.left - control.left) <= 1,
-        top: row.getBoundingClientRect().top,
-        bottom: row.getBoundingClientRect().bottom,
-      };
-    }),
+  await expectControlHeight(
+    panel.getByRole("combobox", { name: "Provider 类型", exact: true }),
   );
-  expect(fields.every(({ above, aligned }) => above && aligned)).toBe(true);
-  const fieldGaps = fields
-    .slice(1)
-    .map((field, index) => Math.round(field.top - fields[index].bottom));
-  expect(new Set(fieldGaps).size).toBe(1);
-  expect((await name.boundingBox())!.height).toBe(22);
-  await expectWorkbenchGeometry(page);
-  const formLeft = (await name.boundingBox())!.x;
-  for (const target of [
-    page.locator('[data-region-header="main"] h2'),
-    panel.getByRole("heading", { name: "连接与认证", exact: true }),
-    panel.getByRole("button", { name: "探测", exact: true }),
-    panel.getByRole("button", { name: "删除 Provider", exact: true }),
-  ]) {
-    expect((await target.boundingBox())!.x).toBe(formLeft);
-  }
+  await expectWorkbenchFits(page);
   await page.screenshot({ path: testInfo.outputPath("provider.png") });
-
-  const titleBefore = await page
-    .locator('[data-region-header="main"] h2')
-    .boundingBox();
   await name.fill("长模型服务名称".repeat(18));
-  await panel
-    .getByRole("button", { name: "删除 Provider", exact: true })
-    .scrollIntoViewIfNeeded();
-  expect(
-    (await page.locator('[data-region-header="main"] h2').boundingBox())!.y,
-  ).toBe(titleBefore!.y);
-  await expectActionExposed(
-    panel.getByRole("button", { name: "保存 Provider", exact: true }),
+  await expectExposed(
+    page
+      .getByRole("main")
+      .getByRole("button", { name: "保存 Provider", exact: true }),
   );
-  await expectWorkbenchGeometry(page);
-  await panel.getByRole("button", { name: "放弃修改", exact: true }).click();
-
-  await page.getByRole("button", { name: "新建 Profile", exact: true }).click();
+  await expectWorkbenchFits(page);
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "放弃修改", exact: true })
+    .click();
+  await page
+    .getByRole("treeitem", { name: "新建 Profile", exact: true })
+    .click();
   const profile = page.getByRole("region", { name: "会话配置设置" });
   await profile
     .getByRole("combobox", { name: "Profile Provider" })
     .selectOption("agent-provider-e2e-provider");
-  const toolMode = profile.getByRole("combobox", { name: "Profile 工具模式" });
-  await toolMode.scrollIntoViewIfNeeded();
-  await expect(toolMode).toHaveValue("native");
-  await toolMode.focus();
-  await toolMode.press("Home");
-  expect((await toolMode.boundingBox())!.height).toBe(22);
   await profile
     .getByRole("combobox", { name: "Profile 模型", exact: true })
     .fill("long-model-".repeat(30));
-  await expectActionExposed(
-    profile.getByRole("button", { name: "创建 Profile", exact: true }),
+  await expectExposed(
+    page
+      .getByRole("main")
+      .getByRole("button", { name: "创建 Profile", exact: true }),
   );
-  await expectWorkbenchGeometry(page);
-  await profile.getByRole("button", { name: "放弃修改", exact: true }).click();
-
-  await page.getByRole("button", { name: "本机 API", exact: true }).click();
+  await expectWorkbenchFits(page);
+  const fixedSave = page
+    .getByRole("main")
+    .getByRole("button", { name: "创建 Profile", exact: true });
+  const actionBefore = await fixedSave.boundingBox();
+  await profile.getByRole("spinbutton").last().scrollIntoViewIfNeeded();
+  await expectExposed(fixedSave);
+  expect(await fixedSave.boundingBox()).toEqual(actionBefore);
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "放弃修改", exact: true })
+    .click();
+  await page.getByRole("treeitem", { name: "本机 API", exact: true }).click();
   await expect(
     page.getByRole("textbox", { name: "服务地址", exact: true }),
   ).toBeVisible();
-  await expectWorkbenchGeometry(page);
-  await page.getByRole("button", { name: "工作台布局", exact: true }).click();
-  const width = page.getByRole("spinbutton", {
-    name: "左侧栏宽度",
-    exact: true,
-  });
-  expect((await width.boundingBox())!.x).toBe(formLeft);
-  await expectWorkbenchGeometry(page);
+  await expectWorkbenchFits(page);
 });

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  Section,
-  SectionStack,
-  ToolPropertyList,
-  ToolPropertyRow,
-} from "../../ui/index.ts";
+  Stack as SectionStack,
+  PropertyList as ToolPropertyList,
+  PropertyRow as ToolPropertyRow,
+} from "compact-ui";
+import { Section } from "compact-ui";
+
 import {
   operationResultLabel,
   operationSourceLabel,
@@ -24,88 +25,103 @@ export function OperationsSettingsStatus({
   if (!entry) {
     return (
       <Section title="审计">
-        <ToolPropertyList aria-label="审计状态">
-          <ToolPropertyRow
-            label="状态"
-            value={
-              snapshot.loading
-                ? "载入中"
-                : snapshot.status?.status === "unavailable"
-                  ? "不可用"
-                  : "就绪"
-            }
-          />
-          <ToolPropertyRow label="记录" value={snapshot.entries.length} />
-          {snapshot.status?.status === "unavailable" ? (
-            <ToolPropertyRow label="原因" value={snapshot.status.message} />
-          ) : null}
-          {snapshot.errorMessage ? (
-            <ToolPropertyRow label="错误" value={snapshot.errorMessage} />
-          ) : null}
-        </ToolPropertyList>
+        <section aria-label="审计状态">
+          <ToolPropertyList>
+            <ToolPropertyRow
+              label="状态"
+              children={
+                snapshot.loading
+                  ? "载入中"
+                  : snapshot.status?.status === "unavailable"
+                    ? "不可用"
+                    : "就绪"
+              }
+            />
+            <ToolPropertyRow label="记录" children={snapshot.entries.length} />
+            {snapshot.status?.status === "unavailable" ? (
+              <ToolPropertyRow
+                label="原因"
+                children={snapshot.status.message}
+              />
+            ) : null}
+            {snapshot.errorMessage ? (
+              <ToolPropertyRow label="错误" children={snapshot.errorMessage} />
+            ) : null}
+          </ToolPropertyList>
+        </section>
       </Section>
     );
   }
   return (
     <SectionStack>
       <Section title={new Date(entry.updatedAt).toLocaleString()}>
-        <ToolPropertyList aria-label="审计记录状态">
-          <ToolPropertyRow
-            label="来源"
-            value={operationSourceLabel(entry.source)}
-          />
-          <ToolPropertyRow
-            label="结果"
-            value={operationResultLabel(entry.result)}
-          />
-          <ToolPropertyRow label="资源" value={entry.resourceIds.length} />
-          <ToolPropertyRow label="块" value={entry.blockIds.length} />
-        </ToolPropertyList>
+        <section aria-label="审计记录状态">
+          <ToolPropertyList>
+            <ToolPropertyRow
+              label="来源"
+              children={operationSourceLabel(entry.source)}
+            />
+            <ToolPropertyRow
+              label="结果"
+              children={operationResultLabel(entry.result)}
+            />
+            <ToolPropertyRow label="资源" children={entry.resourceIds.length} />
+            <ToolPropertyRow label="块" children={entry.blockIds.length} />
+          </ToolPropertyList>
+        </section>
       </Section>
       <details key={entry.id}>
         <summary>技术详情</summary>
-        <ToolPropertyList aria-label="操作技术详情">
-          <ToolPropertyRow label="路由" value={<code>{entry.route}</code>} />
-          <ToolPropertyRow
-            label="请求 ID"
-            value={<code>{entry.requestId}</code>}
-          />
-          <ToolPropertyRow label="操作 ID" value={<code>{entry.id}</code>} />
-          <ToolPropertyRow
-            label="提交前 revision"
-            value={<code>{entry.beforeRevision}</code>}
-          />
-          <ToolPropertyRow
-            label="提交后 revision"
-            value={<code>{entry.afterRevision ?? "—"}</code>}
-          />
-          {entry.source === "agent" ? (
-            <>
-              <ToolPropertyRow
-                label="Proposal"
-                value={
-                  <code>
-                    {entry.technical.proposalId} v
-                    {entry.technical.proposalVersion}
-                  </code>
-                }
-              />
-              <ToolPropertyRow
-                label="Runtime"
-                value={`${entry.technical.runtimeKind} · ${entry.technical.profileId} v${entry.technical.profileVersion}`}
-              />
-              <ToolPropertyRow
-                label="Digest"
-                value={<code>{entry.technical.digest}</code>}
-              />
-            </>
-          ) : (
+        <section aria-label="操作技术详情">
+          <ToolPropertyList>
             <ToolPropertyRow
-              label="Intent digest"
-              value={<code>{entry.technical.intentDigest}</code>}
+              label="路由"
+              children={<code>{entry.route}</code>}
             />
-          )}
-        </ToolPropertyList>
+            <ToolPropertyRow
+              label="请求 ID"
+              children={<code>{entry.requestId}</code>}
+            />
+            <ToolPropertyRow
+              label="操作 ID"
+              children={<code>{entry.id}</code>}
+            />
+            <ToolPropertyRow
+              label="提交前 revision"
+              children={<code>{entry.beforeRevision}</code>}
+            />
+            <ToolPropertyRow
+              label="提交后 revision"
+              children={<code>{entry.afterRevision ?? "—"}</code>}
+            />
+            {entry.source === "agent" ? (
+              <>
+                <ToolPropertyRow
+                  label="Proposal"
+                  children={
+                    <code>
+                      {entry.technical.proposalId} v
+                      {entry.technical.proposalVersion}
+                    </code>
+                  }
+                />
+                <ToolPropertyRow
+                  label="Runtime"
+                  children={`${entry.technical.runtimeKind} · ${entry.technical.profileId} v${entry.technical.profileVersion}`}
+                />
+                <ToolPropertyRow
+                  label="Digest"
+                  children={<code>{entry.technical.digest}</code>}
+                />
+              </>
+            ) : (
+              <ToolPropertyRow
+                label="Intent digest"
+                children={<code>{entry.technical.intentDigest}</code>}
+              />
+            )}
+          </ToolPropertyList>
+        </section>
       </details>
     </SectionStack>
   );

@@ -1,3 +1,4 @@
+import { ChoiceGroup } from "compact-ui";
 import {
   ChevronDown,
   ChevronRight,
@@ -10,11 +11,9 @@ import {
 import { useState } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
 import {
-  ChoiceGroup,
-  CompactContextStatusIcon,
+  SymbolSlot,
   createClassNames,
   NoteTree,
-  TreeMoveQuickPick,
   type TreeNode,
 } from "../../../ui/index.ts";
 const cx = createClassNames();
@@ -67,11 +66,11 @@ function StructureOperationDirectoryStatusIcon({
   };
 
   return (
-    <CompactContextStatusIcon label={labelByStatus[status]}>
+    <SymbolSlot aria-label={labelByStatus[status]}>
       {status === "source" ? <FileOutput {...iconProps} /> : null}
       {status === "target" ? <FileInput {...iconProps} /> : null}
       {status === "structure" ? <GitBranch {...iconProps} /> : null}
-    </CompactContextStatusIcon>
+    </SymbolSlot>
   );
 }
 
@@ -83,7 +82,6 @@ export function StructureOperationContext({
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const [moveNode, setMoveNode] = useState<TreeNode | null>(null);
   const renameNode = (node: TreeNode, title: string) => {
     if (node.kind === "folder") {
       view.renameFolder(node.folderId, title);
@@ -183,15 +181,8 @@ export function StructureOperationContext({
         onDeleteNode={deleteNode}
         onMoveNode={view.moveTreeNode}
         onRenameNode={renameNode}
-        onRequestMoveNode={setMoveNode}
         onSelectNote={selectNote}
         onToggleFolder={toggleFolder}
-      />
-      <TreeMoveQuickPick
-        nodes={view.noteTree}
-        sourceNode={moveNode}
-        onClose={() => setMoveNode(null)}
-        onMove={view.moveTreeNode}
       />
     </div>
   );

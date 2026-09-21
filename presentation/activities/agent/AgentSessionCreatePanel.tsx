@@ -1,7 +1,24 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { Stack } from "compact-ui";
+import {
+  Stack as SectionStack,
+  StatusText as StatusBadge,
+  PropertyList as ToolPropertyList,
+  PropertyRow as ToolPropertyRow,
+} from "compact-ui";
+import {
+  Button,
+  CheckboxGroup,
+  ChoiceGroup,
+  FieldRow,
+  FormActions,
+  Section,
+  SelectControl,
+} from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 import agentStyles from "./agent.module.css";
 const cx = createClassNames(agentStyles);
-// SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect, useMemo, useState } from "react";
 import type {
@@ -10,20 +27,8 @@ import type {
   AgentScopeOption,
 } from "../../../application/agent/index.ts";
 import {
-  Button,
-  CheckboxGroup,
-  ChoiceGroup,
-  FieldRow,
-  FormActions,
-  FormLayout,
   Page,
   PageBody,
-  Section,
-  SectionStack,
-  SelectControl,
-  StatusBadge,
-  ToolPropertyList,
-  ToolPropertyRow,
   useExclusiveAsyncAction,
   useFeedback,
 } from "../../ui/index.ts";
@@ -51,7 +56,7 @@ function ExactScopeOptions({
         <p className={cx("ui-muted")}>没有资源</p>
       ) : (
         <CheckboxGroup
-          aria-label={label}
+          ariaLabel={label}
           onChange={onChange}
           options={options.map(({ id, label: optionLabel }) => ({
             label: optionLabel,
@@ -162,34 +167,37 @@ export function AgentSessionCreatePanel({
       <PageBody>
         <SectionStack>
           <Section title="使用的 Profile">
-            <ToolPropertyList aria-label="新会话 Profile">
-              <ToolPropertyRow
-                label="Profile"
-                value={preferredProfile?.label ?? "未选择"}
-              />
-              <ToolPropertyRow
-                label="模型"
-                value={preferredProfile?.model ?? "—"}
-              />
-              <ToolPropertyRow
-                label="状态"
-                value={
-                  <StatusBadge
-                    tone={
-                      preferredProfile?.availability === "available"
-                        ? "success"
-                        : "warning"
-                    }
-                  >
-                    {preferredProfile?.availability === "available"
-                      ? "可用"
-                      : preferredProfile
-                        ? "不可用"
-                        : "未配置"}
-                  </StatusBadge>
-                }
-              />
-            </ToolPropertyList>
+            <section aria-label="新会话 Profile">
+              <ToolPropertyList>
+                <ToolPropertyRow
+                  label="Profile"
+                  children={preferredProfile?.label ?? "未选择"}
+                />
+                <ToolPropertyRow
+                  label="模型"
+                  children={preferredProfile?.model ?? "—"}
+                />
+                <ToolPropertyRow
+                  label="状态"
+                  children={
+                    <StatusBadge
+                      mode="live"
+                      tone={
+                        preferredProfile?.availability === "available"
+                          ? "success"
+                          : "warning"
+                      }
+                    >
+                      {preferredProfile?.availability === "available"
+                        ? "可用"
+                        : preferredProfile
+                          ? "不可用"
+                          : "未配置"}
+                    </StatusBadge>
+                  }
+                />
+              </ToolPropertyList>
+            </section>
           </Section>
           <Section title="硬范围">
             <form
@@ -199,11 +207,12 @@ export function AgentSessionCreatePanel({
                 void createSession();
               }}
             >
-              <FormLayout>
+              <Stack>
                 <FieldRow fieldId="agent-session-domain" label="领域">
                   {(accessibility) => (
                     <ChoiceGroup
                       {...accessibility}
+                      aria-labelledby={undefined}
                       ariaLabel="领域"
                       mode="single"
                       onChange={(value: ScopeDomain) => setDomain(value)}
@@ -244,6 +253,7 @@ export function AgentSessionCreatePanel({
                       {(accessibility) => (
                         <ChoiceGroup
                           {...accessibility}
+                          aria-labelledby={undefined}
                           ariaLabel="硬范围"
                           mode="single"
                           onChange={(value: WorkspaceTargetKind) =>
@@ -323,6 +333,7 @@ export function AgentSessionCreatePanel({
                       {(accessibility) => (
                         <ChoiceGroup
                           {...accessibility}
+                          aria-labelledby={undefined}
                           ariaLabel="硬范围"
                           mode="single"
                           onChange={(value) => setJournalAll(value === "all")}
@@ -350,6 +361,7 @@ export function AgentSessionCreatePanel({
                       {(accessibility) => (
                         <ChoiceGroup
                           {...accessibility}
+                          aria-labelledby={undefined}
                           ariaLabel="硬范围"
                           mode="single"
                           onChange={(value) => setTodoAll(value === "all")}
@@ -381,12 +393,12 @@ export function AgentSessionCreatePanel({
                       state.status?.enabled !== true
                     }
                     type="submit"
-                    variant="primary"
+                    variant="normal"
                   >
                     创建会话
                   </Button>
                 </FormActions>
-              </FormLayout>
+              </Stack>
             </form>
           </Section>
         </SectionStack>

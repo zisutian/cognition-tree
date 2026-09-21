@@ -6,10 +6,10 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: var(--ui-gap);
+  gap: var(--cu-gap);
   min-height: 0;
   overflow: auto;
-  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-color: var(--cu-color-border) transparent;
   scrollbar-width: thin;
 }
 
@@ -19,7 +19,7 @@
 }
 
 .journal-calendar-branch > ul {
-  padding-left: var(--ui-tree-indent);
+  padding-left: var(--cu-treeIndent);
 }
 
 .journal-calendar-toggle {

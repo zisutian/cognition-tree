@@ -1,3 +1,4 @@
+import { Button, EmptyState, Section } from "compact-ui";
 import { RefreshCw } from "lucide-react";
 import type {
   BuiltInId,
@@ -7,8 +8,6 @@ import type {
 } from "../../../application/repository/index.ts";
 import { createClassNames } from "../../ui/index.ts";
 const cx = createClassNames();
-
-import { Button, EmptyState, Section } from "../../ui/index.ts";
 
 import { RepositoryConflictActions } from "./RepositoryConflictResolution.tsx";
 import { builtInLabel } from "./repositoryViewHelpers.ts";
@@ -37,7 +36,7 @@ export function BuiltInRepositoryDetail({
               disabled={busy || view.retryingBuiltInId !== null}
               onClick={() => onRunAction(() => view.retryBuiltIn(issue.id))}
               type="button"
-              variant="secondary"
+              variant="normal"
             >
               <RefreshCw aria-hidden="true" size={13} />
               重试
@@ -56,7 +55,7 @@ export function BuiltInRepositoryDetail({
               disabled={busy}
               onClick={() => onRunAction(view.reloadBuiltInCatalog)}
               type="button"
-              variant="secondary"
+              variant="normal"
             >
               重试内置数据
             </Button>
@@ -85,7 +84,7 @@ export function BuiltInRepositoryDetail({
                 onRunAction(repository.recoveryAction?.run ?? repository.reload)
               }
               type="button"
-              variant="secondary"
+              variant="normal"
             >
               <RefreshCw aria-hidden="true" size={13} />
               {repository.recoveryAction?.label ?? "重新加载"}

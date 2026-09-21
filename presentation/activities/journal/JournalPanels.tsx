@@ -1,34 +1,19 @@
 import {
-  CalendarDays,
-  ChevronDown,
-  ChevronRight,
-  Plus,
-  Trash2,
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import type {
-  JournalEntryListItem,
-  JournalViewModel,
-} from "../../../application/journal/index.ts";
+  usePageNavigation,
+  describePage,
+  pageKey,
+} from "../../navigation/index.ts";
+import { Tree } from "compact-ui";
+import { Button, EmptyState } from "compact-ui";
+import { CalendarDays, Plus } from "lucide-react";
+import type { JournalViewModel } from "../../../application/journal/index.ts";
 import {
   CtnDocumentDetailPanel,
   CtnEditor,
   CtnEditorPanel,
 } from "../../editor/index.ts";
-import { createClassNames, ListAction } from "../../ui/index.ts";
-import journalStyles from "./journal.module.css";
-const cx = createClassNames(journalStyles);
 
-import {
-  Button,
-  CompactContextActionButtons,
-  CompactContextList,
-  CompactContextRow,
-  EmptyState,
-  Page,
-  useFeedback,
-  useReferenceNavigation,
-} from "../../ui/index.ts";
+import { Page, useFeedback, useReferenceNavigation } from "../../ui/index.ts";
 
 type JournalViewProps = {
   view: JournalViewModel;
@@ -48,13 +33,14 @@ export function submitJournalEntryCreation({
 
 export function JournalContextActions({ view }: JournalViewProps) {
   const feedback = useFeedback();
+  const pages = usePageNavigation();
   return (
     <Button
       aria-label="新建日记"
       disabled={!view.canMutate}
       onClick={() =>
         submitJournalEntryCreation({
-          createEntry: view.createEntry,
+          createEntry: () => pages.created("journal", view.createEntry),
           runAction: feedback.runAction,
         })
       }
@@ -68,147 +54,74 @@ export function JournalContextActions({ view }: JournalViewProps) {
 }
 
 export function JournalContext({ view }: JournalViewProps) {
-  const feedback = useFeedback();
-  const [pendingDelete, setPendingDelete] =
-    useState<JournalEntryListItem | null>(null);
-
-  useEffect(() => {
-    if (pendingDelete && pendingDelete.id !== view.activeEntry?.id) {
-      setPendingDelete(null);
-    }
-  }, [pendingDelete, view.activeEntry?.id]);
-
-  const confirmDelete = () => {
-    if (!pendingDelete) return;
-    const deleted = feedback.runAction(() => {
-      view.deleteEntry(pendingDelete.id);
-      return true;
-    });
-
-    if (deleted === true) {
-      setPendingDelete(null);
-    }
-  };
-
+  const feedback = useFeedback(),
+    pages = usePageNavigation();
+  const expanded = new Set<string>();
+  const nodes = view.calendar.years.map((year) => {
+    if (year.expanded) expanded.add(`year:${year.key}`);
+    return {
+      id: `year:${year.key}`,
+      label: year.label,
+      canHaveChildren: true,
+      children: year.months.map((month) => {
+        if (month.expanded) expanded.add(`month:${month.key}`);
+        return {
+          id: `month:${month.key}`,
+          label: month.label,
+          canHaveChildren: true,
+          children: month.entries.map((entry) => ({
+            id: entry.id,
+            label: entry.title,
+            icon: <CalendarDays />,
+          })),
+        };
+      }),
+    };
+  });
   return (
-    <div className={cx("activity-context-content journal-context")}>
-      {view.calendar.years.length > 0 ? (
-        <div className={cx("journal-calendar-scroll")}>
-          <CompactContextList
-            aria-label="日记日历"
-            className={cx("journal-calendar-tree")}
-          >
-            {view.calendar.years.map((year) => (
-              <li className={cx("journal-calendar-branch")} key={year.key}>
-                <ListAction
-                  kind="context"
-                  aria-expanded={year.expanded}
-                  type="button"
-                  onClick={() => view.calendar.toggle(`year:${year.key}`)}
-                >
-                  {year.expanded ? (
-                    <ChevronDown aria-hidden="true" />
-                  ) : (
-                    <ChevronRight aria-hidden="true" />
-                  )}
-                  <span className={cx("ui-tree-text")}>{year.label}</span>
-                </ListAction>
-                {year.expanded ? (
-                  <CompactContextList aria-label={`${year.label}日记`}>
-                    {year.months.map((month) => (
-                      <li
-                        className={cx("journal-calendar-branch")}
-                        key={month.key}
-                      >
-                        <ListAction
-                          kind="context"
-                          aria-expanded={month.expanded}
-                          type="button"
-                          onClick={() =>
-                            view.calendar.toggle(`month:${month.key}`)
-                          }
-                        >
-                          {month.expanded ? (
-                            <ChevronDown aria-hidden="true" />
-                          ) : (
-                            <ChevronRight aria-hidden="true" />
-                          )}
-                          <span className={cx("ui-tree-text")}>
-                            {month.label}
-                          </span>
-                        </ListAction>
-                        {month.expanded ? (
-                          <CompactContextList
-                            aria-label={`${month.key}日记条目`}
-                          >
-                            {month.entries.map((entry) => (
-                              <CompactContextRow
-                                actions={
-                                  entry.isActive ? (
-                                    <CompactContextActionButtons
-                                      actions={
-                                        pendingDelete?.id === entry.id
-                                          ? undefined
-                                          : [
-                                              {
-                                                ariaLabel: `删除日记 ${entry.title}`,
-                                                disabled: !view.canMutate,
-                                                icon: Trash2,
-                                                onSelect: () =>
-                                                  setPendingDelete(entry),
-                                                tone: "danger",
-                                              },
-                                            ]
-                                      }
-                                      confirmation={
-                                        pendingDelete?.id === entry.id
-                                          ? {
-                                              tone: "danger",
-                                              cancelAriaLabel: `取消删除日记 ${entry.title}`,
-                                              disabled: !view.canMutate,
-                                              confirmAriaLabel: `确认删除日记 ${entry.title}`,
-                                              onCancel: () =>
-                                                setPendingDelete(null),
-                                              onConfirm: confirmDelete,
-                                            }
-                                          : undefined
-                                      }
-                                    />
-                                  ) : undefined
-                                }
-                                className={cx(
-                                  pendingDelete?.id === entry.id
-                                    ? "is-delete-pending"
-                                    : undefined,
-                                )}
-                                icon={<CalendarDays aria-hidden="true" />}
-                                key={entry.id}
-                                label={entry.title}
-                                rowClassName="journal-entry-select"
-                                selected={entry.isActive}
-                                title={entry.title}
-                                onSelect={() => view.selectEntry(entry.id)}
-                              />
-                            ))}
-                          </CompactContextList>
-                        ) : null}
-                      </li>
-                    ))}
-                  </CompactContextList>
-                ) : null}
-              </li>
-            ))}
-          </CompactContextList>
-        </div>
-      ) : (
-        <p className={cx("context-empty")}>没有日记。</p>
-      )}
-    </div>
+    <Tree
+      label="日记日历"
+      nodes={nodes}
+      selectedId={view.activeEntry?.id ?? null}
+      expandedIds={expanded}
+      onExpandedChange={(next) => {
+        for (const node of nodes) {
+          if (expanded.has(node.id) !== next.has(node.id))
+            view.calendar.toggle(node.id);
+          for (const month of node.children)
+            if (expanded.has(month.id) !== next.has(month.id))
+              view.calendar.toggle(month.id);
+        }
+      }}
+      onSelect={() => {}}
+      onOpen={(id, intent) => {
+        const entry = view.calendar.years
+          .flatMap((y) => y.months.flatMap((m) => m.entries))
+          .find((e) => e.id === id);
+        if (entry)
+          pages.open(
+            describePage("journal", "journal-entry", id, entry.title),
+            intent,
+            () => view.selectEntry(entry.id),
+          );
+      }}
+      capabilities={{
+        delete: (node) => view.canMutate && !node.canHaveChildren,
+      }}
+      onDelete={(id) => {
+        const entry = view.calendar.years
+          .flatMap((y) => y.months.flatMap((m) => m.entries))
+          .find((e) => e.id === id);
+        if (entry) view.deleteEntry(entry.id);
+      }}
+      onActionError={feedback.notifyError}
+    />
   );
 }
 
 export function JournalEditorPanel({ view }: JournalViewProps & {}) {
   const feedback = useFeedback();
+  const pages = usePageNavigation();
   const referenceNavigation = useReferenceNavigation(view.referenceNavigation);
 
   if (!view.activeEntry) {
@@ -220,12 +133,12 @@ export function JournalEditorPanel({ view }: JournalViewProps & {}) {
               disabled={!view.canMutate}
               onClick={() =>
                 submitJournalEntryCreation({
-                  createEntry: view.createEntry,
+                  createEntry: () => pages.created("journal", view.createEntry),
                   runAction: feedback.runAction,
                 })
               }
               type="button"
-              variant="primary"
+              variant="normal"
             >
               新建日记
             </Button>
@@ -240,6 +153,14 @@ export function JournalEditorPanel({ view }: JournalViewProps & {}) {
     <CtnEditorPanel ariaLabel="日记编辑">
       <CtnEditor
         key={view.activeEntry.id}
+        sessionKey={pageKey(
+          describePage(
+            "journal",
+            "journal-entry",
+            view.activeEntry.id,
+            view.activeEntry.title,
+          ).target,
+        )}
         contentMode={view.editor.contentMode}
         focusTarget={view.editor.focusTarget}
         syntax={view.editor.syntax}

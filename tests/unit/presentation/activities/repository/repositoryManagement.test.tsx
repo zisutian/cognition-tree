@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../../../support/presentation/render";
 import { describe, expect, it } from "vitest";
 import {
   projectRepositoryIssues,
@@ -19,7 +19,7 @@ import {
 import { RepositoryPanel } from "../../../../../presentation/activities/repository/RepositoryPanel";
 import { RepositoryStatusPanel } from "../../../../../presentation/activities/repository/RepositoryStatusPanel";
 import { copyRepositoryLocation } from "../../../../../presentation/activities/repository/repositoryViewHelpers";
-import { RegionFrame } from "../../../../../presentation/ui/RegionFrame";
+import { RegionFrame } from "../../../../support/presentation/render";
 import { createRepositoryView } from "../../../../support/presentation/fixtures/repositoryViewFixture";
 import { TestFeedbackProvider as FeedbackProvider } from "../../../../support/presentation/fixtures/TestFeedbackProvider";
 import { expectMarkupSemantics } from "../../../../support/presentation/markupSemantics";
@@ -181,14 +181,14 @@ describe("repository setup and management semantics", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        'aria-current="page"',
+        'aria-selected="true"',
         "本地笔记",
         "第二仓库",
         'aria-label="仓库状态"',
         "仓库 ID",
         secondaryRepository.id,
-        'aria-label="重命名仓库 第二仓库"',
-        'aria-label="打开仓库 第二仓库"',
+        'aria-label="重命名 第二仓库"',
+        ">打开仓库<",
         'aria-label="当前仓库"',
         "未打开",
         "危险区",
@@ -197,7 +197,7 @@ describe("repository setup and management semantics", () => {
       lacks: [
         "<dt>名称</dt>",
         "新仓库 ID",
-        'aria-label="重命名仓库 本地笔记"',
+        'aria-label="重命名 本地笔记"',
         ">当前</span>",
         ">打开此仓库<",
         ">新建仓库</span>",
@@ -205,9 +205,7 @@ describe("repository setup and management semantics", () => {
       ordered: [">内置数据</span>", ">本地</span>", "本地笔记", "第二仓库"],
     });
     expect(markup.match(/aria-label="新建仓库"/g) ?? []).toHaveLength(1);
-    expect(markup.match(/data-repository-catalog="true"/g) ?? []).toHaveLength(
-      1,
-    );
+    expect(markup.match(/aria-label="新建仓库"/g) ?? []).toHaveLength(1);
   });
 
   it("removes rescan from a healthy active repository detail", () => {
@@ -292,11 +290,11 @@ describe("repository setup and management semantics", () => {
       has: [
         ">本地</span>",
         'aria-label="新建仓库"',
-        'data-repository-catalog="true"',
-        'data-repository-issue-id="default"',
+        'aria-label="新建仓库"',
+        'aria-label="default · 故障"',
       ],
       lacks: [">新建仓库</span>", "手工删除", "主机路径"],
-      ordered: [">本地</span>", 'data-repository-issue-id="default"'],
+      ordered: [">本地</span>", 'aria-label="default · 故障"'],
     });
     expectMarkupSemantics(issueMarkup, {
       has: [
@@ -357,8 +355,8 @@ describe("repository setup and management semantics", () => {
 
     expectMarkupSemantics(contextMarkup, {
       has: [
-        'data-repository-issue-id="broken-first"',
-        'data-repository-issue-id="broken-second"',
+        'aria-label="broken-first · 故障"',
+        'aria-label="broken-second · 故障"',
       ],
       lacks: [">清理<"],
     });
@@ -472,12 +470,7 @@ describe("repository setup and management semantics", () => {
     );
 
     expectMarkupSemantics(contextMarkup, {
-      has: [
-        ">内置数据</span>",
-        'data-built-in-id="journal"',
-        'data-built-in-id="todo"',
-        "同步冲突",
-      ],
+      has: [">内置数据</span>", "日记 · 同步冲突", "代办 · 故障", "同步冲突"],
       lacks: [
         "/state/built-ins/journal/content.json",
         "/state/built-ins/todo/content.json",
@@ -539,7 +532,7 @@ describe("repository setup and management semantics", () => {
       has: ['aria-label="日记数据存在问题"', 'aria-label="代办数据存在问题"'],
       lacks: ['role="alert"', "内置数据目录不可用。", ">重试内置数据<"],
     });
-    expect(contextMarkup.match(/>故障<\/span>/g)).toHaveLength(2);
+    expect(contextMarkup.match(/· 故障<\/span>/g)).toHaveLength(2);
     expectMarkupSemantics(panelMarkup, {
       has: ["内置数据目录不可用。", ">重试内置数据<"],
     });

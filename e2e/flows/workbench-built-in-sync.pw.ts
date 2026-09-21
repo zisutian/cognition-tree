@@ -33,7 +33,10 @@ function firstResource(snapshot: Awaited<ReturnType<typeof readSnapshot>>) {
 
 async function showRepository(page: Page, domain: Domain) {
   await getActivityButton(page, "仓库").click();
-  await page.locator(`[data-built-in-id="${domain}"]`).click();
+  await page
+    .getByRole("tree", { name: "仓库目录" })
+    .getByRole("treeitem", { name: new RegExp(`^${labels[domain]} ·`) })
+    .click();
 }
 
 async function createConflict(
@@ -63,7 +66,9 @@ async function createConflict(
   await page.keyboard.press("Control+End");
   await page.keyboard.type(" local-edit");
   await showRepository(page, domain);
-  await expect(page.getByRole("region", { name: "同步冲突" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "同步冲突", exact: true }),
+  ).toBeVisible();
   return editor;
 }
 
@@ -94,7 +99,7 @@ for (const domain of ["journal", "todo"] as const) {
       await page.keyboard.type(" latest");
       await showRepository(page, domain);
       await expect(
-        page.getByRole("region", { name: "同步冲突" }),
+        page.getByRole("heading", { name: "同步冲突", exact: true }),
       ).toBeVisible();
       expect(
         firstResource(await readSnapshot(api, domain)).source,
@@ -108,7 +113,9 @@ for (const domain of ["journal", "todo"] as const) {
       await page.keyboard.up("Shift");
       await page.keyboard.press("Backspace");
       await showRepository(page, domain);
-      await expect(page.getByRole("region", { name: "同步冲突" })).toBeHidden();
+      await expect(
+        page.getByRole("heading", { name: "同步冲突", exact: true }),
+      ).toBeHidden();
       await getActivityButton(page, labels[domain]).click();
       await expect(editor).toContainText("remote-version");
       await editor.click();
@@ -142,7 +149,10 @@ for (const domain of ["journal", "todo"] as const) {
         page.getByRole("button", { name: creationLabels[domain], exact: true }),
       ).toBeDisabled();
       await getActivityButton(page, "语法").click();
-      await page.locator(`[data-syntax-owner="${domain}"]`).click();
+      await page
+        .getByRole("tree", { name: "语法设置" })
+        .getByRole("treeitem", { name: labels[domain], exact: true })
+        .click();
       await expect(
         page.getByRole("spinbutton", { name: "缩进宽度" }),
       ).toBeDisabled();

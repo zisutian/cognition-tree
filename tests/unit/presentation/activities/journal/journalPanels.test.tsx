@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../../../support/presentation/render";
 import { describe, expect, it, vi } from "vitest";
 import { createJournalActivitySlots } from "../../../../../presentation/activities/journal/JournalActivitySlots";
 import {
@@ -7,7 +7,7 @@ import {
   JournalEditorPanel,
   submitJournalEntryCreation,
 } from "../../../../../presentation/activities/journal/JournalPanels";
-import { RegionFrame } from "../../../../../presentation/ui/RegionFrame";
+import { RegionFrame } from "../../../../support/presentation/render";
 import { runFeedbackAction } from "../../../../../presentation/ui/shared/FeedbackProvider";
 import { createJournalView } from "../../../../support/presentation/fixtures/journalViewFixture";
 import { expectMarkupSemantics } from "../../../../support/presentation/markupSemantics";
@@ -87,10 +87,7 @@ describe("Journal panels", () => {
     const markup = renderToStaticMarkup(<JournalContext view={view} />);
 
     expectMarkupSemantics(markup, {
-      has: [
-        'aria-current="page"',
-        `aria-label="删除日记 ${activeEntry.title}"`,
-      ],
+      has: ['aria-selected="true"', `aria-label="删除 ${activeEntry.title}"`],
       lacks: ["2 日", "31 日", 'role="alertdialog"'],
       ordered: [
         "2026 年",

@@ -1,370 +1,156 @@
-import { createClassNames } from "../../ui/index.ts";
-import todoStyles from "./todo.module.css";
-const cx = createClassNames(todoStyles);
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-import { ListChecks, Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState, type DragEvent } from "react";
-import type {
-  TodoCollectionListItem,
-  TodoViewModel,
-} from "../../../application/todo/index.ts";
+import { Stack, Tree } from "compact-ui";
+import { Button, InputControl } from "compact-ui";
+import { ListChecks, Plus } from "lucide-react";
+import { useState } from "react";
+import type { TodoViewModel } from "../../../application/todo/index.ts";
+import { usePageNavigation, describePage } from "../../navigation/index.ts";
 import {
-  Button,
-  CompactContextActionButtons,
-  CompactContextList,
-  CompactContextRow,
   getListReorderIndex,
-  getListRowDropPlacement,
   useFeedback,
   type ActivitySlots,
-  type ListRowDropPlacement,
 } from "../../ui/index.ts";
-
-type CollectionDraft = {
-  errorMessage?: string;
-  id: TodoCollectionListItem["id"];
-  value: string;
-};
-
-type CollectionDragState = {
-  placement: ListRowDropPlacement | null;
-  sourceId: TodoCollectionListItem["id"];
-  targetId: TodoCollectionListItem["id"] | null;
-};
-
-const collectionDragType = "application/x-cognition-tree-todo-collection";
-
-function getCollectionDropPlacement(event: DragEvent<HTMLLIElement>) {
-  const rect = event.currentTarget.getBoundingClientRect();
-
-  return getListRowDropPlacement({
-    offsetY: event.clientY - rect.top,
-    rowHeight: rect.height,
-  });
-}
-
 export function useTodoContext(view: TodoViewModel): {
   context: NonNullable<ActivitySlots["context"]>;
   creation: { disabled: boolean; begin(): void };
 } {
-  const feedback = useFeedback();
-  const [creating, setCreating] = useState(false);
-  const [createValue, setCreateValue] = useState("");
-  const [createErrorMessage, setCreateErrorMessage] = useState("");
-  const [editing, setEditing] = useState<CollectionDraft | null>(null);
-  const [pendingDelete, setPendingDelete] =
-    useState<TodoCollectionListItem | null>(null);
-  const [dragState, setDragState] = useState<CollectionDragState | null>(null);
-
-  useEffect(() => {
-    if (editing && !view.collections.some(({ id }) => id === editing.id)) {
-      setEditing(null);
-    }
-  }, [editing, view.collections]);
-
-  useEffect(() => {
-    setEditing(null);
-    setPendingDelete(null);
-  }, [view.activeCollection?.id]);
-
-  const submitCreate = () => {
-    if (!createValue.trim()) {
-      setCreateErrorMessage("名称不能为空。");
-      feedback.notifyError(new Error("事项集合名称不能为空。"));
-      return;
-    }
-    const created = feedback.runAction(() => {
-      view.createCollection(createValue);
-      return true;
-    });
-
-    if (created === true) {
-      setCreating(false);
-      setCreateValue("");
-      setCreateErrorMessage("");
-    } else {
-      setCreateErrorMessage("创建失败");
-    }
-  };
-  const submitRename = () => {
-    const draft = editing;
-
-    if (!draft) return;
-    if (!draft.value.trim()) {
-      setEditing({ ...draft, errorMessage: "名称不能为空。" });
-      feedback.notifyError(new Error("事项集合名称不能为空。"));
-      return;
-    }
-    if (
-      view.collections.find(({ id }) => id === draft.id)?.name ===
-      draft.value.trim()
-    ) {
-      setEditing(null);
-      return;
-    }
-    const renamed = feedback.runAction(() => {
-      view.renameCollection(draft.id, draft.value);
-      return true;
-    });
-
-    if (renamed === true) {
-      setEditing(null);
-    } else {
-      setEditing({ ...draft, errorMessage: "重命名失败" });
-    }
-  };
-  const confirmDelete = () => {
-    if (!pendingDelete) return;
-    const deleted = feedback.runAction(() => {
-      view.deleteCollection(pendingDelete.id);
-      return true;
-    });
-
-    if (deleted === true) setPendingDelete(null);
-  };
-
+  const feedback = useFeedback(),
+    pages = usePageNavigation();
+  const [creating, setCreating] = useState(false),
+    [name, setName] = useState(""),
+    [error, setError] = useState("");
   const creation = {
     disabled: creating || !view.canMutate,
     begin() {
-      if (creating || !view.canMutate) return;
+      if (!view.canMutate) return;
       setCreating(true);
-      setCreateValue("");
-      setCreateErrorMessage("");
-      setEditing(null);
-      setPendingDelete(null);
+      setName("");
+      setError("");
     },
+  };
+  const find = (id: string) => view.collections.find((item) => item.id === id);
+  const submit = () => {
+    if (!name.trim()) {
+      setError("名称不能为空。");
+      return;
+    }
+    const result = feedback.runAction(() => {
+      pages.created("todo", () => view.createCollection(name));
+      return true;
+    });
+    if (result) {
+      setCreating(false);
+      setName("");
+    } else setError("创建失败");
   };
   return {
     creation,
     context: {
       title: "代办",
+      layout: "canvas",
       actions: (
         <Button
+          variant="icon"
           aria-label="新建事项集合"
           disabled={creation.disabled}
           onClick={creation.begin}
-          title="新建事项集合"
-          type="button"
-          variant="icon"
         >
-          <Plus aria-hidden="true" size={14} />
+          <Plus />
         </Button>
       ),
       content: (
-        <div className={cx("activity-context-content todo-context")}>
-          <div className={cx("todo-collection-scroll")}>
-            <CompactContextList aria-label="事项集合">
-              {view.collections.map((collection, index) => (
-                <CompactContextRow
-                  actions={
-                    collection.isActive && editing?.id !== collection.id ? (
-                      <CompactContextActionButtons
-                        actions={
-                          pendingDelete?.id === collection.id
-                            ? undefined
-                            : [
-                                {
-                                  ariaLabel: `重命名事项集合 ${collection.name}`,
-                                  disabled: !view.canMutate,
-                                  icon: Pencil,
-                                  onSelect: () => {
-                                    setEditing({
-                                      id: collection.id,
-                                      value: collection.name,
-                                    });
-                                    setPendingDelete(null);
-                                  },
-                                },
-                                {
-                                  ariaLabel: `删除事项集合 ${collection.name}`,
-                                  disabled: !view.canMutate,
-                                  icon: Trash2,
-                                  onSelect: () => setPendingDelete(collection),
-                                  tone: "danger",
-                                },
-                              ]
-                        }
-                        confirmation={
-                          pendingDelete?.id === collection.id
-                            ? {
-                                disabled: !view.canMutate,
-                                tone: "danger",
-                                cancelAriaLabel: `取消删除事项集合 ${collection.name}`,
-                                confirmAriaLabel: `确认删除事项集合 ${collection.name}`,
-                                onCancel: () => setPendingDelete(null),
-                                onConfirm: confirmDelete,
-                              }
-                            : undefined
-                        }
-                      />
-                    ) : undefined
-                  }
-                  buttonProps={{
-                    draggable: view.canMutate && editing?.id !== collection.id,
-                    onDragEnd: () => setDragState(null),
-                    onDragStart: (event) => {
-                      if (!view.canMutate) {
-                        event.preventDefault();
-                        return;
-                      }
-                      event.dataTransfer.effectAllowed = "move";
-                      event.dataTransfer.setData(
-                        collectionDragType,
-                        collection.id,
-                      );
-                      event.dataTransfer.setData("text/plain", collection.id);
-                      setDragState({
-                        placement: null,
-                        sourceId: collection.id,
-                        targetId: null,
-                      });
-                    },
+        <Stack fill>
+          <Tree
+            label="事项集合"
+            nodes={view.collections.map((item) => ({
+              id: item.id,
+              label: item.name,
+              icon: <ListChecks />,
+            }))}
+            selectedId={view.activeCollection?.id ?? null}
+            expandedIds={new Set()}
+            onExpandedChange={() => {}}
+            onSelect={() => {}}
+            onOpen={(id, intent) => {
+              const item = find(id);
+              if (item)
+                pages.open(
+                  describePage("todo", "todo-collection", id, item.name),
+                  intent,
+                  () => view.selectCollection(item.id),
+                );
+            }}
+            capabilities={{
+              rename: view.canMutate,
+              delete: view.canMutate,
+              drag: view.canMutate,
+            }}
+            onRename={(id, label) => {
+              const item = find(id);
+              if (!label.trim()) throw new Error("名称不能为空。");
+              if (item) view.renameCollection(item.id, label);
+            }}
+            onDelete={(id) => {
+              const item = find(id);
+              if (item) view.deleteCollection(item.id);
+            }}
+            canDrop={(move) =>
+              move.target.position === "before" ||
+              move.target.position === "after"
+            }
+            onMove={(move) => {
+              if (
+                move.target.position !== "before" &&
+                move.target.position !== "after"
+              )
+                return;
+              const target = move.target;
+              const sourceIndex = view.collections.findIndex(
+                  (item) => item.id === move.sourceId,
+                ),
+                targetIndex = view.collections.findIndex(
+                  (item) => item.id === target.id,
+                );
+              const source = find(move.sourceId);
+              if (source && sourceIndex >= 0 && targetIndex >= 0)
+                view.moveCollection(
+                  source.id,
+                  getListReorderIndex({
+                    sourceIndex,
+                    targetIndex,
+                    placement:
+                      target.position === "before" ? "before" : "after",
+                  }),
+                );
+            }}
+            onActionError={feedback.notifyError}
+          />
+          {creating ? (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                submit();
+              }}
+            >
+              <Stack direction="row">
+                <InputControl
+                  autoFocus
+                  aria-label="新建事项集合名称"
+                  value={name}
+                  error={error || undefined}
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    setError("");
                   }}
-                  className={cx(
-                    pendingDelete?.id === collection.id && "is-delete-pending",
-                    dragState?.sourceId === collection.id && "is-dragging",
-                    dragState?.targetId === collection.id && "is-drop-target",
-                    dragState?.targetId === collection.id &&
-                      dragState.placement &&
-                      `is-drop-${dragState.placement}`,
-                  )}
-                  icon={<ListChecks aria-hidden="true" size={13} />}
-                  inlineRename={
-                    editing?.id === collection.id
-                      ? {
-                          ariaLabel: `重命名事项集合 ${collection.name}`,
-                          disabled: !view.canMutate,
-                          inputProps: {
-                            "aria-invalid": editing.errorMessage
-                              ? true
-                              : undefined,
-                          },
-                          onCancel: () => setEditing(null),
-                          onChange: (value) =>
-                            setEditing({
-                              id: collection.id,
-                              value,
-                            }),
-                          onSubmit: submitRename,
-                          value: editing.value,
-                        }
-                      : undefined
-                  }
-                  key={collection.id}
-                  label={collection.name}
-                  onBeginRename={
-                    view.canMutate
-                      ? () => {
-                          setEditing({
-                            id: collection.id,
-                            value: collection.name,
-                          });
-                          setPendingDelete(null);
-                        }
-                      : undefined
-                  }
-                  onSelect={() => {
-                    setEditing(null);
-                    setPendingDelete(null);
-                    view.selectCollection(collection.id);
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") setCreating(false);
                   }}
-                  rowProps={{
-                    "data-todo-collection-id": collection.id,
-                    onDragLeave: (event) => {
-                      const nextTarget = event.relatedTarget;
-
-                      if (
-                        nextTarget instanceof Node &&
-                        event.currentTarget.contains(nextTarget)
-                      ) {
-                        return;
-                      }
-                      setDragState((current) =>
-                        current?.targetId === collection.id
-                          ? { ...current, placement: null, targetId: null }
-                          : current,
-                      );
-                    },
-                    onDragOver: (event) => {
-                      if (
-                        !view.canMutate ||
-                        !dragState ||
-                        dragState.sourceId === collection.id
-                      )
-                        return;
-                      event.preventDefault();
-                      event.dataTransfer.dropEffect = "move";
-                      setDragState({
-                        ...dragState,
-                        placement: getCollectionDropPlacement(event),
-                        targetId: collection.id,
-                      });
-                    },
-                    onDrop: (event) => {
-                      event.preventDefault();
-                      if (!view.canMutate) {
-                        setDragState(null);
-                        return;
-                      }
-                      const sourceId = (event.dataTransfer.getData(
-                        collectionDragType,
-                      ) ||
-                        event.dataTransfer.getData("text/plain") ||
-                        dragState?.sourceId ||
-                        "") as TodoCollectionListItem["id"];
-                      const sourceIndex = view.collections.findIndex(
-                        ({ id }) => id === sourceId,
-                      );
-
-                      if (sourceIndex >= 0 && sourceId !== collection.id) {
-                        const toIndex = getListReorderIndex({
-                          placement: getCollectionDropPlacement(event),
-                          sourceIndex,
-                          targetIndex: index,
-                        });
-
-                        feedback.runAction(() =>
-                          view.moveCollection(sourceId, toIndex),
-                        );
-                      }
-                      setDragState(null);
-                    },
-                  }}
-                  selected={collection.isActive}
-                  title={collection.name}
                 />
-              ))}
-              {creating ? (
-                <CompactContextRow
-                  icon={<ListChecks aria-hidden="true" size={13} />}
-                  inlineRename={{
-                    ariaLabel: "新建事项集合名称",
-                    disabled: !view.canMutate,
-                    inputProps: {
-                      "aria-invalid": createErrorMessage ? true : undefined,
-                    },
-                    onCancel: () => {
-                      setCreating(false);
-                      setCreateErrorMessage("");
-                    },
-                    onChange: (value) => {
-                      setCreateValue(value);
-                      setCreateErrorMessage("");
-                    },
-                    onSubmit: submitCreate,
-                    value: createValue,
-                  }}
-                  label=""
-                  onSelect={() => undefined}
-                />
-              ) : null}
-            </CompactContextList>
-            {view.collections.length === 0 && !creating ? (
-              <p className={cx("context-empty")}>没有事项集合。</p>
-            ) : null}
-          </div>
-        </div>
+                <Button type="submit">确定</Button>
+                <Button onClick={() => setCreating(false)}>取消</Button>
+              </Stack>
+            </form>
+          ) : null}
+        </Stack>
       ),
     },
   };

@@ -1,7 +1,4 @@
-import type {
-  ButtonHTMLAttributes,
-  ReactNode,
-} from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { DisplayText } from "../blockText.tsx";
 
 export type StructureTreeNode = {
@@ -109,13 +106,6 @@ export type NoteTreeNodeState = {
   isFolder: boolean;
 };
 
-export type TreeDragState = {
-  activeDestination: TreeMoveDestination | null;
-  activeTargetCanDrop: boolean;
-  source: TreeNodeReference;
-  sourceKey: string;
-};
-
 export type NoteTreeProps = {
   activeNode?: NoteTreeActiveNode | null;
   canDragNode?: (node: TreeNode) => boolean;
@@ -123,17 +113,15 @@ export type NoteTreeProps = {
     source: TreeNodeReference,
     destination: TreeMoveDestination,
   ) => boolean;
-  className?: string;
   collapsedFolderIds?: ReadonlySet<string>;
   nodes: TreeNode[];
-  renderNoteBadges?: (node: Extract<TreeNode, { kind: "note" }>) => ReactNode;
   renderNodeLeading?: (node: TreeNode, state: NoteTreeNodeState) => ReactNode;
   onClearSelection?: () => void;
   onDeleteNode?: (node: TreeNode) => void;
   onMoveNode?: (request: TreeMoveRequest) => void;
   onRenameNode?: (node: TreeNode, title: string) => void;
-  onRequestMoveNode?: (node: TreeNode) => void;
   onSelectFolder?: (folderId: string) => void;
   onSelectNote?: (noteId: string) => void;
+  onOpenNote?: (noteId: string, intent: "preview" | "pinned") => void;
   onToggleFolder?: (folderId: string) => void;
 };

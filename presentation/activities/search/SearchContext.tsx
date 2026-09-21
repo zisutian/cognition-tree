@@ -1,3 +1,4 @@
+import { Button, ChoiceGroup, InputControl } from "compact-ui";
 import { Search } from "lucide-react";
 import {
   searchDomains,
@@ -8,8 +9,6 @@ import {
 import { createClassNames } from "../../ui/index.ts";
 import searchStyles from "./search.module.css";
 const cx = createClassNames(searchStyles);
-
-import { Button, ChoiceGroup, InputControl } from "../../ui/index.ts";
 
 const domainOptions = [
   { label: "本地仓库", value: "workspace" },

@@ -1,3 +1,4 @@
+import { Button } from "compact-ui";
 import {
   useCallback,
   useMemo,
@@ -6,9 +7,8 @@ import {
   type ReactNode,
 } from "react";
 import { BlockText, type DisplayText } from "../blockText.tsx";
-import { Button } from "../Button.tsx";
+
 import { createClassNames } from "../classNames.ts";
-import managementListStyles from "../ManagementList.module.css";
 import { shouldVirtualizeUiRows } from "../virtualListMetrics.ts";
 import { getStructureTreeRowStyle } from "./structureIndent.ts";
 import {
@@ -18,7 +18,7 @@ import {
 import treeStyles from "./Tree.module.css";
 import type { StructureTreeProps } from "./types.ts";
 import { useVirtualTreeRows } from "./virtualTree.ts";
-const cx = createClassNames(managementListStyles, treeStyles);
+const cx = createClassNames(treeStyles);
 
 const emptyKeepMountedLineNumbers: ReadonlySet<number> = new Set();
 
@@ -89,26 +89,32 @@ function StructureTreeRow({
       role="treeitem"
       style={itemStyle}
     >
-      <Button
-        variant="bare"
-        {...rowAttributes}
+      <div
         className={cx(
-          "ui-tree-row ui-structure-tree-row",
+          "ui-structure-container",
           isSelected && "is-selected",
           node.hasDiagnostics && "has-diagnostics",
           rowClassName,
         )}
         style={getStructureTreeRowStyle({ depth, indentUnitCount })}
-        onClick={() => onSelectLine?.(node.lineNumber)}
-        title={`${node.label}: ${node.textDisplay.displayText}`}
-        type="button"
       >
-        <StructureTreeRowContent
-          label={node.label}
-          lineLabel={node.lineLabel}
-          textDisplay={node.textDisplay}
-        />
-      </Button>
+        <Button
+          variant="normal"
+          {...rowAttributes}
+          aria-pressed={isSelected}
+          onClick={() => onSelectLine?.(node.lineNumber)}
+          title={`${node.label}: ${node.textDisplay.displayText}`}
+          type="button"
+        >
+          <span className={cx("ui-structure-content")}>
+            <StructureTreeRowContent
+              label={node.label}
+              lineLabel={node.lineLabel}
+              textDisplay={node.textDisplay}
+            />
+          </span>
+        </Button>
+      </div>
       {children}
     </li>
   );

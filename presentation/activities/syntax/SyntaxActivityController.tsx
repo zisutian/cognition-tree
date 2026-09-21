@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import {
+  usePageDriver,
+  usePageNavigation,
+  describePage,
+} from "../../navigation/index.ts";
+
 import { useEffect } from "react";
 import type { JournalApplication } from "../../../application/journal/index.ts";
 import type { SyntaxFocusTarget } from "../../../application/syntax/index.ts";
@@ -83,6 +89,42 @@ export function SyntaxActivityController({
     workspace?.runtime.analysis.diagnostics,
   ]);
 
+  const pages = usePageNavigation();
+  const page = (id: string) => {
+    const file = view.files.find((item) => item.id === id);
+    if (file)
+      return describePage(
+        "syntax",
+        "syntax",
+        id,
+        file.name,
+        pages.getRepositoryId(),
+      );
+    const system = view.systemConfigurations.find((item) => item.owner === id);
+    return system
+      ? describePage("syntax", "syntax", id, `${system.label}语法`)
+      : null;
+  };
+  usePageDriver("syntax", {
+    current: () =>
+      page(
+        view.selectedTarget.kind === "workspace-file"
+          ? view.selectedTarget.fileId
+          : view.selectedTarget.kind,
+      ),
+    describe: (target) =>
+      target.repositoryId !== null && !workspace ? undefined : page(target.id),
+    select: (target) => {
+      const file = view.files.find((item) => item.id === target.id);
+      const system = view.systemConfigurations.find(
+        (item) => item.owner === target.id,
+      );
+      if (file)
+        return view.selectTarget({ kind: "workspace-file", fileId: file.id });
+      if (system) return view.selectTarget({ kind: system.owner });
+      return false;
+    },
+  });
   if (!active) {
     return null;
   }

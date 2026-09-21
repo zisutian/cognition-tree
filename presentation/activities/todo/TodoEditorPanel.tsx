@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { pageKey, describePage } from "../../navigation/index.ts";
+import { Button, EmptyState } from "compact-ui";
+
 import type { TodoViewModel } from "../../../application/todo/index.ts";
 import { CtnEditor, CtnEditorPanel } from "../../editor/index.ts";
 
-import { Button, EmptyState, Page, useFeedback } from "../../ui/index.ts";
+import { Page, useFeedback } from "../../ui/index.ts";
 
 export function TodoEditorPanel({
   creation,
@@ -25,7 +28,7 @@ export function TodoEditorPanel({
               disabled={creation.disabled}
               onClick={creation.begin}
               type="button"
-              variant="primary"
+              variant="normal"
             >
               新建事项集合
             </Button>
@@ -42,6 +45,14 @@ export function TodoEditorPanel({
         contentMode={view.editor.contentMode}
         focusTarget={view.editor.focusTarget}
         key={activeCollection.id}
+        sessionKey={pageKey(
+          describePage(
+            "todo",
+            "todo-collection",
+            activeCollection.id,
+            activeCollection.name,
+          ).target,
+        )}
         syntax={view.editor.syntax}
         value={view.editor.documentText}
         onActiveLineChange={view.editor.onActiveLineChange}

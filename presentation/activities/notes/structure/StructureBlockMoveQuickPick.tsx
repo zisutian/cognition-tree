@@ -1,12 +1,9 @@
+import { QuickPick } from "compact-ui";
 import {
   flattenUiBlockSubtree,
   type UiBlockNode,
 } from "../../../../application/workspace/index.ts";
-import {
-  QuickPick,
-  useFeedback,
-} from "../../../ui/index.ts";
-
+import { useFeedback } from "../../../ui/index.ts";
 
 type StructureBlockMoveOption = {
   description: string;
@@ -82,14 +79,13 @@ export function StructureBlockMoveQuickPick({
 
   return (
     <QuickPick
-      ariaLabel="移动结构块"
+      label="移动结构块"
       open={sourceLineNumber !== null}
       options={options}
-      placeholder="筛选目标结构"
       onClose={onClose}
       onSelect={(selectedOption) => {
         const option = options.find(
-          (candidate) => candidate.id === selectedOption.id,
+          (candidate) => candidate.id === selectedOption,
         );
 
         runAction(() => {

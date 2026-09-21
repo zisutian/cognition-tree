@@ -1,4 +1,3 @@
-import { FocusAction } from "../../ui/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { TodoViewModel } from "../../../application/todo/index.ts";
@@ -9,8 +8,6 @@ import { TodoEditorPanel } from "./TodoEditorPanel.tsx";
 export function createTodoActivitySlots({
   context,
   creation,
-  focusMode,
-  onToggleFocusMode,
   view,
 }: {
   context: NonNullable<ActivitySlots["context"]>;
@@ -24,14 +21,13 @@ export function createTodoActivitySlots({
     detail: view.activeCollection
       ? {
           title: "事项",
-          layout: "detail",
+          layout: "canvas",
           content: <TodoDetailPanel view={view} />,
         }
       : null,
     main: {
       title: view.activeCollection?.name ?? "代办",
       layout: "document",
-      actions: <FocusAction active={focusMode} onToggle={onToggleFocusMode} />,
       content: <TodoEditorPanel creation={creation} view={view} />,
     },
   };

@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../../../../support/presentation/render";
 import { describe, expect, it, vi } from "vitest";
 import { NoteDetailPanel } from "../../../../../../presentation/activities/notes/edit/NoteDetailPanel";
 import { submitNotesEditorChange } from "../../../../../../presentation/activities/notes/edit/NoteEditorPanel";

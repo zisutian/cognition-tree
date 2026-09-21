@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Button, EmptyState, Page, useFeedback } from "../../ui/index.ts";
+import { Button, EmptyState } from "compact-ui";
+
+import { Page, useFeedback } from "../../ui/index.ts";
 import type { WorkbenchWorkspaceState } from "../../workspace/index.ts";
 
 export function WorkspaceUnavailablePanel({
@@ -29,12 +31,12 @@ export function WorkspaceUnavailablePanel({
               <Button
                 onClick={() => void feedback.runAction(workspace.retry)}
                 type="button"
-                variant="secondary"
+                variant="normal"
               >
                 重试挂载
               </Button>
             ) : null}
-            <Button onClick={onOpenRepository} type="button" variant="primary">
+            <Button onClick={onOpenRepository} type="button" variant="normal">
               前往仓库
             </Button>
           </>

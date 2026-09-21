@@ -1,14 +1,14 @@
+import { ContextMenu } from "compact-ui";
+import type { ComponentProps } from "react";
+type ContextMenuPosition = ComponentProps<typeof ContextMenu>["position"];
+import { Button, Section } from "compact-ui";
 import { ArrowLeftRight } from "lucide-react";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
 import {
-  Button,
-  ContextMenu,
-  Section,
   StructureTree,
   createClassNames,
   useFeedback,
-  type ContextMenuPosition,
 } from "../../../ui/index.ts";
 import structureStyles from "./structure.module.css";
 const cx = createClassNames(structureStyles);
@@ -110,39 +110,42 @@ export function StructureOperationPairView({
 
   return (
     <div className={cx("structure-operation-grid")}>
-      <Section scroll title={`源笔记 · ${view.sourceNote?.title ?? "未选择"}`}>
-        {view.sourceRoots.length > 0 ? (
-          <StructureTree
-            getRowProps={(node) => ({
-              className:
-                draggingLineNumber === String(node.lineNumber)
-                  ? "is-dragging"
-                  : undefined,
-              draggable: true,
-              onDragEnd: finishDrag,
-              onDragStart: (event) => {
-                const payload = createBlockLineDragPayload(node.lineNumber);
+      <section aria-label={`源笔记 · ${view.sourceNote?.title ?? "未选择"}`}>
+        <Section title={`源笔记 · ${view.sourceNote?.title ?? "未选择"}`}>
+          {view.sourceRoots.length > 0 ? (
+            <StructureTree
+              getRowProps={(node) => ({
+                className:
+                  draggingLineNumber === String(node.lineNumber)
+                    ? "is-dragging"
+                    : undefined,
+                draggable: true,
+                onDragEnd: finishDrag,
+                onDragStart: (event) => {
+                  const payload = createBlockLineDragPayload(node.lineNumber);
 
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.setData(blockLineDragDataType, payload);
-                event.dataTransfer.setData("text/plain", payload);
-                startDrag(node.lineNumber);
-              },
-              onContextMenu: (event) => openMoveContext(event, node.lineNumber),
-            })}
-            indentUnitCount={view.indentUnitCount}
-            keepMountedLineNumbers={keepMountedLineNumbers}
-            nodes={view.sourceRoots}
-            selectedLineNumbers={selectedLineNumbers}
-            selectedRootLineNumber={sourceBlock?.lineNumber ?? null}
-            onSelectLine={(lineNumber) =>
-              setSourceLineNumber(String(lineNumber))
-            }
-          />
-        ) : (
-          <p className={cx("ui-muted")}>源笔记没有可移动块。</p>
-        )}
-      </Section>
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData(blockLineDragDataType, payload);
+                  event.dataTransfer.setData("text/plain", payload);
+                  startDrag(node.lineNumber);
+                },
+                onContextMenu: (event) =>
+                  openMoveContext(event, node.lineNumber),
+              })}
+              indentUnitCount={view.indentUnitCount}
+              keepMountedLineNumbers={keepMountedLineNumbers}
+              nodes={view.sourceRoots}
+              selectedLineNumbers={selectedLineNumbers}
+              selectedRootLineNumber={sourceBlock?.lineNumber ?? null}
+              onSelectLine={(lineNumber) =>
+                setSourceLineNumber(String(lineNumber))
+              }
+            />
+          ) : (
+            <p className={cx("ui-muted")}>源笔记没有可移动块。</p>
+          )}
+        </Section>
+      </section>
       <div className={cx("structure-operation-pair-swap")}>
         <Button
           aria-label="交换源笔记和目标笔记"
@@ -159,65 +162,66 @@ export function StructureOperationPairView({
           <ArrowLeftRight aria-hidden="true" size={14} />
         </Button>
       </div>
-      <Section
-        scroll
-        title={`目标笔记 · ${view.targetNote?.title ?? "未选择"}`}
-      >
-        {showEndDropTarget && view.targetRoots.length === 0 ? (
-          <DropTarget
-            activePosition={activeDropPosition}
-            label="文末根块"
-            position="end"
-            onDropLine={dropLine}
-            onSetActivePosition={setActiveDropPosition}
-          />
-        ) : null}
-        {view.targetRoots.length > 0 ? (
-          <>
-            <StructureOperationTargetTree
-              activeDropPosition={activeDropPosition}
-              activeTargetLineNumber={activeTargetLineNumber}
-              blockedLineNumbers={emptySelectedLineNumbers}
-              draggingLineNumber={draggingLineNumber}
-              indentUnitCount={view.indentUnitCount}
-              nodes={view.targetRoots}
-              selectedLineNumbers={emptySelectedLineNumbers}
-              selectedRootLineNumber={null}
-              onActivateTarget={setActiveTargetLineNumber}
+      <section aria-label={`目标笔记 · ${view.targetNote?.title ?? "未选择"}`}>
+        <Section title={`目标笔记 · ${view.targetNote?.title ?? "未选择"}`}>
+          {showEndDropTarget && view.targetRoots.length === 0 ? (
+            <DropTarget
+              activePosition={activeDropPosition}
+              label="文末根块"
+              position="end"
               onDropLine={dropLine}
-              onSetActiveDropPosition={setActiveDropPosition}
+              onSetActivePosition={setActiveDropPosition}
             />
-            {showEndDropTarget ? (
-              <DropTarget
-                activePosition={activeDropPosition}
-                label="文末根块"
-                position="end"
+          ) : null}
+          {view.targetRoots.length > 0 ? (
+            <>
+              <StructureOperationTargetTree
+                activeDropPosition={activeDropPosition}
+                activeTargetLineNumber={activeTargetLineNumber}
+                blockedLineNumbers={emptySelectedLineNumbers}
+                draggingLineNumber={draggingLineNumber}
+                indentUnitCount={view.indentUnitCount}
+                nodes={view.targetRoots}
+                selectedLineNumbers={emptySelectedLineNumbers}
+                selectedRootLineNumber={null}
+                onActivateTarget={setActiveTargetLineNumber}
                 onDropLine={dropLine}
-                onSetActivePosition={setActiveDropPosition}
+                onSetActiveDropPosition={setActiveDropPosition}
               />
-            ) : null}
-          </>
-        ) : (
-          <p className={cx("ui-muted")}>目标笔记没有结构。</p>
-        )}
-      </Section>
-      <ContextMenu
-        ariaLabel="结构块操作"
-        items={
-          moveContext
-            ? [
-                {
-                  id: "move-to",
-                  label: "移动到…",
-                  onSelect: () =>
-                    setMoveSourceLineNumber(moveContext.lineNumber),
-                },
-              ]
-            : []
-        }
-        position={moveContext?.position ?? null}
-        onClose={() => setMoveContext(null)}
-      />
+              {showEndDropTarget ? (
+                <DropTarget
+                  activePosition={activeDropPosition}
+                  label="文末根块"
+                  position="end"
+                  onDropLine={dropLine}
+                  onSetActivePosition={setActiveDropPosition}
+                />
+              ) : null}
+            </>
+          ) : (
+            <p className={cx("ui-muted")}>目标笔记没有结构。</p>
+          )}
+        </Section>
+      </section>
+      {moveContext ? (
+        <ContextMenu
+          label="结构块操作"
+          items={
+            moveContext
+              ? [
+                  {
+                    id: "move-to",
+                    label: "移动到…",
+                    onSelect: () =>
+                      setMoveSourceLineNumber(moveContext.lineNumber),
+                  },
+                ]
+              : []
+          }
+          position={moveContext.position}
+          onClose={() => setMoveContext(null)}
+        />
+      ) : null}
       <StructureBlockMoveQuickPick
         blockedLineNumbers={emptySelectedLineNumbers}
         nodes={view.targetRoots}

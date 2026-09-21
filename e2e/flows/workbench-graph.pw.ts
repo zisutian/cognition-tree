@@ -61,16 +61,14 @@ test.describe("graph activity flows", () => {
     await openWorkbench(page, visualizationRepositoryId);
     await selectNotesMode(page, "图谱");
 
-    const context = page.locator(".app-context");
-    const main = page.locator(".app-main-content");
+    const context = page.locator("aside[aria-label='上下文区域']");
+    const main = page.locator("main > div:first-child");
     const canvas = page.getByRole("application", {
       name: "笔记引用力导向图",
     });
 
-    await expect(context).toHaveAccessibleName("浏览器回归仓库");
-    await expect(
-      context.getByRole("radiogroup", { name: "笔记视图" }),
-    ).toBeVisible();
+    await expect(context).toHaveAccessibleName("上下文区域");
+    await expect(context.getByRole("tree", { name: "笔记工具" })).toBeVisible();
     await expect(context.locator('[aria-label="图谱控制"]')).toBeVisible();
     await expect(
       context.getByRole("textbox", { name: "搜索笔记标题" }),
@@ -79,7 +77,7 @@ test.describe("graph activity flows", () => {
       main.getByRole("textbox", { name: "搜索笔记标题" }),
     ).toHaveCount(0);
     await expect(
-      main.getByRole("heading", { name: "引用图谱", exact: true }),
+      main.getByRole("radio", { name: "引用图谱", exact: true }),
     ).toHaveCount(1);
     await expect(canvas).toBeVisible();
     const initialBox = await canvas.boundingBox();
@@ -98,7 +96,9 @@ test.describe("graph activity flows", () => {
     expect(secondNode).toBeDefined();
     await canvas.click({ position: firstNode });
 
-    const activeTitle = page.locator(".app-detail .detail-primary-row > p");
+    const activeTitle = page.locator(
+      "aside[aria-label='详情区域'] .detail-primary-row > p",
+    );
     const firstTitle = await activeTitle.textContent();
 
     expect(firstTitle).not.toBeNull();

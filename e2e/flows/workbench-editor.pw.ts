@@ -146,48 +146,48 @@ test.describe("editor workbench flows", () => {
     await openWorkbench(page, repositoryId);
 
     const editorPanel = page.getByLabel("笔记编辑");
-    const notesContext = page.locator(".app-context");
+    const notesContext = page.locator("aside[aria-label='上下文区域']");
 
-    await expect(notesContext).toHaveAccessibleName("浏览器回归仓库");
+    await expect(notesContext).toHaveAccessibleName("上下文区域");
     await expect(
       notesContext.getByRole("heading", {
         level: 2,
         name: "浏览器回归仓库",
       }),
     ).toBeVisible();
-    const modeSwitch = notesContext.getByRole("radiogroup", {
-      name: "笔记视图",
+    const modeSwitch = notesContext.getByRole("tree", {
+      name: "笔记工具",
     });
 
     await expect(modeSwitch).toBeVisible();
     await expect(
-      modeSwitch.getByRole("radio", { name: "编辑" }),
-    ).toHaveAttribute("aria-checked", "true");
-    await getActivityButton(page, "笔记").click();
-    await expect(page.locator(".app-context")).toHaveCount(0);
+      modeSwitch.getByRole("treeitem", { name: "编辑" }),
+    ).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("button", { name: "收起上下文", exact: true }).click();
+    await expect(modeSwitch).toHaveCount(0);
     await getActivityButton(page, "笔记").click();
     await expect(modeSwitch).toBeVisible();
     await expect(
-      modeSwitch.getByRole("radio", { name: "编辑" }),
-    ).toHaveAttribute("aria-checked", "true");
+      modeSwitch.getByRole("treeitem", { name: "编辑" }),
+    ).toHaveAttribute("aria-selected", "true");
     await page.getByRole("button", { name: "进入专注模式" }).click();
-    await expect(page.locator(".app-context")).toHaveCount(0);
-    await expect(page.locator(".app-detail")).toHaveCount(0);
+    await expect(page.locator("aside[aria-label='上下文区域']")).toHaveCount(0);
+    await expect(page.locator("aside[aria-label='详情区域']")).toHaveCount(0);
     await expect(
-      page.getByRole("navigation", { name: "工作区功能" }),
-    ).toBeVisible();
+      page.getByRole("navigation", { name: "活动导航" }),
+    ).toHaveCount(0);
     await page.getByRole("button", { name: "退出专注模式" }).click();
-    await expect(page.locator(".app-context")).toBeVisible();
-    await expect(page.locator(".app-detail")).toBeVisible();
+    await expect(page.locator("aside[aria-label='上下文区域']")).toBeVisible();
+    await expect(page.locator("aside[aria-label='详情区域']")).toBeVisible();
 
     await page.keyboard.press("Control+K");
     await page.keyboard.press("z");
-    await expect(page.locator(".app-context")).toHaveCount(0);
+    await expect(page.locator("aside[aria-label='上下文区域']")).toHaveCount(0);
     await page.keyboard.press("Escape");
-    await expect(page.locator(".app-context")).toBeVisible();
+    await expect(page.locator("aside[aria-label='上下文区域']")).toBeVisible();
 
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Alpha", { exact: true })
       .click();
     const titleLine = editorPanel.locator(".ctn-line-title").filter({
@@ -201,12 +201,12 @@ test.describe("editor workbench flows", () => {
       .click({ modifiers: ["Control"] });
     await expect(
       page
-        .locator('[data-region-header="main"]')
-        .getByRole("heading", { name: "Beta", exact: true }),
+        .locator("main > div:first-child > section > header")
+        .getByRole("radio", { name: "Beta", exact: true }),
     ).toBeVisible();
 
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Gamma", { exact: true })
       .click();
     await page
@@ -222,7 +222,7 @@ test.describe("editor workbench flows", () => {
   test("keeps undo history isolated when switching notes", async ({ page }) => {
     await openWorkbench(page, repositoryId);
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Alpha", { exact: true })
       .click();
 
@@ -234,7 +234,7 @@ test.describe("editor workbench flows", () => {
     await expect(page.getByLabel("笔记编辑")).toContainText("alpha-only-edit");
 
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Beta", { exact: true })
       .click();
     await editorContent.click();
@@ -251,7 +251,7 @@ test.describe("editor workbench flows", () => {
   }) => {
     await openWorkbench(page, repositoryId);
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Gamma", { exact: true })
       .click();
 
@@ -322,9 +322,11 @@ test.describe("editor workbench flows", () => {
 
     const sourceBeforeIndent = await readSource();
     const initialGeometry = await measureMultilineSourceGeometry(editor);
-    expect(await editor.locator(".cm-scroller").evaluate((element) =>
-      element.scrollWidth - element.clientWidth,
-    )).toBeLessThanOrEqual(1);
+    expect(
+      await editor
+        .locator(".cm-scroller")
+        .evaluate((element) => element.scrollWidth - element.clientWidth),
+    ).toBeLessThanOrEqual(1);
     const tabStep = initialGeometry.nestedMarkerX - initialGeometry.peerMarkerX;
 
     expect(tabStep).toBeGreaterThan(0);
@@ -354,9 +356,11 @@ test.describe("editor workbench flows", () => {
       .poll(readSource)
       .toContain("\t\t```tsx\n\t\tconst value = 1; // edited\n\t``` ");
     const indentedGeometry = await measureMultilineSourceGeometry(editor);
-    expect(await editor.locator(".cm-scroller").evaluate((element) =>
-      element.scrollWidth - element.clientWidth,
-    )).toBeLessThanOrEqual(1);
+    expect(
+      await editor
+        .locator(".cm-scroller")
+        .evaluate((element) => element.scrollWidth - element.clientWidth),
+    ).toBeLessThanOrEqual(1);
 
     expectGeometryEqual(
       indentedGeometry,
@@ -393,31 +397,58 @@ test.describe("editor workbench flows", () => {
     }
   });
 
-  test("scrolls long source lines while short content fits beside the gutter", async ({ page }, testInfo) => {
+  test("scrolls long source lines while short content fits beside the gutter", async ({
+    page,
+  }, testInfo) => {
     await openWorkbench(page, repositoryId);
     const editor = page.locator(".source-editor");
     const scroller = editor.locator(".cm-scroller");
     const content = editor.locator(".cm-content");
     await expect(content).toBeVisible();
-    expect(await scroller.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    expect(
+      await scroller.evaluate(
+        (element) => element.scrollWidth - element.clientWidth,
+      ),
+    ).toBeLessThanOrEqual(1);
     await content.click();
     await page.keyboard.press("Control+End");
     const longText = "横向滚动验证".repeat(50);
     await page.keyboard.insertText(longText);
     await expect(content).toContainText(longText);
-    await expect.poll(() => scroller.evaluate(element => element.scrollWidth - element.clientWidth)).toBeGreaterThan(100);
-    await scroller.evaluate(element => { element.scrollLeft = element.scrollWidth; });
-    expect(await scroller.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
-    await page.screenshot({ path: testInfo.outputPath("editor-long-line.png") });
+    await expect
+      .poll(() =>
+        scroller.evaluate(
+          (element) => element.scrollWidth - element.clientWidth,
+        ),
+      )
+      .toBeGreaterThan(100);
+    await scroller.evaluate((element) => {
+      element.scrollLeft = element.scrollWidth;
+    });
+    expect(
+      await scroller.evaluate((element) => element.scrollLeft),
+    ).toBeGreaterThan(0);
+    await page.screenshot({
+      path: testInfo.outputPath("editor-long-line.png"),
+    });
     await content.press("Control+Home");
-    await expect.poll(() => scroller.evaluate(element => {
-      const firstLine = element.querySelector(".cm-line")!;
-      const range = document.createRange();
-      range.selectNodeContents(firstLine);
-      const firstCharacter = range.getClientRects()[0].left;
-      const gutter = element.querySelector(".cm-gutters")!.getBoundingClientRect();
-      return firstCharacter >= gutter.right && firstCharacter < element.getBoundingClientRect().right;
-    })).toBe(true);
+    await expect
+      .poll(() =>
+        scroller.evaluate((element) => {
+          const firstLine = element.querySelector(".cm-line")!;
+          const range = document.createRange();
+          range.selectNodeContents(firstLine);
+          const firstCharacter = range.getClientRects()[0].left;
+          const gutter = element
+            .querySelector(".cm-gutters")!
+            .getBoundingClientRect();
+          return (
+            firstCharacter >= gutter.right &&
+            firstCharacter < element.getBoundingClientRect().right
+          );
+        }),
+      )
+      .toBe(true);
   });
 
   test("synchronizes the editor block with outline selection and timestamps", async ({
@@ -425,12 +456,12 @@ test.describe("editor workbench flows", () => {
   }) => {
     await openWorkbench(page, repositoryId);
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Alpha", { exact: true })
       .click();
 
     const editor = page.locator(".source-editor");
-    const detail = page.locator(".app-detail");
+    const detail = page.locator("aside[aria-label='详情区域']");
     const blockTime = page.getByLabel("块时间");
     const createdTime = blockTime.locator("time").nth(0);
     const updatedTime = blockTime.locator("time").nth(1);
@@ -485,7 +516,7 @@ test.describe("editor workbench flows", () => {
     );
 
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Beta", { exact: true })
       .click();
     await expect(blockTime).toHaveCount(0);
@@ -498,14 +529,14 @@ test.describe("editor workbench flows", () => {
   }) => {
     await openWorkbench(page, repositoryId);
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Alpha", { exact: true })
       .click();
     await expect(page.locator(".source-editor")).not.toContainText(
       "@ctn-block",
     );
     await page
-      .locator(".app-detail")
+      .locator("aside[aria-label='详情区域']")
       .getByRole("treeitem")
       .first()
       .getByRole("button")

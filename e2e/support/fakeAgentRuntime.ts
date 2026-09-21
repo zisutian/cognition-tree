@@ -29,6 +29,13 @@ export async function createE2EAgentConfigurationStore(stateDirectory: string) {
     createId: () => ids.shift() ?? randomUUID(),
   });
   let configuration = await store.readSnapshot();
+  // A data-root migration restarts the server with the existing synthetic configuration.
+  if (
+    configuration.providers.some(
+      (item) => item.id === "agent-provider-e2e-provider",
+    )
+  )
+    return store;
   const provider = await store.createProvider(configuration.revision, {
     apiKey: "e2e-only",
     authenticationType: "api-key",

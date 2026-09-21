@@ -1,3 +1,5 @@
+import { Stack as SectionStack } from "compact-ui";
+import { Section } from "compact-ui";
 import type { RepositoryViewModel } from "../../../application/repository/index.ts";
 import {
   createDefaultRepositorySelection,
@@ -5,13 +7,7 @@ import {
   type RepositorySelection,
 } from "../../../application/repository/index.ts";
 
-import {
-  Page,
-  PageBody,
-  Section,
-  SectionStack,
-  useFeedback,
-} from "../../ui/index.ts";
+import { Page, PageBody, useFeedback } from "../../ui/index.ts";
 
 import { RepositoryConflictStatus } from "./RepositoryConflictResolution.tsx";
 import {
@@ -19,7 +15,6 @@ import {
   RepositoryMetadata,
 } from "./RepositoryDetailShared.tsx";
 import {
-  builtInLabel,
   copyRepositoryLocation,
   selectedRepositoryTarget,
 } from "./repositoryViewHelpers.ts";
@@ -70,7 +65,7 @@ export function RepositoryStatusPanel({
 
           {target.kind === "ordinary-repository" && target.repository ? (
             <>
-              <Section aria-label={target.repository.label}>
+              <Section>
                 <RepositoryMetadata
                   rows={[
                     {
@@ -111,7 +106,7 @@ export function RepositoryStatusPanel({
 
           {target.kind === "ordinary-issue" && target.issue ? (
             <>
-              <Section title="仓库故障" tone="danger">
+              <Section title="仓库故障">
                 <RepositoryMetadata
                   rows={[
                     { label: "状态", value: "故障" },
@@ -130,10 +125,7 @@ export function RepositoryStatusPanel({
 
           {target.kind === "built-in" ? (
             <>
-              <Section
-                aria-label={builtInLabel(target.id)}
-                tone={target.issue ? "danger" : "default"}
-              >
+              <Section>
                 <RepositoryMetadata
                   rows={[
                     {

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { renderToStaticMarkup } from "../../../../support/presentation/render";
+
 import { describe, expect, it, vi } from "vitest";
 import {
   JournalActivityController,
@@ -34,16 +36,20 @@ function createApplicationWithoutWorkspace(): WorkbenchApplication {
 
 describe("JournalActivityController", () => {
   it("does not mount Journal slots while another activity is active", () => {
-    const rendered = JournalActivityController({
-      active: false,
-      application: createApplicationWithoutWorkspace(),
-      onActiveActivityChange: () => undefined,
-      renderActivity: () => {
-        throw new Error("inactive Journal must not render");
-      },
-    });
+    const rendered = renderToStaticMarkup(
+      <JournalActivityController
+        {...{
+          active: false,
+          application: createApplicationWithoutWorkspace(),
+          onActiveActivityChange: () => undefined,
+          renderActivity: () => {
+            throw new Error("inactive Journal must not render");
+          },
+        }}
+      />,
+    );
 
-    expect(rendered).toBeNull();
+    expect(rendered).not.toContain("<section");
   });
 
   it("retries a faulted Journal descriptor instead of reloading an unavailable session", async () => {

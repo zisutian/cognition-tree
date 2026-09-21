@@ -1,11 +1,7 @@
+import { EmptyState } from "compact-ui";
 import { useMemo } from "react";
 import type { VisualizationViewModel } from "../../../../application/workspace/index.ts";
-import {
-  createClassNames,
-  EmptyState,
-  Page,
-  PageBody,
-} from "../../../ui/index.ts";
+import { createClassNames, Page, PageBody } from "../../../ui/index.ts";
 import { ReferenceGraphCanvas } from "./ReferenceGraphCanvas.tsx";
 import graphStyles from "./graph.module.css";
 import { getEmptyGraphMessage } from "./graphEmptyState.ts";

@@ -1,23 +1,28 @@
-import { createClassNames } from "../../ui/index.ts";
-import settingsStyles from "./settings.module.css";
-const cx = createClassNames(settingsStyles);
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useEffect, useRef, useState } from "react";
-import type {
-  ContentOperationResult,
-  LocalContentAccess,
-} from "../../../application/operations/index.ts";
+import { Stack } from "compact-ui";
+import {
+  Stack as SectionStack,
+  PropertyList as ToolPropertyList,
+  PropertyRow as ToolPropertyRow,
+} from "compact-ui";
 import {
   Button,
   FieldRow,
   FormLayout,
   InputControl,
   Section,
-  SectionStack,
-  ToolPropertyList,
-  ToolPropertyRow,
-} from "../../ui/index.ts";
+} from "compact-ui";
+import { createClassNames } from "../../ui/index.ts";
+import settingsStyles from "./settings.module.css";
+const cx = createClassNames(settingsStyles);
+
+import { useEffect, useRef, useState } from "react";
+import type {
+  ContentOperationResult,
+  LocalContentAccess,
+} from "../../../application/operations/index.ts";
+
 import { SettingsPage } from "./SettingsPage.tsx";
 import {
   useSettingsInteraction,
@@ -89,7 +94,7 @@ export function LocalApiSettingsPanel({
               void query();
             }}
           >
-            <FormLayout layout="stacked">
+            <Stack>
               <FieldRow fieldId="local-api-operation" label="操作 ID">
                 {(attributes) => (
                   <InputControl
@@ -108,19 +113,22 @@ export function LocalApiSettingsPanel({
               <Button type="submit" disabled={loading || !operationId.trim()}>
                 {loading ? "查询中…" : "查询结果"}
               </Button>
-            </FormLayout>
+            </Stack>
           </form>
           {result ? (
             <div aria-label="操作结果" role="status">
               <ToolPropertyList>
-                <ToolPropertyRow label="操作 ID" value={result.operationId} />
+                <ToolPropertyRow
+                  label="操作 ID"
+                  children={result.operationId}
+                />
                 <ToolPropertyRow
                   label="结果"
-                  value={statusLabels[result.status]}
+                  children={statusLabels[result.status]}
                 />
                 <ToolPropertyRow
                   label="审计"
-                  value={
+                  children={
                     result.audit === "recorded"
                       ? "已记录"
                       : result.audit === "failed"

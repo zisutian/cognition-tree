@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { usePageDriver, describePage } from "../../navigation/index.ts";
+
 import type { ContentOpenOutcome } from "../../../application/navigation/index.ts";
 import type { RepositoryApplication } from "../../../application/repository/index.ts";
 import type {
@@ -20,6 +22,12 @@ export function SearchActivityController({
 }: SearchActivityControllerProps) {
   const workbenchFeedback = useWorkbenchFeedback();
 
+  const page = describePage("search", "activity", "search", "搜索");
+  usePageDriver("search", {
+    current: () => page,
+    describe: () => page,
+    select: () => {},
+  });
   if (!active) return null;
   const repositories =
     application.repository.catalogState.status === "ready"

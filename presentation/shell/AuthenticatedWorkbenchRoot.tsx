@@ -1,8 +1,11 @@
-import { createWorkbenchNavigation } from "./workbench/workbenchNavigation.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
+
+import { PageNavigationProvider } from "../navigation/index.ts";
+import { createPageNavigation } from "../navigation/index.ts";
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -104,7 +107,7 @@ export function AuthenticatedWorkbenchRoot({
     systemConfigurationController.getSnapshot,
   );
   const lifecycleEpochRef = useRef(0);
-  const [navigation] = useState(() => createWorkbenchNavigation("notes"));
+  const [navigation] = useState(() => createPageNavigation("notes"));
   const { activeActivityId, interaction } = useSyncExternalStore(
     navigation.subscribe,
     navigation.getSnapshot,
@@ -145,6 +148,7 @@ export function AuthenticatedWorkbenchRoot({
     return () => {
       queueMicrotask(() => {
         if (lifecycleEpochRef.current === lifecycleEpoch) {
+          navigation.dispose();
           agentRuntime.dispose();
           systemConfigurationController.dispose();
           controller.dispose();
@@ -154,10 +158,62 @@ export function AuthenticatedWorkbenchRoot({
     };
   }, [
     agentRuntime,
+    navigation,
     controller,
     feedbackController,
     systemConfigurationController,
   ]);
+
+  useLayoutEffect(() => {
+    const contentSession = (
+      target: import("../navigation/index.ts").PageTarget,
+    ) => {
+      const current = controller.getSnapshot();
+      if (
+        target.kind === "note" &&
+        target.repositoryId === current.catalog.activeDescriptor?.id
+      )
+        return current.workspace;
+      if (target.kind === "journal-entry")
+        return current.builtIns.journal.state;
+      if (target.kind === "todo-collection") return current.builtIns.todo.state;
+      return null;
+    };
+    navigation.setGuards({
+      canRelease: (target) => {
+        const session = contentSession(target);
+        return (
+          !session ||
+          (session.status === "ready" && session.persistence.status === "saved")
+        );
+      },
+      beforeClose: (target) => {
+        const session = contentSession(target);
+        if (
+          !session ||
+          (session.status === "ready" && session.persistence.status === "saved")
+        )
+          return;
+        if (target.kind === "note")
+          return controller.workspace.synchronizePendingChanges();
+        if (target.kind === "journal-entry")
+          return controller.journal.synchronizePendingChanges();
+        if (target.kind === "todo-collection")
+          return controller.todo.synchronizePendingChanges();
+      },
+      reportError: (error) =>
+        feedbackController.reportError(
+          navigation.getSnapshot().activeActivityId,
+          error,
+        ),
+    });
+  }, [navigation, controller, feedbackController]);
+
+  useLayoutEffect(() => {
+    navigation.setRepository(snapshot.catalog.activeDescriptor?.id ?? null);
+    if (repositorySessionIds)
+      navigation.retainRepositories(new Set(repositorySessionIds));
+  }, [navigation, snapshot.catalog.activeDescriptor?.id, repositorySessionIds]);
 
   const readySession =
     snapshot.workspace.status === "ready"
@@ -172,34 +228,36 @@ export function AuthenticatedWorkbenchRoot({
       : null;
 
   return (
-    <RepositorySessionStateProvider repositoryIds={repositorySessionIds}>
-      <WorkspaceWorkbench
-        activeActivityId={activeActivityId}
-        feedbackController={feedbackController}
-        application={{
-          ...applications,
-          workspace: projectUnavailableWorkspace(controller, snapshot),
-        }}
-        workspaceRepositoryId={repositoryId}
-        bindWorkspace={(onChange) =>
-          readySession?.status === "ready" && repositoryId ? (
-            <WorkspaceApplicationBinding
-              key={repositoryId}
-              repositoryId={repositoryId}
-              scheduler={workbenchRuntime.applicationServices.scheduler}
-              controller={controller}
-              feedbackController={feedbackController}
-              onActiveActivityChange={navigation.request}
-              session={readySession}
-              snapshot={snapshot}
-              onChange={onChange}
-            />
-          ) : null
-        }
-        onActiveActivityChange={navigation.request}
-        onInteractionStateChange={navigation.reportInteraction}
-        interaction={interaction}
-      />
-    </RepositorySessionStateProvider>
+    <PageNavigationProvider navigation={navigation}>
+      <RepositorySessionStateProvider repositoryIds={repositorySessionIds}>
+        <WorkspaceWorkbench
+          activeActivityId={activeActivityId}
+          feedbackController={feedbackController}
+          application={{
+            ...applications,
+            workspace: projectUnavailableWorkspace(controller, snapshot),
+          }}
+          workspaceRepositoryId={repositoryId}
+          bindWorkspace={(onChange) =>
+            readySession?.status === "ready" && repositoryId ? (
+              <WorkspaceApplicationBinding
+                key={repositoryId}
+                repositoryId={repositoryId}
+                scheduler={workbenchRuntime.applicationServices.scheduler}
+                controller={controller}
+                feedbackController={feedbackController}
+                onActiveActivityChange={navigation.request}
+                session={readySession}
+                snapshot={snapshot}
+                onChange={onChange}
+              />
+            ) : null
+          }
+          onActiveActivityChange={navigation.request}
+          onInteractionStateChange={navigation.reportInteraction}
+          interaction={interaction}
+        />
+      </RepositorySessionStateProvider>
+    </PageNavigationProvider>
   );
 }

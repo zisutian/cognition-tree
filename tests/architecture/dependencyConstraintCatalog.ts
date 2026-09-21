@@ -2,10 +2,7 @@
 
 import type { TextPolicy } from "../support/textPolicy";
 import type { SourceModules } from "./moduleImports";
-import type {
-SourceImport,
-SourceRoot,
-} from "./sourceArchitecture";
+import type { SourceImport, SourceRoot } from "./sourceArchitecture";
 
 export type ImportPolicy = {
   allows(edge: SourceImport): boolean;
@@ -29,7 +26,24 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   client: ["client"],
   transport: ["transport"],
   "api/protocol": ["api/protocol"],
-  runtime: ["runtime", "api/protocol", "transport", "platform", "access", "agent", "api", "api/http", "api/resources", "api/sync", "network", "operations", "persistence", "repository", "state", "system"],
+  runtime: [
+    "runtime",
+    "api/protocol",
+    "transport",
+    "platform",
+    "access",
+    "agent",
+    "api",
+    "api/http",
+    "api/resources",
+    "api/sync",
+    "network",
+    "operations",
+    "persistence",
+    "repository",
+    "state",
+    "system",
+  ],
   access: ["access", "state"],
   agent: [
     "agent",
@@ -44,7 +58,8 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   ],
   api: ["api", "api/protocol", "api/resources", "repository"],
   "api/http": [
-    "api/protocol", "transport",
+    "api/protocol",
+    "transport",
     "access",
     "agent",
     "api",
@@ -57,7 +72,8 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   ],
   "api/resources": ["api/resources"],
   "api/sync": [
-    "api/protocol", "transport",
+    "api/protocol",
+    "transport",
     "api/sync",
     "operations",
     "repository",
@@ -87,12 +103,10 @@ const agentProviderOperationFacadeTargets: ReadonlySet<string> = new Set([
 ]);
 const agentConversationRunnerPath =
   "../../application/agentHost/conversationRunner.ts";
-const agentSessionPoolPath =
-  "../../application/agentHost/sessionPool.ts";
+const agentSessionPoolPath = "../../application/agentHost/sessionPool.ts";
 const agentProposalWorkflowPath =
   "../../application/agentHost/proposalWorkflow.ts";
-const agentSessionOpenerPath =
-  "../../application/agentHost/sessionOpener.ts";
+const agentSessionOpenerPath = "../../application/agentHost/sessionOpener.ts";
 const agentProfileConfigurationPath =
   "../../infrastructure/server/agent/profileConfiguration.ts";
 const agentProviderConfigurationPath =
@@ -147,19 +161,23 @@ const localRepositoryRootLeasePath =
   "../../infrastructure/server/repository/workspace/local/localRepositoryRootLease.ts";
 
 function peerDomain(filePath: string) {
-  return filePath.match(
-    /^(?:\.\.\/\.\.\/)?(?:core|application)\/(workspace|journal|todo)\//,
-  )?.[1] ?? null;
+  return (
+    filePath.match(
+      /^(?:\.\.\/\.\.\/)?(?:core|application)\/(workspace|journal|todo)\//,
+    )?.[1] ?? null
+  );
 }
 
 function isConcreteDomainPath(filePath: string) {
-  return /^\.\.\/\.\.\/(?:application|core)\/(?:workspace|journal|todo)\//
-    .test(filePath);
+  return /^\.\.\/\.\.\/(?:application|core)\/(?:workspace|journal|todo)\//.test(
+    filePath,
+  );
 }
 
 function isConcreteDomainModule(filePath: string) {
-  return /^\.\.\/\.\.\/(?:application|contracts|core)\/(?:workspace|journal|todo)\//
-    .test(filePath);
+  return /^\.\.\/\.\.\/(?:application|contracts|core)\/(?:workspace|journal|todo)\//.test(
+    filePath,
+  );
 }
 
 function isGenericClientHttpModule(filePath: string) {
@@ -175,8 +193,10 @@ function isCoreCommandModule(filePath: string) {
 }
 
 function isSyntaxActivityReactView(filePath: string) {
-  return filePath.startsWith("../../presentation/activities/syntax/") &&
-    filePath.endsWith(".tsx");
+  return (
+    filePath.startsWith("../../presentation/activities/syntax/") &&
+    filePath.endsWith(".tsx")
+  );
 }
 
 function isCoreSyntaxModule(filePath: string) {
@@ -184,8 +204,9 @@ function isCoreSyntaxModule(filePath: string) {
 }
 
 function isSystemSyntaxDefaultModule(filePath: string) {
-  return /^\.\.\/\.\.\/core\/(?:journal|todo)\/syntax\/default(?:Journal|Todo)Syntax\.ts$/
-    .test(filePath);
+  return /^\.\.\/\.\.\/core\/(?:journal|todo)\/syntax\/default(?:Journal|Todo)Syntax\.ts$/.test(
+    filePath,
+  );
 }
 
 function isApplicationArea(filePath: string, area: string) {
@@ -209,7 +230,7 @@ function clientArea(filePath: string) {
   const prefix = "../../infrastructure/client/";
 
   return filePath.startsWith(prefix)
-    ? filePath.slice(prefix.length).split("/")[0] ?? null
+    ? (filePath.slice(prefix.length).split("/")[0] ?? null)
     : null;
 }
 
@@ -227,9 +248,11 @@ function allowsInfrastructureEdge(edge: SourceImport) {
   const sourceClientArea = clientArea(edge.filePath);
 
   if (sourceClientArea !== null) {
-    return clientAreaImports[sourceClientArea]?.includes(
-      clientArea(edge.targetPath) ?? "",
-    ) ?? false;
+    return (
+      clientAreaImports[sourceClientArea]?.includes(
+        clientArea(edge.targetPath) ?? "",
+      ) ?? false
+    );
   }
   const allowed = serverAreaImports[serverArea(edge.filePath) ?? ""];
 
@@ -243,11 +266,8 @@ export function createDependencyImportPolicies({
 }): readonly ImportPolicy[] {
   return [
     {
-      allows: ({ filePath, targetPath, targetRoot }) =>
-        sourceLayerImports[getSourceRoot(filePath)].includes(targetRoot) ||
-        // Build composition may read only the dependency-free presentation catalog.
-        (filePath === "../../vite.config.ts" &&
-          targetPath === "../../presentation/ui/foundation/designTokens.ts"),
+      allows: ({ filePath, targetRoot }) =>
+        sourceLayerImports[getSourceRoot(filePath)].includes(targetRoot),
       name: "five-layer direction",
     },
     {
@@ -289,8 +309,7 @@ export function createDependencyImportPolicies({
     {
       allows: () => false,
       applies: ({ filePath, targetPath }) =>
-        filePath ===
-          "../../application/agentHost/sessionTools.ts" &&
+        filePath === "../../application/agentHost/sessionTools.ts" &&
         isConcreteDomainModule(targetPath),
       name: "Agent session tool coordinator independence from domains",
     },
@@ -327,7 +346,8 @@ export function createDependencyImportPolicies({
     },
     {
       allows: ({ filePath }) => filePath === agentConfigurationStorePath,
-      applies: ({ targetPath }) => targetPath === agentProviderConfigurationPath,
+      applies: ({ targetPath }) =>
+        targetPath === agentProviderConfigurationPath,
       name: "Agent Provider configuration composition boundary",
     },
     {
@@ -365,7 +385,9 @@ export function createDependencyImportPolicies({
     },
     {
       allows: ({ filePath }) => filePath === operationLedgerPath,
-      applies: ({ targetPath }) => targetPath === "../../infrastructure/server/operations/contentOperationLedger.ts",
+      applies: ({ targetPath }) =>
+        targetPath ===
+        "../../infrastructure/server/operations/contentOperationLedger.ts",
       name: "content operation ledger composition boundary",
     },
     {
@@ -409,7 +431,7 @@ export function createDependencyImportPolicies({
       applies: ({ filePath, targetPath }) =>
         isApplicationArea(filePath, "workbench") &&
         ["operations", "system"].some((area) =>
-          isApplicationArea(targetPath, area)
+          isApplicationArea(targetPath, area),
         ),
       name: "workbench content coordination boundary",
     },
@@ -428,8 +450,7 @@ export function createDependencyImportPolicies({
     {
       allows: () => false,
       applies: ({ filePath, targetPath }) =>
-        isSyntaxActivityReactView(filePath) &&
-        isCoreSyntaxModule(targetPath),
+        isSyntaxActivityReactView(filePath) && isCoreSyntaxModule(targetPath),
       name: "Syntax Activity views consume application projection",
     },
     {
@@ -458,9 +479,10 @@ export function auditImportPolicies(
     imports
       .filter((edge) => policy.applies?.(edge) ?? true)
       .filter((edge) => !policy.allows(edge))
-      .map(({ filePath, importPath }) =>
-        `${policy.name}: ${filePath} imports ${importPath}`
-      )
+      .map(
+        ({ filePath, importPath }) =>
+          `${policy.name}: ${filePath} imports ${importPath}`,
+      ),
   );
 }
 
@@ -482,17 +504,21 @@ export function auditApplicationCoordinationRoots(
     domainsByFile.set(filePath, domains);
   }
   return [...domainsByFile]
-    .filter(([filePath, domains]) =>
-      domains.size > 1 &&
-      !filePath.startsWith("../../application/workbench/") &&
-      !filePath.startsWith("../../application/content/") &&
-      !filePath.startsWith("../../application/agent/") &&
-      !filePath.startsWith("../../application/agentHost/")
+    .filter(
+      ([filePath, domains]) =>
+        domains.size > 1 &&
+        !filePath.startsWith("../../application/workbench/") &&
+        !filePath.startsWith("../../application/content/") &&
+        !filePath.startsWith("../../application/agent/") &&
+        !filePath.startsWith("../../application/agentHost/"),
     )
-    .map(([filePath, domains]) =>
-      `cross-domain application coordination: ${filePath} imports ${
-        [...domains].sort().join(", ")
-      }`
+    .map(
+      ([filePath, domains]) =>
+        `cross-domain application coordination: ${filePath} imports ${[
+          ...domains,
+        ]
+          .sort()
+          .join(", ")}`,
     )
     .sort();
 }

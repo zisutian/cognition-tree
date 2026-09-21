@@ -1,19 +1,15 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { Button, Section } from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 const cx = createClassNames();
-// SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
 import type {
   AgentConfigurationController,
   AgentConfigurationState,
 } from "../../../application/agent/index.ts";
-import {
-  Button,
-  ConfirmAction,
-  FormSaveActions,
-  Section,
-  useFeedback,
-} from "../../ui/index.ts";
+import { ConfirmAction, FormSaveActions, useFeedback } from "../../ui/index.ts";
 import { AgentProfileSettingsForm } from "./AgentProfileSettingsForm.tsx";
 import {
   agentProfileDraftFrom,

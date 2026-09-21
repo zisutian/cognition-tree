@@ -1,6 +1,12 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import {
+  PropertyList as ToolPropertyList,
+  PropertyRow as ToolPropertyRow,
+} from "compact-ui";
+import { Button } from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 const cx = createClassNames();
-// SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
 import type {
@@ -8,13 +14,7 @@ import type {
   SystemConfigurationState,
   SystemReconnectPort,
 } from "../../../application/system/index.ts";
-import {
-  Button,
-  ConfirmAction,
-  ToolPropertyList,
-  ToolPropertyRow,
-  useFeedback,
-} from "../../ui/index.ts";
+import { ConfirmAction, useFeedback } from "../../ui/index.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
 import {
   useSettingsInteraction,
@@ -52,21 +52,25 @@ export function OwnerCredentialSettingsPanel({
       {preparation ? (
         <>
           <p>{awaiting ? "新密钥待激活" : "新密钥已激活"}</p>
-          <ToolPropertyList aria-label="所有者密钥">
-            <ToolPropertyRow
-              label="新密钥"
-              value={<code data-sensitive="true">{preparation.secret}</code>}
-              actions={
-                <Button
-                  disabled={busy}
-                  onClick={session.dismissSecret}
-                  type="button"
-                >
-                  关闭显示
-                </Button>
-              }
-            />
-          </ToolPropertyList>
+          <section aria-label="所有者密钥">
+            <ToolPropertyList>
+              <ToolPropertyRow
+                label="新密钥"
+                children={
+                  <code data-sensitive="true">{preparation.secret}</code>
+                }
+                action={
+                  <Button
+                    disabled={busy}
+                    onClick={session.dismissSecret}
+                    type="button"
+                  >
+                    关闭显示
+                  </Button>
+                }
+              />
+            </ToolPropertyList>
+          </section>
         </>
       ) : snapshot?.ownerCredentialRotationPending ? (
         <p>待激活密钥不在当前页面；重新准备将替换它。</p>
@@ -95,7 +99,7 @@ export function OwnerCredentialSettingsPanel({
               void feedback.runAction(session.activatePreparedOwnerCredential)
             }
             type="button"
-            variant="primary"
+            variant="normal"
           >
             我已保存，激活新密钥
           </Button>

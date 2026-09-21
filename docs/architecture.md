@@ -213,28 +213,34 @@ CLI 只导入公开 Contracts，由 registry 构造请求并校验响应；它�
 configuration 与 ProblemCenter，订阅快照并维护当前 Activity；退出登录会终结整组
 controller，重新登录不得复用终态实例。领域 session 到 view application 的组合位于
 `presentation/shell/application`；Activity descriptor catalog 是 ID、标签、图标、分组与
-懒加载元数据的唯一 owner，位于 presentation/shell/workbench。ActivityBar 接收描述
+懒加载元数据的唯一 owner，位于 presentation/shell/workbench。Compact UI Workbench 接收描述
 数据；各 Activity 只接收所需接口。共享 UI 不依赖 Activity 或编辑器实现，通用 React hook
 通过注入取得 scheduler。Todo 本地日期端口由 application/todo 拥有，平台只实现适配；
 初始领域内容由显式内容组合入口创建。
 
 每个 Activity 采用纵向切片：controller、context、view、局部 hook 和样式位于
 `presentation/activities/<activity>/`。跨 Activity 的组合只存在于 shell，共享交互
-原语只存在于 `presentation/ui`；Activity 只组合领域内容、局部 Presentation 状态和
+原语来自固定的 Compact UI 公开入口；Activity 只组合领域内容、局部 Presentation 状态和
 回调，不复制应用状态或领域命令。
 
-三大分区统一使用 `ActivityRegionSlot`，明确声明 title、actions、toolbar、content、footer
-与内容布局。`AppFrame` 组合分区并独占尺寸、折叠和专注模式；`RegionFrame` 唯一拥有
-分区标题、边界与内边距。活动只提供领域内容与操作，不再拥有头部或折叠按钮。
-`Page`、`PageBody` 和 `Section` 分别拥有正文组合、滚动/阅读宽度及分组；表单、结果、
-文档和会话通过明确的模板选择布局。固定操作不随正文滚走。Note/Journal/Todo 的
-编辑器面板只负责编辑内容容器，CodeMirror adapter 保留输入法、光标与撤销生命周期。
+三大分区统一使用 `ActivityRegionSlot` 声明 title、actions、toolbar、content、footer 和布局，
+由 `AppView` 适配到 Compact UI 的 `WorkbenchRegion`。包拥有分区标题、边界、尺寸约束、
+折叠、专注模式、键盘和滚动条。认知树只持有会话中的布局值，不能覆盖包内部样式。
+`Page`/`PageBody` 只组合领域内容或拥有需要保存滚动位置的内容视口；通用控件、列表、
+表单、状态、浮层和目录树直接依赖包公开接口。固定会话输入与审批放在区域 footer。
 
-控件样式与共享组件放在一起，通过 CSS Modules 隔离。公开控件接口移除 className、
-style 与裸按钮变体，活动不能覆盖内部控件。contentClasses 是内容适配器的显式样式
-组合入口，仅绑定共享样式；活动自己的样式在所属目录绑定。保留的可读 DOM 类名
-用于诊断和编辑内容适配，本身不拥有全局控件样式。全局入口只加载主题、基础 reset
-和 CTN 内容标记适配。架构检查同时约束导入方向、样式所有权与跨组件选择器。
+`presentation/navigation` 是展示层页面导航的唯一所有者。`PageTarget` 使用稳定对象 ID，
+`PageSession` 不复制业务正文；driver 通过公开接口描述和选择目标，区分暂不可用与确认删除。
+Shell 注入关闭保存检查、错误报告以及仓库生命周期。活动不维护另一套当前活动状态。
+页面激活先执行离开检查和目标选择，再提交标签；异步完成必须匹配导航代次。
+
+CodeMirror editor 的独立视图快照按完整页面标识保留在登录会话内，重新激活先重新绑定
+当前回调，再同步应用权威正文。输入法、撤销、光标和滚动继续由编辑内核负责。
+CodeMirror 任务控件通过 React bridge 渲染公开 CheckboxControl，不引用控件私有 CSS。
+
+通用配置由 CompactProvider 的 `uiConfig` 唯一提供。源码和候选运行包携带固定安装归档，
+不依赖本地兄弟目录。全局入口只补充基础 reset 和 CTN 内容语义样式；图谱、结构、差异
+等专用内容样式读取包配置。架构检查约束公开导入、单向依赖、禁止变量覆写和旧通用实现。
 
 Activity 内部仍按语义拆分独立 view：Repository 的 catalog、状态、恢复与危险操作，
 Todo 的集合、编辑与周期结构，以及 Notes 的编辑、结构与图谱不因视觉相似而共享业务
@@ -254,7 +260,7 @@ SettingsTarget 是页面、对象 ID 与创建状态的唯一选择。对象草�
 配置已提交但后续状态刷新失败时，返回已提交快照并单独提示刷新失败。系统分表单
 从已校验的完整基线生成请求，运行时版本变化与持久配置冲突分别处理。
 
-Shell 的 workbenchNavigation 是应用内活动导航入口，只接收活动的限制原因和底栏投影；
+Shell 接入 PageNavigation 作为应用内页面导航入口，活动上报限制原因和底栏投影；
 目标选择、仓库切换、问题定位和展开动作在导航获准后执行。被阻止的导航不排队。
 共享表单不判断配置版本或保存政策；凭据与迁移操作各自持有就地确认目标。重连计时器
 通过 SystemReconnectPort 注入，页面退出或新编辑取消待执行的重连。

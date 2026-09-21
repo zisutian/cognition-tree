@@ -1,19 +1,19 @@
+import { Toolbar as ToolToolbar } from "compact-ui";
+import { Button, ChoiceGroup, ContextList, ContextRow } from "compact-ui";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { CircleX, TriangleAlert, X } from "lucide-react";
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { CircleX, TriangleAlert } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import type {
   UiWorkbenchOperationalProblem,
   UiWorkbenchProblem,
   UiWorkbenchProblems,
 } from "../../../application/workbench/index.ts";
-import { RegionHeader } from "../RegionFrame.tsx";
-import { Button } from "../shared/Button.tsx";
+
 import contentStyles from "../shared/Content.module.css";
 import { SymbolSlot } from "../shared/SymbolSlot.tsx";
-import { ToolList, ToolListRow } from "../shared/ToolList.tsx";
-import { ToolToolbar } from "../shared/ToolToolbar.tsx";
+
 import { createClassNames } from "../shared/classNames.ts";
-import { ChoiceGroup } from "../shared/controls.tsx";
+
 import {
   shouldVirtualizeUiRows,
   uiVirtualOverscan,
@@ -73,25 +73,26 @@ function ProblemRow({
   onDismiss,
   problem,
   onOpen,
-  style,
+  selected,
 }: {
   problem: UiWorkbenchProblem;
   onCopyRequestId?: (requestId: string) => void;
   onOpen: (problem: UiWorkbenchProblem) => void;
   onDismiss: (problem: UiWorkbenchProblem) => void;
-  style?: CSSProperties;
+  selected: boolean;
 }) {
   const isError = problem.severity === "error";
   const operational = isOperationalProblem(problem) ? problem : null;
 
   return (
-    <ToolListRow
+    <ContextRow
+      selected={selected}
       actions={
         operational ? (
           <>
             {operational.requestId && onCopyRequestId ? (
               <Button
-                variant="bare"
+                variant="normal"
                 aria-label={`复制请求编号：${operational.requestId}`}
                 onClick={() => onCopyRequestId(operational.requestId!)}
                 title={operational.requestId}
@@ -101,7 +102,7 @@ function ProblemRow({
               </Button>
             ) : null}
             <Button
-              variant="bare"
+              variant="normal"
               aria-label={`关闭操作错误：${problem.message}`}
               onClick={() => onDismiss(problem)}
               type="button"
@@ -111,12 +112,7 @@ function ProblemRow({
           </>
         ) : null
       }
-      buttonProps={{
-        "aria-label": `打开问题：${problem.message}`,
-        title: `${problem.message} · ${problem.locationLabel}`,
-      }}
-      flow="single-line"
-      leading={
+      icon={
         <SymbolSlot
           aria-label={isError ? "错误" : "警告"}
           tone={isError ? "danger" : "warning"}
@@ -128,17 +124,19 @@ function ProblemRow({
           )}
         </SymbolSlot>
       }
-      main={problem.message}
-      meta={
-        <>
-          {getProblemSourceLabel(problem)} · {problem.locationLabel}
+      children={
+        <span
+          aria-label={`打开问题：${problem.message}`}
+          title={`${problem.message} · ${problem.locationLabel}`}
+        >
+          {problem.message} · {getProblemSourceLabel(problem)} ·{" "}
+          {problem.locationLabel}
           {operational && operational.occurrenceCount > 1
             ? ` · ${operational.occurrenceCount} 次 · 最近 ${operational.lastOccurredAt.slice(11, 19)}`
             : ""}
-        </>
+        </span>
       }
       onSelect={() => onOpen(problem)}
-      style={style}
     />
   );
 }
@@ -155,6 +153,7 @@ function ProblemsList({
   onDismiss: (problem: UiWorkbenchProblem) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const virtual = shouldVirtualizeUiRows(problems.length);
   const virtualizer = useVirtualizer({
     count: virtual ? problems.length : 0,
@@ -163,82 +162,77 @@ function ProblemsList({
     getScrollElement: () => scrollRef.current,
     overscan: uiVirtualOverscan,
   });
-
-  if (!virtual) {
-    return (
-      <div className={cx("problems-collection-scroll ui-scroll-surface")}>
-        <ToolList aria-label="问题列表">
-          {problems.map((problem) => (
-            <ProblemRow
-              key={problem.id}
-              onCopyRequestId={onCopyRequestId}
-              onDismiss={onDismiss}
-              onOpen={onOpen}
-              problem={problem}
-            />
-          ))}
-        </ToolList>
-      </div>
-    );
-  }
-
+  const rows = virtualizer.getVirtualItems();
+  const visible = virtual
+    ? rows.flatMap((row) => (problems[row.index] ? [problems[row.index]] : []))
+    : problems;
   return (
     <div
-      className={cx("problems-collection-scroll ui-scroll-surface")}
-      data-virtual-row-count={problems.length}
+      className={cx("problems-collection-scroll")}
       ref={scrollRef}
+      data-virtual-row-count={virtual ? problems.length : undefined}
     >
-      <ToolList
-        aria-label="问题列表"
-        className={cx("problems-virtual-collection")}
-        style={{ height: `${virtualizer.getTotalSize()}px` }}
-      >
-        {virtualizer.getVirtualItems().map((virtualRow) => {
-          const problem = problems[virtualRow.index];
-
-          return problem ? (
-            <ProblemRow
-              key={virtualRow.key}
-              onCopyRequestId={onCopyRequestId}
-              onDismiss={onDismiss}
-              onOpen={onOpen}
-              problem={problem}
-              style={{
-                height: `${virtualRow.size}px`,
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
-            />
-          ) : null;
-        })}
-      </ToolList>
+      <ContextList label="问题列表">
+        {virtual && rows.length > 0 ? (
+          <li role="presentation" style={{ height: rows[0].start }} />
+        ) : null}
+        {visible.map((problem) => (
+          <ProblemRow
+            key={problem.id}
+            problem={problem}
+            selected={selectedId === problem.id}
+            onCopyRequestId={onCopyRequestId}
+            onDismiss={onDismiss}
+            onOpen={(value) => {
+              setSelectedId(value.id);
+              onOpen(value);
+            }}
+          />
+        ))}
+        {virtual && rows.length > 0 ? (
+          <li
+            role="presentation"
+            style={{ height: virtualizer.getTotalSize() - rows.at(-1)!.end }}
+          />
+        ) : null}
+      </ContextList>
     </div>
   );
 }
 
+export type ProblemsFilters = {
+  source: "all" | UiWorkbenchProblem["source"];
+  severity: "all" | "error" | "warning";
+  retry: "all" | "retryable" | "terminal";
+};
+export const initialProblemsFilters: ProblemsFilters = {
+  source: "all",
+  severity: "all",
+  retry: "all",
+};
+
 export function ProblemsPanel({
   expanded,
+  filters,
+  onFiltersChange,
   view,
   onCopyRequestId,
   onDismiss = () => undefined,
   onOpen,
-  onToggle,
 }: {
   expanded: boolean;
+  filters: ProblemsFilters;
+  onFiltersChange(filters: ProblemsFilters): void;
   view: UiWorkbenchProblems;
   onCopyRequestId?: (requestId: string) => void;
   onDismiss?: (problem: UiWorkbenchProblem) => void;
   onOpen: (problem: UiWorkbenchProblem) => void;
-  onToggle: () => void;
 }) {
-  const [sourceFilter, setSourceFilter] = useState<
-    "all" | UiWorkbenchProblem["source"]
-  >("all");
-  const [severityFilter, setSeverityFilter] = useState<
-    "all" | "error" | "warning"
-  >("all");
-  const [retryFilter, setRetryFilter] = useState<
-    "all" | "retryable" | "terminal"
-  >("all");
+  const {
+    source: sourceFilter,
+    severity: severityFilter,
+    retry: retryFilter,
+  } = filters;
   const filteredProblems = useMemo(
     () =>
       view.problems.filter((problem) => {
@@ -257,30 +251,16 @@ export function ProblemsPanel({
   );
   return (
     <section className={cx("problems-panel", expanded && "is-expanded")}>
-      <RegionHeader
-        title="问题"
-        actions={
-          <Button
-            aria-label="关闭问题面板"
-            onClick={onToggle}
-            title="关闭问题面板"
-            type="button"
-            variant="icon"
-          >
-            <X aria-hidden="true" size={16} />
-          </Button>
-        }
-      />
       {expanded ? (
         <div className={cx("problems-panel-body")}>
-          <ToolToolbar aria-label="问题筛选">
+          <ToolToolbar label="问题筛选">
             <label>
               来源
               <ChoiceGroup
                 ariaLabel="按来源筛选问题"
                 mode="single"
                 onChange={(value: "all" | UiWorkbenchProblem["source"]) =>
-                  setSourceFilter(value)
+                  onFiltersChange({ ...filters, source: value })
                 }
                 options={[
                   { label: "全部", value: "all" },
@@ -298,7 +278,7 @@ export function ProblemsPanel({
                 ariaLabel="按严重度筛选问题"
                 mode="single"
                 onChange={(value: "all" | "error" | "warning") =>
-                  setSeverityFilter(value)
+                  onFiltersChange({ ...filters, severity: value })
                 }
                 options={[
                   { label: "全部", value: "all" },
@@ -314,7 +294,7 @@ export function ProblemsPanel({
                 ariaLabel="按可重试性筛选问题"
                 mode="single"
                 onChange={(value: "all" | "retryable" | "terminal") =>
-                  setRetryFilter(value)
+                  onFiltersChange({ ...filters, retry: value })
                 }
                 options={[
                   { label: "全部", value: "all" },

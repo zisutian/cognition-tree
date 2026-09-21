@@ -1,8 +1,9 @@
-import { createSearchActivitySlots } from "../../../../../presentation/activities/search/SearchActivitySlots";
-import { RegionFrame } from "../../../../../presentation/ui/RegionFrame";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { renderToStaticMarkup } from "react-dom/server";
+import { createSearchActivitySlots } from "../../../../../presentation/activities/search/SearchActivitySlots";
+import { RegionFrame } from "../../../../support/presentation/render";
+
+import { renderToStaticMarkup } from "../../../../support/presentation/render";
 import { describe, expect, it } from "vitest";
 import type {
   SearchControllerState,

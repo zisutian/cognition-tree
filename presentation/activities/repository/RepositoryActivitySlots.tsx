@@ -25,7 +25,10 @@ export function createRepositoryActivitySlots({
   onOpen(repositoryId: string): Promise<void>;
   focusRequest: RepositoryFocusRequest | null;
   onConsumeFocusRequest: (requestId: number) => void;
-  onSelectionChange?: (selection: RepositorySelection) => void;
+  onSelectionChange?: (
+    selection: RepositorySelection,
+    intent?: "preview" | "pinned",
+  ) => void;
   selection?: RepositorySelection;
   view: RepositoryViewModel;
 }): ActivitySlots {

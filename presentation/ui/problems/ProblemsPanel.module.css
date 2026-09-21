@@ -1,4 +1,5 @@
 .problems-panel {
+  height: 100%;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -14,7 +15,7 @@
 }
 
 .problems-panel-body {
-  padding: 0 var(--ui-panel-padding) var(--ui-panel-padding);
+  padding: 0 var(--cu-padding) var(--cu-padding);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -24,17 +25,10 @@
   overflow: auto;
 }
 
-.problems-virtual-collection > li {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-}
-
 .problems-empty {
   margin: 0;
-  padding: var(--ui-gap-tight);
-  color: var(--color-fg-muted);
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
+  padding: var(--cu-tightGap);
+  color: var(--cu-color-muted);
+  font-size: var(--cu-fontSize);
+  line-height: var(--cu-lineHeight);
 }

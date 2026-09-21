@@ -1,120 +1,43 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, it } from "vitest";
-import { AppFrame } from "../../../presentation/ui/AppFrame";
-import {
-  appContextDefaultWidth,
-  appDetailDefaultWidth,
-  appProblemsDefaultHeight,
-  appProblemsMaxHeight,
-  appProblemsMinHeight,
-} from "../../../presentation/ui/workbench/frameResize";
-import { expectMarkupSemantics } from "../../support/presentation/markupSemantics";
-
-describe("AppFrame", () => {
-  function renderFrame({
-    context = true,
-    detail = false,
-    detailCollapsed = false,
-    focusMode = false,
-    problemsExpanded = false,
-  } = {}) {
-    return renderToStaticMarkup(
-      <AppFrame
-        activityItems={[]}
+import { describe, expect, it } from "vitest";
+import { Workbench, initialWorkbenchLayout } from "compact-ui";
+import { uiConfig } from "../../../presentation/ui/index.ts";
+import { renderToStaticMarkup } from "../../support/presentation/render.tsx";
+describe("Compact UI workbench integration", () => {
+  const render = (focusMode = false) =>
+    renderToStaticMarkup(
+      <Workbench
+        activities={[{ id: "notes", label: "笔记", icon: "N" }]}
         activeActivityId="notes"
-        contextSlot={
-          context ? { content: <div>context</div>, title: "笔记" } : null
-        }
-        detailSlot={
-          detail ? { title: "详情", content: <section>detail</section> } : null
-        }
+        onActivityRequest={() => {}}
+        context={{ title: "目录", content: "目录内容", layout: "fill" }}
+        main={{ title: "正文", content: "正文内容", layout: "fill" }}
+        detail={{ title: "结构", content: "结构内容", layout: "fill" }}
+        bottom={{ title: "问题", content: "问题内容", layout: "fill" }}
+        status={{ start: "保存状态" }}
         layout={{
-          contextCollapsed: false,
-          contextResizeValue: appContextDefaultWidth,
-          contextWidth: appContextDefaultWidth,
-          detailCollapsed,
-          detailResizeValue: appDetailDefaultWidth,
-          detailWidth: appDetailDefaultWidth,
+          ...initialWorkbenchLayout(uiConfig),
+          bottomExpanded: true,
           focusMode,
-          isContextResizing: false,
-          isDetailResizing: false,
-          isProblemsResizing: false,
-          onContextResizeKeyDown: () => undefined,
-          onContextResizeStart: () => undefined,
-          onDetailResizeKeyDown: () => undefined,
-          onDetailResizeStart: () => undefined,
-          onDetailToggle: () => undefined,
-          onProblemsResizeKeyDown: () => undefined,
-          onProblemsResizeStart: () => undefined,
-          problemsExpanded,
-          problemsHeight: appProblemsDefaultHeight,
-          problemsResizeValue: appProblemsDefaultHeight,
         }}
-        mainSlot={{ title: "内容", content: <section>main</section> }}
-        onActivityChange={() => undefined}
-        problemsSlot={<div>problems</div>}
-        statusBarSlot={<footer>status</footer>}
+        onLayoutChange={() => {}}
       />,
     );
-  }
-
-  it.each([
-    [
-      "omits an empty context panel",
-      { context: false },
-      {
-        has: ['aria-label="工作区功能"'],
-        lacks: ['<aside aria-label="笔记"', "调整上下文区宽度"],
-      },
-    ],
-    [
-      "exposes context and detail resizing",
-      { detail: true },
-      {
-        has: [
-          "调整上下文区宽度",
-          "调整右侧详情宽度",
-          `aria-valuenow="${appContextDefaultWidth}"`,
-          `aria-valuenow="${appDetailDefaultWidth}"`,
-        ],
-      },
-    ],
-    [
-      "keeps the collapsed detail opener",
-      { detail: true, detailCollapsed: true },
-      { has: ["展开右侧详情"], lacks: ["detail</aside>"] },
-    ],
-    [
-      "hides peripheral regions while retaining the Problems session",
-      { detail: true, focusMode: true },
-      {
-        has: ['aria-label="工作区功能"', "main", 'aria-label="问题" hidden=""'],
-        lacks: [">context<", ">detail<", "<footer>status"],
-      },
-    ],
-    [
-      "keeps collapsed Problems without a resize handle",
-      {},
-      {
-        has: ['<aside aria-label="问题"', "problems"],
-        lacks: ["调整问题面板高度"],
-      },
-    ],
-    [
-      "exposes Problems resizing only while expanded",
-      { problemsExpanded: true },
-      {
-        has: [
-          "调整问题面板高度",
-          `aria-valuemin="${appProblemsMinHeight}"`,
-          `aria-valuemax="${appProblemsMaxHeight}"`,
-          `aria-valuenow="${appProblemsDefaultHeight}"`,
-        ],
-      },
-    ],
-  ] as const)("%s", (_name, options, semantics) => {
-    expectMarkupSemantics(renderFrame(options), semantics);
+  it("provides all regions and accessible resizing through the package", () => {
+    const markup = render();
+    for (const label of [
+      "目录内容",
+      "正文内容",
+      "结构内容",
+      "问题内容",
+      "保存状态",
+    ])
+      expect(markup).toContain(label);
+    expect(markup).toContain('role="separator"');
+  });
+  it("keeps only main content in focus mode", () => {
+    const markup = render(true);
+    expect(markup).toContain("正文内容");
+    expect(markup).not.toContain("目录内容");
+    expect(markup).not.toContain("结构内容");
   });
 });

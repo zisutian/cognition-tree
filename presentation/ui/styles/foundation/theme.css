@@ -1,6 +1,37 @@
-@design-tokens;
-
+:root {
+  --ctn-tone-green: #6a9955;
+  --ctn-tone-teal: #4ec9b0;
+  --ctn-tone-cyan: #9cdcfe;
+  --ctn-tone-blue: #569cd6;
+  --ctn-tone-indigo: #6796e6;
+  --ctn-tone-violet: #c586c0;
+  --ctn-tone-pink: #d16d9e;
+  --ctn-tone-red: #f48771;
+  --ctn-tone-amber: #d7ba7d;
+  --ctn-tone-gray: #858585;
+  --ctn-tone-neutral: #87938d;
+  --ctn-tone-green-soft: rgba(106, 153, 85, 0.08);
+  --ctn-tone-teal-soft: rgba(78, 201, 176, 0.08);
+  --ctn-tone-cyan-soft: rgba(86, 156, 214, 0.08);
+  --ctn-tone-blue-soft: rgba(86, 156, 214, 0.08);
+  --ctn-tone-indigo-soft: rgba(100, 102, 149, 0.1);
+  --ctn-tone-violet-soft: rgba(197, 134, 192, 0.08);
+  --ctn-tone-pink-soft: rgba(197, 134, 192, 0.08);
+  --ctn-tone-red-soft: rgba(244, 135, 113, 0.09);
+  --ctn-tone-amber-soft: rgba(206, 145, 120, 0.08);
+  --ctn-tone-gray-soft: rgba(128, 128, 128, 0.08);
+  --ctn-editor-font-size: 14px;
+  --ctn-editor-line-height: 1.5;
+  --ctn-link: #007acc;
+  --ctn-selection-soft: rgba(0, 122, 204, 0.08);
+  --ctn-error-soft: rgba(244, 135, 113, 0.12);
+  --ctn-numeric-variant: tabular-nums;
+  --ctn-symbol-line-height: 1;
+}
 .source-editor {
-  --color-accent: var(--color-content-accent);
-  --color-accent-subtle: var(--color-content-accent-subtle);
+  --ctn-focus-outline: 1px solid var(--cu-color-focus);
+  --ctn-row-padding: max(
+    0px,
+    calc((var(--cu-rowHeight) - var(--cu-fontSize) * var(--cu-lineHeight)) / 2)
+  );
 }

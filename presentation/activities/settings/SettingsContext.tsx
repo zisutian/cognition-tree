@@ -1,23 +1,11 @@
-import { createClassNames } from "../../ui/index.ts";
-import settingsStyles from "./settings.module.css";
-const cx = createClassNames(settingsStyles);
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-import { FileCog, Plus } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { Tree, type TreeNode } from "compact-ui";
+import { useState } from "react";
 import type { AgentConfigurationState } from "../../../application/agent/index.ts";
-import {
-  Button,
-  CompactContextGroup,
-  CompactContextRow,
-} from "../../ui/index.ts";
 import {
   settingsPageLabels,
   settingsTargetKey,
   type SettingsTarget,
 } from "./settingsTypes.ts";
-
-type EntityKind = "provider" | "profile";
 export function SettingsContext({
   agent,
   blocked,
@@ -26,125 +14,82 @@ export function SettingsContext({
 }: {
   agent: AgentConfigurationState;
   blocked: boolean;
-  onSelect(target: SettingsTarget): void;
+  onSelect(target: SettingsTarget, intent?: "preview" | "pinned"): void;
   target: SettingsTarget;
 }) {
-  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(
-    () => new Set(),
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(
+    () =>
+      new Set([
+        "group:interface",
+        "group:system",
+        "group:agent",
+        "group:provider",
+        "group:profile",
+        "group:api",
+        "group:audit",
+      ]),
   );
-  const row = (item: SettingsTarget, label: string) => {
-    const key = settingsTargetKey(item),
-      selected = key === settingsTargetKey(target);
-    return (
-      <CompactContextRow
-        icon={<FileCog aria-hidden="true" size={13} />}
-        key={key}
-        label={label}
-        onSelect={() => onSelect(item)}
-        selected={selected}
-        title={label}
-        trailing={
-          selected && blocked ? <span aria-label="待处理">●</span> : undefined
-        }
-      />
-    );
+  const targets = new Map<string, SettingsTarget>();
+  const row = (item: SettingsTarget, label: string): TreeNode => {
+    const id = settingsTargetKey(item);
+    targets.set(id, item);
+    return { id, label, disabled: blocked && id !== settingsTargetKey(target) };
   };
   const group = (
     id: string,
     label: string,
-    children: ReactNode,
-    actions?: ReactNode,
-  ) => (
-    <CompactContextGroup
-      headingId={`settings-group-${id}`}
-      expanded={!collapsedGroups.has(id)}
-      onToggle={() =>
-        setCollapsedGroups((current) => {
-          const next = new Set(current);
-          if (next.has(id)) next.delete(id);
-          else next.add(id);
-          return next;
-        })
-      }
-      label={label}
-      listAriaLabel={label}
-      actions={actions}
-    >
-      {children}
-    </CompactContextGroup>
-  );
+    children: TreeNode[],
+  ): TreeNode => ({
+    id: `group:${id}`,
+    label,
+    canHaveChildren: true,
+    children,
+  });
   const entities = (
-    kind: EntityKind,
-    label: string,
-    items: ReadonlyArray<{ id: string; label: string }>,
+    kind: "provider" | "profile",
+    items: readonly { id: string; label: string }[],
   ) =>
     group(
       kind,
-      label,
-      <>
-        {items.map((item) => row({ kind, id: item.id }, item.label))}
-        {target.kind === kind &&
-        target.id !== null &&
-        !items.some((item) => item.id === target.id)
-          ? row(target, `已移除的${settingsPageLabels[kind]}`)
-          : null}
-        {target.kind === kind && "id" in target && target.id === null
-          ? row({ kind, id: null }, `新建${settingsPageLabels[kind]}`)
-          : null}
-      </>,
-      <Button
-        aria-label={`新建 ${settingsPageLabels[kind]}`}
-        onClick={() => onSelect({ kind, id: null })}
-        title={`新建 ${settingsPageLabels[kind]}`}
-        type="button"
-        variant="icon"
-      >
-        <Plus aria-hidden="true" size={16} />
-      </Button>,
+      kind === "provider" ? "模型服务（Provider）" : "会话配置（Profile）",
+      [
+        ...items.map((item) => row({ kind, id: item.id }, item.label)),
+        row({ kind, id: null }, `新建 ${settingsPageLabels[kind]}`),
+      ],
     );
+  const nodes = [
+    group("interface", "界面", [row({ kind: "interface" }, "工作台布局")]),
+    group(
+      "system",
+      "服务",
+      (["network", "paths", "owner", "migration"] as const).map((kind) =>
+        row({ kind }, settingsPageLabels[kind]),
+      ),
+    ),
+    group("agent", "智能体", [
+      row({ kind: "agent-default" }, "默认会话配置"),
+      row({ kind: "agent-discovery" }, "本地服务发现"),
+      entities("provider", agent.configuration?.providers ?? []),
+      entities("profile", agent.configuration?.profiles ?? []),
+    ]),
+    group("api", "API 访问", [row({ kind: "local-api" }, "本机 API")]),
+    group("audit", "审计", [
+      row({ kind: "audit" }, "操作记录"),
+      row({ kind: "audit-retention" }, "保留策略"),
+    ]),
+  ];
   return (
-    <div className={cx("activity-context-content settings-context")}>
-      {group("interface", "界面", row({ kind: "interface" }, "工作台布局"))}
-      {group(
-        "system",
-        "服务",
-        <>
-          {(["network", "paths", "owner", "migration"] as const).map((kind) =>
-            row({ kind }, settingsPageLabels[kind]),
-          )}
-        </>,
-      )}
-      {group(
-        "agent",
-        "智能体",
-        <>
-          {row({ kind: "agent-default" }, "默认会话配置")}
-          {row({ kind: "agent-discovery" }, "本地服务发现")}
-          <li className={cx("settings-context-subgroup")}>
-            {entities(
-              "provider",
-              "模型服务（Provider）",
-              agent.configuration?.providers ?? [],
-            )}
-          </li>
-          <li className={cx("settings-context-subgroup")}>
-            {entities(
-              "profile",
-              "会话配置（Profile）",
-              agent.configuration?.profiles ?? [],
-            )}
-          </li>
-        </>,
-      )}
-      {group("api", "API 访问", row({ kind: "local-api" }, "本机 API"))}
-      {group(
-        "audit",
-        "审计",
-        <>
-          {row({ kind: "audit" }, "操作记录")}
-          {row({ kind: "audit-retention" }, "保留策略")}
-        </>,
-      )}
-    </div>
+    <Tree
+      label="设置目录"
+      nodes={nodes}
+      expandedIds={expanded}
+      onExpandedChange={setExpanded}
+      selectedId={settingsTargetKey(target)}
+      onSelect={() => {}}
+      onOpen={(id, intent) => {
+        const item = targets.get(id);
+        if (item) onSelect(item, intent);
+      }}
+    />
   );
 }

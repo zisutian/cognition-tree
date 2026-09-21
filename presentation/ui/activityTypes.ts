@@ -4,20 +4,17 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { PageLayout } from "./shared/PageLayout.ts";
 
-export type ActivityId =
-  | "agent"
-  | "notes"
-  | "journal"
-  | "todo"
-  | "syntax"
-  | "search"
-  | "repository"
-  | "settings";
+import type { ActivityId } from "../navigation/index.ts";
+export type {
+  ActivityId,
+  ActivityInteractionState,
+} from "../navigation/index.ts";
 
 export type ActivityRegionSlot = {
   layout?: PageLayout;
   toolbar?: ReactNode;
   footer?: ReactNode;
+  fixedPageActions?: boolean;
   collapseLabel?: string;
   actions?: ReactNode;
   content: ReactNode;
@@ -50,8 +47,3 @@ export type ActivityNavigationItem = {
   id: ActivityId;
   label: string;
 };
-
-export type ActivityInteractionState = Readonly<{
-  navigationBlocked: boolean;
-  statusMessage: string;
-}>;

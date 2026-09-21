@@ -1,7 +1,8 @@
+import { Button, InputControl } from "compact-ui";
 import { Plus, Trash2 } from "lucide-react";
 import type { AvailableSyntaxViewModel } from "../../../application/syntax/index.ts";
 import { createSyntaxRuleFieldId } from "../../../application/syntax/index.ts";
-import { Button, createClassNames, InputControl } from "../../ui/index.ts";
+import { createClassNames } from "../../ui/index.ts";
 import syntaxStyles from "./syntax.module.css";
 const cx = createClassNames(syntaxStyles);
 
@@ -162,7 +163,7 @@ export function InlineRuleRows({
           disabled={!syntax.canMutate}
           onClick={() => syntax.actions.addInline("paired")}
           type="button"
-          variant="secondary"
+          variant="normal"
         >
           <Plus aria-hidden="true" size={13} />
           成对符号
@@ -171,7 +172,7 @@ export function InlineRuleRows({
           disabled={!syntax.canMutate}
           onClick={() => syntax.actions.addInline("single")}
           type="button"
-          variant="secondary"
+          variant="normal"
         >
           <Plus aria-hidden="true" size={13} />
           单个符号

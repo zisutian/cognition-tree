@@ -1,10 +1,7 @@
+import { Tree } from "compact-ui";
 import type { NotesViewModel } from "../../../../application/workspace/index.ts";
 import type { ActivitySlots } from "../../../ui/index.ts";
-import {
-  ChoiceGroup,
-  createClassNames,
-  FocusAction,
-} from "../../../ui/index.ts";
+import { createClassNames } from "../../../ui/index.ts";
 import { NoteDetailPanel } from "./NoteDetailPanel.tsx";
 import { NoteEditorPanel } from "./NoteEditorPanel.tsx";
 import notesStyles from "./notes.module.css";
@@ -30,7 +27,7 @@ export function createNotesWorkspaceActivitySlots({
   edit: ActivitySlots;
   graph: ActivitySlots;
   mode: NotesMode;
-  onModeChange(mode: NotesMode): void;
+  onModeChange(mode: NotesMode, intent?: "preview" | "pinned"): void;
   repositoryName: string;
   structure: ActivitySlots;
 }): ActivitySlots {
@@ -39,20 +36,19 @@ export function createNotesWorkspaceActivitySlots({
 
   return {
     context: {
-      toolbar: (
-        <ChoiceGroup
-          ariaLabel="笔记视图"
-          mode="single"
-          options={notesModes.map(({ id, label }) => ({
-            label,
-            value: id,
-          }))}
-          value={mode}
-          onChange={onModeChange}
-        />
-      ),
       content: (
         <div className={cx("notes-workspace-context")}>
+          <div className={cx("notes-tool-tree")}>
+            <Tree
+              label="笔记工具"
+              nodes={notesModes.map(({ id, label }) => ({ id, label }))}
+              selectedId={mode}
+              expandedIds={new Set()}
+              onExpandedChange={() => {}}
+              onSelect={() => {}}
+              onOpen={(id, intent) => onModeChange(id as NotesMode, intent)}
+            />
+          </div>
           <div className={cx("notes-mode-context")}>
             {current.context?.content ?? null}
           </div>
@@ -91,9 +87,7 @@ export function createNotesWorkspaceActivitySlots({
 }
 
 export function createNotesActivitySlots({
-  focusMode,
   onReload,
-  onToggleFocusMode,
   repositoryName,
   view,
 }: {
@@ -111,14 +105,13 @@ export function createNotesActivitySlots({
     detail: view.activeNote
       ? {
           title: "结构",
-          layout: "detail",
+          layout: "canvas",
           content: <NoteDetailPanel view={view} />,
         }
       : null,
     main: {
       title: view.activeNote?.title ?? "笔记",
       layout: "document",
-      actions: <FocusAction active={focusMode} onToggle={onToggleFocusMode} />,
       content: <NoteEditorPanel view={view} />,
     },
   };

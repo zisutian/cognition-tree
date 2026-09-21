@@ -1,7 +1,9 @@
-import { ListAction, createClassNames } from "../../ui/index.ts";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { Button, CheckboxControl } from "compact-ui";
+import { createClassNames } from "../../ui/index.ts";
 import todoStyles from "./todo.module.css";
 const cx = createClassNames(todoStyles);
-// SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Repeat2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -11,8 +13,6 @@ import type {
   TodoViewModel,
 } from "../../../application/todo/index.ts";
 import {
-  Button,
-  CheckboxControl,
   Page,
   PageBody,
   getStructureTreeRowStyle,
@@ -87,14 +87,20 @@ function TodoStructureNodes({
                   }
                 />
               </span>
-              <ListAction
-                kind="text"
+              <Button
                 onClick={() => view.outline.onSelectLine(node.lineNumber)}
                 title={`${node.label}: ${node.text} · L${node.lineNumber}`}
                 type="button"
               >
-                <span className={cx("block-text")}>{node.text}</span>
-              </ListAction>
+                <span
+                  className={cx(
+                    "block-text",
+                    node.completed && "todo-completed-text",
+                  )}
+                >
+                  {node.text}
+                </span>
+              </Button>
               <span className={cx("ui-tree-meta todo-structure-meta")}>
                 {node.recurrence?.progress ? (
                   <span

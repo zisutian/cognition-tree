@@ -1,3 +1,4 @@
+import type { EditorView } from "@codemirror/view";
 import { describe, expect, it, vi } from "vitest";
 import type {
   CtnEditableBlock,
@@ -97,78 +98,38 @@ function createInline(
 }
 
 describe("ctn editor decorations", () => {
-  it("routes checkbox changes to the current Todo callback and ignores editor events", () => {
-    class FakeCheckbox extends EventTarget {
-      checked = false;
-      className = "";
-      readonly tagName = "INPUT";
-      type = "";
-      readonly attributes = new Map<string, string>();
-
-      setAttribute(name: string, value: string) {
-        this.attributes.set(name, value);
-      }
-    }
-
-    const checkbox = new FakeCheckbox();
-    const originalDocument = globalThis.document;
-    const onToggle = vi.fn();
-
-    Object.defineProperty(globalThis, "document", {
-      configurable: true,
-      value: { createElement: () => checkbox },
-    });
+  it("updates the public checkbox bridge and releases its host", () => {
+    const host = { className: "" } as HTMLElement;
+    const render = vi.fn(),
+      remove = vi.fn(),
+      toggle = vi.fn();
+    const bridge = { render, remove };
+    const view = { state: { facet: () => bridge } } as unknown as EditorView;
+    vi.stubGlobal("document", { createElement: () => host });
     try {
-      const widget = new CtnCheckboxWidget(
-        {
-          blockId: "00000000-0000-4000-8000-000000000001",
-          checked: true,
-          label: "完成测试",
-          lineNumber: 1,
-        },
-        { current: onToggle },
-      );
-      const dom = widget.toDOM();
-
-      expect(dom).toBe(checkbox);
-      expect(checkbox.checked).toBe(true);
-      expect(checkbox.attributes.get("aria-label")).toBe("标记未完成 完成测试");
+      const item = {
+        blockId: "task",
+        checked: true,
+        label: "完成测试",
+        lineNumber: 1,
+      };
+      const callback = { current: toggle };
+      const widget = new CtnCheckboxWidget(item, callback);
+      expect(widget.toDOM(view)).toBe(host);
+      expect(render).toHaveBeenCalledWith(host, item, callback);
       expect(widget.ignoreEvent()).toBe(true);
-
-      expect(
-        checkbox.dispatchEvent(new Event("change", { cancelable: true })),
-      ).toBe(true);
-
-      expect(onToggle).toHaveBeenCalledWith(
-        "00000000-0000-4000-8000-000000000001",
+      const next = new CtnCheckboxWidget({ ...item, checked: false }, callback);
+      expect(next.eq(widget)).toBe(false);
+      expect(next.updateDOM(host, view)).toBe(true);
+      expect(render).toHaveBeenLastCalledWith(
+        host,
+        { ...item, checked: false },
+        callback,
       );
-
-      const updatedWidget = new CtnCheckboxWidget(
-        {
-          blockId: "00000000-0000-4000-8000-000000000001",
-          checked: false,
-          label: "更新测试",
-          lineNumber: 1,
-        },
-        { current: onToggle },
-      );
-
-      expect(
-        updatedWidget.updateDOM(checkbox as unknown as HTMLElement),
-      ).toBe(true);
-      expect(checkbox.checked).toBe(false);
-      expect(checkbox.attributes.get("aria-label")).toBe(
-        "标记完成 更新测试",
-      );
+      widget.destroy(host);
+      expect(remove).toHaveBeenCalledWith(host);
     } finally {
-      if (originalDocument) {
-        Object.defineProperty(globalThis, "document", {
-          configurable: true,
-          value: originalDocument,
-        });
-      } else {
-        Reflect.deleteProperty(globalThis, "document");
-      }
+      vi.unstubAllGlobals();
     }
   });
 
@@ -244,17 +205,12 @@ describe("ctn editor decorations", () => {
       semanticId: "multiline-block",
     });
 
-    expect(
-      getBlockLineDecorationClass(
-        diagnosticBlock,
-        2,
-      ),
-    ).toBe(`ctn-line ${getToneClassName("gray")}`);
-    expect(getBlockLineDecorationClass(diagnosticBlock).split(" "))
-      .toEqual(expect.arrayContaining([
-        "ctn-line-diagnostic",
-        "has-diagnostics",
-      ]));
+    expect(getBlockLineDecorationClass(diagnosticBlock, 2)).toBe(
+      `ctn-line ${getToneClassName("gray")}`,
+    );
+    expect(getBlockLineDecorationClass(diagnosticBlock).split(" ")).toEqual(
+      expect.arrayContaining(["ctn-line-diagnostic", "has-diagnostics"]),
+    );
     expect(
       getBlockLineDecorationStyle(
         createBlock({
@@ -347,17 +303,20 @@ describe("ctn editor decorations", () => {
       getTextColorStyleDeclaration("#cc8844"),
     );
     expect(
-      getInlineDecorationClass(createInline({
-        textColor: "#cc8844",
-        tone: "#4455aa",
-      })),
+      getInlineDecorationClass(
+        createInline({
+          textColor: "#cc8844",
+          tone: "#4455aa",
+        }),
+      ),
     ).toBe(`ctn-inline ${getToneClassName("#4455aa")}`);
     expect(
-      getInlineDecorationStyle(createInline({
-        textColor: "#cc8844",
-        tone: "#4455aa",
-      })),
+      getInlineDecorationStyle(
+        createInline({
+          textColor: "#cc8844",
+          tone: "#4455aa",
+        }),
+      ),
     ).toBe(getToneStyleDeclaration("#4455aa"));
   });
-
 });

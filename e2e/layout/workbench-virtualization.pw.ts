@@ -1,3 +1,4 @@
+import { defaultDesignConfig } from "compact-ui";
 import { expect, type Locator } from "@playwright/test";
 
 import { test as base } from "../support/e2eTest";
@@ -8,24 +9,31 @@ import {
 import { openWorkbench } from "../support/workbenchPage";
 
 async function expectCompactVirtualRows(tree: Locator, totalRows: number) {
-  expect((await tree.boundingBox())!.height).toBe(totalRows * 22);
+  expect((await tree.boundingBox())!.height).toBe(
+    totalRows * defaultDesignConfig.metrics.rowHeight,
+  );
   const rows = await tree.locator(".ui-virtual-tree-row").evaluateAll((items) =>
-    items.map((item) => {
-      const box = item.getBoundingClientRect();
-      return {
-        height: box.height,
-        top: box.top,
-        position: Number(item.getAttribute("aria-posinset")),
-      };
-    }).sort((a, b) => a.top - b.top),
+    items
+      .map((item) => {
+        const box = item.getBoundingClientRect();
+        return {
+          height: box.height,
+          top: box.top,
+          position: Number(item.getAttribute("aria-posinset")),
+        };
+      })
+      .sort((a, b) => a.top - b.top),
   );
   expect(rows.length).toBeGreaterThan(1);
   rows.forEach((row, index) => {
-    expect(row.height).toBe(22);
+    expect(row.height).toBe(defaultDesignConfig.metrics.rowHeight);
     // The selected row can remain mounted far outside the visible window.
     if (index) {
       const previous = rows[index - 1];
-      expect(row.top - previous.top).toBe((row.position - previous.position) * 22);
+      expect(row.top - previous.top).toBe(
+        (row.position - previous.position) *
+          defaultDesignConfig.metrics.rowHeight,
+      );
     }
   });
 }
@@ -59,26 +67,25 @@ test.describe("virtual collection scrolling", () => {
   }) => {
     await openWorkbench(page, directoryRepository);
 
-    const context = page.locator(".activity-context-content");
-    const directoryTree = context.getByRole("tree");
-
+    const directoryTree = page.getByRole("tree", { name: "笔记目录" });
     await expect(directoryTree).toBeVisible();
-    await expect(directoryTree).toHaveAttribute(
-      "data-virtual-row-count",
-      "601",
-    );
+    await expect(directoryTree).toHaveAttribute("data-virtualized", "true");
     await expect(directoryTree.getByRole("treeitem").first()).toHaveAttribute(
       "aria-setsize",
       "601",
     );
     expect(await directoryTree.getByRole("treeitem").count()).toBeLessThan(100);
-    await context.evaluate((element) => {
-      element.scrollTop = element.scrollHeight;
-    });
+    await directoryTree.focus();
+    await directoryTree.press("End");
     await expect(
-      context.getByTitle("Large Note 599", { exact: true }),
-    ).toBeVisible();
-    await expectCompactVirtualRows(directoryTree, 601);
+      directoryTree.getByRole("treeitem", {
+        name: "Large Note 599",
+        exact: true,
+      }),
+    ).toBeInViewport();
+    await directoryTree.press("Enter");
+    await expect(page.getByLabel("笔记编辑")).toContainText("Large Note 599");
+    expect(await directoryTree.getByRole("treeitem").count()).toBeLessThan(100);
   });
 
   test("virtualizes a 600-block structure and reveals its final row", async ({
@@ -87,7 +94,7 @@ test.describe("virtual collection scrolling", () => {
   }) => {
     await openWorkbench(page, structureRepository);
     const detailScroll = page.locator(
-      '.app-detail [data-page-layout="detail"]',
+      "aside[aria-label='详情区域'] [data-page-layout=\"canvas\"]",
     );
     const structureTree = detailScroll.getByRole("tree");
 

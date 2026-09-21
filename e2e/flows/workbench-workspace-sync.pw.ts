@@ -33,7 +33,10 @@ test.describe("Workspace synchronization", () => {
   }) => {
     await seedWorkbenchRepository(api, externalRepositoryId);
     await openWorkbench(page, externalRepositoryId);
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    await page
+      .locator("aside[aria-label='上下文区域']")
+      .getByTitle("Alpha", { exact: true })
+      .click();
     await expect(page.getByLabel("笔记编辑")).not.toContainText(
       "外部文件修改已载入",
     );
@@ -57,7 +60,10 @@ test.describe("Workspace synchronization", () => {
     const response = await rescanResponse;
 
     expect(response.ok(), await response.text()).toBe(true);
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    await page
+      .locator("aside[aria-label='上下文区域']")
+      .getByTitle("Alpha", { exact: true })
+      .click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "外部文件修改已载入",
     );
@@ -119,7 +125,10 @@ test.describe("Workspace synchronization", () => {
   }) => {
     await seedRawRepository(api, rawRepositoryId);
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    await page
+      .locator("aside[aria-label='上下文区域']")
+      .getByTitle("Alpha", { exact: true })
+      .click();
 
     const editor = page.locator(".source-editor .cm-content");
 
@@ -130,19 +139,27 @@ test.describe("Workspace synchronization", () => {
     await openRepositoryFromContext(page, rawRepositoryId);
     await getActivityButton(page, "笔记").click();
     await expect(
-      page.locator(".app-context").getByTitle("原始笔记", { exact: true }),
+      page
+        .locator("aside[aria-label='上下文区域']")
+        .getByTitle("原始笔记", { exact: true }),
     ).toBeVisible();
 
     await getActivityButton(page, "仓库").click();
     await openRepositoryFromContext(page, repositoryId);
     await getActivityButton(page, "笔记").click();
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    await page
+      .locator("aside[aria-label='上下文区域']")
+      .getByTitle("Alpha", { exact: true })
+      .click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "immediate-switch-local",
     );
 
     await page.reload();
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    await page
+      .locator("aside[aria-label='上下文区域']")
+      .getByTitle("Alpha", { exact: true })
+      .click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "immediate-switch-local",
     );
@@ -157,7 +174,10 @@ test.describe("Workspace synchronization", () => {
       route.abort(),
     );
     await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha", { exact: true }).click();
+    await page
+      .locator("aside[aria-label='上下文区域']")
+      .getByTitle("Alpha", { exact: true })
+      .click();
 
     const snapshotResponse = await api.get(
       `/api/v4/sync/workspaces/${repositoryId}`,
@@ -196,7 +216,7 @@ test.describe("Workspace synchronization", () => {
     await getActivityButton(page, "仓库").click();
     await expect(
       page
-        .locator('dl[aria-label="仓库状态"]')
+        .locator('section[aria-label="仓库状态"]')
         .getByText("仓库内容已更改", { exact: true }),
     ).toBeVisible();
 
@@ -207,11 +227,14 @@ test.describe("Workspace synchronization", () => {
     await getActivityButton(page, "仓库").click();
     await expect(
       page
-        .locator('dl[aria-label="仓库状态"]')
+        .locator('section[aria-label="仓库状态"]')
         .getByText("仓库内容已更改", { exact: true }),
     ).toBeVisible();
 
-    const conflictSection = page.getByRole("region", { name: "同步冲突" });
+    const conflictSection = page.getByRole("heading", {
+      name: "同步冲突",
+      exact: true,
+    });
 
     await expect(conflictSection).toBeVisible();
     await expect(
@@ -234,19 +257,23 @@ test.describe("Workspace synchronization", () => {
     expect(remoteSource).not.toContain("conflict-local-latest");
     expect(remoteSource).toContain("remote-conflict");
 
-    await conflictSection
+    await page
+      .getByRole("main")
       .getByRole("button", {
         name: "远端并另存本地",
       })
       .click();
     await expect(conflictSection).toBeHidden();
     await getActivityButton(page, "笔记").click();
-    await page.locator(".app-context").getByRole("button", { name: "Alpha 本地恢复副本", exact: true }).click();
+    await page
+      .locator("aside[aria-label='上下文区域']")
+      .getByRole("treeitem", { name: "Alpha 本地恢复副本", exact: true })
+      .click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "conflict-local-first conflict-local-latest",
     );
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Alpha", { exact: true })
       .click();
     await expect(page.getByLabel("笔记编辑")).toContainText("remote-conflict");
@@ -283,7 +310,7 @@ test.describe("Workspace synchronization", () => {
     );
     await openWorkbench(page, repositoryId);
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Alpha", { exact: true })
       .click();
     const response = await api.get(`/api/v4/sync/workspaces/${repositoryId}`);
@@ -311,18 +338,21 @@ test.describe("Workspace synchronization", () => {
     await page.keyboard.press("Control+End");
     await page.keyboard.type(" local");
     await getActivityButton(page, "仓库").click();
-    const conflict = page.getByRole("region", { name: "同步冲突" });
+    const conflict = page.getByRole("heading", {
+      name: "同步冲突",
+      exact: true,
+    });
     await expect(conflict).toBeVisible();
     await getActivityButton(page, "笔记").click();
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Beta", { exact: true })
       .click();
     await editor.click();
     await page.keyboard.press("Control+End");
     await page.keyboard.type(" preserved-during-conflict");
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Alpha", { exact: true })
       .click();
     await editor.click();
@@ -349,7 +379,7 @@ test.describe("Workspace synchronization", () => {
     );
     await page.reload();
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Beta", { exact: true })
       .click();
     await expect(page.getByLabel("笔记编辑")).toContainText(

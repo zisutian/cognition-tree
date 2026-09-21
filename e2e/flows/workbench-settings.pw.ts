@@ -69,8 +69,8 @@ test.describe("settings activity flows", () => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "设置").click();
     await page
-      .locator(".settings-context")
-      .getByRole("button", { name: "E2E missing provider", exact: true })
+      .getByRole("tree", { name: "设置目录" })
+      .getByRole("treeitem", { name: "E2E missing provider", exact: true })
       .click();
     const panel = page.getByRole("region", { name: "模型服务设置" });
     await expect(
@@ -90,14 +90,12 @@ test.describe("settings activity flows", () => {
   }) => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "设置").click();
-    const context = page.locator(".settings-context");
+    const context = page.getByRole("tree", { name: "设置目录" });
     await context
-      .getByRole("button", { name: "所有者凭据", exact: true })
+      .getByRole("treeitem", { name: "所有者凭据", exact: true })
       .click();
     const panel = page.getByRole("region", { name: "所有者凭据设置" });
-    await page
-      .getByRole("button", { name: "收回右侧详情", exact: true })
-      .click();
+    await page.getByRole("button", { name: "收起详情", exact: true }).click();
     await panel
       .getByRole("button", { name: "准备创建密钥", exact: true })
       .click();
@@ -107,10 +105,10 @@ test.describe("settings activity flows", () => {
     expect(/^ctn_owner_[A-Za-z0-9_-]{43}$/.test(secret)).toBe(true);
     const observation = await observeTextReappearance(page, secret);
     await context
-      .getByRole("button", { name: "工作台布局", exact: true })
-      .click();
+      .getByRole("treeitem", { name: "工作台布局", exact: true })
+      .click({ force: true });
     await context
-      .getByRole("button", { name: "所有者凭据", exact: true })
+      .getByRole("treeitem", { name: "所有者凭据", exact: true })
       .click();
     await expect(secretNode).toHaveCount(0);
     expect(await stopTextReappearanceObservation(observation)).toBe(false);
@@ -123,8 +121,8 @@ test.describe("settings activity flows", () => {
       .click();
     await gate.arrived;
     await context
-      .getByRole("button", { name: "工作台布局", exact: true })
-      .click();
+      .getByRole("treeitem", { name: "工作台布局", exact: true })
+      .click({ force: true });
     await getActivityButton(page, "笔记").click();
     await expect(panel).toBeVisible();
     gate.release();
@@ -146,12 +144,14 @@ test.describe("settings activity flows", () => {
   }) => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "设置").click();
-    await page.getByRole("button", { name: "保留策略", exact: true }).click();
+    await page.getByRole("treeitem", { name: "保留策略", exact: true }).click();
     const panel = page.getByRole("region", { name: "服务设置" });
     const auditLimit = panel.getByRole("spinbutton", {
       name: "操作审计保留条数",
     });
-    const save = panel.getByRole("button", { name: "保存服务设置" });
+    const save = page
+      .getByRole("main")
+      .getByRole("button", { name: "保存服务设置" });
     const original = Number(await auditLimit.inputValue());
     const submitted = original + 1;
     const continued = original + 2;
@@ -193,9 +193,9 @@ test.describe("settings activity flows", () => {
   }) => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "设置").click();
-    const context = page.locator(".settings-context");
+    const context = page.getByRole("tree", { name: "设置目录" });
     await context
-      .getByRole("button", { name: "默认会话配置", exact: true })
+      .getByRole("treeitem", { name: "默认会话配置", exact: true })
       .click();
     const selection = page.getByRole("combobox", { name: "默认 Profile" });
     await expect(selection).toHaveValue("");
@@ -204,11 +204,11 @@ test.describe("settings activity flows", () => {
     await page.reload();
     await getActivityButton(page, "设置").click();
     await context
-      .getByRole("button", { name: "默认会话配置", exact: true })
+      .getByRole("treeitem", { name: "默认会话配置", exact: true })
       .click();
     await expect(selection).toHaveValue(e2eAgentProfileId);
     await page
-      .getByRole("complementary", { name: "设置", exact: true })
+      .getByRole("complementary", { name: "上下文区域", exact: true })
       .getByRole("button", { name: "刷新设置状态", exact: true })
       .click();
     await expect(selection).toHaveValue(e2eAgentProfileId);
@@ -220,12 +220,12 @@ test.describe("settings activity flows", () => {
     await page.reload();
     await getActivityButton(page, "设置").click();
     await context
-      .getByRole("button", { name: "默认会话配置", exact: true })
+      .getByRole("treeitem", { name: "默认会话配置", exact: true })
       .click();
     await expect(selection).toHaveValue(e2eAgentUnavailableProfileId);
     await getActivityButton(page, "智能体").click();
     await page
-      .getByRole("complementary", { name: "智能体", exact: true })
+      .getByRole("complementary", { name: "上下文区域", exact: true })
       .getByRole("button", { name: "新建会话" })
       .click();
     const createPanel = page.getByRole("region", { name: "新建 Agent 会话" });
@@ -257,7 +257,7 @@ test("queries durable local API results from the main panel without a detail sid
   expect(submitted.ok()).toBe(true);
   await openWorkbench(page, syntaxRepositoryId);
   await getActivityButton(page, "设置").click();
-  await page.getByRole("button", { name: "本机 API", exact: true }).click();
+  await page.getByRole("treeitem", { name: "本机 API", exact: true }).click();
   const panel = page.getByRole("region", { name: "本机 API", exact: true });
   await expect(panel.getByLabel("服务地址", { exact: true })).not.toHaveValue(
     "",
@@ -275,7 +275,7 @@ test("queries durable local API results from the main panel without a detail sid
   await expect(panel.getByRole("status")).toHaveCount(0);
   await getActivityButton(page, "笔记").click();
   await getActivityButton(page, "设置").click();
-  await page.getByRole("button", { name: "本机 API", exact: true }).click();
+  await page.getByRole("treeitem", { name: "本机 API", exact: true }).click();
   await expect(
     panel.getByRole("textbox", { name: "操作 ID", exact: true }),
   ).toHaveValue("");
@@ -295,9 +295,9 @@ test("discards Provider credentials and protects a new Profile draft", async ({
   await seedWorkbenchRepository(api, syntaxRepositoryId);
   await openWorkbench(page, syntaxRepositoryId);
   await getActivityButton(page, "设置").click();
-  const context = page.locator(".settings-context");
+  const context = page.getByRole("tree", { name: "设置目录" });
   await context
-    .getByRole("button", { name: "E2E provider", exact: true })
+    .getByRole("treeitem", { name: "E2E provider", exact: true })
     .click();
   await page
     .getByLabel("Provider API Key", { exact: true })
@@ -307,7 +307,7 @@ test("discards Provider credentials and protects a new Profile draft", async ({
     page.getByLabel("Provider API Key", { exact: true }),
   ).toHaveValue("");
   await context
-    .getByRole("button", { name: "新建 Profile", exact: true })
+    .getByRole("treeitem", { name: "新建 Profile", exact: true })
     .click();
   const panel = page.getByRole("region", { name: "会话配置设置" });
   await panel
@@ -324,12 +324,13 @@ test("discards Provider credentials and protects a new Profile draft", async ({
   ).toHaveValue("131072");
   await getActivityButton(page, "笔记").click();
   await expect(panel).toBeVisible();
-  await panel
+  await page
+    .getByRole("main")
     .getByRole("button", { name: "创建 Profile", exact: true })
     .click();
   await expect(
-    context.getByRole("button", { name: "E2E created profile", exact: true }),
-  ).toHaveAttribute("aria-current", "page");
+    context.getByRole("treeitem", { name: "E2E created profile", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("region", { name: "设置状态" })).toContainText(
     "deterministic-e2e",
   );
@@ -340,6 +341,6 @@ test("discards Provider credentials and protects a new Profile draft", async ({
     .getByRole("button", { name: "确认删除 Profile", exact: true })
     .click();
   await expect(
-    context.getByRole("button", { name: "E2E created profile", exact: true }),
+    context.getByRole("treeitem", { name: "E2E created profile", exact: true }),
   ).toHaveCount(0);
 });

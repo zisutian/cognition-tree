@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { Button, CheckboxGroup, ChoiceGroup, InputControl } from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 import todoStyles from "./todo.module.css";
 const cx = createClassNames(todoStyles);
-// SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState, type FormEvent } from "react";
 import type { TodoBlockView } from "../../../application/todo/index.ts";
@@ -10,13 +12,7 @@ import type {
   TodoRecurrenceRule,
 } from "../../../core/todo/index.ts";
 
-import {
-  Button,
-  CheckboxGroup,
-  ChoiceGroup,
-  InputControl,
-  useFeedback,
-} from "../../ui/index.ts";
+import { useFeedback } from "../../ui/index.ts";
 
 type RecurrenceMode = "daily" | "monthly" | "none" | "weekly";
 
@@ -164,16 +160,18 @@ export function TodoRecurrenceEditor({
       ) : null}
       {mode === "weekly" ? (
         <CheckboxGroup
-          aria-label="重复星期"
-          layout="wrap"
+          ariaLabel="重复星期"
           options={weekdays.map((weekday) => ({
             ...weekday,
+            value: String(weekday.value),
             ariaLabel: `星期${weekday.label}`,
             disabled,
           }))}
-          values={selectedWeekdays}
+          values={selectedWeekdays.map(String)}
           onChange={(values) => {
-            setSelectedWeekdays(values);
+            setSelectedWeekdays(
+              values.map((value) => Number(value) as TodoIsoWeekday),
+            );
             setErrorMessage("");
           }}
         />
@@ -201,7 +199,7 @@ export function TodoRecurrenceEditor({
         </p>
       ) : null}
       <div className={cx("todo-recurrence-actions")}>
-        <Button disabled={disabled} type="submit" variant="primary">
+        <Button disabled={disabled} type="submit" variant="normal">
           确定
         </Button>
         <Button onClick={onCancel} type="button">

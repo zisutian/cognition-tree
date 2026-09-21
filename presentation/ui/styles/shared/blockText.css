@@ -1,6 +1,6 @@
 .ctn-tone-default {
-  --ctn-tone-current: var(--color-fg-muted);
-  --ctn-tone-background: var(--color-editor);
+  --ctn-tone-current: var(--cu-color-muted);
+  --ctn-tone-background: var(--cu-color-surface);
 }
 
 .ctn-tone-green {
@@ -63,7 +63,7 @@
 }
 
 .ctn-text-color-default {
-  color: var(--color-fg);
+  color: var(--cu-color-foreground);
 }
 
 .ctn-text-color-green {
@@ -112,7 +112,7 @@
 
 .block-text-inline {
   text-decoration-line: underline;
-  text-decoration-color: var(--ctn-tone-current, var(--color-fg-muted));
-  text-decoration-thickness: calc(var(--ui-border-width) * 2);
+  text-decoration-color: var(--ctn-tone-current, var(--cu-color-muted));
+  text-decoration-thickness: calc(var(--cu-panelBorderWidth) * 2);
   text-underline-offset: 0.18em;
 }

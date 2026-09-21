@@ -1,3 +1,11 @@
+import { Stack as SectionStack, StatusText as StatusBadge } from "compact-ui";
+import {
+  Button,
+  EmptyState,
+  Section,
+  ManagementList,
+  ManagementRow,
+} from "compact-ui";
 import { useLayoutEffect, useRef } from "react";
 import type {
   SearchDomain,
@@ -8,19 +16,7 @@ import {
   type SearchControllerState,
   type SearchControllerView,
 } from "../../../application/search/index.ts";
-import {
-  Button,
-  createClassNames,
-  EmptyState,
-  Page,
-  PageBody,
-  Section,
-  SectionStack,
-  StatusBadge,
-  ToolDivider,
-  ToolList,
-  ToolListRow,
-} from "../../ui/index.ts";
+import { createClassNames, Page, PageBody } from "../../ui/index.ts";
 import searchStyles from "./search.module.css";
 const cx = createClassNames(searchStyles);
 
@@ -118,7 +114,9 @@ export function SearchPanel({
               {groups.length} 个结果 · {state.results.length} 处匹配
             </span>
             {draftChanged ? (
-              <StatusBadge tone="warning">条件已修改</StatusBadge>
+              <StatusBadge mode="live" tone="warning">
+                条件已修改
+              </StatusBadge>
             ) : null}
           </>
         ) : null
@@ -144,17 +142,16 @@ export function SearchPanel({
         </p>
 
         {state.status === "idle" ? (
-          <EmptyState compact title="尚未搜索" />
+          <EmptyState title="尚未搜索" />
         ) : state.status === "loading" ? (
-          <EmptyState compact title="正在搜索" />
+          <EmptyState title="正在搜索" />
         ) : state.errorMessage && groups.length === 0 ? (
           <EmptyState
-            compact
             action={
               <Button
                 onClick={() => void controller.search()}
                 type="button"
-                variant="primary"
+                variant="normal"
               >
                 重新搜索
               </Button>
@@ -164,12 +161,11 @@ export function SearchPanel({
           />
         ) : allSourcesFailed ? (
           <EmptyState
-            compact
             action={
               <Button
                 onClick={() => void controller.search()}
                 type="button"
-                variant="primary"
+                variant="normal"
               >
                 重试
               </Button>
@@ -206,55 +202,49 @@ export function SearchPanel({
               </section>
             ) : null}
             {groups.length === 0 ? (
-              <EmptyState compact title="没有结果" />
+              <EmptyState title="没有结果" />
             ) : (
-              <SectionStack aria-label="搜索结果列表" role="list">
-                {groups.map((group) => {
-                  const repositoryLabel = group.repositoryId
-                    ? (repositoryLabelById.get(group.repositoryId) ??
-                      group.repositoryId)
-                    : null;
+              <section aria-label="搜索结果列表">
+                <SectionStack>
+                  {groups.map((group) => {
+                    const repositoryLabel = group.repositoryId
+                      ? (repositoryLabelById.get(group.repositoryId) ??
+                        group.repositoryId)
+                      : null;
 
-                  return (
-                    <Section
-                      key={group.key}
-                      role="listitem"
-                      title={group.title}
-                    >
-                      <p className={cx("search-result-meta")}>
-                        {searchDomainLabels[group.domain]}
-                        {repositoryLabel ? ` · ${repositoryLabel}` : ""}
-                        {" · "}
-                        {formatTimestamp(group.updatedAt)}
-                      </p>
-                      <ToolList aria-label={`${group.title}的匹配项`}>
-                        {group.hits.map((hit) => (
-                          <ToolListRow
-                            buttonProps={{
-                              "aria-label": `打开${group.title}${
-                                hit.blockId ? "中的匹配块" : "的整篇匹配"
-                              }`,
-                            }}
-                            flow="wrap"
-                            key={hit.blockId ?? "document"}
-                            leading={
-                              <span className={cx("search-result-kind")}>
-                                {hit.blockId ? "块匹配" : "整篇匹配"}
-                              </span>
-                            }
-                            main={
-                              <span className={cx("search-result-snippet")}>
-                                {hit.snippet}
-                              </span>
-                            }
-                            onSelect={() => onOpenResult(hit)}
-                          />
-                        ))}
-                      </ToolList>
-                    </Section>
-                  );
-                })}
-              </SectionStack>
+                    return (
+                      <Section key={group.key} title={group.title}>
+                        <p className={cx("search-result-meta")}>
+                          {searchDomainLabels[group.domain]}
+                          {repositoryLabel ? ` · ${repositoryLabel}` : ""}
+                          {" · "}
+                          {formatTimestamp(group.updatedAt)}
+                        </p>
+                        <ManagementList label={`${group.title}的匹配项`}>
+                          {group.hits.map((hit) => (
+                            <ManagementRow
+                              key={hit.blockId ?? "document"}
+                              title={
+                                <span
+                                  aria-label={`打开${group.title}${hit.blockId ? "中的匹配块" : "的整篇匹配"}`}
+                                >
+                                  {hit.blockId ? "块匹配" : "整篇匹配"}
+                                </span>
+                              }
+                              description={
+                                <span className={cx("search-result-snippet")}>
+                                  {hit.snippet}
+                                </span>
+                              }
+                              onSelect={() => onOpenResult(hit)}
+                            />
+                          ))}
+                        </ManagementList>
+                      </Section>
+                    );
+                  })}
+                </SectionStack>
+              </section>
             )}
             {state.errorMessage && groups.length > 0 ? (
               <p className={cx("search-page-error")} role="alert">
@@ -263,7 +253,6 @@ export function SearchPanel({
             ) : null}
             {state.cursor ? (
               <div className={cx("search-load-more")}>
-                <ToolDivider />
                 <Button
                   disabled={state.loadingMore}
                   onClick={() => void controller.loadMore()}

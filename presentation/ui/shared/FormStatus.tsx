@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { Button } from "compact-ui";
 import formStatusStyles from "./FormStatus.module.css";
 import { createClassNames } from "./classNames.ts";
 const cx = createClassNames(formStatusStyles);
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-import { Button } from "./Button.tsx";
 
 export function FormSaveActions({
   busy,
@@ -27,7 +27,7 @@ export function FormSaveActions({
         disabled={busy || !canSave}
         form={formId}
         type="submit"
-        variant="primary"
+        variant="normal"
       >
         {busy ? "正在保存…" : saveLabel}
       </Button>

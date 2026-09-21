@@ -1,12 +1,11 @@
+import {
+  PropertyList as ToolPropertyList,
+  PropertyRow as ToolPropertyRow,
+} from "compact-ui";
+import { Button, Section } from "compact-ui";
 import { useEffect, useState } from "react";
 import type { RepositoryConflictResolutionView } from "../../../application/repository/index.ts";
-import {
-  Button,
-  createClassNames,
-  Section,
-  ToolPropertyList,
-  ToolPropertyRow,
-} from "../../ui/index.ts";
+import { createClassNames } from "../../ui/index.ts";
 const cx = createClassNames();
 
 export function RepositoryConflictStatus({
@@ -49,41 +48,43 @@ export function RepositoryConflictStatus({
   }, [reloadKey, resolution]);
 
   return (
-    <ToolPropertyList aria-label="同步冲突详情">
-      <ToolPropertyRow label="同步冲突" value="存在" />
-      {details.status === "ready" ? (
+    <section aria-label="同步冲突详情">
+      <ToolPropertyList>
+        <ToolPropertyRow label="同步冲突" children="存在" />
+        {details.status === "ready" ? (
+          <ToolPropertyRow
+            label="远端 revision"
+            children={<code>{details.remoteRevision}</code>}
+          />
+        ) : null}
         <ToolPropertyRow
-          label="远端 revision"
-          value={<code>{details.remoteRevision}</code>}
-        />
-      ) : null}
-      <ToolPropertyRow
-        label="冲突单元"
-        value={
-          details.status === "loading"
-            ? "正在读取…"
-            : details.status === "failed"
-              ? "读取失败"
-              : details.unitIds.length > 0
-                ? details.unitIds.join("、")
-                : "整仓内容"
-        }
-      />
-      {details.status === "failed" ? (
-        <ToolPropertyRow
-          actions={
-            <Button
-              onClick={() => setReloadKey((current) => current + 1)}
-              type="button"
-            >
-              重试
-            </Button>
+          label="冲突单元"
+          children={
+            details.status === "loading"
+              ? "正在读取…"
+              : details.status === "failed"
+                ? "读取失败"
+                : details.unitIds.length > 0
+                  ? details.unitIds.join("、")
+                  : "整仓内容"
           }
-          label="详情错误"
-          value={details.message}
         />
-      ) : null}
-    </ToolPropertyList>
+        {details.status === "failed" ? (
+          <ToolPropertyRow
+            action={
+              <Button
+                onClick={() => setReloadKey((current) => current + 1)}
+                type="button"
+              >
+                重试
+              </Button>
+            }
+            label="详情错误"
+            children={details.message}
+          />
+        ) : null}
+      </ToolPropertyList>
+    </section>
   );
 }
 
@@ -103,7 +104,7 @@ export function RepositoryConflictActions({
           disabled={busy}
           onClick={() => onRunAction(resolution.keepLocal)}
           type="button"
-          variant="primary"
+          variant="normal"
         >
           保留本地
         </Button>

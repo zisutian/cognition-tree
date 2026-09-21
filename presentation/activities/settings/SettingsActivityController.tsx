@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
+  usePageDriver,
+  usePageNavigation,
+  describePage,
+} from "../../navigation/index.ts";
+
+import {
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -23,7 +29,12 @@ import {
   type ActivityInteractionState,
 } from "../../ui/index.ts";
 import { createSettingsActivitySlots } from "./SettingsActivitySlots.tsx";
-import { settingsTargetKey, type SettingsTarget } from "./settingsTypes.ts";
+import {
+  settingsTargetKey,
+  settingsTargetFromKey,
+  settingsPageLabels,
+  type SettingsTarget,
+} from "./settingsTypes.ts";
 import { useOperationsSettingsSession } from "./useOperationsSettingsSession.ts";
 import { idleSettingsInteraction } from "./useSettingsInteraction.ts";
 import { useSystemOwnerCredentialSession } from "./useSystemOwnerCredentialSession.ts";
@@ -87,7 +98,7 @@ export function SettingsActivityController({
   }, [active, owner.dismissSecret, operations.reset, report]);
   const select = (next: SettingsTarget) => {
     if (settingsTargetKey(next) === settingsTargetKey(target)) return;
-    if (currentInteraction.current.navigationBlocked) return;
+    if (currentInteraction.current.navigationBlocked) return false;
     owner.dismissSecret();
     report(idleSettingsInteraction);
     targetEpoch.current += 1;
@@ -97,8 +108,65 @@ export function SettingsActivityController({
     if (!activeRef.current || targetEpoch.current !== renderEpoch) return;
     report(idleSettingsInteraction);
     targetEpoch.current += 1;
-    setTarget(next);
+    if (
+      "id" in target &&
+      target.id === null &&
+      "id" in next &&
+      next.id !== null
+    )
+      pages.created("settings", () => setTarget(next));
+    else setTarget(next);
   };
+  const pages = usePageNavigation();
+  const describe = (value: SettingsTarget) => {
+    const entity =
+      value.kind === "provider" || value.kind === "profile"
+        ? (value.kind === "provider"
+            ? application.agent.configurationState.configuration?.providers
+            : application.agent.configurationState.configuration?.profiles
+          )?.find((item) => item.id === value.id)
+        : null;
+    const title =
+      "id" in value && value.id === null
+        ? `新建 ${settingsPageLabels[value.kind]}`
+        : (entity?.label ?? settingsPageLabels[value.kind]);
+    return describePage(
+      "settings",
+      "settings",
+      settingsTargetKey(value),
+      title,
+    );
+  };
+  usePageDriver("settings", {
+    current: () => describe(target),
+    describe: (page) => {
+      const value = settingsTargetFromKey(page.id);
+      if (!value) return null;
+      if (
+        "id" in value &&
+        value.id !== null &&
+        application.agent.configurationState.configuration &&
+        !(
+          value.kind === "provider"
+            ? application.agent.configurationState.configuration.providers
+            : application.agent.configurationState.configuration.profiles
+        ).some((item) => item.id === value.id)
+      ) {
+        return settingsTargetKey(value) === settingsTargetKey(target) &&
+          interaction.navigationBlocked
+          ? {
+              ...describe(value),
+              title: `${settingsPageLabels[value.kind]} 已移除`,
+            }
+          : null;
+      }
+      return describe(value);
+    },
+    select: (page) => {
+      const value = settingsTargetFromKey(page.id);
+      return value ? select(value) : false;
+    },
+  });
   return active
     ? renderActivity(({ contextWidth, onContextWidthChange }) =>
         createSettingsActivitySlots({
@@ -108,7 +176,9 @@ export function SettingsActivityController({
           navigation,
           onCompleted: completed,
           onRefresh: refresh,
-          onSelect: select,
+          onSelect: (next, intent = "preview") => {
+            pages.open(describe(next), intent, () => select(next));
+          },
           operations,
           owner,
           report,

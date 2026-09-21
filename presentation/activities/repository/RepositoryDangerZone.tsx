@@ -1,10 +1,9 @@
+import { Button, Section } from "compact-ui";
 import { Trash2 } from "lucide-react";
 import type {
   RepositoryOption,
   RepositoryViewModel,
 } from "../../../application/repository/index.ts";
-
-import { Button, Section } from "../../ui/index.ts";
 
 import { RepositoryDeleteConfirmation } from "./RepositoryDeleteConfirmation.tsx";
 
@@ -28,7 +27,7 @@ export function RepositoryDangerZone({
   const active = repository.id === view.activeRepositoryId;
 
   return (
-    <Section title="危险区" tone="danger">
+    <Section title="危险区">
       {confirming ? (
         <RepositoryDeleteConfirmation
           key={repository.id}

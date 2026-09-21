@@ -1,3 +1,5 @@
+import { Stack as SectionStack } from "compact-ui";
+import { Button, EmptyState, InputControl, Section } from "compact-ui";
 import { RotateCcw } from "lucide-react";
 import { useEffect, useRef } from "react";
 import {
@@ -9,15 +11,7 @@ import { createClassNames } from "../../ui/index.ts";
 import syntaxStyles from "./syntax.module.css";
 const cx = createClassNames(syntaxStyles);
 
-import {
-  Button,
-  EmptyState,
-  InputControl,
-  Page,
-  PageBody,
-  Section,
-  SectionStack,
-} from "../../ui/index.ts";
+import { Page, PageBody } from "../../ui/index.ts";
 
 import { BlockRuleRows, TitleAndRootRows } from "./SyntaxBlockRuleRows.tsx";
 import { InlineRuleRows } from "./SyntaxInlineRuleRows.tsx";
@@ -80,14 +74,14 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
             <Button
               onClick={syntax.revertInvalidChanges}
               type="button"
-              variant="secondary"
+              variant="normal"
             >
               <RotateCcw aria-hidden="true" size={13} />
               撤销无效更改
             </Button>
           </div>
         ) : null}
-        <SectionStack aria-label="语法设置">
+        <SectionStack>
           <Section title="基础">
             <label className={cx("syntax-setting-line")}>
               <span className={cx("syntax-setting-label")}>缩进宽度</span>
@@ -107,23 +101,25 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
               />
             </label>
           </Section>
-          <Section
+          <div
             data-syntax-field-id={syntaxFieldIds.blockRuleGroup}
             tabIndex={-1}
-            title="块规则"
           >
-            <SyntaxRuleHeader kind="block" />
-            <TitleAndRootRows syntax={syntax} />
-            <BlockRuleRows syntax={syntax} />
-          </Section>
-          <Section
+            <Section title="块规则">
+              <SyntaxRuleHeader kind="block" />
+              <TitleAndRootRows syntax={syntax} />
+              <BlockRuleRows syntax={syntax} />
+            </Section>
+          </div>
+          <div
             data-syntax-field-id={syntaxFieldIds.inlineRuleGroup}
             tabIndex={-1}
-            title="行内规则"
           >
-            <SyntaxRuleHeader kind="inline" />
-            <InlineRuleRows syntax={syntax} />
-          </Section>
+            <Section title="行内规则">
+              <SyntaxRuleHeader kind="inline" />
+              <InlineRuleRows syntax={syntax} />
+            </Section>
+          </div>
         </SectionStack>
       </PageBody>
     </Page>

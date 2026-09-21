@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { usePageDriver, describePage } from "../../navigation/index.ts";
+
 import type { RepositoryApplication } from "../../../application/repository/index.ts";
 import type {
   TodoApplication,
@@ -30,6 +32,29 @@ export function TodoActivityController({
   renderActivity,
 }: TodoActivityControllerProps) {
   const todo = application.todo;
+  const items = todo.status === "ready" ? todo.view.collections : [];
+  const page = (id: string) => {
+    const item = items.find((c) => c.id === id);
+    return item ? describePage("todo", "todo-collection", id, item.name) : null;
+  };
+  usePageDriver("todo", {
+    ready: todo.status === "ready",
+    current: () =>
+      todo.status === "ready" && todo.view.activeCollection
+        ? page(todo.view.activeCollection.id)
+        : describePage("todo", "activity", "todo", "代办"),
+    describe: (target) =>
+      target.kind === "todo-collection"
+        ? page(target.id)
+        : describePage("todo", "activity", "todo", "代办"),
+    select: (target) => {
+      const item = items.find((c) => c.id === target.id);
+      if (target.kind === "todo-collection") {
+        if (todo.status !== "ready" || !item) return false;
+        todo.view.selectCollection(item.id);
+      }
+    },
+  });
 
   if (!active) {
     return null;

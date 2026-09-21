@@ -1,12 +1,9 @@
+import { Button } from "compact-ui";
+import { Section } from "compact-ui";
 import { FileInput, FileOutput, Hash, type LucideIcon } from "lucide-react";
 import { useMemo } from "react";
 import type { UiReferenceGraphView } from "../../../../application/workspace/index.ts";
-import {
-  createClassNames,
-  ListAction,
-  Section,
-  SymbolSlot,
-} from "../../../ui/index.ts";
+import { createClassNames, SymbolSlot } from "../../../ui/index.ts";
 const cx = createClassNames();
 
 type VisualizationGraph = UiReferenceGraphView;
@@ -37,7 +34,9 @@ function AdjacentReferenceGroup({
               <span className={cx("detail-line-main")} title={reference.title}>
                 {reference.title}
               </span>
-              <span className={cx("detail-line-meta")}>× {reference.count}</span>
+              <span className={cx("detail-line-meta")}>
+                × {reference.count}
+              </span>
             </div>
           </li>
         ))}
@@ -99,11 +98,7 @@ export function MostReferencedList({
       <ul aria-label="引用排名" className={cx("detail-line-list")}>
         {graph.mostReferencedNodes.map((node) => (
           <li key={node.id}>
-            <ListAction
-              kind="detail"
-              type="button"
-              onClick={() => onSelectNote(node.id)}
-            >
+            <Button type="button" onClick={() => onSelectNote(node.id)}>
               <SymbolSlot
                 aria-hidden="true"
                 className={cx("detail-line-marker")}
@@ -115,7 +110,7 @@ export function MostReferencedList({
               <span className={cx("detail-line-meta")}>
                 {node.totalReferences}
               </span>
-            </ListAction>
+            </Button>
           </li>
         ))}
       </ul>

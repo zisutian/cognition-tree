@@ -1,5 +1,6 @@
+import { EmptyState } from "compact-ui";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
-import { EmptyState, Page, PageBody } from "../../../ui/index.ts";
+import { Page, PageBody } from "../../../ui/index.ts";
 import { StructureOperationPairView } from "./StructureOperationPairView.tsx";
 import { StructureOperationStructureView } from "./StructureOperationStructureView.tsx";
 

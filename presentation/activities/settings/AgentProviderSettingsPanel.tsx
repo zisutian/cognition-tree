@@ -1,21 +1,19 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import {
+  PropertyList as ToolPropertyList,
+  PropertyRow as ToolPropertyRow,
+} from "compact-ui";
+import { Button, Section } from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 const cx = createClassNames();
-// SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
 import type {
   AgentConfigurationController,
   AgentConfigurationState,
 } from "../../../application/agent/index.ts";
-import {
-  Button,
-  ConfirmAction,
-  FormSaveActions,
-  Section,
-  ToolPropertyList,
-  ToolPropertyRow,
-  useFeedback,
-} from "../../ui/index.ts";
+import { ConfirmAction, FormSaveActions, useFeedback } from "../../ui/index.ts";
 import { AgentProviderSettingsForm } from "./AgentProviderSettingsForm.tsx";
 import {
   agentProviderDraftFrom,
@@ -199,24 +197,26 @@ export function AgentProviderSettingsPanel({
             ) : null}
           </div>
           {loginPending ? (
-            <ToolPropertyList aria-label="ChatGPT 设备登录">
-              <ToolPropertyRow
-                label="验证地址"
-                value={
-                  <a
-                    href={login.verificationUrl}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    打开登录页
-                  </a>
-                }
-              />
-              <ToolPropertyRow
-                label="设备码"
-                value={<code data-sensitive="true">{login.userCode}</code>}
-              />
-            </ToolPropertyList>
+            <section aria-label="ChatGPT 设备登录">
+              <ToolPropertyList>
+                <ToolPropertyRow
+                  label="验证地址"
+                  children={
+                    <a
+                      href={login.verificationUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      打开登录页
+                    </a>
+                  }
+                />
+                <ToolPropertyRow
+                  label="设备码"
+                  children={<code data-sensitive="true">{login.userCode}</code>}
+                />
+              </ToolPropertyList>
+            </section>
           ) : null}
         </Section>
       ) : null}

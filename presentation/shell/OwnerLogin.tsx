@@ -1,20 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { Stack } from "compact-ui";
+import { Button, FieldRow, FormActions, InputControl } from "compact-ui";
+
 import { useState, type FormEvent } from "react";
 import type {
   OwnerAuthenticationController,
   OwnerAuthenticationState,
 } from "../../application/system/index.ts";
-import {
-  Button,
-  FieldRow,
-  FormActions,
-  FormError,
-  FormLayout,
-  InputControl,
-  PageBody,
-  useExclusiveAsyncAction,
-} from "../ui/index.ts";
+import { FormError, PageBody, useExclusiveAsyncAction } from "../ui/index.ts";
 import styles from "./OwnerLogin.module.css";
 
 export function OwnerLogin({
@@ -50,7 +44,7 @@ export function OwnerLogin({
           <h1 className={styles.title}>登录认知树</h1>
           <FormError message={state.errorMessage} />
           <form aria-busy={loginAction.busy} onSubmit={submit}>
-            <FormLayout layout="stacked">
+            <Stack>
               <FieldRow fieldId="owner-secret" label="所有者密钥">
                 {(accessibility) => (
                   <InputControl
@@ -68,12 +62,12 @@ export function OwnerLogin({
                 <Button
                   disabled={loginAction.busy}
                   type="submit"
-                  variant="primary"
+                  variant="normal"
                 >
                   登录
                 </Button>
               </FormActions>
-            </FormLayout>
+            </Stack>
           </form>
         </PageBody>
       </div>

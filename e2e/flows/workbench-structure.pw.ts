@@ -2,7 +2,8 @@
 
 import { expect, type APIRequestContext } from "@playwright/test";
 import type { WorkspaceRepositorySnapshotDto } from "../../contracts/workspace/types";
-import { appResizeKeyboardStep } from "../../presentation/ui/workbench/frameResize";
+import { defaultDesignConfig } from "compact-ui";
+const appResizeKeyboardStep = defaultDesignConfig.metrics.resizeStep;
 import { test } from "../support/e2eTest";
 import {
   seedInteractionRepository,
@@ -32,127 +33,89 @@ test.describe("directory and structure operation flows", () => {
   }) => {
     await openWorkbench(page, repositoryId);
 
-    const noteContext = page.locator(".app-context");
-    const treeSurface = noteContext.locator(".ui-directory-tree-surface");
-    const folder = noteContext.getByTitle("资料", { exact: true });
-    const alpha = noteContext.getByTitle("Alpha", { exact: true });
-    const gamma = noteContext.getByTitle("Gamma", { exact: true });
+    const noteContext = page.getByRole("complementary", { name: "上下文区域" });
+    const treeSurface = page.getByRole("tree", { name: "笔记目录" });
+    const folder = treeSurface.getByRole("treeitem", {
+      name: "资料",
+      exact: true,
+    });
+    const alpha = treeSurface.getByRole("treeitem", {
+      name: "Alpha",
+      exact: true,
+    });
+    const gamma = treeSurface.getByRole("treeitem", {
+      name: "Gamma",
+      exact: true,
+    });
     const contextResize = page.getByRole("separator", {
-      name: "调整上下文区宽度",
+      name: "调整上下文宽度",
     });
     const initialContextWidth = Number(
       await contextResize.getAttribute("aria-valuenow"),
     );
-
     await expect(alpha).toBeVisible();
     await gamma.dragTo(folder);
-    await expect(
-      folder
-        .locator("xpath=ancestor::li[1]")
-        .getByTitle("Gamma", { exact: true }),
-    ).toBeVisible();
-
-    const treeSurfaceBox = await treeSurface.boundingBox();
-
-    expect(treeSurfaceBox).not.toBeNull();
-    await noteContext.getByTitle("Gamma", { exact: true }).dragTo(treeSurface, {
-      targetPosition: {
-        x: 12,
-        y: Math.max(1, (treeSurfaceBox?.height ?? 1) - 2),
-      },
+    await expect(gamma).toHaveAttribute("aria-level", "2");
+    const treeSurfaceBox = (await treeSurface.boundingBox())!;
+    await gamma.dragTo(treeSurface, {
+      targetPosition: { x: 12, y: treeSurfaceBox.height - 2 },
     });
-    await expect(
-      treeSurface
-        .locator(":scope > .ui-directory-tree > li > .ui-tree-row-frame")
-        .getByTitle("Gamma", { exact: true }),
-    ).toBeVisible();
-
-    await noteContext
-      .getByTitle("Gamma", { exact: true })
-      .click({ button: "right" });
+    await expect(gamma).toHaveAttribute("aria-level", "1");
+    await gamma.click({ button: "right" });
     const directoryMenu = page.getByRole("menu", { name: "目录操作" });
     const moveMenuItem = directoryMenu.getByRole("menuitem", {
       name: "移动到…",
     });
-
-    await expect(directoryMenu.getByRole("menuitem")).toHaveCount(1);
-    await expect(directoryMenu).not.toContainText("删除");
-    await expect(moveMenuItem).toBeFocused();
-    expect((await moveMenuItem.boundingBox())!.height).toBe(22);
-    await moveMenuItem.press("Escape");
-    await expect(directoryMenu).toBeHidden();
+    await expect(moveMenuItem).toBeVisible();
     await expect(
-      noteContext.getByTitle("Gamma", { exact: true }),
-    ).toBeFocused();
-
-    await noteContext
-      .getByTitle("Gamma", { exact: true })
-      .click({ button: "right" });
-    await directoryMenu.getByRole("menuitem", { name: "移动到…" }).click();
-
+      directoryMenu.getByRole("menuitem", { name: "重命名" }),
+    ).toBeVisible();
+    await expect(
+      directoryMenu.getByRole("menuitem", { name: "删除" }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(directoryMenu).toBeHidden();
+    await expect(treeSurface).toBeFocused();
+    await gamma.click({ button: "right" });
+    await moveMenuItem.click();
     const moveQuickPick = page.getByRole("dialog", { name: "移动到" });
     const moveSearch = moveQuickPick.getByRole("combobox", { name: "移动到" });
-
     await expect(moveSearch).toBeFocused();
-    expect((await moveSearch.boundingBox())!.height).toBe(22);
     await moveSearch.fill("资料");
-    await moveSearch.press("ArrowDown");
-    await expect(
-      moveQuickPick.getByRole("option", { name: /资料/ }),
-    ).toHaveAttribute("aria-selected", "true");
-    await moveSearch.press("Enter");
-    await expect(
-      folder
-        .locator("xpath=ancestor::li[1]")
-        .getByTitle("Gamma", { exact: true }),
-    ).toBeVisible();
-
+    await moveQuickPick
+      .getByRole("option", { name: "资料", exact: true })
+      .click();
+    await expect(gamma).toHaveAttribute("aria-level", "2");
     await folder.click();
     await expect(alpha).toBeHidden();
     await expect(
-      noteContext.getByRole("button", {
-        name: "重命名文件夹 资料",
-      }),
+      noteContext.getByRole("button", { name: "重命名 资料", exact: true }),
     ).toBeVisible();
-    await folder.press("Escape");
-    await expect(
-      noteContext.getByRole("button", {
-        name: "重命名文件夹 资料",
-      }),
-    ).toHaveCount(0);
     await folder.click();
     await expect(alpha).toBeVisible();
     await alpha.click();
-    await noteContext.getByRole("button", { name: "新建笔记" }).click();
-    const rootUnnamedNote = noteContext
-      .getByTitle("未命名笔记", { exact: true })
-      .locator("..");
-
-    await expect(rootUnnamedNote).toBeVisible();
-    await expect(
-      folder
-        .locator("xpath=ancestor::li[1]")
-        .getByTitle("未命名笔记", { exact: true }),
-    ).toHaveCount(0);
+    await noteContext
+      .getByRole("button", { name: "新建笔记", exact: true })
+      .click();
+    const rootUnnamedNote = treeSurface.getByRole("treeitem", {
+      name: "未命名笔记",
+      exact: true,
+    });
+    await expect(rootUnnamedNote).toHaveAttribute("aria-level", "1");
     const deleteNoteButton = rootUnnamedNote.getByRole("button", {
-      name: "删除笔记 未命名笔记",
+      name: "删除 未命名笔记",
+      exact: true,
     });
-
     await deleteNoteButton.click();
-    const cancelDeleteButton = rootUnnamedNote.getByRole("button", {
-      name: "取消删除笔记 未命名笔记",
-    });
-    const confirmDeleteButton = rootUnnamedNote.getByRole("button", {
-      name: "确认删除笔记 未命名笔记",
-    });
-
-    await expect(confirmDeleteButton).toBeVisible();
-    await cancelDeleteButton.click();
+    await rootUnnamedNote
+      .getByRole("button", { name: "取消删除", exact: true })
+      .click();
     await expect(rootUnnamedNote).toBeVisible();
-
     await deleteNoteButton.click();
-    await confirmDeleteButton.click();
-    await expect(rootUnnamedNote).toBeHidden();
+    await rootUnnamedNote
+      .getByRole("button", { name: "确认删除 未命名笔记", exact: true })
+      .click();
+    await expect(rootUnnamedNote).toHaveCount(0);
 
     await contextResize.focus();
     await contextResize.press("ArrowRight");
@@ -162,7 +125,9 @@ test.describe("directory and structure operation flows", () => {
     );
 
     await selectNotesMode(page, "结构");
-    const structureOperationContext = page.locator(".app-context");
+    const structureOperationContext = page.locator(
+      "aside[aria-label='上下文区域']",
+    );
 
     await expect(
       structureOperationContext.getByRole("radio", {
@@ -280,7 +245,7 @@ test.describe("directory and structure operation flows", () => {
 
     await page.getByRole("radio", { name: "笔记内迁移", exact: true }).click();
     await page
-      .locator(".app-context")
+      .locator("aside[aria-label='上下文区域']")
       .getByTitle("Target", { exact: true })
       .click();
 

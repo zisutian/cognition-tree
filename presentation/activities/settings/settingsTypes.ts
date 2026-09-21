@@ -39,3 +39,15 @@ export const settingsPageLabels = {
   audit: "操作记录",
   "audit-retention": "保留策略",
 } as const;
+
+export function settingsTargetFromKey(key: string): SettingsTarget | null {
+  for (const kind of ["provider", "profile"] as const) {
+    if (key.startsWith(`${kind}:`)) {
+      const id = key.slice(kind.length + 1);
+      return { kind, id: id === "new" ? null : id };
+    }
+  }
+  return key in settingsPageLabels && key !== "provider" && key !== "profile"
+    ? { kind: key as Exclude<SettingsTarget["kind"], "provider" | "profile"> }
+    : null;
+}

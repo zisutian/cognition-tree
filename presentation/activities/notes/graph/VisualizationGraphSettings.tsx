@@ -1,15 +1,15 @@
-import { Settings2 } from "lucide-react";
-import { useId } from "react";
+import { Stack as SectionStack } from "compact-ui";
 import {
   Button,
   FieldRow,
   FormLayout,
   Section,
-  SectionStack,
-  Popover,
   RangeControl,
   ToggleButton,
-} from "../../../ui/index.ts";
+} from "compact-ui";
+import { Settings2 } from "lucide-react";
+import { useId } from "react";
+import { TriggerPopover } from "../../../ui/index.ts";
 
 import type { ReferenceGraphSettings } from "./referenceGraphSettings.ts";
 
@@ -42,7 +42,7 @@ function GraphRangeSetting({
           min={minimum}
           step={step}
           value={value}
-          valueLabel={`${value.toFixed(precision)}${suffix}`}
+          aria-valuetext={`${value.toFixed(precision)}${suffix}`}
           onChange={(event) => onChange(Number(event.target.value))}
         />
       )}
@@ -99,10 +99,8 @@ export function VisualizationGraphSettings({
     });
 
   return (
-    <Popover
+    <TriggerPopover
       ariaLabel="图谱设置"
-      panelRole="dialog"
-      size="regular"
       renderTrigger={({ isOpen, panelId, toggle, triggerRef }) => (
         <Button
           aria-controls={panelId}
@@ -113,8 +111,7 @@ export function VisualizationGraphSettings({
           ref={triggerRef}
           title="图谱设置"
           type="button"
-          variant="secondary"
-          sizing="container"
+          variant="normal"
         >
           <Settings2 aria-hidden="true" />
           图谱设置
@@ -124,7 +121,7 @@ export function VisualizationGraphSettings({
       {() => (
         <SectionStack>
           <Section title="显示">
-            <FormLayout layout="compact">
+            <FormLayout layout="columns">
               <GraphToggleSetting
                 ariaLabel="显示箭头"
                 label="箭头"
@@ -161,7 +158,7 @@ export function VisualizationGraphSettings({
             </FormLayout>
           </Section>
           <Section title="力导向">
-            <FormLayout layout="compact">
+            <FormLayout layout="columns">
               <GraphRangeSetting
                 label="中心力"
                 maximum={1}
@@ -197,16 +194,11 @@ export function VisualizationGraphSettings({
               />
             </FormLayout>
           </Section>
-          <Button
-            onClick={onReset}
-            type="button"
-            variant="secondary"
-            sizing="container"
-          >
+          <Button onClick={onReset} type="button" variant="normal">
             恢复默认设置
           </Button>
         </SectionStack>
       )}
-    </Popover>
+    </TriggerPopover>
   );
 }

@@ -1,3 +1,5 @@
+import { Stack as SectionStack } from "compact-ui";
+import { Button, EmptyState, Section } from "compact-ui";
 import { useEffect, useState } from "react";
 import type {
   RepositoryOption,
@@ -12,15 +14,7 @@ import repositoryStyles from "./repository.module.css";
 import { RepositoryCreateForm } from "./RepositoryCreateForm.tsx";
 const cx = createClassNames(repositoryStyles);
 
-import {
-  Button,
-  EmptyState,
-  Page,
-  PageBody,
-  Section,
-  SectionStack,
-  useFeedback,
-} from "../../ui/index.ts";
+import { Page, PageBody, useFeedback } from "../../ui/index.ts";
 
 import { BuiltInRepositoryDetail } from "./BuiltInRepositoryDetail.tsx";
 import { OrdinaryRepositoryDetail } from "./OrdinaryRepositoryDetail.tsx";
@@ -99,14 +93,14 @@ export function RepositoryPanel({
                   void feedback.runAction(view.refreshRepositories)
                 }
                 type="button"
-                variant="secondary"
+                variant="normal"
               >
                 刷新仓库目录
               </Button>
             </div>
           ) : null}
           {target.kind === "create" ? (
-            <Section id="repository-create-region" title="新建普通仓库">
+            <Section title="新建普通仓库">
               <RepositoryCreateForm
                 className={cx("repository-create")}
                 disabled={busy}

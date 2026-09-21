@@ -1,31 +1,53 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
-
+import { usePageNavigation } from "../navigation/index.ts";
+import { Workbench, type WorkbenchRegion } from "compact-ui";
+import { ChoiceGroup, EmptyState } from "compact-ui";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import type {
   ActivityId,
   ActivityNavigationItem,
+  ActivityRegionSlot,
   CreateActivitySlots,
 } from "./activityTypes.ts";
-
-import type { ReactNode } from "react";
-import { AppFrame } from "./AppFrame.tsx";
-import "./styles/index.css";
+import {
+  PageActionsHostContext,
+  PageLayoutContext,
+} from "./shared/PageLayout.ts";
 import { useWorkbenchFocusShortcuts } from "./workbench/useWorkbenchFocusShortcuts.ts";
 import type { WorkbenchController } from "./workbench/useWorkbenchLayout.ts";
+import "./styles/index.css";
 
-type AppViewProps = {
-  activeActivityId: ActivityId;
-  activityItems: readonly ActivityNavigationItem[];
-  createActivitySlots: CreateActivitySlots;
-  onActiveActivityChange: (
-    activityId: ActivityId,
-    beforeChange?: () => boolean | void,
-  ) => void;
-  problemsSlot: ReactNode;
-  statusBarSlot: ReactNode;
-  workbench: WorkbenchController;
-};
-
-function AppView({
+function useRegion(
+  slot: ActivityRegionSlot | null,
+): WorkbenchRegion | undefined {
+  const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null);
+  if (!slot) return undefined;
+  const { fixedPageActions, ...region } = slot;
+  const layout =
+    slot.layout === "form"
+      ? "form"
+      : slot.layout === "detail"
+        ? "detail"
+        : "fill";
+  return {
+    ...region,
+    layout,
+    footer: fixedPageActions ? <div ref={setActionsHost} /> : slot.footer,
+    content: (
+      <PageLayoutContext value={slot.layout ?? "canvas"}>
+        <PageActionsHostContext value={fixedPageActions ? actionsHost : null}>
+          {slot.content}
+        </PageActionsHostContext>
+      </PageLayoutContext>
+    ),
+  };
+}
+export default function AppView({
   activeActivityId,
   activityItems,
   createActivitySlots,
@@ -33,55 +55,93 @@ function AppView({
   problemsSlot,
   statusBarSlot,
   workbench,
-}: AppViewProps) {
-  const configureSyntax = () => {
-    onActiveActivityChange("syntax", workbench.expandPanels);
-  };
-  const activitySlots = createActivitySlots({
-    contextWidth: workbench.layout.contextResizeValue,
+}: {
+  activeActivityId: ActivityId;
+  activityItems: readonly ActivityNavigationItem[];
+  createActivitySlots: CreateActivitySlots;
+  onActiveActivityChange(
+    activity: ActivityId,
+    beforeChange?: () => boolean | void,
+  ): void;
+  problemsSlot: ReactNode;
+  statusBarSlot: { start: ReactNode; end: ReactNode };
+  workbench: WorkbenchController;
+}) {
+  const navigation = usePageNavigation();
+  const pageState = useSyncExternalStore(
+    navigation.subscribe,
+    navigation.getSnapshot,
+  );
+  const emptyRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (!pageState.activePageId) emptyRef.current?.focus();
+  }, [pageState.activePageId]);
+  const slots = createActivitySlots({
+    contextWidth: workbench.layout.contextWidth,
     focusMode: workbench.layout.focusMode,
-    onConfigureSyntax: configureSyntax,
+    onConfigureSyntax: () =>
+      onActiveActivityChange("syntax", workbench.expandPanels),
     onContextWidthChange: workbench.setContextWidth,
     onToggleFocusMode: workbench.toggleFocusMode,
   });
-  const hasContext = activitySlots.context !== null;
-
   useWorkbenchFocusShortcuts({
     enabled: activeActivityId === "notes",
     focusMode: workbench.layout.focusMode,
     onExitFocusMode: workbench.exitFocusMode,
     onToggleFocusMode: workbench.toggleFocusMode,
   });
-
-  const handleActivityChange = (activityId: ActivityId) => {
-    if (activityId === activeActivityId) {
-      if (workbench.layout.focusMode) {
-        workbench.exitFocusMode();
-        return;
-      }
-
-      if (hasContext) {
-        workbench.toggleContext();
-      }
-      return;
-    }
-
-    onActiveActivityChange(activityId, workbench.expandPanels);
-  };
-
+  const contextRegion = useRegion(slots.context);
+  const mainRegion = useRegion(slots.main);
+  const detailRegion = useRegion(slots.detail);
   return (
-    <AppFrame
-      activityItems={activityItems}
+    <Workbench
+      activities={activityItems.map(({ icon: Icon, ...item }) => ({
+        ...item,
+        icon: <Icon />,
+      }))}
       activeActivityId={activeActivityId}
-      contextSlot={activitySlots.context}
-      detailSlot={activitySlots.detail}
+      onActivityRequest={(id, intent) =>
+        navigation.request(id as ActivityId, workbench.expandContext, intent)
+      }
+      context={contextRegion}
+      main={
+        pageState.activePageId
+          ? {
+              ...mainRegion!,
+              headerContent: (
+                <ChoiceGroup
+                  ariaLabel="打开的页面"
+                  mode="single"
+                  wrap={false}
+                  value={pageState.activePageId}
+                  options={navigation
+                    .visiblePages()
+                    .map((page) => ({
+                      value: page.key,
+                      label: page.title,
+                      preview: page.key === pageState.previewId,
+                      closeLabel: `关闭 ${page.title}`,
+                    }))}
+                  onChange={navigation.activate}
+                  onClose={navigation.close}
+                />
+              ),
+            }
+          : {
+              title: "工作区",
+              layout: "fill",
+              content: (
+                <div tabIndex={-1} ref={emptyRef}>
+                  <EmptyState title="从左侧打开页面" />
+                </div>
+              ),
+            }
+      }
+      detail={pageState.activePageId ? detailRegion : undefined}
+      bottom={{ title: "问题", layout: "fill", content: problemsSlot }}
+      status={statusBarSlot}
       layout={workbench.layout}
-      mainSlot={activitySlots.main}
-      onActivityChange={handleActivityChange}
-      problemsSlot={problemsSlot}
-      statusBarSlot={statusBarSlot}
+      onLayoutChange={workbench.onLayoutChange}
     />
   );
 }
-
-export default AppView;

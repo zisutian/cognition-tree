@@ -36,10 +36,6 @@ function yearLabel(entry: JournalEntryDto) {
   return `${entryDate(entry).slice(0, 4)} 年`;
 }
 
-function monthEntryListLabel(entry: JournalEntryDto) {
-  return `${entryDate(entry).slice(0, 7)}日记条目`;
-}
-
 function journalEntries(
   content: Awaited<ReturnType<typeof readJournalSnapshot>>["content"],
 ) {
@@ -92,7 +88,7 @@ test.describe("Journal activity flows", () => {
     await getActivityButton(page, "日记").click();
 
     const context = page.getByRole("complementary", {
-      name: "日记",
+      name: "上下文区域",
       exact: true,
     });
     const editorPanel = page.getByRole("region", { name: "日记编辑" });
@@ -122,20 +118,20 @@ test.describe("Journal activity flows", () => {
     expect(secondTitle).not.toBe(firstTitle);
     await expect(
       page
-        .locator('[data-region-header="main"]')
-        .getByRole("heading", { name: secondTitle, exact: true }),
+        .locator("main > div:first-child > section > header")
+        .getByRole("radio", { name: secondTitle, exact: true }),
     ).toBeVisible();
     await expect(editor).toHaveAttribute("data-editor-mode", "body");
     await expect(editor).not.toContainText(secondTitle);
     await expect(editorPanel.locator("input")).toHaveCount(0);
 
-    const yearRows = context.locator(".journal-calendar-tree > li > button");
+    const yearRows = context.getByRole("treeitem", { name: /^\d{4} 年$/ });
 
     await expect(yearRows).toHaveText([currentYearLabel, oldYearLabel]);
     await expect(
-      context
-        .getByRole("list", { name: monthEntryListLabel(secondCreated) })
-        .locator(".journal-entry-select"),
+      context.getByRole("treeitem", {
+        name: new RegExp(`^${secondTitle.slice(0, 7)}`),
+      }),
     ).toHaveText([secondTitle, firstTitle]);
     await expect(context.getByText(/^\d+ 日$/)).toHaveCount(0);
 
@@ -177,7 +173,7 @@ test.describe("Journal activity flows", () => {
 
     await page.reload();
     await expect(
-      page.getByRole("navigation", { name: "工作区功能" }),
+      page.getByRole("navigation", { name: "活动导航" }),
     ).toBeVisible();
     await getActivityButton(page, "日记").click();
     await expect(
@@ -185,29 +181,27 @@ test.describe("Journal activity flows", () => {
     ).toContainText("完成日记界面");
 
     await page
-      .getByRole("button", { name: `删除日记 ${secondTitle}`, exact: true })
+      .getByRole("button", { name: `删除 ${secondTitle}`, exact: true })
       .click();
-    const journalRow = page
-      .locator(".journal-entry-select")
-      .filter({
-        hasText: secondTitle,
-      })
-      .locator("..");
+    const journalRow = page.getByRole("treeitem", {
+      name: secondTitle,
+      exact: true,
+    });
 
     await expect(
       journalRow.getByRole("button", {
-        name: `取消删除日记 ${secondTitle}`,
+        name: `取消删除`,
       }),
     ).toBeVisible();
     await journalRow
       .getByRole("button", {
-        name: `确认删除日记 ${secondTitle}`,
+        name: `确认删除 ${secondTitle}`,
       })
       .click();
     await expect(
       page
-        .locator('[data-region-header="main"]')
-        .getByRole("heading", { name: firstTitle, exact: true }),
+        .locator("main > div:first-child > section > header")
+        .getByRole("radio", { name: firstTitle, exact: true }),
     ).toBeVisible();
     await waitForJournalEntryCount(api, 2);
   });
@@ -219,7 +213,7 @@ test.describe("Journal activity flows", () => {
     await getActivityButton(page, "日记").click();
 
     const context = page.getByRole("complementary", {
-      name: "日记",
+      name: "上下文区域",
       exact: true,
     });
 
@@ -236,7 +230,7 @@ test.describe("Journal activity flows", () => {
 
     const problems = page.locator(".problems-panel");
     const unresolvedProblem = problems
-      .locator(".ui-tool-list-row-target")
+      .getByRole("button", { name: /打开问题：/ })
       .filter({ hasText: "无法解析日记引用“Missing Journal”" });
 
     await waitUntilNextClockSecond(page, diagnosticEntry.createdAt);
@@ -246,8 +240,8 @@ test.describe("Journal activity flows", () => {
 
     await expect(
       page
-        .locator('[data-region-header="main"]')
-        .getByRole("heading", { name: otherTitle, exact: true }),
+        .locator("main > div:first-child > section > header")
+        .getByRole("radio", { name: otherTitle, exact: true }),
     ).toBeVisible();
 
     const problemsHeader = getProblemsToggle(page);
@@ -260,8 +254,8 @@ test.describe("Journal activity flows", () => {
     await unresolvedProblem.click();
     await expect(
       page
-        .locator('[data-region-header="main"]')
-        .getByRole("heading", { name: diagnosticTitle, exact: true }),
+        .locator("main > div:first-child > section > header")
+        .getByRole("radio", { name: diagnosticTitle, exact: true }),
     ).toBeVisible();
     await expect(editor.locator(".cm-activeLine")).toContainText(
       "[[Missing Journal]]",
@@ -275,7 +269,7 @@ test.describe("Journal activity flows", () => {
 
     await page.goto("/");
     await expect(
-      page.getByRole("navigation", { name: "工作区功能" }),
+      page.getByRole("navigation", { name: "活动导航" }),
     ).toBeVisible();
     const unavailableWorkspace = page.getByLabel("尚未创建笔记仓库");
 

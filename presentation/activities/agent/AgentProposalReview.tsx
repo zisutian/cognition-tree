@@ -1,18 +1,18 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import {
+  Stack as SectionStack,
+  PropertyList as ToolPropertyList,
+  PropertyRow as ToolPropertyRow,
+} from "compact-ui";
+import { Button, Section } from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 import agentStyles from "./agent.module.css";
 const cx = createClassNames(agentStyles);
-// SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Copy } from "lucide-react";
 import type { AgentProposalView } from "../../../application/agent/index.ts";
-import {
-  Button,
-  Section,
-  SectionStack,
-  ToolPropertyList,
-  ToolPropertyRow,
-  useFeedback,
-} from "../../ui/index.ts";
+import { useFeedback } from "../../ui/index.ts";
 
 type ReviewResource = AgentProposalView["review"]["resources"][number];
 
@@ -49,10 +49,7 @@ export function AgentProposalReview({
 
   return (
     <>
-      <Section
-        title="变更摘要"
-        tone={proposal.destructive ? "danger" : "default"}
-      >
+      <Section title="变更摘要">
         <p>
           {summary.created > 0 ? `新建 ${summary.created} 项` : null}
           {summary.created > 0 && summary.updated > 0 ? "，" : null}
@@ -160,30 +157,36 @@ function AgentProposalTechnicalDetails({
       <details className={cx("agent-technical-details")}>
         <summary>技术详情</summary>
         <SectionStack>
-          <Section aria-label="Proposal 技术元数据">
-            <ToolPropertyList aria-label="Proposal 技术元数据">
-              <ToolPropertyRow
-                label="Proposal ID"
-                value={<TechnicalInlineValue value={proposal.id} />}
-              />
-              <ToolPropertyRow label="版本" value={proposal.version} />
-              <ToolPropertyRow
-                label="Base revision"
-                value={<TechnicalInlineValue value={proposal.baseRevision} />}
-              />
-              <ToolPropertyRow
-                label="Digest"
-                value={<TechnicalInlineValue value={proposal.digest} />}
-              />
-              {proposal.store.domain === "workspace" ? (
+          <Section>
+            <section aria-label="Proposal 技术元数据">
+              <ToolPropertyList>
                 <ToolPropertyRow
-                  label="Repository ID"
-                  value={
-                    <TechnicalInlineValue value={proposal.store.repositoryId} />
+                  label="Proposal ID"
+                  children={<TechnicalInlineValue value={proposal.id} />}
+                />
+                <ToolPropertyRow label="版本" children={proposal.version} />
+                <ToolPropertyRow
+                  label="Base revision"
+                  children={
+                    <TechnicalInlineValue value={proposal.baseRevision} />
                   }
                 />
-              ) : null}
-            </ToolPropertyList>
+                <ToolPropertyRow
+                  label="Digest"
+                  children={<TechnicalInlineValue value={proposal.digest} />}
+                />
+                {proposal.store.domain === "workspace" ? (
+                  <ToolPropertyRow
+                    label="Repository ID"
+                    children={
+                      <TechnicalInlineValue
+                        value={proposal.store.repositoryId}
+                      />
+                    }
+                  />
+                ) : null}
+              </ToolPropertyList>
+            </section>
           </Section>
           <Section title="资源变更">
             {proposal.changes.resources.length === 0 ? (

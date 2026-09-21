@@ -1,17 +1,17 @@
+import {
+  Button,
+  ChoiceGroup,
+  FieldRow,
+  FormLayout,
+  InputControl,
+  ToggleButton,
+} from "compact-ui";
 import { RotateCcw } from "lucide-react";
 import type {
   ReferenceGraphLocalDepth,
   VisualizationViewModel,
 } from "../../../../application/workspace/index.ts";
-import {
-  Button,
-  ChoiceGroup,
-  createClassNames,
-  FieldRow,
-  FormLayout,
-  InputControl,
-  ToggleButton,
-} from "../../../ui/index.ts";
+import { createClassNames } from "../../../ui/index.ts";
 import graphStyles from "./graph.module.css";
 const cx = createClassNames(graphStyles);
 
@@ -32,7 +32,7 @@ export function VisualizationContext({
       aria-label="图谱控制"
       className={cx("activity-context-content graph-context")}
     >
-      <FormLayout layout="compact">
+      <FormLayout layout="columns">
         <FieldRow fieldId="graph-query" label="搜索">
           {(accessibility) => (
             <InputControl
@@ -45,10 +45,11 @@ export function VisualizationContext({
             />
           )}
         </FieldRow>
-        <FieldRow fieldId="graph-scope" label="范围" controlKind="group">
+        <FieldRow fieldId="graph-scope" label="范围" group>
           {(accessibility) => (
             <ChoiceGroup
               {...accessibility}
+              aria-labelledby={undefined}
               ariaLabel="图谱范围"
               mode="single"
               options={[
@@ -61,10 +62,11 @@ export function VisualizationContext({
           )}
         </FieldRow>
         {mode === "local" ? (
-          <FieldRow fieldId="graph-depth" label="深度" controlKind="group">
+          <FieldRow fieldId="graph-depth" label="深度" group>
             {(accessibility) => (
               <ChoiceGroup
                 {...accessibility}
+                aria-labelledby={undefined}
                 ariaLabel="局部图谱深度"
                 mode="single"
                 options={[
@@ -100,8 +102,7 @@ export function VisualizationContext({
           onClick={session.resetView}
           title="重置图谱视图"
           type="button"
-          variant="secondary"
-          sizing="container"
+          variant="normal"
         >
           <RotateCcw aria-hidden="true" />
           重置视图

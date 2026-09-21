@@ -1,3 +1,4 @@
+import { defaultDesignConfig } from "compact-ui";
 import { expect } from "@playwright/test";
 import { test } from "../support/e2eTest";
 import { seedWorkbenchRepository } from "../support/repositorySeeds";
@@ -13,7 +14,9 @@ test("keeps forms, narrow regions and anchored menus usable in a scaled desktop 
   await seedWorkbenchRepository(api, "scaled-layout");
   await openWorkbench(page, "scaled-layout");
   await getActivityButton(page, "设置").click();
-  await page.getByRole("button", { name: "E2E provider", exact: true }).click();
+  await page
+    .getByRole("treeitem", { name: "E2E provider", exact: true })
+    .click();
   const name = page.getByRole("textbox", {
     name: "Provider 名称",
     exact: true,
@@ -28,7 +31,7 @@ test("keeps forms, narrow regions and anchored menus usable in a scaled desktop 
   await page.screenshot({ path: testInfo.outputPath("scaled-provider.png") });
   await page.getByRole("button", { name: "放弃修改", exact: true }).click();
   await getActivityButton(page, "笔记").click();
-  await page.getByRole("radio", { name: "图谱", exact: true }).click();
+  await page.getByRole("treeitem", { name: "图谱", exact: true }).click();
   await page.getByRole("button", { name: "图谱设置", exact: true }).click();
   const menu = page.getByRole("dialog", { name: "图谱设置", exact: true });
   await expect(menu).toBeVisible();
@@ -37,23 +40,14 @@ test("keeps forms, narrow regions and anchored menus usable in a scaled desktop 
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(1024);
   expect(box.y + box.height).toBeLessThanOrEqual(576);
-  const sliderRows = await menu.locator(".ui-field-row").evaluateAll((rows) =>
-    rows
-      .filter((row) => row.querySelector('input[type="range"]'))
-      .map((row) => {
-        const boxes = [
-          ...row.querySelectorAll('label, input[type="range"], output'),
-        ].map((element) => element.getBoundingClientRect());
-        const centers = boxes.map((box) => box.y + box.height / 2);
-        return {
-          height: row.getBoundingClientRect().height,
-          aligned: Math.max(...centers) - Math.min(...centers) < 1,
-        };
-      }),
-  );
-  expect(sliderRows).toHaveLength(7);
-  for (const row of sliderRows)
-    expect(row).toEqual({ height: 22, aligned: true });
+  const sliders = menu.getByRole("slider");
+  await expect(sliders).toHaveCount(7);
+  for (const slider of await sliders.all()) {
+    await expect(slider).toBeInViewport();
+    expect((await slider.boundingBox())!.height).toBe(
+      defaultDesignConfig.metrics.controlHeight,
+    );
+  }
   await expect(
     menu.getByRole("button", { name: "恢复默认设置" }),
   ).toBeInViewport();

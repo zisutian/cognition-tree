@@ -1,3 +1,4 @@
+import { Button, InputControl } from "compact-ui";
 import { Plus, Trash2 } from "lucide-react";
 import type {
   AvailableSyntaxViewModel,
@@ -11,7 +12,6 @@ import {
   createSyntaxRuleFieldId,
   syntaxFieldIds,
 } from "../../../application/syntax/index.ts";
-import { Button, InputControl } from "../../ui/index.ts";
 
 import { SyntaxKindPicker } from "./SyntaxKindPicker.tsx";
 import { SyntaxRuleSpacer } from "./SyntaxRuleLayout.tsx";
@@ -237,7 +237,7 @@ export function BlockRuleRows({
           disabled={!syntax.canMutate}
           onClick={syntax.actions.addBlock}
           type="button"
-          variant="secondary"
+          variant="normal"
         >
           <Plus aria-hidden="true" size={13} />
           新增块规则

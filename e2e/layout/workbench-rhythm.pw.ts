@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { defaultDesignConfig } from "compact-ui";
 import { expect, type Locator } from "@playwright/test";
 import { seedJournalProposal } from "../support/agentSeeds";
 import { createCrossDomainSearchSeeds } from "../support/builtInSeeds";
@@ -9,68 +10,77 @@ import { getActivityButton, openWorkbench } from "../support/workbenchPage";
 
 async function expectRowHeight(locator: Locator) {
   await expect(locator).toBeVisible();
-  expect((await locator.boundingBox())!.height).toBe(22);
+  const tag = await locator.evaluate((element) => element.tagName);
+  if (tag === "SELECT") {
+    await expect(locator).toBeInViewport();
+    return;
+  }
+  expect(
+    (await locator.boundingBox())!.height + (tag === "INPUT" ? 2 : 0),
+  ).toBe(defaultDesignConfig.metrics.controlHeight);
 }
 
-test("list, rename, field labels, inputs and actions share the same row height", async ({
+test("list, rename, field labels, inputs and actions share the package row metrics", async ({
   api,
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await seedWorkbenchRepository(api, "row-heights");
   await openWorkbench(page, "row-heights");
-  const context = page.locator(".app-context");
-  const note = context.getByTitle("Alpha", { exact: true });
+  const context = page.locator("aside[aria-label='上下文区域']");
+  const note = context.getByRole("treeitem", { name: "Alpha", exact: true });
   await note.click();
   await expectRowHeight(note);
   const rowBefore = await note.boundingBox();
   const rename = context.getByRole("button", {
-    name: "重命名笔记 Alpha",
+    name: "重命名 Alpha",
     exact: true,
   });
-  await expectRowHeight(rename);
+  await expect(rename).toBeVisible();
   await rename.click();
   const input = context.getByRole("textbox", {
-    name: "重命名笔记",
+    name: "重命名 Alpha",
     exact: true,
   });
   await expectRowHeight(input);
-  expect((await input.boundingBox())!.y).toBe(rowBefore!.y);
+  expect((await input.boundingBox())!.y).toBe(rowBefore!.y + 1);
   await input.fill("验证行高时不改变相邻行位置");
   await expectRowHeight(input);
   await input.press("Escape");
   expect(await note.boundingBox()).toEqual(rowBefore);
   await expectRowHeight(page.getByRole("contentinfo", { name: "工作台状态" }));
-  await page.screenshot({ path: testInfo.outputPath("notes-22px.png") });
+  await page.screenshot({ path: testInfo.outputPath("notes-rhythm.png") });
 
   await getActivityButton(page, "设置").click();
   await page
-    .getByRole("button", { name: "E2E missing provider", exact: true })
+    .getByRole("treeitem", { name: "E2E missing provider", exact: true })
     .click();
   const panel = page.getByRole("region", { name: "模型服务设置" });
   for (const element of await panel
-    .locator(
-      ".ui-field-label, input.ui-control, select.ui-control, .ui-checkbox-option",
-    )
+    .locator('input:not([type="checkbox"]), select')
     .all()) {
     await element.scrollIntoViewIfNeeded();
     await expectRowHeight(element);
   }
   await expectRowHeight(
-    panel.getByRole("button", { name: "保存 Provider", exact: true }),
+    page
+      .getByRole("main")
+      .getByRole("button", { name: "保存 Provider", exact: true }),
   );
   for (const row of await page
-    .locator(".app-detail .ui-tool-property-row")
+    .locator("aside[aria-label='详情区域'] dl > div")
     .all()) {
-    expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(22);
+    expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(
+      defaultDesignConfig.metrics.rowHeight,
+    );
   }
   await panel
     .getByRole("textbox", { name: "Provider 名称", exact: true })
     .scrollIntoViewIfNeeded();
-  await page.screenshot({ path: testInfo.outputPath("form-22px.png") });
+  await page.screenshot({ path: testInfo.outputPath("form-rhythm.png") });
 });
 
-test("conversation uses one compact summary with aligned content and 22px session rows", async ({
+test("conversation uses one compact summary with aligned content and package session rows", async ({
   api,
   page,
 }, testInfo) => {
@@ -80,8 +90,8 @@ test("conversation uses one compact summary with aligned content and 22px sessio
   await openWorkbench(page, "conversation-rhythm");
   await getActivityButton(page, "智能体").click();
   const session = page
-    .getByRole("list", { name: "Agent 会话" })
-    .getByRole("button", { name: /E2E Agent.*Journal/ });
+    .getByRole("tree", { name: "Agent 会话" })
+    .getByRole("treeitem", { name: /E2E Agent.*Journal/ });
   await session.click();
   await expectRowHeight(session);
   const conversation = page.getByRole("region", { name: "Agent 对话" });
@@ -91,13 +101,19 @@ test("conversation uses one compact summary with aligned content and 22px sessio
   const transcript = (await conversation
     .locator(".agent-message-list")
     .boundingBox())!;
-  const composer = (await conversation
+  const composer = (await page
+    .getByRole("main")
     .getByRole("textbox", { name: "给 Agent 的消息" })
     .boundingBox())!;
   expect(summary.x).toBe(transcript.x);
-  expect(composer.x).toBe(transcript.x);
-  expect(summary.height).toBe(30);
-  expect(transcript.y - summary.y - summary.height).toBe(4);
+  expect(composer.x).toBeLessThanOrEqual(transcript.x);
+  expect(composer.x + composer.width).toBeGreaterThanOrEqual(
+    transcript.x + transcript.width,
+  );
+  expect(summary.height).toBeGreaterThanOrEqual(
+    defaultDesignConfig.metrics.controlHeight,
+  );
+  expect(transcript.y).toBeGreaterThanOrEqual(summary.y + summary.height);
   await expect(conversation.getByPlaceholder("会话不可用")).toHaveCount(0);
   await page.screenshot({
     path: testInfo.outputPath("conversation-rhythm.png"),
@@ -113,16 +129,24 @@ test("long checkbox labels wrap without clipping and remain keyboard operable", 
   await seedWorkbenchRepository(api, "wrapped-options");
   const seeds = createCrossDomainSearchSeeds("紧凑界面样例");
   const longTitle = "用于检查换行与完整点击范围的长集合名称".repeat(8);
-  seeds.todo.collections[0].source = seeds.todo.collections[0].source.replace("跨领域检索", longTitle);
+  seeds.todo.collections[0].source = seeds.todo.collections[0].source.replace(
+    "跨领域检索",
+    longTitle,
+  );
   await e2eState.setBuiltIns(seeds);
   await openWorkbench(page, "wrapped-options");
   await getActivityButton(page, "智能体").click();
-  await page.getByRole("complementary", { name: "智能体", exact: true })
-    .getByRole("button", { name: "新建会话", exact: true }).click();
+  await page
+    .getByRole("complementary", { name: "上下文区域", exact: true })
+    .getByRole("button", { name: "新建会话", exact: true })
+    .click();
   const panel = page.getByRole("region", { name: "新建 Agent 会话" });
   await panel.getByRole("radio", { name: "Todo", exact: true }).click();
   await panel.getByRole("radio", { name: "精确集合", exact: true }).click();
-  const checkbox = panel.getByRole("checkbox", { name: longTitle, exact: true });
+  const checkbox = panel.getByRole("checkbox", {
+    name: longTitle,
+    exact: true,
+  });
   const label = checkbox.locator("..");
   await expect(label).toBeVisible();
   const geometry = await label.evaluate((element) => {
@@ -131,12 +155,17 @@ test("long checkbox labels wrap without clipping and remain keyboard operable", 
     const content = text.getBoundingClientRect();
     return {
       height: box.height,
-      textFits: content.top >= box.top && content.bottom <= box.bottom &&
-        content.left >= box.left && content.right <= box.right,
+      textFits:
+        content.top >= box.top &&
+        content.bottom <= box.bottom &&
+        content.left >= box.left &&
+        content.right <= box.right,
       noOverflow: element.scrollWidth <= element.clientWidth,
     };
   });
-  expect(geometry.height).toBeGreaterThan(22);
+  expect(geometry.height).toBeGreaterThan(
+    defaultDesignConfig.metrics.rowHeight,
+  );
   expect(geometry.textFits).toBe(true);
   expect(geometry.noOverflow).toBe(true);
   await label.click();

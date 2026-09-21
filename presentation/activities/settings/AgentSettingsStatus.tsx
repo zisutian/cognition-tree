@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import {
+  Stack as SectionStack,
+  StatusText as StatusBadge,
+  PropertyList as ToolPropertyList,
+  PropertyRow as ToolPropertyRow,
+} from "compact-ui";
+import { Section } from "compact-ui";
+
 import type {
   AgentConfigurationState,
   AgentOllamaResidentContext,
   AgentProfileView,
   AgentProviderView,
 } from "../../../application/agent/index.ts";
-import {
-  Section,
-  SectionStack,
-  StatusBadge,
-  ToolPropertyList,
-  ToolPropertyRow,
-} from "../../ui/index.ts";
 
 import type { SettingsTarget } from "./settingsTypes.ts";
 
@@ -41,60 +42,65 @@ function ProviderStatus({
   return (
     <SectionStack>
       <Section>
-        <ToolPropertyList aria-label={`${provider.label} 状态`}>
-          <ToolPropertyRow label="类型" value={provider.kind} />
-          <ToolPropertyRow
-            label="认证"
-            value={
-              <StatusBadge
-                tone={
-                  provider.authenticationStatus === "missing"
-                    ? "warning"
-                    : "success"
-                }
-              >
-                {authenticationLabels[provider.authenticationStatus]}
-              </StatusBadge>
-            }
-          />
-          <ToolPropertyRow
-            label="地址"
-            value={<code>{provider.baseUrl ?? "Codex app-server"}</code>}
-          />
-          <ToolPropertyRow label="版本" value={provider.version} />
-          <ToolPropertyRow
-            label="私网许可"
-            value={
-              provider.privateNetworkAccess === "confirmed"
-                ? "已允许"
-                : "不需要"
-            }
-          />
-        </ToolPropertyList>
+        <section aria-label={`${provider.label} 状态`}>
+          <ToolPropertyList>
+            <ToolPropertyRow label="类型" children={provider.kind} />
+            <ToolPropertyRow
+              label="认证"
+              children={
+                <StatusBadge
+                  mode="live"
+                  tone={
+                    provider.authenticationStatus === "missing"
+                      ? "warning"
+                      : "success"
+                  }
+                >
+                  {authenticationLabels[provider.authenticationStatus]}
+                </StatusBadge>
+              }
+            />
+            <ToolPropertyRow
+              label="地址"
+              children={<code>{provider.baseUrl ?? "Codex app-server"}</code>}
+            />
+            <ToolPropertyRow label="版本" children={provider.version} />
+            <ToolPropertyRow
+              label="私网许可"
+              children={
+                provider.privateNetworkAccess === "confirmed"
+                  ? "已允许"
+                  : "不需要"
+              }
+            />
+          </ToolPropertyList>
+        </section>
       </Section>
       {probe ? (
         <Section title="最近探测">
-          <ToolPropertyList aria-label={`${provider.label} 探测状态`}>
-            <ToolPropertyRow
-              label="连接"
-              value={probe.reachable ? "可达" : "不可达"}
-            />
-            <ToolPropertyRow
-              label="探测时间"
-              value={new Date(probe.probedAt).toLocaleString()}
-            />
-            <ToolPropertyRow
-              label="模型"
-              value={probe.models.join("、") || "无"}
-            />
-            {probe.modelContexts.map((context) => (
+          <section aria-label={`${provider.label} 探测状态`}>
+            <ToolPropertyList>
               <ToolPropertyRow
-                key={context.model}
-                label={context.model}
-                value={`上限 ${context.declaredMaximumContextTokens ?? "未知"} · 驻留 ${residentContextLabel(context.residentContext)}`}
+                label="连接"
+                children={probe.reachable ? "可达" : "不可达"}
               />
-            ))}
-          </ToolPropertyList>
+              <ToolPropertyRow
+                label="探测时间"
+                children={new Date(probe.probedAt).toLocaleString()}
+              />
+              <ToolPropertyRow
+                label="模型"
+                children={probe.models.join("、") || "无"}
+              />
+              {probe.modelContexts.map((context) => (
+                <ToolPropertyRow
+                  key={context.model}
+                  label={context.model}
+                  children={`上限 ${context.declaredMaximumContextTokens ?? "未知"} · 驻留 ${residentContextLabel(context.residentContext)}`}
+                />
+              ))}
+            </ToolPropertyList>
+          </section>
         </Section>
       ) : null}
     </SectionStack>
@@ -128,63 +134,72 @@ function ProfileStatus({
   return (
     <SectionStack>
       <Section>
-        <ToolPropertyList aria-label={`${profile.label} 状态`}>
-          <ToolPropertyRow
-            label="状态"
-            value={
-              <StatusBadge
-                tone={
-                  profile.availability === "available" ? "success" : "warning"
-                }
-              >
-                {profile.availability === "available" ? "可用" : "不可用"}
-              </StatusBadge>
-            }
-          />
-          <ToolPropertyRow
-            label="Provider"
-            value={provider?.label ?? profile.providerId}
-          />
-          <ToolPropertyRow label="模型" value={profile.model} />
-          <ToolPropertyRow label="版本" value={profile.version} />
-          <ToolPropertyRow
-            label="会话上限"
-            value={profile.maxResidentSessions}
-          />
-          <ToolPropertyRow
-            label="超时"
-            value={`${profile.timeoutMilliseconds} ms`}
-          />
-        </ToolPropertyList>
+        <section aria-label={`${profile.label} 状态`}>
+          <ToolPropertyList>
+            <ToolPropertyRow
+              label="状态"
+              children={
+                <StatusBadge
+                  mode="live"
+                  tone={
+                    profile.availability === "available" ? "success" : "warning"
+                  }
+                >
+                  {profile.availability === "available" ? "可用" : "不可用"}
+                </StatusBadge>
+              }
+            />
+            <ToolPropertyRow
+              label="Provider"
+              children={provider?.label ?? profile.providerId}
+            />
+            <ToolPropertyRow label="模型" children={profile.model} />
+            <ToolPropertyRow label="版本" children={profile.version} />
+            <ToolPropertyRow
+              label="会话上限"
+              children={profile.maxResidentSessions}
+            />
+            <ToolPropertyRow
+              label="超时"
+              children={`${profile.timeoutMilliseconds} ms`}
+            />
+          </ToolPropertyList>
+        </section>
       </Section>
       <Section title="符合性">
-        <ToolPropertyList aria-label={`${profile.label} 符合性`}>
-          <ToolPropertyRow
-            label="结果"
-            value={
-              <StatusBadge
-                tone={
-                  conformanceStatus === "succeeded"
-                    ? "success"
-                    : conformanceStatus === "failed"
-                      ? "danger"
-                      : "neutral"
-                }
-              >
-                {conformanceLabel}
-              </StatusBadge>
-            }
-          />
-          {check?.status === "running" ? (
-            <ToolPropertyRow label="阶段" value={check.phase} />
-          ) : null}
-          {check?.errorMessage ? (
-            <ToolPropertyRow label="原因" value={check.errorMessage} />
-          ) : null}
-          {!check?.errorMessage && profile.unavailableReason ? (
-            <ToolPropertyRow label="原因" value={profile.unavailableReason} />
-          ) : null}
-        </ToolPropertyList>
+        <section aria-label={`${profile.label} 符合性`}>
+          <ToolPropertyList>
+            <ToolPropertyRow
+              label="结果"
+              children={
+                <StatusBadge
+                  mode="live"
+                  tone={
+                    conformanceStatus === "succeeded"
+                      ? "success"
+                      : conformanceStatus === "failed"
+                        ? "danger"
+                        : "neutral"
+                  }
+                >
+                  {conformanceLabel}
+                </StatusBadge>
+              }
+            />
+            {check?.status === "running" ? (
+              <ToolPropertyRow label="阶段" children={check.phase} />
+            ) : null}
+            {check?.errorMessage ? (
+              <ToolPropertyRow label="原因" children={check.errorMessage} />
+            ) : null}
+            {!check?.errorMessage && profile.unavailableReason ? (
+              <ToolPropertyRow
+                label="原因"
+                children={profile.unavailableReason}
+              />
+            ) : null}
+          </ToolPropertyList>
+        </section>
       </Section>
     </SectionStack>
   );

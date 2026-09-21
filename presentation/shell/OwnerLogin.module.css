@@ -1,18 +1,18 @@
 .login {
   display: grid;
   min-height: 100dvh;
-  padding: var(--ui-panel-padding);
+  padding: var(--cu-padding);
   place-items: center;
-  background: var(--color-editor);
+  background: var(--cu-color-surface);
 }
 .content {
   width: 100%;
-  max-width: var(--ui-form-max-width);
+  max-width: var(--cu-readingWidth);
   min-width: 0;
 }
 .title {
   margin: 0;
-  color: var(--color-fg-strong);
+  color: var(--cu-color-strong);
   font: inherit;
-  font-weight: var(--ui-emphasis-weight);
+  font-weight: var(--cu-emphasis);
 }

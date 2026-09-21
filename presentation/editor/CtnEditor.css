@@ -3,45 +3,24 @@
   width: 100%;
   min-width: 0;
   min-height: 0;
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
+  border: var(--cu-panelBorderWidth) solid transparent;
+  border-radius: var(--cu-radius);
   overflow: hidden;
-  background: var(--color-editor);
-}
-
-.source-editor .cm-scroller {
-  scrollbar-color: var(--color-border-strong) transparent;
-  scrollbar-width: thin;
-}
-
-.source-editor .cm-scroller::-webkit-scrollbar {
-  width: calc(var(--ui-gap) + calc(var(--ui-border-width) * 2));
-  height: calc(var(--ui-gap) + calc(var(--ui-border-width) * 2));
-}
-
-.source-editor .cm-scroller::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.source-editor .cm-scroller::-webkit-scrollbar-thumb {
-  border: calc(var(--ui-border-width) * 2) solid transparent;
-  border-radius: var(--ui-radius);
-  background: var(--color-border-strong);
-  background-clip: content-box;
+  background: var(--cu-color-surface);
 }
 
 .source-editor:focus-within {
-  border-color: var(--color-border-strong);
+  border-color: var(--cu-color-border);
 }
 
 .source-editor .cm-editor {
   height: 100%;
   min-height: 0;
-  color: var(--color-fg);
+  color: var(--cu-color-foreground);
   background: transparent;
-  font-family: var(--font-ui);
+  font-family: var(--cu-font);
   font-size: var(--ctn-editor-font-size);
-  font-weight: var(--ui-body-weight);
+  font-weight: var(--cu-weight);
   line-height: var(--ctn-editor-line-height);
 }
 
@@ -56,99 +35,88 @@
 }
 
 .source-editor .cm-content {
-  --ctn-editor-line-inline-end: calc(var(--ui-gap-tight) / 2);
-  --ctn-editor-line-inline-start: var(--ui-gap-tight);
+  --ctn-editor-line-inline-end: calc(var(--cu-tightGap) / 2);
+  --ctn-editor-line-inline-start: var(--cu-tightGap);
   /* CodeMirror's flex layout reserves gutter width and still grows for long lines. */
   min-height: 100%;
-  padding: var(--ui-gap);
+  padding: var(--cu-gap);
 }
 
 .source-editor .cm-line {
-  padding:
-    0
-    var(--ctn-editor-line-inline-end)
-    0
+  padding: 0 var(--ctn-editor-line-inline-end) 0
     var(--ctn-editor-line-inline-start);
   white-space: pre;
 }
 
 .source-editor .cm-gutters {
-  border-right: var(--ui-border-width) solid var(--color-border);
-  color: var(--color-fg-subtle);
-  background: var(--color-editor);
-  font-family: var(--font-code);
+  border-right: var(--cu-panelBorderWidth) solid var(--cu-color-border);
+  color: var(--cu-color-disabled);
+  background: var(--cu-color-surface);
+  font-family: var(--cu-mono);
 }
 
 .source-editor .cm-lineNumbers .cm-gutterElement {
   min-width: 36px;
-  padding:
-    0
-    var(--ui-gap)
-    0
-    var(--ui-gap);
-  font-variant-numeric: var(--ui-numeric-font-variant);
+  padding: 0 var(--cu-gap) 0 var(--cu-gap);
+  font-variant-numeric: var(--ctn-numeric-variant);
 }
 
 .source-editor .cm-cursor {
-  border-left-color: var(--color-fg);
+  border-left-color: var(--cu-color-foreground);
 }
 
 .source-editor .cm-selectionBackground,
 .source-editor .cm-content ::selection {
-  background: var(--color-selected) !important;
+  background: var(--cu-color-selected) !important;
 }
 
 .source-editor .cm-activeLineGutter {
-  background: var(--color-hover);
+  background: var(--cu-color-hover);
 }
 
 .source-editor .ctn-marker {
-  font-family: var(--font-code);
+  font-family: var(--cu-mono);
 }
 
 .source-editor .ctn-marker {
-  font-weight: var(--ui-emphasis-weight);
+  font-weight: var(--cu-emphasis);
 }
 
 .source-editor .ctn-todo-checkbox {
   position: relative;
   z-index: 1;
-  margin:
-    0
-    calc(var(--ui-gap-tight) / 2)
-    0
-    calc(var(--ui-border-width) * 2);
+  margin: 0 calc(var(--cu-tightGap) / 2) 0 calc(var(--cu-panelBorderWidth) * 2);
   vertical-align: -0.12em;
 }
 
 .source-editor .ctn-todo-recurrence-marker {
   display: inline-block;
-  margin-right: calc(var(--ui-gap-tight) / 2);
-  color: var(--color-accent);
-  font-family: var(--font-code);
-  font-size: var(--ui-font-size);
-  font-variant-numeric: var(--ui-numeric-font-variant);
-  line-height: var(--ui-inline-symbol-line-height);
+  margin-right: calc(var(--cu-tightGap) / 2);
+  color: var(--cu-color-accent);
+  font-family: var(--cu-mono);
+  font-size: var(--cu-fontSize);
+  font-variant-numeric: var(--ctn-numeric-variant);
+  line-height: var(--ctn-symbol-line-height);
   vertical-align: 0.04em;
   white-space: nowrap;
   user-select: none;
 }
 
-.source-editor .ctn-line:has(.ctn-todo-checkbox:checked) .ctn-block-text {
-  color: var(--color-fg-muted);
+.source-editor .ctn-line:has(.ctn-todo-checkbox input:checked) .ctn-block-text {
+  color: var(--cu-color-muted);
   text-decoration: line-through;
 }
 
 .source-editor .ctn-block-text {
-  border-radius: var(--ui-radius);
+  border-radius: var(--cu-radius);
 }
 
 .source-editor .ctn-block-text-concept {
-  font-weight: var(--ui-emphasis-weight);
+  font-weight: var(--cu-emphasis);
 }
 
 .source-editor .cm-line.ctn-line-title {
-  font-weight: var(--ui-emphasis-weight);
+  font-weight: var(--cu-emphasis);
 }
 
 .source-editor .ctn-line:not(.ctn-tone-default) {
@@ -158,7 +126,7 @@
 .source-editor .cm-line.ctn-line-concept:not(.ctn-tone-default) {
   background: color-mix(
     in srgb,
-    var(--color-accent-subtle) 72%,
+    var(--ctn-selection-soft) 72%,
     var(--ctn-tone-background, transparent)
   );
 }
@@ -166,25 +134,25 @@
 .source-editor .cm-line.cm-activeLine {
   background: color-mix(
     in srgb,
-    var(--color-hover) 76%,
+    var(--cu-color-hover) 76%,
     var(--ctn-tone-background, transparent)
   );
 }
 
 .source-editor .cm-line.ctn-line-diagnostic {
-  background: var(--color-error-soft);
+  background: var(--ctn-error-soft);
 }
 
 .source-editor .ctn-inline {
-  text-decoration-color: var(--ctn-tone-current, var(--color-fg-muted));
+  text-decoration-color: var(--ctn-tone-current, var(--cu-color-muted));
 }
 
 .source-editor .ctn-inline {
   text-decoration-line: underline;
-  text-decoration-thickness: calc(var(--ui-border-width) * 2);
+  text-decoration-thickness: calc(var(--cu-panelBorderWidth) * 2);
   text-underline-offset: 0.18em;
 }
 
 .source-editor .ctn-inline-symbol {
-  color: var(--ctn-tone-current, var(--color-fg-muted));
+  color: var(--ctn-tone-current, var(--cu-color-muted));
 }

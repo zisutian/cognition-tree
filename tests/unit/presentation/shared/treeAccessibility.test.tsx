@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../../support/presentation/render";
 import { describe, expect, it } from "vitest";
 import {
   NoteTree,
@@ -39,7 +39,7 @@ describe("treeAccessibility", () => {
     expect(markup).not.toContain("折叠中的笔记");
   });
 
-  it("does not expose expansion state for empty directory folders", () => {
+  it("allows empty folders to receive children using package branch semantics", () => {
     const markup = renderToStaticMarkup(
       <NoteTree
         activeNode={{ kind: "note", noteId: "note-1" }}
@@ -58,7 +58,7 @@ describe("treeAccessibility", () => {
     );
 
     expect(markup).toContain("空文件夹");
-    expect(markup).not.toContain("aria-expanded=");
+    expect(markup).toContain("aria-expanded=");
   });
 
   it("provides inline rename and delete entry points without inline confirmation", () => {
@@ -81,8 +81,8 @@ describe("treeAccessibility", () => {
       />,
     );
 
-    expect(markup).toContain('aria-label="重命名笔记 当前笔记"');
-    expect(markup).toContain('aria-label="删除笔记 当前笔记"');
+    expect(markup).toContain('aria-label="重命名 当前笔记"');
+    expect(markup).toContain('aria-label="删除 当前笔记"');
     expect(markup).not.toContain(">确认<");
     expect(markup).not.toContain('role="alertdialog"');
   });
@@ -115,7 +115,7 @@ describe("treeAccessibility", () => {
       />,
     );
 
-    expect(markup.match(/aria-current="page"/g) ?? []).toHaveLength(1);
+    expect(markup.match(/aria-selected="true"/g) ?? []).toHaveLength(1);
     expect(markup).toContain('role="tree"');
     expect(markup.match(/role="treeitem"/g) ?? []).toHaveLength(2);
     expect(markup.match(/aria-selected="true"/g) ?? []).toHaveLength(1);

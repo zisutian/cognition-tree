@@ -1,3 +1,4 @@
+import { Button, Section } from "compact-ui";
 import { RefreshCw } from "lucide-react";
 import {
   projectRepositoryIssueActions,
@@ -10,7 +11,6 @@ import repositoryStyles from "./repository.module.css";
 const cx = createClassNames(repositoryStyles);
 
 import type { RepositoryViewModel } from "../../../application/repository/index.ts";
-import { Button, Section } from "../../ui/index.ts";
 
 export type PendingRepositoryIssueAction = {
   action: RepositoryIssueActionView;
@@ -53,7 +53,7 @@ export function RepositoryIssueDetail({
               disabled={busy}
               onClick={() => onRunAction(view.refreshRepositories)}
               type="button"
-              variant="secondary"
+              variant="normal"
             >
               <RefreshCw aria-hidden="true" size={13} />
               重新检查
@@ -71,7 +71,7 @@ export function RepositoryIssueDetail({
                 onRunAction(() => view.deleteRepository({ id: issue.id }));
               }}
               type="button"
-              variant={action.confirmation ? "danger" : "secondary"}
+              variant="normal"
             >
               {action.label}
             </Button>
@@ -99,7 +99,7 @@ export function RepositoryIssueDetail({
                 disabled={busy}
                 onClick={onCancelAction}
                 type="button"
-                variant="secondary"
+                variant="normal"
               >
                 取消
               </Button>

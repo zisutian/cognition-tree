@@ -337,8 +337,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     id: "core/sync",
-    responsibility:
-      "Pure domain transitions and content change-set models",
+    responsibility: "Pure domain transitions and content change-set models",
     scope: "tree",
     publicEntries: ["core/sync/index.ts"],
     dependencies: ["core/ctn"],
@@ -721,7 +720,11 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     responsibility: "Agent chat, scope, proposal and approval views",
     scope: "tree",
     publicEntries: ["presentation/activities/agent/index.ts"],
-    dependencies: ["application/agent", "presentation/ui"],
+    dependencies: [
+      "presentation/navigation",
+      "application/agent",
+      "presentation/ui",
+    ],
   },
   {
     id: "presentation/activities/journal",
@@ -729,6 +732,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     scope: "tree",
     publicEntries: ["presentation/activities/journal/index.ts"],
     dependencies: [
+      "presentation/navigation",
       "application/journal",
       "application/repository",
       "presentation/activities/unavailable",
@@ -742,6 +746,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     scope: "tree",
     publicEntries: ["presentation/activities/notes/index.ts"],
     dependencies: [
+      "presentation/navigation",
       "application/repository",
       "application/workspace",
       "core/ctn",
@@ -757,7 +762,11 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     responsibility: "Repository administration views",
     scope: "tree",
     publicEntries: ["presentation/activities/repository/index.ts"],
-    dependencies: ["application/repository", "presentation/ui"],
+    dependencies: [
+      "presentation/navigation",
+      "application/repository",
+      "presentation/ui",
+    ],
   },
   {
     id: "presentation/activities/search",
@@ -765,6 +774,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     scope: "tree",
     publicEntries: ["presentation/activities/search/index.ts"],
     dependencies: [
+      "presentation/navigation",
       "application/navigation",
       "application/repository",
       "application/search",
@@ -778,6 +788,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     scope: "tree",
     publicEntries: ["presentation/activities/settings/index.ts"],
     dependencies: [
+      "presentation/navigation",
       "application/agent",
       "application/operations",
       "application/system",
@@ -790,6 +801,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     scope: "tree",
     publicEntries: ["presentation/activities/syntax/index.ts"],
     dependencies: [
+      "presentation/navigation",
       "application/journal",
       "application/syntax",
       "application/todo",
@@ -805,6 +817,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     scope: "tree",
     publicEntries: ["presentation/activities/todo/index.ts"],
     dependencies: [
+      "presentation/navigation",
       "application/repository",
       "application/todo",
       "core/todo",
@@ -825,12 +838,20 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     ],
   },
   {
+    id: "presentation/navigation",
+    responsibility:
+      "Login-scoped page targets, navigation admission and view sessions",
+    scope: "tree",
+    publicEntries: ["presentation/navigation/index.ts"],
+    dependencies: [],
+  },
+  {
     id: "presentation/editor",
     responsibility:
       "CodeMirror editor, composition, selection, undo and flush bindings",
     scope: "tree",
     publicEntries: ["presentation/editor/index.ts"],
-    dependencies: ["core/ctn", "presentation/ui"],
+    dependencies: ["presentation/navigation", "core/ctn", "presentation/ui"],
   },
   {
     id: "presentation/shell",
@@ -840,6 +861,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     scope: "tree",
     publicEntries: ["presentation/shell/index.ts"],
     dependencies: [
+      "presentation/navigation",
       "application/agent",
       "application/journal",
       "application/operations",
@@ -879,15 +901,18 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     id: "presentation/ui",
-    responsibility:
-      "Domain-independent controls, layout, navigation descriptors and global styles",
+    responsibility: "Compact UI composition and CTN content adapters",
     scope: "tree",
     publicEntries: [
       "presentation/ui/index.ts",
       "presentation/ui/styles/index.css",
-      "presentation/ui/foundation/designTokens.ts",
     ],
-    dependencies: ["application/problems", "application/workbench", "core/ctn"],
+    dependencies: [
+      "presentation/navigation",
+      "application/problems",
+      "application/workbench",
+      "core/ctn",
+    ],
   },
   {
     id: "presentation",
@@ -929,9 +954,9 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     id: "tooling/build",
-    responsibility: "Build cleanup, injected design catalog compilation and bundle verification",
+    responsibility: "Build cleanup and bundle verification",
     scope: "tree",
-    publicEntries: ["tooling/build/designTokenStyles.ts"],
+    publicEntries: [],
     dependencies: [],
   },
   {
@@ -974,6 +999,13 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     scope: "tree",
     publicEntries: [],
     dependencies: ["infrastructure/server/system"],
+  },
+  {
+    id: "tooling/vendor",
+    responsibility: "Versioned third-party installation archives and notices",
+    scope: "tree",
+    publicEntries: [],
+    dependencies: [],
   },
   {
     id: "tooling/release",

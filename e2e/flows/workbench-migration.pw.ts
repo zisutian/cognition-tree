@@ -23,7 +23,7 @@ test("migrates real files through settings and reloads the durable migration sta
   ).json();
   await openWorkbench(page, repositoryId);
   await getActivityButton(page, "设置").click();
-  await page.getByRole("button", { name: "数据迁移", exact: true }).click();
+  await page.getByRole("treeitem", { name: "数据迁移", exact: true }).click();
   const panel = page.getByRole("region", { name: "数据迁移设置" });
   await panel
     .getByRole("textbox", { name: "新数据根" })
@@ -42,7 +42,7 @@ test("migrates real files through settings and reloads the durable migration sta
     .toBe("completed");
   await page.reload();
   await getActivityButton(page, "设置").click();
-  await page.getByRole("button", { name: "数据迁移", exact: true }).click();
+  await page.getByRole("treeitem", { name: "数据迁移", exact: true }).click();
   const status = page.getByRole("region", { name: "数据迁移设置" });
   await expect(status).toContainText(e2eServer.migrationDestination);
   await expect(status).toContainText("已完成");
@@ -82,7 +82,7 @@ test("rejects an occupied migration destination without removing its contents", 
   await writeFile(marker, "keep this directory", { mode: 0o600 });
   await openWorkbench(page, repositoryId);
   await getActivityButton(page, "设置").click();
-  await page.getByRole("button", { name: "数据迁移", exact: true }).click();
+  await page.getByRole("treeitem", { name: "数据迁移", exact: true }).click();
   const panel = page.getByRole("region", { name: "数据迁移设置" });
   await panel
     .getByRole("textbox", { name: "新数据根" })

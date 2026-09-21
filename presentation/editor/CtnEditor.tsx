@@ -1,5 +1,10 @@
-import { useEffect, useRef } from "react";
-import { EditorState } from "@codemirror/state";
+import {
+  ctnCheckboxBridgeFacet,
+  useCtnCheckboxBridge,
+} from "./ctnCheckboxBridge.tsx";
+import { usePageNavigation } from "../navigation/index.ts";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type {
   CtnCompiledSyntax,
@@ -30,6 +35,7 @@ export type CtnEditorSyntax = CtnCompiledSyntax;
 export type { CtnEditorContentMode } from "./ctnEditorContentMode.ts";
 
 type CtnEditorBaseProps = {
+  sessionKey?: string;
   checkableBlocks?: readonly CtnEditorCheckableBlock[];
   focusTarget: CtnEditorFocusTarget | null;
   value: string;
@@ -42,17 +48,18 @@ type CtnEditorBaseProps = {
   readOnly?: boolean;
 };
 
-type CtnEditorProps = CtnEditorBaseProps & (
-  | {
-      contentMode: { kind: "raw" };
-      syntax: null;
-      tabDisplayWidth: number;
-    }
-  | {
-      contentMode: CtnEditorParsedContentMode;
-      syntax: CtnEditorSyntax;
-    }
-);
+type CtnEditorProps = CtnEditorBaseProps &
+  (
+    | {
+        contentMode: { kind: "raw" };
+        syntax: null;
+        tabDisplayWidth: number;
+      }
+    | {
+        contentMode: CtnEditorParsedContentMode;
+        syntax: CtnEditorSyntax;
+      }
+  );
 
 export type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks.ts";
 
@@ -94,6 +101,9 @@ export function CtnEditor(props: CtnEditorProps) {
     onToggleCheckableBlock,
     readOnly = false,
   } = props;
+  const widgets = useCtnCheckboxBridge();
+  const pageNavigation = usePageNavigation();
+  const sessionKey = props.sessionKey;
   const editorHostRef = useRef<HTMLDivElement | null>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const initialValueRef = useRef(value);
@@ -121,30 +131,81 @@ export function CtnEditor(props: CtnEditorProps) {
       : onToggleCheckableBlock;
   }, [onToggleCheckableBlock, readOnly]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!editorHostRef.current || editorViewRef.current) {
       return;
     }
 
+    const extensions = createCtnEditorExtensions(
+      onChangeRef,
+      createRuntimeOptions(props, checkableBlocks),
+      onOpenReferenceRef,
+      onActiveLineChangeRef,
+      onToggleCheckableBlockRef,
+      readOnly,
+    );
+    extensions.push(ctnCheckboxBridgeFacet.of(widgets.bridge));
+    const saved = sessionKey
+      ? pageNavigation.viewSessions.read<{
+          state: EditorState;
+          top: number;
+          left: number;
+          scroll: ReturnType<EditorView["scrollSnapshot"]>;
+        }>(sessionKey)
+      : undefined;
+    let state = saved
+      ? saved.state.update({ effects: StateEffect.reconfigure.of(extensions) })
+          .state
+      : EditorState.create({ doc: initialValueRef.current, extensions });
+    const sync = createEditorValueSyncTransaction(
+      state.doc.toString(),
+      initialValueRef.current,
+    );
+    if (sync) state = state.update(sync).state;
     const view = new EditorView({
       parent: editorHostRef.current,
-      state: EditorState.create({
-        doc: initialValueRef.current,
-        extensions: createCtnEditorExtensions(
-          onChangeRef,
-          createRuntimeOptions(props, checkableBlocks),
-          onOpenReferenceRef,
-          onActiveLineChangeRef,
-          onToggleCheckableBlockRef,
-          readOnly,
-        ),
-      }),
+      state,
+      scrollTo: saved?.scroll,
     });
 
+    let measured = false;
+    let restoreFrame: number | undefined;
+    view.requestMeasure({
+      read: () => null,
+      write: () => {
+        // Apply the pixel offset after CodeMirror has resolved its initial scroll anchor.
+        restoreFrame = requestAnimationFrame(() => {
+          if (saved && !focusTarget) {
+            view.scrollDOM.scrollTop = saved.top;
+            view.scrollDOM.scrollLeft = saved.left;
+          }
+          measured = true;
+        });
+      },
+    });
     editorViewRef.current = view;
     onActiveLineChangeRef.current(getCtnEditorActiveLineNumber(view.state));
 
     return () => {
+      if (restoreFrame !== undefined) cancelAnimationFrame(restoreFrame);
+      if (
+        sessionKey &&
+        pageNavigation
+          .getSnapshot()
+          .pages.some((page) => page.key === sessionKey)
+      )
+        pageNavigation.viewSessions.write(sessionKey, {
+          state: view.state,
+          top: measured
+            ? view.scrollDOM.scrollTop
+            : (saved?.top ?? view.scrollDOM.scrollTop),
+          left: measured
+            ? view.scrollDOM.scrollLeft
+            : (saved?.left ?? view.scrollDOM.scrollLeft),
+          scroll: measured
+            ? view.scrollSnapshot()
+            : (saved?.scroll ?? view.scrollSnapshot()),
+        });
       view.destroy();
       editorViewRef.current = null;
       consumedFocusRequestIdRef.current = null;
@@ -154,9 +215,7 @@ export function CtnEditor(props: CtnEditorProps) {
   const contentModeKind = contentMode.kind;
   const bodyTitle = contentMode.kind === "body" ? contentMode.title : null;
   const rawTabDisplayWidth = syntax === null ? props.tabDisplayWidth : null;
-  const checkableBlocksKey = createCtnEditorCheckableBlocksKey(
-    checkableBlocks,
-  );
+  const checkableBlocksKey = createCtnEditorCheckableBlocksKey(checkableBlocks);
 
   useEffect(() => {
     const view = editorViewRef.current;
@@ -239,11 +298,14 @@ export function CtnEditor(props: CtnEditorProps) {
   }, [focusTarget, onConsumeFocusTarget]);
 
   return (
-    <div
-      className="source-editor"
-      data-editor-mode={contentMode.kind}
-      data-editor-read-only={readOnly ? "true" : "false"}
-      ref={editorHostRef}
-    />
+    <>
+      <div
+        className="source-editor"
+        data-editor-mode={contentMode.kind}
+        data-editor-read-only={readOnly ? "true" : "false"}
+        ref={editorHostRef}
+      />
+      {widgets.portals}
+    </>
   );
 }

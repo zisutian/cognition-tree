@@ -1,50 +1,27 @@
 .activity-context-content {
   display: flex;
   flex-direction: column;
-  gap: var(--ui-gap);
+  gap: var(--cu-gap);
   height: 100%;
   min-height: 0;
   overflow: auto;
-  scrollbar-color: var(--color-border-strong) transparent;
-  scrollbar-width: thin;
-}
-
-.activity-context-content::-webkit-scrollbar {
-  width: calc(var(--ui-gap) + calc(var(--ui-border-width) * 2));
-  height: calc(var(--ui-gap) + calc(var(--ui-border-width) * 2));
-}
-
-.activity-context-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.activity-context-content::-webkit-scrollbar-thumb {
-  border: calc(var(--ui-border-width) * 2) solid transparent;
-  border-radius: var(--ui-radius);
-  background: var(--color-border-strong);
-  background-clip: content-box;
-}
-
-.context-toolbar {
-  display: inline-flex;
-  gap: var(--ui-gap-tight);
 }
 
 .directory-create-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
 }
 
 .context-empty {
   display: flex;
   align-items: center;
-  min-height: var(--ui-row-height);
+  min-height: var(--cu-rowHeight);
   margin: 0;
   overflow: hidden;
-  color: var(--color-fg-muted);
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
+  color: var(--cu-color-muted);
+  font-size: var(--cu-fontSize);
+  line-height: var(--cu-lineHeight);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

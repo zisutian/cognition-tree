@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../../../support/presentation/render";
 import { describe, it } from "vitest";
 import { WorkspaceUnavailablePanel } from "../../../../../presentation/activities/unavailable/WorkspaceUnavailablePanel";
 import { expectMarkupSemantics } from "../../../../support/presentation/markupSemantics";
@@ -9,10 +9,7 @@ describe("workspace unavailable activity", () => {
       "absent",
       { status: "absent" },
       {
-        has: [
-          "尚未创建笔记仓库",
-          ">前往仓库<",
-        ],
+        has: ["尚未创建笔记仓库", ">前往仓库<"],
         lacks: ["重试挂载"],
       },
     ],
@@ -31,19 +28,24 @@ describe("workspace unavailable activity", () => {
       },
       {
         has: [
-          "笔记仓库无法挂载", "普通仓库目录不可用。",
-          ">重试挂载<", ">前往仓库<",
+          "笔记仓库无法挂载",
+          "普通仓库目录不可用。",
+          ">重试挂载<",
+          ">前往仓库<",
         ],
       },
     ],
-  ] as const)("renders the %s state semantics", (_name, workspace, semantics) => {
-    const markup = renderToStaticMarkup(
-      <WorkspaceUnavailablePanel
-        onOpenRepository={() => undefined}
-        workspace={workspace}
-      />,
-    );
+  ] as const)(
+    "renders the %s state semantics",
+    (_name, workspace, semantics) => {
+      const markup = renderToStaticMarkup(
+        <WorkspaceUnavailablePanel
+          onOpenRepository={() => undefined}
+          workspace={workspace}
+        />,
+      );
 
-    expectMarkupSemantics(markup, semantics);
-  });
+      expectMarkupSemantics(markup, semantics);
+    },
+  );
 });

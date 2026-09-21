@@ -1,16 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { ManagementList, ManagementRow } from "compact-ui";
+import { StatusText as StatusBadge } from "compact-ui";
+import { Button, EmptyState } from "compact-ui";
+
 import type { OperationAuditEntry } from "../../../application/operations/index.ts";
-import {
-  Button,
-  EmptyState,
-  FormError,
-  ManagementList,
-  ManagementRow,
-  Page,
-  PageBody,
-  StatusBadge,
-} from "../../ui/index.ts";
+import { FormError, Page, PageBody } from "../../ui/index.ts";
 import {
   operationResultLabel,
   operationSourceLabel,
@@ -63,18 +58,19 @@ export function OperationsSettingsPanel({
       <PageBody>
         <FormError message={failure} />
         {loading && entries.length === 0 ? (
-          <EmptyState compact title="正在加载" />
+          <EmptyState title="正在加载" />
         ) : entries.length === 0 ? (
-          <EmptyState compact title="尚无受审计写入记录" />
+          <EmptyState title="尚无受审计写入记录" />
         ) : (
-          <ManagementList aria-label="操作审计">
+          <ManagementList label="操作审计">
             {entries.map((entry) => (
               <ManagementRow
                 key={entry.id}
                 onSelect={() => session.selectEntry(entry.id)}
                 selected={selectedEntryId === entry.id}
-                status={
+                description={
                   <StatusBadge
+                    mode="live"
                     tone={
                       entry.result === "committed" ||
                       entry.result === "auto-merged" ||

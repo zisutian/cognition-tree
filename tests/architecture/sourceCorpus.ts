@@ -18,46 +18,65 @@ export const contractModules: SourceModules = Object.freeze(
 );
 
 export const applicationModules: SourceModules = Object.freeze(
-  import.meta.glob(
-    "../../application/**/*.{ts,tsx,js,mjs,cjs,mts,cts}",
-    { eager: true, import: "default", query: "?raw" },
-  ) as SourceModules,
+  import.meta.glob("../../application/**/*.{ts,tsx,js,mjs,cjs,mts,cts}", {
+    eager: true,
+    import: "default",
+    query: "?raw",
+  }) as SourceModules,
 );
 
 export const infrastructureModules: SourceModules = Object.freeze(
-  import.meta.glob(
-    "../../infrastructure/**/*.{ts,tsx,js,mjs,cjs,mts,cts}",
-    { eager: true, import: "default", query: "?raw" },
-  ) as SourceModules,
+  import.meta.glob("../../infrastructure/**/*.{ts,tsx,js,mjs,cjs,mts,cts}", {
+    eager: true,
+    import: "default",
+    query: "?raw",
+  }) as SourceModules,
 );
 
 export const presentationModules: SourceModules = Object.freeze(
+  import.meta.glob("../../presentation/**/*.{ts,tsx,js,mjs,cjs,mts,cts}", {
+    eager: true,
+    import: "default",
+    query: "?raw",
+  }) as SourceModules,
+);
+
+export const toolingModules: SourceModules = Object.freeze(
   import.meta.glob(
-    "../../presentation/**/*.{ts,tsx,js,mjs,cjs,mts,cts}",
+    [
+      "../../tooling/**/*.{ts,tsx,js,mjs,cjs,mts,cts}",
+      "../../*.{ts,tsx,js,mjs,cjs,mts,cts}",
+    ],
     { eager: true, import: "default", query: "?raw" },
   ) as SourceModules,
 );
 
-export const toolingModules: SourceModules = Object.freeze(
-  import.meta.glob(["../../tooling/**/*.{ts,tsx,js,mjs,cjs,mts,cts}", "../../*.{ts,tsx,js,mjs,cjs,mts,cts}"],
-    { eager: true, import: "default", query: "?raw" }) as SourceModules,
-);
-
-export const sourceAssets: SourceModules = Object.freeze(
-  import.meta.glob(["../../{application,contracts,core,infrastructure,presentation,tooling}/**/*.{css,json,sh,md}", "../../*.{html,sh,json,yaml}", "../../ctn", "../../.githooks/*"],
-    { eager: true, import: "default", query: "?raw" }) as SourceModules,
-);
-
-export const sourceModulesByRoot: Readonly<
-  Record<SourceRoot, SourceModules>
-> = Object.freeze({
-  core: coreModules,
-  contracts: contractModules,
-  application: applicationModules,
-  infrastructure: infrastructureModules,
-  presentation: presentationModules,
-  tooling: toolingModules,
+export const sourceAssets: SourceModules = Object.freeze({
+  ...(import.meta.glob(
+    [
+      "../../{application,contracts,core,infrastructure,presentation,tooling}/**/*.{css,json,sh,md}",
+      "../../*.{html,sh,json,yaml}",
+      "../../ctn",
+      "../../.githooks/*",
+    ],
+    { eager: true, import: "default", query: "?raw" },
+  ) as SourceModules),
+  ...(import.meta.glob("../../tooling/vendor/*.tgz", {
+    eager: true,
+    import: "default",
+    query: "?url",
+  }) as SourceModules),
 });
+
+export const sourceModulesByRoot: Readonly<Record<SourceRoot, SourceModules>> =
+  Object.freeze({
+    core: coreModules,
+    contracts: contractModules,
+    application: applicationModules,
+    infrastructure: infrastructureModules,
+    presentation: presentationModules,
+    tooling: toolingModules,
+  });
 
 export const sourceModules: SourceModules = Object.freeze(
   Object.assign({}, ...Object.values(sourceModulesByRoot)),
@@ -74,9 +93,11 @@ export function listSourceFiles(directory: string) {
 export function selectSourceModules(directory: string): SourceModules {
   const selected = new Set(listSourceFiles(directory));
 
-  return Object.freeze(Object.fromEntries(
-    Object.entries(sourceModules).filter(([filePath]) =>
-      selected.has(filePath)
+  return Object.freeze(
+    Object.fromEntries(
+      Object.entries(sourceModules).filter(([filePath]) =>
+        selected.has(filePath),
+      ),
     ),
-  ));
+  );
 }

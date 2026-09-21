@@ -1,4 +1,5 @@
-import { Button, EmptyState, Page } from "../../ui/index.ts";
+import { Button, EmptyState } from "compact-ui";
+import { Page } from "../../ui/index.ts";
 
 export function SyntaxUnavailablePanel({
   featureName,
@@ -11,7 +12,7 @@ export function SyntaxUnavailablePanel({
     <Page aria-label={`${featureName}不可用`}>
       <EmptyState
         action={
-          <Button onClick={onConfigureSyntax} type="button" variant="primary">
+          <Button onClick={onConfigureSyntax} type="button" variant="normal">
             打开语法
           </Button>
         }

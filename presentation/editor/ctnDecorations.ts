@@ -1,3 +1,4 @@
+import { ctnCheckboxBridgeFacet } from "./ctnCheckboxBridge.tsx";
 import {
   Decoration,
   type DecorationSet,
@@ -6,16 +7,13 @@ import {
   type ViewUpdate,
   ViewPlugin,
 } from "@codemirror/view";
-import type {
-  EditorState,
-} from "@codemirror/state";
+import type { EditorState } from "@codemirror/state";
 import type {
   CtnEditableBlock,
   CtnEditableDocument,
   CtnInlineSpan,
 } from "../../core/ctn/index.ts";
 import {
-  checkboxControlClassName,
   getTextColorClassName,
   getTextColorStyleDeclaration,
   getToneClassName,
@@ -34,6 +32,8 @@ import {
   requireCtnEditorRuntimeConfig,
 } from "./ctnEditorRuntime.ts";
 
+const checkboxCleanup = new WeakMap<HTMLElement, () => void>();
+
 export class CtnCheckboxWidget extends WidgetType {
   constructor(
     readonly item: CtnEditorCheckableBlock,
@@ -44,41 +44,35 @@ export class CtnCheckboxWidget extends WidgetType {
     super();
   }
 
-  eq(other: CtnCheckboxWidget) {
-    return this.item.blockId === other.item.blockId &&
+  eq(other: WidgetType) {
+    return (
+      other instanceof CtnCheckboxWidget &&
+      this.item.blockId === other.item.blockId &&
       this.item.checked === other.item.checked &&
-      this.item.label === other.item.label;
+      this.item.label === other.item.label
+    );
   }
 
-  updateDOM(dom: HTMLElement) {
-    if (dom.tagName !== "INPUT") return false;
-
-    const checkbox = dom as HTMLInputElement;
-
-    checkbox.checked = this.item.checked;
-    checkbox.setAttribute(
-      "aria-label",
-      `${this.item.checked ? "标记未完成" : "标记完成"} ${this.item.label}`,
-    );
+  updateDOM(dom: HTMLElement, view: EditorView) {
+    const bridge = view.state.facet(ctnCheckboxBridgeFacet);
+    if (!bridge) return false;
+    bridge.render(dom, this.item, this.onToggleRef);
     return true;
   }
 
-  toDOM() {
-    const checkbox = document.createElement("input");
+  toDOM(view: EditorView) {
+    const host = document.createElement("span");
+    host.className = "ctn-todo-checkbox";
+    const bridge = view.state.facet(ctnCheckboxBridgeFacet);
+    if (!bridge) throw new Error("CTN checkbox requires its React bridge");
+    bridge.render(host, this.item, this.onToggleRef);
+    checkboxCleanup.set(host, () => bridge.remove(host));
+    return host;
+  }
 
-    checkbox.type = "checkbox";
-    checkbox.checked = this.item.checked;
-    checkbox.className = `${checkboxControlClassName} ctn-todo-checkbox`;
-    checkbox.setAttribute(
-      "aria-label",
-      `${this.item.checked ? "标记未完成" : "标记完成"} ${this.item.label}`,
-    );
-    checkbox.addEventListener("mousedown", (event) => event.stopPropagation());
-    checkbox.addEventListener("change", (event) => {
-      event.stopPropagation();
-      this.onToggleRef.current?.(this.item.blockId);
-    });
-    return checkbox;
+  destroy(dom: HTMLElement) {
+    checkboxCleanup.get(dom)?.();
+    checkboxCleanup.delete(dom);
   }
 
   ignoreEvent() {
@@ -96,8 +90,10 @@ export class CtnRecurrenceMarkerWidget extends WidgetType {
   }
 
   eq(other: CtnRecurrenceMarkerWidget) {
-    return this.progress.text === other.progress.text &&
-      this.progress.ariaLabel === other.progress.ariaLabel;
+    return (
+      this.progress.text === other.progress.text &&
+      this.progress.ariaLabel === other.progress.ariaLabel
+    );
   }
 
   toDOM() {
@@ -141,7 +137,9 @@ function getLineTextStart(lineText: string) {
 export function shouldDecorateMarker(block: CtnEditableBlock) {
   return (
     block.marker !== null &&
-    !block.diagnostics.some((diagnostic) => diagnostic.code === "unknown-marker")
+    !block.diagnostics.some(
+      (diagnostic) => diagnostic.code === "unknown-marker",
+    )
   );
 }
 
@@ -214,10 +212,12 @@ export function getInlineSymbolOffsets(
 
   return markerFrom < 0
     ? []
-    : [{
-        from: markerFrom,
-        to: markerFrom + span.rule.marker.length,
-      }];
+    : [
+        {
+          from: markerFrom,
+          to: markerFrom + span.rule.marker.length,
+        },
+      ];
 }
 
 function getBlockTextDecorationStyle(block: CtnEditableBlock) {
@@ -315,28 +315,31 @@ function buildCtnDecorations(
         const markerStart = line.text.indexOf(marker);
 
         if (markerStart >= 0) {
-          const checkable = block.rule.semanticId === "todo-item"
-            ? checkableByLineNumber.get(block.lineNumber)
-            : undefined;
+          const checkable =
+            block.rule.semanticId === "todo-item"
+              ? checkableByLineNumber.get(block.lineNumber)
+              : undefined;
 
           const markerFrom = line.from + markerStart;
           const markerTo = markerFrom + marker.length;
 
-          decorations.push(checkable
-            ? Decoration.replace({
-                widget: new CtnCheckboxWidget(
-                  checkable,
-                  onToggleCheckableBlockRef,
-                ),
-              }).range(markerFrom, markerTo)
-            : Decoration.mark({
-                attributes: {
-                  class: getMarkerDecorationClass(block),
-                  ...(getMarkerDecorationStyle(block)
-                    ? { style: getMarkerDecorationStyle(block) }
-                    : {}),
-                },
-              }).range(markerFrom, markerTo));
+          decorations.push(
+            checkable
+              ? Decoration.replace({
+                  widget: new CtnCheckboxWidget(
+                    checkable,
+                    onToggleCheckableBlockRef,
+                  ),
+                }).range(markerFrom, markerTo)
+              : Decoration.mark({
+                  attributes: {
+                    class: getMarkerDecorationClass(block),
+                    ...(getMarkerDecorationStyle(block)
+                      ? { style: getMarkerDecorationStyle(block) }
+                      : {}),
+                  },
+                }).range(markerFrom, markerTo),
+          );
           if (checkable?.recurrenceProgress) {
             decorations.push(
               Decoration.widget({
@@ -377,10 +380,7 @@ function buildCtnDecorations(
                   ? { style: getInlineDecorationStyle(span) }
                   : {}),
               },
-            }).range(
-              spanStart + symbol.from,
-              spanStart + symbol.to,
-            ),
+            }).range(spanStart + symbol.from, spanStart + symbol.to),
           );
         }
       }
@@ -406,9 +406,8 @@ export function createCtnDecorationPlugin(
   } = { current: undefined },
 ): CtnEditorDecorationPlugin {
   const getCheckableBlocks = (state: EditorState) =>
-    requireCtnEditorRuntimeConfig(
-      state.facet(ctnEditorRuntimeConfigFacet),
-    ).checkableBlocks;
+    requireCtnEditorRuntimeConfig(state.facet(ctnEditorRuntimeConfigFacet))
+      .checkableBlocks;
 
   return ViewPlugin.fromClass(
     class implements CtnEditorDecorationPluginValue {
@@ -421,9 +420,8 @@ export function createCtnDecorationPlugin(
         const analysis = view.state.field(analysisField);
 
         this.analysis = analysis;
-        this.checkableBlocksKey = createCtnEditorCheckableBlocksKey(
-          checkableBlocks,
-        );
+        this.checkableBlocksKey =
+          createCtnEditorCheckableBlocksKey(checkableBlocks);
         this.decorations = analysis.analysis
           ? buildCtnDecorations(
               view.state,
@@ -437,9 +435,8 @@ export function createCtnDecorationPlugin(
       update(update: ViewUpdate) {
         const nextAnalysis = update.state.field(analysisField);
         const checkableBlocks = getCheckableBlocks(update.state);
-        const nextCheckableBlocksKey = createCtnEditorCheckableBlocksKey(
-          checkableBlocks,
-        );
+        const nextCheckableBlocksKey =
+          createCtnEditorCheckableBlocksKey(checkableBlocks);
 
         if (
           nextAnalysis !== this.analysis ||

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { expect, type APIRequestContext } from "@playwright/test";
-import { appResizeKeyboardStep } from "../../presentation/ui/workbench/frameResize";
+import { defaultDesignConfig } from "compact-ui";
+const appResizeKeyboardStep = defaultDesignConfig.metrics.resizeStep;
 import { test } from "../support/e2eTest";
 import {
   seedDiagnosticsRepository,
@@ -50,7 +51,7 @@ test.describe("workbench diagnostics", () => {
     await expect(problemsHeader).toHaveAccessibleName(/0 个错误，2 个警告/);
     await problemsHeader.click();
 
-    const rows = problems.locator(".ui-tool-list-row-target");
+    const rows = problems.getByRole("button", { name: /打开问题：/ });
     const documentProblem = rows.filter({ hasText: "未知行首符号 !" });
     const referenceProblem = rows.filter({
       hasText: "无法解析全局引用“Missing”",
@@ -66,10 +67,12 @@ test.describe("workbench diagnostics", () => {
     ).toEqual({ fontSize: "13px", height: "22px" });
     await documentProblem.click();
     await expect(
-      page.locator('[data-region-header="main"]').getByRole("heading", {
-        name: "Diagnostics",
-        exact: true,
-      }),
+      page
+        .locator("main > div:first-child > section > header")
+        .getByRole("radio", {
+          name: "Diagnostics",
+          exact: true,
+        }),
     ).toBeVisible();
     await expect(page.locator(".source-editor .cm-activeLine")).toContainText(
       "! Unknown",
@@ -104,15 +107,15 @@ test.describe("workbench diagnostics", () => {
 
     await getActivityButton(page, "笔记").click();
     await page.getByRole("button", { name: "进入专注模式" }).click();
-    await expect(page.locator(".app-context")).toHaveCount(0);
+    await expect(page.locator("aside[aria-label='上下文区域']")).toHaveCount(0);
     await expect(
-      page.getByRole("complementary", { name: "问题", exact: true }),
+      page.getByRole("complementary", { name: "底部面板", exact: true }),
     ).toBeHidden();
     await page.keyboard.press("Control+Shift+M");
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
 
     const problemsResize = page.getByRole("separator", {
-      name: "调整问题面板高度",
+      name: "调整底部高度",
     });
     const initialProblemsHeight = Number(
       await problemsResize.getAttribute("aria-valuenow"),
@@ -137,45 +140,47 @@ test.describe("workbench diagnostics", () => {
     );
 
     await getActivityButton(page, "设置").click();
-    const settingsContext = page.locator(".settings-context");
+    const settingsContext = page.getByRole("tree", { name: "设置目录" });
     const settingsPanel = page.getByRole("region", { name: "界面设置" });
 
-    const interfaceSection = settingsContext.getByRole("button", {
+    const interfaceSection = settingsContext.getByRole("treeitem", {
       name: "工作台布局",
       exact: true,
     });
-    const apiSection = settingsContext.getByRole("button", {
+    const apiSection = settingsContext.getByRole("treeitem", {
       name: "本机 API",
       exact: true,
     });
-    const agentSection = settingsContext.getByRole("button", {
+    const agentSection = settingsContext.getByRole("treeitem", {
       name: "默认会话配置",
       exact: true,
     });
-    const serviceSection = settingsContext.getByRole("button", {
+    const serviceSection = settingsContext.getByRole("treeitem", {
       name: "网络访问",
       exact: true,
     });
-    const auditSection = settingsContext.getByRole("button", {
+    const auditSection = settingsContext.getByRole("treeitem", {
       name: "操作记录",
       exact: true,
     });
 
-    await expect(interfaceSection).toHaveAttribute("aria-current", "page");
-    await expect(serviceSection).not.toHaveAttribute("aria-current", "page");
-    await expect(agentSection).not.toHaveAttribute("aria-current", "page");
-    await expect(apiSection).not.toHaveAttribute("aria-current", "page");
-    await expect(auditSection).not.toHaveAttribute("aria-current", "page");
+    await expect(interfaceSection).toHaveAttribute("aria-selected", "true");
+    await expect(serviceSection).not.toHaveAttribute("aria-selected", "true");
+    await expect(agentSection).not.toHaveAttribute("aria-selected", "true");
+    await expect(apiSection).not.toHaveAttribute("aria-selected", "true");
+    await expect(auditSection).not.toHaveAttribute("aria-selected", "true");
     await expect(
       page
-        .locator('[data-region-header="main"]')
-        .getByRole("heading", { name: "工作台布局" }),
+        .locator("main > div:first-child > section > header")
+        .getByRole("radio", { name: "工作台布局" }),
     ).toBeVisible();
     await expect(
       settingsPanel.getByRole("spinbutton", { name: "左侧栏宽度" }),
     ).toBeVisible();
     await expect(settingsPanel.locator("input")).toHaveCount(1);
-    await expect(page.locator(".app-problems")).toHaveCount(1);
+    await expect(
+      page.getByRole("complementary", { name: "底部面板", exact: true }),
+    ).toHaveCount(1);
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
 
     await page.keyboard.press("Control+Shift+M");
@@ -190,9 +195,11 @@ test.describe("workbench diagnostics", () => {
     );
 
     const mainContentBox = await page
-      .locator(".app-main-content")
+      .locator("main > div:first-child")
       .boundingBox();
-    const problemsBox = await page.locator(".app-problems").boundingBox();
+    const problemsBox = await page
+      .getByRole("complementary", { name: "底部面板", exact: true })
+      .boundingBox();
 
     expect(mainContentBox).not.toBeNull();
     expect(problemsBox).not.toBeNull();
@@ -233,14 +240,14 @@ test.describe("workbench diagnostics", () => {
       },
     );
 
-    await page.getByRole("button", { name: /^重命名语法 / }).click();
-    const syntaxName = page.getByRole("textbox", { name: /^重命名语法 / });
+    await page.getByRole("button", { name: /^重命名 / }).click();
+    const syntaxName = page.getByRole("textbox", { name: /^重命名 / });
 
     await syntaxName.fill("无法保存的语法");
     await syntaxName.press("Enter");
 
     const persistenceProblem = page
-      .locator(".ui-tool-list-row-frame")
+      .getByRole("listitem")
       .filter({ hasText: "syntax persistence failed" });
     const problemsHeader = getProblemsToggle(page);
 

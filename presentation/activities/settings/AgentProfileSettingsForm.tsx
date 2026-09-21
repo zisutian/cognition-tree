@@ -1,18 +1,13 @@
-import { createClassNames } from "../../ui/index.ts";
-const cx = createClassNames();
 // SPDX-License-Identifier: GPL-3.0-or-later
+
+import { Stack } from "compact-ui";
+import { FieldRow, InputControl, SelectControl } from "compact-ui";
 
 import type { FormEvent } from "react";
 import type {
   AgentProviderKind,
   AgentProviderView,
 } from "../../../application/agent/index.ts";
-import {
-  FieldRow,
-  FormLayout,
-  InputControl,
-  SelectControl,
-} from "../../ui/index.ts";
 
 import type { AgentProfileDraft } from "./agentSettingsDraft.ts";
 
@@ -37,126 +32,132 @@ export function AgentProfileSettingsForm({
 }) {
   return (
     <form id={formId} onSubmit={onSubmit}>
-      <fieldset className={cx("ui-form-fields")} disabled={busy}>
-        <FormLayout layout="stacked">
-          <FieldRow fieldId="settings-profile-provider" label="Provider">
-            {(accessibility) => (
-              <SelectControl
-                {...accessibility}
-                aria-label="Profile Provider"
-                onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    providerId: event.currentTarget.value,
-                  })
-                }
-                required
-                value={draft.providerId}
-              >
-                <option value="">未选择</option>
-                {providers.map((provider) => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.label}
-                  </option>
-                ))}
-              </SelectControl>
-            )}
-          </FieldRow>
-          <FieldRow fieldId="settings-profile-name" label="名称">
-            {(accessibility) => (
-              <InputControl
-                {...accessibility}
-                aria-label="Profile 名称"
-                onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    label: event.currentTarget.value,
-                  })
-                }
-                required
-                value={draft.label}
-              />
-            )}
-          </FieldRow>
-          <FieldRow fieldId="settings-profile-model" label="模型">
-            {(accessibility) => (
-              <>
-                <InputControl
-                  {...accessibility}
-                  aria-label="Profile 模型"
-                  list="agent-model-options"
-                  onChange={(event) =>
-                    onChange({
-                      ...draft,
-                      model: event.currentTarget.value,
-                    })
-                  }
-                  required
-                  value={draft.model}
-                />
-                <datalist id="agent-model-options">
-                  {modelOptions.map((model) => (
-                    <option key={model} value={model} />
-                  ))}
-                </datalist>
-              </>
-            )}
-          </FieldRow>
-          <FieldRow fieldId="settings-profile-session-limit" label="会话上限">
-            {(accessibility) => (
-              <InputControl
-                {...accessibility}
-                aria-label="Profile 会话上限"
-                min="1"
-                onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    maxResidentSessions: event.currentTarget.valueAsNumber,
-                  })
-                }
-                required
-                type="number"
-                value={draft.maxResidentSessions}
-              />
-            )}
-          </FieldRow>
-          <FieldRow fieldId="settings-profile-timeout" label="超时毫秒">
-            {(accessibility) => (
-              <InputControl
-                {...accessibility}
-                aria-label="Profile 超时"
-                min="1"
-                onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    timeoutMilliseconds: event.currentTarget.valueAsNumber,
-                  })
-                }
-                required
-                type="number"
-                value={draft.timeoutMilliseconds}
-              />
-            )}
-          </FieldRow>
-          {selectedProvider?.kind === "codex" ? (
-            <CodexProfileFields draft={draft} setDraft={onChange} />
-          ) : selectedProvider ? (
-            <ChatProfileFields
-              draft={draft}
-              providerKind={selectedProvider.kind}
-              setDraft={onChange}
+      <Stack>
+        <FieldRow fieldId="settings-profile-provider" label="Provider">
+          {(accessibility) => (
+            <SelectControl
+              disabled={busy}
+              {...accessibility}
+              aria-label="Profile Provider"
+              onChange={(event) =>
+                onChange({
+                  ...draft,
+                  providerId: event.currentTarget.value,
+                })
+              }
+              required
+              value={draft.providerId}
+            >
+              <option value="">未选择</option>
+              {providers.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.label}
+                </option>
+              ))}
+            </SelectControl>
+          )}
+        </FieldRow>
+        <FieldRow fieldId="settings-profile-name" label="名称">
+          {(accessibility) => (
+            <InputControl
+              disabled={busy}
+              {...accessibility}
+              aria-label="Profile 名称"
+              onChange={(event) =>
+                onChange({
+                  ...draft,
+                  label: event.currentTarget.value,
+                })
+              }
+              required
+              value={draft.label}
             />
-          ) : null}
-        </FormLayout>
-      </fieldset>
+          )}
+        </FieldRow>
+        <FieldRow fieldId="settings-profile-model" label="模型">
+          {(accessibility) => (
+            <>
+              <InputControl
+                disabled={busy}
+                {...accessibility}
+                aria-label="Profile 模型"
+                list="agent-model-options"
+                onChange={(event) =>
+                  onChange({
+                    ...draft,
+                    model: event.currentTarget.value,
+                  })
+                }
+                required
+                value={draft.model}
+              />
+              <datalist id="agent-model-options">
+                {modelOptions.map((model) => (
+                  <option key={model} value={model} />
+                ))}
+              </datalist>
+            </>
+          )}
+        </FieldRow>
+        <FieldRow fieldId="settings-profile-session-limit" label="会话上限">
+          {(accessibility) => (
+            <InputControl
+              disabled={busy}
+              {...accessibility}
+              aria-label="Profile 会话上限"
+              min="1"
+              onChange={(event) =>
+                onChange({
+                  ...draft,
+                  maxResidentSessions: event.currentTarget.valueAsNumber,
+                })
+              }
+              required
+              type="number"
+              value={draft.maxResidentSessions}
+            />
+          )}
+        </FieldRow>
+        <FieldRow fieldId="settings-profile-timeout" label="超时毫秒">
+          {(accessibility) => (
+            <InputControl
+              disabled={busy}
+              {...accessibility}
+              aria-label="Profile 超时"
+              min="1"
+              onChange={(event) =>
+                onChange({
+                  ...draft,
+                  timeoutMilliseconds: event.currentTarget.valueAsNumber,
+                })
+              }
+              required
+              type="number"
+              value={draft.timeoutMilliseconds}
+            />
+          )}
+        </FieldRow>
+        {selectedProvider?.kind === "codex" ? (
+          <CodexProfileFields busy={busy} draft={draft} setDraft={onChange} />
+        ) : selectedProvider ? (
+          <ChatProfileFields
+            busy={busy}
+            draft={draft}
+            providerKind={selectedProvider.kind}
+            setDraft={onChange}
+          />
+        ) : null}
+      </Stack>
     </form>
   );
 }
 
 function CodexProfileFields({
+  busy,
   draft,
   setDraft,
 }: {
+  busy: boolean;
   draft: AgentProfileDraft;
   setDraft(value: AgentProfileDraft): void;
 }) {
@@ -165,6 +166,7 @@ function CodexProfileFields({
       <FieldRow fieldId="settings-profile-reasoning" label="推理强度">
         {(accessibility) => (
           <SelectControl
+            disabled={busy}
             {...accessibility}
             aria-label="Profile 推理强度"
             value={draft.reasoningEffort}
@@ -186,6 +188,7 @@ function CodexProfileFields({
       <FieldRow fieldId="settings-profile-input-characters" label="输入字符">
         {(accessibility) => (
           <InputControl
+            disabled={busy}
             {...accessibility}
             aria-label="Profile 输入字符"
             min="1"
@@ -203,6 +206,7 @@ function CodexProfileFields({
       <FieldRow fieldId="settings-profile-output-characters" label="输出字符">
         {(accessibility) => (
           <InputControl
+            disabled={busy}
             {...accessibility}
             aria-label="Profile 输出字符"
             min="1"
@@ -222,10 +226,12 @@ function CodexProfileFields({
 }
 
 function ChatProfileFields({
+  busy,
   draft,
   providerKind,
   setDraft,
 }: {
+  busy: boolean;
   draft: AgentProfileDraft;
   providerKind: AgentProviderKind;
   setDraft(value: AgentProfileDraft): void;
@@ -235,6 +241,7 @@ function ChatProfileFields({
       <FieldRow fieldId="settings-profile-tool-mode" label="工具模式">
         {(accessibility) => (
           <SelectControl
+            disabled={busy}
             {...accessibility}
             aria-label="Profile 工具模式"
             value={draft.toolCallMode}
@@ -257,6 +264,7 @@ function ChatProfileFields({
         <FieldRow fieldId="settings-profile-chat-reasoning" label="推理强度">
           {(accessibility) => (
             <SelectControl
+              disabled={busy}
               {...accessibility}
               aria-label="Profile Chat 推理强度"
               value={draft.chatReasoningEffort}
@@ -283,6 +291,7 @@ function ChatProfileFields({
       >
         {(accessibility) => (
           <InputControl
+            disabled={busy}
             {...accessibility}
             aria-label="Profile 会话历史预算（字符）"
             min="1"
@@ -300,6 +309,7 @@ function ChatProfileFields({
       <FieldRow fieldId="settings-profile-output-tokens" label="输出 tokens">
         {(accessibility) => (
           <InputControl
+            disabled={busy}
             {...accessibility}
             aria-label="Profile 输出 Tokens"
             min="1"
@@ -317,6 +327,7 @@ function ChatProfileFields({
       <FieldRow fieldId="settings-profile-tool-steps" label="工具步数">
         {(accessibility) => (
           <InputControl
+            disabled={busy}
             {...accessibility}
             aria-label="Profile 工具步数"
             min="3"

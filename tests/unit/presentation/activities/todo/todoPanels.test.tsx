@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../../../support/presentation/render";
 import { describe, it } from "vitest";
 import { TodoDetailPanel } from "../../../../../presentation/activities/todo/TodoDetailPanel";
 import { TodoEditorPanel } from "../../../../../presentation/activities/todo/TodoEditorPanel";
@@ -26,10 +26,10 @@ describe("Todo panels", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        'aria-current="page"',
+        'aria-selected="true"',
         'aria-label="新建事项集合"',
-        'aria-label="重命名事项集合 今天"',
-        'aria-label="删除事项集合 今天"',
+        'aria-label="重命名 今天"',
+        'aria-label="删除 今天"',
         'draggable="true"',
         'aria-label="事项集合"',
       ],
@@ -38,8 +38,8 @@ describe("Todo panels", () => {
         ">事项集合</span>",
         'aria-label="调整事项集合顺序 今天"',
         ">1/2<",
-        'aria-label="重命名事项集合 稍后"',
-        'aria-label="删除事项集合 稍后"',
+        'aria-label="重命名 稍后"',
+        'aria-label="删除 稍后"',
         'role="alertdialog"',
       ],
       ordered: ["今天", "稍后"],
@@ -53,7 +53,7 @@ describe("Todo panels", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        'type="checkbox" checked=""',
+        /type="checkbox"[^>]*checked=""/,
         'aria-label="标记未完成 已完成但保持原位"',
         'aria-label="标记完成 未完成"',
         'role="treeitem"',

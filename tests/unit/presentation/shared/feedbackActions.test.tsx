@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../../support/presentation/render";
 import { describe, expect, it } from "vitest";
 
 import {

@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { Button } from "compact-ui";
+
 import { RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ActivitySlots } from "../../ui/index.ts";
-import { Button } from "../../ui/index.ts";
+
 import { AgentSettingsStatus } from "./AgentSettingsStatus.tsx";
 import { OperationsSettingsStatus } from "./OperationsSettingsStatus.tsx";
 import { SettingsContext } from "./SettingsContext.tsx";
@@ -20,7 +22,7 @@ export function createSettingsActivitySlots(
   props: SettingsPanelProps & {
     blocked: boolean;
     onRefresh(): void;
-    onSelect(target: SettingsTarget): void;
+    onSelect(target: SettingsTarget, intent?: "preview" | "pinned"): void;
   },
 ): ActivitySlots {
   const { agent, blocked, onRefresh, onSelect, operations, system, target } =
@@ -94,6 +96,13 @@ export function createSettingsActivitySlots(
       title: "设置",
     },
     main: {
+      fixedPageActions: [
+        "provider",
+        "profile",
+        "network",
+        "paths",
+        "audit-retention",
+      ].includes(target.kind),
       title,
       layout: "form",
       content: <SettingsPanel {...props} key={settingsTargetKey(target)} />,

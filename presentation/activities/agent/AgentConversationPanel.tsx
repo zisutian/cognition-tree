@@ -1,22 +1,20 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { StatusText as StatusBadge } from "compact-ui";
+import { Button, EmptyState } from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 import agentStyles from "./agent.module.css";
 const cx = createClassNames(agentStyles);
-// SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Square } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import type { AgentApplication } from "../../../application/agent/index.ts";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import {
-  Button,
-  EmptyState,
-  FormActions,
-  Page,
-  PageBody,
-  StatusBadge,
-  TextareaControl,
-  useExclusiveAsyncAction,
-  useFeedback,
-} from "../../ui/index.ts";
+  usePageNavigation,
+  pageKey,
+  describePage,
+} from "../../navigation/index.ts";
+import type { AgentApplication } from "../../../application/agent/index.ts";
+import { Page, PageBody, useFeedback } from "../../ui/index.ts";
 
 import {
   agentSessionStateLabels,
@@ -31,8 +29,7 @@ export function AgentConversationPanel({
   onBeginCreateSession(): void;
 }) {
   const feedback = useFeedback();
-  const sendAction = useExclusiveAsyncAction();
-  const [draft, setDraft] = useState("");
+  const pages = usePageNavigation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const session =
     agent.state.sessions.find(({ id }) => id === agent.state.activeSessionId) ??
@@ -42,23 +39,43 @@ export function AgentConversationPanel({
       (length, message) => length + message.content.length,
       0,
     ) ?? 0;
+  const sessionKey = pageKey(
+    describePage("agent", "agent-session", session?.id ?? "", "").target,
+  );
+  const followTail = useRef(true);
+  const previousLength = useRef(messageLength);
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const saved = pages.viewSessions.read<{ top: number; follow: boolean }>(
+      sessionKey,
+      "conversation-scroll",
+    );
+    element.scrollTop = saved?.top ?? element.scrollHeight;
+    followTail.current = saved?.follow ?? true;
+  }, [pages, sessionKey]);
 
   useEffect(() => {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (
+      scrollRef.current &&
+      followTail.current &&
+      previousLength.current !== messageLength
+    ) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+    previousLength.current = messageLength;
   }, [messageLength, session?.messages.length]);
 
   if (!session) {
     return (
       <Page aria-label="Agent 对话">
         <EmptyState
-          compact
           title="没有会话"
           action={
             <Button
               onClick={onBeginCreateSession}
               type="button"
-              variant="primary"
+              variant="normal"
             >
               新建会话
             </Button>
@@ -67,23 +84,7 @@ export function AgentConversationPanel({
       </Page>
     );
   }
-  const canSend =
-    !sendAction.busy &&
-    session.state === "idle" &&
-    agent.state.operationStatus === "idle";
   const canCancel = session.state === "queued" || session.state === "running";
-  const send = async () => {
-    if (!canSend || draft.trim().length === 0) return;
-    const pending = sendAction.run(() =>
-      feedback.runAction(async () => {
-        await agent.controller.sendMessage(draft);
-        return true;
-      }),
-    );
-
-    if (pending && (await pending)) setDraft("");
-  };
-
   return (
     <Page
       summary={
@@ -94,37 +95,10 @@ export function AgentConversationPanel({
           {formatAgentScopeLabel(session.scope)}
         </span>
       }
-      footer={
-        <form
-          className={cx("agent-composer")}
-          onSubmit={(event) => {
-            event.preventDefault();
-            void send();
-          }}
-        >
-          <TextareaControl
-            aria-label="给 Agent 的消息"
-            disabled={!canSend}
-            maxLength={100_000}
-            onChange={(event) => setDraft(event.currentTarget.value)}
-            placeholder="消息"
-            rows={4}
-            value={draft}
-          />
-          <FormActions>
-            <Button
-              disabled={!canSend || draft.trim().length === 0}
-              type="submit"
-              variant="primary"
-            >
-              发送
-            </Button>
-          </FormActions>
-        </form>
-      }
       actions={
         <>
           <StatusBadge
+            mode="live"
             tone={session.state === "unavailable" ? "danger" : "neutral"}
           >
             {agentSessionStateLabels[session.state]}
@@ -134,7 +108,7 @@ export function AgentConversationPanel({
               onClick={() => void feedback.runAction(agent.controller.cancel)}
               title="取消并停止"
               type="button"
-              variant="secondary"
+              variant="normal"
             >
               <Square aria-hidden="true" size={12} />
               取消并停止
@@ -144,7 +118,21 @@ export function AgentConversationPanel({
       }
       aria-label="Agent 对话"
     >
-      <PageBody aria-live="polite" ref={scrollRef}>
+      <PageBody
+        aria-live="polite"
+        ref={scrollRef}
+        onScroll={(event) => {
+          const element = event.currentTarget;
+          followTail.current =
+            element.scrollHeight - element.clientHeight - element.scrollTop <
+            32;
+          pages.viewSessions.write(
+            sessionKey,
+            { top: element.scrollTop, follow: followTail.current },
+            "conversation-scroll",
+          );
+        }}
+      >
         {session.messages.length === 0 ? (
           <p className={cx("agent-muted")}>没有消息</p>
         ) : (

@@ -1,14 +1,8 @@
+import { Stack } from "compact-ui";
+import { Button, FieldRow, FormActions, InputControl } from "compact-ui";
 import { useState, type FormEvent } from "react";
 import type { CreateRepositoryRequest } from "../../../application/repository/index.ts";
-import {
-  Button,
-  createClassNames,
-  FieldRow,
-  FormActions,
-  FormLayout,
-  InputControl,
-  useExclusiveAsyncAction,
-} from "../../ui/index.ts";
+import { createClassNames, useExclusiveAsyncAction } from "../../ui/index.ts";
 import repositoryStyles from "./repository.module.css";
 const cx = createClassNames(repositoryStyles);
 
@@ -76,7 +70,7 @@ export function RepositoryCreateForm({
       className={cx("repository-create-form", className)}
       onSubmit={handleSubmit}
     >
-      <FormLayout>
+      <Stack>
         <FieldRow fieldId="repository-create-name" label="名称">
           {(accessibility) => (
             <InputControl
@@ -96,11 +90,11 @@ export function RepositoryCreateForm({
           </p>
         ) : null}
         <FormActions>
-          <Button disabled={busy} type="submit" variant="primary">
+          <Button disabled={busy} type="submit" variant="normal">
             {submitting ? "创建中" : "创建仓库"}
           </Button>
         </FormActions>
-      </FormLayout>
+      </Stack>
     </form>
   );
 }

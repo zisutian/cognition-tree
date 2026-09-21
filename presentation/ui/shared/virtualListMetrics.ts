@@ -1,7 +1,7 @@
-import { designMetrics } from "../foundation/designTokens.ts";
+import { uiConfig } from "../foundation/config.ts";
 
 export const uiVirtualOverscan = 12;
-export const uiVirtualRowHeightPx = designMetrics.rowHeight;
+export const uiVirtualRowHeightPx = uiConfig.metrics.rowHeight;
 export const uiVirtualizationThreshold = 500;
 
 export function shouldVirtualizeUiRows(rowCount: number) {

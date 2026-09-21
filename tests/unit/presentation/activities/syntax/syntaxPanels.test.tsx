@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../../../support/presentation/render";
 import { describe, expect, it } from "vitest";
 import { createSyntaxProjection } from "../../../../../application/syntax/syntaxProjection";
 import type { SyntaxViewModel } from "../../../../../application/syntax/syntaxViewModel";
@@ -8,7 +8,7 @@ import { defaultTodoSyntax } from "../../../../../core/todo/syntax/defaultTodoSy
 import { createSyntaxActivitySlots } from "../../../../../presentation/activities/syntax/SyntaxActivitySlots";
 import { SyntaxContext } from "../../../../../presentation/activities/syntax/SyntaxContext";
 import { SyntaxDetailPanel } from "../../../../../presentation/activities/syntax/SyntaxDetailPanel";
-import { RegionFrame } from "../../../../../presentation/ui/RegionFrame";
+import { RegionFrame } from "../../../../support/presentation/render";
 import { createSyntaxView } from "../../../../support/presentation/fixtures/syntaxViewFixture";
 import { expectMarkupSemantics } from "../../../../support/presentation/markupSemantics";
 
@@ -49,6 +49,7 @@ describe("syntax panels", () => {
             },
           ],
           hasDraftErrors: true,
+          selectedTarget: { kind: "workspace-file", fileId: "syntax-primary" },
         }}
       />,
     );
@@ -58,20 +59,18 @@ describe("syntax panels", () => {
         'aria-label="新建笔记库语法"',
         'aria-label="系统语法"',
         'aria-label="笔记库语法"',
-        'aria-current="page"',
+        'aria-selected="true"',
         'aria-label="已启用语法"',
         "主要语法",
         "备用语法",
         "错误",
         /aria-label="新建笔记库语法"[^>]*disabled=""/,
-        /data-syntax-file-id="syntax-secondary"[^>]*disabled=""/,
-        /data-syntax-owner="(?:journal|todo)"[^>]*disabled=""/,
-        /aria-label="删除语法 主要语法"[^>]*disabled=""/,
+        /aria-label="备用语法"[^>]*aria-disabled="true"/,
+        /aria-label="(?:日记|代办)"[^>]*aria-disabled="true"/,
       ],
       lacks: [
-        'aria-label="删除语法 备用语法"',
-        ">系统语法</span>",
-        ">笔记库语法</span>",
+        'aria-label="删除 备用语法"',
+        'aria-label="删除 主要语法 · 错误"',
       ],
     });
   });
@@ -135,11 +134,11 @@ describe("syntax panels", () => {
     expectMarkupSemantics(markup, {
       has: [
         'aria-label="启用语法 正在编辑"',
-        'aria-label="重命名语法 正在编辑"',
-        'aria-label="删除语法 正在编辑"',
+        'aria-label="重命名 正在编辑"',
+        'aria-label="删除 正在编辑"',
         'aria-label="已启用语法"',
       ],
-      lacks: ['aria-label="删除语法 已启用"', ">启用</span>"],
+      lacks: ['aria-label="删除 已启用"', ">启用</span>"],
     });
   });
 
@@ -262,9 +261,9 @@ describe("syntax panels", () => {
       view: emptyView,
     });
 
-    expectMarkupSemantics(markup, { has: ["语法设置"] });
+    expectMarkupSemantics(markup, { has: ["语法配置"] });
     expectMarkupSemantics(renderToStaticMarkup(<>{slots.context?.content}</>), {
-      has: ["当前笔记库没有语法文件。"],
+      has: ["系统语法", "日记", "代办"],
     });
     expect(slots.detail).not.toBeNull();
   });

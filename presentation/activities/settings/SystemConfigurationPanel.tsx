@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { EmptyState } from "compact-ui";
+
 import type {
   SystemConfigurationController,
   SystemConfigurationState,
   SystemReconnectPort,
 } from "../../../application/system/index.ts";
-import { EmptyState, FormSaveActions, useFeedback } from "../../ui/index.ts";
+import { FormSaveActions, useFeedback } from "../../ui/index.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
 import {
   SystemConfigurationFields,
@@ -86,7 +88,7 @@ export function SystemConfigurationPanel({
           />
         </form>
       ) : (
-        <EmptyState compact title="正在读取服务设置" />
+        <EmptyState title="正在读取服务设置" />
       )}
     </SettingsPage>
   );

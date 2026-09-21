@@ -28,21 +28,24 @@ export async function readGraphCanvasNodes(
         ];
       }
 
-      const channels = source.match(/\d+(?:\.\d+)?/g)?.slice(0, 3)
+      const channels = source
+        .match(/\d+(?:\.\d+)?/g)
+        ?.slice(0, 3)
         .map(Number);
 
       return channels?.length === 3 ? channels : null;
     };
     const style = getComputedStyle(canvas);
     const nodeColors = [
-      "--color-fg-muted",
-      "--color-fg-subtle",
-      "--color-link",
-      "--color-accent",
-    ].map((name) => parseColor(style.getPropertyValue(name)))
+      "--cu-color-muted",
+      "--cu-color-disabled",
+      "--cu-color-accent",
+      "--cu-color-accent",
+    ]
+      .map((name) => parseColor(style.getPropertyValue(name)))
       .filter((color): color is number[] => Boolean(color));
     const selectedColor = parseColor(
-      style.getPropertyValue("--color-accent"),
+      style.getPropertyValue("--cu-color-accent"),
     );
 
     if (nodeColors.length === 0 || !selectedColor) {
@@ -63,10 +66,12 @@ export async function readGraphCanvasNodes(
     ) => {
       const offset = pixelIndex * 4;
 
-      return data[offset] === color[0] &&
+      return (
+        data[offset] === color[0] &&
         data[offset + 1] === color[1] &&
         data[offset + 2] === color[2] &&
-        data[offset + 3] >= minimumAlpha;
+        data[offset + 3] >= minimumAlpha
+      );
     };
     const matchesNodeColor = (pixelIndex: number) =>
       nodeColors.some((color) => matchesColor(pixelIndex, color, 250));
@@ -159,7 +164,10 @@ export async function readGraphCanvasNodes(
         const minX = Math.max(0, Math.floor(component.x - sampleRadius));
         const maxX = Math.min(width - 1, Math.ceil(component.x + sampleRadius));
         const minY = Math.max(0, Math.floor(component.y - sampleRadius));
-        const maxY = Math.min(height - 1, Math.ceil(component.y + sampleRadius));
+        const maxY = Math.min(
+          height - 1,
+          Math.ceil(component.y + sampleRadius),
+        );
         let selectedPixelCount = 0;
 
         for (let y = minY; y <= maxY; y += 1) {

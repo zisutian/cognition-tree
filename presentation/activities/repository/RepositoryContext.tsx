@@ -1,362 +1,156 @@
-import {
-  AlertTriangle,
-  CalendarDays,
-  Check,
-  FolderOpen,
-  HardDrive,
-  ListChecks,
-  Pencil,
-  Plus,
-} from "lucide-react";
+import { Stack, Tree, type TreeNode } from "compact-ui";
+import { Button } from "compact-ui";
 import { useEffect, useRef, useState } from "react";
+import { Check, HardDrive, Plus, AlertTriangle } from "lucide-react";
 import type {
-  BuiltInId,
   RepositoryFocusRequest,
-  RepositoryOption,
+  RepositorySelection,
   RepositoryViewModel,
 } from "../../../application/repository/index.ts";
 import {
   createDefaultRepositorySelection,
   projectRepositoryFocusSelection,
-  type RepositorySelection,
 } from "../../../application/repository/index.ts";
-import { createClassNames } from "../../ui/index.ts";
-import repositoryStyles from "./repository.module.css";
-const cx = createClassNames(repositoryStyles);
-
-import {
-  Button,
-  CompactContextActionButtons,
-  CompactContextGroup,
-  CompactContextRow,
-  CompactContextStatusIcon,
-  useFeedback,
-} from "../../ui/index.ts";
-
+import { useFeedback } from "../../ui/index.ts";
 import { builtInIds, builtInLabel } from "./repositoryViewHelpers.ts";
-
-const ignoreSelectionChange = () => undefined;
-
-function RepositoryStorageIcon() {
-  return <HardDrive aria-hidden="true" size={13} />;
-}
-
-function BuiltInIcon({ id }: { id: BuiltInId }) {
-  const Icon = id === "journal" ? CalendarDays : ListChecks;
-
-  return <Icon aria-hidden="true" size={13} />;
-}
-
+export const repositoryTargetKey = (selection: RepositorySelection) =>
+  selection.kind === "create" ? "create" : `${selection.kind}:${selection.id}`;
 export function RepositoryContext({
   focusRequest,
   onConsumeFocusRequest,
-  onSelectionChange = ignoreSelectionChange,
+  onSelectionChange = () => {},
   selection,
   view,
 }: {
   focusRequest: RepositoryFocusRequest | null;
-  onConsumeFocusRequest: (requestId: number) => void;
-  onSelectionChange?: (selection: RepositorySelection) => void;
+  onConsumeFocusRequest(id: number): void;
+  onSelectionChange?(
+    selection: RepositorySelection,
+    intent?: "preview" | "pinned",
+  ): void;
   selection?: RepositorySelection;
   view: RepositoryViewModel;
 }) {
-  const feedback = useFeedback();
-  const contextRef = useRef<HTMLDivElement | null>(null);
-  const [renamingRepositoryId, setRenamingRepositoryId] = useState<
-    string | null
-  >(null);
-  const [renameValue, setRenameValue] = useState("");
-  const currentSelection = selection ?? createDefaultRepositorySelection(view);
-  const busy = view.operation !== "idle";
-
-  useEffect(() => {
-    if (
-      renamingRepositoryId &&
-      (currentSelection.kind !== "ordinary-repository" ||
-        currentSelection.id !== renamingRepositoryId)
-    ) {
-      setRenamingRepositoryId(null);
-    }
-  }, [currentSelection, renamingRepositoryId]);
+  const feedback = useFeedback(),
+    host = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(
+    () => new Set(["system", "local"]),
+  );
+  const current = selection ?? createDefaultRepositorySelection(view),
+    targets = new Map<string, RepositorySelection>();
+  const row = (
+    target: RepositorySelection,
+    label: string,
+    icon?: TreeNode["icon"],
+  ): TreeNode => {
+    const id = repositoryTargetKey(target);
+    targets.set(id, target);
+    return { id, label, icon, disabled: view.operation !== "idle" };
+  };
+  const nodes: TreeNode[] = [
+    {
+      id: "system",
+      label: "内置数据",
+      canHaveChildren: true,
+      children: builtInIds.map((id) => {
+        const item = view.builtIns.find((item) => item.id === id),
+          issue = view.builtInIssues.find((item) => item.id === id);
+        const problem =
+          !!issue ||
+          !!item?.hasProblem ||
+          view.builtInCatalogStatus === "failed";
+        const status = issue
+          ? "故障"
+          : item?.hasProblem
+            ? item.statusLabel
+            : view.builtInCatalogStatus === "loading"
+              ? "载入中"
+              : problem
+                ? "故障"
+                : item
+                  ? "受保护"
+                  : "不可用";
+        return row(
+          { kind: "built-in", id },
+          `${builtInLabel(id)} · ${status}`,
+          problem ? (
+            <AlertTriangle aria-label={`${builtInLabel(id)}数据存在问题`} />
+          ) : (
+            <HardDrive />
+          ),
+        );
+      }),
+    },
+    {
+      id: "local",
+      label: "本地",
+      canHaveChildren: true,
+      children: [
+        ...view.repositories.map((item) => {
+          const active = item.id === view.activeRepositoryId,
+            problem = active && !!view.activeSessionErrorMessage;
+          return row(
+            { kind: "ordinary-repository", id: item.id },
+            item.label,
+            problem ? (
+              <AlertTriangle aria-label="仓库运行状态存在问题" />
+            ) : active ? (
+              <Check aria-label="当前仓库" />
+            ) : (
+              <HardDrive />
+            ),
+          );
+        }),
+        ...view.issues.map((item) =>
+          row(
+            { kind: "ordinary-issue", id: item.id },
+            `${item.displayLabel} · 故障`,
+            <AlertTriangle />,
+          ),
+        ),
+      ],
+    },
+  ];
   useEffect(() => {
     if (!focusRequest) return;
-    const nextSelection = projectRepositoryFocusSelection(focusRequest);
-    const target = Array.from(
-      contextRef.current?.querySelectorAll<HTMLElement>(
-        "[data-repository-catalog], [data-repository-issue-id], [data-repository-id], [data-built-in-id]",
-      ) ?? [],
-    ).find((element) => {
-      switch (focusRequest.kind) {
-        case "catalog":
-          return element.dataset.repositoryCatalog === "true";
-        case "ordinary-issue":
-          return element.dataset.repositoryIssueId === focusRequest.id;
-        case "ordinary-repository":
-          return element.dataset.repositoryId === focusRequest.id;
-        case "built-in":
-          return element.dataset.builtInId === focusRequest.id;
-      }
-    });
-
-    if (!target) return;
-    onSelectionChange(nextSelection);
-    target.focus({ preventScroll: true });
-    target.scrollIntoView({ block: "nearest" });
+    onSelectionChange(projectRepositoryFocusSelection(focusRequest));
+    host.current?.querySelector<HTMLElement>('[role="tree"]')?.focus();
     onConsumeFocusRequest(focusRequest.requestId);
-  }, [
-    focusRequest,
-    onConsumeFocusRequest,
-    onSelectionChange,
-    view.builtInIssues,
-    view.builtIns,
-    view.issues,
-    view.repositories,
-  ]);
-
-  const beginRename = (repository: RepositoryOption) => {
-    setRenamingRepositoryId(repository.id);
-    setRenameValue(repository.label);
-  };
-  const finishRename = async (repository: RepositoryOption) => {
-    const name = renameValue.trim();
-
-    if (name === repository.label) {
-      setRenamingRepositoryId(null);
-      return;
-    }
-    await view.renameRepository({ id: repository.id, name });
-    setRenamingRepositoryId(null);
-  };
-
+  }, [focusRequest]);
   return (
-    <div
-      className={cx("activity-context-content repository-context")}
-      ref={contextRef}
-    >
-      <CompactContextGroup
-        className={cx("repository-group repository-system-group")}
-        count={builtInIds.length}
-        headingId="repository-group-system"
-        label="内置数据"
-        listClassName="repository-list"
-      >
-        {builtInIds.map((id) => {
-          const repository = view.builtIns.find((entry) => entry.id === id);
-          const issue = view.builtInIssues.find((entry) => entry.id === id);
-          const selected =
-            currentSelection.kind === "built-in" && currentSelection.id === id;
-          const hasProblem = Boolean(
-            issue ||
-              repository?.hasProblem ||
-              view.builtInCatalogStatus === "failed",
-          );
-          const status = issue
-            ? "故障"
-            : repository?.hasProblem
-              ? repository.statusLabel
-              : repository
-                ? "受保护"
-                : view.builtInCatalogStatus === "loading"
-                  ? "载入中"
-                  : view.builtInCatalogStatus === "failed"
-                    ? "故障"
-                    : "不可用";
-
-          return (
-            <CompactContextRow
-              buttonProps={{ "data-built-in-id": id }}
-              icon={<BuiltInIcon id={id} />}
-              key={id}
-              label={builtInLabel(id)}
-              onSelect={() => onSelectionChange({ id, kind: "built-in" })}
-              rowClassName={cx(
-                "repository-row repository-system-row",
-                hasProblem && "has-diagnostics",
-              )}
-              selected={selected}
-              title={`${builtInLabel(id)} · 受保护内置数据`}
-              trailing={
-                <>
-                  <span
-                    className={cx(
-                      "repository-row-status",
-                      hasProblem && "is-fault",
-                    )}
-                  >
-                    {status}
-                  </span>
-                  {hasProblem ? (
-                    <AlertTriangle
-                      aria-label={`${builtInLabel(id)}数据存在问题`}
-                      className={cx("repository-row-warning")}
-                      size={12}
-                    />
-                  ) : null}
-                </>
-              }
-            />
-          );
-        })}
-      </CompactContextGroup>
-
-      <CompactContextGroup
-        className={cx("repository-group")}
-        count={view.repositories.length + view.issues.length}
-        actions={
-          <Button
-            aria-current={
-              currentSelection.kind === "create" ? "page" : undefined
-            }
-            aria-label="新建仓库"
-            data-repository-catalog="true"
-            onClick={() => onSelectionChange({ kind: "create" })}
-            title="新建仓库"
-            type="button"
-            variant="icon"
-          >
-            <Plus aria-hidden="true" />
-          </Button>
-        }
-        headingId="repository-group-local"
-        label="本地"
-        listClassName="repository-list"
-      >
-        {view.repositories.map((repository) => {
-          const active = repository.id === view.activeRepositoryId;
-          const hasRuntimeProblem =
-            active && Boolean(view.activeSessionErrorMessage);
-          const selected =
-            currentSelection.kind === "ordinary-repository" &&
-            currentSelection.id === repository.id;
-          const renaming = renamingRepositoryId === repository.id;
-
-          return (
-            <CompactContextRow
-              actions={
-                selected && !renaming ? (
-                  <CompactContextActionButtons
-                    actions={[
-                      ...(!active
-                        ? [
-                            {
-                              ariaLabel: `打开仓库 ${repository.label}`,
-                              disabled: busy,
-                              icon: FolderOpen,
-                              onSelect: () => {
-                                void feedback.runAction(() =>
-                                  view.selectRepository(repository.id),
-                                );
-                              },
-                            },
-                          ]
-                        : []),
-                      {
-                        ariaLabel: `重命名仓库 ${repository.label}`,
-                        disabled: busy,
-                        icon: Pencil,
-                        onSelect: () => beginRename(repository),
-                      },
-                    ]}
-                  />
-                ) : undefined
-              }
-              buttonProps={{ "data-repository-id": repository.id }}
-              disabled={busy}
-              icon={
-                active ? (
-                  <CompactContextStatusIcon label="当前仓库">
-                    <Check aria-hidden="true" size={13} strokeWidth={2.4} />
-                  </CompactContextStatusIcon>
-                ) : (
-                  <RepositoryStorageIcon />
-                )
-              }
-              inlineRename={
-                renaming
-                  ? {
-                      ariaLabel: `重命名仓库 ${repository.label}`,
-                      disabled: busy,
-                      onCancel: () => setRenamingRepositoryId(null),
-                      onChange: setRenameValue,
-                      onSubmit: () => {
-                        void finishRename(repository).catch(
-                          feedback.notifyError,
-                        );
-                      },
-                      value: renameValue,
-                    }
-                  : undefined
-              }
-              key={repository.id}
-              label={repository.label}
-              onBeginRename={
-                selected ? () => beginRename(repository) : undefined
-              }
-              onSelect={() =>
-                onSelectionChange({
-                  id: repository.id,
-                  kind: "ordinary-repository",
-                })
-              }
-              rowClassName={cx(
-                "repository-row",
-                (repository.labelIssue || hasRuntimeProblem) &&
-                  "has-diagnostics",
-              )}
-              selected={selected}
-              title={repository.displayLabel}
-              trailing={
-                repository.labelIssue || hasRuntimeProblem ? (
-                  <AlertTriangle
-                    aria-label={
-                      repository.labelIssue
-                        ? "仓库名称存在问题"
-                        : "仓库运行状态存在问题"
-                    }
-                    className={cx("repository-row-warning")}
-                    size={12}
-                  />
-                ) : undefined
-              }
-            />
-          );
-        })}
-        {view.issues.map((issue) => {
-          const selected =
-            currentSelection.kind === "ordinary-issue" &&
-            currentSelection.id === issue.id;
-
-          return (
-            <CompactContextRow
-              buttonProps={{ "data-repository-issue-id": issue.id }}
-              icon={<AlertTriangle aria-hidden="true" size={13} />}
-              key={issue.id}
-              label={issue.id}
-              onSelect={() =>
-                onSelectionChange({
-                  id: issue.id,
-                  kind: "ordinary-issue",
-                })
-              }
-              rowClassName="repository-row repository-issue-row"
-              selected={selected}
-              title={issue.displayLabel}
-              trailing={
-                <span className={cx("repository-row-status is-fault")}>
-                  故障
-                </span>
-              }
-            />
-          );
-        })}
-      </CompactContextGroup>
-
-      {view.catalogStatus === "loading" ? (
-        <p className={cx("context-empty")}>正在载入普通仓库列表。</p>
-      ) : null}
-      {view.repositories.length === 0 && view.issues.length === 0 ? (
-        <p className={cx("context-empty")}>没有普通仓库。</p>
-      ) : null}
+    <div ref={host} style={{ height: "100%", minHeight: 0 }}>
+      <Stack fill>
+        <Button
+          variant="icon"
+          aria-label="新建仓库"
+          onClick={() => onSelectionChange({ kind: "create" })}
+        >
+          <Plus />
+        </Button>
+        <Tree
+          label="仓库目录"
+          nodes={nodes}
+          selectedId={repositoryTargetKey(current)}
+          expandedIds={expanded}
+          onExpandedChange={setExpanded}
+          onSelect={() => {}}
+          onOpen={(id, intent) => {
+            const target = targets.get(id);
+            if (target) onSelectionChange(target, intent);
+          }}
+          capabilities={{
+            rename: (node) =>
+              node.id.startsWith("ordinary-repository:") &&
+              view.operation === "idle",
+          }}
+          onRename={async (id, name) => {
+            const target = targets.get(id);
+            if (target?.kind === "ordinary-repository")
+              await view.renameRepository({ id: target.id, name: name.trim() });
+          }}
+          onActionError={feedback.notifyError}
+        />
+      </Stack>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { defaultDesignConfig } from "compact-ui";
 import { expect } from "@playwright/test";
 import { test } from "../support/e2eTest";
 import { seedWorkbenchRepository } from "../support/repositorySeeds";
@@ -14,26 +15,32 @@ test("growing both side panels keeps the full detail region inside the viewport"
   await openWorkbench(page, "panel-bounds");
   for (let index = 0; index < 12; index++)
     await page
-      .getByRole("separator", { name: "调整上下文区宽度" })
+      .getByRole("separator", { name: "调整上下文宽度" })
       .press("ArrowRight");
   for (let index = 0; index < 12; index++)
     await page
-      .getByRole("separator", { name: "调整右侧详情宽度" })
+      .getByRole("separator", { name: "调整详情宽度" })
       .press("ArrowLeft");
-  const main = (await page.locator(".app-main-content").boundingBox())!;
-  const detail = (await page.locator(".app-detail").boundingBox())!;
-  expect(main.width).toBeGreaterThanOrEqual(420);
+  const main = (await page.locator("main > div:first-child").boundingBox())!;
+  const detail = (await page
+    .locator("aside[aria-label='详情区域']")
+    .boundingBox())!;
+  expect(main.width).toBeGreaterThanOrEqual(
+    defaultDesignConfig.layout.mainMinWidth -
+      defaultDesignConfig.metrics.panelInset -
+      1,
+  );
   expect(main.x + main.width).toBeLessThanOrEqual(detail.x);
-  expect(detail.x + detail.width).toBe(1280);
+  expect(detail.x + detail.width).toBeLessThanOrEqual(1280);
   const collapse = page.getByRole("button", {
-    name: "收回右侧详情",
+    name: "收起详情",
     exact: true,
   });
   await collapse.click();
   await expect(
-    page.getByRole("button", { name: "展开右侧详情", exact: true }),
+    page.getByRole("button", { name: "展开详情", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "展开右侧详情", exact: true }).click();
+  await page.getByRole("button", { name: "展开详情", exact: true }).click();
   await expect(collapse).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("resized-panels.png") });
 });

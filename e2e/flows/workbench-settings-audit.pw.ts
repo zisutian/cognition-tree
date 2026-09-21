@@ -6,7 +6,9 @@ import { seedJournalProposal } from "../support/agentSeeds";
 import { test } from "../support/e2eTest";
 import { seedWorkbenchRepository } from "../support/repositorySeeds";
 import {
-  getWorkbenchStatus, getActivityButton, openWorkbench
+  getWorkbenchStatus,
+  getActivityButton,
+  openWorkbench,
 } from "../support/workbenchPage";
 
 test("keeps audit selection and details together across keyboard selection and failed refresh", async ({
@@ -33,8 +35,8 @@ test("keeps audit selection and details together across keyboard selection and f
   await openWorkbench(page, repositoryId);
   await getActivityButton(page, "设置").click();
   await page
-    .locator(".settings-context")
-    .getByRole("button", { name: "操作记录", exact: true })
+    .getByRole("tree", { name: "设置目录" })
+    .getByRole("treeitem", { name: "操作记录", exact: true })
     .click();
   const panel = page.getByRole("region", { name: "审计", exact: true });
   const rows = panel
@@ -48,7 +50,7 @@ test("keeps audit selection and details together across keyboard selection and f
   await expect(technical).toContainText(entries[0]!.id);
   await rows.nth(1).focus();
   await page.keyboard.press("Enter");
-  await expect(rows.nth(1)).toHaveAttribute("aria-current", "true");
+  await expect(rows.nth(1)).toHaveAttribute("aria-pressed", "true");
   await expect(technical).toBeHidden();
   await detail.locator("summary").click();
   await expect(technical).toContainText(entries[1]!.id);
@@ -56,6 +58,6 @@ test("keeps audit selection and details together across keyboard selection and f
   await panel.getByRole("button", { name: "刷新", exact: true }).click();
   await expect(panel.getByRole("alert")).toBeVisible();
   await expect(getWorkbenchStatus(page)).toContainText("设置 ·");
-  await expect(rows.nth(1)).toHaveAttribute("aria-current", "true");
+  await expect(rows.nth(1)).toHaveAttribute("aria-pressed", "true");
   await expect(technical).toContainText(entries[1]!.id);
 });

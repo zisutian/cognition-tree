@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it, vi } from "vitest";
-import { createWorkbenchNavigation } from "../../../../../presentation/shell/workbench/workbenchNavigation";
+import { createPageNavigation } from "../../../../../presentation/navigation/index.ts";
 
 describe("workbench navigation admission", () => {
   it.each(["settings", "syntax"] as const)(
     "checks %s before changing a destination and never replays a rejected request",
     (activity) => {
-      const navigation = createWorkbenchNavigation(activity);
+      const navigation = createPageNavigation(activity);
       navigation.reportInteraction(activity, {
         navigationBlocked: true,
         statusMessage: "待处理",
@@ -27,7 +27,7 @@ describe("workbench navigation admission", () => {
   );
 
   it("allows same-activity actions and ignores an inactive activity's guard", () => {
-    const navigation = createWorkbenchNavigation("settings");
+    const navigation = createPageNavigation("settings");
     navigation.reportInteraction("settings", {
       navigationBlocked: true,
       statusMessage: "未保存",

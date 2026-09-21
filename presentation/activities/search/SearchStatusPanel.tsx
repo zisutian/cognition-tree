@@ -1,12 +1,11 @@
-import type { SearchControllerState } from "../../../application/search/index.ts";
 import {
-  Page,
-  PageBody,
-  Section,
-  SectionStack,
-  ToolPropertyList,
-  ToolPropertyRow,
-} from "../../ui/index.ts";
+  Stack as SectionStack,
+  PropertyList as ToolPropertyList,
+  PropertyRow as ToolPropertyRow,
+} from "compact-ui";
+import { Section } from "compact-ui";
+import type { SearchControllerState } from "../../../application/search/index.ts";
+import { Page, PageBody } from "../../ui/index.ts";
 import { groupSearchResults } from "./SearchPanel.tsx";
 import { searchDomainLabels } from "./searchViewTypes.ts";
 
@@ -25,36 +24,49 @@ export function SearchStatusPanel({ state }: { state: SearchControllerState }) {
     <Page aria-label="搜索状态">
       <PageBody>
         <SectionStack>
-          <Section aria-label="搜索条件与状态">
-            <ToolPropertyList aria-label="搜索状态">
-              <ToolPropertyRow label="状态" value={searchStatusLabel(state)} />
-              <ToolPropertyRow label="搜索词" value={criteria.query || "—"} />
-              <ToolPropertyRow
-                label="范围"
-                value={
-                  criteria.domains
-                    .map((domain) => searchDomainLabels[domain])
-                    .join("、") || "—"
-                }
-              />
-              <ToolPropertyRow label="资源" value={groups.length} />
-              <ToolPropertyRow label="命中" value={state.results.length} />
-            </ToolPropertyList>
+          <Section>
+            <section aria-label="搜索状态">
+              <ToolPropertyList>
+                <ToolPropertyRow
+                  label="状态"
+                  children={searchStatusLabel(state)}
+                />
+                <ToolPropertyRow
+                  label="搜索词"
+                  children={criteria.query || "—"}
+                />
+                <ToolPropertyRow
+                  label="范围"
+                  children={
+                    criteria.domains
+                      .map((domain) => searchDomainLabels[domain])
+                      .join("、") || "—"
+                  }
+                />
+                <ToolPropertyRow label="资源" children={groups.length} />
+                <ToolPropertyRow label="命中" children={state.results.length} />
+              </ToolPropertyList>
+            </section>
           </Section>
           {state.faults.length > 0 || state.errorMessage ? (
-            <Section title="故障" tone="danger">
-              <ToolPropertyList aria-label="搜索故障">
-                {state.errorMessage ? (
-                  <ToolPropertyRow label="错误" value={state.errorMessage} />
-                ) : null}
-                {state.faults.map((fault, index) => (
-                  <ToolPropertyRow
-                    key={`${fault.domain}:${fault.repositoryId ?? ""}:${fault.code}`}
-                    label={`${searchDomainLabels[fault.domain]} ${index + 1}`}
-                    value={fault.message}
-                  />
-                ))}
-              </ToolPropertyList>
+            <Section title="故障">
+              <section aria-label="搜索故障">
+                <ToolPropertyList>
+                  {state.errorMessage ? (
+                    <ToolPropertyRow
+                      label="错误"
+                      children={state.errorMessage}
+                    />
+                  ) : null}
+                  {state.faults.map((fault, index) => (
+                    <ToolPropertyRow
+                      key={`${fault.domain}:${fault.repositoryId ?? ""}:${fault.code}`}
+                      label={`${searchDomainLabels[fault.domain]} ${index + 1}`}
+                      children={fault.message}
+                    />
+                  ))}
+                </ToolPropertyList>
+              </section>
             </Section>
           ) : null}
         </SectionStack>

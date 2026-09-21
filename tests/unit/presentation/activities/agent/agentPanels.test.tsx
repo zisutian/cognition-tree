@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../../../support/presentation/render";
 import { describe, expect, it } from "vitest";
 
 import { createAgentActivitySlots } from "../../../../../presentation/activities/agent/AgentActivitySlots";
@@ -163,20 +163,24 @@ describe("Agent proposal presentation", () => {
       ],
       state: "awaiting-destructive-confirmation" as const,
     };
-    const destructiveMarkup = renderSlot(
-      createAgentActivitySlots({
-        agent: {
-          ...fixture,
-          state: {
-            ...fixture.state,
-            activeSessionId: destructiveSession.id,
-            sessions: [destructiveSession],
-          },
+    const destructiveSlots = createAgentActivitySlots({
+      agent: {
+        ...fixture,
+        state: {
+          ...fixture.state,
+          activeSessionId: destructiveSession.id,
+          sessions: [destructiveSession],
         },
-        creatingSession: false,
-        onBeginCreateSession: () => undefined,
-        onSelectSession: () => undefined,
-      }).detail?.content,
+      },
+      creatingSession: false,
+      onBeginCreateSession: () => undefined,
+      onSelectSession: () => undefined,
+    });
+    const destructiveMarkup = renderSlot(
+      <>
+        {destructiveSlots.detail?.content}
+        {destructiveSlots.detail?.footer}
+      </>,
     );
 
     expect(destructiveMarkup).toContain("第 1 份");

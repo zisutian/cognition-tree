@@ -12,21 +12,21 @@
   flex: none;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--ui-gap);
+  gap: var(--cu-gap);
   width: 100%;
   min-width: 0;
-  min-height: var(--ui-toolbar-height);
-  margin-bottom: var(--ui-gap);
-  padding-block: var(--ui-gap-tight);
+  min-height: var(--cu-headerHeight);
+  margin-bottom: var(--cu-gap);
+  padding-block: var(--cu-tightGap);
 }
 .summary {
   display: flex;
   flex: 1;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--ui-gap);
+  gap: var(--cu-gap);
   min-width: 0;
-  color: var(--color-fg-muted);
+  color: var(--cu-color-muted);
   overflow-wrap: anywhere;
 }
 .actions {
@@ -34,11 +34,11 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--ui-gap);
+  gap: var(--cu-gap);
   margin-inline-start: auto;
 }
 .reading {
-  max-width: var(--ui-form-max-width);
+  max-width: var(--cu-readingWidth);
 }
 .centered {
   margin-inline: auto;
@@ -53,20 +53,18 @@
 }
 .scroll {
   overflow: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border-strong) transparent;
 }
 .content {
   display: flex;
   flex-direction: column;
-  gap: var(--ui-section-gap);
+  gap: var(--cu-gap);
   min-width: 0;
   min-height: min-content;
   width: 100%;
 }
 .form,
 .conversation {
-  max-width: var(--ui-form-max-width);
+  max-width: var(--cu-readingWidth);
 }
 .conversation {
   margin-inline: auto;
@@ -82,12 +80,10 @@
   max-width: none;
 }
 
-.footer {
-  flex: none;
-  width: 100%;
-  padding-top: var(--ui-gap);
-}
-
 .page[data-page-kind="empty"] {
   justify-content: center;
+}
+
+.page[data-page-fill] {
+  height: 100%;
 }

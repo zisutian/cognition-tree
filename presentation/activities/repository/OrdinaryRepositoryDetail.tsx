@@ -1,3 +1,4 @@
+import { Button, Section } from "compact-ui";
 import { RefreshCw } from "lucide-react";
 import type {
   RepositoryOption,
@@ -5,8 +6,6 @@ import type {
 } from "../../../application/repository/index.ts";
 import { createClassNames } from "../../ui/index.ts";
 const cx = createClassNames();
-
-import { Button, Section } from "../../ui/index.ts";
 
 import { RepositoryConflictActions } from "./RepositoryConflictResolution.tsx";
 import { RepositoryDangerZone } from "./RepositoryDangerZone.tsx";
@@ -44,7 +43,7 @@ export function OrdinaryRepositoryDetail({
             disabled={busy}
             onClick={() => onRunAction(() => onOpen(repository.id))}
             type="button"
-            variant="primary"
+            variant="normal"
           >
             {active ? "继续编辑笔记" : "打开仓库"}
           </Button>
@@ -65,7 +64,7 @@ export function OrdinaryRepositoryDetail({
                 disabled={busy}
                 onClick={() => onRunAction(recoveryAction.run)}
                 type="button"
-                variant="secondary"
+                variant="normal"
               >
                 <RefreshCw aria-hidden="true" size={13} />
                 {recoveryAction.label}
@@ -76,7 +75,7 @@ export function OrdinaryRepositoryDetail({
                 disabled={busy}
                 onClick={() => onRunAction(view.refreshRepositories)}
                 type="button"
-                variant="secondary"
+                variant="normal"
               >
                 <RefreshCw aria-hidden="true" size={13} />
                 重新检查仓库

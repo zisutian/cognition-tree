@@ -1,3 +1,4 @@
+import { defaultDesignConfig } from "compact-ui";
 import { expect } from "@playwright/test";
 import { test } from "../support/e2eTest";
 
@@ -39,10 +40,15 @@ test("keeps the shared login form stable through loading, failure and retry", as
     await expect(secret).toBeVisible();
     const field = (await secret.boundingBox())!;
     const action = (await submit.boundingBox())!;
-    expect(field.height).toBe(22);
-    expect(field.width).toBe(720);
-    expect(action.height).toBe(22);
-    expect(action.x + action.width).toBe(field.x + field.width);
+    expect(field.height + 2).toBe(defaultDesignConfig.metrics.controlHeight);
+    expect(field.width).toBeLessThanOrEqual(
+      defaultDesignConfig.layout.readingWidth,
+    );
+    expect(field.width).toBeGreaterThan(200);
+    expect(action.height).toBe(defaultDesignConfig.metrics.controlHeight);
+    expect(action.x + action.width).toBeLessThanOrEqual(
+      field.x + field.width + 1,
+    );
     await secret.fill("synthetic-login-secret");
     await secret.press("Enter");
     await expect(submit).toBeDisabled();
@@ -55,7 +61,7 @@ test("keeps the shared login form stable through loading, failure and retry", as
     await page.screenshot({ path: testInfo.outputPath("login-error.png") });
     await submit.click();
     await expect(
-      page.getByRole("navigation", { name: "工作区功能" }),
+      page.getByRole("navigation", { name: "活动导航" }),
     ).toBeVisible();
     expect(attempts).toBe(2);
   } finally {

@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../../../../support/presentation/render";
 import { describe, expect, it } from "vitest";
 import { ReferenceGraphCanvas } from "../../../../../../presentation/activities/notes/graph/ReferenceGraphCanvas";
 import { ReferenceGraphController } from "../../../../../../presentation/activities/notes/graph/referenceGraphController";

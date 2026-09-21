@@ -3,7 +3,9 @@ import {
   flattenUiBlockSubtree,
   type UiBlockNode,
 } from "../../../../application/workspace/index.ts";
-import type { ContextMenuPosition } from "../../../ui/index.ts";
+import type { ContextMenu } from "compact-ui";
+import type { ComponentProps } from "react";
+type ContextMenuPosition = ComponentProps<typeof ContextMenu>["position"];
 import {
   createClassNames,
   StructureTree,

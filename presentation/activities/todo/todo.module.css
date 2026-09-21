@@ -5,66 +5,66 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-color: var(--cu-color-border) transparent;
   scrollbar-width: thin;
 }
 .todo-structure-row {
   cursor: default;
 }
 .todo-structure-row:has(:focus-visible) {
-  background: var(--color-selected);
+  background: var(--cu-color-selected);
 }
-.todo-structure-item.is-completed > .todo-structure-row :global(.block-text) {
-  color: var(--color-fg-muted);
+.todo-completed-text {
+  color: var(--cu-color-muted);
   text-decoration: line-through;
 }
 .todo-recurrence-progress {
-  color: var(--color-accent);
-  font-family: var(--font-code);
-  font-variant-numeric: var(--ui-numeric-font-variant);
+  color: var(--cu-color-accent);
+  font-family: var(--cu-mono);
+  font-variant-numeric: var(--ctn-numeric-variant);
   white-space: nowrap;
   user-select: none;
 }
 .todo-structure-meta {
   display: inline-flex;
   align-items: center;
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
 }
 .todo-recurrence-editor {
   display: grid;
-  gap: var(--ui-gap-tight);
-  margin: var(--ui-gap-tight) var(--ui-gap-tight) var(--ui-gap)
+  gap: var(--cu-tightGap);
+  margin: var(--cu-tightGap) var(--cu-tightGap) var(--cu-gap)
     calc(
-      var(--ui-gap-tight) + (var(--ui-structure-depth, 0) + 1) *
-        var(--ui-structure-indent-width, 14px)
+      var(--cu-tightGap) + (var(--ui-structure-depth, 0) + 1) *
+        var(--ui-structure-indent-width, var(--cu-treeIndent))
     );
-  padding: var(--ui-gap);
-  border: var(--ui-border-width) solid var(--color-border);
-  border-radius: var(--ui-radius);
-  background: var(--color-editor);
+  padding: var(--cu-gap);
+  border: var(--cu-panelBorderWidth) solid var(--cu-color-border);
+  border-radius: var(--cu-radius);
+  background: var(--cu-color-surface);
 }
 .todo-recurrence-summary,
 .todo-recurrence-error {
   margin: 0;
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
+  font-size: var(--cu-fontSize);
+  line-height: var(--cu-lineHeight);
 }
 .todo-recurrence-summary {
-  color: var(--color-fg-muted);
+  color: var(--cu-color-muted);
 }
 .todo-recurrence-error {
-  color: var(--color-error);
+  color: var(--cu-color-error);
 }
 .todo-recurrence-field {
   display: grid;
   grid-template-columns: max-content minmax(44px, 1fr) max-content;
   align-items: center;
-  gap: var(--ui-gap-tight);
-  color: var(--color-fg-muted);
-  font-size: var(--ui-font-size);
+  gap: var(--cu-tightGap);
+  color: var(--cu-color-muted);
+  font-size: var(--cu-fontSize);
 }
 .todo-recurrence-actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
 }

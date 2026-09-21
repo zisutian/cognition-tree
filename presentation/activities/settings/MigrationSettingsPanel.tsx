@@ -1,6 +1,18 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import {
+  PropertyList as ToolPropertyList,
+  PropertyRow as ToolPropertyRow,
+} from "compact-ui";
+import {
+  Button,
+  FieldRow,
+  FormLayout,
+  InputControl,
+  Section,
+} from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 const cx = createClassNames();
-// SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
 import type {
@@ -8,17 +20,7 @@ import type {
   SystemConfigurationState,
   SystemReconnectPort,
 } from "../../../application/system/index.ts";
-import {
-  Button,
-  ConfirmAction,
-  FieldRow,
-  FormLayout,
-  InputControl,
-  Section,
-  ToolPropertyList,
-  ToolPropertyRow,
-  useFeedback,
-} from "../../ui/index.ts";
+import { ConfirmAction, useFeedback } from "../../ui/index.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
 import {
   useSettingsInteraction,
@@ -78,43 +80,47 @@ export function MigrationSettingsPanel({
   };
   return (
     <SettingsPage label="数据迁移设置" errorMessage={state.errorMessage}>
-      <ToolPropertyList aria-label="数据位置">
-        <ToolPropertyRow
-          label="本次服务位置"
-          value={
-            <code>
-              {state.configuration?.effectiveConfiguration.dataRoot ??
-                "尚未读取"}
-            </code>
-          }
-        />
-      </ToolPropertyList>
+      <section aria-label="数据位置">
+        <ToolPropertyList>
+          <ToolPropertyRow
+            label="本次服务位置"
+            children={
+              <code>
+                {state.configuration?.effectiveConfiguration.dataRoot ??
+                  "尚未读取"}
+              </code>
+            }
+          />
+        </ToolPropertyList>
+      </section>
       {migration ? (
         <Section title="当前迁移">
-          <ToolPropertyList aria-label="数据根迁移状态">
-            <ToolPropertyRow
-              label="阶段"
-              value={phaseLabels[migration.status]}
-            />
-            <ToolPropertyRow
-              label="源目录"
-              value={<code>{migration.source}</code>}
-            />
-            <ToolPropertyRow
-              label="目标目录"
-              value={<code>{migration.destination}</code>}
-            />
-            <ToolPropertyRow
-              label="权威位置"
-              value={authorityLabels[migration.commitOutcome]}
-            />
-            {migration.errorMessage ? (
+          <section aria-label="数据根迁移状态">
+            <ToolPropertyList>
               <ToolPropertyRow
-                label="恢复原因"
-                value={migration.errorMessage}
+                label="阶段"
+                children={phaseLabels[migration.status]}
               />
-            ) : null}
-          </ToolPropertyList>
+              <ToolPropertyRow
+                label="源目录"
+                children={<code>{migration.source}</code>}
+              />
+              <ToolPropertyRow
+                label="目标目录"
+                children={<code>{migration.destination}</code>}
+              />
+              <ToolPropertyRow
+                label="权威位置"
+                children={authorityLabels[migration.commitOutcome]}
+              />
+              {migration.errorMessage ? (
+                <ToolPropertyRow
+                  label="恢复原因"
+                  children={migration.errorMessage}
+                />
+              ) : null}
+            </ToolPropertyList>
+          </section>
           {recovering ? (
             <Button
               disabled={busy}

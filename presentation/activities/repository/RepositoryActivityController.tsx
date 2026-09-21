@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import {
+  usePageDriver,
+  usePageNavigation,
+  describePage,
+} from "../../navigation/index.ts";
+import { repositoryTargetKey } from "./RepositoryContext.tsx";
+import { builtInLabel } from "./repositoryViewHelpers.ts";
+
 import { useEffect, useState } from "react";
 import type { RepositoryApplication } from "../../../application/repository/index.ts";
 import {
@@ -16,7 +24,6 @@ import { createRepositoryActivitySlots } from "./RepositoryActivitySlots.tsx";
 export function RepositoryActivityController({
   active,
   application,
-  onActiveActivityChange,
   renderActivity,
 }: RepositoryActivityControllerProps) {
   const view = createRepositoryViewModel(application.repository);
@@ -53,10 +60,11 @@ export function RepositoryActivityController({
     ) {
       return;
     }
-    setSelection({
+    const target: RepositorySelection = {
       id: view.activeRepositoryId,
       kind: "ordinary-repository",
-    });
+    };
+    pages.open(describe(target), "pinned", () => setSelection(target));
     setCreatedAfterRepositoryId(undefined);
   }, [createdAfterRepositoryId, view.activeRepositoryId]);
 
@@ -67,20 +75,67 @@ export function RepositoryActivityController({
     setSelection(projectRepositoryFocusSelection(request));
   }, [application.repository.navigation.focusRequest]);
 
+  const pages = usePageNavigation();
+  const targets: RepositorySelection[] = [
+    { kind: "create" },
+    ...(["journal", "todo"] as const).map((id) => ({
+      kind: "built-in" as const,
+      id,
+    })),
+    ...view.repositories.map((item) => ({
+      kind: "ordinary-repository" as const,
+      id: item.id,
+    })),
+    ...view.issues.map((item) => ({
+      kind: "ordinary-issue" as const,
+      id: item.id,
+    })),
+  ];
+  const describe = (value: RepositorySelection) =>
+    describePage(
+      "repository",
+      "repository",
+      repositoryTargetKey(value),
+      value.kind === "create"
+        ? "新建仓库"
+        : value.kind === "built-in"
+          ? builtInLabel(value.id)
+          : value.kind === "ordinary-repository"
+            ? (view.repositories.find((item) => item.id === value.id)?.label ??
+              "仓库")
+            : value.id,
+    );
+  usePageDriver("repository", {
+    ready: view.catalogStatus === "ready",
+    current: () => describe(selection),
+    describe: (target) => {
+      const value = targets.find(
+        (item) => repositoryTargetKey(item) === target.id,
+      );
+      return value ? describe(value) : null;
+    },
+    select: (target) => {
+      const value = targets.find(
+        (item) => repositoryTargetKey(item) === target.id,
+      );
+      if (!value) return false;
+      setSelection(value);
+    },
+  });
   return active
     ? renderActivity(() =>
         createRepositoryActivitySlots({
           onOpen: async (repositoryId) => {
-            let opening: Promise<void> | null = null;
-            onActiveActivityChange("notes", () => {
-              opening = view.selectRepository(repositoryId);
-            });
-            await opening;
+            await pages.switchRepository(repositoryId, () =>
+              view.selectRepository(repositoryId),
+            );
           },
           focusRequest: application.repository.navigation.focusRequest,
           onConsumeFocusRequest:
             application.repository.navigation.consumeFocusRequest,
-          onSelectionChange: setSelection,
+          onSelectionChange: (next, intent = "preview") => {
+            pages.open(describe(next), intent, () => setSelection(next));
+          },
           selection,
           view: activityView,
         }),

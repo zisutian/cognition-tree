@@ -1,13 +1,12 @@
+import { Section } from "compact-ui";
+import { usePageNavigation, describePage } from "../../../navigation/index.ts";
+import { Button, InputControl } from "compact-ui";
 import { FolderPlus, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { NotesViewModel } from "../../../../application/workspace/index.ts";
 import {
-  Button,
-  CompactContextGroupHeader,
   createClassNames,
-  InputControl,
   NoteTree,
-  TreeMoveQuickPick,
   type TreeNode,
   useExclusiveAsyncAction,
   useFeedback,
@@ -83,12 +82,12 @@ export function NotesContext({
   view: NotesViewModel;
 }) {
   const feedback = useFeedback();
+  const pages = usePageNavigation();
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [folderTitle, setFolderTitle] = useState("新文件夹");
-  const [moveNode, setMoveNode] = useState<TreeNode | null>(null);
   const reloadAction = useExclusiveAsyncAction();
   const reloading = reloadAction.busy;
   const lastActiveNodeIdsRef = useRef<{
@@ -167,9 +166,9 @@ export function NotesContext({
 
   return (
     <div className={cx("activity-context-content")}>
-      <CompactContextGroupHeader
-        headingId="notes-files-heading"
-        label="文件"
+      <Section
+        children={null}
+        title="文件"
         actions={
           <>
             <Button
@@ -195,7 +194,11 @@ export function NotesContext({
             <Button
               aria-label="新建笔记"
               disabled={reloading}
-              onClick={directory.createNote}
+              onClick={() =>
+                pages.created("notes", () =>
+                  feedback.runAction(directory.createNote),
+                )
+              }
               title="新建笔记"
               type="button"
               variant="icon"
@@ -225,19 +228,37 @@ export function NotesContext({
               }
             }}
           />
-          <Button type="submit" variant="secondary">
+          <Button type="submit" variant="normal">
             确定
           </Button>
           <Button
             onClick={() => setCreatingFolder(false)}
             type="button"
-            variant="ghost"
+            variant="normal"
           >
             取消
           </Button>
         </form>
       ) : null}
       <NoteTree
+        onOpenNote={(id, intent) => {
+          const node = (() => {
+            const pending = [...directory.noteTree];
+            while (pending.length) {
+              const item = pending.pop()!;
+              if (item.kind === "note" && item.noteId === id) return item;
+              if (item.kind === "folder") pending.push(...item.children);
+            }
+            return null;
+          })();
+          const repositoryId = pages.getRepositoryId();
+          if (node)
+            pages.open(
+              describePage("notes", "note", id, node.title, repositoryId),
+              intent,
+              () => directory.selectNote(id),
+            );
+        }}
         activeNode={directory.activeNode}
         collapsedFolderIds={collapsedFolderIds}
         nodes={directory.noteTree}
@@ -245,16 +266,9 @@ export function NotesContext({
         onDeleteNode={deleteNode}
         onMoveNode={directory.moveTreeNode}
         onRenameNode={renameNode}
-        onRequestMoveNode={setMoveNode}
         onSelectFolder={directory.selectFolder}
         onSelectNote={directory.selectNote}
         onToggleFolder={toggleFolder}
-      />
-      <TreeMoveQuickPick
-        nodes={directory.noteTree}
-        sourceNode={moveNode}
-        onClose={() => setMoveNode(null)}
-        onMove={directory.moveTreeNode}
       />
       {directory.noteTree.length === 0 ? (
         <p className={cx("context-empty")}>没有笔记。</p>

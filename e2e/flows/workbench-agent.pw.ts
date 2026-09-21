@@ -2,7 +2,10 @@
 
 import { expect } from "@playwright/test";
 import { formatJournalEntryTitle } from "../../core/journal/model/journalIdentity";
-import { createJournalSeed, readJournalSnapshot } from "../support/builtInSeeds";
+import {
+  createJournalSeed,
+  readJournalSnapshot,
+} from "../support/builtInSeeds";
 import { test } from "../support/e2eTest";
 import {
   e2eAgentAlternativeProfileId,
@@ -31,10 +34,15 @@ test.describe("Agent activity flows", () => {
     await getActivityButton(page, "日记").click();
     await expect(page.getByRole("region", { name: "日记编辑" })).toBeVisible();
     await getActivityButton(page, "智能体").click();
-    const context = page.getByRole("complementary", { name: "智能体", exact: true });
+    const context = page.getByRole("complementary", {
+      name: "上下文区域",
+      exact: true,
+    });
 
-    await page.getByRole("region", { name: "Agent 对话", exact: true })
-      .getByRole("button", { name: "新建会话", exact: true }).click();
+    await page
+      .getByRole("region", { name: "Agent 对话", exact: true })
+      .getByRole("button", { name: "新建会话", exact: true })
+      .click();
     let createPanel = page.getByRole("region", { name: "新建 Agent 会话" });
 
     await expect(createPanel).toContainText("未配置");
@@ -43,8 +51,8 @@ test.describe("Agent activity flows", () => {
     ).toBeDisabled();
     await getActivityButton(page, "设置").click();
     await page
-      .locator(".settings-context")
-      .getByRole("button", { name: "默认会话配置", exact: true })
+      .getByRole("tree", { name: "设置目录" })
+      .getByRole("treeitem", { name: "默认会话配置", exact: true })
       .click();
     await page
       .getByRole("region", { name: "默认会话配置" })
@@ -62,7 +70,7 @@ test.describe("Agent activity flows", () => {
       .getByRole("radio", { name: "Journal" })
       .click();
     await createPanel.getByRole("button", { name: "创建会话" }).click();
-    const sessionList = context.getByRole("list", { name: "Agent 会话" });
+    const sessionList = context.getByRole("tree", { name: "Agent 会话" });
 
     await expect(sessionList).toContainText("E2E Agent");
     await expect(sessionList).toContainText("Journal · 全域");
@@ -70,8 +78,8 @@ test.describe("Agent activity flows", () => {
 
     await getActivityButton(page, "设置").click();
     await page
-      .locator(".settings-context")
-      .getByRole("button", { name: "默认会话配置", exact: true })
+      .getByRole("tree", { name: "设置目录" })
+      .getByRole("treeitem", { name: "默认会话配置", exact: true })
       .click();
     await page
       .getByRole("region", { name: "默认会话配置" })
@@ -83,15 +91,17 @@ test.describe("Agent activity flows", () => {
     await context.getByRole("button", { name: "新建会话" }).click();
     await expect(createPanel).toContainText("E2E Agent Alternate");
     await sessionList
-      .getByRole("button", { name: /E2E Agent.*Journal/ })
+      .getByRole("treeitem", { name: /E2E Agent.*Journal/ })
       .click();
 
     const conversation = page.getByRole("region", { name: "Agent 对话" });
 
-    await conversation
+    await page
+      .getByRole("main")
       .getByRole("textbox", { name: "给 Agent 的消息" })
       .fill("创建一篇 E2E 日记");
-    await conversation
+    await page
+      .getByRole("main")
       .getByRole("button", { name: "发送", exact: true })
       .click();
     const assistantMessage = conversation.locator(
@@ -109,7 +119,7 @@ test.describe("Agent activity flows", () => {
     await expect(proposal).toContainText("新建 1 项");
     await expect(proposal).toContainText(e2eAgentJournalBody);
     const proposalProperties = proposal.locator(
-      'dl[aria-label="Proposal 摘要"]',
+      'section[aria-label="Proposal 摘要"]',
     );
 
     await expect(proposalProperties).toBeVisible();
@@ -117,7 +127,7 @@ test.describe("Agent activity flows", () => {
     await expect(proposal.locator("summary")).toHaveText("技术详情");
     await page.reload();
     await expect(
-      page.getByRole("navigation", { name: "工作区功能" }),
+      page.getByRole("navigation", { name: "活动导航" }),
     ).toBeVisible();
     await getActivityButton(page, "智能体").click();
     await expect(
@@ -147,7 +157,7 @@ test.describe("Agent activity flows", () => {
       })
       .toBe(true);
     await getActivityButton(page, "日记").click();
-    const yearButton = page.getByRole("button", {
+    const yearButton = page.getByRole("treeitem", {
       name: `${createdTitle.slice(0, 4)} 年`,
       exact: true,
     });
@@ -156,7 +166,7 @@ test.describe("Agent activity flows", () => {
     if ((await yearButton.getAttribute("aria-expanded")) === "false") {
       await yearButton.click();
     }
-    const monthButton = page.getByRole("button", {
+    const monthButton = page.getByRole("treeitem", {
       name: `${Number(createdTitle.slice(5, 7))} 月`,
       exact: true,
     });
@@ -164,8 +174,9 @@ test.describe("Agent activity flows", () => {
     if ((await monthButton.getAttribute("aria-expanded")) === "false") {
       await monthButton.click();
     }
-    const createdEntry = page.locator(".journal-entry-select").filter({
-      hasText: createdTitle,
+    const createdEntry = page.getByRole("treeitem", {
+      name: createdTitle,
+      exact: true,
     });
 
     await expect(createdEntry).toBeVisible();

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useFeedback } from "./FeedbackProvider.tsx";
-import { QuickPick } from "./QuickPick.tsx";
+import { QuickPick } from "compact-ui";
 
 type ReferenceDestination = {
   description: string;
@@ -10,14 +10,18 @@ type ReferenceDestination = {
   label: string;
 };
 
-type ReferenceNavigation<Destination extends ReferenceDestination, Target extends { text: string }> = {
+type ReferenceNavigation<
+  Destination extends ReferenceDestination,
+  Target extends { text: string },
+> = {
   navigate: (destination: Destination) => void;
   resolve: (target: Target) => Destination[];
 };
 
-export function useReferenceNavigation<Destination extends ReferenceDestination, Target extends { text: string }>(
-  navigation: ReferenceNavigation<Destination, Target>,
-) {
+export function useReferenceNavigation<
+  Destination extends ReferenceDestination,
+  Target extends { text: string },
+>(navigation: ReferenceNavigation<Destination, Target>) {
   const feedback = useFeedback();
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const close = () => setDestinations([]);
@@ -40,13 +44,12 @@ export function useReferenceNavigation<Destination extends ReferenceDestination,
     openReference,
     picker: (
       <QuickPick
-        ariaLabel="选择引用目标"
+        label="选择引用目标"
         open={destinations.length > 0}
         options={destinations}
-        placeholder="筛选引用目标"
         onClose={close}
         onSelect={(option) => {
-          const destination = destinations.find(({ id }) => id === option.id);
+          const destination = destinations.find(({ id }) => id === option);
 
           if (destination) {
             navigation.navigate(destination);

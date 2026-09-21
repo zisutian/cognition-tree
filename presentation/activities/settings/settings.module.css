@@ -1,6 +1,6 @@
 .settings-context-subgroup {
   list-style: none;
-  padding-left: var(--ui-gap-tight);
+  padding-left: var(--cu-tightGap);
 }
 
 .local-api-example {

@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { useLayoutEffect } from "react";
+import {
+  usePageDriver,
+  usePageNavigation,
+  describePage,
+} from "../../navigation/index.ts";
+
 import type { RepositoryApplication } from "../../../application/repository/index.ts";
 import type {
   WorkbenchWorkspaceState,
@@ -33,6 +40,7 @@ const notesModeSessionKey = createRepositorySessionKey<NotesMode>("notes-mode");
 
 function ActiveNotesActivity({
   application,
+  active,
   mode,
   onModeChange,
   repositoryId,
@@ -41,6 +49,7 @@ function ActiveNotesActivity({
   visualizationSession,
 }: {
   application: WorkspaceApplication;
+  active: boolean;
   mode: NotesMode;
   onModeChange(mode: NotesMode): void;
   repositoryId: string;
@@ -69,6 +78,53 @@ function ActiveNotesActivity({
     runtime: application.runtime,
     selection: application.selection,
   });
+  const pages = usePageNavigation();
+  useLayoutEffect(() => {
+    if (application.navigation.noteFocusRequest) onModeChange("edit");
+  }, [application.navigation.noteFocusRequest?.requestId]);
+  const notePage = (id: string) => {
+    const note = application.runtime.effectiveNotes.find(
+      (item) => item.id === id,
+    );
+    return note
+      ? describePage("notes", "note", id, note.title, repositoryId)
+      : null;
+  };
+  const toolPage = (kind: "structure" | "graph") =>
+    describePage(
+      "notes",
+      kind,
+      kind,
+      kind === "graph" ? "引用图谱" : "结构操作",
+      repositoryId,
+    );
+  usePageDriver("notes", {
+    // Selection reconciliation owns the initial note; restore only after it has settled.
+    ready:
+      application.selection.activeNoteId !== null ||
+      application.runtime.effectiveNotes.length === 0,
+    current: () =>
+      mode === "edit"
+        ? view.activeNote
+          ? notePage(view.activeNote.id)
+          : describePage("notes", "activity", "notes", "笔记", repositoryId)
+        : toolPage(mode),
+    describe: (target) =>
+      target.kind === "note"
+        ? notePage(target.id)
+        : target.kind === "graph" || target.kind === "structure"
+          ? toolPage(target.kind)
+          : describePage("notes", "activity", "notes", "笔记", repositoryId),
+    select: (target) => {
+      if (target.kind === "note") {
+        if (!notePage(target.id)) return false;
+        application.selection.selectNote(target.id);
+        onModeChange("edit");
+      } else if (target.kind === "graph" || target.kind === "structure")
+        onModeChange(target.kind);
+    },
+  });
+  if (!active) return null;
   return renderActivity((controls) =>
     createNotesWorkspaceActivitySlots({
       edit: createNotesActivitySlots({
@@ -85,7 +141,15 @@ function ActiveNotesActivity({
         view: visualization,
       }),
       mode,
-      onModeChange,
+      onModeChange: (next, intent = "preview") => {
+        const page =
+          next === "edit"
+            ? view.activeNote
+              ? notePage(view.activeNote.id)
+              : describePage("notes", "activity", "notes", "笔记", repositoryId)
+            : toolPage(next);
+        if (page) pages.open(page, intent, () => onModeChange(next));
+      },
       repositoryName,
       structure: createStructureOperationActivitySlots({
         onConfigureSyntax: controls.onConfigureSyntax,
@@ -111,10 +175,8 @@ export function NotesActivityController({
   );
   const visualizationSession = useReferenceGraphSession(repositoryId);
 
-  if (!active) {
-    return null;
-  }
   if (application.workspace.status !== "ready") {
+    if (!active) return null;
     return renderWorkspaceUnavailableActivity({
       onOpenRepository: () => onActiveActivityChange("repository"),
       renderActivity,
@@ -124,6 +186,7 @@ export function NotesActivityController({
 
   return (
     <ActiveNotesActivity
+      active={active}
       application={application.workspace.application}
       mode={mode}
       onModeChange={setMode}

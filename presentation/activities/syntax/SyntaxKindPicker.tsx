@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { SelectControl } from "compact-ui";
+
 import type { SyntaxViewModel } from "../../../application/syntax/index.ts";
-import { SelectControl } from "../../ui/index.ts";
 
 type SyntaxKind = SyntaxViewModel["kindOptions"][number]["value"];
 

@@ -1,3 +1,9 @@
+import {
+  usePageNavigation,
+  pageKey,
+  describePage,
+} from "../../../navigation/index.ts";
+import { Button, EmptyState } from "compact-ui";
 import { useEffect, useState } from "react";
 import type { NotesViewModel } from "../../../../application/workspace/index.ts";
 import {
@@ -7,8 +13,6 @@ import {
 } from "../../../editor/index.ts";
 
 import {
-  Button,
-  EmptyState,
   Page,
   useFeedback,
   useReferenceNavigation,
@@ -46,6 +50,7 @@ export function submitNotesEditorChange({
 
 export function NoteEditorPanel({ view }: { view: NotesViewModel }) {
   const feedback = useFeedback();
+  const pages = usePageNavigation();
   const [editorSyncSource, setEditorSyncSource] = useState<{
     noteId: string;
     source: string;
@@ -71,9 +76,13 @@ export function NoteEditorPanel({ view }: { view: NotesViewModel }) {
         <EmptyState
           action={
             <Button
-              onClick={view.directory.createNote}
+              onClick={() =>
+                feedback.runAction(() =>
+                  pages.created("notes", view.directory.createNote),
+                )
+              }
               type="button"
-              variant="primary"
+              variant="normal"
             >
               新建笔记
             </Button>
@@ -99,7 +108,16 @@ export function NoteEditorPanel({ view }: { view: NotesViewModel }) {
     <CtnEditorPanel ariaLabel="笔记编辑">
       <CtnEditor
         {...editorRuntime}
-        key={activeNote.id}
+        key={`${pages.getRepositoryId()}:${activeNote.id}`}
+        sessionKey={pageKey(
+          describePage(
+            "notes",
+            "note",
+            activeNote.id,
+            activeNote.title,
+            pages.getRepositoryId(),
+          ).target,
+        )}
         focusTarget={view.editor.focusTarget}
         value={
           editorSyncSource?.noteId === activeNote.id

@@ -1,3 +1,4 @@
+import { Button, ColorControl } from "compact-ui";
 import { Check, ChevronDown } from "lucide-react";
 import type { CSSProperties } from "react";
 import type {
@@ -5,11 +6,9 @@ import type {
   SyntaxToneOption,
 } from "../../../application/syntax/index.ts";
 import {
-  Button,
-  ColorControl,
   createClassNames,
   isCustomTone,
-  Popover,
+  TriggerPopover,
 } from "../../ui/index.ts";
 import syntaxStyles from "./syntax.module.css";
 const cx = createClassNames(syntaxStyles);
@@ -77,10 +76,8 @@ export function TonePicker({
   };
 
   return (
-    <Popover
+    <TriggerPopover
       ariaLabel={ariaLabel}
-      panelRole="dialog"
-      size="compact"
       renderTrigger={({ isOpen, panelId, toggle, triggerRef }) => (
         <Button
           disabled={disabled}
@@ -88,12 +85,11 @@ export function TonePicker({
           aria-expanded={isOpen}
           aria-haspopup="dialog"
           aria-label={`${ariaLabel}: ${getToneLabel(value, options, customToneLabel)}`}
-          sizing="container"
           data-syntax-field-id={fieldId}
           onClick={toggle}
           ref={triggerRef}
           type="button"
-          variant="secondary"
+          variant="normal"
         >
           <span
             aria-hidden="true"
@@ -153,13 +149,12 @@ export function TonePicker({
             <Button
               disabled={disabled}
               aria-pressed={isCustomValue}
-              sizing="container"
               onClick={() => {
                 selectTone(customTone);
                 close();
               }}
               type="button"
-              variant="secondary"
+              variant="normal"
             >
               <span
                 aria-hidden="true"
@@ -183,6 +178,6 @@ export function TonePicker({
           </div>
         </>
       )}
-    </Popover>
+    </TriggerPopover>
   );
 }

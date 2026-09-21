@@ -2,8 +2,6 @@
 
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { designTokenStyles } from "./tooling/build/designTokenStyles";
-import { designTokens, designBreakpoints } from "./presentation/ui/foundation/designTokens";
 
 function clientManualChunk(id: string) {
   const normalizedId = id.replaceAll("\\", "/");
@@ -36,9 +34,6 @@ export default defineConfig({
     },
   },
   plugins: [react()],
-  css: {
-    postcss: { plugins: [designTokenStyles({ tokens: designTokens, breakpoints: designBreakpoints })] },
-  },
   clearScreen: false,
   server: {
     watch: {

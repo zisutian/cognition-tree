@@ -12,20 +12,15 @@ export type {
 } from "./activityTypes.ts";
 export { default } from "./AppView.tsx";
 export { ProblemsPanel } from "./problems/ProblemsPanel.tsx";
+export {
+  initialProblemsFilters,
+  type ProblemsFilters,
+} from "./problems/ProblemsPanel.tsx";
 export { useWorkbenchProblemsShortcut } from "./problems/useProblemsShortcut.ts";
 export { cx } from "./shared/classNames.ts";
-export {
-  CompactContextActionButtons,
-  CompactContextGroup,
-  CompactContextGroupHeader,
-  CompactContextList,
-  CompactContextRow,
-  CompactContextStatusIcon,
-} from "./shared/CompactContextList.tsx";
+
 export { ConfirmAction } from "./shared/ConfirmAction.tsx";
-export { ContextMenu } from "./shared/ContextMenu.tsx";
-export type { ContextMenuPosition } from "./shared/ContextMenu.tsx";
-export { EmptyState } from "./shared/EmptyState.tsx";
+
 export {
   FeedbackProvider,
   runActivityFeedbackAction,
@@ -40,36 +35,8 @@ export {
 } from "./shared/listDrag.ts";
 export type { ListRowDropPlacement } from "./shared/listDrag.ts";
 export { Page, PageBody } from "./shared/Page.tsx";
-export { Popover } from "./shared/Popover.tsx";
-export {
-  Button,
-  CheckboxControl,
-  CheckboxGroup,
-  ChoiceGroup,
-  ColorControl,
-  InputControl,
-  RangeControl,
-  SelectControl,
-  TextareaControl,
-  ToggleButton,
-} from "./shared/publicControls.ts";
-export {
-  FieldRow,
-  FormActions,
-  FormLayout,
-  ManagementList,
-  ManagementRow,
-  Section,
-  SectionStack,
-  StatusBadge,
-  ToolDivider,
-  ToolList,
-  ToolListRow,
-  ToolPropertyList,
-  ToolPropertyRow,
-  ToolToolbar,
-} from "./shared/publicSurfaces.ts";
-export { QuickPick } from "./shared/QuickPick.tsx";
+export { TriggerPopover } from "./shared/TriggerPopover.tsx";
+
 export { SymbolSlot } from "./shared/SymbolSlot.tsx";
 export {
   createToneStyle,
@@ -82,7 +49,6 @@ export {
 export {
   NoteTree,
   StructureTree,
-  TreeMoveQuickPick,
   getStructureTreeRowStyle,
 } from "./shared/tree/index.ts";
 export type {
@@ -103,11 +69,8 @@ export {
 export { useWorkbenchLayout } from "./workbench/useWorkbenchLayout.ts";
 export type { WorkbenchController } from "./workbench/useWorkbenchLayout.ts";
 
-export { checkboxControlClassName } from "./shared/controlPresentation.ts";
-export { StatusBar } from "./workbench/StatusBar.tsx";
+export { createWorkbenchStatus } from "./workbench/workbenchStatus.tsx";
 
-export { FocusAction } from "./RegionFrame.tsx";
 export { createClassNames } from "./shared/contentClasses.ts";
-export { ListAction } from "./shared/ListAction.tsx";
 
-export { designMetrics } from "./foundation/designTokens.ts";
+export { uiConfig } from "./foundation/config.ts";

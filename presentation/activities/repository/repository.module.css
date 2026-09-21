@@ -1,99 +1,99 @@
 .repository-context {
-  gap: calc(var(--ui-gap) * 2);
+  gap: calc(var(--cu-gap) * 2);
 }
 .repository-row:disabled {
   cursor: wait;
 }
 .repository-row-status {
-  color: var(--color-fg-subtle);
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
+  color: var(--cu-color-disabled);
+  font-size: var(--cu-fontSize);
+  line-height: var(--cu-lineHeight);
   white-space: nowrap;
 }
 .repository-row-status.is-fault,
 .repository-row-warning {
-  color: var(--color-error);
+  color: var(--cu-color-error);
 }
 .repository-row-warning {
-  width: var(--ui-symbol-size);
-  height: var(--ui-symbol-size);
+  width: var(--cu-treeIconSize);
+  height: var(--cu-treeIconSize);
 }
 .repository-issue-row > svg,
 .repository-issue-row .repository-row-status {
-  color: var(--color-error);
+  color: var(--cu-color-error);
 }
 .repository-issue-row.is-deleting > svg,
 .repository-issue-row.is-deleting .repository-row-status {
-  color: var(--color-warning);
+  color: var(--cu-color-warning);
 }
 .repository-manual-removal {
-  margin: 0 0 var(--ui-gap-tight);
-  color: var(--color-warning);
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
+  margin: 0 0 var(--cu-tightGap);
+  color: var(--cu-color-warning);
+  font-size: var(--cu-fontSize);
+  line-height: var(--cu-lineHeight);
 }
 .repository-identity-value {
-  font-family: var(--font-code);
+  font-family: var(--cu-mono);
   overflow-wrap: anywhere;
   user-select: text;
 }
 .repository-location-path {
-  font-family: var(--font-code);
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
+  font-family: var(--cu-mono);
+  font-size: var(--cu-fontSize);
+  line-height: var(--cu-lineHeight);
   overflow-wrap: anywhere;
   user-select: text;
   white-space: pre-wrap;
 }
 .repository-create {
   display: grid;
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
 }
 .repository-catalog-error {
   display: grid;
   justify-items: start;
-  gap: var(--ui-gap-tight);
-  margin-top: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
+  margin-top: var(--cu-tightGap);
 }
 .repository-warning {
-  margin: var(--ui-gap-tight) 0 0;
-  color: var(--color-warning);
-  font-size: var(--ui-font-size);
-  line-height: var(--ui-line-height);
+  margin: var(--cu-tightGap) 0 0;
+  color: var(--cu-color-warning);
+  font-size: var(--cu-fontSize);
+  line-height: var(--cu-lineHeight);
 }
 .repository-inline-confirmation {
   display: grid;
-  gap: var(--ui-gap-tight);
-  padding: var(--ui-gap-tight);
-  border: var(--ui-border-width) solid var(--color-border-strong);
-  border-radius: var(--ui-radius);
-  background: var(--color-panel);
-  color: var(--color-fg-muted);
-  font-size: var(--ui-font-size);
+  gap: var(--cu-tightGap);
+  padding: var(--cu-tightGap);
+  border: var(--cu-panelBorderWidth) solid var(--cu-color-border);
+  border-radius: var(--cu-radius);
+  background: var(--cu-color-surface);
+  color: var(--cu-color-muted);
+  font-size: var(--cu-fontSize);
 }
 .repository-delete-choice {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
 }
 .repository-delete-choice + .repository-delete-choice {
-  padding-top: var(--ui-gap-tight);
-  border-top: var(--ui-border-width) solid var(--color-border);
+  padding-top: var(--cu-tightGap);
+  border-top: var(--cu-panelBorderWidth) solid var(--cu-color-border);
 }
 .repository-delete-confirmation-field {
   display: grid;
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
   min-width: 0;
 }
 .repository-inline-confirmation-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--ui-gap-tight);
+  gap: var(--cu-tightGap);
 }
 .repository-issue-confirmation {
-  margin-top: var(--ui-gap-tight);
+  margin-top: var(--cu-tightGap);
 }
 
 @media (max-width: design-breakpoint(repository)) {

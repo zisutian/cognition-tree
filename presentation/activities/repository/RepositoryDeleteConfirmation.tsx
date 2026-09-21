@@ -1,11 +1,7 @@
+import { Button, InputControl } from "compact-ui";
 import { useState } from "react";
 import type { RepositoryOption } from "../../../application/repository/index.ts";
-import {
-  Button,
-  createClassNames,
-  InputControl,
-  useExclusiveAsyncAction,
-} from "../../ui/index.ts";
+import { createClassNames, useExclusiveAsyncAction } from "../../ui/index.ts";
 import repositoryStyles from "./repository.module.css";
 const cx = createClassNames(repositoryStyles);
 
@@ -69,7 +65,7 @@ export function RepositoryDeleteConfirmation({
             disabled={busy}
             onClick={onCancel}
             type="button"
-            variant="secondary"
+            variant="normal"
           >
             取消
           </Button>

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { renderToStaticMarkup } from "../../../../support/presentation/render";
+
 import { describe, expect, it, vi } from "vitest";
 import {
   resolveTodoRetry,
@@ -34,16 +36,20 @@ function createApplicationWithoutWorkspace(): WorkbenchApplication {
 
 describe("TodoActivityController", () => {
   it("does not mount Todo slots while another activity is active", () => {
-    const rendered = TodoActivityController({
-      active: false,
-      application: createApplicationWithoutWorkspace(),
-      onActiveActivityChange: () => undefined,
-      renderActivity: () => {
-        throw new Error("inactive Todo must not render");
-      },
-    });
+    const rendered = renderToStaticMarkup(
+      <TodoActivityController
+        {...{
+          active: false,
+          application: createApplicationWithoutWorkspace(),
+          onActiveActivityChange: () => undefined,
+          renderActivity: () => {
+            throw new Error("inactive Todo must not render");
+          },
+        }}
+      />,
+    );
 
-    expect(rendered).toBeNull();
+    expect(rendered).not.toContain("<section");
   });
 
   it("retries a faulted Todo descriptor through the system catalog", async () => {

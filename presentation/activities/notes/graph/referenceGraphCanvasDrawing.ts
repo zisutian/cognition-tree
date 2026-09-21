@@ -39,24 +39,24 @@ export type ReferenceGraphCanvasTheme = {
 export function readReferenceGraphCanvasTheme(
   canvas: HTMLCanvasElement,
 ): ReferenceGraphCanvasTheme {
-  const edgeColor = readCanvasToken(canvas, "--color-graph-edge");
+  const edgeColor = readCanvasToken(canvas, "--cu-color-muted");
 
   return {
-    activeNodeColor: readCanvasToken(canvas, "--color-link"),
+    activeNodeColor: readCanvasToken(canvas, "--cu-color-accent"),
     edgeColor,
-    edgeStrongColor: readCanvasToken(canvas, "--color-fg-muted") || edgeColor,
-    editorColor: readCanvasToken(canvas, "--color-editor"),
-    fontFamily: readCanvasToken(canvas, "--font-ui") || "sans-serif",
-    fontSize: readCanvasToken(canvas, "--ui-font-size"),
-    lineHeight: readCanvasToken(canvas, "--ui-line-height"),
-    labelGap: readCanvasToken(canvas, "--ui-gap"),
-    fontWeight: readCanvasToken(canvas, "--ui-body-weight"),
-    emphasisWeight: readCanvasToken(canvas, "--ui-emphasis-weight"),
-    mutedNodeColor: readCanvasToken(canvas, "--color-fg-subtle"),
-    nodeColor: readCanvasToken(canvas, "--color-fg-muted"),
-    selectedColor: readCanvasToken(canvas, "--color-accent"),
-    textColor: readCanvasToken(canvas, "--color-fg-strong"),
-    textMutedColor: readCanvasToken(canvas, "--color-fg-muted"),
+    edgeStrongColor: readCanvasToken(canvas, "--cu-color-muted") || edgeColor,
+    editorColor: readCanvasToken(canvas, "--cu-color-surface"),
+    fontFamily: readCanvasToken(canvas, "--cu-font") || "sans-serif",
+    fontSize: readCanvasToken(canvas, "--cu-fontSize"),
+    lineHeight: readCanvasToken(canvas, "--cu-lineHeight"),
+    labelGap: readCanvasToken(canvas, "--cu-gap"),
+    fontWeight: readCanvasToken(canvas, "--cu-weight"),
+    emphasisWeight: readCanvasToken(canvas, "--cu-emphasis"),
+    mutedNodeColor: readCanvasToken(canvas, "--cu-color-disabled"),
+    nodeColor: readCanvasToken(canvas, "--cu-color-muted"),
+    selectedColor: readCanvasToken(canvas, "--cu-color-accent"),
+    textColor: readCanvasToken(canvas, "--cu-color-strong"),
+    textMutedColor: readCanvasToken(canvas, "--cu-color-muted"),
   };
 }
 
@@ -119,8 +119,7 @@ export function getReferenceGraphEdgeOpacity({
   targetId: string;
 }) {
   const touchesHovered = Boolean(
-    hoveredNoteId &&
-      (sourceId === hoveredNoteId || targetId === hoveredNoteId),
+    hoveredNoteId && (sourceId === hoveredNoteId || targetId === hoveredNoteId),
   );
 
   if (hoveredNoteId) {
@@ -132,17 +131,18 @@ export function getReferenceGraphEdgeOpacity({
     : 0.28;
 }
 
-export function rankReferenceGraphNodesForLabels(
-  nodes: GraphSimulationNode[],
-) {
+export function rankReferenceGraphNodesForLabels(nodes: GraphSimulationNode[]) {
   return [...nodes].sort((left, right) => {
     const referenceDifference =
-      right.referencesIn + right.referencesOut -
+      right.referencesIn +
+      right.referencesOut -
       (left.referencesIn + left.referencesOut);
 
-    return referenceDifference ||
+    return (
+      referenceDifference ||
       left.title.localeCompare(right.title) ||
-      left.id.localeCompare(right.id);
+      left.id.localeCompare(right.id)
+    );
   });
 }
 
@@ -164,9 +164,7 @@ export function getReferenceGraphLabelOpacity({
   }
 
   const effectiveDensity = clamp(
-    labelDensity +
-      Math.max(0, scale - 1) * 35 -
-      Math.max(0, 1 - scale) * 55,
+    labelDensity + Math.max(0, scale - 1) * 35 - Math.max(0, 1 - scale) * 55,
     0,
     100,
   );
@@ -362,12 +360,7 @@ export function drawGraph({
       context.stroke();
 
       if (displaySettings.showArrows) {
-        drawArrowhead(
-          context,
-          endpoints.endX,
-          endpoints.endY,
-          endpoints.angle,
-        );
+        drawArrowhead(context, endpoints.endX, endpoints.endY, endpoints.angle);
       }
     }
   }
@@ -379,11 +372,13 @@ export function drawGraph({
     ]),
   );
 
-  const labels: Array<GraphLabelCandidate & {
-    text: string;
-    opacity: number;
-    emphasized: boolean;
-  }> = [];
+  const labels: Array<
+    GraphLabelCandidate & {
+      text: string;
+      opacity: number;
+      emphasized: boolean;
+    }
+  > = [];
   const screenNodes: Array<{ x: number; y: number; radius: number }> = [];
   const fontSize = Number.parseFloat(theme.fontSize);
   const labelGap = Number.parseFloat(theme.labelGap);
@@ -430,13 +425,14 @@ export function drawGraph({
     context.arc(node.x, node.y, radius, 0, Math.PI * 2);
     context.fill();
 
-    const labelOpacity = getReferenceGraphLabelOpacity({
-      emphasized: isSelected || isHovered,
-      labelDensity: displaySettings.labelDensity,
-      nodeCount: nodes.length,
-      rank: labelRanks.get(node.id) ?? nodes.length,
-      scale: transform.scale,
-    }) * nodeOpacity;
+    const labelOpacity =
+      getReferenceGraphLabelOpacity({
+        emphasized: isSelected || isHovered,
+        labelDensity: displaySettings.labelDensity,
+        nodeCount: nodes.length,
+        rank: labelRanks.get(node.id) ?? nodes.length,
+        scale: transform.scale,
+      }) * nodeOpacity;
 
     if (labelOpacity > 0) {
       const emphasized = isSelected || isHovered;
@@ -462,8 +458,11 @@ export function drawGraph({
         ...screenNode,
         width: context.measureText(text).width,
         height: labelHeight,
-        priority: isHovered ? 0 : isSelected ? 1
-          : 2 + (labelRanks.get(node.id) ?? nodes.length),
+        priority: isHovered
+          ? 0
+          : isSelected
+            ? 1
+            : 2 + (labelRanks.get(node.id) ?? nodes.length),
         text,
         opacity: labelOpacity,
         emphasized,
@@ -491,7 +490,9 @@ export function drawGraph({
     context.lineJoin = "round";
     context.lineWidth = 4;
     context.strokeStyle = theme.editorColor;
-    context.fillStyle = label.emphasized ? theme.textColor : theme.textMutedColor;
+    context.fillStyle = label.emphasized
+      ? theme.textColor
+      : theme.textMutedColor;
     context.strokeText(label.text, placement.x, placement.y);
     context.fillText(label.text, placement.x, placement.y);
   }

@@ -10,13 +10,15 @@ export async function openWorkbench(page: Page, repositoryId: string) {
     );
   }, repositoryId);
   await page.goto("/");
-  await expect(page.getByRole("navigation", { name: "工作区功能" })).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "活动导航" }),
+  ).toBeVisible();
   await expect(page.getByLabel("笔记编辑")).toBeVisible({ timeout: 15_000 });
 }
 
 export function getActivityButton(page: Page, name: string) {
   return page
-    .getByRole("navigation", { name: "工作区功能" })
+    .getByRole("navigation", { name: "活动导航" })
     .getByRole("button", { name, exact: true });
 }
 
@@ -24,60 +26,50 @@ export async function selectNotesMode(
   page: Page,
   name: "图谱" | "编辑" | "结构",
 ) {
-  let control = page.getByRole("radiogroup", { name: "笔记视图" });
-
-  if (!await control.isVisible()) {
+  let control = page.getByRole("tree", { name: "笔记工具" });
+  if (!(await control.isVisible())) {
     await getActivityButton(page, "笔记").click();
-    control = page.getByRole("radiogroup", { name: "笔记视图" });
+    control = page.getByRole("tree", { name: "笔记工具" });
   }
-  const button = control.getByRole("radio", { name, exact: true });
-
-  await button.click();
-  await expect(button).toHaveAttribute("aria-checked", "true");
-}
-
-export function getRepositoryButton(
-  page: Page,
-  repositoryId: string,
-) {
-  return page.locator(
-    `[data-repository-id="${repositoryId}"]`,
-  );
+  const row = control.getByRole("treeitem", { name, exact: true });
+  await row.click();
+  await expect(row).toHaveAttribute("aria-selected", "true");
 }
 
 export async function openRepositoryFromContext(
   page: Page,
   repositoryId: string,
 ) {
-  const row = getRepositoryButton(page, repositoryId);
-
-  await row.click();
-  const currentMarker = row.getByLabel("当前仓库");
-  const openButton = row.locator("..").getByRole("button", {
-    name: /^打开仓库 /,
-  });
-
-  await expect(currentMarker.or(openButton)).toBeVisible();
-  if (!await currentMarker.isVisible()) {
-    await openButton.click();
-  }
-  await expect(currentMarker).toBeVisible();
-  // The workbench remains mounted, while its workspace binding loads the
-  // selected repository. Wait for that session before checking its contents.
-  await expect(
-    page.locator('dl[aria-label="仓库状态"]')
-      .locator(".ui-tool-property-row dd")
-      .first(),
-  ).toHaveText(
-    /^(?!(?:正在载入|挂载失败|未挂载)$).+$/,
-    { timeout: 15_000 },
+  await getActivityButton(page, "仓库").click();
+  const response = await page.request.get("/api/v4/admin/repositories");
+  expect(response.ok()).toBe(true);
+  const catalog = (await response.json()) as {
+    repositories: { id: string; label: string }[];
+  };
+  const repository = catalog.repositories.find(
+    (item) => item.id === repositoryId,
   );
+  if (!repository) throw new Error(`Missing repository ${repositoryId}`);
+  await page
+    .getByRole("tree", { name: "仓库目录" })
+    .getByRole("treeitem", { name: repository.label, exact: true })
+    .click();
+  await page.getByRole("button", { name: /^(打开仓库|继续编辑笔记)$/ }).click();
+  await expect(getActivityButton(page, "笔记")).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(page.getByLabel("笔记编辑")).toBeVisible({ timeout: 15000 });
 }
 
 export function getWorkbenchStatus(page: Page) {
-  return page.getByRole("contentinfo", { name: "工作台状态" }).getByRole("status");
+  return page
+    .getByRole("contentinfo", { name: "工作台状态" })
+    .getByRole("status");
 }
 
 export function getProblemsToggle(page: Page) {
-  return page.getByRole("contentinfo", { name: "工作台状态" }).getByRole("button", { name: /问题面板/ });
+  return page
+    .getByRole("contentinfo", { name: "工作台状态" })
+    .getByRole("button", { name: /问题面板/ });
 }

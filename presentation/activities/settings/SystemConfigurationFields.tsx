@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { SelectControl, FieldRow, FormLayout, InputControl } from "compact-ui";
+
 import type { SystemConfigurationInput } from "../../../application/system/index.ts";
-import {
-  SelectControl,
-  FieldRow,
-  FormLayout,
-  InputControl,
-} from "../../ui/index.ts";
 
 export type SystemConfigurationPage = "network" | "paths" | "audit-retention";
 export function SystemConfigurationFields({
@@ -28,9 +24,15 @@ export function SystemConfigurationFields({
                 {...accessibility}
                 aria-label="服务访问范围"
                 value={draft.listenMode}
-                onChange={event => {
-                  const listenMode = event.currentTarget.value as SystemConfigurationInput["listenMode"];
-                  onChange({ ...draft, listenMode, publicOrigin: listenMode === "loopback" ? null : draft.publicOrigin });
+                onChange={(event) => {
+                  const listenMode = event.currentTarget
+                    .value as SystemConfigurationInput["listenMode"];
+                  onChange({
+                    ...draft,
+                    listenMode,
+                    publicOrigin:
+                      listenMode === "loopback" ? null : draft.publicOrigin,
+                  });
                 }}
               >
                 <option value="loopback">仅本机</option>

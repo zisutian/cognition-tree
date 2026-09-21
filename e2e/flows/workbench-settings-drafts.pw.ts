@@ -23,8 +23,8 @@ test.beforeEach(async ({ api, page }) => {
   await openWorkbench(page, repositoryId);
   await getActivityButton(page, "设置").click();
   await page
-    .locator(".settings-context")
-    .getByRole("button", { name: "E2E provider", exact: true })
+    .getByRole("tree", { name: "设置目录" })
+    .getByRole("treeitem", { name: "E2E provider", exact: true })
     .click();
 });
 
@@ -40,9 +40,9 @@ test("blocks directory, activities and problem navigation without replay, then u
   const footer = getWorkbenchStatus(page);
   await expect(footer).toContainText("未保存修改");
   await page
-    .locator(".settings-context")
-    .getByRole("button", { name: "路径显示", exact: true })
-    .click();
+    .getByRole("tree", { name: "设置目录" })
+    .getByRole("treeitem", { name: "路径显示", exact: true })
+    .click({ force: true });
   for (const activity of [
     "笔记",
     "日记",
@@ -62,13 +62,16 @@ test("blocks directory, activities and problem navigation without replay, then u
   await page.clock.install();
   await page.clock.fastForward(10_000);
   await expect(footer).toContainText("未保存修改");
-  await panel.getByRole("button", { name: "放弃修改" }).click();
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "放弃修改" })
+    .click();
   await expect(name).toHaveValue("E2E provider");
   await expect(panel).toBeVisible();
   await name.fill("Another edit");
   await name.fill("E2E provider");
   await expect(
-    panel.getByRole("button", { name: "保存 Provider" }),
+    page.getByRole("main").getByRole("button", { name: "保存 Provider" }),
   ).toBeDisabled();
   await getActivityButton(page, "笔记").click();
   await expect(page.getByRole("region", { name: "笔记编辑" })).toBeVisible();
@@ -93,7 +96,10 @@ test("retains a draft across failed save and refresh, then saves the selected ob
   await page.route(`**${providerPath}`, (route) =>
     route.fulfill({ status: 503, json: { error: "暂时不可用" } }),
   );
-  await panel.getByRole("button", { name: "保存 Provider" }).click();
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "保存 Provider" })
+    .click();
   await expect(panel.getByRole("alert")).toBeVisible();
   await expect(name).toHaveValue("Saved provider");
   await page.route(`**${configurationPath}`, (route) => route.abort());
@@ -102,9 +108,12 @@ test("retains a draft across failed save and refresh, then saves the selected ob
   await getActivityButton(page, "笔记").click();
   await expect(panel).toBeVisible();
   await page.unrouteAll({ behavior: "wait" });
-  await panel.getByRole("button", { name: "保存 Provider" }).click();
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "保存 Provider" })
+    .click();
   await expect(
-    panel.getByRole("button", { name: "保存 Provider" }),
+    page.getByRole("main").getByRole("button", { name: "保存 Provider" }),
   ).toBeDisabled();
   await expect(
     page
@@ -113,9 +122,9 @@ test("retains a draft across failed save and refresh, then saves the selected ob
   ).toBeVisible();
   await expect(
     page
-      .locator(".settings-context")
-      .getByRole("button", { name: "Saved provider", exact: true }),
-  ).toHaveAttribute("aria-current", "page");
+      .getByRole("tree", { name: "设置目录" })
+      .getByRole("treeitem", { name: "Saved provider", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
   await expect(panel).toBeVisible();
   await getActivityButton(page, "笔记").click();
   await expect(page.getByRole("region", { name: "笔记编辑" })).toBeVisible();
@@ -133,8 +142,8 @@ test("retains settings input and navigation protection when the workspace finish
   await loading.arrived;
   await getActivityButton(page, "设置").click();
   await page
-    .locator(".settings-context")
-    .getByRole("button", { name: "E2E provider", exact: true })
+    .getByRole("tree", { name: "设置目录" })
+    .getByRole("treeitem", { name: "E2E provider", exact: true })
     .click();
   const panel = page.getByRole("region", { name: "模型服务设置" });
   const name = panel.getByRole("textbox", {
@@ -182,7 +191,7 @@ test("keeps inputs when the saved configuration advances or the object is remove
   await expect(panel.getByRole("alert")).toContainText("配置已过期");
   await expect(name).toHaveValue("My draft");
   await expect(
-    panel.getByRole("button", { name: "保存 Provider" }),
+    page.getByRole("main").getByRole("button", { name: "保存 Provider" }),
   ).toBeDisabled();
   await name.fill("E2E provider");
   const newest = await api.patch(providerPath, {
@@ -203,7 +212,10 @@ test("keeps inputs when the saved configuration advances or the object is remove
   await expect(name).toHaveValue("E2E provider");
   await getActivityButton(page, "笔记").click();
   await expect(panel).toBeVisible();
-  await panel.getByRole("button", { name: "放弃修改" }).click();
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "放弃修改" })
+    .click();
   await expect(name).toHaveValue("Newest external provider");
   await name.fill("Keep removed input");
   // Delete a separate unreferenced provider, preserving valid Profile relationships.
@@ -220,11 +232,14 @@ test("keeps inputs when the saved configuration advances or the object is remove
     },
   });
   expect(created.ok()).toBe(true);
-  await panel.getByRole("button", { name: "放弃修改" }).click();
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "放弃修改" })
+    .click();
   await page.getByRole("button", { name: "刷新设置状态", exact: true }).click();
   await page
-    .locator(".settings-context")
-    .getByRole("button", { name: "Temporary provider", exact: true })
+    .getByRole("tree", { name: "设置目录" })
+    .getByRole("treeitem", { name: "Temporary provider", exact: true })
     .click();
   await name.fill("Retain deleted input");
   const createdState = await created.json();
@@ -240,12 +255,15 @@ test("keeps inputs when the saved configuration advances or the object is remove
   await expect(name).toHaveValue("Retain deleted input");
   await expect(
     page
-      .locator('[data-region-header="main"]')
-      .getByRole("heading", { name: "Provider 已移除" }),
+      .locator("main > div:first-child > section > header")
+      .getByRole("radio", { name: "Provider 已移除" }),
   ).toBeVisible();
   await getActivityButton(page, "日记").click();
   await expect(panel).toBeVisible();
-  await panel.getByRole("button", { name: "放弃修改" }).click();
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "放弃修改" })
+    .click();
   await getActivityButton(page, "日记").click();
   await expect(page.getByRole("region", { name: "日记编辑" })).toBeVisible();
 });
@@ -253,9 +271,9 @@ test("keeps inputs when the saved configuration advances or the object is remove
 test("creates a Provider directly from its directory group and selects its saved identity", async ({
   page,
 }) => {
-  const context = page.locator(".settings-context");
+  const context = page.getByRole("tree", { name: "设置目录" });
   await context
-    .getByRole("button", { name: "新建 Provider", exact: true })
+    .getByRole("treeitem", { name: "新建 Provider", exact: true })
     .click();
   const panel = page.getByRole("region", { name: "模型服务设置" });
   const name = panel.getByRole("textbox", {
@@ -263,16 +281,17 @@ test("creates a Provider directly from its directory group and selects its saved
     exact: true,
   });
   await name.fill("Local directory provider");
-  await panel
+  await page
+    .getByRole("main")
     .getByRole("button", { name: "创建 Provider", exact: true })
     .focus();
   await page.keyboard.press("Enter");
   await expect(
-    context.getByRole("button", {
+    context.getByRole("treeitem", {
       name: "Local directory provider",
       exact: true,
     }),
-  ).toHaveAttribute("aria-current", "page");
+  ).toHaveAttribute("aria-selected", "true");
   await expect(
     page
       .getByRole("region", { name: "设置状态" })
@@ -290,7 +309,7 @@ test("creates a Provider directly from its directory group and selects its saved
     .getByRole("button", { name: "确认删除 Provider", exact: true })
     .click();
   await expect(
-    context.getByRole("button", {
+    context.getByRole("treeitem", {
       name: "Local directory provider",
       exact: true,
     }),

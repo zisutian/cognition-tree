@@ -1,9 +1,8 @@
 import { expect } from "@playwright/test";
 import type { RepositoryCatalogDto } from "../../contracts/workspace/types";
-import {
-  appContextDefaultWidth,
-  appResizeKeyboardStep,
-} from "../../presentation/ui/workbench/frameResize";
+import { defaultDesignConfig } from "compact-ui";
+const appContextDefaultWidth = defaultDesignConfig.layout.context.default;
+const appResizeKeyboardStep = defaultDesignConfig.metrics.resizeStep;
 import { removeOtherWorkbenchRepositories } from "../support/contentOperations";
 import { test } from "../support/e2eTest";
 import {
@@ -72,8 +71,8 @@ test.describe("repository management", () => {
       await page.getByRole("button", { name: "创建仓库", exact: true }).click();
       await expect(
         page
-          .locator('[data-region-header="main"]')
-          .getByRole("heading", { name: "提交已确认", exact: true }),
+          .locator("main > div:first-child > section > header")
+          .getByRole("radio", { name: "提交已确认", exact: true }),
       ).toBeVisible();
       const refresh = page.getByRole("button", {
         name: "刷新仓库目录",
@@ -95,8 +94,8 @@ test.describe("repository management", () => {
       await page.getByRole("button", { name: "创建仓库", exact: true }).click();
       await expect(
         page
-          .locator('[data-region-header="main"]')
-          .getByRole("heading", { name: "恢复后创建", exact: true }),
+          .locator("main > div:first-child > section > header")
+          .getByRole("radio", { name: "恢复后创建", exact: true }),
       ).toBeVisible();
       expect(mutations).toBe(2);
       const actual = (await api
@@ -118,7 +117,7 @@ test.describe("repository management", () => {
   }) => {
     await openWorkbench(page, repositoryId);
     const contextResize = page.getByRole("separator", {
-      name: "调整上下文区宽度",
+      name: "调整上下文宽度",
     });
     const firstWidth = Number(
       await contextResize.getAttribute("aria-valuenow"),
@@ -127,7 +126,9 @@ test.describe("repository management", () => {
     await contextResize.focus();
     await contextResize.press("ArrowRight");
     await getActivityButton(page, "仓库").click();
-    const localRepositoryGroup = page.getByRole("region", { name: "本地" });
+    const localRepositoryGroup = page.getByRole("complementary", {
+      name: "上下文区域",
+    });
     const createRepositoryButton = localRepositoryGroup.getByRole("button", {
       name: "新建仓库",
     });
@@ -145,13 +146,15 @@ test.describe("repository management", () => {
     );
     await expect(
       page
-        .locator(".app-main-content")
-        .getByRole("heading", { name: "第二仓库" }),
+        .locator("main > div:first-child")
+        .getByRole("radio", { name: "第二仓库", exact: true }),
     ).toBeVisible();
     await getActivityButton(page, "笔记").click();
     await expect(page.getByLabel("笔记编辑")).toBeVisible();
     await expect(
-      page.locator(".app-context").getByTitle("未命名笔记", { exact: true }),
+      page
+        .locator("aside[aria-label='上下文区域']")
+        .getByTitle("未命名笔记", { exact: true }),
     ).toBeVisible();
     await expect(contextResize).toHaveAttribute(
       "aria-valuenow",
@@ -159,24 +162,20 @@ test.describe("repository management", () => {
     );
 
     await getActivityButton(page, "仓库").click();
-    const activeRepository = page.locator(
-      '[data-repository-id][aria-current="page"]',
-    );
-    const createdRepositoryId =
-      await activeRepository.getAttribute("data-repository-id");
-
-    expect(createdRepositoryId).toMatch(
-      /^repository-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
-    await expect(activeRepository).toHaveAttribute("title", "第二仓库");
+    const activeRepository = page
+      .getByRole("tree", { name: "仓库目录" })
+      .getByRole("treeitem", { name: "第二仓库", exact: true });
+    await expect(activeRepository.getByLabel("当前仓库")).toBeVisible();
     await openRepositoryFromContext(page, repositoryId);
-    await expect(getActivityButton(page, "仓库")).toHaveAttribute(
+    await expect(getActivityButton(page, "笔记")).toHaveAttribute(
       "aria-current",
       "page",
     );
     await getActivityButton(page, "笔记").click();
     await expect(
-      page.locator(".app-context").getByTitle("Alpha", { exact: true }),
+      page
+        .locator("aside[aria-label='上下文区域']")
+        .getByTitle("Alpha", { exact: true }),
     ).toBeVisible();
     await expect(contextResize).toHaveAttribute(
       "aria-valuenow",
@@ -248,7 +247,9 @@ test.describe("repository management", () => {
 
     await openWorkbench(page, repositoryId);
     await expect(
-      page.locator(".app-context").getByTitle("Alpha", { exact: true }),
+      page
+        .locator("aside[aria-label='上下文区域']")
+        .getByTitle("Alpha", { exact: true }),
     ).toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(3);
     const initialProbe = await readProbe();
@@ -257,7 +258,9 @@ test.describe("repository management", () => {
     await openRepositoryFromContext(page, rawRepositoryId);
     await getActivityButton(page, "笔记").click();
     await expect(
-      page.locator(".app-context").getByTitle("原始笔记", { exact: true }),
+      page
+        .locator("aside[aria-label='上下文区域']")
+        .getByTitle("原始笔记", { exact: true }),
     ).toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(3);
     await expect
@@ -272,7 +275,9 @@ test.describe("repository management", () => {
     await openRepositoryFromContext(page, repositoryId);
     await getActivityButton(page, "笔记").click();
     await expect(
-      page.locator(".app-context").getByTitle("Alpha", { exact: true }),
+      page
+        .locator("aside[aria-label='上下文区域']")
+        .getByTitle("Alpha", { exact: true }),
     ).toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(3);
     await expect
@@ -327,6 +332,10 @@ test.describe("repository management", () => {
     ).toBeVisible();
 
     await openRepositoryFromContext(page, rawRepositoryId);
+    await getActivityButton(page, "仓库").click();
+    await page
+      .getByRole("treeitem", { name: "原始文本仓库", exact: true })
+      .click();
     await expect(
       locationRow("服务端路径").getByText(rawRepository.location.serverPath, {
         exact: true,
@@ -345,7 +354,9 @@ test.describe("repository management", () => {
     ).toHaveCount(0);
     await getActivityButton(page, "笔记").click();
     await expect(
-      page.locator(".app-context").getByTitle("原始笔记", { exact: true }),
+      page
+        .locator("aside[aria-label='上下文区域']")
+        .getByTitle("原始笔记", { exact: true }),
     ).toBeVisible();
   });
 
@@ -379,22 +390,23 @@ test.describe("repository management", () => {
         await problemsHeader.click();
       }
       const repositoryProblem = problems
-        .locator(".ui-tool-list-row-target")
+        .getByRole("button", { name: /打开问题：/ })
         .filter({ hasText: "仓库格式不受支持，需要手工删除该目录。" });
-      const issueRow = page.locator(
-        `[data-repository-issue-id="${unsupportedRepositoryId}"]`,
-      );
+      const issueRow = page
+        .getByRole("tree", { name: "仓库目录" })
+        .getByRole("treeitem", { name: /default.*故障/i });
       const repositoryPanel = page
-        .locator(".app-main-content")
+        .locator("main > div:first-child")
         .getByRole("region", { name: "仓库", exact: true });
-      const repositoryStatus = page.getByRole("region", {
-        name: "仓库状态",
+      const repositoryStatus = page.getByRole("complementary", {
+        name: "详情区域",
       });
 
       await expect(repositoryProblem).toBeVisible();
       await getActivityButton(page, "仓库").click();
       await repositoryProblem.click();
-      await expect(issueRow).toBeFocused();
+      await expect(page.getByRole("tree", { name: "仓库目录" })).toBeFocused();
+      await expect(issueRow).toHaveAttribute("aria-selected", "true");
       await expect(issueRow).toContainText("故障");
       await expect(repositoryPanel).toContainText("此格式仅支持手动删除");
       await expect(repositoryStatus).toContainText(
@@ -417,7 +429,9 @@ test.describe("repository management", () => {
       await expect(repositoryProblem).toBeVisible();
       await getActivityButton(page, "仓库").click();
       await expect(issueRow).toBeVisible();
-      await expect(issueRow).not.toBeFocused();
+      await expect(
+        page.getByRole("tree", { name: "仓库目录" }),
+      ).not.toBeFocused();
 
       await removeE2ELocalRepository(repositoryRoot, unsupportedRepositoryId);
       await repositoryPanel.getByRole("button", { name: "重新检查" }).click();
@@ -466,14 +480,14 @@ test.describe("repository management", () => {
         .fill(remainingRepository?.label ?? "");
       await confirmation.getByRole("button", { name: "永久删除" }).click();
       const repositoryPanel = page
-        .locator(".app-main-content")
+        .locator("main > div:first-child")
         .getByRole("region", { name: "仓库", exact: true });
-      const repositoryStatus = page.getByRole("region", {
-        name: "仓库状态",
+      const repositoryStatus = page.getByRole("complementary", {
+        name: "详情区域",
       });
-      const issueRow = page.locator(
-        `[data-repository-issue-id="${unsupportedRepositoryId}"]`,
-      );
+      const issueRow = page
+        .getByRole("tree", { name: "仓库目录" })
+        .getByRole("treeitem", { name: /default.*故障/i });
 
       await expect(repositoryPanel).toBeVisible();
       await expect(

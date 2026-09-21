@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { Button } from "compact-ui";
 import contentStyles from "./Content.module.css";
 import { createClassNames } from "./classNames.ts";
 const cx = createClassNames(contentStyles);
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-import { Button } from "./Button.tsx";
 
 /** The caller owns the confirmation target and the actual operation. */
 export function ConfirmAction({

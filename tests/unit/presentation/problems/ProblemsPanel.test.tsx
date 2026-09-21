@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../../support/presentation/render";
 import { describe, expect, it } from "vitest";
 import type { UiWorkbenchDiagnostic } from "../../../../application/workspace/projection/viewDiagnostics";
 import type {
@@ -6,7 +6,10 @@ import type {
   UiWorkbenchRepositoryProblem,
 } from "../../../../application/workbench/problems/workbenchProblems";
 import type { JournalDiagnostic } from "../../../../application/journal/index";
-import { ProblemsPanel } from "../../../../presentation/ui/problems/ProblemsPanel";
+import {
+  ProblemsPanel,
+  initialProblemsFilters,
+} from "../../../../presentation/ui/problems/ProblemsPanel";
 
 const diagnostic: UiWorkbenchDiagnostic = {
   code: "unknown-syntax",
@@ -68,9 +71,10 @@ describe("ProblemsPanel", () => {
   it("renders one ungrouped dense list and its navigation metadata", () => {
     const markup = renderToStaticMarkup(
       <ProblemsPanel
+        filters={initialProblemsFilters}
+        onFiltersChange={() => {}}
         expanded
         onOpen={() => undefined}
-        onToggle={() => undefined}
         view={{
           errorCount: 1,
           problems: [diagnostic],
@@ -88,9 +92,10 @@ describe("ProblemsPanel", () => {
   it("renders repository problems in the same dense list", () => {
     const markup = renderToStaticMarkup(
       <ProblemsPanel
+        filters={initialProblemsFilters}
+        onFiltersChange={() => {}}
         expanded
         onOpen={() => undefined}
-        onToggle={() => undefined}
         view={{
           errorCount: 1,
           problems: [repositoryProblem],
@@ -107,11 +112,12 @@ describe("ProblemsPanel", () => {
   it("renders a dismissible operational error", () => {
     const markup = renderToStaticMarkup(
       <ProblemsPanel
+        filters={initialProblemsFilters}
+        onFiltersChange={() => {}}
         expanded
         onCopyRequestId={() => undefined}
         onDismiss={() => undefined}
         onOpen={() => undefined}
-        onToggle={() => undefined}
         view={{
           errorCount: 1,
           problems: [operationalProblem],
@@ -133,9 +139,10 @@ describe("ProblemsPanel", () => {
   it("labels Journal diagnostics without treating them as workspace references", () => {
     const markup = renderToStaticMarkup(
       <ProblemsPanel
+        filters={initialProblemsFilters}
+        onFiltersChange={() => {}}
         expanded
         onOpen={() => undefined}
-        onToggle={() => undefined}
         view={{
           errorCount: 0,
           problems: [journalProblem],
@@ -152,9 +159,10 @@ describe("ProblemsPanel", () => {
   it("shows the single-line ready empty state", () => {
     const markup = renderToStaticMarkup(
       <ProblemsPanel
+        filters={initialProblemsFilters}
+        onFiltersChange={() => {}}
         expanded
         onOpen={() => undefined}
-        onToggle={() => undefined}
         view={{ errorCount: 0, problems: [], status: "ready", warningCount: 0 }}
       />,
     );

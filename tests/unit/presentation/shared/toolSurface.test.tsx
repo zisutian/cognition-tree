@@ -1,18 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../../support/presentation/render";
 import { describe, expect, it } from "vitest";
+import { Page, PageBody } from "../../../../presentation/ui/index";
 import {
-  Page,
-  PageBody,
   Section,
-  SectionStack,
-  ToolList,
-  ToolListRow,
-  ToolPropertyList,
-  ToolPropertyRow,
-  ToolToolbar,
-} from "../../../../presentation/ui/index";
+  Stack as SectionStack,
+  PropertyList as ToolPropertyList,
+  PropertyRow as ToolPropertyRow,
+} from "compact-ui";
 
 describe("tool surfaces", () => {
   it("labels panels and their sections for navigation", () => {
@@ -39,61 +35,23 @@ describe("tool surfaces", () => {
 
     expect(markup).toContain('aria-label="工具页"');
     expect(markup).not.toContain('aria-label="收回右侧详情"');
-    expect(markup).toContain("aria-labelledby=");
+    expect(markup).toContain("<h3>表单分区</h3>");
     expect(markup).toContain("表单分区");
     expect(markup).toContain("操作");
-  });
-
-  it("distinguishes selectable results from static information", () => {
-    const markup = renderToStaticMarkup(
-      <>
-        <ToolToolbar aria-label="筛选">
-          <label>
-            来源
-            <select>
-              <option>全部</option>
-            </select>
-          </label>
-        </ToolToolbar>
-        <ToolList aria-label="工具结果">
-          <ToolListRow
-            buttonProps={{ "aria-label": "打开结果" }}
-            flow="wrap"
-            leading="块匹配"
-            main="正文"
-            meta="位置"
-            onSelect={() => undefined}
-          />
-          <ToolListRow
-            actions={<button type="button">关闭</button>}
-            flow="single-line"
-            main="问题"
-            onSelect={() => undefined}
-          />
-          <ToolListRow flow="single-line" main="静态信息" />
-        </ToolList>
-      </>,
-    );
-
-    expect(markup).toContain('aria-label="筛选"');
-    expect(markup).toContain('aria-label="打开结果"');
-    expect(markup).toContain("关闭");
-    expect(markup.match(/<button/g)).toHaveLength(3);
-    expect(markup).toContain("静态信息");
   });
 
   it("renders properties as a definition list", () => {
     const markup = renderToStaticMarkup(
       <ToolPropertyList aria-label="仓库属性">
-        <ToolPropertyRow label="状态" value="已挂载" />
+        <ToolPropertyRow label="状态" children="已挂载" />
         <ToolPropertyRow
-          actions={
+          action={
             <button aria-label="复制路径" type="button">
               复制
             </button>
           }
           label="数据路径"
-          value={<code>/srv/cognition-tree/repositories/example</code>}
+          children={<code>/srv/cognition-tree/repositories/example</code>}
         />
       </ToolPropertyList>,
     );

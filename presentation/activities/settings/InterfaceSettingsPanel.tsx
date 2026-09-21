@@ -1,14 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  designMetrics,
-  FieldRow,
-  FormLayout,
-  InputControl,
-  Page,
-  PageBody,
-  Section,
-} from "../../ui/index.ts";
+import { FieldRow, FormLayout, InputControl, Section } from "compact-ui";
+
+import { uiConfig, Page, PageBody } from "../../ui/index.ts";
 
 export type SettingsWorkbenchPreferences = {
   contextWidth: number;
@@ -23,14 +17,14 @@ export function InterfaceSettingsPanel({
   return (
     <Page aria-label="界面设置">
       <PageBody>
-        <Section aria-label="界面选项">
+        <Section>
           <FormLayout layout="stacked">
             <FieldRow fieldId="settings-context-width" label="左侧栏宽度">
               {(accessibility) => (
                 <InputControl
                   {...accessibility}
-                  max={designMetrics.context.max}
-                  min={designMetrics.context.min}
+                  max={uiConfig.layout.context.max}
+                  min={uiConfig.layout.context.min}
                   onChange={(event) => {
                     const width = event.currentTarget.valueAsNumber;
 
