@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { StatusText as StatusBadge } from "compact-ui";
-import { Button, EmptyState } from "compact-ui";
+import { Button, EmptyState, ManagementList, ManagementRow } from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 import agentStyles from "./agent.module.css";
 const cx = createClassNames(agentStyles);
@@ -14,7 +14,7 @@ import {
   describePage,
 } from "../../navigation/index.ts";
 import type { AgentApplication } from "../../../application/agent/index.ts";
-import { Page, PageBody, useFeedback } from "../../ui/index.ts";
+import { FormError, Page, PageBody, useFeedback } from "../../ui/index.ts";
 
 import {
   agentSessionStateLabels,
@@ -134,28 +134,28 @@ export function AgentConversationPanel({
         }}
       >
         {session.messages.length === 0 ? (
-          <p className={cx("agent-muted")}>没有消息</p>
+          <EmptyState title="没有消息" />
         ) : (
-          <ol className={cx("agent-message-list")}>
+          <ManagementList label="会话消息">
             {session.messages.map((message) => (
-              <li
-                className={cx("agent-message")}
-                data-message-id={message.id}
-                data-message-role={message.role}
+              <ManagementRow
                 key={message.id}
-              >
-                <span>{message.role === "user" ? "你" : "Agent"}</span>
-                <p>{message.content || "…"}</p>
-              </li>
+                title={message.role === "user" ? "你" : "Agent"}
+                description={
+                  <span
+                    className={cx("agent-message-content")}
+                    data-message-id={message.id}
+                    data-message-role={message.role}
+                  >
+                    {message.content || "…"}
+                  </span>
+                }
+              />
             ))}
-          </ol>
+          </ManagementList>
         )}
       </PageBody>
-      {session.problem ? (
-        <p className={cx("agent-error")} role="alert">
-          {session.problem}
-        </p>
-      ) : null}
+      <FormError message={session.problem} />
     </Page>
   );
 }

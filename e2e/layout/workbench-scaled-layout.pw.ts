@@ -60,3 +60,76 @@ test("keeps forms, narrow regions and anchored menus usable in a scaled desktop 
     page.getByRole("button", { name: "图谱设置", exact: true }),
   ).toBeFocused();
 });
+
+test("syntax fields and color choices remain accessible in a narrow scaled region", async ({
+  api,
+  page,
+}, testInfo) => {
+  await seedWorkbenchRepository(api, "scaled-syntax");
+  await openWorkbench(page, "scaled-syntax");
+  await getActivityButton(page, "语法").click();
+  for (let index = 0; index < 6; index++) {
+    await page
+      .getByRole("separator", { name: "调整上下文宽度" })
+      .press("ArrowRight");
+  }
+  const panel = page.getByRole("region", { name: "语法配置", exact: true });
+  const bounds = (await panel.boundingBox())!;
+  for (const field of await panel.getByRole("textbox").all()) {
+    await field.scrollIntoViewIfNeeded();
+    const box = (await field.boundingBox())!;
+    expect(box.width).toBeGreaterThan(40);
+    expect(box.x).toBeGreaterThanOrEqual(bounds.x);
+    expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width);
+  }
+  const trigger = page.getByRole("button", { name: /^首行标题背景色:/ });
+  await trigger.click();
+  const menu = page.getByRole("dialog", {
+    name: "首行标题背景色",
+    exact: true,
+  });
+  await expect(menu).toBeInViewport();
+  const box = (await menu.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(1024);
+  expect(box.y + box.height).toBeLessThanOrEqual(576);
+  const gray = menu.getByRole("radio", { name: "灰色", exact: true });
+  await gray.focus();
+  await gray.press("Space");
+  await expect(menu).toHaveCount(0);
+  await expect(trigger).toHaveAccessibleName("首行标题背景色: 灰色");
+  await expect(trigger).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    1024,
+  );
+  await page.screenshot({ path: testInfo.outputPath("scaled-syntax.png") });
+});
+
+test("paired structure content stacks when the main region is narrow", async ({
+  api,
+  page,
+}, testInfo) => {
+  await seedWorkbenchRepository(api, "scaled-structure");
+  await openWorkbench(page, "scaled-structure");
+  await page.getByRole("treeitem", { name: "结构", exact: true }).click();
+  for (let index = 0; index < 20; index++) {
+    await page
+      .getByRole("separator", { name: "调整上下文宽度" })
+      .press("ArrowRight");
+  }
+  const source = page.getByRole("region", { name: /^源笔记 ·/ });
+  const target = page.getByRole("region", { name: /^目标笔记 ·/ });
+  await expect(source).toBeVisible();
+  await expect(target).toBeVisible();
+  const sourceBox = (await source.boundingBox())!;
+  const targetBox = (await target.boundingBox())!;
+  expect(targetBox.y).toBeGreaterThanOrEqual(sourceBox.y + sourceBox.height);
+  expect(targetBox.x).toBe(sourceBox.x);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    1024,
+  );
+  await expect(
+    page.getByRole("button", { name: "交换源笔记和目标笔记" }),
+  ).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("scaled-structure.png") });
+});

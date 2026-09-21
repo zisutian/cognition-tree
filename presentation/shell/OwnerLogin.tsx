@@ -1,14 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Stack } from "compact-ui";
-import { Button, FieldRow, FormActions, InputControl } from "compact-ui";
+import {
+  Button,
+  EmptyState,
+  FieldRow,
+  FormActions,
+  FormLayout,
+  InputControl,
+  Panel,
+  Stack,
+} from "compact-ui";
 
 import { useState, type FormEvent } from "react";
 import type {
   OwnerAuthenticationController,
   OwnerAuthenticationState,
 } from "../../application/system/index.ts";
-import { FormError, PageBody, useExclusiveAsyncAction } from "../ui/index.ts";
+import { FormError, useExclusiveAsyncAction } from "../ui/index.ts";
 import styles from "./OwnerLogin.module.css";
 
 export function OwnerLogin({
@@ -33,43 +41,44 @@ export function OwnerLogin({
   ) {
     return (
       <main className={styles.login} aria-busy="true">
-        正在确认访问权限…
+        <EmptyState title="正在确认访问权限…" />
       </main>
     );
   }
   return (
     <main className={styles.login}>
       <div className={styles.content}>
-        <PageBody layout="form">
-          <h1 className={styles.title}>登录认知树</h1>
-          <FormError message={state.errorMessage} />
-          <form aria-busy={loginAction.busy} onSubmit={submit}>
-            <Stack>
-              <FieldRow fieldId="owner-secret" label="所有者密钥">
-                {(accessibility) => (
-                  <InputControl
-                    {...accessibility}
-                    autoComplete="current-password"
+        <Panel title="登录认知树" layout="form">
+          <Stack>
+            <FormError message={state.errorMessage} />
+            <div aria-busy={loginAction.busy}>
+              <FormLayout onSubmit={submit}>
+                <FieldRow fieldId="owner-secret" label="所有者密钥">
+                  {(accessibility) => (
+                    <InputControl
+                      {...accessibility}
+                      autoComplete="current-password"
+                      disabled={loginAction.busy}
+                      onChange={(event) => setSecret(event.currentTarget.value)}
+                      required
+                      type="password"
+                      value={secret}
+                    />
+                  )}
+                </FieldRow>
+                <FormActions>
+                  <Button
                     disabled={loginAction.busy}
-                    onChange={(event) => setSecret(event.currentTarget.value)}
-                    required
-                    type="password"
-                    value={secret}
-                  />
-                )}
-              </FieldRow>
-              <FormActions>
-                <Button
-                  disabled={loginAction.busy}
-                  type="submit"
-                  variant="normal"
-                >
-                  登录
-                </Button>
-              </FormActions>
-            </Stack>
-          </form>
-        </PageBody>
+                    type="submit"
+                    variant="normal"
+                  >
+                    登录
+                  </Button>
+                </FormActions>
+              </FormLayout>
+            </div>
+          </Stack>
+        </Panel>
       </div>
     </main>
   );

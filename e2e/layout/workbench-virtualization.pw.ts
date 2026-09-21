@@ -88,6 +88,33 @@ test.describe("virtual collection scrolling", () => {
     expect(await directoryTree.getByRole("treeitem").count()).toBeLessThan(100);
   });
 
+  test("structure operations keep long content in a scrollable viewport", async ({
+    structureRepository,
+    page,
+  }) => {
+    await openWorkbench(page, structureRepository);
+    await page.getByRole("treeitem", { name: "结构", exact: true }).click();
+    const panel = page.getByRole("region", { name: "结构操作", exact: true });
+    const source = panel.getByRole("region", { name: /^源笔记 ·/ });
+    const scroll = panel.locator('[data-page-layout="canvas"]');
+    await expect(source).toBeVisible();
+    await expect
+      .poll(() =>
+        scroll.evaluate((element) => getComputedStyle(element).overflowY),
+      )
+      .toBe("auto");
+    await scroll.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(
+      source.getByTitle("组分: Block 599", { exact: true }),
+    ).toBeInViewport();
+    expect(await source.getByRole("treeitem").count()).toBeLessThan(100);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollHeight),
+    ).toBe(720);
+  });
+
   test("virtualizes a 600-block structure and reveals its final row", async ({
     structureRepository,
     page,

@@ -228,7 +228,7 @@ test.describe("Journal activity flows", () => {
     await page.keyboard.press("Enter");
     await page.keyboard.insertText("\t: [[Missing Journal]]");
 
-    const problems = page.locator(".problems-panel");
+    const problems = page.getByRole("region", { name: "问题", exact: true });
     const unresolvedProblem = problems
       .getByRole("button", { name: /打开问题：/ })
       .filter({ hasText: "无法解析日记引用“Missing Journal”" });

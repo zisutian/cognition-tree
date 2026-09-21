@@ -1,12 +1,11 @@
+import { EmptyState } from "compact-ui";
 import { ContextMenu } from "compact-ui";
 import type { ComponentProps } from "react";
 type ContextMenuPosition = ComponentProps<typeof ContextMenu>["position"];
-import { Section } from "compact-ui";
+import { Section, Stack } from "compact-ui";
 import { useEffect, useMemo, useState } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
-import { createClassNames, useFeedback } from "../../../ui/index.ts";
-import structureStyles from "./structure.module.css";
-const cx = createClassNames(structureStyles);
+import { useFeedback } from "../../../ui/index.ts";
 
 import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick.tsx";
 import {
@@ -81,9 +80,7 @@ export function StructureOperationStructureView({
   };
 
   return (
-    <div
-      className={cx("structure-operation-grid structure-operation-grid-single")}
-    >
+    <Stack>
       <section
         aria-label={`笔记结构 · ${view.structureNote?.title ?? "未选择"}`}
       >
@@ -133,7 +130,7 @@ export function StructureOperationStructureView({
               ) : null}
             </>
           ) : (
-            <p className={cx("ui-muted")}>当前笔记结构没有可调整块。</p>
+            <EmptyState title="当前笔记结构没有可调整块。" />
           )}
         </Section>
       </section>
@@ -163,6 +160,6 @@ export function StructureOperationStructureView({
         onClose={() => setMoveSourceLineNumber(null)}
         onMove={dropLine}
       />
-    </div>
+    </Stack>
   );
 }

@@ -1,22 +1,8 @@
-import { ChoiceGroup } from "compact-ui";
-import {
-  ChevronDown,
-  ChevronRight,
-  FileInput,
-  FileOutput,
-  FileText,
-  Folder,
-  GitBranch,
-} from "lucide-react";
+import { ChoiceGroup, Stack } from "compact-ui";
+import { FileInput, FileOutput, FileText, GitBranch } from "lucide-react";
 import { useState } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
-import {
-  SymbolSlot,
-  createClassNames,
-  NoteTree,
-  type TreeNode,
-} from "../../../ui/index.ts";
-const cx = createClassNames();
+import { SymbolSlot, NoteTree, type TreeNode } from "../../../ui/index.ts";
 
 type StructureOperationDirectoryMode = "betweenNotes" | "withinNote";
 type StructureOperationNoteStatus = "source" | "structure" | "target" | "";
@@ -122,45 +108,22 @@ export function StructureOperationContext({
       targetNoteId: view.targetNoteId,
     });
   };
-  const renderNodeLeading = (
-    node: TreeNode,
-    state: { hasChildren: boolean; isCollapsed: boolean },
-  ) => {
-    if (node.kind === "folder") {
-      return (
-        <>
-          {state.hasChildren ? (
-            state.isCollapsed ? (
-              <ChevronRight aria-hidden="true" size={13} />
-            ) : (
-              <ChevronDown aria-hidden="true" size={13} />
-            )
-          ) : (
-            <span aria-hidden="true" className={cx("ui-tree-toggle-spacer")} />
-          )}
-          <Folder aria-hidden="true" size={13} />
-        </>
-      );
-    }
+  const renderNodeLeading = (node: TreeNode) => {
+    if (node.kind === "folder") return null;
 
     const status = getNoteStatus(node);
 
-    return (
-      <>
-        <span aria-hidden="true" className={cx("ui-tree-toggle-spacer")} />
-        {status ? (
-          <StructureOperationDirectoryStatusIcon status={status} />
-        ) : (
-          <FileText aria-hidden="true" size={13} />
-        )}
-      </>
+    return status ? (
+      <StructureOperationDirectoryStatusIcon status={status} />
+    ) : (
+      <FileText aria-hidden="true" size={13} />
     );
   };
   const activeNoteId =
     view.mode === "withinNote" ? view.structureNoteId : view.sourceNoteId;
 
   return (
-    <div className={cx("activity-context-content")}>
+    <Stack fill>
       <ChoiceGroup
         ariaLabel="结构操作模式"
         mode="single"
@@ -184,6 +147,6 @@ export function StructureOperationContext({
         onSelectNote={selectNote}
         onToggleFolder={toggleFolder}
       />
-    </div>
+    </Stack>
   );
 }

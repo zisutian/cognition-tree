@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Button } from "compact-ui";
-import contentStyles from "./Content.module.css";
-import { createClassNames } from "./classNames.ts";
-const cx = createClassNames(contentStyles);
+import { Button, Toolbar } from "compact-ui";
 
 /** The caller owns the confirmation target and the actual operation. */
 export function ConfirmAction({
@@ -22,7 +19,7 @@ export function ConfirmAction({
   onRequest(): void;
 }) {
   return confirming ? (
-    <span className={cx("ui-actions")} role="group" aria-label={`确认${label}`}>
+    <Toolbar label={`确认${label}`}>
       <Button
         disabled={disabled}
         onClick={onConfirm}
@@ -34,7 +31,7 @@ export function ConfirmAction({
       <Button disabled={disabled} onClick={onCancel} type="button">
         取消
       </Button>
-    </span>
+    </Toolbar>
   ) : (
     <Button
       disabled={disabled}

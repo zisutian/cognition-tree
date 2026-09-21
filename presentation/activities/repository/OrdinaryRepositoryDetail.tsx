@@ -1,11 +1,10 @@
+import { FormActions } from "compact-ui";
 import { Button, Section } from "compact-ui";
 import { RefreshCw } from "lucide-react";
 import type {
   RepositoryOption,
   RepositoryViewModel,
 } from "../../../application/repository/index.ts";
-import { createClassNames } from "../../ui/index.ts";
-const cx = createClassNames();
 
 import { RepositoryConflictActions } from "./RepositoryConflictResolution.tsx";
 import { RepositoryDangerZone } from "./RepositoryDangerZone.tsx";
@@ -38,7 +37,7 @@ export function OrdinaryRepositoryDetail({
   return (
     <>
       <Section>
-        <div className={cx("ui-actions")}>
+        <FormActions>
           <Button
             disabled={busy}
             onClick={() => onRunAction(() => onOpen(repository.id))}
@@ -47,7 +46,7 @@ export function OrdinaryRepositoryDetail({
           >
             {active ? "继续编辑笔记" : "打开仓库"}
           </Button>
-        </div>
+        </FormActions>
       </Section>
       {active && view.activeConflictResolution ? (
         <RepositoryConflictActions
@@ -58,7 +57,7 @@ export function OrdinaryRepositoryDetail({
       ) : null}
       {recoveryAction || !active ? (
         <Section title="操作">
-          <div className={cx("ui-actions")}>
+          <FormActions>
             {recoveryAction ? (
               <Button
                 disabled={busy}
@@ -81,7 +80,7 @@ export function OrdinaryRepositoryDetail({
                 重新检查仓库
               </Button>
             ) : null}
-          </div>
+          </FormActions>
         </Section>
       ) : null}
       <RepositoryDangerZone

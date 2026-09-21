@@ -1,12 +1,16 @@
-import { Button, InputControl } from "compact-ui";
+import {
+  Button,
+  InputControl,
+  FormActions,
+  FormLayout,
+  Stack,
+  StatusText,
+} from "compact-ui";
 import { Plus, Trash2 } from "lucide-react";
 import type { AvailableSyntaxViewModel } from "../../../application/syntax/index.ts";
 import { createSyntaxRuleFieldId } from "../../../application/syntax/index.ts";
-import { createClassNames } from "../../ui/index.ts";
-import syntaxStyles from "./syntax.module.css";
-const cx = createClassNames(syntaxStyles);
 
-import { SyntaxRuleSpacer } from "./SyntaxRuleLayout.tsx";
+import { SyntaxRuleField } from "./SyntaxRuleLayout.tsx";
 import { TonePicker } from "./TonePicker.tsx";
 
 function InlineRuleRow({
@@ -24,122 +28,130 @@ function InlineRuleRow({
   );
 
   return (
-    <div
-      className={cx("syntax-rule-row")}
+    <section
       data-syntax-field-id={createSyntaxRuleFieldId("inline", rule.id)}
       tabIndex={-1}
     >
-      <InputControl
-        disabled={!syntax.canMutate}
-        aria-label="名称"
-        sizing="container"
-        data-syntax-field-id={createSyntaxRuleFieldId(
-          "inline",
-          rule.id,
-          "label",
-        )}
-        maxLength={syntax.constraints.label.maxLength}
-        value={rule.label}
-        onChange={(event) =>
-          syntax.actions.updateInline(rule.id, { label: event.target.value })
-        }
-      />
-      {rule.kind === "paired" ? (
-        <div className={cx("syntax-pair-fields")}>
-          {triggerProtected ? (
-            <>
-              <span className={cx("syntax-readonly")}>{rule.open}</span>
-              <span className={cx("syntax-readonly")}>{rule.close}</span>
-            </>
+      <FormLayout>
+        <SyntaxRuleField label="名称">
+          <InputControl
+            disabled={!syntax.canMutate}
+            aria-label="名称"
+            sizing="container"
+            data-syntax-field-id={createSyntaxRuleFieldId(
+              "inline",
+              rule.id,
+              "label",
+            )}
+            maxLength={syntax.constraints.label.maxLength}
+            value={rule.label}
+            onChange={(event) =>
+              syntax.actions.updateInline(rule.id, {
+                label: event.target.value,
+              })
+            }
+          />
+        </SyntaxRuleField>
+        <SyntaxRuleField label="标记">
+          {rule.kind === "paired" ? (
+            <Stack direction="row" gap="tight">
+              {triggerProtected ? (
+                <>
+                  <StatusText>{rule.open}</StatusText>
+                  <StatusText>{rule.close}</StatusText>
+                </>
+              ) : (
+                <>
+                  <InputControl
+                    disabled={!syntax.canMutate}
+                    aria-label="开始"
+                    sizing="container"
+                    data-syntax-field-id={createSyntaxRuleFieldId(
+                      "inline",
+                      rule.id,
+                      "open",
+                    )}
+                    maxLength={syntax.constraints.token.maxCodePoints * 2}
+                    value={rule.open}
+                    onChange={(event) =>
+                      syntax.actions.updateInline(rule.id, {
+                        open: event.target.value,
+                      })
+                    }
+                  />
+                  <InputControl
+                    disabled={!syntax.canMutate}
+                    aria-label="结束"
+                    sizing="container"
+                    data-syntax-field-id={createSyntaxRuleFieldId(
+                      "inline",
+                      rule.id,
+                      "close",
+                    )}
+                    maxLength={syntax.constraints.token.maxCodePoints * 2}
+                    value={rule.close}
+                    onChange={(event) =>
+                      syntax.actions.updateInline(rule.id, {
+                        close: event.target.value,
+                      })
+                    }
+                  />
+                </>
+              )}
+            </Stack>
+          ) : triggerProtected ? (
+            <StatusText>{rule.marker}</StatusText>
           ) : (
-            <>
-              <InputControl
-                disabled={!syntax.canMutate}
-                aria-label="开始"
-                sizing="container"
-                data-syntax-field-id={createSyntaxRuleFieldId(
-                  "inline",
-                  rule.id,
-                  "open",
-                )}
-                maxLength={syntax.constraints.token.maxCodePoints * 2}
-                value={rule.open}
-                onChange={(event) =>
-                  syntax.actions.updateInline(rule.id, {
-                    open: event.target.value,
-                  })
-                }
-              />
-              <InputControl
-                disabled={!syntax.canMutate}
-                aria-label="结束"
-                sizing="container"
-                data-syntax-field-id={createSyntaxRuleFieldId(
-                  "inline",
-                  rule.id,
-                  "close",
-                )}
-                maxLength={syntax.constraints.token.maxCodePoints * 2}
-                value={rule.close}
-                onChange={(event) =>
-                  syntax.actions.updateInline(rule.id, {
-                    close: event.target.value,
-                  })
-                }
-              />
-            </>
+            <InputControl
+              disabled={!syntax.canMutate}
+              aria-label="符号"
+              sizing="container"
+              data-syntax-field-id={createSyntaxRuleFieldId(
+                "inline",
+                rule.id,
+                "marker",
+              )}
+              maxLength={syntax.constraints.token.maxCodePoints * 2}
+              value={rule.marker}
+              onChange={(event) =>
+                syntax.actions.updateInline(rule.id, {
+                  marker: event.target.value,
+                })
+              }
+            />
           )}
-        </div>
-      ) : triggerProtected ? (
-        <span className={cx("syntax-readonly")}>{rule.marker}</span>
-      ) : (
-        <InputControl
-          disabled={!syntax.canMutate}
-          aria-label="符号"
-          sizing="container"
-          data-syntax-field-id={createSyntaxRuleFieldId(
-            "inline",
-            rule.id,
-            "marker",
+        </SyntaxRuleField>
+        <SyntaxRuleField label="角色">
+          <StatusText>{rule.kind === "paired" ? "成对" : "单个"}</StatusText>
+        </SyntaxRuleField>
+        <SyntaxRuleField label="颜色">
+          <TonePicker
+            disabled={!syntax.canMutate}
+            ariaLabel={`${rule.label}颜色`}
+            customToneLabel={syntax.customToneLabel}
+            fieldId={createSyntaxRuleFieldId("inline", rule.id, "tone")}
+            options={syntax.toneOptions}
+            showLabel={false}
+            value={rule.tone}
+            onChange={(tone) => syntax.actions.updateInline(rule.id, { tone })}
+          />
+        </SyntaxRuleField>
+        <FormActions>
+          {isProtected ? null : (
+            <Button
+              disabled={!syntax.canMutate}
+              aria-label="删除行内规则"
+              onClick={() => syntax.actions.removeInline(rule.id)}
+              title="删除"
+              type="button"
+              variant="icon"
+            >
+              <Trash2 aria-hidden="true" size={13} />
+            </Button>
           )}
-          maxLength={syntax.constraints.token.maxCodePoints * 2}
-          value={rule.marker}
-          onChange={(event) =>
-            syntax.actions.updateInline(rule.id, {
-              marker: event.target.value,
-            })
-          }
-        />
-      )}
-      <span className={cx("syntax-readonly")}>
-        {rule.kind === "paired" ? "成对" : "单个"}
-      </span>
-      <TonePicker
-        disabled={!syntax.canMutate}
-        ariaLabel={`${rule.label}颜色`}
-        customToneLabel={syntax.customToneLabel}
-        fieldId={createSyntaxRuleFieldId("inline", rule.id, "tone")}
-        options={syntax.toneOptions}
-        showLabel={false}
-        value={rule.tone}
-        onChange={(tone) => syntax.actions.updateInline(rule.id, { tone })}
-      />
-      <SyntaxRuleSpacer />
-      {isProtected ? (
-        <SyntaxRuleSpacer />
-      ) : (
-        <Button
-          disabled={!syntax.canMutate}
-          aria-label="删除行内规则"
-          onClick={() => syntax.actions.removeInline(rule.id)}
-          title="删除"
-          type="button"
-          variant="icon"
-        >
-          <Trash2 aria-hidden="true" size={13} />
-        </Button>
-      )}
-    </div>
+        </FormActions>
+      </FormLayout>
+    </section>
   );
 }
 
@@ -158,7 +170,7 @@ export function InlineRuleRows({
           syntax={syntax}
         />
       ))}
-      <div className={cx("syntax-rule-actions")}>
+      <FormActions>
         <Button
           disabled={!syntax.canMutate}
           onClick={() => syntax.actions.addInline("paired")}
@@ -177,7 +189,7 @@ export function InlineRuleRows({
           <Plus aria-hidden="true" size={13} />
           单个符号
         </Button>
-      </div>
+      </FormActions>
     </>
   );
 }

@@ -1,5 +1,14 @@
 import { Stack as SectionStack } from "compact-ui";
-import { Button, EmptyState, InputControl, Section } from "compact-ui";
+import {
+  Button,
+  EmptyState,
+  FieldRow,
+  FormLayout,
+  InputControl,
+  Section,
+  StatusText,
+  Toolbar,
+} from "compact-ui";
 import { RotateCcw } from "lucide-react";
 import { useEffect, useRef } from "react";
 import {
@@ -7,15 +16,11 @@ import {
   syntaxFieldIds,
   type SyntaxViewModel,
 } from "../../../application/syntax/index.ts";
-import { createClassNames } from "../../ui/index.ts";
-import syntaxStyles from "./syntax.module.css";
-const cx = createClassNames(syntaxStyles);
 
 import { Page, PageBody } from "../../ui/index.ts";
 
 import { BlockRuleRows, TitleAndRootRows } from "./SyntaxBlockRuleRows.tsx";
 import { InlineRuleRows } from "./SyntaxInlineRuleRows.tsx";
-import { SyntaxRuleHeader } from "./SyntaxRuleLayout.tsx";
 
 export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
   const syntax = view;
@@ -69,8 +74,10 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
     >
       <PageBody>
         {syntax.hasDraftErrors ? (
-          <div className={cx("syntax-invalid-draft")} role="alert">
-            <span>语法包含无效更改</span>
+          <Toolbar label="语法问题">
+            <StatusText mode="live" tone="danger">
+              语法包含无效更改
+            </StatusText>
             <Button
               onClick={syntax.revertInvalidChanges}
               type="button"
@@ -79,34 +86,37 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
               <RotateCcw aria-hidden="true" size={13} />
               撤销无效更改
             </Button>
-          </div>
+          </Toolbar>
         ) : null}
         <SectionStack>
           <Section title="基础">
-            <label className={cx("syntax-setting-line")}>
-              <span className={cx("syntax-setting-label")}>缩进宽度</span>
-              <InputControl
-                disabled={!syntax.canMutate}
-                aria-label="缩进宽度"
-                data-syntax-field-id={syntaxFieldIds.tabDisplayWidth}
-                inputMode="numeric"
-                max={syntax.constraints.tabDisplayWidth.max}
-                min={syntax.constraints.tabDisplayWidth.min}
-                step={1}
-                type="number"
-                value={syntax.draft.tabDisplayWidth}
-                onChange={(event) =>
-                  syntax.actions.updateTabDisplayWidth(event.target.value)
-                }
-              />
-            </label>
+            <FormLayout>
+              <FieldRow label="缩进宽度">
+                {(accessibility) => (
+                  <InputControl
+                    {...accessibility}
+                    disabled={!syntax.canMutate}
+                    aria-label="缩进宽度"
+                    data-syntax-field-id={syntaxFieldIds.tabDisplayWidth}
+                    inputMode="numeric"
+                    max={syntax.constraints.tabDisplayWidth.max}
+                    min={syntax.constraints.tabDisplayWidth.min}
+                    step={1}
+                    type="number"
+                    value={syntax.draft.tabDisplayWidth}
+                    onChange={(event) =>
+                      syntax.actions.updateTabDisplayWidth(event.target.value)
+                    }
+                  />
+                )}
+              </FieldRow>
+            </FormLayout>
           </Section>
           <div
             data-syntax-field-id={syntaxFieldIds.blockRuleGroup}
             tabIndex={-1}
           >
             <Section title="块规则">
-              <SyntaxRuleHeader kind="block" />
               <TitleAndRootRows syntax={syntax} />
               <BlockRuleRows syntax={syntax} />
             </Section>
@@ -116,7 +126,6 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
             tabIndex={-1}
           >
             <Section title="行内规则">
-              <SyntaxRuleHeader kind="inline" />
               <InlineRuleRows syntax={syntax} />
             </Section>
           </div>

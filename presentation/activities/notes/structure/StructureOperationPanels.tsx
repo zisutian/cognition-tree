@@ -19,7 +19,7 @@ export function StructureOperationMainPanel({
 
   return (
     <Page aria-label="结构操作">
-      <PageBody scroll={false}>
+      <PageBody scroll>
         {view.mode === "withinNote" ? (
           <StructureOperationStructureView view={view} />
         ) : (

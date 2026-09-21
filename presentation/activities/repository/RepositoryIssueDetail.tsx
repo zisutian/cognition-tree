@@ -1,4 +1,5 @@
-import { Button, Section } from "compact-ui";
+import { FormActions } from "compact-ui";
+import { Button, Section, Stack, StatusText } from "compact-ui";
 import { RefreshCw } from "lucide-react";
 import {
   projectRepositoryIssueActions,
@@ -6,9 +7,6 @@ import {
   type RepositoryIssueView,
   requiresManualLocalDeletion,
 } from "../../../application/repository/index.ts";
-import { createClassNames } from "../../ui/index.ts";
-import repositoryStyles from "./repository.module.css";
-const cx = createClassNames(repositoryStyles);
 
 import type { RepositoryViewModel } from "../../../application/repository/index.ts";
 
@@ -43,11 +41,11 @@ export function RepositoryIssueDetail({
     <>
       <Section title="处理">
         {manualDeletion ? (
-          <p className={cx("repository-manual-removal")}>
+          <StatusText mode="live" tone="warning">
             此格式仅支持手动删除
-          </p>
+          </StatusText>
         ) : null}
-        <div className={cx("ui-actions")}>
+        <FormActions>
           {manualDeletion ? (
             <Button
               disabled={busy}
@@ -76,34 +74,30 @@ export function RepositoryIssueDetail({
               {action.label}
             </Button>
           ))}
-        </div>
+        </FormActions>
         {pendingAction?.issue.id === issue.id ? (
-          <div
-            aria-label={`确认${pendingAction.action.label}`}
-            className={cx(
-              "repository-inline-confirmation repository-issue-confirmation",
-            )}
-            role="group"
-          >
-            <p>{pendingAction.action.confirmation}</p>
-            <div className={cx("repository-inline-confirmation-actions")}>
-              <Button
-                disabled={busy}
-                onClick={onConfirmAction}
-                type="button"
-                variant="danger"
-              >
-                确认
-              </Button>
-              <Button
-                disabled={busy}
-                onClick={onCancelAction}
-                type="button"
-                variant="normal"
-              >
-                取消
-              </Button>
-            </div>
+          <div aria-label={`确认${pendingAction.action.label}`} role="group">
+            <Stack gap="tight">
+              <StatusText>{pendingAction.action.confirmation}</StatusText>
+              <FormActions>
+                <Button
+                  disabled={busy}
+                  onClick={onConfirmAction}
+                  type="button"
+                  variant="danger"
+                >
+                  确认
+                </Button>
+                <Button
+                  disabled={busy}
+                  onClick={onCancelAction}
+                  type="button"
+                  variant="normal"
+                >
+                  取消
+                </Button>
+              </FormActions>
+            </Stack>
           </div>
         ) : null}
       </Section>

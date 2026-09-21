@@ -1,3 +1,4 @@
+import { FormActions } from "compact-ui";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
@@ -11,8 +12,6 @@ import {
   InputControl,
   Section,
 } from "compact-ui";
-import { createClassNames } from "../../ui/index.ts";
-const cx = createClassNames();
 
 import { useState } from "react";
 import type {
@@ -152,7 +151,7 @@ export function MigrationSettingsPanel({
             </FieldRow>
           </FormLayout>
           {confirming ? <p>迁移期间暂停写入，源目录保留。</p> : null}
-          <div className={cx("ui-actions")}>
+          <FormActions>
             <ConfirmAction
               confirming={confirming}
               disabled={busy || !destination.trim()}
@@ -182,7 +181,7 @@ export function MigrationSettingsPanel({
             >
               放弃修改
             </Button>
-          </div>
+          </FormActions>
         </Section>
       ) : destination ? (
         <Button

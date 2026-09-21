@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import { Stack } from "compact-ui";
-import { Button, FormActions, TextareaControl } from "compact-ui";
+import { Button, FormActions, FormLayout, TextareaControl } from "compact-ui";
 import type { AgentApplication } from "../../../application/agent/index.ts";
 import {
   describePage,
@@ -38,29 +37,28 @@ export function AgentConversationComposer({
     if (pending && (await pending)) setDraft("");
   };
   return (
-    <form
+    <FormLayout
+      layout="stacked"
       onSubmit={(event) => {
         event.preventDefault();
         void send();
       }}
     >
-      <Stack>
-        <TextareaControl
-          aria-label="给 Agent 的消息"
-          disabled={!canSend}
-          maxLength={100_000}
-          onChange={(event) => setDraft(event.currentTarget.value)}
-          placeholder="消息"
-          rows={4}
-          sizing="container"
-          value={draft}
-        />
-        <FormActions>
-          <Button disabled={!canSend || !draft.trim()} type="submit">
-            发送
-          </Button>
-        </FormActions>
-      </Stack>
-    </form>
+      <TextareaControl
+        aria-label="给 Agent 的消息"
+        disabled={!canSend}
+        maxLength={100_000}
+        onChange={(event) => setDraft(event.currentTarget.value)}
+        placeholder="消息"
+        rows={4}
+        sizing="container"
+        value={draft}
+      />
+      <FormActions>
+        <Button disabled={!canSend || !draft.trim()} type="submit">
+          发送
+        </Button>
+      </FormActions>
+    </FormLayout>
   );
 }

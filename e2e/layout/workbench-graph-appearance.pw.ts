@@ -20,7 +20,7 @@ for (const viewport of [
     const canvas = page.getByRole("application", { name: "笔记引用力导向图" });
     const detail = page.getByRole("region", { name: "图谱详情" });
     await expect(canvas).toBeVisible();
-    await expect(detail.getByLabel("图谱统计")).toContainText("19笔记");
+    await expect(detail.getByLabel("图谱统计")).toContainText("笔记19");
     for (const name of ["重置图谱视图", "图谱设置", "隐藏孤立点"]) {
       const button = context.getByRole("button", { name, exact: true });
       await expect(button).toBeVisible();

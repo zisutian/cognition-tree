@@ -1,8 +1,7 @@
+import { FormActions } from "compact-ui";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Button, Section } from "compact-ui";
-import { createClassNames } from "../../ui/index.ts";
-const cx = createClassNames();
 
 import { useState } from "react";
 import type {
@@ -139,7 +138,7 @@ export function AgentProfileSettingsPanel({
       />
       {profile ? (
         <Section title="检查与管理">
-          <div className={cx("ui-actions")}>
+          <FormActions>
             {profile.parameters.kind === "chat" ? (
               running ? (
                 <Button
@@ -180,7 +179,7 @@ export function AgentProfileSettingsPanel({
                 })
               }
             />
-          </div>
+          </FormActions>
         </Section>
       ) : null}
     </SettingsPage>

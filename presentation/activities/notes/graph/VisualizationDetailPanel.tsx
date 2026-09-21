@@ -1,10 +1,10 @@
 import type { VisualizationViewModel } from "../../../../application/workspace/index.ts";
-import { createClassNames, Page, PageBody } from "../../../ui/index.ts";
+import { EmptyState, PropertyList, PropertyRow, Section } from "compact-ui";
+import { Page, PageBody } from "../../../ui/index.ts";
 import {
   AdjacentReferenceList,
   MostReferencedList,
 } from "./VisualizationDetailLists.tsx";
-const cx = createClassNames();
 
 export function VisualizationDetailPanel({
   view,
@@ -21,36 +21,28 @@ export function VisualizationDetailPanel({
   return (
     <Page aria-label="图谱详情">
       <PageBody scroll>
-        <dl aria-label="图谱统计" className={cx("detail-summary-strip")}>
-          <div>
-            <dd>{graph.stats.nodeCount}</dd>
-            <dt>笔记</dt>
-          </div>
-          <div>
-            <dd>{graph.stats.edgeCount}</dd>
-            <dt>关系</dt>
-          </div>
-          <div>
-            <dd>{graph.stats.isolatedCount}</dd>
-            <dt>孤立</dt>
-          </div>
-        </dl>
+        <section aria-label="图谱统计">
+          <PropertyList>
+            <PropertyRow label="笔记">{graph.stats.nodeCount}</PropertyRow>
+            <PropertyRow label="关系">{graph.stats.edgeCount}</PropertyRow>
+            <PropertyRow label="孤立">{graph.stats.isolatedCount}</PropertyRow>
+          </PropertyList>
+        </section>
         {activeNode ? (
-          <div className={cx("detail-primary-row")}>
-            <p>{activeNode.title}</p>
-            <dl className={cx("detail-meta-line")} aria-label="当前节点引用">
-              <div>
-                <dd>{activeNode.referencesIn}</dd>
-                <dt>入链</dt>
-              </div>
-              <div>
-                <dd>{activeNode.referencesOut}</dd>
-                <dt>出链</dt>
-              </div>
-            </dl>
-          </div>
+          <Section title={activeNode.title}>
+            <section aria-label="当前节点引用">
+              <PropertyList>
+                <PropertyRow label="入链">
+                  {activeNode.referencesIn}
+                </PropertyRow>
+                <PropertyRow label="出链">
+                  {activeNode.referencesOut}
+                </PropertyRow>
+              </PropertyList>
+            </section>
+          </Section>
         ) : (
-          <p className={cx("ui-muted")}>未选择笔记</p>
+          <EmptyState title="未选择笔记" />
         )}
         {activeNode ? (
           <AdjacentReferenceList activeNodeId={activeNode.id} graph={graph} />

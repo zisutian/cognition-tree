@@ -66,12 +66,12 @@ test.describe("syntax activity flows", () => {
       page.getByRole("dialog", { name: "首行标题背景色" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", {
+      page.getByRole("radio", {
         name: "编辑器背景",
         exact: true,
       }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "灰色", exact: true }).click();
+    await page.getByRole("radio", { name: "灰色", exact: true }).click();
     await expect(titleTonePicker).toHaveAttribute(
       "aria-label",
       "首行标题背景色: 灰色",
@@ -99,7 +99,7 @@ test.describe("syntax activity flows", () => {
         name: "全局概念引用颜色",
       }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "红色", exact: true }).click();
+    await page.getByRole("radio", { name: "红色", exact: true }).click();
     await expect(referenceColorPicker).toHaveAttribute(
       "aria-label",
       "全局概念引用颜色: 红色",

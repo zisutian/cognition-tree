@@ -23,6 +23,7 @@ export function createSearchActivitySlots({
 }): ActivitySlots {
   return {
     context: {
+      layout: "form",
       content: <SearchContext controller={controller} state={state} />,
       title: "搜索",
     },

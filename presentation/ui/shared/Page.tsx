@@ -5,7 +5,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { FormActions } from "compact-ui";
+import { FormActions, Stack, Toolbar } from "compact-ui";
 import { cx } from "./classNames.ts";
 import styles from "./Page.module.css";
 import {
@@ -29,34 +29,30 @@ export function Page({
   const layout = useContext(PageLayoutContext);
   const actionsHost = useContext(PageActionsHostContext);
   const inlineActions = actionsHost ? null : actions;
-  const reading = layout === "form" || layout === "conversation";
-  const centered = layout === "conversation";
+  const fill = layout !== "form" && layout !== "detail";
   return (
     <section
       {...props}
       className={cx(styles.page, kind === "editor" && "ctn-editor-panel")}
       data-page-kind={kind}
-      data-page-fill={(layout !== "form" && layout !== "detail") || undefined}
+      data-page-fill={fill || undefined}
     >
-      {actionsHost && actions
-        ? createPortal(<FormActions>{actions}</FormActions>, actionsHost)
-        : null}
-      {summary || inlineActions ? (
-        <div
-          className={cx(
-            styles.toolbar,
-            reading && styles.reading,
-            centered && styles.centered,
-          )}
-          data-page-toolbar
-        >
-          {summary ? <div className={styles.summary}>{summary}</div> : null}
-          {inlineActions ? (
-            <div className={styles.actions}>{inlineActions}</div>
-          ) : null}
-        </div>
-      ) : null}
-      {children}
+      <Stack fill={fill} gap="none">
+        {actionsHost && actions
+          ? createPortal(<FormActions>{actions}</FormActions>, actionsHost)
+          : null}
+        {summary || inlineActions ? (
+          <Toolbar label="页面操作">
+            {summary ? (
+              <Stack direction="row" align="center" wrap>
+                {summary}
+              </Stack>
+            ) : null}
+            {inlineActions ? <FormActions>{inlineActions}</FormActions> : null}
+          </Toolbar>
+        ) : null}
+        {children}
+      </Stack>
     </section>
   );
 }
@@ -87,7 +83,9 @@ export const PageBody = forwardRef<
       data-page-layout={regionLayout}
       ref={ref}
     >
-      <div className={cx(styles.content, styles[regionLayout])}>{children}</div>
+      <Stack fill={regionLayout === "document" || regionLayout === "canvas"}>
+        {children}
+      </Stack>
     </div>
   );
 });

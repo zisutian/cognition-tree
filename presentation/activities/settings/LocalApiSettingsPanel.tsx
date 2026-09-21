@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Stack } from "compact-ui";
+import { FormActions } from "compact-ui";
 import {
   Stack as SectionStack,
   PropertyList as ToolPropertyList,
@@ -88,33 +88,33 @@ export function LocalApiSettingsPanel({
           </FormLayout>
         </Section>
         <Section title="查询操作结果">
-          <form
+          <FormLayout
             onSubmit={(event) => {
               event.preventDefault();
               void query();
             }}
           >
-            <Stack>
-              <FieldRow fieldId="local-api-operation" label="操作 ID">
-                {(attributes) => (
-                  <InputControl
-                    {...attributes}
-                    value={operationId}
-                    onChange={(event) => {
-                      generation.current += 1;
-                      setOperationId(event.currentTarget.value);
-                      setResult(null);
-                      setLoading(false);
-                      setErrorMessage(null);
-                    }}
-                  />
-                )}
-              </FieldRow>
+            <FieldRow fieldId="local-api-operation" label="操作 ID">
+              {(attributes) => (
+                <InputControl
+                  {...attributes}
+                  value={operationId}
+                  onChange={(event) => {
+                    generation.current += 1;
+                    setOperationId(event.currentTarget.value);
+                    setResult(null);
+                    setLoading(false);
+                    setErrorMessage(null);
+                  }}
+                />
+              )}
+            </FieldRow>
+            <FormActions>
               <Button type="submit" disabled={loading || !operationId.trim()}>
                 {loading ? "查询中…" : "查询结果"}
               </Button>
-            </Stack>
-          </form>
+            </FormActions>
+          </FormLayout>
           {result ? (
             <div aria-label="操作结果" role="status">
               <ToolPropertyList>

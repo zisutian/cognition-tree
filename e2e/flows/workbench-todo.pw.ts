@@ -219,7 +219,7 @@ test.describe("Todo activity flows", () => {
       }),
     ).toHaveCount(0);
     await detail.getByRole("button", { name: "配置周期 第一项" }).click();
-    const recurrenceForm = detail.getByRole("form", {
+    const recurrenceForm = detail.getByRole("region", {
       name: "配置周期 第一项",
     });
 
@@ -228,9 +228,9 @@ test.describe("Todo activity flows", () => {
       .getByRole("radio", { name: "周", exact: true })
       .click();
     const weekdays = recurrenceForm.getByRole("group", { name: "重复星期" });
-    await weekdays.getByText("一", { exact: true }).click();
+    await weekdays.getByText("星期一", { exact: true }).click();
     await expect(
-      weekdays.getByRole("checkbox", { name: "一", exact: true }),
+      weekdays.getByRole("checkbox", { name: "星期一", exact: true }),
     ).not.toBeChecked();
     await recurrenceForm
       .getByRole("button", { name: "确定", exact: true })
@@ -238,7 +238,10 @@ test.describe("Todo activity flows", () => {
     await expect(recurrenceForm.getByRole("status")).toHaveText(
       "每周重复至少选择一个星期。",
     );
-    const tuesday = weekdays.getByRole("checkbox", { name: "二", exact: true });
+    const tuesday = weekdays.getByRole("checkbox", {
+      name: "星期二",
+      exact: true,
+    });
     await tuesday.focus();
     await tuesday.press("Space");
     await expect(tuesday).toBeChecked();

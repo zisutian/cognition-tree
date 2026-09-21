@@ -1,89 +1,17 @@
+/* Only the application's semantic/ref hosts and content scrolling live here.
+   Spacing, forms, toolbars and ordinary page widths belong to Compact UI. */
 .page {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  width: 100%;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
 }
-.toolbar {
-  display: flex;
-  flex: none;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cu-gap);
-  width: 100%;
-  min-width: 0;
-  min-height: var(--cu-headerHeight);
-  margin-bottom: var(--cu-gap);
-  padding-block: var(--cu-tightGap);
-}
-.summary {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cu-gap);
-  min-width: 0;
-  color: var(--cu-color-muted);
-  overflow-wrap: anywhere;
-}
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--cu-gap);
-  margin-inline-start: auto;
-}
-.reading {
-  max-width: var(--cu-readingWidth);
-}
-.centered {
-  margin-inline: auto;
+.page[data-page-fill] {
+  height: 100%;
 }
 .body {
-  display: flex;
   flex: 1;
-  flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
 }
 .scroll {
   overflow: auto;
-}
-.content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cu-gap);
-  min-width: 0;
-  min-height: min-content;
-  width: 100%;
-}
-.form,
-.conversation {
-  max-width: var(--cu-readingWidth);
-}
-.conversation {
-  margin-inline: auto;
-}
-.document,
-.canvas {
-  flex: 1;
-  min-height: 0;
-}
-.detail,
-.results,
-.table {
-  max-width: none;
-}
-
-.page[data-page-kind="empty"] {
-  justify-content: center;
-}
-
-.page[data-page-fill] {
-  height: 100%;
 }

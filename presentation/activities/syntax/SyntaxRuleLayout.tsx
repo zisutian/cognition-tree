@@ -1,21 +1,21 @@
-import { createClassNames } from "../../ui/index.ts";
-import syntaxStyles from "./syntax.module.css";
-const cx = createClassNames(syntaxStyles);
-export function SyntaxRuleHeader({ kind }: { kind: "block" | "inline" }) {
-  const inline = kind === "inline";
+import { FieldRow } from "compact-ui";
+import type { ReactNode } from "react";
 
+/** A syntax field may be a read-only semantic value or several public controls. */
+export function SyntaxRuleField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
-    <div className={cx("syntax-rule-row syntax-rule-header")}>
-      <span>名称</span>
-      <span>{inline ? "符号" : "标记"}</span>
-      <span>类型</span>
-      <span>{inline ? "颜色" : "背景"}</span>
-      <span>{inline ? null : "颜色"}</span>
-      <span />
-    </div>
+    <FieldRow label={label} group>
+      {(accessibility) => (
+        <div role="group" aria-labelledby={accessibility["aria-labelledby"]}>
+          {children}
+        </div>
+      )}
+    </FieldRow>
   );
-}
-
-export function SyntaxRuleSpacer() {
-  return <span aria-hidden="true" className={cx("syntax-rule-spacer")} />;
 }

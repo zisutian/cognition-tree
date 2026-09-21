@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { renderToStaticMarkup } from "../../../../support/presentation/render";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { TodoDetailPanel } from "../../../../../presentation/activities/todo/TodoDetailPanel";
 import { TodoEditorPanel } from "../../../../../presentation/activities/todo/TodoEditorPanel";
 import { TodoRecurrenceEditor } from "../../../../../presentation/activities/todo/TodoRecurrenceEditor";
@@ -21,6 +21,24 @@ function TodoContextFixture() {
 }
 
 describe("Todo panels", () => {
+  it("disables recurrence choices and number fields while mutations are unavailable", () => {
+    const node = createTodoView().outline.nodes[0]!;
+    const markup = renderToStaticMarkup(
+      <FeedbackProvider activeActivityId="todo">
+        <TodoRecurrenceEditor
+          disabled
+          node={node}
+          onCancel={() => {}}
+          onConfirm={() => {}}
+        />
+      </FeedbackProvider>,
+    );
+    const controls = markup
+      .match(/<(?:input|button)\b[^>]*>/g)!
+      .filter((tag) => /role="radio"|type="number"/.test(tag));
+    expect(controls.length).toBeGreaterThanOrEqual(4);
+    expect(controls.every((tag) => tag.includes('disabled=""'))).toBe(true);
+  });
   it("renders ordered collections and actions only on the selected row", () => {
     const markup = renderToStaticMarkup(<TodoContextFixture />);
 

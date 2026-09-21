@@ -96,22 +96,29 @@ test("conversation uses one compact summary with aligned content and package ses
   await expectRowHeight(session);
   const conversation = page.getByRole("region", { name: "Agent 对话" });
   const summary = (await conversation
-    .locator("[data-page-toolbar]")
+    .getByRole("group", { name: "页面操作", exact: true })
     .boundingBox())!;
   const transcript = (await conversation
-    .locator(".agent-message-list")
+    .getByRole("list", { name: "会话消息", exact: true })
     .boundingBox())!;
   const composer = (await page
     .getByRole("main")
     .getByRole("textbox", { name: "给 Agent 的消息" })
     .boundingBox())!;
   expect(summary.x).toBe(transcript.x);
-  expect(composer.x).toBeLessThanOrEqual(transcript.x);
-  expect(composer.x + composer.width).toBeGreaterThanOrEqual(
-    transcript.x + transcript.width,
+  // Package inputs reserve a one-pixel border inside the footer content.
+  expect(Math.abs(composer.x - transcript.x)).toBeLessThanOrEqual(1);
+  // FormLayout owns its readable width; the footer can be wider than the form.
+  const formWidth = Math.min(
+    transcript.width,
+    defaultDesignConfig.layout.readingWidth,
   );
-  expect(summary.height).toBeGreaterThanOrEqual(
-    defaultDesignConfig.metrics.controlHeight,
+  expect(composer.width).toBeGreaterThanOrEqual(formWidth - 2);
+  expect(composer.width).toBeLessThanOrEqual(formWidth);
+  expect(summary.height).toBeCloseTo(
+    defaultDesignConfig.typography.fontSize *
+      defaultDesignConfig.typography.lineHeight,
+    1,
   );
   expect(transcript.y).toBeGreaterThanOrEqual(summary.y + summary.height);
   await expect(conversation.getByPlaceholder("会话不可用")).toHaveCount(0);

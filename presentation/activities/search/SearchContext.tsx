@@ -1,4 +1,11 @@
-import { Button, ChoiceGroup, InputControl } from "compact-ui";
+import {
+  Button,
+  ChoiceGroup,
+  FieldRow,
+  FormActions,
+  FormLayout,
+  InputControl,
+} from "compact-ui";
 import { Search } from "lucide-react";
 import {
   searchDomains,
@@ -6,9 +13,7 @@ import {
   type SearchControllerView,
   type SearchDomain,
 } from "../../../application/search/index.ts";
-import { createClassNames } from "../../ui/index.ts";
-import searchStyles from "./search.module.css";
-const cx = createClassNames(searchStyles);
+import { FormError } from "../../ui/index.ts";
 
 const domainOptions = [
   { label: "本地仓库", value: "workspace" },
@@ -32,61 +37,60 @@ export function SearchContext({
     state.draft.domains.length > 0;
 
   return (
-    <form
-      aria-label="搜索条件"
-      className={cx("activity-context-content search-context")}
-      onSubmit={(event) => {
-        event.preventDefault();
-        void controller.search();
-      }}
-      role="search"
-    >
-      <div className={cx("search-query-row")}>
-        <label
-          className={cx("ui-visually-hidden")}
-          htmlFor="workbench-search-query"
-        >
-          搜索词
-        </label>
-        <InputControl
-          autoComplete="off"
-          id="workbench-search-query"
-          onChange={(event) =>
-            controller.updateDraft({ query: event.currentTarget.value })
+    <section role="search" aria-label="搜索条件">
+      <FormLayout
+        layout="stacked"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void controller.search();
+        }}
+      >
+        <FieldRow label="搜索词" fieldId="workbench-search-query">
+          {(accessibility) => (
+            <InputControl
+              {...accessibility}
+              autoComplete="off"
+              id="workbench-search-query"
+              onChange={(event) =>
+                controller.updateDraft({ query: event.currentTarget.value })
+              }
+              placeholder="标题或正文"
+              sizing="container"
+              type="search"
+              value={state.draft.query}
+            />
+          )}
+        </FieldRow>
+        <FormActions>
+          <Button
+            aria-label="搜索"
+            disabled={!canSearch}
+            title={state.status === "loading" ? "正在搜索" : "搜索"}
+            type="submit"
+            variant="icon"
+          >
+            <Search aria-hidden="true" size={14} />
+          </Button>
+        </FormActions>
+
+        <ChoiceGroup
+          ariaLabel="搜索范围"
+          mode="multiple"
+          onChange={(domains) =>
+            controller.updateDraft({
+              domains: searchDomains.filter((domain) =>
+                domains.includes(domain),
+              ),
+            })
           }
-          placeholder="标题或正文"
-          sizing="container"
-          type="search"
-          value={state.draft.query}
+          options={domainOptions}
+          values={state.draft.domains}
         />
-        <Button
-          aria-label="搜索"
-          disabled={!canSearch}
-          title={state.status === "loading" ? "正在搜索" : "搜索"}
-          type="submit"
-          variant="icon"
-        >
-          <Search aria-hidden="true" size={14} />
-        </Button>
-      </div>
 
-      <ChoiceGroup
-        ariaLabel="搜索范围"
-        mode="multiple"
-        onChange={(domains) =>
-          controller.updateDraft({
-            domains: searchDomains.filter((domain) => domains.includes(domain)),
-          })
-        }
-        options={domainOptions}
-        values={state.draft.domains}
-      />
-
-      {state.draft.domains.length === 0 ? (
-        <p className={cx("search-context-status")} role="alert">
-          至少选择一个范围。
-        </p>
-      ) : null}
-    </form>
+        {state.draft.domains.length === 0 ? (
+          <FormError message="至少选择一个范围。" />
+        ) : null}
+      </FormLayout>
+    </section>
   );
 }

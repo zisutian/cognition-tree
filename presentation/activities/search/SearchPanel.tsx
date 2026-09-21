@@ -2,6 +2,7 @@ import { Stack as SectionStack, StatusText as StatusBadge } from "compact-ui";
 import {
   Button,
   EmptyState,
+  FormActions,
   Section,
   ManagementList,
   ManagementRow,
@@ -16,7 +17,7 @@ import {
   type SearchControllerState,
   type SearchControllerView,
 } from "../../../application/search/index.ts";
-import { createClassNames, Page, PageBody } from "../../ui/index.ts";
+import { createClassNames, FormError, Page, PageBody } from "../../ui/index.ts";
 import searchStyles from "./search.module.css";
 const cx = createClassNames(searchStyles);
 
@@ -110,9 +111,9 @@ export function SearchPanel({
       summary={
         state.submitted ? (
           <>
-            <span className={cx("search-header-counts")}>
+            <StatusBadge>
               {groups.length} 个结果 · {state.results.length} 处匹配
-            </span>
+            </StatusBadge>
             {draftChanged ? (
               <StatusBadge mode="live" tone="warning">
                 条件已修改
@@ -175,30 +176,30 @@ export function SearchPanel({
         ) : (
           <>
             {state.faults.length > 0 ? (
-              <section
-                aria-label="不可用的搜索来源"
-                className={cx("search-faults")}
-                role="status"
-              >
-                <strong>部分来源不可用</strong>
-                <ul>
-                  {state.faults.map((fault) => (
-                    <li
-                      key={`${fault.domain}:${fault.repositoryId ?? ""}:${
-                        fault.code
-                      }`}
-                    >
-                      {searchDomainLabels[fault.domain]}
-                      {fault.repositoryId
-                        ? ` · ${
-                            repositoryLabelById.get(fault.repositoryId) ??
-                            fault.repositoryId
-                          }`
-                        : ""}
-                      ：{fault.message}
-                    </li>
-                  ))}
-                </ul>
+              <section aria-label="不可用的搜索来源" role="status">
+                <Section title="部分来源不可用">
+                  <ManagementList label="不可用来源">
+                    {state.faults.map((fault) => (
+                      <ManagementRow
+                        key={`${fault.domain}:${fault.repositoryId ?? ""}:${
+                          fault.code
+                        }`}
+                        title={
+                          <>
+                            {searchDomainLabels[fault.domain]}
+                            {fault.repositoryId
+                              ? ` · ${
+                                  repositoryLabelById.get(fault.repositoryId) ??
+                                  fault.repositoryId
+                                }`
+                              : ""}
+                          </>
+                        }
+                        description={fault.message}
+                      />
+                    ))}
+                  </ManagementList>
+                </Section>
               </section>
             ) : null}
             {groups.length === 0 ? (
@@ -214,12 +215,12 @@ export function SearchPanel({
 
                     return (
                       <Section key={group.key} title={group.title}>
-                        <p className={cx("search-result-meta")}>
+                        <StatusBadge>
                           {searchDomainLabels[group.domain]}
                           {repositoryLabel ? ` · ${repositoryLabel}` : ""}
                           {" · "}
                           {formatTimestamp(group.updatedAt)}
-                        </p>
+                        </StatusBadge>
                         <ManagementList label={`${group.title}的匹配项`}>
                           {group.hits.map((hit) => (
                             <ManagementRow
@@ -247,12 +248,10 @@ export function SearchPanel({
               </section>
             )}
             {state.errorMessage && groups.length > 0 ? (
-              <p className={cx("search-page-error")} role="alert">
-                {state.errorMessage}
-              </p>
+              <FormError message={state.errorMessage} />
             ) : null}
             {state.cursor ? (
-              <div className={cx("search-load-more")}>
+              <FormActions>
                 <Button
                   disabled={state.loadingMore}
                   onClick={() => void controller.loadMore()}
@@ -260,7 +259,7 @@ export function SearchPanel({
                 >
                   {state.loadingMore ? "正在加载…" : "加载更多"}
                 </Button>
-              </div>
+              </FormActions>
             ) : null}
           </>
         )}

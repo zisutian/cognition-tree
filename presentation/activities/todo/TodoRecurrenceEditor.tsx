@@ -1,9 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Button, CheckboxGroup, ChoiceGroup, InputControl } from "compact-ui";
-import { createClassNames } from "../../ui/index.ts";
-import todoStyles from "./todo.module.css";
-const cx = createClassNames(todoStyles);
+import {
+  Button,
+  CheckboxGroup,
+  ChoiceGroup,
+  FieldRow,
+  FormActions,
+  FormLayout,
+  InputControl,
+  StatusText,
+} from "compact-ui";
 
 import { useState, type FormEvent } from "react";
 import type { TodoBlockView } from "../../../application/todo/index.ts";
@@ -107,105 +113,114 @@ export function TodoRecurrenceEditor({
   };
 
   return (
-    <form
-      aria-label={`配置周期 ${node.text}`}
-      className={cx("todo-recurrence-editor")}
-      onSubmit={submit}
-    >
-      {node.recurrence ? (
-        <p className={cx("todo-recurrence-summary")}>
-          {node.recurrence.active
-            ? `完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount}${
-                node.recurrence.nextOccurrenceDate
-                  ? ` · 下次 ${node.recurrence.nextOccurrenceDate}`
-                  : " · 暂无下次"
-              }`
-            : `历史完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount} · 周期已停止`}
-        </p>
-      ) : null}
-      <ChoiceGroup
-        ariaLabel="周期类型"
-        mode="single"
-        options={[
-          { label: "日", value: "daily" },
-          { label: "周", value: "weekly" },
-          { label: "月", value: "monthly" },
-          ...(node.recurrence?.active
-            ? [{ label: "停止", value: "none" as const }]
-            : []),
-        ]}
-        value={mode}
-        onChange={(nextMode) => {
-          setMode(nextMode);
-          setErrorMessage("");
-        }}
-      />
-      {mode !== "none" ? (
-        <label className={cx("todo-recurrence-field")}>
-          <span>每隔</span>
-          <InputControl
-            sizing="container"
-            aria-label="重复间隔"
-            inputMode="numeric"
-            min={1}
-            onChange={(event) => setInterval(event.currentTarget.value)}
-            step={1}
-            type="number"
-            value={interval}
-          />
-          <span>
-            {mode === "daily" ? "天" : mode === "weekly" ? "周" : "月"}
-          </span>
-        </label>
-      ) : null}
-      {mode === "weekly" ? (
-        <CheckboxGroup
-          ariaLabel="重复星期"
-          options={weekdays.map((weekday) => ({
-            ...weekday,
-            value: String(weekday.value),
-            ariaLabel: `星期${weekday.label}`,
-            disabled,
-          }))}
-          values={selectedWeekdays.map(String)}
-          onChange={(values) => {
-            setSelectedWeekdays(
-              values.map((value) => Number(value) as TodoIsoWeekday),
-            );
+    <section aria-label={`配置周期 ${node.text}`}>
+      <FormLayout layout="stacked" onSubmit={submit}>
+        {node.recurrence ? (
+          <StatusText>
+            {node.recurrence.active
+              ? `完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount}${
+                  node.recurrence.nextOccurrenceDate
+                    ? ` · 下次 ${node.recurrence.nextOccurrenceDate}`
+                    : " · 暂无下次"
+                }`
+              : `历史完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount} · 周期已停止`}
+          </StatusText>
+        ) : null}
+        <ChoiceGroup<RecurrenceMode>
+          ariaLabel="周期类型"
+          mode="single"
+          options={(
+            [
+              { label: "日", value: "daily" },
+              { label: "周", value: "weekly" },
+              { label: "月", value: "monthly" },
+              ...(node.recurrence?.active
+                ? [{ label: "停止", value: "none" as const }]
+                : []),
+            ] as const
+          ).map((option) => ({ ...option, disabled }))}
+          value={mode}
+          onChange={(nextMode) => {
+            setMode(nextMode);
             setErrorMessage("");
           }}
         />
-      ) : null}
-      {mode === "monthly" ? (
-        <label className={cx("todo-recurrence-field")}>
-          <span>第</span>
-          <InputControl
-            sizing="container"
-            aria-label="每月日期"
-            inputMode="numeric"
-            max={31}
-            min={1}
-            onChange={(event) => setDayOfMonth(event.currentTarget.value)}
-            step={1}
-            type="number"
-            value={dayOfMonth}
+        {mode !== "none" ? (
+          <FieldRow
+            label="重复间隔"
+            description={
+              mode === "daily" ? "天" : mode === "weekly" ? "周" : "月"
+            }
+          >
+            {(accessibility) => (
+              <InputControl
+                {...accessibility}
+                disabled={disabled}
+                sizing="container"
+                aria-label="重复间隔"
+                inputMode="numeric"
+                min={1}
+                onChange={(event) => setInterval(event.currentTarget.value)}
+                step={1}
+                type="number"
+                value={interval}
+              />
+            )}
+          </FieldRow>
+        ) : null}
+        {mode === "weekly" ? (
+          <CheckboxGroup
+            ariaLabel="重复星期"
+            options={weekdays.map((weekday) => ({
+              ...weekday,
+              value: String(weekday.value),
+              label: `星期${weekday.label}`,
+              disabled,
+            }))}
+            values={selectedWeekdays.map(String)}
+            onChange={(values) => {
+              setSelectedWeekdays(
+                values.map((value) => Number(value) as TodoIsoWeekday),
+              );
+              setErrorMessage("");
+            }}
           />
-          <span>日（月末自动收敛）</span>
-        </label>
-      ) : null}
-      {errorMessage ? (
-        <p className={cx("todo-recurrence-error")} role="status">
-          {errorMessage}
-        </p>
-      ) : null}
-      <div className={cx("todo-recurrence-actions")}>
-        <Button disabled={disabled} type="submit" variant="normal">
-          确定
-        </Button>
-        <Button onClick={onCancel} type="button">
-          取消
-        </Button>
-      </div>
-    </form>
+        ) : null}
+        {mode === "monthly" ? (
+          <FieldRow label="每月日期" description="日（月末自动收敛）">
+            {(accessibility) => (
+              <InputControl
+                {...accessibility}
+                disabled={disabled}
+                sizing="container"
+                aria-label="每月日期"
+                inputMode="numeric"
+                max={31}
+                min={1}
+                onChange={(event) => setDayOfMonth(event.currentTarget.value)}
+                step={1}
+                type="number"
+                value={dayOfMonth}
+              />
+            )}
+          </FieldRow>
+        ) : null}
+        {errorMessage ? (
+          <span role="status">
+            <StatusText mode="live" tone="danger">
+              {errorMessage}
+            </StatusText>
+          </span>
+        ) : null}
+        <FormActions>
+          <Button disabled={disabled} type="submit" variant="normal">
+            确定
+          </Button>
+          <Button onClick={onCancel} type="button">
+            取消
+          </Button>
+        </FormActions>
+      </FormLayout>
+    </section>
   );
 }

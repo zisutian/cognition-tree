@@ -1,3 +1,4 @@
+import { FormActions } from "compact-ui";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
@@ -11,8 +12,6 @@ import {
   InputControl,
   SelectControl,
 } from "compact-ui";
-import { createClassNames } from "../../ui/index.ts";
-const cx = createClassNames();
 
 import { useState } from "react";
 import type {
@@ -102,7 +101,7 @@ export function AgentSettingsOverview({
               )}
             </FieldRow>
           </FormLayout>
-          <div className={cx("ui-actions")}>
+          <FormActions>
             <Button
               disabled={busy}
               onClick={() => void feedback.runAction(() => discover(endpoint))}
@@ -110,7 +109,7 @@ export function AgentSettingsOverview({
             >
               发现本地 Ollama
             </Button>
-          </div>
+          </FormActions>
           {configurationState.discovery ? (
             <section aria-label="发现结果">
               <ToolPropertyList>

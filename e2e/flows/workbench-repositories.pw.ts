@@ -135,7 +135,9 @@ test.describe("repository management", () => {
 
     await expect(page.getByRole("button", { name: "新建仓库" })).toHaveCount(1);
     await createRepositoryButton.click();
-    const createForm = page.locator(".repository-create");
+    const createForm = page
+      .getByRole("main")
+      .getByRole("region", { name: "仓库", exact: true });
 
     await createForm.getByRole("textbox", { name: "名称" }).fill("第二仓库");
     await createForm.getByRole("button", { name: "创建仓库" }).click();
@@ -383,7 +385,7 @@ test.describe("repository management", () => {
 
     try {
       await openWorkbench(page, repositoryId);
-      const problems = page.locator(".problems-panel");
+      const problems = page.getByRole("region", { name: "问题", exact: true });
       const problemsHeader = getProblemsToggle(page);
 
       if ((await problemsHeader.getAttribute("aria-expanded")) === "false") {

@@ -6,10 +6,15 @@ import {
   PropertyList as ToolPropertyList,
   PropertyRow as ToolPropertyRow,
 } from "compact-ui";
-import { Button, EmptyState, Section, SelectControl } from "compact-ui";
-import { createClassNames } from "../../ui/index.ts";
-import agentStyles from "./agent.module.css";
-const cx = createClassNames(agentStyles);
+import {
+  Button,
+  EmptyState,
+  FieldRow,
+  FormActions,
+  FormLayout,
+  Section,
+  SelectControl,
+} from "compact-ui";
 
 import type {
   AgentApplication,
@@ -55,19 +60,25 @@ export function AgentProposalPanel({
             <SectionStack>
               <Section>
                 {session && session.proposals.length > 1 ? (
-                  <label className={cx("agent-proposal-picker")}>
-                    <span>Proposal</span>
-                    <SelectControl
-                      onChange={(event) => onSelect(event.currentTarget.value)}
-                      value={proposal.id}
-                    >
-                      {session.proposals.map((item, index) => (
-                        <option key={item.id} value={item.id}>
-                          {`第 ${index + 1} 份 · ${proposalStatusLabels[item.status]} · ${proposalStoreLabel(item)}`}
-                        </option>
-                      ))}
-                    </SelectControl>
-                  </label>
+                  <FormLayout layout="stacked">
+                    <FieldRow label="Proposal">
+                      {(accessibility) => (
+                        <SelectControl
+                          {...accessibility}
+                          onChange={(event) =>
+                            onSelect(event.currentTarget.value)
+                          }
+                          value={proposal.id}
+                        >
+                          {session.proposals.map((item, index) => (
+                            <option key={item.id} value={item.id}>
+                              {`第 ${index + 1} 份 · ${proposalStatusLabels[item.status]} · ${proposalStoreLabel(item)}`}
+                            </option>
+                          ))}
+                        </SelectControl>
+                      )}
+                    </FieldRow>
+                  </FormLayout>
                 ) : null}
                 <section aria-label="Proposal 摘要">
                   <ToolPropertyList>
@@ -125,7 +136,7 @@ export function AgentProposalActions({
 }) {
   const feedback = useFeedback();
   return proposal?.status === "pending" ? (
-    <div className={cx("agent-proposal-actions")}>
+    <FormActions>
       <Button
         disabled={agent.state.operationStatus === "working"}
         onClick={() =>
@@ -150,9 +161,9 @@ export function AgentProposalActions({
       >
         整批批准
       </Button>
-    </div>
+    </FormActions>
   ) : proposal?.status === "awaiting-destructive-confirmation" ? (
-    <div className={cx("agent-destructive-confirmation")}>
+    <FormActions>
       <Button
         disabled={agent.state.operationStatus === "working"}
         onClick={() =>
@@ -165,6 +176,6 @@ export function AgentProposalActions({
       >
         确认删除并提交
       </Button>
-    </div>
+    </FormActions>
   ) : null;
 }

@@ -1,22 +1,5 @@
-.structure-operation-grid {
-  display: grid;
-  grid-template-columns:
-    minmax(0, 1fr)
-    var(--cu-controlHeight)
-    minmax(0, 1fr);
-  gap: var(--cu-gap);
-  flex: 1;
-  min-height: 0;
-}
-
-.structure-operation-grid-single {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.structure-operation-pair-swap {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+.structure-operation-column {
+  flex: 1 1 var(--cu-mainMinWidth);
   min-width: 0;
 }
 
@@ -92,10 +75,4 @@
   bottom: 0;
   display: block;
   background: var(--cu-color-selected);
-}
-
-@media (max-width: design-breakpoint(workbench)) {
-  .structure-operation-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }

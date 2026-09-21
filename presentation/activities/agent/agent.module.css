@@ -1,128 +1,6 @@
-.agent-create-form,
-.agent-destructive-confirmation {
-  display: grid;
-  gap: var(--cu-tightGap);
-}
-.agent-context {
-  display: grid;
-  gap: var(--cu-gap);
-  align-content: start;
-}
-.agent-proposal-picker {
-  display: grid;
-  gap: var(--cu-tightGap);
-  color: var(--cu-color-muted);
-  font-size: var(--cu-fontSize);
-}
-.agent-message-list,
-.agent-review-resource-list,
-.agent-technical-change-list,
-.agent-technical-diff-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.agent-session-state {
-  color: var(--cu-color-muted);
-  font-size: var(--cu-fontSize);
-}
-.agent-session-state {
-  white-space: nowrap;
-}
-.agent-create-form {
-  width: 100%;
-}
-.agent-state-label {
-  margin-left: var(--cu-gap);
-  color: var(--cu-color-muted);
-  font-weight: var(--cu-weight);
-}
-.agent-message-list {
-  display: grid;
-  gap: var(--cu-gap);
-  width: 100%;
-  margin: 0 auto;
-}
-.agent-message {
-  display: grid;
-  gap: var(--cu-tightGap);
-  width: 100%;
-  padding: 0;
-}
-.agent-message > span {
-  color: var(--cu-color-muted);
-  font-size: var(--cu-fontSize);
-  font-weight: var(--cu-emphasis);
-}
-.agent-message p {
-  margin: 0;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-.agent-composer {
-  display: grid;
-  gap: var(--cu-gap);
-  padding: 0;
-}
 .agent-line-diff code,
 .agent-technical-details code {
   overflow-wrap: anywhere;
-}
-.agent-destructive-confirmation p {
-  margin: 0;
-}
-.agent-review-resource-list,
-.agent-technical-change-list,
-.agent-technical-diff-list {
-  display: grid;
-  gap: var(--cu-tightGap);
-}
-.agent-review-resource {
-  display: grid;
-  gap: var(--cu-tightGap);
-  overflow: hidden;
-  border: var(--cu-panelBorderWidth) solid var(--cu-color-border);
-  border-radius: var(--cu-radius);
-}
-.agent-review-resource > header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--cu-tightGap);
-  padding: 0;
-  background: var(--cu-color-hover);
-}
-.agent-review-resource > header strong {
-  overflow-wrap: anywhere;
-}
-.agent-review-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--cu-tightGap);
-}
-.agent-review-actions > span {
-  padding: var(--cu-tightGap);
-  border-radius: var(--cu-radius);
-  color: var(--cu-color-muted);
-  background: var(--cu-color-input);
-  font-size: var(--cu-fontSize);
-  white-space: nowrap;
-}
-.agent-review-path-change,
-.agent-review-block-summary {
-  margin: 0;
-  padding: 0 var(--cu-tightGap);
-  color: var(--cu-color-muted);
-  font-size: var(--cu-fontSize);
-}
-.agent-review-path-change {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cu-tightGap);
-}
-.agent-review-resource > .agent-muted {
-  padding: 0 var(--cu-tightGap) var(--cu-tightGap);
 }
 .agent-line-diff {
   overflow-x: auto;
@@ -165,64 +43,14 @@
   color: var(--cu-color-muted);
   cursor: pointer;
 }
-.agent-technical-value {
-  display: inline-flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--cu-tightGap);
-}
-.agent-technical-change-list li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cu-tightGap);
-}
-.agent-technical-change-list strong,
-.agent-technical-change-list > li > span:not(.agent-technical-value) {
-  color: var(--cu-color-muted);
-  font-size: var(--cu-fontSize);
-}
-.agent-technical-diff-list li {
-  overflow: hidden;
-  border: var(--cu-panelBorderWidth) solid var(--cu-color-border);
-  border-radius: var(--cu-radius);
-}
-.agent-technical-diff-list header {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--cu-tightGap);
-  padding: 0;
-  background: var(--cu-color-hover);
-  color: var(--cu-color-muted);
-  font-size: var(--cu-fontSize);
-}
-.agent-technical-diff-list pre {
-  margin: 0;
-  padding: 0;
-  overflow-x: auto;
+
+.agent-message-content {
+  display: block;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
-.agent-proposal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--cu-tightGap);
-  padding: 0;
-}
-.agent-destructive-confirmation {
-  padding: 0;
-  color: var(--cu-color-error);
-}
-.agent-destructive-confirmation p {
+.agent-character-diff {
   margin: 0;
-}
-.agent-error,
-.agent-muted {
-  margin: 0;
-  font-size: var(--cu-fontSize);
-}
-.agent-error {
-  color: var(--cu-color-error);
-}
-.agent-muted {
-  color: var(--cu-color-muted);
+  overflow-x: auto;
+  white-space: pre-wrap;
 }

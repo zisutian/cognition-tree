@@ -1,3 +1,4 @@
+import { FormActions } from "compact-ui";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
@@ -5,8 +6,6 @@ import {
   PropertyRow as ToolPropertyRow,
 } from "compact-ui";
 import { Button, Section } from "compact-ui";
-import { createClassNames } from "../../ui/index.ts";
-const cx = createClassNames();
 
 import { useState } from "react";
 import type {
@@ -140,7 +139,7 @@ export function AgentProviderSettingsPanel({
       />
       {provider ? (
         <Section title="连接与认证">
-          <div className={cx("ui-actions")}>
+          <FormActions>
             <Button
               disabled={busy || draft.dirty || draft.stale}
               onClick={() =>
@@ -195,7 +194,7 @@ export function AgentProviderSettingsPanel({
                 }
               />
             ) : null}
-          </div>
+          </FormActions>
           {loginPending ? (
             <section aria-label="ChatGPT 设备登录">
               <ToolPropertyList>

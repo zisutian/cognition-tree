@@ -1,4 +1,4 @@
-import { Stack, Tree } from "compact-ui";
+import { FieldRow, FormActions, FormLayout, Stack, Tree } from "compact-ui";
 import { Button, InputControl } from "compact-ui";
 import { ListChecks, Plus } from "lucide-react";
 import { useState } from "react";
@@ -125,30 +125,37 @@ export function useTodoContext(view: TodoViewModel): {
             onActionError={feedback.notifyError}
           />
           {creating ? (
-            <form
+            <FormLayout
+              layout="stacked"
               onSubmit={(event) => {
                 event.preventDefault();
                 submit();
               }}
             >
-              <Stack direction="row">
-                <InputControl
-                  autoFocus
-                  aria-label="新建事项集合名称"
-                  value={name}
-                  error={error || undefined}
-                  onChange={(event) => {
-                    setName(event.target.value);
-                    setError("");
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") setCreating(false);
-                  }}
-                />
+              <FieldRow label="集合名称">
+                {(accessibility) => (
+                  <InputControl
+                    {...accessibility}
+                    sizing="container"
+                    autoFocus
+                    aria-label="新建事项集合名称"
+                    value={name}
+                    error={error || undefined}
+                    onChange={(event) => {
+                      setName(event.target.value);
+                      setError("");
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") setCreating(false);
+                    }}
+                  />
+                )}
+              </FieldRow>
+              <FormActions>
                 <Button type="submit">确定</Button>
                 <Button onClick={() => setCreating(false)}>取消</Button>
-              </Stack>
-            </form>
+              </FormActions>
+            </FormLayout>
           ) : null}
         </Stack>
       ),

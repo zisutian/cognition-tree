@@ -1,9 +1,13 @@
-import { Button, InputControl } from "compact-ui";
+import {
+  Button,
+  FieldRow,
+  FormActions,
+  FormLayout,
+  InputControl,
+} from "compact-ui";
 import { useState } from "react";
 import type { RepositoryOption } from "../../../application/repository/index.ts";
-import { createClassNames, useExclusiveAsyncAction } from "../../ui/index.ts";
-import repositoryStyles from "./repository.module.css";
-const cx = createClassNames(repositoryStyles);
+import { useExclusiveAsyncAction } from "../../ui/index.ts";
 
 export function canDeleteManagedRepositoryData(
   repository: RepositoryOption,
@@ -25,6 +29,8 @@ export function RepositoryDeleteConfirmation({
   const deletion = useExclusiveAsyncAction();
   const busy = deletion.busy;
   const runDeletion = async () => {
+    if (busy || !canDeleteManagedRepositoryData(repository, confirmation))
+      return;
     const pending = deletion.run(onDelete);
 
     if (pending && (await pending)) {
@@ -33,30 +39,25 @@ export function RepositoryDeleteConfirmation({
   };
 
   return (
-    <div
-      aria-label={`确认删除仓库 ${repository.label}`}
-      className={cx(
-        "repository-inline-confirmation repository-delete-confirmation",
-      )}
-      role="group"
-    >
-      <div className={cx("repository-delete-choice")}>
-        <label className={cx("repository-delete-confirmation-field")}>
-          <span>仓库名称</span>
-          <InputControl
-            autoComplete="off"
-            disabled={busy}
-            onChange={(event) => setConfirmation(event.target.value)}
-            value={confirmation}
-          />
-        </label>
-        <div className={cx("repository-inline-confirmation-actions")}>
+    <div aria-label={`确认删除仓库 ${repository.label}`} role="group">
+      <FormLayout layout="stacked" onSubmit={() => void runDeletion()}>
+        <FieldRow label="仓库名称">
+          {(accessibility) => (
+            <InputControl
+              {...accessibility}
+              autoComplete="off"
+              disabled={busy}
+              onChange={(event) => setConfirmation(event.target.value)}
+              value={confirmation}
+            />
+          )}
+        </FieldRow>
+        <FormActions>
           <Button
             disabled={
               busy || !canDeleteManagedRepositoryData(repository, confirmation)
             }
-            onClick={() => void runDeletion()}
-            type="button"
+            type="submit"
             variant="danger"
           >
             永久删除
@@ -69,8 +70,8 @@ export function RepositoryDeleteConfirmation({
           >
             取消
           </Button>
-        </div>
-      </div>
+        </FormActions>
+      </FormLayout>
     </div>
   );
 }

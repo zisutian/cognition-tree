@@ -1,46 +1,37 @@
-import { Button } from "compact-ui";
-import { Section } from "compact-ui";
-import { FileInput, FileOutput, Hash, type LucideIcon } from "lucide-react";
+import {
+  ContextList,
+  ContextRow,
+  EmptyState,
+  ManagementList,
+  ManagementRow,
+  Section,
+  StatusText,
+} from "compact-ui";
+import { Hash } from "lucide-react";
 import { useMemo } from "react";
 import type { UiReferenceGraphView } from "../../../../application/workspace/index.ts";
-import { createClassNames, SymbolSlot } from "../../../ui/index.ts";
-const cx = createClassNames();
 
 type VisualizationGraph = UiReferenceGraphView;
 
 function AdjacentReferenceGroup({
-  icon: Icon,
   label,
   references,
 }: {
-  icon: LucideIcon;
   label: string;
   references: Array<{ id: string; title: string; count: number }>;
 }) {
   if (references.length === 0) return null;
   return (
     <Section title={label}>
-      <ul aria-label={label} className={cx("detail-line-list")}>
+      <ManagementList label={label}>
         {references.slice(0, 8).map((reference) => (
-          <li key={reference.id}>
-            <div className={cx("detail-line-row")}>
-              <SymbolSlot
-                aria-hidden="true"
-                className={cx("detail-line-marker")}
-                tone="muted"
-              >
-                <Icon aria-hidden="true" size={13} strokeWidth={2} />
-              </SymbolSlot>
-              <span className={cx("detail-line-main")} title={reference.title}>
-                {reference.title}
-              </span>
-              <span className={cx("detail-line-meta")}>
-                × {reference.count}
-              </span>
-            </div>
-          </li>
+          <ManagementRow
+            key={reference.id}
+            title={reference.title}
+            description={`× ${reference.count}`}
+          />
         ))}
-      </ul>
+      </ManagementList>
     </Section>
   );
 }
@@ -63,7 +54,6 @@ export function AdjacentReferenceList({
   return incomingEdges.length + outgoingEdges.length > 0 ? (
     <>
       <AdjacentReferenceGroup
-        icon={FileInput}
         label="入链"
         references={incomingEdges.map((edge) => ({
           id: edge.id,
@@ -72,7 +62,6 @@ export function AdjacentReferenceList({
         }))}
       />
       <AdjacentReferenceGroup
-        icon={FileOutput}
         label="出链"
         references={outgoingEdges.map((edge) => ({
           id: edge.id,
@@ -82,7 +71,7 @@ export function AdjacentReferenceList({
       />
     </>
   ) : (
-    <p className={cx("ui-muted")}>暂无引用</p>
+    <EmptyState title="暂无引用" />
   );
 }
 
@@ -95,25 +84,17 @@ export function MostReferencedList({
 }) {
   return graph.mostReferencedNodes.length > 0 ? (
     <Section title="引用最多">
-      <ul aria-label="引用排名" className={cx("detail-line-list")}>
+      <ContextList label="引用排名">
         {graph.mostReferencedNodes.map((node) => (
-          <li key={node.id}>
-            <Button type="button" onClick={() => onSelectNote(node.id)}>
-              <SymbolSlot
-                aria-hidden="true"
-                className={cx("detail-line-marker")}
-                tone="muted"
-              >
-                <Hash aria-hidden="true" size={13} strokeWidth={2} />
-              </SymbolSlot>
-              <span className={cx("detail-line-main")}>{node.title}</span>
-              <span className={cx("detail-line-meta")}>
-                {node.totalReferences}
-              </span>
-            </Button>
-          </li>
+          <ContextRow
+            key={node.id}
+            icon={<Hash aria-hidden="true" />}
+            onSelect={() => onSelectNote(node.id)}
+          >
+            {node.title} <StatusText>{node.totalReferences}</StatusText>
+          </ContextRow>
         ))}
-      </ul>
+      </ContextList>
     </Section>
   ) : null;
 }

@@ -5,7 +5,16 @@ import {
   PropertyList as ToolPropertyList,
   PropertyRow as ToolPropertyRow,
 } from "compact-ui";
-import { Button, Section } from "compact-ui";
+import {
+  Button,
+  EmptyState,
+  FormActions,
+  ManagementList,
+  ManagementRow,
+  Section,
+  Stack,
+  StatusText,
+} from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 import agentStyles from "./agent.module.css";
 const cx = createClassNames(agentStyles);
@@ -65,16 +74,16 @@ export function AgentProposalReview({
       </Section>
       <Section title="逐项审查">
         {proposal.review.resources.length === 0 ? (
-          <p className={cx("agent-muted")}>没有可展示的资源变更。</p>
+          <EmptyState title="没有可展示的资源变更。" />
         ) : (
-          <ol className={cx("agent-review-resource-list")}>
+          <ManagementList label="逐项资源变更">
             {proposal.review.resources.map((resource) => (
               <AgentProposalReviewResource
                 key={resource.resourceId}
                 resource={resource}
               />
             ))}
-          </ol>
+          </ManagementList>
         )}
       </Section>
       <AgentProposalTechnicalDetails proposal={proposal} />
@@ -95,55 +104,55 @@ function AgentProposalReviewResource({
   const blockSummary = formatBlockSummary(resource.blockSummary);
 
   return (
-    <li className={cx("agent-review-resource")}>
-      <header>
-        <strong>{current?.path ?? "无法识别的资源"}</strong>
-        <span className={cx("agent-review-actions")}>
-          {resource.actions.map((action) => (
-            <span key={action}>{actionLabels[action]}</span>
-          ))}
-        </span>
-      </header>
-      {pathChanged ? (
-        <p className={cx("agent-review-path-change")}>
-          <span>{resource.before?.path}</span>
-          <span aria-hidden="true">→</span>
-          <span>{resource.after?.path}</span>
-        </p>
-      ) : null}
-      {blockSummary ? (
-        <p className={cx("agent-review-block-summary")}>
-          块变更：{blockSummary}
-        </p>
-      ) : null}
-      {resource.diff.length === 0 ? (
-        <p className={cx("agent-muted")}>没有正文行变更。</p>
-      ) : (
-        <div className={cx("agent-line-diff")}>
-          {resource.diff.map((hunk, hunkIndex) => (
-            <div className={cx("agent-line-diff-hunk")} key={hunkIndex}>
-              {hunk.lines.map((line, lineIndex) => (
-                <div
-                  className={cx(`agent-line-diff-row is-${line.kind}`)}
-                  key={`${line.beforeLineNumber}:${line.afterLineNumber}:${lineIndex}`}
-                >
-                  <span>{line.beforeLineNumber ?? ""}</span>
-                  <span>{line.afterLineNumber ?? ""}</span>
-                  <span aria-hidden="true">
-                    {line.kind === "added"
-                      ? "+"
-                      : line.kind === "removed"
-                        ? "−"
-                        : " "}
-                  </span>
-                  <code>{line.text || " "}</code>
+    <ManagementRow
+      title={current?.path ?? "无法识别的资源"}
+      description={
+        <Stack gap="tight">
+          <FormActions>
+            {resource.actions.map((action) => (
+              <StatusText key={action}>{actionLabels[action]}</StatusText>
+            ))}
+          </FormActions>
+          {pathChanged ? (
+            <Stack direction="row" gap="tight" wrap>
+              <span>{resource.before?.path}</span>
+              <span aria-hidden="true">→</span>
+              <span>{resource.after?.path}</span>
+            </Stack>
+          ) : null}
+          {blockSummary ? (
+            <StatusText>块变更：{blockSummary}</StatusText>
+          ) : null}
+          {resource.diff.length === 0 ? (
+            <EmptyState title="没有正文行变更。" />
+          ) : (
+            <div className={cx("agent-line-diff")}>
+              {resource.diff.map((hunk, hunkIndex) => (
+                <div className={cx("agent-line-diff-hunk")} key={hunkIndex}>
+                  {hunk.lines.map((line, lineIndex) => (
+                    <div
+                      className={cx(`agent-line-diff-row is-${line.kind}`)}
+                      key={`${line.beforeLineNumber}:${line.afterLineNumber}:${lineIndex}`}
+                    >
+                      <span>{line.beforeLineNumber ?? ""}</span>
+                      <span>{line.afterLineNumber ?? ""}</span>
+                      <span aria-hidden="true">
+                        {line.kind === "added"
+                          ? "+"
+                          : line.kind === "removed"
+                            ? "−"
+                            : " "}
+                      </span>
+                      <code>{line.text || " "}</code>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
-          ))}
-        </div>
-      )}
-    </li>
+          )}
+        </Stack>
+      }
+    />
   );
 }
 
@@ -190,54 +199,71 @@ function AgentProposalTechnicalDetails({
           </Section>
           <Section title="资源变更">
             {proposal.changes.resources.length === 0 ? (
-              <p className={cx("agent-muted")}>无</p>
+              <EmptyState title="无" />
             ) : (
-              <ul className={cx("agent-technical-change-list")}>
+              <ManagementList label="资源变更">
                 {proposal.changes.resources.map((change, index) => (
-                  <li key={`${change.resourceId}:${change.kind}:${index}`}>
-                    <strong>{technicalChangeLabels[change.kind]}</strong>
-                    <TechnicalInlineValue value={change.resourceId} />
-                    {change.version ? (
-                      <TechnicalInlineValue value={change.version} />
-                    ) : null}
-                  </li>
+                  <ManagementRow
+                    key={`${change.resourceId}:${change.kind}:${index}`}
+                    title={technicalChangeLabels[change.kind]}
+                    description={
+                      <Stack gap="tight">
+                        <TechnicalInlineValue value={change.resourceId} />
+                        {change.version ? (
+                          <TechnicalInlineValue value={change.version} />
+                        ) : null}
+                      </Stack>
+                    }
+                  />
                 ))}
-              </ul>
+              </ManagementList>
             )}
           </Section>
           <Section title="块变更">
             {proposal.changes.blocks.length === 0 ? (
-              <p className={cx("agent-muted")}>无</p>
+              <EmptyState title="无" />
             ) : (
-              <ul className={cx("agent-technical-change-list")}>
+              <ManagementList label="块变更">
                 {proposal.changes.blocks.map((change, index) => (
-                  <li key={`${change.blockId}:${change.kind}:${index}`}>
-                    <strong>{technicalChangeLabels[change.kind]}</strong>
-                    <TechnicalInlineValue value={change.blockId} />
-                    <span>所属资源</span>
-                    <TechnicalInlineValue value={change.resourceId} />
-                  </li>
+                  <ManagementRow
+                    key={`${change.blockId}:${change.kind}:${index}`}
+                    title={technicalChangeLabels[change.kind]}
+                    description={
+                      <Stack gap="tight">
+                        <TechnicalInlineValue value={change.blockId} />
+                        <span>所属资源</span>
+                        <TechnicalInlineValue value={change.resourceId} />
+                      </Stack>
+                    }
+                  />
                 ))}
-              </ul>
+              </ManagementList>
             )}
           </Section>
           <Section title="字符级 diff">
             {proposal.diff.length === 0 ? (
-              <p className={cx("agent-muted")}>无</p>
+              <EmptyState title="无" />
             ) : (
-              <ul className={cx("agent-technical-diff-list")}>
+              <ManagementList label="字符级 diff">
                 {proposal.diff.map((hunk, index) => (
-                  <li key={`${hunk.resourceId}:${hunk.from}:${index}`}>
-                    <header>
-                      <TechnicalInlineValue value={hunk.resourceId} />
-                      <span>
-                        {hunk.from}–{hunk.to}
-                      </span>
-                    </header>
-                    <pre>{hunk.insertedText || "（删除所选范围）"}</pre>
-                  </li>
+                  <ManagementRow
+                    key={`${hunk.resourceId}:${hunk.from}:${index}`}
+                    title={
+                      <Stack direction="row" wrap>
+                        <TechnicalInlineValue value={hunk.resourceId} />
+                        <span>
+                          {hunk.from}–{hunk.to}
+                        </span>
+                      </Stack>
+                    }
+                    description={
+                      <pre className={cx("agent-character-diff")}>
+                        {hunk.insertedText || "（删除所选范围）"}
+                      </pre>
+                    }
+                  />
                 ))}
-              </ul>
+              </ManagementList>
             )}
           </Section>
         </SectionStack>
@@ -250,7 +276,7 @@ function TechnicalInlineValue({ value }: { value: string }) {
   const feedback = useFeedback();
 
   return (
-    <span className={cx("agent-technical-value")}>
+    <Stack direction="row" align="center" gap="tight">
       <code>{shortTechnicalValue(value)}</code>
       <Button
         aria-label="复制完整值"
@@ -268,7 +294,7 @@ function TechnicalInlineValue({ value }: { value: string }) {
       >
         <Copy aria-hidden="true" size={12} />
       </Button>
-    </span>
+    </Stack>
   );
 }
 

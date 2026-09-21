@@ -1,5 +1,5 @@
 import { Stack as SectionStack } from "compact-ui";
-import { Button, EmptyState, Section } from "compact-ui";
+import { Button, EmptyState, Section, Stack } from "compact-ui";
 import { useEffect, useState } from "react";
 import type {
   RepositoryOption,
@@ -9,12 +9,9 @@ import {
   createDefaultRepositorySelection,
   type RepositorySelection,
 } from "../../../application/repository/index.ts";
-import { createClassNames } from "../../ui/index.ts";
-import repositoryStyles from "./repository.module.css";
 import { RepositoryCreateForm } from "./RepositoryCreateForm.tsx";
-const cx = createClassNames(repositoryStyles);
 
-import { Page, PageBody, useFeedback } from "../../ui/index.ts";
+import { FormError, Page, PageBody, useFeedback } from "../../ui/index.ts";
 
 import { BuiltInRepositoryDetail } from "./BuiltInRepositoryDetail.tsx";
 import { OrdinaryRepositoryDetail } from "./OrdinaryRepositoryDetail.tsx";
@@ -83,10 +80,8 @@ export function RepositoryPanel({
       <PageBody>
         <SectionStack>
           {view.catalogErrorMessage ? (
-            <div className={cx("repository-catalog-error")}>
-              <p className={cx("repository-warning")} role="alert">
-                {view.catalogErrorMessage}
-              </p>
+            <Stack align="start" gap="tight">
+              <FormError message={view.catalogErrorMessage} />
               <Button
                 disabled={busy}
                 onClick={() =>
@@ -97,12 +92,11 @@ export function RepositoryPanel({
               >
                 刷新仓库目录
               </Button>
-            </div>
+            </Stack>
           ) : null}
           {target.kind === "create" ? (
             <Section title="新建普通仓库">
               <RepositoryCreateForm
-                className={cx("repository-create")}
                 disabled={busy}
                 onCreate={view.createRepository}
                 onError={feedback.notifyError}

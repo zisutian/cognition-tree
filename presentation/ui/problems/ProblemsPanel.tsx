@@ -1,5 +1,13 @@
 import { Toolbar as ToolToolbar } from "compact-ui";
-import { Button, ChoiceGroup, ContextList, ContextRow } from "compact-ui";
+import {
+  ChoiceGroup,
+  ContextList,
+  ContextRow,
+  EmptyState,
+  Stack,
+  StatusText,
+  SubButton,
+} from "compact-ui";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { CircleX, TriangleAlert } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
@@ -91,7 +99,7 @@ function ProblemRow({
         operational ? (
           <>
             {operational.requestId && onCopyRequestId ? (
-              <Button
+              <SubButton
                 variant="normal"
                 aria-label={`复制请求编号：${operational.requestId}`}
                 onClick={() => onCopyRequestId(operational.requestId!)}
@@ -99,16 +107,16 @@ function ProblemRow({
                 type="button"
               >
                 复制编号
-              </Button>
+              </SubButton>
             ) : null}
-            <Button
+            <SubButton
               variant="normal"
               aria-label={`关闭操作错误：${problem.message}`}
               onClick={() => onDismiss(problem)}
               type="button"
             >
               关闭
-            </Button>
+            </SubButton>
           </>
         ) : null
       }
@@ -250,12 +258,12 @@ export function ProblemsPanel({
     [retryFilter, severityFilter, sourceFilter, view.problems],
   );
   return (
-    <section className={cx("problems-panel", expanded && "is-expanded")}>
+    <Stack fill gap="tight">
       {expanded ? (
-        <div className={cx("problems-panel-body")}>
+        <>
           <ToolToolbar label="问题筛选">
-            <label>
-              来源
+            <Stack gap="none">
+              <StatusText>来源</StatusText>
               <ChoiceGroup
                 ariaLabel="按来源筛选问题"
                 mode="single"
@@ -271,9 +279,9 @@ export function ProblemsPanel({
                 ]}
                 value={sourceFilter}
               />
-            </label>
-            <label>
-              严重度
+            </Stack>
+            <Stack gap="none">
+              <StatusText>严重度</StatusText>
               <ChoiceGroup
                 ariaLabel="按严重度筛选问题"
                 mode="single"
@@ -287,9 +295,9 @@ export function ProblemsPanel({
                 ]}
                 value={severityFilter}
               />
-            </label>
-            <label>
-              重试性
+            </Stack>
+            <Stack gap="none">
+              <StatusText>重试性</StatusText>
               <ChoiceGroup
                 ariaLabel="按可重试性筛选问题"
                 mode="single"
@@ -303,7 +311,7 @@ export function ProblemsPanel({
                 ]}
                 value={retryFilter}
               />
-            </label>
+            </Stack>
           </ToolToolbar>
           {filteredProblems.length > 0 ? (
             <ProblemsList
@@ -313,16 +321,18 @@ export function ProblemsPanel({
               problems={filteredProblems}
             />
           ) : (
-            <p className={cx("problems-empty")}>
-              {view.status === "collecting"
-                ? "正在检查…"
-                : view.problems.length > 0
-                  ? "没有符合筛选条件的问题。"
-                  : "没有问题。"}
-            </p>
+            <EmptyState
+              title={
+                view.status === "collecting"
+                  ? "正在检查…"
+                  : view.problems.length > 0
+                    ? "没有符合筛选条件的问题。"
+                    : "没有问题。"
+              }
+            />
           )}
-        </div>
+        </>
       ) : null}
-    </section>
+    </Stack>
   );
 }

@@ -1,17 +1,22 @@
-import { Section } from "compact-ui";
+import {
+  EmptyState,
+  FieldRow,
+  FormActions,
+  FormLayout,
+  Section,
+  Stack,
+} from "compact-ui";
 import { usePageNavigation, describePage } from "../../../navigation/index.ts";
 import { Button, InputControl } from "compact-ui";
 import { FolderPlus, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { NotesViewModel } from "../../../../application/workspace/index.ts";
 import {
-  createClassNames,
   NoteTree,
   type TreeNode,
   useExclusiveAsyncAction,
   useFeedback,
 } from "../../../ui/index.ts";
-const cx = createClassNames();
 
 export function submitNotesFolderCreation({
   directory,
@@ -165,7 +170,7 @@ export function NotesContext({
   };
 
   return (
-    <div className={cx("activity-context-content")}>
+    <Stack fill>
       <Section
         children={null}
         title="文件"
@@ -209,36 +214,43 @@ export function NotesContext({
         }
       />
       {creatingFolder ? (
-        <form
-          className={cx("directory-create-row")}
+        <FormLayout
+          layout="stacked"
           onSubmit={(event) => {
             event.preventDefault();
             createFolder();
           }}
         >
-          <InputControl
-            autoFocus
-            aria-label="文件夹名称"
-            sizing="container"
-            value={folderTitle}
-            onChange={(event) => setFolderTitle(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                setCreatingFolder(false);
-              }
-            }}
-          />
-          <Button type="submit" variant="normal">
-            确定
-          </Button>
-          <Button
-            onClick={() => setCreatingFolder(false)}
-            type="button"
-            variant="normal"
-          >
-            取消
-          </Button>
-        </form>
+          <FieldRow label="文件夹名称">
+            {(accessibility) => (
+              <InputControl
+                {...accessibility}
+                autoFocus
+                aria-label="文件夹名称"
+                sizing="container"
+                value={folderTitle}
+                onChange={(event) => setFolderTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setCreatingFolder(false);
+                  }
+                }}
+              />
+            )}
+          </FieldRow>
+          <FormActions>
+            <Button type="submit" variant="normal">
+              确定
+            </Button>
+            <Button
+              onClick={() => setCreatingFolder(false)}
+              type="button"
+              variant="normal"
+            >
+              取消
+            </Button>
+          </FormActions>
+        </FormLayout>
       ) : null}
       <NoteTree
         onOpenNote={(id, intent) => {
@@ -271,8 +283,8 @@ export function NotesContext({
         onToggleFolder={toggleFolder}
       />
       {directory.noteTree.length === 0 ? (
-        <p className={cx("context-empty")}>没有笔记。</p>
+        <EmptyState title="没有笔记。" />
       ) : null}
-    </div>
+    </Stack>
   );
 }

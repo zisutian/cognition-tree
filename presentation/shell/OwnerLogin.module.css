@@ -3,16 +3,9 @@
   min-height: 100dvh;
   padding: var(--cu-padding);
   place-items: center;
-  background: var(--cu-color-surface);
 }
 .content {
   width: 100%;
   max-width: var(--cu-readingWidth);
   min-width: 0;
-}
-.title {
-  margin: 0;
-  color: var(--cu-color-strong);
-  font: inherit;
-  font-weight: var(--cu-emphasis);
 }

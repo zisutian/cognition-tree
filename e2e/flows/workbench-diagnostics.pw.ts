@@ -36,7 +36,7 @@ test.describe("workbench diagnostics", () => {
     await openRepositoryFromContext(page, diagnosticsRepositoryId);
     await getActivityButton(page, "笔记").click();
 
-    const problems = page.locator(".problems-panel");
+    const problems = page.getByRole("region", { name: "问题", exact: true });
     const problemsHeader = getProblemsToggle(page);
 
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
@@ -50,6 +50,10 @@ test.describe("workbench diagnostics", () => {
     await expect(getWorkbenchStatus(page)).toHaveText("");
     await expect(problemsHeader).toHaveAccessibleName(/0 个错误，2 个警告/);
     await problemsHeader.click();
+
+    await expect(
+      problems.getByRole("radio", { name: "全部", exact: true }),
+    ).toHaveCount(3);
 
     const rows = problems.getByRole("button", { name: /打开问题：/ });
     const documentProblem = rows.filter({ hasText: "未知行首符号 !" });

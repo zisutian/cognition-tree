@@ -1,3 +1,4 @@
+import { FormActions } from "compact-ui";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
@@ -5,8 +6,6 @@ import {
   PropertyRow as ToolPropertyRow,
 } from "compact-ui";
 import { Button } from "compact-ui";
-import { createClassNames } from "../../ui/index.ts";
-const cx = createClassNames();
 
 import { useState } from "react";
 import type {
@@ -76,7 +75,7 @@ export function OwnerCredentialSettingsPanel({
         <p>待激活密钥不在当前页面；重新准备将替换它。</p>
       ) : null}
       {awaiting && state.errorMessage ? <p>新密钥激活结果尚未确认</p> : null}
-      <div className={cx("ui-actions")}>
+      <FormActions>
         {!preparation ? (
           <Button
             disabled={busy}
@@ -136,7 +135,7 @@ export function OwnerCredentialSettingsPanel({
         >
           退出登录
         </Button>
-      </div>
+      </FormActions>
     </SettingsPage>
   );
 }

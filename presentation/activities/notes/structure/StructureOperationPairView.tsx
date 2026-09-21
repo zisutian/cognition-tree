@@ -1,7 +1,8 @@
+import { EmptyState } from "compact-ui";
 import { ContextMenu } from "compact-ui";
 import type { ComponentProps } from "react";
 type ContextMenuPosition = ComponentProps<typeof ContextMenu>["position"];
-import { Button, Section } from "compact-ui";
+import { Button, Section, Stack, Toolbar } from "compact-ui";
 import { ArrowLeftRight } from "lucide-react";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
@@ -109,44 +110,8 @@ export function StructureOperationPairView({
   };
 
   return (
-    <div className={cx("structure-operation-grid")}>
-      <section aria-label={`源笔记 · ${view.sourceNote?.title ?? "未选择"}`}>
-        <Section title={`源笔记 · ${view.sourceNote?.title ?? "未选择"}`}>
-          {view.sourceRoots.length > 0 ? (
-            <StructureTree
-              getRowProps={(node) => ({
-                className:
-                  draggingLineNumber === String(node.lineNumber)
-                    ? "is-dragging"
-                    : undefined,
-                draggable: true,
-                onDragEnd: finishDrag,
-                onDragStart: (event) => {
-                  const payload = createBlockLineDragPayload(node.lineNumber);
-
-                  event.dataTransfer.effectAllowed = "move";
-                  event.dataTransfer.setData(blockLineDragDataType, payload);
-                  event.dataTransfer.setData("text/plain", payload);
-                  startDrag(node.lineNumber);
-                },
-                onContextMenu: (event) =>
-                  openMoveContext(event, node.lineNumber),
-              })}
-              indentUnitCount={view.indentUnitCount}
-              keepMountedLineNumbers={keepMountedLineNumbers}
-              nodes={view.sourceRoots}
-              selectedLineNumbers={selectedLineNumbers}
-              selectedRootLineNumber={sourceBlock?.lineNumber ?? null}
-              onSelectLine={(lineNumber) =>
-                setSourceLineNumber(String(lineNumber))
-              }
-            />
-          ) : (
-            <p className={cx("ui-muted")}>源笔记没有可移动块。</p>
-          )}
-        </Section>
-      </section>
-      <div className={cx("structure-operation-pair-swap")}>
+    <Stack>
+      <Toolbar label="结构迁移操作">
         <Button
           aria-label="交换源笔记和目标笔记"
           disabled={
@@ -161,48 +126,93 @@ export function StructureOperationPairView({
         >
           <ArrowLeftRight aria-hidden="true" size={14} />
         </Button>
-      </div>
-      <section aria-label={`目标笔记 · ${view.targetNote?.title ?? "未选择"}`}>
-        <Section title={`目标笔记 · ${view.targetNote?.title ?? "未选择"}`}>
-          {showEndDropTarget && view.targetRoots.length === 0 ? (
-            <DropTarget
-              activePosition={activeDropPosition}
-              label="文末根块"
-              position="end"
-              onDropLine={dropLine}
-              onSetActivePosition={setActiveDropPosition}
-            />
-          ) : null}
-          {view.targetRoots.length > 0 ? (
-            <>
-              <StructureOperationTargetTree
-                activeDropPosition={activeDropPosition}
-                activeTargetLineNumber={activeTargetLineNumber}
-                blockedLineNumbers={emptySelectedLineNumbers}
-                draggingLineNumber={draggingLineNumber}
+      </Toolbar>
+      <Stack direction="row" wrap align="start">
+        <section
+          className={cx("structure-operation-column")}
+          aria-label={`源笔记 · ${view.sourceNote?.title ?? "未选择"}`}
+        >
+          <Section title={`源笔记 · ${view.sourceNote?.title ?? "未选择"}`}>
+            {view.sourceRoots.length > 0 ? (
+              <StructureTree
+                getRowProps={(node) => ({
+                  className:
+                    draggingLineNumber === String(node.lineNumber)
+                      ? "is-dragging"
+                      : undefined,
+                  draggable: true,
+                  onDragEnd: finishDrag,
+                  onDragStart: (event) => {
+                    const payload = createBlockLineDragPayload(node.lineNumber);
+
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData(blockLineDragDataType, payload);
+                    event.dataTransfer.setData("text/plain", payload);
+                    startDrag(node.lineNumber);
+                  },
+                  onContextMenu: (event) =>
+                    openMoveContext(event, node.lineNumber),
+                })}
                 indentUnitCount={view.indentUnitCount}
-                nodes={view.targetRoots}
-                selectedLineNumbers={emptySelectedLineNumbers}
-                selectedRootLineNumber={null}
-                onActivateTarget={setActiveTargetLineNumber}
-                onDropLine={dropLine}
-                onSetActiveDropPosition={setActiveDropPosition}
+                keepMountedLineNumbers={keepMountedLineNumbers}
+                nodes={view.sourceRoots}
+                selectedLineNumbers={selectedLineNumbers}
+                selectedRootLineNumber={sourceBlock?.lineNumber ?? null}
+                onSelectLine={(lineNumber) =>
+                  setSourceLineNumber(String(lineNumber))
+                }
               />
-              {showEndDropTarget ? (
-                <DropTarget
-                  activePosition={activeDropPosition}
-                  label="文末根块"
-                  position="end"
+            ) : (
+              <EmptyState title="源笔记没有可移动块。" />
+            )}
+          </Section>
+        </section>
+
+        <section
+          className={cx("structure-operation-column")}
+          aria-label={`目标笔记 · ${view.targetNote?.title ?? "未选择"}`}
+        >
+          <Section title={`目标笔记 · ${view.targetNote?.title ?? "未选择"}`}>
+            {showEndDropTarget && view.targetRoots.length === 0 ? (
+              <DropTarget
+                activePosition={activeDropPosition}
+                label="文末根块"
+                position="end"
+                onDropLine={dropLine}
+                onSetActivePosition={setActiveDropPosition}
+              />
+            ) : null}
+            {view.targetRoots.length > 0 ? (
+              <>
+                <StructureOperationTargetTree
+                  activeDropPosition={activeDropPosition}
+                  activeTargetLineNumber={activeTargetLineNumber}
+                  blockedLineNumbers={emptySelectedLineNumbers}
+                  draggingLineNumber={draggingLineNumber}
+                  indentUnitCount={view.indentUnitCount}
+                  nodes={view.targetRoots}
+                  selectedLineNumbers={emptySelectedLineNumbers}
+                  selectedRootLineNumber={null}
+                  onActivateTarget={setActiveTargetLineNumber}
                   onDropLine={dropLine}
-                  onSetActivePosition={setActiveDropPosition}
+                  onSetActiveDropPosition={setActiveDropPosition}
                 />
-              ) : null}
-            </>
-          ) : (
-            <p className={cx("ui-muted")}>目标笔记没有结构。</p>
-          )}
-        </Section>
-      </section>
+                {showEndDropTarget ? (
+                  <DropTarget
+                    activePosition={activeDropPosition}
+                    label="文末根块"
+                    position="end"
+                    onDropLine={dropLine}
+                    onSetActivePosition={setActiveDropPosition}
+                  />
+                ) : null}
+              </>
+            ) : (
+              <EmptyState title="目标笔记没有结构。" />
+            )}
+          </Section>
+        </section>
+      </Stack>
       {moveContext ? (
         <ContextMenu
           label="结构块操作"
@@ -229,6 +239,6 @@ export function StructureOperationPairView({
         onClose={() => setMoveSourceLineNumber(null)}
         onMove={dropLine}
       />
-    </div>
+    </Stack>
   );
 }

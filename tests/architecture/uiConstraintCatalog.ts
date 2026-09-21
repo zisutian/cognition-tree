@@ -22,10 +22,25 @@ export function createUiTextPolicies({
       /<(?:button|input|select|textarea)\b/,
     ),
     forbidTextPolicy(
+      "ordinary forms use the package; native forms require external action association",
+      presentationModules,
+      /<form\b(?![^>]*\bid=)/,
+    ),
+    forbidTextPolicy(
+      "generic property and table markup is package-owned",
+      presentationModules,
+      /<(?:dl|table|fieldset|legend)\b/,
+    ),
+    forbidTextPolicy(
       "native browser dialogs",
       sourceModules,
       /window\.(?:alert|confirm|prompt)\s*\(/,
       /^presentation\//,
+    ),
+    forbidTextPolicy(
+      "no retired design functions remain in runtime CSS",
+      styleModules,
+      /design-[a-z-]+\s*\(/,
     ),
     forbidTextPolicy(
       "old generic styles",

@@ -96,9 +96,10 @@ test.describe("graph activity flows", () => {
     expect(secondNode).toBeDefined();
     await canvas.click({ position: firstNode });
 
-    const activeTitle = page.locator(
-      "aside[aria-label='详情区域'] .detail-primary-row > p",
-    );
+    const activeTitle = page
+      .getByRole("region", { name: "图谱详情" })
+      .getByRole("heading", { level: 3 })
+      .first();
     const firstTitle = await activeTitle.textContent();
 
     expect(firstTitle).not.toBeNull();

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Button, CheckboxControl } from "compact-ui";
+import { Button, CheckboxControl, EmptyState } from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 import todoStyles from "./todo.module.css";
 const cx = createClassNames(todoStyles);
@@ -197,7 +197,7 @@ export function TodoDetailPanel({ view }: { view: TodoViewModel }) {
             view={view}
           />
         ) : (
-          <p className={cx("context-empty")}>暂无事项</p>
+          <EmptyState title="暂无事项" />
         )}
       </PageBody>
     </Page>

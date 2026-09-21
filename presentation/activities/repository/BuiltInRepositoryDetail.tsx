@@ -1,3 +1,4 @@
+import { FormActions } from "compact-ui";
 import { Button, EmptyState, Section } from "compact-ui";
 import { RefreshCw } from "lucide-react";
 import type {
@@ -6,8 +7,6 @@ import type {
   BuiltInOption,
   RepositoryViewModel,
 } from "../../../application/repository/index.ts";
-import { createClassNames } from "../../ui/index.ts";
-const cx = createClassNames();
 
 import { RepositoryConflictActions } from "./RepositoryConflictResolution.tsx";
 import { builtInLabel } from "./repositoryViewHelpers.ts";
@@ -31,7 +30,7 @@ export function BuiltInRepositoryDetail({
     return (
       <>
         <Section title="操作">
-          <div className={cx("ui-actions")}>
+          <FormActions>
             <Button
               disabled={busy || view.retryingBuiltInId !== null}
               onClick={() => onRunAction(() => view.retryBuiltIn(issue.id))}
@@ -41,7 +40,7 @@ export function BuiltInRepositoryDetail({
               <RefreshCw aria-hidden="true" size={13} />
               重试
             </Button>
-          </div>
+          </FormActions>
         </Section>
       </>
     );
@@ -77,7 +76,7 @@ export function BuiltInRepositoryDetail({
       ) : null}
       {repository.conflictResolution ? null : (
         <Section title="操作">
-          <div className={cx("ui-actions")}>
+          <FormActions>
             <Button
               disabled={busy}
               onClick={() =>
@@ -89,7 +88,7 @@ export function BuiltInRepositoryDetail({
               <RefreshCw aria-hidden="true" size={13} />
               {repository.recoveryAction?.label ?? "重新加载"}
             </Button>
-          </div>
+          </FormActions>
         </Section>
       )}
     </>

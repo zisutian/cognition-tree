@@ -1,5 +1,5 @@
-import { Button, ColorControl } from "compact-ui";
-import { Check, ChevronDown } from "lucide-react";
+import { Button, ChoiceGroup, ColorControl, Stack } from "compact-ui";
+import { ChevronDown } from "lucide-react";
 import type { CSSProperties } from "react";
 import type {
   SyntaxTone,
@@ -107,45 +107,33 @@ export function TonePicker({
     >
       {({ close }) => (
         <>
-          <div
-            className={cx("syntax-tone-grid")}
-            role="group"
-            aria-label="预设颜色"
-          >
-            {options.map((option) => {
-              const selectOption = () => {
-                selectTone(option.value);
-                close();
-              };
-
-              return (
-                <Button
-                  disabled={disabled}
-                  aria-label={option.label}
-                  aria-pressed={value === option.value}
-                  key={option.value}
-                  onClick={selectOption}
-                  title={option.label}
-                  type="button"
-                  variant="icon"
-                >
-                  <span className={cx("syntax-tone-choice")}>
-                    <span
-                      aria-hidden="true"
-                      className={cx(getToneSwatchClass(option.value))}
-                    >
-                      <span />
-                    </span>
-                    {value === option.value ? (
-                      <Check aria-hidden="true" size={12} strokeWidth={2.4} />
-                    ) : null}
+          <ChoiceGroup
+            ariaLabel="预设颜色"
+            mode="single"
+            value={value}
+            options={options.map((option) => ({
+              value: option.value,
+              title: option.label,
+              disabled,
+              label: (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className={cx(getToneSwatchClass(option.value))}
+                  >
+                    <span />
                   </span>
-                </Button>
-              );
-            })}
-          </div>
+                  {option.label}
+                </>
+              ),
+            }))}
+            onChange={(tone) => {
+              selectTone(tone);
+              close();
+            }}
+          />
 
-          <div className={cx("syntax-tone-custom-row")}>
+          <Stack direction="row" align="center" wrap>
             <Button
               disabled={disabled}
               aria-pressed={isCustomValue}
@@ -175,7 +163,7 @@ export function TonePicker({
                 }
               }}
             />
-          </div>
+          </Stack>
         </>
       )}
     </TriggerPopover>

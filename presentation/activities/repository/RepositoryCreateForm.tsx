@@ -1,10 +1,13 @@
-import { Stack } from "compact-ui";
-import { Button, FieldRow, FormActions, InputControl } from "compact-ui";
+import {
+  Button,
+  FieldRow,
+  FormActions,
+  FormLayout,
+  InputControl,
+} from "compact-ui";
 import { useState, type FormEvent } from "react";
 import type { CreateRepositoryRequest } from "../../../application/repository/index.ts";
-import { createClassNames, useExclusiveAsyncAction } from "../../ui/index.ts";
-import repositoryStyles from "./repository.module.css";
-const cx = createClassNames(repositoryStyles);
+import { useExclusiveAsyncAction } from "../../ui/index.ts";
 
 export type RepositoryCreateFormDraft = { name: string };
 
@@ -25,13 +28,11 @@ export function clearRepositoryCreateFormAfterSuccess(): RepositoryCreateFormDra
 }
 
 export function RepositoryCreateForm({
-  className,
   disabled = false,
   initialName = "",
   onCreate,
   onError,
 }: {
-  className?: string;
   disabled?: boolean;
   initialName?: string;
   onCreate: (input: CreateRepositoryRequest) => Promise<void>;
@@ -66,35 +67,26 @@ export function RepositoryCreateForm({
   };
 
   return (
-    <form
-      className={cx("repository-create-form", className)}
-      onSubmit={handleSubmit}
-    >
-      <Stack>
-        <FieldRow fieldId="repository-create-name" label="名称">
-          {(accessibility) => (
-            <InputControl
-              {...accessibility}
-              autoComplete="off"
-              disabled={busy}
-              maxLength={80}
-              onChange={(event) => setDraft({ name: event.target.value })}
-              required
-              value={draft.name}
-            />
-          )}
-        </FieldRow>
-        {errorMessage ? (
-          <p className={cx("ui-form-error")} role="alert">
-            {errorMessage}
-          </p>
-        ) : null}
-        <FormActions>
-          <Button disabled={busy} type="submit" variant="normal">
-            {submitting ? "创建中" : "创建仓库"}
-          </Button>
-        </FormActions>
-      </Stack>
-    </form>
+    <FormLayout onSubmit={handleSubmit}>
+      <FieldRow fieldId="repository-create-name" label="名称">
+        {(accessibility) => (
+          <InputControl
+            {...accessibility}
+            autoComplete="off"
+            disabled={busy}
+            error={errorMessage || undefined}
+            maxLength={80}
+            onChange={(event) => setDraft({ name: event.target.value })}
+            required
+            value={draft.name}
+          />
+        )}
+      </FieldRow>
+      <FormActions>
+        <Button disabled={busy} type="submit" variant="normal">
+          {submitting ? "创建中" : "创建仓库"}
+        </Button>
+      </FormActions>
+    </FormLayout>
   );
 }

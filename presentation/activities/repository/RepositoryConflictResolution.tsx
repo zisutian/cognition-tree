@@ -1,3 +1,4 @@
+import { FormActions } from "compact-ui";
 import {
   PropertyList as ToolPropertyList,
   PropertyRow as ToolPropertyRow,
@@ -5,8 +6,6 @@ import {
 import { Button, Section } from "compact-ui";
 import { useEffect, useState } from "react";
 import type { RepositoryConflictResolutionView } from "../../../application/repository/index.ts";
-import { createClassNames } from "../../ui/index.ts";
-const cx = createClassNames();
 
 export function RepositoryConflictStatus({
   resolution,
@@ -99,7 +98,7 @@ export function RepositoryConflictActions({
 }) {
   return (
     <Section title="同步冲突">
-      <div className={cx("ui-actions")}>
+      <FormActions>
         <Button
           disabled={busy}
           onClick={() => onRunAction(resolution.keepLocal)}
@@ -122,7 +121,7 @@ export function RepositoryConflictActions({
         >
           远端并另存本地
         </Button>
-      </div>
+      </FormActions>
     </Section>
   );
 }
