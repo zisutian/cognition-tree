@@ -17,7 +17,11 @@
   line-height: var(--cu-lineHeight);
 }
 
-.source-editor .cm-editor.cm-focused {
+/* CodeMirror owns focus feedback through its caret and selection layers.
+   The provider's generic :focus-visible outline must not frame the entire
+   scrollable contenteditable. Ordinary controls keep their package outline. */
+.source-editor .cm-editor.cm-focused,
+.source-editor .cm-content:focus-visible {
   outline: none;
 }
 

@@ -3,6 +3,8 @@ import type { Locator } from "@playwright/test";
 type ComputedStyleProperty =
   | "backgroundColor"
   | "color"
+  | "outlineStyle"
+  | "outlineWidth"
   | "tabSize"
   | "textDecorationColor";
 
