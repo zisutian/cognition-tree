@@ -14,6 +14,33 @@ test.beforeEach(async ({ api }) => {
   await seedWorkbenchRepository(api, repositoryId);
 });
 
+test("tool buttons preview, pin and reuse their repository page", async ({
+  page,
+}) => {
+  await openWorkbench(page, repositoryId);
+  const tools = page.getByRole("group", { name: "笔记工具" });
+  const structure = tools.getByRole("button", { name: "结构", exact: true });
+  const graph = tools.getByRole("button", { name: "图谱", exact: true });
+  const tabs = page.getByRole("radiogroup", { name: "打开的页面" });
+  await structure.click();
+  await expect(tabs.getByRole("radio")).toHaveCount(1);
+  await expect(tabs.getByRole("radio")).toHaveAttribute(
+    "aria-description",
+    "临时预览",
+  );
+  await graph.click();
+  await expect(tabs.getByRole("radio")).toHaveCount(1);
+  await graph.dblclick();
+  const graphTab = tabs.getByRole("radio", { name: /图谱/ });
+  await expect(graphTab).toHaveAttribute("aria-description", "已固定");
+  await structure.dblclick();
+  await expect(tabs.getByRole("radio")).toHaveCount(2);
+  await graph.click();
+  await expect(graphTab).toBeChecked();
+  await expect(graphTab).toHaveAttribute("aria-description", "已固定");
+  await expect(tabs.getByRole("radio")).toHaveCount(2);
+});
+
 test("resolves a double-clicked lazy activity into one fixed page", async ({
   page,
   e2eState,

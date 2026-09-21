@@ -68,7 +68,9 @@ test.describe("graph activity flows", () => {
     });
 
     await expect(context).toHaveAccessibleName("上下文区域");
-    await expect(context.getByRole("tree", { name: "笔记工具" })).toBeVisible();
+    await expect(
+      context.getByRole("group", { name: "笔记工具" }),
+    ).toBeVisible();
     await expect(context.locator('[aria-label="图谱控制"]')).toBeVisible();
     await expect(
       context.getByRole("textbox", { name: "搜索笔记标题" }),

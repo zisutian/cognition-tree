@@ -31,7 +31,7 @@ test("keeps forms, narrow regions and anchored menus usable in a scaled desktop 
   await page.screenshot({ path: testInfo.outputPath("scaled-provider.png") });
   await page.getByRole("button", { name: "放弃修改", exact: true }).click();
   await getActivityButton(page, "笔记").click();
-  await page.getByRole("treeitem", { name: "图谱", exact: true }).click();
+  await page.getByRole("button", { name: "图谱", exact: true }).click();
   await page.getByRole("button", { name: "图谱设置", exact: true }).click();
   const menu = page.getByRole("dialog", { name: "图谱设置", exact: true });
   await expect(menu).toBeVisible();
@@ -111,7 +111,7 @@ test("paired structure content stacks when the main region is narrow", async ({
 }, testInfo) => {
   await seedWorkbenchRepository(api, "scaled-structure");
   await openWorkbench(page, "scaled-structure");
-  await page.getByRole("treeitem", { name: "结构", exact: true }).click();
+  await page.getByRole("button", { name: "结构", exact: true }).click();
   for (let index = 0; index < 20; index++) {
     await page
       .getByRole("separator", { name: "调整上下文宽度" })

@@ -23,18 +23,19 @@ test("function switches and single, multiple and checkbox selections share surfa
   await expect(
     titles.getByRole("radio", { name: "Alpha", exact: true }),
   ).toBeChecked();
-  const tools = page.getByRole("tree", { name: "笔记工具" });
-  await tools.focus();
-  await tools.press("ArrowDown");
-  await tools.press("Enter");
-  await expect(
-    tools.getByRole("treeitem", { name: "结构", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
-  await tools.press("End");
-  await tools.press("Enter");
-  await expect(
-    tools.getByRole("treeitem", { name: "图谱", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
+  const tools = page.getByRole("group", { name: "笔记工具" });
+  const edit = tools.getByRole("button", { name: "编辑", exact: true });
+  const structure = tools.getByRole("button", { name: "结构", exact: true });
+  const graph = tools.getByRole("button", { name: "图谱", exact: true });
+  await edit.focus();
+  await edit.press("Tab");
+  await expect(structure).toBeFocused();
+  await structure.press("Enter");
+  await expect(structure).toHaveAttribute("aria-pressed", "true");
+  await structure.press("Tab");
+  await expect(graph).toBeFocused();
+  await graph.press("Space");
+  await expect(graph).toHaveAttribute("aria-pressed", "true");
   const scope = page.getByRole("radiogroup", { name: "图谱范围" });
   const local = scope.getByRole("radio", { name: "局部", exact: true });
   await local.click();

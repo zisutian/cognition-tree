@@ -1,12 +1,9 @@
-import { Tree } from "compact-ui";
+import { Button, Toolbar } from "compact-ui";
 import type { NotesViewModel } from "../../../../application/workspace/index.ts";
 import type { ActivitySlots } from "../../../ui/index.ts";
-import { createClassNames } from "../../../ui/index.ts";
 import { NoteDetailPanel } from "./NoteDetailPanel.tsx";
 import { NoteEditorPanel } from "./NoteEditorPanel.tsx";
-import notesStyles from "./notes.module.css";
 import { NotesContext } from "./NotesContext.tsx";
-const cx = createClassNames(notesStyles);
 
 export type NotesMode = "edit" | "graph" | "structure";
 
@@ -36,24 +33,23 @@ export function createNotesWorkspaceActivitySlots({
 
   return {
     context: {
-      content: (
-        <div className={cx("notes-workspace-context")}>
-          <div className={cx("notes-tool-tree")}>
-            <Tree
-              label="笔记工具"
-              nodes={notesModes.map(({ id, label }) => ({ id, label }))}
-              selectedId={mode}
-              expandedIds={new Set()}
-              onExpandedChange={() => {}}
-              onSelect={() => {}}
-              onOpen={(id, intent) => onModeChange(id as NotesMode, intent)}
-            />
-          </div>
-          <div className={cx("notes-mode-context")}>
-            {current.context?.content ?? null}
-          </div>
-        </div>
+      ...current.context,
+      toolbar: (
+        <Toolbar label="笔记工具">
+          {notesModes.map(({ id, label }) => (
+            <Button
+              key={id}
+              type="button"
+              aria-pressed={mode === id}
+              onClick={() => onModeChange(id, "preview")}
+              onDoubleClick={() => onModeChange(id, "pinned")}
+            >
+              {label}
+            </Button>
+          ))}
+        </Toolbar>
       ),
+      content: current.context?.content ?? null,
       title: repositoryName,
     },
     detail: current.detail,

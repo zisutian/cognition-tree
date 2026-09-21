@@ -155,21 +155,21 @@ test.describe("editor workbench flows", () => {
         name: "浏览器回归仓库",
       }),
     ).toBeVisible();
-    const modeSwitch = notesContext.getByRole("tree", {
+    const modeSwitch = notesContext.getByRole("group", {
       name: "笔记工具",
     });
 
     await expect(modeSwitch).toBeVisible();
     await expect(
-      modeSwitch.getByRole("treeitem", { name: "编辑" }),
-    ).toHaveAttribute("aria-selected", "true");
+      modeSwitch.getByRole("button", { name: "编辑" }),
+    ).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "收起上下文", exact: true }).click();
     await expect(modeSwitch).toHaveCount(0);
     await getActivityButton(page, "笔记").click();
     await expect(modeSwitch).toBeVisible();
     await expect(
-      modeSwitch.getByRole("treeitem", { name: "编辑" }),
-    ).toHaveAttribute("aria-selected", "true");
+      modeSwitch.getByRole("button", { name: "编辑" }),
+    ).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "进入专注模式" }).click();
     await expect(page.locator("aside[aria-label='上下文区域']")).toHaveCount(0);
     await expect(page.locator("aside[aria-label='详情区域']")).toHaveCount(0);

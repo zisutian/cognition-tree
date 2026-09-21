@@ -93,7 +93,7 @@ test.describe("virtual collection scrolling", () => {
     page,
   }) => {
     await openWorkbench(page, structureRepository);
-    await page.getByRole("treeitem", { name: "结构", exact: true }).click();
+    await page.getByRole("button", { name: "结构", exact: true }).click();
     const panel = page.getByRole("region", { name: "结构操作", exact: true });
     const source = panel.getByRole("region", { name: /^源笔记 ·/ });
     const scroll = panel.locator('[data-page-layout="canvas"]');

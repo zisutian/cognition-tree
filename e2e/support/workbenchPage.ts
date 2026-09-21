@@ -26,14 +26,14 @@ export async function selectNotesMode(
   page: Page,
   name: "图谱" | "编辑" | "结构",
 ) {
-  let control = page.getByRole("tree", { name: "笔记工具" });
+  let control = page.getByRole("group", { name: "笔记工具" });
   if (!(await control.isVisible())) {
     await getActivityButton(page, "笔记").click();
-    control = page.getByRole("tree", { name: "笔记工具" });
+    control = page.getByRole("group", { name: "笔记工具" });
   }
-  const row = control.getByRole("treeitem", { name, exact: true });
+  const row = control.getByRole("button", { name, exact: true });
   await row.click();
-  await expect(row).toHaveAttribute("aria-selected", "true");
+  await expect(row).toHaveAttribute("aria-pressed", "true");
 }
 
 export async function openRepositoryFromContext(
