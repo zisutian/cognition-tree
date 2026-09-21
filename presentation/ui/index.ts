@@ -38,7 +38,6 @@ export type { ListRowDropPlacement } from "./shared/listDrag.ts";
 export { Page, PageBody } from "./shared/Page.tsx";
 export { TriggerPopover } from "./shared/TriggerPopover.tsx";
 
-export { SymbolSlot } from "./shared/SymbolSlot.tsx";
 export {
   createToneStyle,
   getTextColorClassName,

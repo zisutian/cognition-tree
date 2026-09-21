@@ -2,9 +2,9 @@ import {
   Button,
   ChoiceGroup,
   FieldRow,
-  FormActions,
   FormLayout,
   InputControl,
+  Stack,
 } from "compact-ui";
 import { Search } from "lucide-react";
 import {
@@ -39,7 +39,6 @@ export function SearchContext({
   return (
     <section role="search" aria-label="搜索条件">
       <FormLayout
-        layout="stacked"
         onSubmit={(event) => {
           event.preventDefault();
           void controller.search();
@@ -47,32 +46,31 @@ export function SearchContext({
       >
         <FieldRow label="搜索词" fieldId="workbench-search-query">
           {(accessibility) => (
-            <InputControl
-              {...accessibility}
-              autoComplete="off"
-              id="workbench-search-query"
-              onChange={(event) =>
-                controller.updateDraft({ query: event.currentTarget.value })
-              }
-              placeholder="标题或正文"
-              sizing="container"
-              type="search"
-              value={state.draft.query}
-            />
+            <Stack direction="row" align="center">
+              <InputControl
+                {...accessibility}
+                autoComplete="off"
+                id="workbench-search-query"
+                onChange={(event) =>
+                  controller.updateDraft({ query: event.currentTarget.value })
+                }
+                placeholder="标题或正文"
+                sizing="container"
+                type="search"
+                value={state.draft.query}
+              />
+              <Button
+                aria-label="搜索"
+                disabled={!canSearch}
+                title={state.status === "loading" ? "正在搜索" : "搜索"}
+                type="submit"
+                variant="icon"
+              >
+                <Search aria-hidden="true" />
+              </Button>
+            </Stack>
           )}
         </FieldRow>
-        <FormActions>
-          <Button
-            aria-label="搜索"
-            disabled={!canSearch}
-            title={state.status === "loading" ? "正在搜索" : "搜索"}
-            type="submit"
-            variant="icon"
-          >
-            <Search aria-hidden="true" size={14} />
-          </Button>
-        </FormActions>
-
         <ChoiceGroup
           ariaLabel="搜索范围"
           mode="multiple"

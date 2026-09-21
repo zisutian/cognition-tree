@@ -2,7 +2,7 @@ import { ChoiceGroup, Stack } from "compact-ui";
 import { FileInput, FileOutput, FileText, GitBranch } from "lucide-react";
 import { useState } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
-import { SymbolSlot, NoteTree, type TreeNode } from "../../../ui/index.ts";
+import { NoteTree, type TreeNode } from "../../../ui/index.ts";
 
 type StructureOperationDirectoryMode = "betweenNotes" | "withinNote";
 type StructureOperationNoteStatus = "source" | "structure" | "target" | "";
@@ -40,24 +40,18 @@ function StructureOperationDirectoryStatusIcon({
 }: {
   status: Exclude<StructureOperationNoteStatus, "">;
 }) {
-  const iconProps = {
-    "aria-hidden": true,
-    size: 13,
-    strokeWidth: 2,
-  };
   const labelByStatus = {
     source: "源笔记",
     structure: "笔记结构",
     target: "目标笔记",
   };
-
-  return (
-    <SymbolSlot aria-label={labelByStatus[status]}>
-      {status === "source" ? <FileOutput {...iconProps} /> : null}
-      {status === "target" ? <FileInput {...iconProps} /> : null}
-      {status === "structure" ? <GitBranch {...iconProps} /> : null}
-    </SymbolSlot>
-  );
+  const Icon =
+    status === "source"
+      ? FileOutput
+      : status === "target"
+        ? FileInput
+        : GitBranch;
+  return <Icon role="img" aria-label={labelByStatus[status]} />;
 }
 
 export function StructureOperationContext({
@@ -116,7 +110,7 @@ export function StructureOperationContext({
     return status ? (
       <StructureOperationDirectoryStatusIcon status={status} />
     ) : (
-      <FileText aria-hidden="true" size={13} />
+      <FileText aria-hidden="true" />
     );
   };
   const activeNoteId =

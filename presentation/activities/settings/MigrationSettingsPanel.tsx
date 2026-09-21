@@ -1,4 +1,4 @@
-import { FormActions } from "compact-ui";
+import { FormActions, StatusText } from "compact-ui";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
@@ -133,7 +133,7 @@ export function MigrationSettingsPanel({
       ) : null}
       {!recovering ? (
         <Section title="迁移到新位置">
-          <FormLayout layout="stacked">
+          <FormLayout>
             <FieldRow fieldId="settings-migration-destination" label="新数据根">
               {(accessibility) => (
                 <InputControl
@@ -150,7 +150,9 @@ export function MigrationSettingsPanel({
               )}
             </FieldRow>
           </FormLayout>
-          {confirming ? <p>迁移期间暂停写入，源目录保留。</p> : null}
+          {confirming ? (
+            <StatusText>迁移期间暂停写入，源目录保留。</StatusText>
+          ) : null}
           <FormActions>
             <ConfirmAction
               confirming={confirming}

@@ -1,4 +1,6 @@
 .local-api-example {
+  margin: 0;
+  font-family: var(--cu-mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

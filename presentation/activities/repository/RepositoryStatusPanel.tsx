@@ -7,7 +7,7 @@ import {
   type RepositorySelection,
 } from "../../../application/repository/index.ts";
 
-import { Page, PageBody, useFeedback } from "../../ui/index.ts";
+import { FormError, Page, PageBody, useFeedback } from "../../ui/index.ts";
 
 import { RepositoryConflictStatus } from "./RepositoryConflictResolution.tsx";
 import {
@@ -58,7 +58,7 @@ export function RepositoryStatusPanel({
                 ]}
               />
               {view.catalogErrorMessage ? (
-                <p role="alert">{view.catalogErrorMessage}</p>
+                <FormError message={view.catalogErrorMessage} />
               ) : null}
             </Section>
           ) : null}
@@ -79,15 +79,15 @@ export function RepositoryStatusPanel({
                   ]}
                 />
                 {target.repository.labelIssue ? (
-                  <p role="alert">
-                    {projectRepositoryLabelIssueMessage(
+                  <FormError
+                    message={projectRepositoryLabelIssueMessage(
                       target.repository.labelIssue,
                     )}
-                  </p>
+                  />
                 ) : null}
                 {target.repository.id === view.activeRepositoryId &&
                 view.activeSessionErrorMessage ? (
-                  <p role="alert">{view.activeSessionErrorMessage}</p>
+                  <FormError message={view.activeSessionErrorMessage} />
                 ) : null}
                 {target.repository.id === view.activeRepositoryId &&
                 view.activeConflictResolution ? (
@@ -113,7 +113,7 @@ export function RepositoryStatusPanel({
                     { label: "仓库 ID", value: target.issue.id },
                   ]}
                 />
-                <p role="alert">{target.issue.message}</p>
+                <FormError message={target.issue.message} />
               </Section>
               <RepositoryLocations
                 busy={busy}
@@ -142,10 +142,10 @@ export function RepositoryStatusPanel({
                   ]}
                 />
                 {target.issue?.message ? (
-                  <p role="alert">{target.issue.message}</p>
+                  <FormError message={target.issue.message} />
                 ) : null}
                 {target.repository?.errorMessage ? (
-                  <p role="alert">{target.repository.errorMessage}</p>
+                  <FormError message={target.repository.errorMessage} />
                 ) : null}
                 {target.repository?.conflictResolution ? (
                   <RepositoryConflictStatus

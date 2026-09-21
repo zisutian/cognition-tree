@@ -22,9 +22,9 @@ export function createUiTextPolicies({
       /<(?:button|input|select|textarea)\b/,
     ),
     forbidTextPolicy(
-      "ordinary forms use the package; native forms require external action association",
+      "all forms are rendered by the package",
       presentationModules,
-      /<form\b(?![^>]*\bid=)/,
+      /<form\b/,
     ),
     forbidTextPolicy(
       "generic property and table markup is package-owned",
@@ -46,6 +46,17 @@ export function createUiTextPolicies({
       "old generic styles",
       styleModules,
       /\.ui-(?:button|input-control|checkbox-control|select-control|panel-header|empty-state)\b/,
+    ),
+    forbidTextPolicy(
+      "visual colors come from Compact UI except deferred CTN syntax colors",
+      styleModules,
+      /#[\da-fA-F]{3,8}\b|\brgba?\(/,
+      /^(?!presentation\/ui\/styles\/shared\/syntaxPalette\.css$).*\.css$/,
+    ),
+    forbidTextPolicy(
+      "content typography uses framework values, not retired editor settings",
+      styleModules,
+      /--ctn-(?:editor-font-size|editor-line-height|numeric-variant|symbol-line-height|error-soft|link)\b|font-size:\s*[\d.]+px/,
     ),
     forbidTextPolicy(
       "Activity styles cannot own shared classes",

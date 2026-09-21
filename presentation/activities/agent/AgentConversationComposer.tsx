@@ -38,7 +38,6 @@ export function AgentConversationComposer({
   };
   return (
     <FormLayout
-      layout="stacked"
       onSubmit={(event) => {
         event.preventDefault();
         void send();

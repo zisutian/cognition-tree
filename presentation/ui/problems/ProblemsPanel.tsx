@@ -7,6 +7,7 @@ import {
   Stack,
   StatusText,
   SubButton,
+  useDesignConfig,
 } from "compact-ui";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { CircleX, TriangleAlert } from "lucide-react";
@@ -18,7 +19,6 @@ import type {
 } from "../../../application/workbench/index.ts";
 
 import contentStyles from "../shared/Content.module.css";
-import { SymbolSlot } from "../shared/SymbolSlot.tsx";
 
 import { createClassNames } from "../shared/classNames.ts";
 
@@ -89,6 +89,7 @@ function ProblemRow({
   onDismiss: (problem: UiWorkbenchProblem) => void;
   selected: boolean;
 }) {
+  const { colors } = useDesignConfig();
   const isError = problem.severity === "error";
   const operational = isOperationalProblem(problem) ? problem : null;
 
@@ -121,16 +122,11 @@ function ProblemRow({
         ) : null
       }
       icon={
-        <SymbolSlot
-          aria-label={isError ? "错误" : "警告"}
-          tone={isError ? "danger" : "warning"}
-        >
-          {isError ? (
-            <CircleX aria-hidden="true" size={13} strokeWidth={2} />
-          ) : (
-            <TriangleAlert aria-hidden="true" size={13} strokeWidth={2} />
-          )}
-        </SymbolSlot>
+        isError ? (
+          <CircleX role="img" aria-label="错误" color={colors.error} />
+        ) : (
+          <TriangleAlert role="img" aria-label="警告" color={colors.warning} />
+        )
       }
       children={
         <span

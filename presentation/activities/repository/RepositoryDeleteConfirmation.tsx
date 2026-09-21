@@ -40,7 +40,7 @@ export function RepositoryDeleteConfirmation({
 
   return (
     <div aria-label={`确认删除仓库 ${repository.label}`} role="group">
-      <FormLayout layout="stacked" onSubmit={() => void runDeletion()}>
+      <FormLayout onSubmit={() => void runDeletion()}>
         <FieldRow label="仓库名称">
           {(accessibility) => (
             <InputControl

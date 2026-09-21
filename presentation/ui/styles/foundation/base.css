@@ -1,3 +1,4 @@
+/* Host viewport geometry only. Compact UI owns all generic appearance. */
 html,
 body,
 #root {
@@ -5,32 +6,4 @@ body,
   min-height: 0;
   margin: 0;
   overflow: hidden;
-}
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-p,
-pre {
-  margin: 0;
-}
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-small {
-  font-size: inherit;
-}
-code,
-pre,
-kbd,
-samp {
-  font-family: var(--cu-mono);
-}
-[hidden] {
-  display: none !important;
 }

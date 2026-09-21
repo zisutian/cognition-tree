@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Button } from "compact-ui";
-import formStatusStyles from "./FormStatus.module.css";
-import { createClassNames } from "./classNames.ts";
-const cx = createClassNames(formStatusStyles);
+import { Button, StatusText } from "compact-ui";
 
 export function FormSaveActions({
   busy,
@@ -40,8 +37,10 @@ export function FormSaveActions({
 
 export function FormError({ message }: { message: string | null | undefined }) {
   return message ? (
-    <p className={cx("ui-form-error")} role="alert">
-      {message}
-    </p>
+    <div role="alert">
+      <StatusText mode="live" tone="danger">
+        {message}
+      </StatusText>
+    </div>
   ) : null;
 }

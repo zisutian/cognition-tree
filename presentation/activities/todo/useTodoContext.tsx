@@ -126,7 +126,6 @@ export function useTodoContext(view: TodoViewModel): {
           />
           {creating ? (
             <FormLayout
-              layout="stacked"
               onSubmit={(event) => {
                 event.preventDefault();
                 submit();

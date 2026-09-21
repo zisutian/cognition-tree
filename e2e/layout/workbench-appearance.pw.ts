@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { expect } from "@playwright/test";
+import { defaultDesignConfig } from "compact-ui";
 import { test } from "../support/e2eTest";
 import { seedWorkbenchRepository } from "../support/repositorySeeds";
 import {
@@ -35,6 +36,32 @@ test("notes, problems and long Provider content use Compact UI defaults", async 
     ].join("\n"),
   });
   await openWorkbench(page, "appearance-sample");
+  const toolButtons = page
+    .getByRole("group", { name: "笔记工具" })
+    .getByRole("button");
+  await expect(toolButtons).toHaveCount(3);
+  const boxes = await Promise.all(
+    (await toolButtons.all()).map(async (button) => {
+      await expectControlHeight(button);
+      return (await button.boundingBox())!;
+    }),
+  );
+  expect(new Set(boxes.map((box) => box.y)).size).toBe(1);
+  expect(boxes[1]!.x).toBeGreaterThan(boxes[0]!.x);
+  const editorTypography = await page
+    .locator(".cm-editor")
+    .evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        size: parseFloat(style.fontSize),
+        line: parseFloat(style.lineHeight),
+      };
+    });
+  expect(editorTypography.size).toBe(defaultDesignConfig.typography.fontSize);
+  expect(editorTypography.line).toBeCloseTo(
+    defaultDesignConfig.typography.fontSize *
+      defaultDesignConfig.typography.lineHeight,
+  );
   await page
     .getByRole("treeitem", { name: "工作台使用笔记", exact: true })
     .click();

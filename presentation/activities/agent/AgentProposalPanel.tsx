@@ -60,7 +60,7 @@ export function AgentProposalPanel({
             <SectionStack>
               <Section>
                 {session && session.proposals.length > 1 ? (
-                  <FormLayout layout="stacked">
+                  <FormLayout>
                     <FieldRow label="Proposal">
                       {(accessibility) => (
                         <SelectControl

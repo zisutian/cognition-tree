@@ -18,7 +18,7 @@ export function InterfaceSettingsPanel({
     <Page aria-label="界面设置">
       <PageBody>
         <Section>
-          <FormLayout layout="stacked">
+          <FormLayout>
             <FieldRow fieldId="settings-context-width" label="左侧栏宽度">
               {(accessibility) => (
                 <InputControl

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { FormActions } from "compact-ui";
+import { FormActions, StatusText } from "compact-ui";
 import {
   Stack as SectionStack,
   PropertyList as ToolPropertyList,
@@ -75,7 +75,7 @@ export function LocalApiSettingsPanel({
     <SettingsPage label="本机 API" errorMessage={errorMessage}>
       <SectionStack>
         <Section>
-          <FormLayout layout="stacked">
+          <FormLayout>
             <FieldRow fieldId="local-api-origin" label="服务地址">
               {(attributes) => (
                 <InputControl
@@ -137,12 +137,14 @@ export function LocalApiSettingsPanel({
                   }
                 />
               </ToolPropertyList>
-              {result.error ? <p>{result.error.message}</p> : null}
+              {result.error ? (
+                <StatusText>{result.error.message}</StatusText>
+              ) : null}
               {result.review?.resources.map((resource) => (
-                <p key={`${resource.type}:${resource.resourceId}`}>
+                <StatusText key={`${resource.type}:${resource.resourceId}`}>
                   {resource.after?.path ?? resource.before?.path} ·{" "}
                   {resource.actions.join("、")}
-                </p>
+                </StatusText>
               ))}
               <details>
                 <summary>提交详情</summary>

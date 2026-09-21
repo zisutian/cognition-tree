@@ -11,7 +11,7 @@
 .todo-recurrence-progress {
   color: var(--cu-color-accent);
   font-family: var(--cu-mono);
-  font-variant-numeric: var(--ctn-numeric-variant);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   user-select: none;
 }

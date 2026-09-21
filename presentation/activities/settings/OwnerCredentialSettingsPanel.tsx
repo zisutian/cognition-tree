@@ -1,4 +1,4 @@
-import { FormActions } from "compact-ui";
+import { FormActions, StatusText } from "compact-ui";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
@@ -50,7 +50,7 @@ export function OwnerCredentialSettingsPanel({
     <SettingsPage label="所有者凭据设置" errorMessage={state.errorMessage}>
       {preparation ? (
         <>
-          <p>{awaiting ? "新密钥待激活" : "新密钥已激活"}</p>
+          <StatusText>{awaiting ? "新密钥待激活" : "新密钥已激活"}</StatusText>
           <section aria-label="所有者密钥">
             <ToolPropertyList>
               <ToolPropertyRow
@@ -72,9 +72,11 @@ export function OwnerCredentialSettingsPanel({
           </section>
         </>
       ) : snapshot?.ownerCredentialRotationPending ? (
-        <p>待激活密钥不在当前页面；重新准备将替换它。</p>
+        <StatusText>待激活密钥不在当前页面；重新准备将替换它。</StatusText>
       ) : null}
-      {awaiting && state.errorMessage ? <p>新密钥激活结果尚未确认</p> : null}
+      {awaiting && state.errorMessage ? (
+        <StatusText>新密钥激活结果尚未确认</StatusText>
+      ) : null}
       <FormActions>
         {!preparation ? (
           <Button

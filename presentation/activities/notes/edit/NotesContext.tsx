@@ -215,7 +215,6 @@ export function NotesContext({
       />
       {creatingFolder ? (
         <FormLayout
-          layout="stacked"
           onSubmit={(event) => {
             event.preventDefault();
             createFolder();

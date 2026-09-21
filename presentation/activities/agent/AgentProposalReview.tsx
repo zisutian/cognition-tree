@@ -59,7 +59,7 @@ export function AgentProposalReview({
   return (
     <>
       <Section title="变更摘要">
-        <p>
+        <StatusText>
           {summary.created > 0 ? `新建 ${summary.created} 项` : null}
           {summary.created > 0 && summary.updated > 0 ? "，" : null}
           {summary.updated > 0 ? `修改 ${summary.updated} 项` : null}
@@ -70,7 +70,7 @@ export function AgentProposalReview({
           {summary.created + summary.updated + summary.deleted === 0
             ? "没有可展示的资源变更"
             : null}
-        </p>
+        </StatusText>
       </Section>
       <Section title="逐项审查">
         {proposal.review.resources.length === 0 ? (

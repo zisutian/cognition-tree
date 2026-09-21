@@ -114,7 +114,7 @@ export function TodoRecurrenceEditor({
 
   return (
     <section aria-label={`配置周期 ${node.text}`}>
-      <FormLayout layout="stacked" onSubmit={submit}>
+      <FormLayout onSubmit={submit}>
         {node.recurrence ? (
           <StatusText>
             {node.recurrence.active
