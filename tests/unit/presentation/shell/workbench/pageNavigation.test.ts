@@ -55,6 +55,54 @@ function fixture() {
 }
 
 describe("page navigation sessions", () => {
+  it("allows a created page after its catalog update but rejects it after newer navigation", () => {
+    const f = fixture();
+    const current = describePage("settings", "settings", "new", "新建");
+    f.add(current);
+    const complete = f.navigation.prepareOpen("pinned");
+    f.navigation.setRepository("two");
+    const created = describePage("settings", "settings", "created", "新对象");
+    const select = vi.fn();
+    expect(complete(created, select)).toBe(true);
+    expect(select).toHaveBeenCalledOnce();
+    expect(f.navigation.getSnapshot().previewId).toBeNull();
+    const stale = f.navigation.prepareOpen("pinned");
+    f.navigation.request("search");
+    expect(stale(created, select)).toBe(false);
+    expect(select).toHaveBeenCalledOnce();
+    expect(f.navigation.getSnapshot().activeActivityId).toBe("search");
+  });
+  it("replaces a pinned loading page with its resolved target without leaving a duplicate activity tab", () => {
+    const f = fixture();
+    f.add(f.note("a"), "pinned");
+    f.navigation.request("journal", undefined, "pinned");
+    const entry = f.journal("today");
+    f.pages.set(pageKey(entry.target), entry);
+    f.setSelected(entry);
+    f.navigation.reconcile("journal");
+    expect(f.navigation.visiblePages().map((page) => page.target.kind)).toEqual(
+      ["note", "journal-entry"],
+    );
+    expect(f.navigation.getSnapshot().previewId).toBeNull();
+  });
+  it("ends the superseded pending state when a newer selection is rejected", async () => {
+    const f = fixture();
+    const current = f.add(f.note("a"), "pinned");
+    let resolve!: () => void;
+    const delayed = new Promise<void>((done) => {
+      resolve = done;
+    });
+    f.navigation.open(f.note("b"), "preview", () => delayed);
+    expect(f.navigation.getSnapshot().pending).toBe(true);
+    expect(f.navigation.open(f.note("missing"), "preview", () => false)).toBe(
+      false,
+    );
+    expect(f.navigation.getSnapshot().pending).toBe(false);
+    resolve();
+    await delayed;
+    expect(f.navigation.getSnapshot().activePageId).toBe(current);
+    expect(f.navigation.close(current)).toBe(true);
+  });
   it("owns one preview slot across activities and never demotes a fixed tab", () => {
     const f = fixture();
     const a = f.add(f.note("a"));
@@ -256,8 +304,12 @@ describe("page navigation sessions", () => {
     f.navigation.viewSessions.write(b, { cursor: 9 });
     f.navigation.close(a);
     expect(f.navigation.viewSessions.read(a)).toBeUndefined();
+    // React editor cleanup runs after the navigation owner closes the page.
+    f.navigation.viewSessions.write(a, { cursor: 30 });
+    expect(f.navigation.viewSessions.read(a)).toBeUndefined();
     expect(f.navigation.viewSessions.read(b)).toEqual({ cursor: 9 });
     f.navigation.dispose();
+    f.navigation.viewSessions.write(b, { cursor: 90 });
     expect(f.navigation.viewSessions.read(b)).toBeUndefined();
     expect(f.navigation.getSnapshot().pages).toEqual([]);
     expect(f.navigation.request("journal")).toBe(false);

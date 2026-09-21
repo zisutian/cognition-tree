@@ -3,6 +3,7 @@
 export class PageViewSessions {
   readonly #values = new Map<string, Map<string, unknown>>();
   readonly #listeners = new Set<() => void>();
+  #retainedKeys: ReadonlySet<string> | null = null;
   subscribe = (listener: () => void) => {
     this.#listeners.add(listener);
     return () => {
@@ -13,6 +14,7 @@ export class PageViewSessions {
     return this.#values.get(key)?.get(field) as T | undefined;
   }
   write<T>(key: string, value: T, field = "editor") {
+    if (this.#retainedKeys && !this.#retainedKeys.has(key)) return;
     let page = this.#values.get(key);
     if (!page) {
       page = new Map();
@@ -23,6 +25,7 @@ export class PageViewSessions {
     this.#listeners.forEach((fn) => fn());
   }
   retain(keys: ReadonlySet<string>) {
+    this.#retainedKeys = new Set(keys);
     let changed = false;
     for (const key of this.#values.keys())
       if (!keys.has(key)) {
@@ -32,6 +35,7 @@ export class PageViewSessions {
     if (changed) this.#listeners.forEach((fn) => fn());
   }
   clear() {
+    this.#retainedKeys = new Set();
     this.#values.clear();
     this.#listeners.forEach((fn) => fn());
   }

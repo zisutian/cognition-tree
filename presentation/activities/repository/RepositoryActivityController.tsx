@@ -27,19 +27,25 @@ export function RepositoryActivityController({
   renderActivity,
 }: RepositoryActivityControllerProps) {
   const view = createRepositoryViewModel(application.repository);
+  const pages = usePageNavigation();
   const [selection, setSelection] = useState<RepositorySelection>(() =>
     createDefaultRepositorySelection(view),
   );
-  const [createdAfterRepositoryId, setCreatedAfterRepositoryId] = useState<
-    string | null | undefined
-  >(undefined);
+  const [pendingCreation, setPendingCreation] = useState<{
+    previousRepositoryId: string | null;
+    open: ReturnType<typeof pages.prepareOpen>;
+  } | null>(null);
   const activityView = {
     ...view,
     async createRepository(...input: Parameters<typeof view.createRepository>) {
       const previousActiveRepositoryId = view.activeRepositoryId;
+      const open = pages.prepareOpen("pinned");
 
       await view.createRepository(...input);
-      setCreatedAfterRepositoryId(previousActiveRepositoryId);
+      setPendingCreation({
+        previousRepositoryId: previousActiveRepositoryId,
+        open,
+      });
     },
     async selectRepository(...input: Parameters<typeof view.selectRepository>) {
       await view.selectRepository(...input);
@@ -54,9 +60,9 @@ export function RepositoryActivityController({
 
   useEffect(() => {
     if (
-      createdAfterRepositoryId === undefined ||
+      !pendingCreation ||
       !view.activeRepositoryId ||
-      view.activeRepositoryId === createdAfterRepositoryId
+      view.activeRepositoryId === pendingCreation.previousRepositoryId
     ) {
       return;
     }
@@ -64,9 +70,9 @@ export function RepositoryActivityController({
       id: view.activeRepositoryId,
       kind: "ordinary-repository",
     };
-    pages.open(describe(target), "pinned", () => setSelection(target));
-    setCreatedAfterRepositoryId(undefined);
-  }, [createdAfterRepositoryId, view.activeRepositoryId]);
+    pendingCreation.open(describe(target), () => setSelection(target));
+    setPendingCreation(null);
+  }, [pendingCreation, view.activeRepositoryId]);
 
   useEffect(() => {
     const request = application.repository.navigation.focusRequest;
@@ -75,7 +81,6 @@ export function RepositoryActivityController({
     setSelection(projectRepositoryFocusSelection(request));
   }, [application.repository.navigation.focusRequest]);
 
-  const pages = usePageNavigation();
   const targets: RepositorySelection[] = [
     { kind: "create" },
     ...(["journal", "todo"] as const).map((id) => ({

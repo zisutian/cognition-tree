@@ -2,6 +2,7 @@
 import { expect } from "@playwright/test";
 import { test } from "../support/e2eTest";
 import { seedWorkbenchRepository } from "../support/repositorySeeds";
+import { createJournalSeed } from "../support/builtInSeeds";
 import {
   getActivityButton,
   openRepositoryFromContext,
@@ -11,6 +12,74 @@ import {
 const repositoryId = "page-sessions";
 test.beforeEach(async ({ api }) => {
   await seedWorkbenchRepository(api, repositoryId);
+});
+
+test("resolves a double-clicked lazy activity into one fixed page", async ({
+  page,
+  e2eState,
+  responseGates,
+}) => {
+  await e2eState.setJournal(createJournalSeed());
+  await openWorkbench(page, repositoryId);
+  const module = await responseGates.hold(
+    "**/presentation/activities/journal/index.ts*",
+    "GET",
+  );
+  await getActivityButton(page, "日记").dblclick();
+  await module.arrived;
+  const tabs = page.getByRole("radiogroup", { name: "打开的页面" });
+  await expect(
+    tabs.getByRole("radio", { name: "日记", exact: true }),
+  ).toHaveAttribute("aria-description", "已固定");
+  module.release();
+  await expect(page.getByRole("tree", { name: "日记日历" })).toBeVisible();
+  await expect(
+    tabs.getByRole("radio", { name: "日记", exact: true }),
+  ).toHaveCount(0);
+  await expect(tabs.getByRole("radio")).toHaveCount(1);
+  await expect(tabs.getByRole("radio")).toHaveAttribute(
+    "aria-description",
+    "已固定",
+  );
+});
+
+test("does not leave a newer activity when repository creation finishes late", async ({
+  page,
+  responseGates,
+}) => {
+  await openWorkbench(page, repositoryId);
+  await getActivityButton(page, "仓库").click();
+  await page.getByRole("button", { name: "新建仓库", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "名称", exact: true })
+    .fill("迟到的创建");
+  const creation = await responseGates.hold(
+    "**/api/v4/content/operations",
+    "POST",
+  );
+  await page.getByRole("button", { name: "创建仓库", exact: true }).click();
+  await creation.arrived;
+  await getActivityButton(page, "搜索").click();
+  const searchTab = page
+    .getByRole("radiogroup", { name: "打开的页面" })
+    .getByRole("radio", { name: "搜索", exact: true });
+  await expect(searchTab).toBeChecked();
+  const refreshed = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/v4/sync/workspaces/") &&
+      response.request().method() === "GET" &&
+      response.ok(),
+  );
+  creation.release();
+  await (await refreshed).finished();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await expect(searchTab).toBeChecked();
+  await expect(page.getByRole("searchbox", { name: "搜索词" })).toBeVisible();
 });
 
 test("has one preview, pins on double click, deduplicates and closes to an empty focused workspace", async ({
@@ -133,6 +202,28 @@ test("restores a fixed document's cursor, scroll and undo after switching tabs",
   await expect(editor).not.toContainText("retained-edit");
   await editor.press("Control+Shift+Z");
   await expect(editor).toContainText("retained-edit");
+});
+
+test("closing and reopening a document releases its previous undo session", async ({
+  page,
+}) => {
+  await openWorkbench(page, repositoryId);
+  await page.getByRole("treeitem", { name: "Alpha", exact: true }).dblclick();
+  const editor = page.locator(".source-editor .cm-content");
+  await editor.focus();
+  await editor.press("Control+End");
+  await page.keyboard.insertText(" closed-page-edit");
+  await expect(editor).toContainText("closed-page-edit");
+  await page
+    .getByRole("radiogroup", { name: "打开的页面" })
+    .getByRole("button", { name: "关闭 Alpha", exact: true })
+    .click();
+  await expect(page.getByRole("main")).toContainText("从左侧打开页面");
+  await page.getByRole("treeitem", { name: "Alpha", exact: true }).click();
+  await expect(editor).toContainText("closed-page-edit");
+  await editor.focus();
+  await editor.press("Control+Z");
+  await expect(editor).toContainText("closed-page-edit");
 });
 
 test("renames page titles, removes deleted resources and clears tabs on reload", async ({

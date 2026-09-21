@@ -87,6 +87,9 @@ export function createPageNavigation(initial: ActivityId) {
   const observedTargets = new Map<ActivityId, string | null>();
   let repositoryId: string | null = null;
   let epoch = 0;
+  // Resource creation may update the active repository itself. Only a newer
+  // navigation request cancels its deferred page, not that catalog update.
+  let requestRevision = 0;
   let disposed = false;
   let restore: string | null = null;
   let switchingRepository: { id: string; request: number } | null = null;
@@ -127,16 +130,25 @@ export function createPageNavigation(initial: ActivityId) {
   const allowed = (target: PageTarget) =>
     !state.interaction.navigationBlocked ||
     state.activePageId === pageKey(target);
-  const commit = (page: PageDescriptor, intent: OpenIntent) => {
+  const commit = (
+    page: PageDescriptor,
+    intent: OpenIntent,
+    loadingPageId?: string,
+  ) => {
     const key = pageKey(page.target);
     let pages = [...state.pages];
     let previewId = state.previewId;
     if (pages.some((p) => p.key === key)) {
-      pages = pages.map((p) => (p.key === key ? { ...page, key } : p));
+      pages = pages
+        .filter((p) => p.key !== loadingPageId || p.key === key)
+        .map((p) => (p.key === key ? { ...page, key } : p));
+      if (previewId === loadingPageId && previewId !== key) previewId = null;
       if (intent === "pinned" && previewId === key) previewId = null;
     } else {
       const replace = pages.findIndex(
-        (p) => p.key === previewId && canRelease(p.target),
+        (p) =>
+          p.key === loadingPageId ||
+          (p.key === previewId && canRelease(p.target)),
       );
       if (replace >= 0) pages.splice(replace, 1, { ...page, key });
       else pages.push({ ...page, key });
@@ -173,6 +185,7 @@ export function createPageNavigation(initial: ActivityId) {
     )
       return false;
     const request = ++epoch;
+    ++requestRevision;
     following = null;
     restore = null;
     try {
@@ -190,7 +203,10 @@ export function createPageNavigation(initial: ActivityId) {
         );
         return true;
       }
-      if (result === false) return false;
+      if (result === false) {
+        publish({ pending: false });
+        return false;
+      }
       commit(page, intent);
       return true;
     } catch (error) {
@@ -261,9 +277,17 @@ export function createPageNavigation(initial: ActivityId) {
         return false;
       }
       ++epoch;
+      ++requestRevision;
       restore = null;
       following = { activity, intent };
-      const current = drivers.get(activity)?.current();
+      const driver = drivers.get(activity);
+      const selected = driver?.ready !== false ? driver?.current() : null;
+      const current =
+        selected &&
+        (selected.target.repositoryId === null ||
+          selected.target.repositoryId === repositoryId)
+          ? selected
+          : null;
       commit(current ?? landing(activity, repositoryId), intent);
       return true;
     },
@@ -284,6 +308,16 @@ export function createPageNavigation(initial: ActivityId) {
       else follow();
       return value;
     },
+    prepareOpen(intent: OpenIntent = "pinned") {
+      const revision = requestRevision;
+      return (
+        page: PageDescriptor,
+        action?: () => void | boolean | Promise<void | boolean>,
+      ) =>
+        !disposed && revision === requestRevision
+          ? open(page, intent, action)
+          : false;
+    },
     activate(key: string) {
       const page = state.pages.find((p) => p.key === key && visible(p));
       return page
@@ -296,6 +330,7 @@ export function createPageNavigation(initial: ActivityId) {
       const page = state.pages.find((p) => p.key === key);
       if (!page) return false;
       const request = ++epoch;
+      ++requestRevision;
       following = null;
       restore = null;
       const finish = () => {
@@ -376,7 +411,13 @@ export function createPageNavigation(initial: ActivityId) {
         ) {
           const intent = following.intent;
           following = null;
-          commit(current, intent);
+          const loading = state.pages.find(
+            (page) =>
+              page.key === state.activePageId &&
+              page.target.activityId === activity &&
+              page.target.kind === "activity",
+          );
+          commit(current, intent, loading?.key);
         }
       }
       // External focus requests and domain commands change selection through their existing facade.
@@ -437,6 +478,7 @@ export function createPageNavigation(initial: ActivityId) {
     async switchRepository(id: string, action: () => Promise<void>) {
       if (disposed || state.interaction.navigationBlocked) return false;
       const request = ++epoch;
+      ++requestRevision;
       switchingRepository = { id, request };
       following = null;
       restore = null;

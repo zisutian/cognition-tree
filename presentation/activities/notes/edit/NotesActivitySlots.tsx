@@ -57,32 +57,9 @@ export function createNotesWorkspaceActivitySlots({
       title: repositoryName,
     },
     detail: current.detail,
-    main: {
-      title: current.main.title,
-      layout: current.main.layout,
-      actions: current.main.actions,
-      content: (
-        <div className={cx("notes-workspace-main")}>
-          <section
-            aria-label="编辑视图"
-            className={cx("notes-mode-panel")}
-            hidden={mode !== "edit"}
-          >
-            {edit.main.content}
-          </section>
-          {mode === "structure" ? (
-            <section aria-label="结构视图" className={cx("notes-mode-panel")}>
-              {structure.main.content}
-            </section>
-          ) : null}
-          {mode === "graph" ? (
-            <section aria-label="图谱视图" className={cx("notes-mode-panel")}>
-              {graph.main.content}
-            </section>
-          ) : null}
-        </div>
-      ),
-    },
+    // EditorState is owned by the page session. Hidden editor instances must not
+    // outlive closed pages or keep writing snapshots behind another tool page.
+    main: current.main,
   };
 }
 
