@@ -1,6 +1,6 @@
 import { usePageNavigation } from "../navigation/index.ts";
 import { Workbench, type WorkbenchRegion } from "compact-ui";
-import { ChoiceGroup, EmptyState } from "compact-ui";
+import { PageTitleGroup, EmptyState } from "compact-ui";
 import {
   useLayoutEffect,
   useRef,
@@ -109,19 +109,15 @@ export default function AppView({
           ? {
               ...mainRegion!,
               headerContent: (
-                <ChoiceGroup
-                  ariaLabel="打开的页面"
-                  mode="single"
-                  wrap={false}
+                <PageTitleGroup
+                  aria-label="打开的页面"
                   value={pageState.activePageId}
-                  options={navigation
-                    .visiblePages()
-                    .map((page) => ({
-                      value: page.key,
-                      label: page.title,
-                      preview: page.key === pageState.previewId,
-                      closeLabel: `关闭 ${page.title}`,
-                    }))}
+                  options={navigation.visiblePages().map((page) => ({
+                    value: page.key,
+                    label: page.title,
+                    preview: page.key === pageState.previewId,
+                    closeLabel: `关闭 ${page.title}`,
+                  }))}
                   onChange={navigation.activate}
                   onClose={navigation.close}
                 />

@@ -145,7 +145,6 @@ export function AgentProposalActions({
           )
         }
         type="button"
-        variant="normal"
       >
         整批拒绝
       </Button>
@@ -157,7 +156,6 @@ export function AgentProposalActions({
           )
         }
         type="button"
-        variant="normal"
       >
         整批批准
       </Button>
@@ -172,7 +170,7 @@ export function AgentProposalActions({
           )
         }
         type="button"
-        variant="danger"
+        tone="danger"
       >
         确认删除并提交
       </Button>

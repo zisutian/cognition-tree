@@ -1,7 +1,7 @@
 import { Toolbar as ToolToolbar } from "compact-ui";
 import {
   ChoiceGroup,
-  ContextList,
+  List,
   ContextRow,
   EmptyState,
   Stack,
@@ -101,7 +101,7 @@ function ProblemRow({
           <>
             {operational.requestId && onCopyRequestId ? (
               <SubButton
-                variant="normal"
+                iconOnly={false}
                 aria-label={`复制请求编号：${operational.requestId}`}
                 onClick={() => onCopyRequestId(operational.requestId!)}
                 title={operational.requestId}
@@ -111,7 +111,7 @@ function ProblemRow({
               </SubButton>
             ) : null}
             <SubButton
-              variant="normal"
+              iconOnly={false}
               aria-label={`关闭操作错误：${problem.message}`}
               onClick={() => onDismiss(problem)}
               type="button"
@@ -176,7 +176,7 @@ function ProblemsList({
       ref={scrollRef}
       data-virtual-row-count={virtual ? problems.length : undefined}
     >
-      <ContextList label="问题列表">
+      <List aria-label="问题列表">
         {virtual && rows.length > 0 ? (
           <li role="presentation" style={{ height: rows[0].start }} />
         ) : null}
@@ -199,7 +199,7 @@ function ProblemsList({
             style={{ height: virtualizer.getTotalSize() - rows.at(-1)!.end }}
           />
         ) : null}
-      </ContextList>
+      </List>
     </div>
   );
 }
@@ -257,11 +257,11 @@ export function ProblemsPanel({
     <Stack fill gap="tight">
       {expanded ? (
         <>
-          <ToolToolbar label="问题筛选">
+          <ToolToolbar aria-label="问题筛选">
             <Stack gap="none">
               <StatusText>来源</StatusText>
               <ChoiceGroup
-                ariaLabel="按来源筛选问题"
+                aria-label="按来源筛选问题"
                 mode="single"
                 onChange={(value: "all" | UiWorkbenchProblem["source"]) =>
                   onFiltersChange({ ...filters, source: value })
@@ -279,7 +279,7 @@ export function ProblemsPanel({
             <Stack gap="none">
               <StatusText>严重度</StatusText>
               <ChoiceGroup
-                ariaLabel="按严重度筛选问题"
+                aria-label="按严重度筛选问题"
                 mode="single"
                 onChange={(value: "all" | "error" | "warning") =>
                   onFiltersChange({ ...filters, severity: value })
@@ -295,7 +295,7 @@ export function ProblemsPanel({
             <Stack gap="none">
               <StatusText>重试性</StatusText>
               <ChoiceGroup
-                ariaLabel="按可重试性筛选问题"
+                aria-label="按可重试性筛选问题"
                 mode="single"
                 onChange={(value: "all" | "retryable" | "terminal") =>
                   onFiltersChange({ ...filters, retry: value })

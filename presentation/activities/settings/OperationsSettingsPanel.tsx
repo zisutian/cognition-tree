@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { ManagementList, ManagementRow } from "compact-ui";
+import { List, ManagementRow } from "compact-ui";
 import { StatusText as StatusBadge } from "compact-ui";
 import { Button, EmptyState } from "compact-ui";
 
@@ -62,7 +62,7 @@ export function OperationsSettingsPanel({
         ) : entries.length === 0 ? (
           <EmptyState title="尚无受审计写入记录" />
         ) : (
-          <ManagementList label="操作审计">
+          <List aria-label="操作审计">
             {entries.map((entry) => (
               <ManagementRow
                 key={entry.id}
@@ -88,7 +88,7 @@ export function OperationsSettingsPanel({
                 title={`${new Date(entry.updatedAt).toLocaleString()} · ${operationSourceLabel(entry.source)} · ${targetLabel(entry)}`}
               />
             ))}
-          </ManagementList>
+          </List>
         )}
       </PageBody>
     </Page>

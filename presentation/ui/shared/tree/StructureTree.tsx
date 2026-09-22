@@ -99,7 +99,6 @@ function StructureTreeRow({
         style={getStructureTreeRowStyle({ depth, indentUnitCount })}
       >
         <Button
-          variant="normal"
           {...rowAttributes}
           aria-pressed={isSelected}
           onClick={() => onSelectLine?.(node.lineNumber)}

@@ -42,7 +42,6 @@ export function OrdinaryRepositoryDetail({
             disabled={busy}
             onClick={() => onRunAction(() => onOpen(repository.id))}
             type="button"
-            variant="normal"
           >
             {active ? "继续编辑笔记" : "打开仓库"}
           </Button>
@@ -63,7 +62,6 @@ export function OrdinaryRepositoryDetail({
                 disabled={busy}
                 onClick={() => onRunAction(recoveryAction.run)}
                 type="button"
-                variant="normal"
               >
                 <RefreshCw aria-hidden="true" size={13} />
                 {recoveryAction.label}
@@ -74,7 +72,6 @@ export function OrdinaryRepositoryDetail({
                 disabled={busy}
                 onClick={() => onRunAction(view.refreshRepositories)}
                 type="button"
-                variant="normal"
               >
                 <RefreshCw aria-hidden="true" size={13} />
                 重新检查仓库

@@ -120,7 +120,7 @@ describe("runtime integrity and installation", () => {
   });
   it("includes the vendored UI archive in integrity and standalone installation", async () => {
     const { candidate, target, backups } = await setup();
-    const relative = "tooling/vendor/compact-ui-0.1.0.tgz";
+    const relative = "tooling/vendor/compact-ui-fixture.tgz";
     await mkdir(path.dirname(path.join(candidate, relative)), {
       recursive: true,
     });

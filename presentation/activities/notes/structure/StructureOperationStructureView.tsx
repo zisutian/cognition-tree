@@ -136,7 +136,7 @@ export function StructureOperationStructureView({
       </section>
       {moveContext ? (
         <ContextMenu
-          label="结构块操作"
+          aria-label="结构块操作"
           items={
             moveContext
               ? [

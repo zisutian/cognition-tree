@@ -49,7 +49,7 @@ export function useTodoContext(view: TodoViewModel): {
       layout: "canvas",
       actions: (
         <Button
-          variant="icon"
+          iconOnly
           aria-label="新建事项集合"
           disabled={creation.disabled}
           onClick={creation.begin}
@@ -60,7 +60,7 @@ export function useTodoContext(view: TodoViewModel): {
       content: (
         <Stack fill>
           <Tree
-            label="事项集合"
+            aria-label="事项集合"
             nodes={view.collections.map((item) => ({
               id: item.id,
               label: item.name,
@@ -135,7 +135,7 @@ export function useTodoContext(view: TodoViewModel): {
                 {(accessibility) => (
                   <InputControl
                     {...accessibility}
-                    sizing="container"
+                    sizing="fill"
                     autoFocus
                     aria-label="新建事项集合名称"
                     value={name}

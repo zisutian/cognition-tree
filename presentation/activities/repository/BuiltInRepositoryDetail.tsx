@@ -35,7 +35,6 @@ export function BuiltInRepositoryDetail({
               disabled={busy || view.retryingBuiltInId !== null}
               onClick={() => onRunAction(() => view.retryBuiltIn(issue.id))}
               type="button"
-              variant="normal"
             >
               <RefreshCw aria-hidden="true" size={13} />
               重试
@@ -54,7 +53,6 @@ export function BuiltInRepositoryDetail({
               disabled={busy}
               onClick={() => onRunAction(view.reloadBuiltInCatalog)}
               type="button"
-              variant="normal"
             >
               重试内置数据
             </Button>
@@ -83,7 +81,6 @@ export function BuiltInRepositoryDetail({
                 onRunAction(repository.recoveryAction?.run ?? repository.reload)
               }
               type="button"
-              variant="normal"
             >
               <RefreshCw aria-hidden="true" size={13} />
               {repository.recoveryAction?.label ?? "重新加载"}

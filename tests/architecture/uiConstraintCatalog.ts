@@ -17,6 +17,17 @@ export function createUiTextPolicies({
 }): readonly TextPolicy[] {
   return [
     forbidTextPolicy(
+      "use current Compact UI controls without compatibility parameters",
+      presentationModules,
+      /\b(?:ContextList|ManagementList)\b|\bvariant=|\bsizing="(?:content|container)"/,
+    ),
+    forbidTextPolicy(
+      "syntax controls use package visuals; only preview content owns styles",
+      presentationModules,
+      /syntaxStyles|\.module\.css|\b(?:className|style)=/,
+      /^presentation\/activities\/syntax\/(?!SyntaxDetailPanel\.tsx$).*\.tsx$/,
+    ),
+    forbidTextPolicy(
       "native generic controls are package-owned",
       presentationModules,
       /<(?:button|input|select|textarea)\b/,
@@ -48,7 +59,7 @@ export function createUiTextPolicies({
       /\.ui-(?:button|input-control|checkbox-control|select-control|panel-header|empty-state)\b/,
     ),
     forbidTextPolicy(
-      "visual colors come from Compact UI except deferred CTN syntax colors",
+      "visual colors come from Compact UI except CTN named content colors",
       styleModules,
       /#[\da-fA-F]{3,8}\b|\brgba?\(/,
       /^(?!presentation\/ui\/styles\/shared\/syntaxPalette\.css$).*\.css$/,

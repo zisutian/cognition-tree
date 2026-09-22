@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { StatusText as StatusBadge } from "compact-ui";
-import { Button, EmptyState, ManagementList, ManagementRow } from "compact-ui";
+import { Button, EmptyState, List, ManagementRow } from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 import agentStyles from "./agent.module.css";
 const cx = createClassNames(agentStyles);
@@ -72,11 +72,7 @@ export function AgentConversationPanel({
         <EmptyState
           title="没有会话"
           action={
-            <Button
-              onClick={onBeginCreateSession}
-              type="button"
-              variant="normal"
-            >
+            <Button onClick={onBeginCreateSession} type="button">
               新建会话
             </Button>
           }
@@ -108,7 +104,6 @@ export function AgentConversationPanel({
               onClick={() => void feedback.runAction(agent.controller.cancel)}
               title="取消并停止"
               type="button"
-              variant="normal"
             >
               <Square aria-hidden="true" size={12} />
               取消并停止
@@ -136,7 +131,7 @@ export function AgentConversationPanel({
         {session.messages.length === 0 ? (
           <EmptyState title="没有消息" />
         ) : (
-          <ManagementList label="会话消息">
+          <List aria-label="会话消息">
             {session.messages.map((message) => (
               <ManagementRow
                 key={message.id}
@@ -152,7 +147,7 @@ export function AgentConversationPanel({
                 }
               />
             ))}
-          </ManagementList>
+          </List>
         )}
       </PageBody>
       <FormError message={session.problem} />

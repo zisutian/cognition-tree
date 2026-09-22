@@ -55,7 +55,7 @@ export function SearchContext({
                   controller.updateDraft({ query: event.currentTarget.value })
                 }
                 placeholder="标题或正文"
-                sizing="container"
+                sizing="fill"
                 type="search"
                 value={state.draft.query}
               />
@@ -64,7 +64,7 @@ export function SearchContext({
                 disabled={!canSearch}
                 title={state.status === "loading" ? "正在搜索" : "搜索"}
                 type="submit"
-                variant="icon"
+                iconOnly
               >
                 <Search aria-hidden="true" />
               </Button>
@@ -72,7 +72,7 @@ export function SearchContext({
           )}
         </FieldRow>
         <ChoiceGroup
-          ariaLabel="搜索范围"
+          aria-label="搜索范围"
           mode="multiple"
           onChange={(domains) =>
             controller.updateDraft({

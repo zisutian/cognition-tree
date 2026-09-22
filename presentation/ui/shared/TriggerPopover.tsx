@@ -29,7 +29,7 @@ export function TriggerPopover({
       <Surface
         open={open}
         anchorRef={triggerRef}
-        label={ariaLabel}
+        aria-label={ariaLabel}
         onClose={() => setOpen(false)}
       >
         <div id={id}>{children({ close: () => setOpen(false) })}</div>

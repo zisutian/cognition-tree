@@ -88,7 +88,6 @@ export function RepositoryPanel({
                   void feedback.runAction(view.refreshRepositories)
                 }
                 type="button"
-                variant="normal"
               >
                 刷新仓库目录
               </Button>

@@ -28,7 +28,6 @@ export function TodoEditorPanel({
               disabled={creation.disabled}
               onClick={creation.begin}
               type="button"
-              variant="normal"
             >
               新建事项集合
             </Button>

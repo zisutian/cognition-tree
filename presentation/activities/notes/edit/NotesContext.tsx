@@ -182,7 +182,7 @@ export function NotesContext({
               onClick={reload}
               title="重新扫描文件"
               type="button"
-              variant="icon"
+              iconOnly
             >
               <RefreshCw aria-hidden="true" size={16} />
             </Button>
@@ -192,7 +192,7 @@ export function NotesContext({
               onClick={() => setCreatingFolder(true)}
               title="新建文件夹"
               type="button"
-              variant="icon"
+              iconOnly
             >
               <FolderPlus aria-hidden="true" size={16} />
             </Button>
@@ -206,7 +206,7 @@ export function NotesContext({
               }
               title="新建笔记"
               type="button"
-              variant="icon"
+              iconOnly
             >
               <Plus aria-hidden="true" size={16} />
             </Button>
@@ -226,7 +226,7 @@ export function NotesContext({
                 {...accessibility}
                 autoFocus
                 aria-label="文件夹名称"
-                sizing="container"
+                sizing="fill"
                 value={folderTitle}
                 onChange={(event) => setFolderTitle(event.target.value)}
                 onKeyDown={(event) => {
@@ -238,14 +238,8 @@ export function NotesContext({
             )}
           </FieldRow>
           <FormActions>
-            <Button type="submit" variant="normal">
-              确定
-            </Button>
-            <Button
-              onClick={() => setCreatingFolder(false)}
-              type="button"
-              variant="normal"
-            >
+            <Button type="submit">确定</Button>
+            <Button onClick={() => setCreatingFolder(false)} type="button">
               取消
             </Button>
           </FormActions>

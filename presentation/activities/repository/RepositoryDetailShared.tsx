@@ -62,7 +62,7 @@ export function RepositoryLocations({
                   onClick={() => onCopy(row.label, row.copyValue)}
                   title={`复制${row.label}`}
                   type="button"
-                  variant="icon"
+                  iconOnly
                 >
                   <Copy aria-hidden="true" size={13} />
                 </Button>

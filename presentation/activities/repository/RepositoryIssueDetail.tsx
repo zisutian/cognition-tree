@@ -51,7 +51,6 @@ export function RepositoryIssueDetail({
               disabled={busy}
               onClick={() => onRunAction(view.refreshRepositories)}
               type="button"
-              variant="normal"
             >
               <RefreshCw aria-hidden="true" size={13} />
               重新检查
@@ -69,7 +68,6 @@ export function RepositoryIssueDetail({
                 onRunAction(() => view.deleteRepository({ id: issue.id }));
               }}
               type="button"
-              variant="normal"
             >
               {action.label}
             </Button>
@@ -84,16 +82,11 @@ export function RepositoryIssueDetail({
                   disabled={busy}
                   onClick={onConfirmAction}
                   type="button"
-                  variant="danger"
+                  tone="danger"
                 >
                   确认
                 </Button>
-                <Button
-                  disabled={busy}
-                  onClick={onCancelAction}
-                  type="button"
-                  variant="normal"
-                >
+                <Button disabled={busy} onClick={onCancelAction} type="button">
                   取消
                 </Button>
               </FormActions>

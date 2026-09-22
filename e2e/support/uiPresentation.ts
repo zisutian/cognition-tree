@@ -35,16 +35,3 @@ export function readCtnTonePresentation(
     ctnTonePresentationProperties[presentation],
   );
 }
-
-export function readTonePickerSwatchColor(locator: Locator) {
-  return locator.evaluate((element) => {
-    const swatch = element.querySelector<HTMLElement>(
-      ".syntax-tone-swatch > span",
-    );
-
-    if (!swatch) {
-      throw new Error("Tone picker is missing its color swatch");
-    }
-    return getComputedStyle(swatch).backgroundColor;
-  });
-}

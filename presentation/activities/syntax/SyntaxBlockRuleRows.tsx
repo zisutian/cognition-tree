@@ -1,16 +1,6 @@
-import {
-  Button,
-  InputControl,
-  FormActions,
-  FormLayout,
-  Stack,
-  StatusText,
-} from "compact-ui";
+import { Button, InputControl, FormActions, StatusText } from "compact-ui";
 import { Plus, Trash2 } from "lucide-react";
-import type {
-  AvailableSyntaxViewModel,
-  SyntaxTone,
-} from "../../../application/syntax/index.ts";
+import type { AvailableSyntaxViewModel } from "../../../application/syntax/index.ts";
 
 import {
   createSyntaxRuleFieldId,
@@ -18,51 +8,8 @@ import {
 } from "../../../application/syntax/index.ts";
 
 import { SyntaxKindPicker } from "./SyntaxKindPicker.tsx";
-import { SyntaxRuleField } from "./SyntaxRuleLayout.tsx";
+import { SyntaxRuleField, SyntaxRuleFields } from "./SyntaxRuleLayout.tsx";
 import { TonePicker } from "./TonePicker.tsx";
-
-function SyntaxToneCells({
-  disabled,
-  backgroundOptions,
-  customToneLabel,
-  label,
-  textColorOptions,
-  textColor,
-  tone,
-  onChange,
-}: {
-  disabled: boolean;
-  backgroundOptions: AvailableSyntaxViewModel["backgroundToneOptions"];
-  customToneLabel: string;
-  label: string;
-  textColorOptions: AvailableSyntaxViewModel["toneOptions"];
-  textColor: SyntaxTone;
-  tone: SyntaxTone;
-  onChange: (patch: { textColor?: SyntaxTone; tone?: SyntaxTone }) => void;
-}) {
-  return (
-    <Stack direction="row" wrap>
-      <TonePicker
-        disabled={disabled}
-        ariaLabel={`${label}背景色`}
-        customToneLabel={customToneLabel}
-        options={backgroundOptions}
-        showLabel={false}
-        value={tone}
-        onChange={(nextTone) => onChange({ tone: nextTone })}
-      />
-      <TonePicker
-        disabled={disabled}
-        ariaLabel={`${label}文字色`}
-        customToneLabel={customToneLabel}
-        options={textColorOptions}
-        showLabel={false}
-        value={textColor}
-        onChange={(nextColor) => onChange({ textColor: nextColor })}
-      />
-    </Stack>
-  );
-}
 
 export function TitleAndRootRows({
   syntax,
@@ -73,7 +20,7 @@ export function TitleAndRootRows({
     <>
       {syntax.selectedTarget.kind === "workspace-file" && syntax.draft.title ? (
         <section data-syntax-field-id={syntaxFieldIds.title} tabIndex={-1}>
-          <FormLayout>
+          <SyntaxRuleFields>
             <SyntaxRuleField label="名称">
               <StatusText>首行标题</StatusText>
             </SyntaxRuleField>
@@ -83,24 +30,34 @@ export function TitleAndRootRows({
             <SyntaxRuleField label="角色">
               <StatusText>标题</StatusText>
             </SyntaxRuleField>
-            <SyntaxRuleField label="颜色">
-              <SyntaxToneCells
+            <SyntaxRuleField label="背景色">
+              <TonePicker
                 disabled={!syntax.canMutate}
-                backgroundOptions={syntax.backgroundToneOptions}
+                ariaLabel={"首行标题背景色"}
                 customToneLabel={syntax.customToneLabel}
-                label="首行标题"
-                textColorOptions={syntax.toneOptions}
-                textColor={syntax.draft.title.textColor}
-                tone={syntax.draft.title.tone}
-                onChange={syntax.actions.updateTitle}
+                options={syntax.backgroundToneOptions}
+                value={syntax.draft.title.tone}
+                onChange={(tone) => syntax.actions.updateTitle({ tone })}
               />
             </SyntaxRuleField>
-          </FormLayout>
+            <SyntaxRuleField label="文字色">
+              <TonePicker
+                disabled={!syntax.canMutate}
+                ariaLabel={"首行标题文字色"}
+                customToneLabel={syntax.customToneLabel}
+                options={syntax.toneOptions}
+                value={syntax.draft.title.textColor}
+                onChange={(textColor) =>
+                  syntax.actions.updateTitle({ textColor })
+                }
+              />
+            </SyntaxRuleField>
+          </SyntaxRuleFields>
         </section>
       ) : null}
       {syntax.draft.root && syntax.rootRuleLabel ? (
         <section data-syntax-field-id={syntaxFieldIds.root} tabIndex={-1}>
-          <FormLayout>
+          <SyntaxRuleFields>
             <SyntaxRuleField label="名称">
               <StatusText>{syntax.rootRuleLabel}</StatusText>
             </SyntaxRuleField>
@@ -112,19 +69,29 @@ export function TitleAndRootRows({
                 {syntax.selectedTarget.kind === "journal" ? "正文" : "概念"}
               </StatusText>
             </SyntaxRuleField>
-            <SyntaxRuleField label="颜色">
-              <SyntaxToneCells
+            <SyntaxRuleField label="背景色">
+              <TonePicker
                 disabled={!syntax.canMutate}
-                backgroundOptions={syntax.backgroundToneOptions}
+                ariaLabel={`${syntax.rootRuleLabel}背景色`}
                 customToneLabel={syntax.customToneLabel}
-                label={syntax.rootRuleLabel}
-                textColorOptions={syntax.rootTextColorOptions}
-                textColor={syntax.draft.root.textColor}
-                tone={syntax.draft.root.tone}
-                onChange={syntax.actions.updateRoot}
+                options={syntax.backgroundToneOptions}
+                value={syntax.draft.root.tone}
+                onChange={(tone) => syntax.actions.updateRoot({ tone })}
               />
             </SyntaxRuleField>
-          </FormLayout>
+            <SyntaxRuleField label="文字色">
+              <TonePicker
+                disabled={!syntax.canMutate}
+                ariaLabel={`${syntax.rootRuleLabel}文字色`}
+                customToneLabel={syntax.customToneLabel}
+                options={syntax.rootTextColorOptions}
+                value={syntax.draft.root.textColor}
+                onChange={(textColor) =>
+                  syntax.actions.updateRoot({ textColor })
+                }
+              />
+            </SyntaxRuleField>
+          </SyntaxRuleFields>
         </section>
       ) : null}
     </>
@@ -149,7 +116,7 @@ export function BlockRuleRows({
             key={rule.id}
             tabIndex={-1}
           >
-            <FormLayout>
+            <SyntaxRuleFields>
               <SyntaxRuleField label="名称">
                 {isTodoItem ? (
                   <StatusText>{rule.label}</StatusText>
@@ -157,7 +124,7 @@ export function BlockRuleRows({
                   <InputControl
                     disabled={!syntax.canMutate}
                     aria-label="名称"
-                    sizing="container"
+                    sizing="fill"
                     data-syntax-field-id={createSyntaxRuleFieldId(
                       "block",
                       rule.id,
@@ -180,7 +147,7 @@ export function BlockRuleRows({
                   <InputControl
                     disabled={!syntax.canMutate}
                     aria-label="标记"
-                    sizing="container"
+                    sizing="fill"
                     data-syntax-field-id={createSyntaxRuleFieldId(
                       "block",
                       rule.id,
@@ -221,7 +188,6 @@ export function BlockRuleRows({
                   customToneLabel={syntax.customToneLabel}
                   fieldId={createSyntaxRuleFieldId("block", rule.id, "tone")}
                   options={syntax.backgroundToneOptions}
-                  showLabel={false}
                   value={rule.tone}
                   onChange={(tone) =>
                     syntax.actions.updateBlock(rule.id, { tone })
@@ -239,27 +205,27 @@ export function BlockRuleRows({
                     "textColor",
                   )}
                   options={syntax.toneOptions}
-                  showLabel={false}
                   value={rule.textColor}
                   onChange={(textColor) =>
                     syntax.actions.updateBlock(rule.id, { textColor })
                   }
                 />
               </SyntaxRuleField>
-              <FormActions>
+              <SyntaxRuleField label="操作">
                 {isProtected ? null : (
                   <Button
                     disabled={!syntax.canMutate}
+                    tone="danger"
                     aria-label="删除块规则"
                     onClick={() => syntax.actions.removeBlock(rule.id)}
                     type="button"
-                    variant="icon"
+                    iconOnly
                   >
                     <Trash2 aria-hidden="true" size={13} />
                   </Button>
                 )}
-              </FormActions>
-            </FormLayout>
+              </SyntaxRuleField>
+            </SyntaxRuleFields>
           </section>
         );
       })}
@@ -268,7 +234,6 @@ export function BlockRuleRows({
           disabled={!syntax.canMutate}
           onClick={syntax.actions.addBlock}
           type="button"
-          variant="normal"
         >
           <Plus aria-hidden="true" size={13} />
           新增块规则

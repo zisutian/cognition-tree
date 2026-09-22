@@ -4,7 +4,7 @@ import { FormLayout } from "compact-ui";
 import { useLayoutEffect, useRef, type ComponentProps } from "react";
 
 /** Connect a region footer's native submit button to the package-owned form.
- * Compact UI 0.1.0 does not expose a form id/ref. Only the standard DOM form
+ * Compact UI 0.2.0 does not expose a form id/ref. Only the standard DOM form
  * association is adapted here; layout, submission and validation stay native.
  */
 export function AssociatedForm({

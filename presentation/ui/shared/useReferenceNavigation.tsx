@@ -44,7 +44,7 @@ export function useReferenceNavigation<
     openReference,
     picker: (
       <QuickPick
-        label="选择引用目标"
+        aria-label="选择引用目标"
         open={destinations.length > 0}
         options={destinations}
         onClose={close}

@@ -58,16 +58,11 @@ export function RepositoryDeleteConfirmation({
               busy || !canDeleteManagedRepositoryData(repository, confirmation)
             }
             type="submit"
-            variant="danger"
+            tone="danger"
           >
             永久删除
           </Button>
-          <Button
-            disabled={busy}
-            onClick={onCancel}
-            type="button"
-            variant="normal"
-          >
+          <Button disabled={busy} onClick={onCancel} type="button">
             取消
           </Button>
         </FormActions>

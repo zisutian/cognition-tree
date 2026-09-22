@@ -119,7 +119,7 @@ export function StructureOperationContext({
   return (
     <Stack fill>
       <ChoiceGroup
-        ariaLabel="结构操作模式"
+        aria-label="结构操作模式"
         mode="single"
         options={[
           { label: "笔记间迁移", value: "betweenNotes" },

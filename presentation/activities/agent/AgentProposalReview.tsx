@@ -9,7 +9,7 @@ import {
   Button,
   EmptyState,
   FormActions,
-  ManagementList,
+  List,
   ManagementRow,
   Section,
   Stack,
@@ -76,14 +76,14 @@ export function AgentProposalReview({
         {proposal.review.resources.length === 0 ? (
           <EmptyState title="没有可展示的资源变更。" />
         ) : (
-          <ManagementList label="逐项资源变更">
+          <List aria-label="逐项资源变更">
             {proposal.review.resources.map((resource) => (
               <AgentProposalReviewResource
                 key={resource.resourceId}
                 resource={resource}
               />
             ))}
-          </ManagementList>
+          </List>
         )}
       </Section>
       <AgentProposalTechnicalDetails proposal={proposal} />
@@ -201,7 +201,7 @@ function AgentProposalTechnicalDetails({
             {proposal.changes.resources.length === 0 ? (
               <EmptyState title="无" />
             ) : (
-              <ManagementList label="资源变更">
+              <List aria-label="资源变更">
                 {proposal.changes.resources.map((change, index) => (
                   <ManagementRow
                     key={`${change.resourceId}:${change.kind}:${index}`}
@@ -216,14 +216,14 @@ function AgentProposalTechnicalDetails({
                     }
                   />
                 ))}
-              </ManagementList>
+              </List>
             )}
           </Section>
           <Section title="块变更">
             {proposal.changes.blocks.length === 0 ? (
               <EmptyState title="无" />
             ) : (
-              <ManagementList label="块变更">
+              <List aria-label="块变更">
                 {proposal.changes.blocks.map((change, index) => (
                   <ManagementRow
                     key={`${change.blockId}:${change.kind}:${index}`}
@@ -237,14 +237,14 @@ function AgentProposalTechnicalDetails({
                     }
                   />
                 ))}
-              </ManagementList>
+              </List>
             )}
           </Section>
           <Section title="字符级 diff">
             {proposal.diff.length === 0 ? (
               <EmptyState title="无" />
             ) : (
-              <ManagementList label="字符级 diff">
+              <List aria-label="字符级 diff">
                 {proposal.diff.map((hunk, index) => (
                   <ManagementRow
                     key={`${hunk.resourceId}:${hunk.from}:${index}`}
@@ -263,7 +263,7 @@ function AgentProposalTechnicalDetails({
                     }
                   />
                 ))}
-              </ManagementList>
+              </List>
             )}
           </Section>
         </SectionStack>
@@ -290,7 +290,7 @@ function TechnicalInlineValue({ value }: { value: string }) {
         }
         title="复制完整值"
         type="button"
-        variant="icon"
+        iconOnly
       >
         <Copy aria-hidden="true" size={12} />
       </Button>

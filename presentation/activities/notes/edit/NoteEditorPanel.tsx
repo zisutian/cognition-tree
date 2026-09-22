@@ -82,7 +82,6 @@ export function NoteEditorPanel({ view }: { view: NotesViewModel }) {
                 )
               }
               type="button"
-              variant="normal"
             >
               新建笔记
             </Button>

@@ -42,7 +42,7 @@ export function Page({
           ? createPortal(<FormActions>{actions}</FormActions>, actionsHost)
           : null}
         {summary || inlineActions ? (
-          <Toolbar label="页面操作">
+          <Toolbar aria-label="页面操作">
             {summary ? (
               <Stack direction="row" align="center" wrap>
                 {summary}

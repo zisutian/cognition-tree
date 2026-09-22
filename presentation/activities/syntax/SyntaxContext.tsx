@@ -43,7 +43,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
     <Stack fill>
       <Stack direction="row">
         <Button
-          variant="icon"
+          iconOnly
           aria-label="新建笔记库语法"
           disabled={view.hasDraftErrors || !view.workspaceCanMutate}
           onClick={() =>
@@ -67,7 +67,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
         ) : null}
       </Stack>
       <Tree
-        label="语法设置"
+        aria-label="语法设置"
         nodes={nodes}
         selectedId={selected}
         expandedIds={expanded}

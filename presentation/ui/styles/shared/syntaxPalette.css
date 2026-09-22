@@ -1,4 +1,4 @@
-/* CTN syntax colors only. Deferred until the configurable syntax component is available. */
+/* CTN named content colors preserve existing syntax semantics; never a UI theme. */
 :root {
   --ctn-tone-green: #6a9955;
   --ctn-tone-teal: #4ec9b0;

@@ -67,11 +67,7 @@ export function OwnerLogin({
                   )}
                 </FieldRow>
                 <FormActions>
-                  <Button
-                    disabled={loginAction.busy}
-                    type="submit"
-                    variant="normal"
-                  >
+                  <Button disabled={loginAction.busy} type="submit">
                     登录
                   </Button>
                 </FormActions>

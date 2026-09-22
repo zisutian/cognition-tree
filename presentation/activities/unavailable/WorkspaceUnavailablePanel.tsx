@@ -31,12 +31,11 @@ export function WorkspaceUnavailablePanel({
               <Button
                 onClick={() => void feedback.runAction(workspace.retry)}
                 type="button"
-                variant="normal"
               >
                 重试挂载
               </Button>
             ) : null}
-            <Button onClick={onOpenRepository} type="button" variant="normal">
+            <Button onClick={onOpenRepository} type="button">
               前往仓库
             </Button>
           </>

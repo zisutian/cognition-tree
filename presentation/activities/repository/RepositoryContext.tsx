@@ -121,14 +121,14 @@ export function RepositoryContext({
     <div ref={host} style={{ height: "100%", minHeight: 0 }}>
       <Stack fill>
         <Button
-          variant="icon"
+          iconOnly
           aria-label="新建仓库"
           onClick={() => onSelectionChange({ kind: "create" })}
         >
           <Plus />
         </Button>
         <Tree
-          label="仓库目录"
+          aria-label="仓库目录"
           nodes={nodes}
           selectedId={repositoryTargetKey(current)}
           expandedIds={expanded}

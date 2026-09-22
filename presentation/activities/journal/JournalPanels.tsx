@@ -46,7 +46,7 @@ export function JournalContextActions({ view }: JournalViewProps) {
       }
       title="新建日记"
       type="button"
-      variant="icon"
+      iconOnly
     >
       <Plus aria-hidden="true" size={14} />
     </Button>
@@ -80,7 +80,7 @@ export function JournalContext({ view }: JournalViewProps) {
   });
   return (
     <Tree
-      label="日记日历"
+      aria-label="日记日历"
       nodes={nodes}
       selectedId={view.activeEntry?.id ?? null}
       expandedIds={expanded}
@@ -138,7 +138,6 @@ export function JournalEditorPanel({ view }: JournalViewProps & {}) {
                 })
               }
               type="button"
-              variant="normal"
             >
               新建日记
             </Button>

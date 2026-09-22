@@ -1,8 +1,7 @@
 import {
-  ContextList,
+  List,
   ContextRow,
   EmptyState,
-  ManagementList,
   ManagementRow,
   Section,
   StatusText,
@@ -23,7 +22,7 @@ function AdjacentReferenceGroup({
   if (references.length === 0) return null;
   return (
     <Section title={label}>
-      <ManagementList label={label}>
+      <List aria-label={label}>
         {references.slice(0, 8).map((reference) => (
           <ManagementRow
             key={reference.id}
@@ -31,7 +30,7 @@ function AdjacentReferenceGroup({
             description={`× ${reference.count}`}
           />
         ))}
-      </ManagementList>
+      </List>
     </Section>
   );
 }
@@ -84,7 +83,7 @@ export function MostReferencedList({
 }) {
   return graph.mostReferencedNodes.length > 0 ? (
     <Section title="引用最多">
-      <ContextList label="引用排名">
+      <List aria-label="引用排名">
         {graph.mostReferencedNodes.map((node) => (
           <ContextRow
             key={node.id}
@@ -94,7 +93,7 @@ export function MostReferencedList({
             {node.title} <StatusText>{node.totalReferences}</StatusText>
           </ContextRow>
         ))}
-      </ContextList>
+      </List>
     </Section>
   ) : null;
 }

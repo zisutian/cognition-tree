@@ -79,7 +79,7 @@ export function StructureBlockMoveQuickPick({
 
   return (
     <QuickPick
-      label="移动结构块"
+      aria-label="移动结构块"
       open={sourceLineNumber !== null}
       options={options}
       onClose={onClose}

@@ -103,7 +103,6 @@ export function RepositoryConflictActions({
           disabled={busy}
           onClick={() => onRunAction(resolution.keepLocal)}
           type="button"
-          variant="normal"
         >
           保留本地
         </Button>

@@ -24,7 +24,6 @@ export function FormSaveActions({
         disabled={busy || !canSave}
         form={formId}
         type="submit"
-        variant="normal"
       >
         {busy ? "正在保存…" : saveLabel}
       </Button>

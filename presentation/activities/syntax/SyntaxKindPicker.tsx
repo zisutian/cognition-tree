@@ -26,7 +26,7 @@ export function SyntaxKindPicker({
       aria-label={ariaLabel}
       data-syntax-field-id={fieldId}
       disabled={disabled}
-      sizing="container"
+      sizing="fill"
       value={value}
       onChange={(event) => {
         const selected = options.find(

@@ -74,12 +74,11 @@ export function BuiltInUnavailableActivity({
               <Button
                 onClick={() => void feedback.runAction(retry)}
                 type="button"
-                variant="normal"
               >
                 重试
               </Button>
             ) : null}
-            <Button onClick={onOpenRepository} type="button" variant="normal">
+            <Button onClick={onOpenRepository} type="button">
               前往仓库
             </Button>
           </>

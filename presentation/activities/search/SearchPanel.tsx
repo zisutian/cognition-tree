@@ -4,7 +4,7 @@ import {
   EmptyState,
   FormActions,
   Section,
-  ManagementList,
+  List,
   ManagementRow,
 } from "compact-ui";
 import { useLayoutEffect, useRef } from "react";
@@ -149,11 +149,7 @@ export function SearchPanel({
         ) : state.errorMessage && groups.length === 0 ? (
           <EmptyState
             action={
-              <Button
-                onClick={() => void controller.search()}
-                type="button"
-                variant="normal"
-              >
+              <Button onClick={() => void controller.search()} type="button">
                 重新搜索
               </Button>
             }
@@ -163,11 +159,7 @@ export function SearchPanel({
         ) : allSourcesFailed ? (
           <EmptyState
             action={
-              <Button
-                onClick={() => void controller.search()}
-                type="button"
-                variant="normal"
-              >
+              <Button onClick={() => void controller.search()} type="button">
                 重试
               </Button>
             }
@@ -178,7 +170,7 @@ export function SearchPanel({
             {state.faults.length > 0 ? (
               <section aria-label="不可用的搜索来源" role="status">
                 <Section title="部分来源不可用">
-                  <ManagementList label="不可用来源">
+                  <List aria-label="不可用来源">
                     {state.faults.map((fault) => (
                       <ManagementRow
                         key={`${fault.domain}:${fault.repositoryId ?? ""}:${
@@ -198,7 +190,7 @@ export function SearchPanel({
                         description={fault.message}
                       />
                     ))}
-                  </ManagementList>
+                  </List>
                 </Section>
               </section>
             ) : null}
@@ -221,7 +213,7 @@ export function SearchPanel({
                           {" · "}
                           {formatTimestamp(group.updatedAt)}
                         </StatusBadge>
-                        <ManagementList label={`${group.title}的匹配项`}>
+                        <List aria-label={`${group.title}的匹配项`}>
                           {group.hits.map((hit) => (
                             <ManagementRow
                               key={hit.blockId ?? "document"}
@@ -240,7 +232,7 @@ export function SearchPanel({
                               onSelect={() => onOpenResult(hit)}
                             />
                           ))}
-                        </ManagementList>
+                        </List>
                       </Section>
                     );
                   })}

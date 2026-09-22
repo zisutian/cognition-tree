@@ -1,14 +1,14 @@
 # 界面规范
 
-通用视觉与交互使用 Compact UI 0.1.0 的公开组件和默认配置。认知树仅拥有业务内容及其投影；模块边界见 [架构说明](architecture.md)。
+通用视觉与交互使用 Compact UI 0.2.0 的公开组件和默认配置。认知树仅拥有业务内容及其投影；模块边界见 [架构说明](architecture.md)。
 
 ## 组件与样式
 
-安装包固定在 `tooling/vendor/compact-ui-0.1.0.tgz`，通过相对文件依赖安装。不能依赖本机兄弟目录，不能导入包的私有目录或覆盖内部类名。根部 `CompactProvider` 使用 [uiConfig](../presentation/ui/foundation/config.ts)，公开 `compact-ui/styles.css` 仅在客户端入口加载一次。
+安装包固定在 `tooling/vendor/compact-ui-0.2.0.tgz`，通过相对文件依赖安装。不能依赖本机兄弟目录，不能导入包的私有目录或覆盖内部类名。根部 `CompactProvider` 使用 [uiConfig](../presentation/ui/foundation/config.ts)，公开 `compact-ui/styles.css` 仅在客户端入口加载一次。
 
 优先按功能查找包内组件，再决定是否需要业务组合；仅替换按钮并保留自绘通用布局不算接入完成。按钮、字段、表单、分组、静态属性、管理列表、状态及浮层直接使用包公开组件。工作台用 `Workbench` 和 `WorkbenchLayoutState`；活动提供 title、content、actions、toolbar、footer 和 layout，不再自行绘制分区外壳。
 
-编辑器、CTN 结构块、图谱和差异正文保留专用内容实现。内容样式只读取 `--cu-*` 变量，不重新声明通用参数。编辑器字号和行距也直接读取框架默认值，不增加编辑器外框。CTN 语义颜色暂存于 `syntaxPalette.css`，语法配置、颜色预览及语义配色本轮搁置，等待框架的可配置语法组件；它们不得被其它 UI 用作主题。没有第二套通用主题、尺寸生成器或拖动分区实现。
+编辑器、CTN 结构块、图谱和差异正文保留专用内容实现。内容样式只读取 `--cu-*` 变量，不重新声明通用参数。编辑器字号和行距也直接读取框架默认值，不增加编辑器外框。语法规则字段使用公开 `List columns="auto"` 与 `FieldRow`、`FormLayout`，颜色选择使用 `Button`、`ChoiceGroup`、`ColorControl` 和公开浮层。通用色块样式已删除；右侧预览只拥有 CTN 内容样式。`syntaxPalette.css` 保留已有语法命名色的含义，不能被其它 UI 用作主题。无效草稿恢复操作位于区域 footer，离开检查仍由活动公开接口提供。没有第二套通用主题、尺寸生成器或拖动分区实现。
 
 CodeMirror 使用光标、文字选区及当前行提供编辑反馈。编辑器适配层同时处理 `.cm-editor` 与真正获得焦点的 `.cm-content`，避免框架的通用 `:focus-visible` 给整个滚动正文画出大外框。此规则只作用于编辑器自身，不移除按钮、字段、目录等普通控件的键盘焦点提示。
 
@@ -22,7 +22,7 @@ CodeMirror 使用光标、文字选区及当前行提供编辑反馈。编辑器
 
 - 左侧单击打开预览，双击固定；打开活动会展开对应目录。
 - 全工作台只有一个临时预览。已固定目标再次打开仍为固定目标。
-- 中栏 `ChoiceGroup` 只激活和关闭，不改变目录折叠状态。
+- 中栏 `PageTitleGroup` 只激活和关闭，不改变目录折叠状态。
 - 笔记、结构操作、引用图谱以及仓库语法按仓库隔离固定页；日记、待办、会话、搜索和管理页跨仓库保留。
 - 查看仓库管理对象不切换真实仓库。实际切换先完成应用层保存检查，成功后恢复目标仓库页面。
 - 新建成功后固定打开；搜索、引用、问题定位进入预览并复用既有目标。
@@ -38,16 +38,16 @@ CodeMirror 使用光标、文字选区及当前行提供编辑反馈。编辑器
 
 通用尺寸、颜色和键盘交互以固定包的默认规则为准；测试不继续断言旧 UI 的尺寸。使用合成数据覆盖 1280×720、1440×900、缩放、窄分区、长标题、焦点恢复、弹层和独立滚动。业务测试保留保存、同步、审批和破坏性确认断言。
 
-设置表单通过显式 `fixedPageActions` 区域选项把本地状态驱动的按钮渲染到 footer 的 DOM 入口；页面仍独占草稿和提交回调，Shell 不保存第二份表单操作状态。搜索结果与问题列表分别直接使用 ManagementList/ManagementRow 和 ContextList/ContextRow。问题列表的长集合只在自身内容容器维护虚拟占位。
+设置表单通过显式 `fixedPageActions` 区域选项把本地状态驱动的按钮渲染到 footer 的 DOM 入口；页面仍独占草稿和提交回调，Shell 不保存第二份表单操作状态。搜索结果与问题列表分别直接使用 List/ManagementRow 和 List/ContextRow。问题列表的长集合只在自身内容容器维护虚拟占位。
 
 ## 组件优先与必要适配
 
 | 功能                                 | 公开组件或保留理由                                                                                                                      |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | 页面间距、操作栏、固定操作           | Stack、Toolbar、FormActions；Page 仅保留语义、引用、滚动和 footer 接线                                                                  |
-| 普通表单与语法规则                   | FormLayout、FieldRow、公开输入控件；字段使用包内响应布局，不另设固定列                                                                  |
+| 普通表单与语法规则                   | FormLayout、FieldRow、公开输入控件；语法规则由 List columns="auto" 排列，每个字段使用 stacked 表单                                      |
 | 文档统计、图谱统计、时间             | PropertyList / PropertyRow；时间值保留 time 的机器可读日期                                                                              |
-| Agent 消息、资源审查、引用、搜索结果 | ManagementList / ManagementRow；消息换行、代码和差异正文属于内容                                                                        |
+| Agent 消息、资源审查、引用、搜索结果 | List / ManagementRow；消息换行、代码和差异正文属于内容                                                                                  |
 | 目录、颜色预设、筛选                 | Tree、ChoiceGroup、CheckboxGroup；不以 label 包裹整个选择组，避免覆盖首项名称                                                           |
 | 登录、空状态、提示、浮层             | Panel、EmptyState、StatusText、Popover / QuickPick；StatusText 的 live 仅表示视觉状态，需要播报时由语义宿主提供 role                    |
 | 外置保存按钮的设置表单               | AssociatedForm 只把标准 DOM id 关联到公开 FormLayout 生成的 form；footer 仍使用原生提交关联，保留必填/范围校验和 Enter 提交，无嵌套表单 |

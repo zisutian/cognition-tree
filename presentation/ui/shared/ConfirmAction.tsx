@@ -19,12 +19,12 @@ export function ConfirmAction({
   onRequest(): void;
 }) {
   return confirming ? (
-    <Toolbar label={`确认${label}`}>
+    <Toolbar aria-label={`确认${label}`}>
       <Button
         disabled={disabled}
         onClick={onConfirm}
         type="button"
-        variant="danger"
+        tone="danger"
       >
         确认{label}
       </Button>
@@ -33,12 +33,7 @@ export function ConfirmAction({
       </Button>
     </Toolbar>
   ) : (
-    <Button
-      disabled={disabled}
-      onClick={onRequest}
-      type="button"
-      variant="danger"
-    >
+    <Button disabled={disabled} onClick={onRequest} type="button" tone="danger">
       {label}
     </Button>
   );

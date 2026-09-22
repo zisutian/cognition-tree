@@ -111,7 +111,7 @@ export function StructureOperationPairView({
 
   return (
     <Stack>
-      <Toolbar label="结构迁移操作">
+      <Toolbar aria-label="结构迁移操作">
         <Button
           aria-label="交换源笔记和目标笔记"
           disabled={
@@ -122,7 +122,7 @@ export function StructureOperationPairView({
           onClick={view.onSwapSourceAndTargetNotes}
           title="交换源笔记和目标笔记"
           type="button"
-          variant="icon"
+          iconOnly
         >
           <ArrowLeftRight aria-hidden="true" size={14} />
         </Button>
@@ -215,7 +215,7 @@ export function StructureOperationPairView({
       </Stack>
       {moveContext ? (
         <ContextMenu
-          label="结构块操作"
+          aria-label="结构块操作"
           items={
             moveContext
               ? [

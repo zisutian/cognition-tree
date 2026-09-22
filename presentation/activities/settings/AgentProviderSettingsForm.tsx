@@ -80,7 +80,7 @@ export function AgentProviderSettingsForm({
               disabled={busy}
               {...accessibility}
               aria-label="Provider 地址"
-              sizing="container"
+              sizing="fill"
               onChange={(event) =>
                 onChange(
                   changeAgentProviderDraftBaseUrl(

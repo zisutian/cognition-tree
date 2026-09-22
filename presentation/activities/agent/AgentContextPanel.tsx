@@ -29,7 +29,7 @@ export function AgentContextPanel({
         </StatusText>
       ) : null}
       <Tree
-        label="Agent 会话"
+        aria-label="Agent 会话"
         nodes={state.sessions.map((session) => ({
           id: session.id,
           label: `${session.profileLabel} · ${formatAgentScopeLabel(session.scope)} · ${agentSessionStateLabels[session.state]}`,

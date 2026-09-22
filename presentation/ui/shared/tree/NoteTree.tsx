@@ -65,7 +65,7 @@ export function NoteTree(props: NoteTreeProps) {
   };
   return (
     <Tree
-      label="笔记目录"
+      aria-label="笔记目录"
       nodes={nodes}
       selectedId={selected?.id ?? null}
       expandedIds={expanded}

@@ -35,7 +35,7 @@ export function createNotesWorkspaceActivitySlots({
     context: {
       ...current.context,
       toolbar: (
-        <Toolbar label="笔记工具">
+        <Toolbar aria-label="笔记工具">
           {notesModes.map(({ id, label }) => (
             <Button
               key={id}

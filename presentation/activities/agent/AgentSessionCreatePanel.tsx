@@ -54,7 +54,7 @@ function ExactScopeOptions({
         <EmptyState title="没有资源" />
       ) : (
         <CheckboxGroup
-          ariaLabel={label}
+          aria-label={label}
           onChange={onChange}
           options={options.map(({ id, label: optionLabel }) => ({
             label: optionLabel,
@@ -209,7 +209,7 @@ export function AgentSessionCreatePanel({
                   <ChoiceGroup
                     {...accessibility}
                     aria-labelledby={undefined}
-                    ariaLabel="领域"
+                    aria-label="领域"
                     mode="single"
                     onChange={(value: ScopeDomain) => setDomain(value)}
                     options={[
@@ -250,7 +250,7 @@ export function AgentSessionCreatePanel({
                       <ChoiceGroup
                         {...accessibility}
                         aria-labelledby={undefined}
-                        ariaLabel="硬范围"
+                        aria-label="硬范围"
                         mode="single"
                         onChange={(value: WorkspaceTargetKind) =>
                           setWorkspaceTargetKind(value)
@@ -330,7 +330,7 @@ export function AgentSessionCreatePanel({
                       <ChoiceGroup
                         {...accessibility}
                         aria-labelledby={undefined}
-                        ariaLabel="硬范围"
+                        aria-label="硬范围"
                         mode="single"
                         onChange={(value) => setJournalAll(value === "all")}
                         options={[
@@ -358,7 +358,7 @@ export function AgentSessionCreatePanel({
                       <ChoiceGroup
                         {...accessibility}
                         aria-labelledby={undefined}
-                        ariaLabel="硬范围"
+                        aria-label="硬范围"
                         mode="single"
                         onChange={(value) => setTodoAll(value === "all")}
                         options={[
@@ -389,7 +389,6 @@ export function AgentSessionCreatePanel({
                     state.status?.enabled !== true
                   }
                   type="submit"
-                  variant="normal"
                 >
                   创建会话
                 </Button>

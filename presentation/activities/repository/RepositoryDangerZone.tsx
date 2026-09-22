@@ -40,7 +40,7 @@ export function RepositoryDangerZone({
           disabled={busy || (active && view.deletionBlocked)}
           onClick={onStart}
           type="button"
-          variant="danger"
+          tone="danger"
         >
           <Trash2 aria-hidden="true" size={13} />
           删除仓库

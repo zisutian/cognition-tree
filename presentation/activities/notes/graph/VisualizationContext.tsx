@@ -36,7 +36,7 @@ export function VisualizationContext({
                 {...accessibility}
                 aria-label="搜索笔记标题"
                 placeholder="笔记标题"
-                sizing="container"
+                sizing="fill"
                 value={query}
                 onChange={(event) => view.setQuery(event.target.value)}
               />
@@ -47,7 +47,7 @@ export function VisualizationContext({
               <ChoiceGroup
                 {...accessibility}
                 aria-labelledby={undefined}
-                ariaLabel="图谱范围"
+                aria-label="图谱范围"
                 mode="single"
                 options={[
                   { label: "全库", value: "global" },
@@ -64,7 +64,7 @@ export function VisualizationContext({
                 <ChoiceGroup
                   {...accessibility}
                   aria-labelledby={undefined}
-                  ariaLabel="局部图谱深度"
+                  aria-label="局部图谱深度"
                   mode="single"
                   options={[
                     { label: "1 层", value: "1" },
@@ -85,7 +85,7 @@ export function VisualizationContext({
               <ToggleButton
                 {...accessibility}
                 aria-label="隐藏孤立点"
-                onClick={() => view.setHideIsolated(!hideIsolated)}
+                onPressedChange={view.setHideIsolated}
                 pressed={hideIsolated}
               >
                 隐藏孤立点
@@ -99,7 +99,6 @@ export function VisualizationContext({
             onClick={session.resetView}
             title="重置图谱视图"
             type="button"
-            variant="normal"
           >
             <RotateCcw aria-hidden="true" />
             重置视图

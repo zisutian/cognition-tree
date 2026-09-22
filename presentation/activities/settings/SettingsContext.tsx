@@ -80,7 +80,7 @@ export function SettingsContext({
   ];
   return (
     <Tree
-      label="设置目录"
+      aria-label="设置目录"
       nodes={nodes}
       expandedIds={expanded}
       onExpandedChange={setExpanded}

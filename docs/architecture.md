@@ -239,8 +239,10 @@ CodeMirror editor 的独立视图快照按完整页面标识保留在登录会�
 CodeMirror 任务控件通过 React bridge 渲染公开 CheckboxControl，不引用控件私有 CSS。
 
 通用配置由 CompactProvider 的 `uiConfig` 唯一提供。源码和候选运行包携带固定安装归档，
-不依赖本地兄弟目录。全局入口只补充 html/body/root 的视口几何和暂缓迁移的 CTN 语义配色，不做通用文字 reset；图谱、结构、差异
+不依赖本地兄弟目录。全局入口只补充 html/body/root 的视口几何和 CTN 语义配色，不做通用文字 reset；图谱、结构、差异
 等专用内容样式读取包配置。工具入口使用区域 toolbar 和 Button，资源目录使用 Tree。普通表单由公开 FormLayout 唯一生成；AssociatedForm 仅适配标准 form id 与区域 footer 提交关联，不持有保存状态或通用样式。架构检查约束公开导入、单向依赖、禁止变量覆写和旧通用实现。
+
+语法活动使用 Compact UI 0.2.0 的公开 List 自动排列规则字段，FormLayout/FieldRow 仅负责字段语义和布局；SyntaxDraftStatus 通过区域 footer 展示应用层投影的无效草稿状态。预览内容拥有 CTN 配色，控件不拥有色块或通用排版样式，草稿与保护规则仍只有 application/syntax 一个业务所有者。
 
 Activity 内部仍按语义拆分独立 view：Repository 的 catalog、状态、恢复与危险操作，
 Todo 的集合、编辑与周期结构，以及 Notes 的编辑、结构与图谱不因视觉相似而共享业务

@@ -7,7 +7,6 @@ import { test } from "../support/e2eTest";
 import {
   readComputedStyleValue,
   readCtnTonePresentation,
-  readTonePickerSwatchColor,
 } from "../support/uiPresentation";
 import { getActivityButton, openWorkbench } from "../support/workbenchPage";
 
@@ -104,8 +103,13 @@ test.describe("syntax activity flows", () => {
       "aria-label",
       "全局概念引用颜色: 红色",
     );
-    const expectedReferenceColor =
-      await readTonePickerSwatchColor(referenceColorPicker);
+    const referencePreview = page
+      .locator(".syntax-render-line")
+      .filter({ hasText: "全局概念引用" });
+    const expectedReferenceColor = await readComputedStyleValue(
+      referencePreview.locator(".syntax-render-marker"),
+      "color",
+    );
 
     await getActivityButton(page, "笔记").click();
     await page
@@ -157,6 +161,78 @@ test.describe("syntax activity flows", () => {
       }),
     ).toBeVisible();
     await expect(page.getByLabel("语法名称")).toHaveCount(0);
+  });
+
+  test("persists rule edits and custom colors through reload, then removes only the new rule", async ({
+    page,
+  }) => {
+    await openWorkbench(page, syntaxRepositoryId);
+    await getActivityButton(page, "语法").click();
+    await page.getByRole("button", { name: "新增块规则", exact: true }).click();
+    const rule = page
+      .locator(
+        '[data-syntax-field-id^="syntax-block-"][data-syntax-field-id$="-row"]',
+      )
+      .last();
+    await rule
+      .getByRole("textbox", { name: "名称", exact: true })
+      .fill("迁移验收规则");
+    await rule.getByRole("textbox", { name: "标记", exact: true }).fill("%");
+    await rule
+      .getByRole("combobox", { name: "迁移验收规则角色", exact: true })
+      .selectOption("multiline");
+    await rule.getByRole("button", { name: /^迁移验收规则文字色:/ }).click();
+    const picker = page.getByRole("dialog", {
+      name: "迁移验收规则文字色",
+      exact: true,
+    });
+    await picker.getByLabel("自定义颜色", { exact: true }).fill("#123456");
+    await page.keyboard.press("Escape");
+    await expect(
+      rule.getByRole("button", { name: /^迁移验收规则文字色:/ }),
+    ).toBeFocused();
+    await expect
+      .poll(async () => {
+        const response = await api.get(
+          `/api/v4/sync/workspaces/${syntaxRepositoryId}`,
+        );
+        return JSON.stringify((await response.json()).content.syntax);
+      })
+      .toContain("#123456");
+    await page.reload();
+    await getActivityButton(page, "语法").click();
+    const persistedRule = page
+      .locator(
+        '[data-syntax-field-id^="syntax-block-"][data-syntax-field-id$="-row"]',
+      )
+      .filter({
+        has: page
+          .getByRole("textbox", { name: "名称", exact: true })
+          .and(page.locator('input[value="迁移验收规则"]')),
+      });
+    await expect(
+      persistedRule.getByRole("textbox", { name: "标记", exact: true }),
+    ).toHaveValue("%");
+    await expect(
+      persistedRule.getByRole("combobox", {
+        name: "迁移验收规则角色",
+        exact: true,
+      }),
+    ).toHaveValue("multiline");
+    await persistedRule
+      .getByRole("button", { name: "删除块规则", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "删除块规则", exact: true }),
+    ).toHaveCount(5);
+    await expect
+      .poll(async () => {
+        const response = await api.get(
+          `/api/v4/sync/workspaces/${syntaxRepositoryId}`,
+        );
+        return JSON.stringify((await response.json()).content.syntax);
+      })
+      .not.toContain("迁移验收规则");
   });
 
   test("separates system configurations from workspace selection and activation", async ({

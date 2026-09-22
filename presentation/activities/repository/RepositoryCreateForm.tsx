@@ -83,7 +83,7 @@ export function RepositoryCreateForm({
         )}
       </FieldRow>
       <FormActions>
-        <Button disabled={busy} type="submit" variant="normal">
+        <Button disabled={busy} type="submit">
           {submitting ? "创建中" : "创建仓库"}
         </Button>
       </FormActions>

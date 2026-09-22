@@ -1,3 +1,4 @@
+import { List, Stack } from "compact-ui";
 import type {
   AvailableSyntaxViewModel,
   SyntaxTone,
@@ -35,21 +36,23 @@ function SyntaxRenderLine({
   const toneClassName = getToneClassName(tone);
 
   return (
-    <div
+    <li
       className={cx("syntax-render-line", toneClassName, inline && "is-inline")}
       style={createToneStyle(tone, inline ? "default" : textColor)}
     >
-      <span className={cx("syntax-render-marker")}>{marker}</span>
-      <span
-        className={cx(
-          "syntax-render-text",
-          !inline && getTextColorClassName(textColor),
-          inline && "block-text-inline",
-        )}
-      >
-        {value}
-      </span>
-    </div>
+      <Stack direction="row" align="center" gap="tight">
+        <span className={cx("syntax-render-marker")}>{marker}</span>
+        <span
+          className={cx(
+            "syntax-render-text",
+            !inline && getTextColorClassName(textColor),
+            inline && "block-text-inline",
+          )}
+        >
+          {value}
+        </span>
+      </Stack>
+    </li>
   );
 }
 
@@ -61,7 +64,7 @@ export function SyntaxDetailPanel({
   return (
     <Page aria-label="语法预览">
       <PageBody scroll>
-        <div aria-label="语法预览内容" className={cx("syntax-render-list")}>
+        <List aria-label="语法预览内容" rowGap="tight">
           {view.selectedTarget.kind === "workspace-file" && view.draft.title ? (
             <SyntaxRenderLine
               marker="T"
@@ -96,7 +99,7 @@ export function SyntaxDetailPanel({
               value={getInlinePreviewValue(rule)}
             />
           ))}
-        </div>
+        </List>
       </PageBody>
     </Page>
   );

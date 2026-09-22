@@ -127,7 +127,7 @@ export function TodoRecurrenceEditor({
           </StatusText>
         ) : null}
         <ChoiceGroup<RecurrenceMode>
-          ariaLabel="周期类型"
+          aria-label="周期类型"
           mode="single"
           options={(
             [
@@ -156,7 +156,7 @@ export function TodoRecurrenceEditor({
               <InputControl
                 {...accessibility}
                 disabled={disabled}
-                sizing="container"
+                sizing="fill"
                 aria-label="重复间隔"
                 inputMode="numeric"
                 min={1}
@@ -170,7 +170,7 @@ export function TodoRecurrenceEditor({
         ) : null}
         {mode === "weekly" ? (
           <CheckboxGroup
-            ariaLabel="重复星期"
+            aria-label="重复星期"
             options={weekdays.map((weekday) => ({
               ...weekday,
               value: String(weekday.value),
@@ -192,7 +192,7 @@ export function TodoRecurrenceEditor({
               <InputControl
                 {...accessibility}
                 disabled={disabled}
-                sizing="container"
+                sizing="fill"
                 aria-label="每月日期"
                 inputMode="numeric"
                 max={31}
@@ -213,7 +213,7 @@ export function TodoRecurrenceEditor({
           </span>
         ) : null}
         <FormActions>
-          <Button disabled={disabled} type="submit" variant="normal">
+          <Button disabled={disabled} type="submit">
             确定
           </Button>
           <Button onClick={onCancel} type="button">

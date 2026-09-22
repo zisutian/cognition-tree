@@ -50,7 +50,7 @@ export function AgentConversationComposer({
         onChange={(event) => setDraft(event.currentTarget.value)}
         placeholder="消息"
         rows={4}
-        sizing="container"
+        sizing="fill"
         value={draft}
       />
       <FormActions>

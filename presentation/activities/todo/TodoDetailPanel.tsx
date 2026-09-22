@@ -128,7 +128,7 @@ function TodoStructureNodes({
                         : "配置周期"
                     }
                     type="button"
-                    variant="icon"
+                    iconOnly
                   >
                     <Repeat2 aria-hidden="true" size={12} />
                   </Button>

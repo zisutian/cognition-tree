@@ -68,7 +68,7 @@ function GraphToggleSetting({
         <ToggleButton
           {...accessibility}
           aria-label={ariaLabel}
-          onClick={() => onChange(!value)}
+          onPressedChange={onChange}
           pressed={value}
         >
           {value ? "显示" : "隐藏"}
@@ -111,7 +111,6 @@ export function VisualizationGraphSettings({
           ref={triggerRef}
           title="图谱设置"
           type="button"
-          variant="normal"
         >
           <Settings2 aria-hidden="true" />
           图谱设置
@@ -194,7 +193,7 @@ export function VisualizationGraphSettings({
               />
             </FormLayout>
           </Section>
-          <Button onClick={onReset} type="button" variant="normal">
+          <Button onClick={onReset} type="button">
             恢复默认设置
           </Button>
         </SectionStack>

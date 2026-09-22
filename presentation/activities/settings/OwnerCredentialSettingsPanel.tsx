@@ -100,7 +100,6 @@ export function OwnerCredentialSettingsPanel({
               void feedback.runAction(session.activatePreparedOwnerCredential)
             }
             type="button"
-            variant="normal"
           >
             我已保存，激活新密钥
           </Button>

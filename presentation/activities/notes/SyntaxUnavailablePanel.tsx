@@ -12,7 +12,7 @@ export function SyntaxUnavailablePanel({
     <Page aria-label={`${featureName}不可用`}>
       <EmptyState
         action={
-          <Button onClick={onConfigureSyntax} type="button" variant="normal">
+          <Button onClick={onConfigureSyntax} type="button">
             打开语法
           </Button>
         }

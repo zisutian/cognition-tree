@@ -1,15 +1,11 @@
 import { Stack as SectionStack } from "compact-ui";
 import {
-  Button,
   EmptyState,
   FieldRow,
   FormLayout,
   InputControl,
   Section,
-  StatusText,
-  Toolbar,
 } from "compact-ui";
-import { RotateCcw } from "lucide-react";
 import { useEffect, useRef } from "react";
 import {
   isAvailableSyntaxViewModel,
@@ -73,21 +69,6 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
       tabIndex={-1}
     >
       <PageBody>
-        {syntax.hasDraftErrors ? (
-          <Toolbar label="语法问题">
-            <StatusText mode="live" tone="danger">
-              语法包含无效更改
-            </StatusText>
-            <Button
-              onClick={syntax.revertInvalidChanges}
-              type="button"
-              variant="normal"
-            >
-              <RotateCcw aria-hidden="true" size={13} />
-              撤销无效更改
-            </Button>
-          </Toolbar>
-        ) : null}
         <SectionStack>
           <Section title="基础">
             <FormLayout>

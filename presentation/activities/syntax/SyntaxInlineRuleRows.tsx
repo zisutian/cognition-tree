@@ -2,7 +2,6 @@ import {
   Button,
   InputControl,
   FormActions,
-  FormLayout,
   Stack,
   StatusText,
 } from "compact-ui";
@@ -10,7 +9,7 @@ import { Plus, Trash2 } from "lucide-react";
 import type { AvailableSyntaxViewModel } from "../../../application/syntax/index.ts";
 import { createSyntaxRuleFieldId } from "../../../application/syntax/index.ts";
 
-import { SyntaxRuleField } from "./SyntaxRuleLayout.tsx";
+import { SyntaxRuleField, SyntaxRuleFields } from "./SyntaxRuleLayout.tsx";
 import { TonePicker } from "./TonePicker.tsx";
 
 function InlineRuleRow({
@@ -32,12 +31,12 @@ function InlineRuleRow({
       data-syntax-field-id={createSyntaxRuleFieldId("inline", rule.id)}
       tabIndex={-1}
     >
-      <FormLayout>
+      <SyntaxRuleFields>
         <SyntaxRuleField label="名称">
           <InputControl
             disabled={!syntax.canMutate}
             aria-label="名称"
-            sizing="container"
+            sizing="fill"
             data-syntax-field-id={createSyntaxRuleFieldId(
               "inline",
               rule.id,
@@ -65,7 +64,7 @@ function InlineRuleRow({
                   <InputControl
                     disabled={!syntax.canMutate}
                     aria-label="开始"
-                    sizing="container"
+                    sizing="fill"
                     data-syntax-field-id={createSyntaxRuleFieldId(
                       "inline",
                       rule.id,
@@ -82,7 +81,7 @@ function InlineRuleRow({
                   <InputControl
                     disabled={!syntax.canMutate}
                     aria-label="结束"
-                    sizing="container"
+                    sizing="fill"
                     data-syntax-field-id={createSyntaxRuleFieldId(
                       "inline",
                       rule.id,
@@ -105,7 +104,7 @@ function InlineRuleRow({
             <InputControl
               disabled={!syntax.canMutate}
               aria-label="符号"
-              sizing="container"
+              sizing="fill"
               data-syntax-field-id={createSyntaxRuleFieldId(
                 "inline",
                 rule.id,
@@ -131,26 +130,26 @@ function InlineRuleRow({
             customToneLabel={syntax.customToneLabel}
             fieldId={createSyntaxRuleFieldId("inline", rule.id, "tone")}
             options={syntax.toneOptions}
-            showLabel={false}
             value={rule.tone}
             onChange={(tone) => syntax.actions.updateInline(rule.id, { tone })}
           />
         </SyntaxRuleField>
-        <FormActions>
+        <SyntaxRuleField label="操作">
           {isProtected ? null : (
             <Button
               disabled={!syntax.canMutate}
+              tone="danger"
               aria-label="删除行内规则"
               onClick={() => syntax.actions.removeInline(rule.id)}
               title="删除"
               type="button"
-              variant="icon"
+              iconOnly
             >
               <Trash2 aria-hidden="true" size={13} />
             </Button>
           )}
-        </FormActions>
-      </FormLayout>
+        </SyntaxRuleField>
+      </SyntaxRuleFields>
     </section>
   );
 }
@@ -175,7 +174,6 @@ export function InlineRuleRows({
           disabled={!syntax.canMutate}
           onClick={() => syntax.actions.addInline("paired")}
           type="button"
-          variant="normal"
         >
           <Plus aria-hidden="true" size={13} />
           成对符号
@@ -184,7 +182,6 @@ export function InlineRuleRows({
           disabled={!syntax.canMutate}
           onClick={() => syntax.actions.addInline("single")}
           type="button"
-          variant="normal"
         >
           <Plus aria-hidden="true" size={13} />
           单个符号
