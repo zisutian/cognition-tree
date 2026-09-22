@@ -37,6 +37,7 @@ export function JournalContextActions({ view }: JournalViewProps) {
   return (
     <Button
       aria-label="新建日记"
+      appearance="plain"
       disabled={!view.canMutate}
       onClick={() =>
         submitJournalEntryCreation({

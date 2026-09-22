@@ -48,6 +48,7 @@ export function useTodoContext(view: TodoViewModel): {
       actions: (
         <Button
           iconOnly
+          appearance="plain"
           aria-label="新建事项集合"
           disabled={creation.disabled}
           onClick={creation.begin}
