@@ -355,6 +355,8 @@ export async function startE2EWorkspaceServer({
 
     vite = await createViteServer({
       appType: "spa",
+      // Each test worker owns its optimizer output; never rewrite a live dev server's cache.
+      cacheDir: path.join(rootDirectory, "vite-cache"),
       server: { hmr: { server }, middlewareMode: { server } },
     });
     // Compile the real HTML entry and its static imports before timing browser

@@ -24,6 +24,9 @@ function clientManualChunk(id: string) {
 
 export default defineConfig({
   cacheDir: ".artifacts/cache/vite",
+  // The vendored UI package is already ESM. Serve its versioned file directly
+  // so a package upgrade cannot retain the previous prebundle's export table.
+  optimizeDeps: { exclude: ["compact-ui"] },
   build: {
     manifest: true,
     outDir: ".artifacts/build/client",
