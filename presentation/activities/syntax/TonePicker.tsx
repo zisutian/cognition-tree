@@ -5,7 +5,6 @@ import {
   Stack,
   useDesignConfig,
 } from "compact-ui";
-import { ChevronDown } from "lucide-react";
 import type {
   SyntaxTone,
   SyntaxToneOption,
@@ -50,12 +49,12 @@ export function TonePicker({
           aria-expanded={isOpen}
           aria-haspopup="dialog"
           aria-label={`${ariaLabel}: ${label}`}
+          title={`${ariaLabel}: ${isCustomValue ? value : label}`}
           data-syntax-field-id={fieldId}
           onClick={toggle}
           ref={triggerRef}
         >
-          {label}
-          <ChevronDown aria-hidden="true" />
+          {isCustomValue ? "自定义" : value === "default" ? "默认" : label}
         </Button>
       )}
     >

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import { defaultDesignConfig } from "compact-ui";
 import { expect } from "@playwright/test";
 import { test } from "../support/e2eTest";
 import { seedWorkbenchRepository } from "../support/repositorySeeds";
@@ -8,7 +9,7 @@ for (const viewport of [
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
 ]) {
-  test(`syntax fields wrap within ${viewport.width} and recovery stays visible`, async ({
+  test(`syntax rules stay on one line within ${viewport.width} and recovery stays visible`, async ({
     api,
     page,
   }, testInfo) => {
@@ -20,6 +21,28 @@ for (const viewport of [
     const panel = main.getByRole("region", { name: "语法配置", exact: true });
     const fields = panel.getByRole("list", { name: "规则字段" });
     await expect(fields.first()).toBeVisible();
+    await expect(
+      panel.getByRole("list", { name: "块规则列名", exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      panel.getByRole("list", { name: "行内规则列名", exact: true }),
+    ).toHaveCount(1);
+    const rows = panel.locator(
+      '[data-syntax-field-id$="-row"], [data-syntax-field-id="syntax-title-rule"], [data-syntax-field-id="syntax-root-rule"]',
+    );
+    const rowHeights = await rows.evaluateAll((elements) =>
+      elements.map((element) => element.getBoundingClientRect().height),
+    );
+    await testInfo.attach("rule-heights", {
+      body: JSON.stringify(rowHeights),
+      contentType: "application/json",
+    });
+    for (const height of rowHeights) {
+      expect(height).toBeLessThanOrEqual(
+        defaultDesignConfig.metrics.controlHeight,
+      );
+    }
+    for (const row of await rows.all()) await expect(row).toBeInViewport();
     const bounds = (await panel.boundingBox())!;
     for (const input of await panel.getByRole("textbox").all()) {
       await input.scrollIntoViewIfNeeded();

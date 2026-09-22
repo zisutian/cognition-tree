@@ -167,7 +167,9 @@ describe("syntax panels", () => {
       lacks: ["顶格概念", "首行标题", 'aria-label="语法名称"'],
     });
     expect(occurrenceCount(markup, 'aria-label="开始"')).toBe(1);
-    expect(occurrenceCount(markup, 'aria-label="结束"')).toBe(1);
+    expect((markup.match(/<input\b[^>]*aria-label="结束"/g) ?? []).length).toBe(
+      1,
+    );
     expect(occurrenceCount(markup, 'aria-label="删除块规则"')).toBe(4);
     expect(occurrenceCount(markup, 'aria-label="删除行内规则"')).toBe(2);
   });
@@ -220,7 +222,9 @@ describe("syntax panels", () => {
       ],
     });
     expect(occurrenceCount(markup, 'aria-label="注解角色"')).toBe(1);
-    expect(occurrenceCount(markup, 'aria-label="标记"')).toBe(1);
+    expect((markup.match(/<input\b[^>]*aria-label="标记"/g) ?? []).length).toBe(
+      1,
+    );
     expect(occurrenceCount(markup, 'aria-label="删除块规则"')).toBe(1);
   });
 

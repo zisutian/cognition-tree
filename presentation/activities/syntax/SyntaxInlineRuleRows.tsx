@@ -1,11 +1,5 @@
-import {
-  Button,
-  InputControl,
-  FormActions,
-  Stack,
-  StatusText,
-} from "compact-ui";
-import { Plus, Trash2 } from "lucide-react";
+import { Button, InputControl, StatusText } from "compact-ui";
+import { Trash2 } from "lucide-react";
 import type { AvailableSyntaxViewModel } from "../../../application/syntax/index.ts";
 import { createSyntaxRuleFieldId } from "../../../application/syntax/index.ts";
 
@@ -43,6 +37,7 @@ function InlineRuleRow({
               "label",
             )}
             maxLength={syntax.constraints.label.maxLength}
+            title={rule.label}
             value={rule.label}
             onChange={(event) =>
               syntax.actions.updateInline(rule.id, {
@@ -52,72 +47,58 @@ function InlineRuleRow({
           />
         </SyntaxRuleField>
         <SyntaxRuleField label="标记">
-          {rule.kind === "paired" ? (
-            <Stack direction="row" gap="tight">
-              {triggerProtected ? (
-                <>
-                  <StatusText>{rule.open}</StatusText>
-                  <StatusText>{rule.close}</StatusText>
-                </>
-              ) : (
-                <>
-                  <InputControl
-                    disabled={!syntax.canMutate}
-                    aria-label="开始"
-                    sizing="fill"
-                    data-syntax-field-id={createSyntaxRuleFieldId(
-                      "inline",
-                      rule.id,
-                      "open",
-                    )}
-                    maxLength={syntax.constraints.token.maxCodePoints * 2}
-                    value={rule.open}
-                    onChange={(event) =>
-                      syntax.actions.updateInline(rule.id, {
-                        open: event.target.value,
-                      })
-                    }
-                  />
-                  <InputControl
-                    disabled={!syntax.canMutate}
-                    aria-label="结束"
-                    sizing="fill"
-                    data-syntax-field-id={createSyntaxRuleFieldId(
-                      "inline",
-                      rule.id,
-                      "close",
-                    )}
-                    maxLength={syntax.constraints.token.maxCodePoints * 2}
-                    value={rule.close}
-                    onChange={(event) =>
-                      syntax.actions.updateInline(rule.id, {
-                        close: event.target.value,
-                      })
-                    }
-                  />
-                </>
-              )}
-            </Stack>
-          ) : triggerProtected ? (
-            <StatusText>{rule.marker}</StatusText>
+          {triggerProtected ? (
+            <StatusText>
+              {rule.kind === "paired" ? rule.open : rule.marker}
+            </StatusText>
           ) : (
             <InputControl
               disabled={!syntax.canMutate}
-              aria-label="符号"
+              aria-label={rule.kind === "paired" ? "开始" : "符号"}
               sizing="fill"
               data-syntax-field-id={createSyntaxRuleFieldId(
                 "inline",
                 rule.id,
-                "marker",
+                rule.kind === "paired" ? "open" : "marker",
               )}
               maxLength={syntax.constraints.token.maxCodePoints * 2}
-              value={rule.marker}
+              value={rule.kind === "paired" ? rule.open : rule.marker}
               onChange={(event) =>
-                syntax.actions.updateInline(rule.id, {
-                  marker: event.target.value,
-                })
+                syntax.actions.updateInline(
+                  rule.id,
+                  rule.kind === "paired"
+                    ? { open: event.target.value }
+                    : { marker: event.target.value },
+                )
               }
             />
+          )}
+        </SyntaxRuleField>
+        <SyntaxRuleField label="结束">
+          {rule.kind === "paired" ? (
+            triggerProtected ? (
+              <StatusText>{rule.close}</StatusText>
+            ) : (
+              <InputControl
+                disabled={!syntax.canMutate}
+                aria-label="结束"
+                sizing="fill"
+                data-syntax-field-id={createSyntaxRuleFieldId(
+                  "inline",
+                  rule.id,
+                  "close",
+                )}
+                maxLength={syntax.constraints.token.maxCodePoints * 2}
+                value={rule.close}
+                onChange={(event) =>
+                  syntax.actions.updateInline(rule.id, {
+                    close: event.target.value,
+                  })
+                }
+              />
+            )
+          ) : (
+            <StatusText>—</StatusText>
           )}
         </SyntaxRuleField>
         <SyntaxRuleField label="角色">
@@ -169,24 +150,6 @@ export function InlineRuleRows({
           syntax={syntax}
         />
       ))}
-      <FormActions>
-        <Button
-          disabled={!syntax.canMutate}
-          onClick={() => syntax.actions.addInline("paired")}
-          type="button"
-        >
-          <Plus aria-hidden="true" size={13} />
-          成对符号
-        </Button>
-        <Button
-          disabled={!syntax.canMutate}
-          onClick={() => syntax.actions.addInline("single")}
-          type="button"
-        >
-          <Plus aria-hidden="true" size={13} />
-          单个符号
-        </Button>
-      </FormActions>
     </>
   );
 }

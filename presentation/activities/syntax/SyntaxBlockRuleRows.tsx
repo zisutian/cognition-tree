@@ -1,5 +1,5 @@
-import { Button, InputControl, FormActions, StatusText } from "compact-ui";
-import { Plus, Trash2 } from "lucide-react";
+import { Button, InputControl, StatusText } from "compact-ui";
+import { Trash2 } from "lucide-react";
 import type { AvailableSyntaxViewModel } from "../../../application/syntax/index.ts";
 
 import {
@@ -52,6 +52,7 @@ export function TitleAndRootRows({
                 }
               />
             </SyntaxRuleField>
+            <SyntaxRuleField label="操作" />
           </SyntaxRuleFields>
         </section>
       ) : null}
@@ -91,6 +92,7 @@ export function TitleAndRootRows({
                 }
               />
             </SyntaxRuleField>
+            <SyntaxRuleField label="操作" />
           </SyntaxRuleFields>
         </section>
       ) : null}
@@ -131,6 +133,7 @@ export function BlockRuleRows({
                       "label",
                     )}
                     maxLength={syntax.constraints.label.maxLength}
+                    title={rule.label}
                     value={rule.label}
                     onChange={(event) =>
                       syntax.actions.updateBlock(rule.id, {
@@ -229,16 +232,6 @@ export function BlockRuleRows({
           </section>
         );
       })}
-      <FormActions>
-        <Button
-          disabled={!syntax.canMutate}
-          onClick={syntax.actions.addBlock}
-          type="button"
-        >
-          <Plus aria-hidden="true" size={13} />
-          新增块规则
-        </Button>
-      </FormActions>
     </>
   );
 }
