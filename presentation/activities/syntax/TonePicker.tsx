@@ -1,15 +1,11 @@
-import {
-  Button,
-  ChoiceGroup,
-  ColorControl,
-  Stack,
-  useDesignConfig,
-} from "compact-ui";
+import { ColorPicker, useDesignConfig } from "compact-ui";
+import { useLayoutEffect, useRef, useState } from "react";
 import type {
   SyntaxTone,
   SyntaxToneOption,
 } from "../../../application/syntax/index.ts";
-import { isCustomTone, TriggerPopover } from "../../ui/index.ts";
+import { isCustomTone, useFeedback } from "../../ui/index.ts";
+import { customSyntaxColor, syntaxToneColor } from "./syntaxColorValue.ts";
 
 type TonePickerProps = {
   disabled?: boolean;
@@ -17,82 +13,78 @@ type TonePickerProps = {
   customToneLabel: string;
   fieldId?: string;
   options: SyntaxToneOption[];
+  channel?: "background" | "text";
   value: SyntaxTone;
   onChange: (tone: SyntaxTone) => void;
 };
 
-/** Map syntax values to public controls; the detail region owns color preview. */
+/** Only maps CTN tone identities; the public picker owns all color UI and focus. */
 export function TonePicker({
   disabled = false,
   ariaLabel,
   customToneLabel,
   fieldId,
   options,
+  channel = "text",
   value,
   onChange,
 }: TonePickerProps) {
-  const { colors } = useDesignConfig();
-  const isCustomValue = isCustomTone(value);
-  const customTone = isCustomValue ? value : colors.accent;
-  const label = isCustomValue
-    ? customToneLabel
+  const feedback = useFeedback();
+  const config = useDesignConfig();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const [resolvedColors, setResolvedColors] = useState<Record<string, string>>(
+    {},
+  );
+  useLayoutEffect(() => {
+    if (!trigger.current) return;
+    const style = getComputedStyle(trigger.current);
+    // Read the existing content palette; do not duplicate its color definitions.
+    setResolvedColors(
+      Object.fromEntries(
+        options.map((option) => {
+          const color = syntaxToneColor(option.value, channel);
+          const variable = /^var\((--[\w-]+)\)$/.exec(color);
+          return [
+            color,
+            variable ? style.getPropertyValue(variable[1]).trim() : color,
+          ];
+        }),
+      ),
+    );
+  }, [options, channel, config]);
+  const displayColor = (tone: SyntaxTone) => {
+    const color = syntaxToneColor(tone, channel);
+    return resolvedColors[color] || color;
+  };
+  const label = isCustomTone(value)
+    ? `${customToneLabel} ${value}`
     : options.find((option) => option.value === value)?.label;
   if (!label) throw new Error(`Missing projected syntax tone label: ${value}`);
+  const palette = options.map((option) => ({
+    label: option.label,
+    value: displayColor(option.value),
+  }));
 
   return (
-    <TriggerPopover
-      ariaLabel={ariaLabel}
-      renderTrigger={({ isOpen, panelId, toggle, triggerRef }) => (
-        <Button
-          disabled={disabled}
-          aria-controls={panelId}
-          aria-expanded={isOpen}
-          aria-haspopup="dialog"
-          aria-label={`${ariaLabel}: ${label}`}
-          title={`${ariaLabel}: ${isCustomValue ? value : label}`}
-          data-syntax-field-id={fieldId}
-          onClick={toggle}
-          ref={triggerRef}
-        >
-          {isCustomValue ? "自定义" : value === "default" ? "默认" : label}
-        </Button>
-      )}
-    >
-      {({ close }) => (
-        <Stack>
-          <ChoiceGroup
-            aria-label="预设颜色"
-            mode="single"
-            value={value}
-            options={options.map((option) => ({ ...option, disabled }))}
-            onChange={(tone) => {
-              onChange(tone);
-              close();
-            }}
-          />
-          <Stack direction="row" align="center" wrap>
-            <Button
-              disabled={disabled}
-              aria-pressed={isCustomValue}
-              onClick={() => {
-                if (isCustomTone(customTone)) onChange(customTone);
-                close();
-              }}
-            >
-              {customToneLabel}
-            </Button>
-            <ColorControl
-              disabled={disabled}
-              aria-label="自定义颜色"
-              value={customTone}
-              onChange={(event) => {
-                if (isCustomTone(event.target.value))
-                  onChange(event.target.value);
-              }}
-            />
-          </Stack>
-        </Stack>
-      )}
-    </TriggerPopover>
+    <ColorPicker
+      disabled={disabled}
+      ref={trigger}
+      aria-label={`${ariaLabel}: ${label}`}
+      title={`${ariaLabel}: ${label}`}
+      data-syntax-field-id={fieldId}
+      sizing="fill"
+      value={displayColor(value)}
+      options={palette}
+      onChange={(color) => {
+        feedback.runAction(() => {
+          const index = palette.findIndex(
+            (option) => option.value.toLowerCase() === color.toLowerCase(),
+          );
+          onChange(
+            index >= 0 ? options[index].value : customSyntaxColor(color),
+          );
+        });
+      }}
+    />
   );
 }

@@ -85,7 +85,7 @@ test("syntax fields and color choices remain accessible in a narrow scaled regio
   const trigger = page.getByRole("button", { name: /^首行标题背景色:/ });
   await trigger.click();
   const menu = page.getByRole("dialog", {
-    name: "首行标题背景色",
+    name: "选择颜色",
     exact: true,
   });
   await expect(menu).toBeInViewport();
@@ -93,7 +93,7 @@ test("syntax fields and color choices remain accessible in a narrow scaled regio
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(1024);
   expect(box.y + box.height).toBeLessThanOrEqual(576);
-  const gray = menu.getByRole("radio", { name: "灰色", exact: true });
+  const gray = menu.getByRole("option", { name: "灰色", exact: true });
   await gray.focus();
   await gray.press("Space");
   await expect(menu).toHaveCount(0);

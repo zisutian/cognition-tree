@@ -35,6 +35,7 @@ export function TitleAndRootRows({
                 disabled={!syntax.canMutate}
                 ariaLabel={"首行标题背景色"}
                 customToneLabel={syntax.customToneLabel}
+                channel="background"
                 options={syntax.backgroundToneOptions}
                 value={syntax.draft.title.tone}
                 onChange={(tone) => syntax.actions.updateTitle({ tone })}
@@ -75,6 +76,7 @@ export function TitleAndRootRows({
                 disabled={!syntax.canMutate}
                 ariaLabel={`${syntax.rootRuleLabel}背景色`}
                 customToneLabel={syntax.customToneLabel}
+                channel="background"
                 options={syntax.backgroundToneOptions}
                 value={syntax.draft.root.tone}
                 onChange={(tone) => syntax.actions.updateRoot({ tone })}
@@ -190,6 +192,7 @@ export function BlockRuleRows({
                   ariaLabel={`${rule.label}背景色`}
                   customToneLabel={syntax.customToneLabel}
                   fieldId={createSyntaxRuleFieldId("block", rule.id, "tone")}
+                  channel="background"
                   options={syntax.backgroundToneOptions}
                   value={rule.tone}
                   onChange={(tone) =>

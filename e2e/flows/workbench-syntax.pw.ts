@@ -61,16 +61,14 @@ test.describe("syntax activity flows", () => {
     );
 
     await titleTonePicker.click();
+    await expect(page.getByRole("dialog", { name: "选择颜色" })).toBeVisible();
     await expect(
-      page.getByRole("dialog", { name: "首行标题背景色" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("radio", {
+      page.getByRole("option", {
         name: "编辑器背景",
         exact: true,
       }),
     ).toBeVisible();
-    await page.getByRole("radio", { name: "灰色", exact: true }).click();
+    await page.getByRole("option", { name: "灰色", exact: true }).click();
     await expect(titleTonePicker).toHaveAttribute(
       "aria-label",
       "首行标题背景色: 灰色",
@@ -95,10 +93,10 @@ test.describe("syntax activity flows", () => {
     await referenceColorPicker.click();
     await expect(
       page.getByRole("dialog", {
-        name: "全局概念引用颜色",
+        name: "选择颜色",
       }),
     ).toBeVisible();
-    await page.getByRole("radio", { name: "红色", exact: true }).click();
+    await page.getByRole("option", { name: "红色", exact: true }).click();
     await expect(referenceColorPicker).toHaveAttribute(
       "aria-label",
       "全局概念引用颜色: 红色",
@@ -163,6 +161,56 @@ test.describe("syntax activity flows", () => {
     await expect(page.getByLabel("语法名称")).toHaveCount(0);
   });
 
+  test("cancels unsubmitted colors and rejects values the syntax format cannot preserve", async ({
+    page,
+  }) => {
+    await openWorkbench(page, syntaxRepositoryId);
+    await getActivityButton(page, "语法").click();
+    const trigger = page.getByRole("button", { name: /^首行标题背景色:/ });
+    const originalLabel = await trigger.getAttribute("aria-label");
+    const readSyntax = async () => {
+      const response = await api.get(
+        `/api/v4/sync/workspaces/${syntaxRepositoryId}`,
+      );
+      return ((await response.json()) as WorkspaceRepositorySnapshotDto).content
+        .syntax;
+    };
+    const originalSyntax = await readSyntax();
+    const picker = page.getByRole("dialog", { name: "选择颜色", exact: true });
+    await trigger.click();
+    const color = picker.getByRole("textbox", {
+      name: "自定义色值",
+      exact: true,
+    });
+    await expect(color).not.toHaveValue(/var\(/);
+    await color.fill("#654321");
+    await picker.getByRole("button", { name: "取消", exact: true }).click();
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute("aria-label", originalLabel!);
+    expect(await readSyntax()).toEqual(originalSyntax);
+    await trigger.click();
+    await color.fill("rgb(10 20 30 / 0.5)");
+    await picker.getByRole("button", { name: "应用颜色", exact: true }).click();
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute("aria-label", originalLabel!);
+    await expect(
+      page.getByRole("contentinfo", { name: "工作台状态" }),
+    ).toContainText("语法颜色仅支持不透明的固定色值");
+    expect(await readSyntax()).toEqual(originalSyntax);
+    await trigger.click();
+    await picker.getByRole("option", { name: "灰色", exact: true }).click();
+    await expect
+      .poll(async () => (await readSyntax()).files[0].source)
+      .toMatch(/\[title\][\s\S]*?\ntone = "gray"/);
+    await trigger.click();
+    await picker
+      .getByRole("option", { name: "编辑器背景", exact: true })
+      .click();
+    await expect(trigger).toContainText("编辑器背景");
+    await expect(trigger).toBeFocused();
+    await expect.poll(readSyntax).toEqual(originalSyntax);
+  });
+
   test("persists rule edits and custom colors through reload, then removes only the new rule", async ({
     page,
   }) => {
@@ -183,11 +231,26 @@ test.describe("syntax activity flows", () => {
       .selectOption("multiline");
     await rule.getByRole("button", { name: /^迁移验收规则文字色:/ }).click();
     const picker = page.getByRole("dialog", {
-      name: "迁移验收规则文字色",
+      name: "选择颜色",
       exact: true,
     });
-    await picker.getByLabel("自定义颜色", { exact: true }).fill("#123456");
-    await page.keyboard.press("Escape");
+    const custom = picker.getByRole("textbox", {
+      name: "自定义色值",
+      exact: true,
+    });
+    await custom.fill("#654321");
+    await custom.press("Escape");
+    const colorTrigger = rule.getByRole("button", {
+      name: /^迁移验收规则文字色:/,
+    });
+    await expect(colorTrigger).toBeFocused();
+    await expect(colorTrigger).not.toContainText("#654321");
+    await colorTrigger.click();
+    await expect(custom).not.toHaveValue("#654321");
+    await custom.fill("hsl(210 65.384615% 20.392157%)");
+    await custom.press("Enter");
+    await expect(picker).toHaveCount(0);
+    await expect(colorTrigger).toContainText("#123456");
     await expect(
       rule.getByRole("button", { name: /^迁移验收规则文字色:/ }),
     ).toBeFocused();
@@ -219,6 +282,9 @@ test.describe("syntax activity flows", () => {
         exact: true,
       }),
     ).toHaveValue("multiline");
+    await expect(
+      persistedRule.getByRole("button", { name: /^迁移验收规则文字色:/ }),
+    ).toContainText("#123456");
     await persistedRule
       .getByRole("button", { name: "删除块规则", exact: true })
       .click();

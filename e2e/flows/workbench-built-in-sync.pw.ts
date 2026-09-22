@@ -159,10 +159,13 @@ for (const domain of ["journal", "todo"] as const) {
       await expect(
         page.getByRole("button", { name: "新增块规则" }),
       ).toBeDisabled();
+      const color = page.getByRole("button", { name: /背景色:/ }).first();
+      await expect(color).toBeDisabled();
       gate.release();
       await expect(
         page.getByRole("spinbutton", { name: "缩进宽度" }),
       ).toBeEnabled();
+      await expect(color).toBeEnabled();
       await getActivityButton(page, labels[domain]).click();
       await expect(editor).toHaveAttribute("contenteditable", "true");
       await expect(
