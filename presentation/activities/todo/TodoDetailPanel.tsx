@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Button, CheckboxControl, EmptyState } from "compact-ui";
+import { Button, CheckboxControl } from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 import todoStyles from "./todo.module.css";
 const cx = createClassNames(todoStyles);
@@ -196,9 +196,7 @@ export function TodoDetailPanel({ view }: { view: TodoViewModel }) {
             setRecurrenceEditorBlockId={setRecurrenceEditorBlockId}
             view={view}
           />
-        ) : (
-          <EmptyState title="暂无事项" />
-        )}
+        ) : null}
       </PageBody>
     </Page>
   );

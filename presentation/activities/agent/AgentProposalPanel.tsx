@@ -8,7 +8,6 @@ import {
 } from "compact-ui";
 import {
   Button,
-  EmptyState,
   FieldRow,
   FormActions,
   FormLayout,
@@ -53,9 +52,7 @@ export function AgentProposalPanel({
   return (
     <Page aria-label="Agent Proposal">
       <PageBody>
-        {!proposal ? (
-          <EmptyState title="暂无待审 proposal" />
-        ) : (
+        {!proposal ? null : (
           <>
             <SectionStack>
               <Section>

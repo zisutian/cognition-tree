@@ -84,6 +84,9 @@ for (const viewport of [
     ]) {
       await getActivityButton(page, activity).click();
       await expect(
+        page.getByRole("complementary", { name: "上下文区域", exact: true }),
+      ).toBeVisible();
+      await expect(
         page
           .getByRole("main")
           .getByRole("region", { name: label, exact: true })
@@ -95,6 +98,13 @@ for (const viewport of [
           .getByRole("radio", { checked: true }),
       ).toBeVisible();
       await expectWorkbenchFits(page);
+      const detail = page.getByRole("complementary", {
+        name: "详情区域",
+        exact: true,
+      });
+      await expect(detail).toBeVisible();
+      if (["智能体", "搜索", "设置"].includes(activity))
+        await expect(detail).toHaveText("");
       if (["日记", "代办", "智能体"].includes(activity))
         await expectExposed(
           page
@@ -158,6 +168,12 @@ for (const viewport of [
     for (const mode of ["结构", "图谱"] as const) {
       await selectNotesMode(page, mode);
       await expectWorkbenchFits(page);
+      const detail = page.getByRole("complementary", {
+        name: "详情区域",
+        exact: true,
+      });
+      await expect(detail).toBeVisible();
+      if (mode === "结构") await expect(detail).toHaveText("");
       await page.screenshot({ path: testInfo.outputPath(`${mode}.png`) });
     }
   });

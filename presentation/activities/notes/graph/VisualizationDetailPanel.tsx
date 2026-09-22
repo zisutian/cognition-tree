@@ -1,5 +1,5 @@
 import type { VisualizationViewModel } from "../../../../application/workspace/index.ts";
-import { EmptyState, PropertyList, PropertyRow, Section } from "compact-ui";
+import { PropertyList, PropertyRow, Section } from "compact-ui";
 import { Page, PageBody } from "../../../ui/index.ts";
 import {
   AdjacentReferenceList,
@@ -41,9 +41,7 @@ export function VisualizationDetailPanel({
               </PropertyList>
             </section>
           </Section>
-        ) : (
-          <EmptyState title="未选择笔记" />
-        )}
+        ) : null}
         {activeNode ? (
           <AdjacentReferenceList activeNodeId={activeNode.id} graph={graph} />
         ) : null}

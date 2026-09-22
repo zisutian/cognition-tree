@@ -135,7 +135,13 @@ export default function AppView({
               ),
             }
       }
-      detail={pageState.activePageId ? detailRegion : undefined}
+      detail={
+        (pageState.activePageId ? detailRegion : undefined) ?? {
+          title: null,
+          layout: "fill",
+          content: null,
+        }
+      }
       bottom={
         workbench.layout.bottomExpanded
           ? { title: "问题", layout: "fill", content: problemsSlot }

@@ -295,7 +295,7 @@ test.describe("settings activity flows", () => {
   });
 });
 
-test("queries durable local API results from the main panel without a detail sidebar", async ({
+test("queries durable local API results from the main panel with an empty detail sidebar", async ({
   api,
   page,
 }) => {
@@ -322,6 +322,12 @@ test("queries durable local API results from the main panel without a detail sid
     "",
   );
   await expect(page.getByRole("region", { name: "设置状态" })).toHaveCount(0);
+  const detail = page.getByRole("complementary", {
+    name: "详情区域",
+    exact: true,
+  });
+  await expect(detail).toBeVisible();
+  await expect(detail).toHaveText("");
   await expect(page.getByRole("button", { name: /新建 .*令牌/ })).toHaveCount(
     0,
   );

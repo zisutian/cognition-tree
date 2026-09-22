@@ -25,6 +25,7 @@ export type ActivityContextSlot = ActivityRegionSlot;
 
 export type ActivitySlots = {
   context: ActivityContextSlot | null;
+  /** No detail content still leaves the shared workbench region in place. */
   detail: ActivityRegionSlot | null;
   main: ActivityRegionSlot;
 };

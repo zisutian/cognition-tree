@@ -54,6 +54,12 @@ test("resolves a double-clicked lazy activity into one fixed page", async ({
   );
   await getActivityButton(page, "日记").dblclick();
   await module.arrived;
+  await expect(
+    page.getByRole("complementary", { name: "详情区域", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("complementary", { name: "详情区域", exact: true }),
+  ).toHaveText("");
   const tabs = page.getByRole("radiogroup", { name: "打开的页面" });
   await expect(
     tabs.getByRole("radio", { name: "日记", exact: true }),
@@ -154,6 +160,12 @@ test("has one preview, pins on double click, deduplicates and closes to an empty
   ).toBeChecked();
   await tabs.getByRole("button", { name: "关闭 Alpha", exact: true }).click();
   await expect(tabs).toHaveCount(0);
+  await expect(
+    page.getByRole("complementary", { name: "详情区域", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("complementary", { name: "详情区域", exact: true }),
+  ).toHaveText("");
   await expect(page.getByText("从左侧打开页面", { exact: true })).toBeVisible();
   await expect(
     page

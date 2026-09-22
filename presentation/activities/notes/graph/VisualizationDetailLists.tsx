@@ -1,7 +1,6 @@
 import {
   List,
   ContextRow,
-  EmptyState,
   ManagementRow,
   Section,
   StatusText,
@@ -69,9 +68,7 @@ export function AdjacentReferenceList({
         }))}
       />
     </>
-  ) : (
-    <EmptyState title="暂无引用" />
-  );
+  ) : null;
 }
 
 export function MostReferencedList({

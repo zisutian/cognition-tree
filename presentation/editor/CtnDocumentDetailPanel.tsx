@@ -1,4 +1,4 @@
-import { EmptyState, PropertyList, PropertyRow, Stack } from "compact-ui";
+import { PropertyList, PropertyRow, Stack } from "compact-ui";
 import type { ReactNode } from "react";
 import {
   Page,
@@ -148,9 +148,7 @@ export function CtnDocumentDetailPanel({
         />
         {structure && structure.nodes.length > 0 ? (
           <StructureTree {...structure} />
-        ) : (
-          <EmptyState title="没有可解析结构。" />
-        )}
+        ) : null}
       </PageBody>
     </Page>
   );

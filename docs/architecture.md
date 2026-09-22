@@ -224,7 +224,7 @@ controller，重新登录不得复用终态实例。领域 session 到 view appl
 回调，不复制应用状态或领域命令。
 
 三大分区统一使用 `ActivityRegionSlot` 声明 title、actions、toolbar、content、footer 和布局，
-由 `AppView` 适配到 Compact UI 的 `WorkbenchRegion`。包拥有分区标题、边界、尺寸约束、
+由 `AppView` 适配到 Compact UI 的 `WorkbenchRegion`。右栏分区由 AppView 统一保留；活动返回 detail: null 只表示没有详情内容，载入与空工作区同样使用无标题、无提示文字的空分区。包拥有分区标题、边界、尺寸约束、
 折叠、专注模式、键盘和滚动条。认知树只持有会话中的布局值，不能覆盖包内部样式。
 `Page`/`PageBody` 只组合领域内容或拥有需要保存滚动位置的内容视口；通用控件、列表、
 表单、状态、浮层和目录树直接依赖包公开接口。固定会话输入与审批放在区域 footer。
