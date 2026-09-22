@@ -289,7 +289,8 @@ dispose 是不可恢复终态：取消 transient、清空订阅者，并拒绝�
 领域 diagnostics 继续由源状态派生，不复制进 ProblemCenter。
 
 Presentation shell 在全部 Activity 合并 diagnostics、可恢复状态故障与 operational
-incidents；筛选只改变展示。问题导航只能进入拥有恢复能力的 Activity，不能执行 mutation
+incidents；筛选状态只记录全部、警告或错误，只改变展示。来源与可重试信息仍由原有问题模型持有，
+不再作为展示筛选状态。问题导航只能进入拥有恢复能力的 Activity，不能执行 mutation
 或盲目重试。五秒 transient feedback 同样由 ProblemCenter 调度，稳定保存不生成文案。
 
 编辑器只接收 editable source、语义角色和展示数据。canonical 页面消费 application 已

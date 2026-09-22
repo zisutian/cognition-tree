@@ -5,7 +5,6 @@ import {
   ContextRow,
   EmptyState,
   Stack,
-  StatusText,
   SubButton,
   useDesignConfig,
 } from "compact-ui";
@@ -205,14 +204,10 @@ function ProblemsList({
 }
 
 export type ProblemsFilters = {
-  source: "all" | UiWorkbenchProblem["source"];
   severity: "all" | "error" | "warning";
-  retry: "all" | "retryable" | "terminal";
 };
 export const initialProblemsFilters: ProblemsFilters = {
-  source: "all",
   severity: "all",
-  retry: "all",
 };
 
 export function ProblemsPanel({
@@ -232,82 +227,33 @@ export function ProblemsPanel({
   onDismiss?: (problem: UiWorkbenchProblem) => void;
   onOpen: (problem: UiWorkbenchProblem) => void;
 }) {
-  const {
-    source: sourceFilter,
-    severity: severityFilter,
-    retry: retryFilter,
-  } = filters;
+  const { severity: severityFilter } = filters;
   const filteredProblems = useMemo(
     () =>
-      view.problems.filter((problem) => {
-        if (sourceFilter !== "all" && problem.source !== sourceFilter)
-          return false;
-        if (severityFilter !== "all" && problem.severity !== severityFilter) {
-          return false;
-        }
-        if (retryFilter === "all") return true;
-        if (!isOperationalProblem(problem)) return false;
-        return retryFilter === "retryable"
-          ? problem.retryable
-          : !problem.retryable;
-      }),
-    [retryFilter, severityFilter, sourceFilter, view.problems],
+      view.problems.filter(
+        (problem) =>
+          severityFilter === "all" || problem.severity === severityFilter,
+      ),
+    [severityFilter, view.problems],
   );
   return (
     <Stack fill gap="tight">
       {expanded ? (
         <>
           <ToolToolbar aria-label="问题筛选">
-            <Stack gap="none">
-              <StatusText>来源</StatusText>
-              <ChoiceGroup
-                aria-label="按来源筛选问题"
-                mode="single"
-                onChange={(value: "all" | UiWorkbenchProblem["source"]) =>
-                  onFiltersChange({ ...filters, source: value })
-                }
-                options={[
-                  { label: "全部", value: "all" },
-                  ...Object.entries(sourceLabels).map(([source, label]) => ({
-                    label,
-                    value: source as UiWorkbenchProblem["source"],
-                  })),
-                ]}
-                value={sourceFilter}
-              />
-            </Stack>
-            <Stack gap="none">
-              <StatusText>严重度</StatusText>
-              <ChoiceGroup
-                aria-label="按严重度筛选问题"
-                mode="single"
-                onChange={(value: "all" | "error" | "warning") =>
-                  onFiltersChange({ ...filters, severity: value })
-                }
-                options={[
-                  { label: "全部", value: "all" },
-                  { label: "错误", value: "error" },
-                  { label: "警告", value: "warning" },
-                ]}
-                value={severityFilter}
-              />
-            </Stack>
-            <Stack gap="none">
-              <StatusText>重试性</StatusText>
-              <ChoiceGroup
-                aria-label="按可重试性筛选问题"
-                mode="single"
-                onChange={(value: "all" | "retryable" | "terminal") =>
-                  onFiltersChange({ ...filters, retry: value })
-                }
-                options={[
-                  { label: "全部", value: "all" },
-                  { label: "可重试", value: "retryable" },
-                  { label: "不可自动重试", value: "terminal" },
-                ]}
-                value={retryFilter}
-              />
-            </Stack>
+            <ChoiceGroup
+              aria-label="按严重度筛选问题"
+              mode="single"
+              onChange={(value: ProblemsFilters["severity"]) =>
+                onFiltersChange({ severity: value })
+              }
+              options={[
+                { label: "全部", value: "all" },
+                { label: "警告", value: "warning" },
+                { label: "错误", value: "error" },
+              ]}
+              value={severityFilter}
+            />
           </ToolToolbar>
           {filteredProblems.length > 0 ? (
             <ProblemsList

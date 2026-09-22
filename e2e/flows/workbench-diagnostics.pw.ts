@@ -30,7 +30,7 @@ test.describe("workbench diagnostics", () => {
 
   test("collects global problems and navigates repeated note and syntax targets", async ({
     page,
-  }) => {
+  }, testInfo) => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "仓库").click();
     await openRepositoryFromContext(page, diagnosticsRepositoryId);
@@ -51,9 +51,15 @@ test.describe("workbench diagnostics", () => {
     await expect(problemsHeader).toHaveAccessibleName(/0 个错误，2 个警告/);
     await problemsHeader.click();
 
-    await expect(
-      problems.getByRole("radio", { name: "全部", exact: true }),
-    ).toHaveCount(3);
+    const severity = problems.getByRole("radiogroup", {
+      name: "按严重度筛选问题",
+    });
+    await expect(problems.getByRole("radiogroup")).toHaveCount(1);
+    await expect(severity.getByRole("radio")).toHaveText([
+      "全部",
+      "警告",
+      "错误",
+    ]);
 
     const rows = problems.getByRole("button", { name: /打开问题：/ });
     const documentProblem = rows.filter({ hasText: "未知行首符号 !" });
@@ -103,6 +109,19 @@ test.describe("workbench diagnostics", () => {
     const syntaxProblem = rows.filter({ hasText: "Tab 显示宽度" });
 
     await expect(syntaxProblem).toBeVisible();
+    await severity.getByRole("radio", { name: "警告", exact: true }).click();
+    await expect(rows).toHaveCount(2);
+    await expect(documentProblem).toBeVisible();
+    await expect(referenceProblem).toBeVisible();
+    await expect(syntaxProblem).toHaveCount(0);
+    await severity.getByRole("radio", { name: "错误", exact: true }).click();
+    await expect(rows).toHaveCount(1);
+    await expect(syntaxProblem).toBeVisible();
+    await severity.getByRole("radio", { name: "全部", exact: true }).click();
+    await expect(rows).toHaveCount(3);
+    await page.screenshot({
+      path: testInfo.outputPath("problems-filters.png"),
+    });
     await syntaxProblem.click();
     await expect(indentWidth).toBeFocused();
     await indentWidth.fill("4");

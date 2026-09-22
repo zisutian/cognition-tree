@@ -131,9 +131,9 @@ describe("ProblemsPanel", () => {
     expect(markup).toContain("3 次 · 最近 12:34:56");
     expect(markup).toContain("复制请求编号：request-42");
     expect(markup).toContain("关闭操作错误：删除集合失败。");
-    expect(markup).toContain("按来源筛选问题");
+    expect(markup).not.toContain("按来源筛选问题");
     expect(markup).toContain("按严重度筛选问题");
-    expect(markup).toContain("按可重试性筛选问题");
+    expect(markup).not.toContain("按可重试性筛选问题");
   });
 
   it("labels Journal diagnostics without treating them as workspace references", () => {
