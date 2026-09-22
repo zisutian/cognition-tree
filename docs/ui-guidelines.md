@@ -1,10 +1,10 @@
 # 界面规范
 
-通用视觉与交互使用 Compact UI 0.3.0 的公开组件和默认配置。认知树仅拥有业务内容及其投影；模块边界见 [架构说明](architecture.md)。
+通用视觉与交互使用 Compact UI 0.3.1 的公开组件和默认配置。认知树仅拥有业务内容及其投影；模块边界见 [架构说明](architecture.md)。
 
 ## 组件与样式
 
-安装包固定在 `tooling/vendor/compact-ui-0.3.0.tgz`，通过相对文件依赖安装。不能依赖本机兄弟目录，不能导入包的私有目录或覆盖内部类名。根部 `CompactProvider` 使用 [uiConfig](../presentation/ui/foundation/config.ts)，公开 `compact-ui/styles.css` 仅在客户端入口加载一次。
+安装包固定在 `tooling/vendor/compact-ui-0.3.1.tgz`，通过相对文件依赖安装。不能依赖本机兄弟目录，不能导入包的私有目录或覆盖内部类名。根部 `CompactProvider` 使用 [uiConfig](../presentation/ui/foundation/config.ts)，公开 `compact-ui/styles.css` 仅在客户端入口加载一次。
 
 优先按功能查找包内组件，再决定是否需要业务组合；仅替换按钮并保留自绘通用布局不算接入完成。按钮、字段、表单、分组、静态属性、管理列表、状态及浮层直接使用包公开组件。工作台用 `Workbench` 和 `WorkbenchLayoutState`；活动提供 title、content、actions、toolbar、footer 和 layout，不再自行绘制分区外壳。
 
