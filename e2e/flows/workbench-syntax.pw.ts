@@ -64,7 +64,7 @@ test.describe("syntax activity flows", () => {
     await expect(page.getByRole("dialog", { name: "选择颜色" })).toBeVisible();
     await expect(
       page.getByRole("option", {
-        name: "编辑器背景",
+        name: "背景",
         exact: true,
       }),
     ).toBeVisible();
@@ -204,9 +204,9 @@ test.describe("syntax activity flows", () => {
       .toMatch(/\[title\][\s\S]*?\ntone = "gray"/);
     await trigger.click();
     await picker
-      .getByRole("option", { name: "编辑器背景", exact: true })
+      .getByRole("option", { name: "背景", exact: true })
       .click();
-    await expect(trigger).toContainText("编辑器背景");
+    await expect(trigger).toContainText("背景");
     await expect(trigger).toBeFocused();
     await expect.poll(readSyntax).toEqual(originalSyntax);
   });

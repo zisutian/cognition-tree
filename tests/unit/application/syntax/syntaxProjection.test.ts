@@ -42,7 +42,7 @@ describe("syntax presentation projection", () => {
       { label: "灰色", value: "gray" },
     ]));
     expect(view.backgroundToneOptions[0]).toEqual({
-      label: "编辑器背景",
+      label: "背景",
       value: "default",
     });
     expect(view.focusTarget).toBeNull();

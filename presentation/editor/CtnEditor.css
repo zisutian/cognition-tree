@@ -10,7 +10,7 @@
   height: 100%;
   min-height: 0;
   color: var(--cu-color-foreground);
-  background: var(--cu-color-background);
+  background: transparent;
   font-family: var(--cu-font);
   font-size: var(--cu-fontSize);
   font-weight: var(--cu-weight);
@@ -48,7 +48,7 @@
 .source-editor .cm-gutters {
   border: 0;
   color: var(--cu-color-disabled);
-  background: var(--cu-color-background);
+  background: var(--cu-color-surface);
   font-family: var(--cu-mono);
 }
 

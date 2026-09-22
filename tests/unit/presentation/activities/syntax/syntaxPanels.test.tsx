@@ -199,7 +199,7 @@ describe("syntax panels", () => {
 
     expectMarkupSemantics(markup, {
       has: [
-        "代办背景色: 编辑器背景",
+        "代办背景色: 背景",
         "代办颜色: 青色",
         ">代办</h2>",
         ">代办</span>",

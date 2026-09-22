@@ -62,7 +62,7 @@ Multiline 规则仍由 parser 识别 opener、相同缩进和 token 的 closer�
 
 行内 presentation 只消费一个有效颜色：它作用于 opener/closer 或 single marker 以及整个 span 的下划线，span 正文不覆盖所在块的文字颜色。Todo 的 owner policy 固定 `todo-item` 的名称、`[]`、line 类型和 semantic ID；其背景与内容颜色仍属于可编辑 presentation。
 
-所有 display/block `tone` 都允许 `default`，UI 将其命名为“编辑器背景”。预览直接读取 draft tone；保存后的 compiler presentation key 触发 analysis presentation reproject，编辑器的 title、root、line 和 multiline lexical lines 都读取重投影后的同一 rule tone，不为背景建立第二套状态。
+所有 display/block `tone` 都允许 `default`，UI 将其命名为“背景”。预览直接读取 draft tone；保存后的 compiler presentation key 触发 analysis presentation reproject，编辑器的 title、root、line 和 multiline lexical lines 都读取重投影后的同一 rule tone，不为背景建立第二套状态。
 
 领域层按块移动或重排源码时仍使用 parser 给出的 lexical 范围，以免只移动 opener；这是结构事务语义，不进入编辑器输入路径。
 

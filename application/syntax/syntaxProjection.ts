@@ -121,7 +121,7 @@ export const syntaxToneOptions: SyntaxToneOption[] =
   }));
 
 const backgroundSyntaxToneOptions: SyntaxToneOption[] = [
-  { label: "编辑器背景", value: "default" },
+  { label: "背景", value: "default" },
   ...syntaxToneOptions,
 ];
 
