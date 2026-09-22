@@ -86,7 +86,12 @@ export function RepositoryIssueDetail({
                 >
                   确认
                 </Button>
-                <Button disabled={busy} onClick={onCancelAction} type="button">
+                <Button
+                  appearance="plain"
+                  disabled={busy}
+                  onClick={onCancelAction}
+                  type="button"
+                >
                   取消
                 </Button>
               </FormActions>

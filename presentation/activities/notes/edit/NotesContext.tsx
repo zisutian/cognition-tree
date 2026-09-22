@@ -182,6 +182,7 @@ export function NotesContext({
               onClick={reload}
               title="重新扫描文件"
               type="button"
+              appearance="plain"
               iconOnly
             >
               <RefreshCw aria-hidden="true" size={16} />
@@ -192,6 +193,7 @@ export function NotesContext({
               onClick={() => setCreatingFolder(true)}
               title="新建文件夹"
               type="button"
+              appearance="plain"
               iconOnly
             >
               <FolderPlus aria-hidden="true" size={16} />
@@ -206,6 +208,7 @@ export function NotesContext({
               }
               title="新建笔记"
               type="button"
+              appearance="plain"
               iconOnly
             >
               <Plus aria-hidden="true" size={16} />
@@ -239,7 +242,11 @@ export function NotesContext({
           </FieldRow>
           <FormActions>
             <Button type="submit">确定</Button>
-            <Button onClick={() => setCreatingFolder(false)} type="button">
+            <Button
+              appearance="plain"
+              onClick={() => setCreatingFolder(false)}
+              type="button"
+            >
               取消
             </Button>
           </FormActions>

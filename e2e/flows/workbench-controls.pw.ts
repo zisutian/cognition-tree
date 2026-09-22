@@ -159,6 +159,9 @@ test("closing and reopening Problems preserves filters and preserves keyboard fo
   await seedWorkbenchRepository(api, repositoryId);
   await openWorkbench(page, repositoryId);
   await getProblemsToggle(page).click();
+  await expect(
+    page.getByRole("button", { name: "切换底部面板", exact: true }),
+  ).toHaveCount(0);
   const problems = page.getByRole("complementary", {
     name: "底部面板",
     exact: true,
@@ -169,10 +172,17 @@ test("closing and reopening Problems preserves filters and preserves keyboard fo
   await severity.getByRole("radio", { name: "警告", exact: true }).click();
   await problems.getByRole("button", { name: "关闭底部面板" }).click();
   await expect(problems).toBeHidden();
+  await expect(getProblemsToggle(page)).toBeFocused();
   await expect(
     page.getByRole("button", { name: "切换底部面板", exact: true }),
-  ).toBeFocused();
+  ).toHaveCount(0);
   await page.keyboard.press("Control+Shift+M");
+  await expect(
+    severity.getByRole("radio", { name: "警告", exact: true }),
+  ).toBeChecked();
+  await getProblemsToggle(page).click();
+  await expect(problems).toBeHidden();
+  await getProblemsToggle(page).press("Enter");
   await expect(
     severity.getByRole("radio", { name: "警告", exact: true }),
   ).toBeChecked();

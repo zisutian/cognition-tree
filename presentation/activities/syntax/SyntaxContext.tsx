@@ -43,6 +43,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
     <Stack fill>
       <Stack direction="row">
         <Button
+          appearance="plain"
           iconOnly
           aria-label="新建笔记库语法"
           disabled={view.hasDraftErrors || !view.workspaceCanMutate}

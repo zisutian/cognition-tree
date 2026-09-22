@@ -50,11 +50,14 @@ export async function openRepositoryFromContext(
     (item) => item.id === repositoryId,
   );
   if (!repository) throw new Error(`Missing repository ${repositoryId}`);
-  await page
+  const target = page
     .getByRole("tree", { name: "仓库目录" })
-    .getByRole("treeitem", { name: repository.label, exact: true })
-    .click();
-  await page.getByRole("button", { name: /^(打开仓库|继续编辑笔记)$/ }).click();
+    .getByRole("treeitem", { name: repository.label, exact: true });
+  await target.click();
+  if (await target.getByLabel("当前仓库").count())
+    await getActivityButton(page, "笔记").click();
+  else
+    await page.getByRole("button", { name: "打开仓库", exact: true }).click();
   await expect(getActivityButton(page, "笔记")).toHaveAttribute(
     "aria-current",
     "page",

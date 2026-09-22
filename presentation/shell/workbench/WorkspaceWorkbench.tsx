@@ -160,7 +160,7 @@ export function WorkspaceWorkbench({
           syntaxDiagnostics={syntaxProblems}
           workbench={workbench}
         >
-          {({ problemsSlot, statusBarSlot }) => {
+          {({ problemsSlot, statusBarSlot, onProblemsClosed }) => {
             const renderActivity: RenderActivity = (createActivitySlots) => (
               <AppView
                 activityItems={activityDescriptors}
@@ -169,6 +169,7 @@ export function WorkspaceWorkbench({
                 onActiveActivityChange={requestActivityChange}
                 problemsSlot={problemsSlot}
                 statusBarSlot={statusBarSlot}
+                onProblemsClosed={onProblemsClosed}
                 workbench={workbench}
               />
             );

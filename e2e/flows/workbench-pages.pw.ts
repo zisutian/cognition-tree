@@ -137,6 +137,12 @@ test("has one preview, pins on double click, deduplicates and closes to an empty
     tabs.getByRole("radio", { name: "Beta", exact: true }),
   ).toHaveAttribute("aria-description", "已固定");
   await page.getByRole("button", { name: "收起上下文", exact: true }).click();
+  await expect(
+    page.getByRole("complementary", { name: "上下文区域", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "展开上下文", exact: true }),
+  ).toHaveCount(0);
   await tabs.getByRole("radio", { name: "Alpha", exact: true }).click();
   await expect(page.getByRole("tree", { name: "笔记目录" })).toHaveCount(0);
   await getActivityButton(page, "笔记").click();

@@ -52,6 +52,7 @@ export default function AppView({
   activityItems,
   createActivitySlots,
   onActiveActivityChange,
+  onProblemsClosed,
   problemsSlot,
   statusBarSlot,
   workbench,
@@ -64,6 +65,7 @@ export default function AppView({
     beforeChange?: () => boolean | void,
   ): void;
   problemsSlot: ReactNode;
+  onProblemsClosed(): void;
   statusBarSlot: { start: ReactNode; end: ReactNode };
   workbench: WorkbenchController;
 }) {
@@ -103,7 +105,7 @@ export default function AppView({
       onActivityRequest={(id, intent) =>
         navigation.request(id as ActivityId, workbench.expandContext, intent)
       }
-      context={contextRegion}
+      context={workbench.layout.contextCollapsed ? undefined : contextRegion}
       main={
         pageState.activePageId
           ? {
@@ -134,10 +136,18 @@ export default function AppView({
             }
       }
       detail={pageState.activePageId ? detailRegion : undefined}
-      bottom={{ title: "问题", layout: "fill", content: problemsSlot }}
+      bottom={
+        workbench.layout.bottomExpanded
+          ? { title: "问题", layout: "fill", content: problemsSlot }
+          : undefined
+      }
       status={statusBarSlot}
       layout={workbench.layout}
-      onLayoutChange={workbench.onLayoutChange}
+      onLayoutChange={(layout) => {
+        if (workbench.layout.bottomExpanded && !layout.bottomExpanded)
+          onProblemsClosed();
+        workbench.onLayoutChange(layout);
+      }}
     />
   );
 }

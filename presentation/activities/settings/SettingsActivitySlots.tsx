@@ -80,6 +80,7 @@ export function createSettingsActivitySlots(
           onClick={onRefresh}
           title="刷新设置状态"
           type="button"
+          appearance="plain"
           iconOnly
         >
           <RefreshCw aria-hidden="true" size={16} />

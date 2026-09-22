@@ -121,6 +121,7 @@ export function RepositoryContext({
     <div ref={host} style={{ height: "100%", minHeight: 0 }}>
       <Stack fill>
         <Button
+          appearance="plain"
           iconOnly
           aria-label="新建仓库"
           onClick={() => onSelectionChange({ kind: "create" })}

@@ -129,6 +129,12 @@ test.describe("repository management", () => {
     const localRepositoryGroup = page.getByRole("complementary", {
       name: "上下文区域",
     });
+    await expect(
+      page.getByRole("button", { name: "继续编辑笔记", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "打开仓库", exact: true }),
+    ).toHaveCount(0);
     const createRepositoryButton = localRepositoryGroup.getByRole("button", {
       name: "新建仓库",
     });

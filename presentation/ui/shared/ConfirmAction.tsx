@@ -28,7 +28,12 @@ export function ConfirmAction({
       >
         确认{label}
       </Button>
-      <Button disabled={disabled} onClick={onCancel} type="button">
+      <Button
+        appearance="plain"
+        disabled={disabled}
+        onClick={onCancel}
+        type="button"
+      >
         取消
       </Button>
     </Toolbar>

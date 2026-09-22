@@ -36,17 +36,19 @@ export function OrdinaryRepositoryDetail({
 
   return (
     <>
-      <Section>
-        <FormActions>
-          <Button
-            disabled={busy}
-            onClick={() => onRunAction(() => onOpen(repository.id))}
-            type="button"
-          >
-            {active ? "继续编辑笔记" : "打开仓库"}
-          </Button>
-        </FormActions>
-      </Section>
+      {!active ? (
+        <Section>
+          <FormActions>
+            <Button
+              disabled={busy}
+              onClick={() => onRunAction(() => onOpen(repository.id))}
+              type="button"
+            >
+              打开仓库
+            </Button>
+          </FormActions>
+        </Section>
+      ) : null}
       {active && view.activeConflictResolution ? (
         <RepositoryConflictActions
           busy={busy}
@@ -69,6 +71,7 @@ export function OrdinaryRepositoryDetail({
             ) : null}
             {!active ? (
               <Button
+                appearance="plain"
                 disabled={busy}
                 onClick={() => onRunAction(view.refreshRepositories)}
                 type="button"

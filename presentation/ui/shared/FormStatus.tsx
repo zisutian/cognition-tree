@@ -27,7 +27,12 @@ export function FormSaveActions({
       >
         {busy ? "正在保存…" : saveLabel}
       </Button>
-      <Button disabled={busy || !canDiscard} onClick={onDiscard} type="button">
+      <Button
+        appearance="plain"
+        disabled={busy || !canDiscard}
+        onClick={onDiscard}
+        type="button"
+      >
         放弃修改
       </Button>
     </>

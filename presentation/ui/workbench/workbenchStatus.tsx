@@ -21,6 +21,7 @@ export function createWorkbenchStatus({
   return {
     start: (
       <Button
+        appearance="plain"
         aria-label={`${label}，${errorCount} 个错误，${warningCount} 个警告`}
         aria-expanded={expanded}
         onClick={onToggleProblems}

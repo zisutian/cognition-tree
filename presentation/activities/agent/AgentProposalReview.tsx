@@ -290,6 +290,7 @@ function TechnicalInlineValue({ value }: { value: string }) {
         }
         title="复制完整值"
         type="button"
+        appearance="plain"
         iconOnly
       >
         <Copy aria-hidden="true" size={12} />

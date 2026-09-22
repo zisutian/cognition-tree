@@ -38,6 +38,7 @@ export function createNotesWorkspaceActivitySlots({
         <Toolbar aria-label="笔记工具">
           {notesModes.map(({ id, label }) => (
             <Button
+              appearance="plain"
               key={id}
               type="button"
               aria-pressed={mode === id}

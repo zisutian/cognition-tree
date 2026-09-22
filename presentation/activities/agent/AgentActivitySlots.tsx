@@ -51,6 +51,7 @@ export function createAgentActivitySlots({
         <Button
           aria-label="新建会话"
           title="新建会话"
+          appearance="plain"
           iconOnly
           type="button"
           onClick={onBeginCreateSession}

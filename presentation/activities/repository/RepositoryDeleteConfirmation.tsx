@@ -62,7 +62,12 @@ export function RepositoryDeleteConfirmation({
           >
             永久删除
           </Button>
-          <Button disabled={busy} onClick={onCancel} type="button">
+          <Button
+            appearance="plain"
+            disabled={busy}
+            onClick={onCancel}
+            type="button"
+          >
             取消
           </Button>
         </FormActions>

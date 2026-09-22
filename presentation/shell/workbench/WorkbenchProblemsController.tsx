@@ -37,6 +37,7 @@ export function WorkbenchProblemsController({
   children: (slots: {
     problemsSlot: ReactNode;
     statusBarSlot: { start: ReactNode; end: ReactNode };
+    onProblemsClosed(): void;
   }) => ReactNode;
   onOpenSystemSyntax: (owner: "journal" | "todo", fieldId: string) => void;
   onActiveActivityChange: (
@@ -123,6 +124,7 @@ export function WorkbenchProblemsController({
   });
 
   return children({
+    onProblemsClosed: () => problemsToggleRef.current?.focus(),
     problemsSlot: (
       <ProblemsPanel
         filters={filters}
