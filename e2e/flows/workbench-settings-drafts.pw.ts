@@ -94,13 +94,25 @@ test("retains a draft across failed save and refresh, then saves the selected ob
   });
   await name.fill("Saved provider");
   await page.route(`**${providerPath}`, (route) =>
-    route.fulfill({ status: 503, json: { error: "暂时不可用" } }),
+    route.fulfill({
+      status: 503,
+      json: {
+        code: "internal_error",
+        message: "合成保存失败",
+        details: {},
+        requestId: "synthetic-settings-save",
+        retryable: true,
+      },
+    }),
   );
   await page
     .getByRole("main")
     .getByRole("button", { name: "保存 Provider" })
     .click();
-  await expect(panel.getByRole("alert")).toBeVisible();
+  await expect(
+    page.getByRole("contentinfo", { name: "工作台状态" }).getByRole("status"),
+  ).toContainText("合成保存失败");
+  await expect(panel).not.toContainText("合成保存失败");
   await expect(name).toHaveValue("Saved provider");
   await page.route(`**${configurationPath}`, (route) => route.abort());
   await page.getByRole("button", { name: "刷新设置状态", exact: true }).click();
@@ -188,7 +200,9 @@ test("keeps inputs when the saved configuration advances or the object is remove
   });
   expect(updated.ok()).toBe(true);
   await page.getByRole("button", { name: "刷新设置状态", exact: true }).click();
-  await expect(panel.getByRole("alert")).toContainText("配置已过期");
+  await expect(
+    page.getByRole("contentinfo", { name: "工作台状态" }).getByRole("status"),
+  ).toContainText("配置已过期");
   await expect(name).toHaveValue("My draft");
   await expect(
     page.getByRole("main").getByRole("button", { name: "保存 Provider" }),
@@ -208,7 +222,9 @@ test("keeps inputs when the saved configuration advances or the object is remove
   });
   expect(newest.ok()).toBe(true);
   await page.getByRole("button", { name: "刷新设置状态", exact: true }).click();
-  await expect(panel.getByRole("alert")).toContainText("配置已过期");
+  await expect(
+    page.getByRole("contentinfo", { name: "工作台状态" }).getByRole("status"),
+  ).toContainText("配置已过期");
   await expect(name).toHaveValue("E2E provider");
   await getActivityButton(page, "笔记").click();
   await expect(panel).toBeVisible();

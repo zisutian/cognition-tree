@@ -48,6 +48,22 @@ function problem(target: UiWorkbenchProblem["target"]): UiWorkbenchProblem {
 }
 
 describe("workbench problem navigation adapter", () => {
+  it.each(["settings", "search"] as const)(
+    "opens the %s failure owner through guarded navigation",
+    (activityId) => {
+      const context = createContext();
+      openWorkbenchProblem(
+        problem({ kind: "activity-problem", activityId }),
+        context,
+      );
+      expect(context.onActiveActivityChange).toHaveBeenCalledWith(
+        activityId,
+        expect.any(Function),
+      );
+      expect(context.expandPanels).toHaveBeenCalledOnce();
+    },
+  );
+
   it("routes note, Journal, and Todo lines within the approved navigation", () => {
     const context = createContext();
 

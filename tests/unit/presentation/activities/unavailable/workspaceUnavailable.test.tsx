@@ -27,12 +27,8 @@ describe("workspace unavailable activity", () => {
         storageLabel: "服务端仓库",
       },
       {
-        has: [
-          "笔记仓库无法挂载",
-          "普通仓库目录不可用。",
-          ">重试挂载<",
-          ">前往仓库<",
-        ],
+        has: ["笔记仓库无法挂载", ">重试挂载<", ">前往仓库<"],
+        lacks: ["普通仓库目录不可用。"],
       },
     ],
   ] as const)(

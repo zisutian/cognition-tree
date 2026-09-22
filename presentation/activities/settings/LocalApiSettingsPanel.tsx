@@ -55,7 +55,9 @@ export function LocalApiSettingsPanel({
     },
     [api],
   );
-  useSettingsInteraction(report, { errorMessage });
+  useSettingsInteraction(report, {
+    errorMessage: errorMessage ?? result?.error?.message,
+  });
   const query = async () => {
     const current = ++generation.current;
     setLoading(true);
@@ -72,7 +74,7 @@ export function LocalApiSettingsPanel({
     }
   };
   return (
-    <SettingsPage label="本机 API" errorMessage={errorMessage}>
+    <SettingsPage label="本机 API">
       <SectionStack>
         <Section>
           <FormLayout>
@@ -137,9 +139,6 @@ export function LocalApiSettingsPanel({
                   }
                 />
               </ToolPropertyList>
-              {result.error ? (
-                <StatusText>{result.error.message}</StatusText>
-              ) : null}
               {result.review?.resources.map((resource) => (
                 <StatusText key={`${resource.type}:${resource.resourceId}`}>
                   {resource.after?.path ?? resource.before?.path} ·{" "}

@@ -66,7 +66,9 @@ export function AgentProfileSettingsPanel({
   const unavailable = !configuration || (id !== null && !profile);
   const errorMessage =
     draft.errorMessage ??
-    (draft.stale ? "配置已过期或对象已移除" : state.errorMessage);
+    (draft.stale ? "配置已过期或对象已移除" : state.errorMessage) ??
+    check?.errorMessage ??
+    profile?.unavailableReason;
   useSettingsInteraction(report, { ...draft, submitting: busy, errorMessage });
   const save = () =>
     feedback.runAction(async () => {
@@ -97,7 +99,6 @@ export function AgentProfileSettingsPanel({
   return (
     <SettingsPage
       label="会话配置设置"
-      errorMessage={errorMessage}
       actions={
         <FormSaveActions
           busy={busy}

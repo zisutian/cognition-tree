@@ -58,7 +58,11 @@ export function BuiltInRepositoryDetail({
             </Button>
           ) : undefined
         }
-        description={view.builtInCatalogErrorMessage || "内置数据正在载入。"}
+        description={
+          view.builtInCatalogStatus === "loading"
+            ? "内置数据正在载入。"
+            : undefined
+        }
         title={builtInLabel(id)}
       />
     );

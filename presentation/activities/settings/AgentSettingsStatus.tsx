@@ -175,11 +175,7 @@ function ProfileStatus({
                 <StatusBadge
                   mode="live"
                   tone={
-                    conformanceStatus === "succeeded"
-                      ? "success"
-                      : conformanceStatus === "failed"
-                        ? "danger"
-                        : "neutral"
+                    conformanceStatus === "succeeded" ? "success" : "neutral"
                   }
                 >
                   {conformanceLabel}
@@ -188,15 +184,6 @@ function ProfileStatus({
             />
             {check?.status === "running" ? (
               <ToolPropertyRow label="阶段" children={check.phase} />
-            ) : null}
-            {check?.errorMessage ? (
-              <ToolPropertyRow label="原因" children={check.errorMessage} />
-            ) : null}
-            {!check?.errorMessage && profile.unavailableReason ? (
-              <ToolPropertyRow
-                label="原因"
-                children={profile.unavailableReason}
-              />
             ) : null}
           </ToolPropertyList>
         </section>

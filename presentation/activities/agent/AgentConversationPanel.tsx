@@ -14,7 +14,7 @@ import {
   describePage,
 } from "../../navigation/index.ts";
 import type { AgentApplication } from "../../../application/agent/index.ts";
-import { FormError, Page, PageBody, useFeedback } from "../../ui/index.ts";
+import { Page, PageBody, useFeedback } from "../../ui/index.ts";
 
 import {
   agentSessionStateLabels,
@@ -93,10 +93,7 @@ export function AgentConversationPanel({
       }
       actions={
         <>
-          <StatusBadge
-            mode="live"
-            tone={session.state === "unavailable" ? "danger" : "neutral"}
-          >
+          <StatusBadge mode="live">
             {agentSessionStateLabels[session.state]}
           </StatusBadge>
           {canCancel ? (
@@ -150,7 +147,6 @@ export function AgentConversationPanel({
           </List>
         )}
       </PageBody>
-      <FormError message={session.problem} />
     </Page>
   );
 }

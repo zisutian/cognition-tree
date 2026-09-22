@@ -112,7 +112,7 @@ export function AgentProposalPanel({
 
 function proposalStatusTone(status: AgentProposalView["status"]) {
   if (status === "failed" || status === "stale" || status === "rejected") {
-    return "danger" as const;
+    return "neutral" as const;
   }
   if (
     status === "indeterminate" ||

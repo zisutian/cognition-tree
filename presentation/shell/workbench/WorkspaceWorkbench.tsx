@@ -1,5 +1,8 @@
-import type { ActivityInteractionState } from "../../ui/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { ActivityInteractionState } from "../../ui/index.ts";
+import { Button } from "compact-ui";
+import { ActivityErrorBoundary } from "./ActivityErrorBoundary.tsx";
 
 import {
   Suspense,
@@ -157,6 +160,7 @@ export function WorkspaceWorkbench({
           onOpenSystemSyntax={openSystemSyntax}
           onActiveActivityChange={requestActivityChange}
           statusMessage={interaction.statusMessage}
+          errorMessage={interaction.errorMessage}
           syntaxDiagnostics={syntaxProblems}
           workbench={workbench}
         >
@@ -191,19 +195,42 @@ export function WorkspaceWorkbench({
                   const active = activeActivityId === id;
 
                   return active || retainedActivityIds.has(id) ? (
-                    <Suspense
-                      fallback={
-                        active ? (
-                          <ActivityLoadingView
-                            activeActivityId={id}
-                            renderActivity={renderActivity}
-                          />
-                        ) : null
-                      }
+                    <ActivityErrorBoundary
                       key={id}
+                      onError={(error) =>
+                        feedbackController.reportError(id, error)
+                      }
+                      fallback={(retry) =>
+                        active
+                          ? renderActivity(() => ({
+                              context: null,
+                              detail: null,
+                              main: {
+                                title: getActivityLabel(id),
+                                layout: "form",
+                                content: (
+                                  <Button onClick={retry}>
+                                    重试打开{getActivityLabel(id)}
+                                  </Button>
+                                ),
+                              },
+                            }))
+                          : null
+                      }
                     >
-                      <Controller {...controllerProps} active={active} />
-                    </Suspense>
+                      <Suspense
+                        fallback={
+                          active ? (
+                            <ActivityLoadingView
+                              activeActivityId={id}
+                              renderActivity={renderActivity}
+                            />
+                          ) : null
+                        }
+                      >
+                        <Controller {...controllerProps} active={active} />
+                      </Suspense>
+                    </ActivityErrorBoundary>
                   ) : null;
                 })}
               </>

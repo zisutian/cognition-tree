@@ -70,7 +70,7 @@ export function MigrationSettingsPanel({
   useSettingsInteraction(report, {
     dirty: destination.length > 0,
     submitting: busy,
-    errorMessage: state.errorMessage,
+    errorMessage: state.errorMessage ?? migration?.errorMessage,
   });
   const resume = async () => {
     await controller.reconcileMigration();
@@ -78,7 +78,7 @@ export function MigrationSettingsPanel({
       reconnect(null);
   };
   return (
-    <SettingsPage label="数据迁移设置" errorMessage={state.errorMessage}>
+    <SettingsPage label="数据迁移设置">
       <section aria-label="数据位置">
         <ToolPropertyList>
           <ToolPropertyRow
@@ -112,12 +112,6 @@ export function MigrationSettingsPanel({
                 label="权威位置"
                 children={authorityLabels[migration.commitOutcome]}
               />
-              {migration.errorMessage ? (
-                <ToolPropertyRow
-                  label="恢复原因"
-                  children={migration.errorMessage}
-                />
-              ) : null}
             </ToolPropertyList>
           </section>
           {recovering ? (

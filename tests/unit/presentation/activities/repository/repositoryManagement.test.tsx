@@ -298,7 +298,6 @@ describe("repository setup and management semantics", () => {
     });
     expectMarkupSemantics(issueMarkup, {
       has: [
-        "仓库格式不受支持，需要手工删除该目录。",
         "此格式仅支持手动删除",
         "/home/zisu/notes/default",
         'aria-label="复制主机路径"',
@@ -489,7 +488,8 @@ describe("repository setup and management semantics", () => {
       lacks: ["删除仓库", "重命名仓库", "放弃本地修改并重新加载"],
     });
     expectMarkupSemantics(todoMarkup, {
-      has: ["代办数据损坏。", "/state/built-ins/todo/content.json", ">重试<"],
+      has: ["/state/built-ins/todo/content.json", ">重试<"],
+      lacks: ["代办数据损坏。"],
     });
   });
 
@@ -534,7 +534,8 @@ describe("repository setup and management semantics", () => {
     });
     expect(contextMarkup.match(/· 故障<\/span>/g)).toHaveLength(2);
     expectMarkupSemantics(panelMarkup, {
-      has: ["内置数据目录不可用。", ">重试内置数据<"],
+      has: [">重试内置数据<"],
+      lacks: ["内置数据目录不可用。"],
     });
   });
 
@@ -543,7 +544,7 @@ describe("repository setup and management semantics", () => {
     ["reserved", "仓库名称由内置仓库保留，请在左侧重命名。"],
     ["nonportable", "仓库名称包含不可移植字符，请在左侧重命名。"],
   ] as const)(
-    "shows the %s repository label issue in the selected detail",
+    "keeps the %s repository label error out of the selected detail",
     (labelIssue, message) => {
       const view = {
         ...createRepositoryView(),
@@ -569,7 +570,7 @@ describe("repository setup and management semantics", () => {
         </FeedbackProvider>,
       );
 
-      expect(markup).toContain(message);
+      expect(markup).not.toContain(message);
     },
   );
 
@@ -643,8 +644,8 @@ describe("repository setup and management semantics", () => {
       lacks: ["无法读取仓库索引。"],
     });
     expectMarkupSemantics(activeMarkup, {
-      has: ["无法读取仓库索引。", ">重试挂载<"],
-      lacks: [">重新扫描文件<"],
+      has: [">重试挂载<"],
+      lacks: ["无法读取仓库索引。", ">重新扫描文件<"],
     });
     expectMarkupSemantics(inactiveMarkup, {
       has: [">重新检查仓库<"],

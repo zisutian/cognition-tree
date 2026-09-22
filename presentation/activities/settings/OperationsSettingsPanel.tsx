@@ -5,7 +5,7 @@ import { StatusText as StatusBadge } from "compact-ui";
 import { Button, EmptyState } from "compact-ui";
 
 import type { OperationAuditEntry } from "../../../application/operations/index.ts";
-import { FormError, Page, PageBody } from "../../ui/index.ts";
+import { Page, PageBody } from "../../ui/index.ts";
 import {
   operationResultLabel,
   operationSourceLabel,
@@ -56,7 +56,6 @@ export function OperationsSettingsPanel({
       aria-label="审计"
     >
       <PageBody>
-        <FormError message={failure} />
         {loading && entries.length === 0 ? (
           <EmptyState title="正在加载" />
         ) : entries.length === 0 ? (
@@ -78,7 +77,7 @@ export function OperationsSettingsPanel({
                         ? "success"
                         : entry.result === "failed" ||
                             entry.result === "conflict"
-                          ? "danger"
+                          ? "neutral"
                           : "warning"
                     }
                   >

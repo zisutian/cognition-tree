@@ -64,7 +64,8 @@ export function SettingsActivityController({
       currentInteraction.current = next;
       setInteraction((current) =>
         current.navigationBlocked === next.navigationBlocked &&
-        current.statusMessage === next.statusMessage
+        current.statusMessage === next.statusMessage &&
+        current.errorMessage === next.errorMessage
           ? current
           : next,
       );

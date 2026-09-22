@@ -235,7 +235,10 @@ test.describe("Todo activity flows", () => {
     await recurrenceForm
       .getByRole("button", { name: "确定", exact: true })
       .click();
-    await expect(recurrenceForm.getByRole("status")).toHaveText(
+    await expect(
+      page.getByRole("contentinfo", { name: "工作台状态" }),
+    ).toContainText("每周重复至少选择一个星期。");
+    await expect(recurrenceForm).not.toContainText(
       "每周重复至少选择一个星期。",
     );
     const tuesday = weekdays.getByRole("checkbox", {

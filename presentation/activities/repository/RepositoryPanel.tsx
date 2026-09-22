@@ -11,7 +11,7 @@ import {
 } from "../../../application/repository/index.ts";
 import { RepositoryCreateForm } from "./RepositoryCreateForm.tsx";
 
-import { FormError, Page, PageBody, useFeedback } from "../../ui/index.ts";
+import { Page, PageBody, useFeedback } from "../../ui/index.ts";
 
 import { BuiltInRepositoryDetail } from "./BuiltInRepositoryDetail.tsx";
 import { OrdinaryRepositoryDetail } from "./OrdinaryRepositoryDetail.tsx";
@@ -81,7 +81,6 @@ export function RepositoryPanel({
         <SectionStack>
           {view.catalogErrorMessage ? (
             <Stack align="start" gap="tight">
-              <FormError message={view.catalogErrorMessage} />
               <Button
                 disabled={busy}
                 onClick={() =>

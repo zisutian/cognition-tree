@@ -52,7 +52,6 @@ export function AgentSettingsOverview({
   return (
     <SettingsPage
       label={page === "agent-default" ? "默认会话配置" : "本地服务发现"}
-      errorMessage={configurationState.errorMessage}
     >
       {page === "agent-default" ? (
         <FormLayout>

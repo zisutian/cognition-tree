@@ -19,8 +19,6 @@ export function WorkspaceUnavailablePanel({
       : workspace.status === "failed"
         ? "笔记仓库无法挂载"
         : "尚未创建笔记仓库";
-  const description =
-    workspace.status === "failed" ? workspace.errorMessage : undefined;
 
   return (
     <Page aria-label={title} kind="empty">
@@ -40,7 +38,6 @@ export function WorkspaceUnavailablePanel({
             </Button>
           </>
         }
-        description={description}
         title={title}
       />
     </Page>

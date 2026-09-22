@@ -98,7 +98,19 @@ export type UiWorkbenchRepositoryProblem = {
   };
 };
 
+/** A current page failure derived from its owner, never copied into the incident log. */
+export type UiWorkbenchActivityProblem = {
+  code: string;
+  id: string;
+  locationLabel: string;
+  message: string;
+  severity: "error";
+  source: "settings" | "search";
+  target: { kind: "activity-problem"; activityId: "settings" | "search" };
+};
+
 export type UiWorkbenchProblem =
+  | UiWorkbenchActivityProblem
   | UiWorkbenchAgentProblem
   | UiWorkbenchDiagnostic
   | JournalDiagnostic

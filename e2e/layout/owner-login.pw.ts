@@ -56,7 +56,17 @@ test("keeps the shared login form stable through loading, failure and retry", as
     await expect(secret).toHaveValue("synthetic-login-secret");
     expect((await secret.boundingBox())!.y).toBe(field.y);
     release();
-    await expect(page.getByRole("alert")).toContainText("登录服务暂时不可用");
+    const errorBar = page.getByRole("contentinfo", { name: "登录错误" });
+    await expect(errorBar.getByRole("alert")).toContainText(
+      "登录服务暂时不可用",
+    );
+    await expect(page.getByRole("main")).not.toContainText(
+      "登录服务暂时不可用",
+    );
+    expect((await errorBar.boundingBox())!.y).toBeGreaterThan(
+      page.viewportSize()!.height - 50,
+    );
+    expect((await secret.boundingBox())!.y).toBe(field.y);
     await expect(submit).toBeEnabled();
     await page.screenshot({ path: testInfo.outputPath("login-error.png") });
     await submit.click();

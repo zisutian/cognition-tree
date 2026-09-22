@@ -48,27 +48,6 @@ export function SearchStatusPanel({ state }: { state: SearchControllerState }) {
               </ToolPropertyList>
             </section>
           </Section>
-          {state.faults.length > 0 || state.errorMessage ? (
-            <Section title="故障">
-              <section aria-label="搜索故障">
-                <ToolPropertyList>
-                  {state.errorMessage ? (
-                    <ToolPropertyRow
-                      label="错误"
-                      children={state.errorMessage}
-                    />
-                  ) : null}
-                  {state.faults.map((fault, index) => (
-                    <ToolPropertyRow
-                      key={`${fault.domain}:${fault.repositoryId ?? ""}:${fault.code}`}
-                      label={`${searchDomainLabels[fault.domain]} ${index + 1}`}
-                      children={fault.message}
-                    />
-                  ))}
-                </ToolPropertyList>
-              </section>
-            </Section>
-          ) : null}
         </SectionStack>
       </PageBody>
     </Page>

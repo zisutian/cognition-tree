@@ -13,7 +13,6 @@ import {
   type SearchControllerView,
   type SearchDomain,
 } from "../../../application/search/index.ts";
-import { FormError } from "../../ui/index.ts";
 
 const domainOptions = [
   { label: "本地仓库", value: "workspace" },
@@ -84,10 +83,6 @@ export function SearchContext({
           options={domainOptions}
           values={state.draft.domains}
         />
-
-        {state.draft.domains.length === 0 ? (
-          <FormError message="至少选择一个范围。" />
-        ) : null}
       </FormLayout>
     </section>
   );

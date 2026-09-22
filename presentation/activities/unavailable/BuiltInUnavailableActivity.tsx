@@ -57,12 +57,6 @@ export function BuiltInUnavailableActivity({
         : catalog.state.status === "failed"
           ? "内置数据无法载入"
           : `${label}尚未就绪`;
-  const description =
-    application.status === "failed"
-      ? application.errorMessage
-      : catalog.state.status === "failed"
-        ? catalog.state.errorMessage
-        : undefined;
   const retry = resolveBuiltInActivityRetry(application, catalog, builtInId);
 
   return (
@@ -83,7 +77,6 @@ export function BuiltInUnavailableActivity({
             </Button>
           </>
         }
-        description={description}
         title={title}
       />
     </Page>

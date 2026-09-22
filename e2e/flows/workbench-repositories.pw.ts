@@ -502,9 +502,13 @@ test.describe("repository management", () => {
         repositoryPanel.getByText("新建普通仓库", { exact: true }),
       ).toBeVisible();
       await issueRow.click();
-      await expect(repositoryStatus).toContainText(
+      await expect(repositoryStatus).not.toContainText(
         "仓库格式不受支持，需要手工删除该目录。",
       );
+      await getProblemsToggle(page).click();
+      await expect(
+        page.getByRole("region", { name: "问题", exact: true }),
+      ).toContainText("仓库格式不受支持，需要手工删除该目录。");
       await expect(
         repositoryPanel.getByRole("button", { name: "重新检查" }),
       ).toBeVisible();

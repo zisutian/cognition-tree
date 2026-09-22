@@ -14,6 +14,7 @@ export type ActivityId =
 export type ActivityInteractionState = Readonly<{
   navigationBlocked: boolean;
   statusMessage: string;
+  errorMessage?: string;
 }>;
 export type PageTarget = Readonly<{
   activityId: ActivityId;
@@ -252,7 +253,8 @@ export function createPageNavigation(initial: ActivityId) {
       const current = interactions.get(activity) ?? idle;
       if (
         current.navigationBlocked === value.navigationBlocked &&
-        current.statusMessage === value.statusMessage
+        current.statusMessage === value.statusMessage &&
+        current.errorMessage === value.errorMessage
       )
         return;
       interactions.set(activity, value);

@@ -126,7 +126,7 @@ describe("SearchPanel", () => {
     expect(searchContext).not.toContain('type="datetime-local"');
     expect(searchContext).not.toContain("更多条件");
     expect(searchContext).not.toContain("仓库 A");
-    expect(searchMain).toContain("部分来源不可用");
+    expect(searchMain).not.toContain("暂时不可用");
     expect(searchMain).toContain(`搜索 · ${submitted.query}`);
     expect(searchMain).toContain("块内共同词");
     expect(searchMain).toContain('aria-label="打开Alpha中的匹配块"');
@@ -197,7 +197,7 @@ describe("SearchPanel", () => {
             },
           ],
         },
-        "搜索来源已更新，请重新搜索。",
+        "保留旧结果",
       ],
     ];
 

@@ -28,15 +28,17 @@ export function useSettingsInteraction(
   const navigationBlocked = dirty || stale || submitting;
   const statusMessage = submitting
     ? "设置 · 正在提交"
-    : errorMessage
-      ? `设置 · ${errorMessage}`
-      : stale
-        ? "设置 · 配置已过期或对象已移除"
-        : dirty
-          ? "设置 · 未保存修改"
-          : "";
+    : stale
+      ? "设置 · 配置已过期或对象已移除"
+      : dirty
+        ? "设置 · 未保存修改"
+        : "";
   useLayoutEffect(() => {
-    report({ navigationBlocked, statusMessage });
-  }, [report, navigationBlocked, statusMessage]);
+    report({
+      navigationBlocked,
+      statusMessage,
+      errorMessage: errorMessage || undefined,
+    });
+  }, [report, navigationBlocked, statusMessage, errorMessage]);
   useLayoutEffect(() => () => report(idleSettingsInteraction), [report]);
 }

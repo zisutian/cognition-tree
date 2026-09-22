@@ -21,6 +21,7 @@ import {
 
 import { openWorkbenchProblem } from "./workbenchProblemNavigation.ts";
 import { selectWorkbenchPersistenceStatus } from "./workbenchProblemsPanelProjection.ts";
+import { projectWorkbenchPageProblems } from "./workbenchPageProblems.ts";
 
 export function WorkbenchProblemsController({
   activeActivityId,
@@ -29,6 +30,7 @@ export function WorkbenchProblemsController({
   onOpenSystemSyntax,
   onActiveActivityChange,
   statusMessage: activityStatusMessage,
+  errorMessage,
   syntaxDiagnostics,
   workbench,
 }: {
@@ -45,6 +47,7 @@ export function WorkbenchProblemsController({
     beforeChange?: () => boolean | void,
   ) => void;
   statusMessage: string;
+  errorMessage?: string;
   syntaxDiagnostics: WorkbenchDiagnostics | null;
   workbench: WorkbenchController;
 }) {
@@ -59,30 +62,35 @@ export function WorkbenchProblemsController({
     application.journal.status === "ready" ? application.journal.view : null;
   const todo =
     application.todo.status === "ready" ? application.todo.view : null;
-  const problems = projectWorkbenchProblems({
-    agentProblems: application.agent.state.status?.configurationProblem
-      ? [
-          {
-            code: "configuration_unavailable",
-            id: "agent-configuration-problem",
-            message: application.agent.state.status.configurationProblem,
-            sessionId: null,
-          },
-        ]
-      : [],
-    diagnostics: workspace?.diagnostics ?? {
-      diagnostics: [],
-      errorCount: 0,
-      status: "ready",
-      warningCount: 0,
-    },
-    feedbackErrors: feedback.snapshot.problems,
-    getScopeLabel: (scope) =>
-      isActivityId(scope) ? getActivityLabel(scope) : scope,
-    journalDiagnostics: journal?.diagnostics,
-    repository: application.repository,
-    syntaxDiagnostics: syntaxDiagnostics ?? undefined,
-    todoDiagnostics: todo?.diagnostics,
+  const problems = projectWorkbenchPageProblems({
+    application,
+    activeActivityId,
+    errorMessage,
+    base: projectWorkbenchProblems({
+      agentProblems: application.agent.state.status?.configurationProblem
+        ? [
+            {
+              code: "configuration_unavailable",
+              id: "agent-configuration-problem",
+              message: application.agent.state.status.configurationProblem,
+              sessionId: null,
+            },
+          ]
+        : [],
+      diagnostics: workspace?.diagnostics ?? {
+        diagnostics: [],
+        errorCount: 0,
+        status: "ready",
+        warningCount: 0,
+      },
+      feedbackErrors: feedback.snapshot.problems,
+      getScopeLabel: (scope) =>
+        isActivityId(scope) ? getActivityLabel(scope) : scope,
+      journalDiagnostics: journal?.diagnostics,
+      repository: application.repository,
+      syntaxDiagnostics: syntaxDiagnostics ?? undefined,
+      todoDiagnostics: todo?.diagnostics,
+    }),
   });
   const openProblem = (problem: UiWorkbenchProblem) =>
     openWorkbenchProblem(problem, {
@@ -114,6 +122,7 @@ export function WorkbenchProblemsController({
           )?.message ?? "")
         : "";
   const statusMessage =
+    errorMessage ||
     activityStatusMessage ||
     transientStatus ||
     selectWorkbenchPersistenceStatus(activeActivityId, application) ||

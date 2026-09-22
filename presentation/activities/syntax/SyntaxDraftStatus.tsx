@@ -1,18 +1,13 @@
-import { Button, Stack, StatusText } from "compact-ui";
+import { Button } from "compact-ui";
 import { RotateCcw } from "lucide-react";
 import type { SyntaxViewModel } from "../../../application/syntax/index.ts";
 
 /** Recovery stays visible while the rule list scrolls. The draft owns validity. */
 export function SyntaxDraftStatus({ view }: { view: SyntaxViewModel }) {
   return (
-    <Stack direction="row" align="center" wrap>
-      <StatusText mode="live" tone="danger">
-        语法包含无效更改
-      </StatusText>
-      <Button onClick={view.revertInvalidChanges}>
-        <RotateCcw aria-hidden="true" />
-        撤销无效更改
-      </Button>
-    </Stack>
+    <Button onClick={view.revertInvalidChanges}>
+      <RotateCcw aria-hidden="true" />
+      撤销无效更改
+    </Button>
   );
 }

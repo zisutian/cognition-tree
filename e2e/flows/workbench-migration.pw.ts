@@ -91,8 +91,8 @@ test("rejects an occupied migration destination without removing its contents", 
   await panel
     .getByRole("button", { name: "确认开始迁移", exact: true })
     .click();
-  await expect(panel.getByRole("alert")).toContainText(
-    /already exists|occupied|exist/i,
-  );
+  await expect(
+    page.getByRole("contentinfo", { name: "工作台状态" }),
+  ).toContainText(/already exists|occupied|exist/i);
   expect(await readFile(marker, "utf8")).toBe("keep this directory");
 });

@@ -38,15 +38,6 @@ export function OperationsSettingsStatus({
               }
             />
             <ToolPropertyRow label="记录" children={snapshot.entries.length} />
-            {snapshot.status?.status === "unavailable" ? (
-              <ToolPropertyRow
-                label="原因"
-                children={snapshot.status.message}
-              />
-            ) : null}
-            {snapshot.errorMessage ? (
-              <ToolPropertyRow label="错误" children={snapshot.errorMessage} />
-            ) : null}
           </ToolPropertyList>
         </section>
       </Section>

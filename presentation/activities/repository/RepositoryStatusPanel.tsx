@@ -3,11 +3,10 @@ import { Section } from "compact-ui";
 import type { RepositoryViewModel } from "../../../application/repository/index.ts";
 import {
   createDefaultRepositorySelection,
-  projectRepositoryLabelIssueMessage,
   type RepositorySelection,
 } from "../../../application/repository/index.ts";
 
-import { FormError, Page, PageBody, useFeedback } from "../../ui/index.ts";
+import { Page, PageBody, useFeedback } from "../../ui/index.ts";
 
 import { RepositoryConflictStatus } from "./RepositoryConflictResolution.tsx";
 import {
@@ -57,9 +56,6 @@ export function RepositoryStatusPanel({
                   },
                 ]}
               />
-              {view.catalogErrorMessage ? (
-                <FormError message={view.catalogErrorMessage} />
-              ) : null}
             </Section>
           ) : null}
 
@@ -78,17 +74,7 @@ export function RepositoryStatusPanel({
                     { label: "仓库 ID", value: target.repository.id },
                   ]}
                 />
-                {target.repository.labelIssue ? (
-                  <FormError
-                    message={projectRepositoryLabelIssueMessage(
-                      target.repository.labelIssue,
-                    )}
-                  />
-                ) : null}
-                {target.repository.id === view.activeRepositoryId &&
-                view.activeSessionErrorMessage ? (
-                  <FormError message={view.activeSessionErrorMessage} />
-                ) : null}
+
                 {target.repository.id === view.activeRepositoryId &&
                 view.activeConflictResolution ? (
                   <RepositoryConflictStatus
@@ -113,7 +99,6 @@ export function RepositoryStatusPanel({
                     { label: "仓库 ID", value: target.issue.id },
                   ]}
                 />
-                <FormError message={target.issue.message} />
               </Section>
               <RepositoryLocations
                 busy={busy}
@@ -141,12 +126,7 @@ export function RepositoryStatusPanel({
                     { label: "保护", value: "内置数据" },
                   ]}
                 />
-                {target.issue?.message ? (
-                  <FormError message={target.issue.message} />
-                ) : null}
-                {target.repository?.errorMessage ? (
-                  <FormError message={target.repository.errorMessage} />
-                ) : null}
+
                 {target.repository?.conflictResolution ? (
                   <RepositoryConflictStatus
                     resolution={target.repository.conflictResolution}

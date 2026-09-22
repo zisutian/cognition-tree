@@ -109,7 +109,6 @@ export function AgentProviderSettingsPanel({
   return (
     <SettingsPage
       label="模型服务设置"
-      errorMessage={errorMessage}
       actions={
         <FormSaveActions
           busy={busy}

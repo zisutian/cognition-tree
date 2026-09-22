@@ -1,8 +1,16 @@
 .login {
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   min-height: 100dvh;
   padding: var(--cu-padding);
   place-items: center;
+}
+.errorBar {
+  display: grid;
+  align-items: center;
+  height: var(--cu-rowHeight);
+  justify-self: stretch;
+  min-width: 0;
 }
 .content {
   width: 100%;

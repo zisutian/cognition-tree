@@ -66,7 +66,6 @@ export function TodoRecurrenceEditor({
   const [selectedWeekdays, setSelectedWeekdays] = useState<TodoIsoWeekday[]>(
     rule.kind === "weekly" ? rule.weekdays : [1],
   );
-  const [errorMessage, setErrorMessage] = useState("");
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (disabled) return;
@@ -102,12 +101,9 @@ export function TodoRecurrenceEditor({
           };
         }
       }
-      setErrorMessage("");
+
       onConfirm(nextRule);
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "周期规则无效。",
-      );
       feedback.notifyError(error);
     }
   };
@@ -142,7 +138,6 @@ export function TodoRecurrenceEditor({
           value={mode}
           onChange={(nextMode) => {
             setMode(nextMode);
-            setErrorMessage("");
           }}
         />
         {mode !== "none" ? (
@@ -182,7 +177,6 @@ export function TodoRecurrenceEditor({
               setSelectedWeekdays(
                 values.map((value) => Number(value) as TodoIsoWeekday),
               );
-              setErrorMessage("");
             }}
           />
         ) : null}
@@ -204,13 +198,6 @@ export function TodoRecurrenceEditor({
               />
             )}
           </FieldRow>
-        ) : null}
-        {errorMessage ? (
-          <span role="status">
-            <StatusText mode="live" tone="danger">
-              {errorMessage}
-            </StatusText>
-          </span>
         ) : null}
         <FormActions>
           <Button disabled={disabled} type="submit">

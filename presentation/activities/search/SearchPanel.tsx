@@ -17,7 +17,7 @@ import {
   type SearchControllerState,
   type SearchControllerView,
 } from "../../../application/search/index.ts";
-import { createClassNames, FormError, Page, PageBody } from "../../ui/index.ts";
+import { createClassNames, Page, PageBody } from "../../ui/index.ts";
 import searchStyles from "./search.module.css";
 const cx = createClassNames(searchStyles);
 
@@ -153,7 +153,6 @@ export function SearchPanel({
                 重新搜索
               </Button>
             }
-            description={state.errorMessage}
             title="搜索失败"
           />
         ) : allSourcesFailed ? (
@@ -167,33 +166,6 @@ export function SearchPanel({
           />
         ) : (
           <>
-            {state.faults.length > 0 ? (
-              <section aria-label="不可用的搜索来源" role="status">
-                <Section title="部分来源不可用">
-                  <List aria-label="不可用来源">
-                    {state.faults.map((fault) => (
-                      <ManagementRow
-                        key={`${fault.domain}:${fault.repositoryId ?? ""}:${
-                          fault.code
-                        }`}
-                        title={
-                          <>
-                            {searchDomainLabels[fault.domain]}
-                            {fault.repositoryId
-                              ? ` · ${
-                                  repositoryLabelById.get(fault.repositoryId) ??
-                                  fault.repositoryId
-                                }`
-                              : ""}
-                          </>
-                        }
-                        description={fault.message}
-                      />
-                    ))}
-                  </List>
-                </Section>
-              </section>
-            ) : null}
             {groups.length === 0 ? (
               <EmptyState title="没有结果" />
             ) : (
@@ -239,9 +211,6 @@ export function SearchPanel({
                 </SectionStack>
               </section>
             )}
-            {state.errorMessage && groups.length > 0 ? (
-              <FormError message={state.errorMessage} />
-            ) : null}
             {state.cursor ? (
               <FormActions>
                 <Button

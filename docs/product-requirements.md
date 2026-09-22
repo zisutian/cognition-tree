@@ -114,7 +114,7 @@ Workspace、Journal 与 Todo 的存储及页面状态彼此隔离；一个领域
 重新扫描复用当前 Workspace session 的 reload，执行期间禁用相关修改入口，失败进入 Problems。
 
 Problems 在全部 Activity（包括 Settings）全局展示领域 diagnostics、状态型故障与运行期
-操作错误，并支持来源、严重度和可重试性筛选。重复操作错误聚合显示，页面刷新后清空；
+操作错误，并提供全部、警告、错误三项筛选。重复操作错误聚合显示，页面刷新后清空；
 状态型 diagnostics 只能随源状态恢复而消失，操作错误可独立关闭。
 
 问题行只导航到内容、来源 Activity、Agent 会话或仓库详情，不执行破坏性操作或自动

@@ -1,4 +1,4 @@
-import { Tree, Stack, StatusText } from "compact-ui";
+import { Button, Tree, Stack, StatusText } from "compact-ui";
 import { MessageSquare } from "lucide-react";
 import type { AgentApplication } from "../../../application/agent/index.ts";
 import { useFeedback } from "../../ui/index.ts";
@@ -24,9 +24,9 @@ export function AgentContextPanel({
       {state.loadStatus === "loading" ? (
         <StatusText>正在读取 Agent 状态…</StatusText>
       ) : state.loadStatus === "failed" ? (
-        <StatusText mode="live" tone="danger">
-          {state.errorMessage}
-        </StatusText>
+        <Button onClick={() => void feedback.runAction(controller.reload)}>
+          重试加载会话
+        </Button>
       ) : null}
       <Tree
         aria-label="Agent 会话"

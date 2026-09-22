@@ -242,7 +242,7 @@ CodeMirror 任务控件通过 React bridge 渲染公开 CheckboxControl，不引
 不依赖本地兄弟目录。全局入口只补充 html/body/root 的视口几何和 CTN 语义配色，不做通用文字 reset；图谱、结构、差异
 等专用内容样式读取包配置。工具入口使用区域 toolbar 和 Button，资源目录使用 Tree。普通表单由公开 FormLayout 唯一生成；AssociatedForm 仅适配标准 form id 与区域 footer 提交关联，不持有保存状态或通用样式。架构检查约束公开导入、单向依赖、禁止变量覆写和旧通用实现。
 
-语法活动使用 Compact UI 0.3.1 的公开 List 固定六列排列规则，每条规则为一行，共享列名由 SyntaxRuleLayout 统一组合；列位和控件无障碍名称保留字段语义，不为每个字段创建独立表单。缩进字段仍使用 FormLayout/FieldRow；SyntaxDraftStatus 通过区域 footer 展示应用层投影的无效草稿状态。预览内容拥有 CTN 配色；TonePicker 仅向公开 ColorPicker 映射既有色板与 CTN 色值，色块、选择器及浮层均由包拥有，草稿与保护规则仍只有 application/syntax 一个业务所有者。
+语法活动使用 Compact UI 0.3.1 的公开 List 固定六列排列规则，每条规则为一行，共享列名由 SyntaxRuleLayout 统一组合；列位和控件无障碍名称保留字段语义，不为每个字段创建独立表单。缩进字段仍使用 FormLayout/FieldRow；SyntaxDraftStatus 在区域 footer 只保留撤销无效更改操作，诊断投影进入底部问题区。预览内容拥有 CTN 配色；TonePicker 仅向公开 ColorPicker 映射既有色板与 CTN 色值，色块、选择器及浮层均由包拥有，草稿与保护规则仍只有 application/syntax 一个业务所有者。
 
 Activity 内部仍按语义拆分独立 view：Repository 的 catalog、状态、恢复与危险操作，
 Todo 的集合、编辑与周期结构，以及 Notes 的编辑、结构与图谱不因视觉相似而共享业务
@@ -292,6 +292,9 @@ Presentation shell 在全部 Activity 合并 diagnostics、可恢复状态故障
 incidents；筛选状态只记录全部、警告或错误，只改变展示。来源与可重试信息仍由原有问题模型持有，
 不再作为展示筛选状态。问题导航只能进入拥有恢复能力的 Activity，不能执行 mutation
 或盲目重试。五秒 transient feedback 同样由 ProblemCenter 调度，稳定保存不生成文案。
+
+Shell 从 Search、Agent 的权威状态和当前 Settings 交互状态派生额外页面故障，与已有 incident 去重；源状态恢复后自动移除，不再保存一份错误正文。ActivityErrorBoundary 隔离懒加载与页面渲染失败，通过现有反馈接口进入底栏，其他活动导航与空右栏继续可用。
+开发服务直接消费 vendored Compact UI 的 ESM 文件，避免旧预构建导出表跨版本残留。浏览器测试的 Vite 缓存属于各测试服务的临时目录，不共享开发服务缓存。
 
 编辑器只接收 editable source、语义角色和展示数据。canonical 页面消费 application 已
 准备的 syntax、document 与 parse index；只有未保存 draft 可在 editor adapter 内分析。

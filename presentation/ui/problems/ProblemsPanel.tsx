@@ -43,6 +43,7 @@ const sourceLabels: Record<UiWorkbenchProblem["source"], string> = {
   reference: "引用",
   repository: "仓库",
   settings: "设置",
+  search: "搜索",
   sync: "同步",
   syntax: "语法",
   "ui-action": "操作",

@@ -242,8 +242,8 @@ describe("syntax panels", () => {
     );
 
     expectMarkupSemantics(markup, {
-      has: ["撤销无效更改", "语法包含无效更改"],
-      lacks: ['aria-label="语法名称"', message],
+      has: ["撤销无效更改"],
+      lacks: ['aria-label="语法名称"', message, "语法包含无效更改"],
     });
   });
 

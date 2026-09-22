@@ -6,12 +6,14 @@ import {
 import { Button, Section } from "compact-ui";
 import { useEffect, useState } from "react";
 import type { RepositoryConflictResolutionView } from "../../../application/repository/index.ts";
+import { useFeedback } from "../../ui/index.ts";
 
 export function RepositoryConflictStatus({
   resolution,
 }: {
   resolution: RepositoryConflictResolutionView;
 }) {
+  const { notifyError } = useFeedback();
   const [details, setDetails] = useState<
     | { status: "loading" }
     | {
@@ -19,7 +21,7 @@ export function RepositoryConflictStatus({
         status: "ready";
         unitIds: readonly string[];
       }
-    | { message: string; status: "failed" }
+    | { status: "failed" }
   >({ status: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -33,9 +35,8 @@ export function RepositoryConflictStatus({
       },
       (error: unknown) => {
         if (active) {
+          notifyError(error);
           setDetails({
-            message:
-              error instanceof Error ? error.message : "冲突详情读取失败。",
             status: "failed",
           });
         }
@@ -44,7 +45,7 @@ export function RepositoryConflictStatus({
     return () => {
       active = false;
     };
-  }, [reloadKey, resolution]);
+  }, [reloadKey, resolution, notifyError]);
 
   return (
     <section aria-label="同步冲突详情">
@@ -78,8 +79,8 @@ export function RepositoryConflictStatus({
                 重试
               </Button>
             }
-            label="详情错误"
-            children={details.message}
+            label="详情"
+            children={null}
           />
         ) : null}
       </ToolPropertyList>

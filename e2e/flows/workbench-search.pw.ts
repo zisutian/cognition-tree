@@ -4,13 +4,43 @@ import { expect } from "@playwright/test";
 import { createCrossDomainSearchSeeds } from "../support/builtInSeeds";
 import { test } from "../support/e2eTest";
 import { seedWorkbenchRepository } from "../support/repositorySeeds";
-import { getActivityButton, openWorkbench } from "../support/workbenchPage";
+import {
+  getActivityButton,
+  getProblemsToggle,
+  openWorkbench,
+} from "../support/workbenchPage";
 
 const syntaxRepositoryId = "workbench-syntax-view";
 const searchRepositoryId = "workbench-invalid-syntax-view";
 const searchQuery = "跨域检索样本";
 
 test.describe("search activity flows", () => {
+  test("keeps source failure text in Problems and removes it after recovery", async ({
+    page,
+  }) => {
+    await openWorkbench(page, syntaxRepositoryId);
+    await getActivityButton(page, "搜索").click();
+    const sourceUrl = `**/api/v4/sync/workspaces/${searchRepositoryId}`;
+    await page.route(sourceUrl, (route) => route.abort());
+    const search = page.getByRole("search", { name: "搜索条件" });
+    await search.getByRole("searchbox", { name: "搜索词" }).fill("合成查询");
+    await search.getByRole("button", { name: "搜索", exact: true }).click();
+    await getProblemsToggle(page).click();
+    const problems = page.getByRole("region", { name: "问题", exact: true });
+    await expect(problems).toContainText("Workspace 搜索来源当前不可读取。");
+    await expect(
+      page.getByRole("region", { name: "搜索结果", exact: true }),
+    ).not.toContainText("Workspace 搜索来源当前不可读取。");
+    await expect(
+      page.getByRole("complementary", { name: "详情区域", exact: true }),
+    ).not.toContainText("Workspace 搜索来源当前不可读取。");
+    await page.unroute(sourceUrl);
+    await search.getByRole("button", { name: "搜索", exact: true }).click();
+    await expect(problems).not.toContainText(
+      "Workspace 搜索来源当前不可读取。",
+    );
+  });
+
   test.beforeEach(async ({ api }) => {
     await seedWorkbenchRepository(api, syntaxRepositoryId);
     await seedWorkbenchRepository(api, searchRepositoryId, {

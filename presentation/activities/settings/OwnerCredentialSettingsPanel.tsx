@@ -47,7 +47,7 @@ export function OwnerCredentialSettingsPanel({
     errorMessage: state.errorMessage,
   });
   return (
-    <SettingsPage label="所有者凭据设置" errorMessage={state.errorMessage}>
+    <SettingsPage label="所有者凭据设置">
       {preparation ? (
         <>
           <StatusText>{awaiting ? "新密钥待激活" : "新密钥已激活"}</StatusText>

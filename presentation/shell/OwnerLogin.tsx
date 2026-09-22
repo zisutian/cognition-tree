@@ -9,6 +9,7 @@ import {
   InputControl,
   Panel,
   Stack,
+  StatusText,
 } from "compact-ui";
 
 import { useState, type FormEvent } from "react";
@@ -16,7 +17,7 @@ import type {
   OwnerAuthenticationController,
   OwnerAuthenticationState,
 } from "../../application/system/index.ts";
-import { FormError, useExclusiveAsyncAction } from "../ui/index.ts";
+import { useExclusiveAsyncAction } from "../ui/index.ts";
 import styles from "./OwnerLogin.module.css";
 
 export function OwnerLogin({
@@ -46,11 +47,10 @@ export function OwnerLogin({
     );
   }
   return (
-    <main className={styles.login}>
-      <div className={styles.content}>
+    <div className={styles.login}>
+      <main className={styles.content}>
         <Panel title="登录认知树" layout="form">
           <Stack>
-            <FormError message={state.errorMessage} />
             <div aria-busy={loginAction.busy}>
               <FormLayout onSubmit={submit}>
                 <FieldRow fieldId="owner-secret" label="所有者密钥">
@@ -75,7 +75,14 @@ export function OwnerLogin({
             </div>
           </Stack>
         </Panel>
-      </div>
-    </main>
+      </main>
+      <footer className={styles.errorBar} aria-label="登录错误">
+        <div role="alert">
+          <StatusText mode="live" tone="danger">
+            {state.errorMessage ?? ""}
+          </StatusText>
+        </div>
+      </footer>
+    </div>
   );
 }

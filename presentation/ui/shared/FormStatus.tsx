@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Button, StatusText } from "compact-ui";
+import { Button } from "compact-ui";
 
 export function FormSaveActions({
   busy,
@@ -37,14 +37,4 @@ export function FormSaveActions({
       </Button>
     </>
   );
-}
-
-export function FormError({ message }: { message: string | null | undefined }) {
-  return message ? (
-    <div role="alert">
-      <StatusText mode="live" tone="danger">
-        {message}
-      </StatusText>
-    </div>
-  ) : null;
 }

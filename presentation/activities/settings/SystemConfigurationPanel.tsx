@@ -51,7 +51,6 @@ export function SystemConfigurationPanel({
   return (
     <SettingsPage
       label="服务设置"
-      errorMessage={errorMessage}
       actions={
         <FormSaveActions
           busy={busy}

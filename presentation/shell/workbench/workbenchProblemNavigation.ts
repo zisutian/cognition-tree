@@ -56,11 +56,13 @@ export function openWorkbenchProblem(
                   : "repository"
               : target.kind === "agent-problem"
                 ? "agent"
-                : target.kind === "operational-error"
-                  ? isActivityId(target.sourceScope)
-                    ? target.sourceScope
-                    : null
-                  : "repository";
+                : target.kind === "activity-problem"
+                  ? target.activityId
+                  : target.kind === "operational-error"
+                    ? isActivityId(target.sourceScope)
+                      ? target.sourceScope
+                      : null
+                    : "repository";
   if (!activityId) return;
   context.onActiveActivityChange(activityId, () => {
     if (problem.target.kind === "note-line") {
