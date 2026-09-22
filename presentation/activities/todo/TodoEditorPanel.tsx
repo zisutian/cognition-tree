@@ -1,20 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { pageKey, describePage } from "../../navigation/index.ts";
-import { Button, EmptyState } from "compact-ui";
+import { EmptyState } from "compact-ui";
 
 import type { TodoViewModel } from "../../../application/todo/index.ts";
 import { CtnEditor, CtnEditorPanel } from "../../editor/index.ts";
 
 import { Page, useFeedback } from "../../ui/index.ts";
 
-export function TodoEditorPanel({
-  creation,
-  view,
-}: {
-  creation: { disabled: boolean; begin(): void };
-  view: TodoViewModel;
-}) {
+export function TodoEditorPanel({ view }: { view: TodoViewModel }) {
   const feedback = useFeedback();
 
   const activeCollection = view.activeCollection;
@@ -22,18 +16,7 @@ export function TodoEditorPanel({
   if (!activeCollection) {
     return (
       <Page aria-label="代办编辑" kind="editor">
-        <EmptyState
-          action={
-            <Button
-              disabled={creation.disabled}
-              onClick={creation.begin}
-              type="button"
-            >
-              新建事项集合
-            </Button>
-          }
-          title="还没有事项集合"
-        />
+        <EmptyState title="还没有事项集合" />
       </Page>
     );
   }

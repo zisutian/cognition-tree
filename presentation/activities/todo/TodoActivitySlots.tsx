@@ -7,11 +7,9 @@ import { TodoEditorPanel } from "./TodoEditorPanel.tsx";
 
 export function createTodoActivitySlots({
   context,
-  creation,
   view,
 }: {
   context: NonNullable<ActivitySlots["context"]>;
-  creation: { disabled: boolean; begin(): void };
   focusMode: boolean;
   onToggleFocusMode: () => void;
   view: TodoViewModel;
@@ -28,7 +26,7 @@ export function createTodoActivitySlots({
     main: {
       title: view.activeCollection?.name ?? "代办",
       layout: "document",
-      content: <TodoEditorPanel creation={creation} view={view} />,
+      content: <TodoEditorPanel view={view} />,
     },
   };
 }

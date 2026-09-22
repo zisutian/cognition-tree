@@ -282,7 +282,15 @@ test.describe("Journal activity flows", () => {
     await expect(page.getByRole("region", { name: "日记编辑" })).toContainText(
       "还没有日记",
     );
-    await page.getByRole("button", { name: "新建日记" }).first().click();
+    await expect(
+      page
+        .getByRole("region", { name: "日记编辑", exact: true })
+        .getByRole("button"),
+    ).toHaveCount(0);
+    await page
+      .getByRole("complementary", { name: "上下文区域", exact: true })
+      .getByRole("button", { name: "新建日记" })
+      .click();
     await expect(
       page.getByRole("region", { name: "日记编辑" }).locator(".source-editor"),
     ).toBeVisible();

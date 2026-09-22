@@ -103,11 +103,7 @@ export function createAgentActivitySlots({
       content: creatingSession ? (
         <AgentSessionCreatePanel agent={agent} onCreated={onCreated} />
       ) : (
-        <AgentConversationPanel
-          agent={agent}
-          key={session?.id ?? "empty"}
-          onBeginCreateSession={onBeginCreateSession}
-        />
+        <AgentConversationPanel agent={agent} key={session?.id ?? "empty"} />
       ),
     },
   };

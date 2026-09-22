@@ -120,30 +120,12 @@ export function JournalContext({ view }: JournalViewProps) {
 }
 
 export function JournalEditorPanel({ view }: JournalViewProps & {}) {
-  const feedback = useFeedback();
-  const pages = usePageNavigation();
   const referenceNavigation = useReferenceNavigation(view.referenceNavigation);
 
   if (!view.activeEntry) {
     return (
       <Page aria-label="日记编辑" kind="editor">
-        <EmptyState
-          action={
-            <Button
-              disabled={!view.canMutate}
-              onClick={() =>
-                submitJournalEntryCreation({
-                  createEntry: () => pages.created("journal", view.createEntry),
-                  runAction: feedback.runAction,
-                })
-              }
-              type="button"
-            >
-              新建日记
-            </Button>
-          }
-          title="还没有日记"
-        />
+        <EmptyState title="还没有日记" />
       </Page>
     );
   }

@@ -42,6 +42,19 @@ async function createCollection(context: Locator, name: string) {
   const input = context.getByRole("textbox", { name: "新建事项集合名称" });
 
   await expect(input).toBeVisible();
+  const triggerBox = (await context
+    .getByRole("button", { name: "新建事项集合" })
+    .boundingBox())!;
+  const inputBox = (await input.boundingBox())!;
+  expect(inputBox.y).toBeGreaterThanOrEqual(triggerBox.y + triggerBox.height);
+  expect(inputBox.y - triggerBox.y - triggerBox.height).toBeLessThan(
+    defaultDesignConfig.metrics.controlHeight * 4,
+  );
+  const firstRow = collectionRows(context).first();
+  if (await firstRow.count())
+    expect(inputBox.y + inputBox.height).toBeLessThan(
+      (await firstRow.boundingBox())!.y,
+    );
   await input.fill(name);
   await input.press("Enter");
   await expect(context.getByTitle(name, { exact: true })).toBeVisible();
@@ -377,7 +390,8 @@ test.describe("Todo activity flows", () => {
     const panel = page.getByRole("region", { name: "代办编辑" });
 
     await expect(panel).toContainText("还没有事项集合");
-    await panel
+    await expect(panel.getByRole("button")).toHaveCount(0);
+    await context
       .getByRole("button", { name: "新建事项集合", exact: true })
       .click();
     const nameInput = context.getByRole("textbox", {

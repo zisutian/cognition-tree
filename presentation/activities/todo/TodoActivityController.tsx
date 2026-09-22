@@ -88,11 +88,10 @@ function ReadyTodoActivity({
   renderActivity: TodoActivityControllerProps["renderActivity"];
   view: TodoViewModel;
 }) {
-  const { context, creation } = useTodoContext(view);
+  const { context } = useTodoContext(view);
   return renderActivity((controls) =>
     createTodoActivitySlots({
       context,
-      creation,
       focusMode: controls.focusMode,
       onToggleFocusMode: controls.onToggleFocusMode,
       view,

@@ -3,7 +3,7 @@ import {
   pageKey,
   describePage,
 } from "../../../navigation/index.ts";
-import { Button, EmptyState } from "compact-ui";
+import { EmptyState } from "compact-ui";
 import { useEffect, useState } from "react";
 import type { NotesViewModel } from "../../../../application/workspace/index.ts";
 import {
@@ -73,21 +73,7 @@ export function NoteEditorPanel({ view }: { view: NotesViewModel }) {
   if (!activeNote) {
     return (
       <Page kind="editor" aria-label="笔记编辑">
-        <EmptyState
-          action={
-            <Button
-              onClick={() =>
-                feedback.runAction(() =>
-                  pages.created("notes", view.directory.createNote),
-                )
-              }
-              type="button"
-            >
-              新建笔记
-            </Button>
-          }
-          title="没有活动笔记"
-        />
+        <EmptyState title="没有活动笔记" />
       </Page>
     );
   }

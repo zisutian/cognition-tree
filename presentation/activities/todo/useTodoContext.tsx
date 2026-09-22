@@ -11,7 +11,6 @@ import {
 } from "../../ui/index.ts";
 export function useTodoContext(view: TodoViewModel): {
   context: NonNullable<ActivitySlots["context"]>;
-  creation: { disabled: boolean; begin(): void };
 } {
   const feedback = useFeedback(),
     pages = usePageNavigation();
@@ -43,7 +42,6 @@ export function useTodoContext(view: TodoViewModel): {
     } else setError("创建失败");
   };
   return {
-    creation,
     context: {
       title: "代办",
       layout: "canvas",
@@ -59,6 +57,38 @@ export function useTodoContext(view: TodoViewModel): {
       ),
       content: (
         <Stack fill>
+          {creating ? (
+            <FormLayout
+              onSubmit={(event) => {
+                event.preventDefault();
+                submit();
+              }}
+            >
+              <FieldRow label="集合名称">
+                {(accessibility) => (
+                  <InputControl
+                    {...accessibility}
+                    sizing="fill"
+                    autoFocus
+                    aria-label="新建事项集合名称"
+                    value={name}
+                    error={error || undefined}
+                    onChange={(event) => {
+                      setName(event.target.value);
+                      setError("");
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") setCreating(false);
+                    }}
+                  />
+                )}
+              </FieldRow>
+              <FormActions>
+                <Button type="submit">确定</Button>
+                <Button onClick={() => setCreating(false)}>取消</Button>
+              </FormActions>
+            </FormLayout>
+          ) : null}
           <Tree
             aria-label="事项集合"
             nodes={view.collections.map((item) => ({
@@ -124,38 +154,6 @@ export function useTodoContext(view: TodoViewModel): {
             }}
             onActionError={feedback.notifyError}
           />
-          {creating ? (
-            <FormLayout
-              onSubmit={(event) => {
-                event.preventDefault();
-                submit();
-              }}
-            >
-              <FieldRow label="集合名称">
-                {(accessibility) => (
-                  <InputControl
-                    {...accessibility}
-                    sizing="fill"
-                    autoFocus
-                    aria-label="新建事项集合名称"
-                    value={name}
-                    error={error || undefined}
-                    onChange={(event) => {
-                      setName(event.target.value);
-                      setError("");
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape") setCreating(false);
-                    }}
-                  />
-                )}
-              </FieldRow>
-              <FormActions>
-                <Button type="submit">确定</Button>
-                <Button onClick={() => setCreating(false)}>取消</Button>
-              </FormActions>
-            </FormLayout>
-          ) : null}
         </Stack>
       ),
     },

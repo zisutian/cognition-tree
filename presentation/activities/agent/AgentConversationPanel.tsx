@@ -21,13 +21,7 @@ import {
   formatAgentScopeLabel,
 } from "./agentViewLabels.ts";
 
-export function AgentConversationPanel({
-  agent,
-  onBeginCreateSession,
-}: {
-  agent: AgentApplication;
-  onBeginCreateSession(): void;
-}) {
+export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
   const feedback = useFeedback();
   const pages = usePageNavigation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -69,14 +63,7 @@ export function AgentConversationPanel({
   if (!session) {
     return (
       <Page aria-label="Agent 对话">
-        <EmptyState
-          title="没有会话"
-          action={
-            <Button onClick={onBeginCreateSession} type="button">
-              新建会话
-            </Button>
-          }
-        />
+        <EmptyState title="没有会话" />
       </Page>
     );
   }

@@ -39,8 +39,12 @@ test.describe("Agent activity flows", () => {
       exact: true,
     });
 
-    await page
-      .getByRole("region", { name: "Agent 对话", exact: true })
+    await expect(
+      page
+        .getByRole("region", { name: "Agent 对话", exact: true })
+        .getByRole("button"),
+    ).toHaveCount(0);
+    await context
       .getByRole("button", { name: "新建会话", exact: true })
       .click();
     let createPanel = page.getByRole("region", { name: "新建 Agent 会话" });

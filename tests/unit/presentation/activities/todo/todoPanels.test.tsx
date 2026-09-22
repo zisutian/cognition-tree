@@ -166,17 +166,13 @@ describe("Todo panels", () => {
     });
   });
 
-  it("mounts the CTN body editor and shows an empty collection entry point", () => {
+  it("mounts the CTN body editor and keeps empty-state creation in the sidebar", () => {
     const editorMarkup = renderToStaticMarkup(
-      <TodoEditorPanel
-        creation={{ disabled: false, begin: () => undefined }}
-        view={createTodoView()}
-      />,
+      <TodoEditorPanel view={createTodoView()} />,
     );
     const base = createTodoView();
     const markup = renderToStaticMarkup(
       <TodoEditorPanel
-        creation={{ disabled: false, begin: () => undefined }}
         view={{
           ...base,
           activeCollection: null,
@@ -189,7 +185,8 @@ describe("Todo panels", () => {
       has: ['aria-label="代办编辑"', 'data-editor-mode="body"'],
     });
     expectMarkupSemantics(markup, {
-      has: ["还没有事项集合", "新建事项集合"],
+      has: ["还没有事项集合"],
+      lacks: ["新建事项集合", "<button"],
     });
   });
 });
