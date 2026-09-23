@@ -42,7 +42,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     responsibility: "Agent configuration model and mutation rules",
     scope: "tree",
     publicEntries: ["application/agentConfiguration/index.ts"],
-    dependencies: [],
+    dependencies: ["application/persistence"],
   },
   {
     id: "application/agentHost",
@@ -493,6 +493,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "contracts/content",
       "application/content",
       "application/agent",
+      "application/agentConfiguration",
       "application/agentHost",
       "application/commands",
       "application/journal",

@@ -6,7 +6,9 @@ import type {
 } from "../../../application/agent/index.ts";
 
 import { OpenAiCompatibleRuntimeSession } from "./openAiCompatibleSession.ts";
-import type { OllamaAgentProfile } from "../../../application/agentHost/index.ts";
+import type {
+  OllamaAgentProfile,
+} from "../../../application/agentHost/index.ts";
 
 export class OllamaRuntime implements AgentRuntimePort {
   readonly kind = "ollama" as const;

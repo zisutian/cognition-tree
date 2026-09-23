@@ -4,8 +4,8 @@ import type {
   AgentProviderProbe,
 } from "../agentConfiguration/index.ts";
 import { readCommandRuntimeNow, type CommandRuntime } from "../commands/index.ts";
-import type { AgentConfigurationPort, ResolvedAgentProvider } from "./configurationPort.ts";
-import { AgentConfigurationValidationError } from "./configurationErrors.ts";
+import type { AgentConfigurationPort, ResolvedAgentProvider } from "../agentConfiguration/index.ts";
+import { AgentConfigurationValidationError } from "../agentConfiguration/index.ts";
 import type { AgentProviderProbePort } from "./providerOperationPorts.ts";
 
 export type AgentProviderProbeTransportPort = Pick<AgentProviderProbePort, "discoverOllama"> & {

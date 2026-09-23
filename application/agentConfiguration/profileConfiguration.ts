@@ -1,24 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
+  AgentProfileParameters,
   AgentProfileInput,
   AgentToolCallMode,
-} from "../../../application/agentConfiguration/index.ts";
-import type { AgentConfigurationAccess } from "../../../application/agentHost/index.ts";
-import { AgentConfigurationValidationError } from "../../../application/agentHost/index.ts";
+} from "./agentConfiguration.ts";
+import type { AgentConfigurationAccess } from "./configurationAccess.ts";
+import { AgentConfigurationValidationError } from "./configurationErrors.ts";
 import { normalizeProfileInput } from "./configurationInput.ts";
 import { assertAgentConfigurationRevision } from "./configurationRevision.ts";
 import type {
   AgentConfigurationState,
   StoredProfile,
-} from "./configurationStateCodec.ts";
+} from "./configurationState.ts";
 import { requireAgentConfigurationProvider } from "./configurationStateLookup.ts";
-import {
-  configurationSnapshot,
-  profileDigest,
-  profileView,
-  providerDigest,
-} from "./configurationViews.ts";
+import type { AgentConfigurationViews } from "./configurationViews.ts";
 
 type MutateAgentConfiguration = <Result>(
   operation: (
@@ -30,31 +26,39 @@ export class AgentProfileConfiguration {
   readonly #access: AgentConfigurationAccess;
   readonly #createId: () => string;
   readonly #mutate: MutateAgentConfiguration;
+  readonly #views: AgentConfigurationViews;
+  readonly #parseParameters: (value: unknown, pathLabel: string) => AgentProfileParameters;
 
   constructor({
     access,
     createId,
     mutate,
+    parseParameters,
+    views,
   }: {
     access: AgentConfigurationAccess;
     createId: () => string;
     mutate: MutateAgentConfiguration;
+    parseParameters(value: unknown, pathLabel: string): AgentProfileParameters;
+    views: AgentConfigurationViews;
   }) {
     this.#access = access;
     this.#createId = createId;
     this.#mutate = mutate;
+    this.#parseParameters = parseParameters;
+    this.#views = views;
   }
 
   create(baseRevision: string, input: AgentProfileInput) {
     return this.#mutate((state) => {
-      assertAgentConfigurationRevision(state, baseRevision);
+      assertAgentConfigurationRevision(state, baseRevision, this.#views);
       const provider = state.providers.find(({ id }) => id === input.providerId);
 
       if (!provider) {
         throw new AgentConfigurationValidationError("Agent provider does not exist");
       }
       const profile: StoredProfile = {
-        ...normalizeProfileInput(input, provider),
+        ...normalizeProfileInput(input, provider, this.#parseParameters),
         conformance: null,
         id: `agent-profile-${this.#createId()}`,
         version: 1,
@@ -64,8 +68,8 @@ export class AgentProfileConfiguration {
       return {
         changed: true,
         result: {
-          configuration: configurationSnapshot(state),
-          profile: profileView(profile, provider),
+          configuration: this.#views.configurationSnapshot(state),
+          profile: this.#views.profileView(profile, provider),
         },
       };
     });
@@ -77,7 +81,7 @@ export class AgentProfileConfiguration {
     input: AgentProfileInput,
   ) {
     return this.#mutate((state) => {
-      assertAgentConfigurationRevision(state, baseRevision);
+      assertAgentConfigurationRevision(state, baseRevision, this.#views);
       const index = state.profiles.findIndex(({ id }) => id === profileId);
 
       if (index < 0) {
@@ -96,7 +100,7 @@ export class AgentProfileConfiguration {
         );
       }
       const profile: StoredProfile = {
-        ...normalizeProfileInput(input, provider),
+        ...normalizeProfileInput(input, provider, this.#parseParameters),
         conformance: null,
         id: previous.id,
         version: previous.version + 1,
@@ -106,8 +110,8 @@ export class AgentProfileConfiguration {
       return {
         changed: true,
         result: {
-          configuration: configurationSnapshot(state),
-          profile: profileView(profile, provider),
+          configuration: this.#views.configurationSnapshot(state),
+          profile: this.#views.profileView(profile, provider),
         },
       };
     });
@@ -115,7 +119,7 @@ export class AgentProfileConfiguration {
 
   delete(baseRevision: string, profileId: string) {
     return this.#mutate((state) => {
-      assertAgentConfigurationRevision(state, baseRevision);
+      assertAgentConfigurationRevision(state, baseRevision, this.#views);
       const index = state.profiles.findIndex(({ id }) => id === profileId);
 
       if (index < 0) {
@@ -123,7 +127,7 @@ export class AgentProfileConfiguration {
       }
       this.#access.assertProfileCanBeDeleted(profileId);
       state.profiles.splice(index, 1);
-      return { changed: true, result: configurationSnapshot(state) };
+      return { changed: true, result: this.#views.configurationSnapshot(state) };
     });
   }
 
@@ -133,7 +137,7 @@ export class AgentProfileConfiguration {
     input: { checkedAt: string; toolCallMode: AgentToolCallMode },
   ) {
     return this.#mutate((state) => {
-      assertAgentConfigurationRevision(state, baseRevision);
+      assertAgentConfigurationRevision(state, baseRevision, this.#views);
       const profile = state.profiles.find(({ id }) => id === profileId);
 
       if (!profile) {
@@ -161,15 +165,15 @@ export class AgentProfileConfiguration {
       }
       profile.conformance = {
         checkedAt: input.checkedAt,
-        profileDigest: profileDigest(profile),
-        providerDigest: providerDigest(provider),
+        profileDigest: this.#views.profileDigest(profile),
+        providerDigest: this.#views.providerDigest(provider),
         toolCallMode: input.toolCallMode,
       };
       return {
         changed: true,
         result: {
-          configuration: configurationSnapshot(state),
-          profile: profileView(profile, provider),
+          configuration: this.#views.configurationSnapshot(state),
+          profile: this.#views.profileView(profile, provider),
         },
       };
     });

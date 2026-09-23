@@ -29,10 +29,10 @@ type ApiRuntime,
 } from "./runtime.ts";
 
 import type {
-AgentProviderOperations,
-AgentService,
+  AgentProviderOperations,
+  AgentService,
 } from "../../../../application/agentHost/index.ts";
-import type { AgentConfigurationStore } from "../../agent/index.ts";
+import type { AgentConfigurationAdminPort } from "../../../../application/agentConfiguration/index.ts";
 import type { OperationLedger } from "../../operations/index.ts";
 
 import type { ContentService } from "../../../../application/content/index.ts";
@@ -81,7 +81,7 @@ export function isOwnerPrincipal(principal: ApiPrincipalDto | null) {
 
 export type ApiHandlerContext = {
   contentService: ContentService | null;
-  agentConfigurationStore: AgentConfigurationStore;
+  agentConfigurationStore: AgentConfigurationAdminPort;
   agentProviderOperations: AgentProviderOperations;
   agentService: AgentService | null;
   builtInCatalog?: ApiBuiltInCatalog;

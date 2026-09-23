@@ -19,8 +19,8 @@ import type {
 } from "./runtimePorts.ts";
 import { readAgentHostTimestamp } from "./runtimePorts.ts";
 
-import type { AgentConfigurationProfileUse } from "./configurationAccess.ts";
-import type { AgentConfigurationPort } from "./configurationPort.ts";
+import type { AgentConfigurationProfileUse } from "../agentConfiguration/index.ts";
+import type { AgentConfigurationPort } from "../agentConfiguration/index.ts";
 import { AgentServiceError } from "./errors.ts";
 
 

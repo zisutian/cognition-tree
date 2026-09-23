@@ -5,7 +5,7 @@ import type {
   AgentProfileView,
   AgentProviderView,
   AgentToolCallMode,
-} from "../agentConfiguration/index.ts";
+} from "./agentConfiguration.ts";
 import type { AgentConfigurationProfileUse } from './configurationAccess.ts';
 
 export type ResolvedAgentProvider = Readonly<{

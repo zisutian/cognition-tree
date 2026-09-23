@@ -6,8 +6,12 @@ IncomingMessage,
 ServerResponse,
 } from "node:http";
 import http from "node:http";
-import type { AgentService } from "../../../../application/agentHost/index.ts";
-import { AgentProviderOperations } from "../../../../application/agentHost/index.ts";
+import type {
+  AgentService,
+} from "../../../../application/agentHost/index.ts";
+import {
+  AgentProviderOperations,
+} from "../../../../application/agentHost/index.ts";
 import type { ContentService } from "../../../../application/content/index.ts";
 import {
 DomainRevisionTracker,

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
+import type { AgentCredentialReference } from "../../../application/agentConfiguration/index.ts";
 import {
   createStateDigest,
   assertStateFields,
@@ -37,12 +38,6 @@ export type CodexManagedCredentialManifest = Readonly<{
   homeReference: string;
   providerId: string;
   type: "chatgpt-device-code";
-  version: number;
-}>;
-
-export type AgentCredentialReference = Readonly<{
-  digest: `sha256:${string}`;
-  reference: string;
   version: number;
 }>;
 

@@ -1,23 +1,60 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
+  AgentProfileParameters,
   AgentProfileInput,
   AgentProviderInput,
-} from "../../../application/agentConfiguration/index.ts";
-import { AgentConfigurationValidationError } from "../../../application/agentHost/index.ts";
-import type { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
+} from "./agentConfiguration.ts";
+import { AgentConfigurationValidationError } from "./configurationErrors.ts";
 import {
-  nonEmptyString,
-  parseBaseUrl,
-  parseCurrentStoredAgentProfileParameters,
-  positiveInteger,
   type StoredProfile,
   type StoredProvider,
-} from "./configurationStateCodec.ts";
+} from "./configurationState.ts";
+
+export type AgentConfigurationTargetPolicy = {
+  configurationPermission(
+    endpoint: URL,
+    authenticationType: AgentProviderInput["authenticationType"],
+    confirmed: boolean,
+  ): string | null;
+};
+
+export function nonEmptyString(value: unknown, pathLabel: string) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`${pathLabel} must be a non-empty string.`);
+  }
+  return value;
+}
+
+export function positiveInteger(value: unknown, pathLabel: string) {
+  if (!Number.isSafeInteger(value) || (value as number) < 1) {
+    throw new Error(`${pathLabel} must be a positive integer.`);
+  }
+  return value as number;
+}
+
+export function parseBaseUrl(value: unknown, pathLabel: string) {
+  if (typeof value !== "string") {
+    throw new Error(`${pathLabel} must be an absolute HTTP(S) URL.`);
+  }
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${pathLabel} must be an absolute HTTP(S) URL.`);
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`${pathLabel} must use HTTP or HTTPS.`);
+  }
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error(`${pathLabel} cannot contain credentials, query, or fragment.`);
+  }
+  return url.toString().replace(/\/$/, "");
+}
 
 export function normalizeProviderInput(
   input: AgentProviderInput,
-  targetPolicy: AgentProviderTargetPolicy,
+  targetPolicy: AgentConfigurationTargetPolicy,
 ): Omit<StoredProvider, "authentication" | "id" | "version"> {
   const label = nonEmptyString(input.label, "Provider label");
   const baseUrl = input.kind === "codex"
@@ -64,8 +101,9 @@ export function normalizeProviderInput(
 export function normalizeProfileInput(
   input: AgentProfileInput,
   provider: StoredProvider,
+  parseParameters: (value: unknown, pathLabel: string) => AgentProfileParameters,
 ): Omit<StoredProfile, "conformance" | "id" | "version"> {
-  const parameters = parseCurrentStoredAgentProfileParameters(
+  const parameters = parseParameters(
     input.parameters,
     "Profile parameters",
   );

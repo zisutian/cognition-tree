@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentConformanceConfigurationPort } from './configurationPort.ts';
+import type { AgentConformanceConfigurationPort } from "../agentConfiguration/index.ts";
 import type { AgentRuntimeFactory } from './runtimePorts.ts';
 import type { ApplicationScheduler } from '../runtime/index.ts';
 import type {
@@ -12,7 +12,7 @@ import type {
 
 import type { CommandRuntime } from "../commands/index.ts";
 import { readCommandRuntimeNow } from "../commands/index.ts";
-import { AgentConfigurationConflictError, AgentConfigurationValidationError } from "./configurationErrors.ts";
+import { AgentConfigurationConflictError, AgentConfigurationValidationError } from "../agentConfiguration/index.ts";
 import { AgentProviderOperationConflictError } from "./providerOperationErrors.ts";
 import { createAgentRuntimeProfile } from "./runtimeProfiles.ts";
 

@@ -4,8 +4,15 @@ import type {
   AgentOllamaDiscovery,
   AgentProviderProbe,
 } from "../../../application/agentConfiguration/index.ts";
-import type { AgentProviderProbeTransportPort, ResolvedAgentProvider } from "../../../application/agentHost/index.ts";
-import { AgentConfigurationValidationError } from "../../../application/agentHost/index.ts";
+import type {
+  ResolvedAgentProvider,
+} from "../../../application/agentConfiguration/index.ts";
+import type {
+  AgentProviderProbeTransportPort,
+} from "../../../application/agentHost/index.ts";
+import {
+  AgentConfigurationValidationError,
+} from "../../../application/agentConfiguration/index.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 
 const responseByteLimit = 1024 * 1024;

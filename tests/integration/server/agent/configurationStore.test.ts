@@ -12,10 +12,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { AgentConfigurationStore } from "../../../../infrastructure/server/agent/configurationStore.ts";
-import { AgentConfigurationConflictError, AgentConfigurationValidationError } from "../../../../application/agentHost/configurationErrors.ts";
+import { AgentConfigurationConflictError, AgentConfigurationValidationError } from "../../../../application/agentConfiguration/configurationErrors.ts";
 import {
   AgentConfigurationAccessConflictError,
-} from "../../../../application/agentHost/configurationAccess.ts";
+} from "../../../../application/agentConfiguration/configurationAccess.ts";
 import {
   replaceFileDurably,
 } from "../../../../infrastructure/server/persistence/fileSystemPersistence.ts";

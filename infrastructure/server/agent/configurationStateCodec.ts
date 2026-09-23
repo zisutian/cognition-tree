@@ -1,67 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
+  AgentConfigurationState,
+  AgentCredentialReference,
   AgentChatReasoningEffort,
   AgentProfileConformance,
   AgentProfileParameters,
   AgentProviderKind,
+  StoredAuthentication,
+  StoredProfile,
+  StoredProvider,
+} from "../../../application/agentConfiguration/index.ts";
+import { agentConfigurationFormatVersion, validateAgentConfigurationRelationships } from "../../../application/agentConfiguration/index.ts";
+import {
+  nonEmptyString,
+  parseBaseUrl,
+  positiveInteger,
 } from "../../../application/agentConfiguration/index.ts";
 import {
   assertStateFields,
   requireStateRecord,
 } from "../state/index.ts";
-import type {
-  AgentCredentialReference,
-} from "./credentialManifest.ts";
 import {
   validateAgentCredentialReference,
 } from "./credentialManifest.ts";
 
-const formatVersion = 5;
+const formatVersion = agentConfigurationFormatVersion;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const requiresFormatRewrite = Symbol("requiresAgentConfigurationFormatRewrite");
 const legacyApiKey = Symbol("legacyAgentProviderApiKey");
 
-export type StoredAuthentication =
-  | {
-      credential: AgentCredentialReference | null;
-      type: "api-key";
-      [legacyApiKey]?: string | null;
-    }
-  | {
-      credential: AgentCredentialReference | null;
-      type: "chatgpt-device-code";
-    }
-  | { type: "none" };
-
-export type StoredProvider = {
-  authentication: StoredAuthentication;
-  baseUrl: string | null;
-  id: string;
-  kind: AgentProviderKind;
-  label: string;
-  privateNetworkOrigin: string | null;
-  version: number;
-};
-
-export type StoredProfile = {
-  conformance: AgentProfileConformance | null;
-  id: string;
-  label: string;
-  maxResidentSessions: number;
-  model: string;
-  parameters: AgentProfileParameters;
-  providerId: string;
-  timeoutMilliseconds: number;
-  version: number;
-};
-
-export type AgentConfigurationState = {
-  formatVersion: typeof formatVersion;
-  profiles: StoredProfile[];
-  providers: StoredProvider[];
-  [requiresFormatRewrite]?: true;
-};
+type DecodingState = AgentConfigurationState & { [requiresFormatRewrite]?: true };
 
 type WriteAgentApiKey = (
   providerId: string,
@@ -69,54 +38,11 @@ type WriteAgentApiKey = (
   version: number,
 ) => Promise<AgentCredentialReference>;
 
-export function nonEmptyString(
-  value: unknown,
-  pathLabel: string,
-) {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`${pathLabel} must be a non-empty string.`);
-  }
-  return value;
-}
-
-export function positiveInteger(
-  value: unknown,
-  pathLabel: string,
-) {
-  if (!Number.isSafeInteger(value) || (value as number) < 1) {
-    throw new Error(`${pathLabel} must be a positive integer.`);
-  }
-  return value as number;
-}
-
 function parseDigest(value: unknown, pathLabel: string) {
   if (typeof value !== "string" || !digestPattern.test(value)) {
     throw new Error(`${pathLabel} must be a SHA-256 digest.`);
   }
   return value as `sha256:${string}`;
-}
-
-export function parseBaseUrl(
-  value: unknown,
-  pathLabel: string,
-) {
-  if (typeof value !== "string") {
-    throw new Error(`${pathLabel} must be an absolute HTTP(S) URL.`);
-  }
-  let url: URL;
-
-  try {
-    url = new URL(value);
-  } catch {
-    throw new Error(`${pathLabel} must be an absolute HTTP(S) URL.`);
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error(`${pathLabel} must use HTTP or HTTPS.`);
-  }
-  if (url.username || url.password || url.search || url.hash) {
-    throw new Error(`${pathLabel} cannot contain credentials, query, or fragment.`);
-  }
-  return url.toString().replace(/\/$/, "");
 }
 
 function parseAuthentication(
@@ -477,41 +403,6 @@ function parseProfile(
   };
 }
 
-function validateRelationships(state: AgentConfigurationState) {
-  const providerIds = new Set<string>();
-  const profileIds = new Set<string>();
-
-  for (const provider of state.providers) {
-    if (providerIds.has(provider.id)) {
-      throw new Error("Provider id is duplicated.");
-    }
-    providerIds.add(provider.id);
-  }
-  for (const profile of state.profiles) {
-    if (profileIds.has(profile.id)) {
-      throw new Error("Profile id is duplicated.");
-    }
-    profileIds.add(profile.id);
-    const provider = state.providers.find(({ id }) =>
-      id === profile.providerId
-    );
-
-    if (!provider) {
-      throw new Error(`Profile provider does not exist: ${profile.providerId}`);
-    }
-    if ((provider.kind === "codex") !== (profile.parameters.kind === "codex")) {
-      throw new Error("Profile parameters do not match provider kind.");
-    }
-    if (
-      provider.kind !== "ollama" &&
-      profile.parameters.kind === "chat" &&
-      profile.parameters.toolCallMode === "single-json"
-    ) {
-      throw new Error("single-json is only valid for Ollama profiles.");
-    }
-  }
-}
-
 export function createInitialAgentConfigurationState(): AgentConfigurationState {
   return { formatVersion, profiles: [], providers: [] };
 }
@@ -540,7 +431,7 @@ export function parseAgentConfigurationState(
   ) {
     throw new Error("Agent configuration state has an invalid format.");
   }
-  const state: AgentConfigurationState = {
+  const state: DecodingState = {
     formatVersion,
     profiles: record.profiles.map((profile, index) =>
       parseProfile(profile, index, legacyChatBudget, legacyChatReasoning)
@@ -562,7 +453,7 @@ export function parseAgentConfigurationState(
     });
   }
 
-  validateRelationships(state);
+  validateAgentConfigurationRelationships(state);
   return state;
 }
 
@@ -570,7 +461,8 @@ export async function materializeLegacyAgentConfigurationState(
   state: AgentConfigurationState,
   writeApiKey: WriteAgentApiKey,
 ) {
-  const changed = state[requiresFormatRewrite] === true;
+  const decodingState = state as DecodingState;
+  const changed = decodingState[requiresFormatRewrite] === true;
 
   for (const provider of state.providers) {
     if (
@@ -579,7 +471,7 @@ export async function materializeLegacyAgentConfigurationState(
     ) {
       continue;
     }
-    const apiKey = provider.authentication[legacyApiKey];
+    const apiKey = provider.authentication[legacyApiKey] as string | null;
     const credential = apiKey
       ? await writeApiKey(provider.id, apiKey, 1)
       : null;
@@ -590,6 +482,6 @@ export async function materializeLegacyAgentConfigurationState(
     }
   }
 
-  delete state[requiresFormatRewrite];
+  delete decodingState[requiresFormatRewrite];
   return changed;
 }

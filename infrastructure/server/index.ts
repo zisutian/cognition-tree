@@ -4,7 +4,9 @@ import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import type { IncomingMessage,Server,ServerResponse } from "node:http";
 import path from "node:path";
-import { agentServicePolicy } from "../../application/agentHost/index.ts";
+import {
+  agentServicePolicy,
+} from "../../application/agentHost/index.ts";
 import { DomainRevisionTracker } from "../../application/sync/index.ts";
 import {
 DataRootMigrationCoordinator,

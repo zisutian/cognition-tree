@@ -21,7 +21,7 @@ import type { ApplicationScheduler } from '../runtime/index.ts';
 import type { AgentEventSink } from './sessionEventStream.ts';
 
 
-import type { AgentConfigurationPort } from "./configurationPort.ts";
+import type { AgentConfigurationPort } from "../agentConfiguration/index.ts";
 
 import type { AgentServicePolicy } from "./servicePolicy.ts";
 import { AgentServiceError } from "./errors.ts";

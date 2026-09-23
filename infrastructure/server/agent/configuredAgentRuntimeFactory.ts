@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ConfiguredAgentRuntimeInput, AgentRuntimeFactory } from '../../../application/agentHost/index.ts';
+import type {
+  ConfiguredAgentRuntimeInput,
+  AgentRuntimeFactory,
+} from "../../../application/agentHost/index.ts";
 import path from "node:path";
 import type {
   AgentRuntimePort,

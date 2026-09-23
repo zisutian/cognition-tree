@@ -8,7 +8,7 @@ import type {
   AgentScope,
 } from "../agent/index.ts";
 
-import type { ResolvedAgentConfiguration } from './configurationPort.ts';
+import type { ResolvedAgentConfiguration } from "../agentConfiguration/index.ts";
 import type { AgentRuntimeProfile } from './runtimeProfiles.ts';
 import type { AgentToolSession, AgentToolExecution } from './sessionToolState.ts';
 import type { AgentOperationReceipt } from '../operations/index.ts';

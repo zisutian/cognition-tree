@@ -2,31 +2,25 @@
 
 import type {
   AgentProviderInput,
-} from "../../../application/agentConfiguration/index.ts";
-import { SecureStateCommitOutcomeUnknownError } from "../../../application/persistence/index.ts";
+} from "./agentConfiguration.ts";
+import { SecureStateCommitOutcomeUnknownError } from "../persistence/index.ts";
 import type {
   AgentConfigurationAccess,
   AgentConfigurationProviderChange,
-} from "../../../application/agentHost/index.ts";
-import { AgentConfigurationValidationError } from "../../../application/agentHost/index.ts";
-import { normalizeProviderInput } from "./configurationInput.ts";
+} from "./configurationAccess.ts";
+import { AgentConfigurationValidationError } from "./configurationErrors.ts";
+import { normalizeProviderInput, type AgentConfigurationTargetPolicy } from "./configurationInput.ts";
 import { assertAgentConfigurationRevision } from "./configurationRevision.ts";
 import type {
   AgentConfigurationState,
   StoredAuthentication,
   StoredProvider,
-} from "./configurationStateCodec.ts";
-import type { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
+} from "./configurationState.ts";
 import type {
   AgentCredentialReference,
-} from "./credentialManifest.ts";
-import type {
-  AgentProviderCredentialStore,
-} from "./providerCredentialStore.ts";
-import {
-  configurationSnapshot,
-  providerView,
-} from "./configurationViews.ts";
+} from "./configurationState.ts";
+import type { AgentConfigurationCredentialsPort } from "./configurationPorts.ts";
+import type { AgentConfigurationViews } from "./configurationViews.ts";
 
 type MutateAgentConfiguration = <Result>(
   operation: (
@@ -53,10 +47,11 @@ function invalidateProviderConformance(
 export class AgentProviderConfiguration {
   readonly #access: AgentConfigurationAccess;
   readonly #createId: () => string;
-  readonly #credentialStore: AgentProviderCredentialStore;
+  readonly #credentialStore: AgentConfigurationCredentialsPort;
   readonly #mutate: MutateAgentConfiguration;
   readonly #read: ReadAgentConfiguration;
-  readonly #targetPolicy: AgentProviderTargetPolicy;
+  readonly #targetPolicy: AgentConfigurationTargetPolicy;
+  readonly #views: AgentConfigurationViews;
 
   constructor({
     access,
@@ -65,13 +60,15 @@ export class AgentProviderConfiguration {
     mutate,
     read,
     targetPolicy,
+    views,
   }: {
     access: AgentConfigurationAccess;
     createId: () => string;
-    credentialStore: AgentProviderCredentialStore;
+    credentialStore: AgentConfigurationCredentialsPort;
     mutate: MutateAgentConfiguration;
     read: ReadAgentConfiguration;
-    targetPolicy: AgentProviderTargetPolicy;
+    targetPolicy: AgentConfigurationTargetPolicy;
+    views: AgentConfigurationViews;
   }) {
     this.#access = access;
     this.#createId = createId;
@@ -79,6 +76,7 @@ export class AgentProviderConfiguration {
     this.#mutate = mutate;
     this.#read = read;
     this.#targetPolicy = targetPolicy;
+    this.#views = views;
   }
 
   async create(baseRevision: string, input: AgentProviderInput) {
@@ -87,7 +85,7 @@ export class AgentProviderConfiguration {
 
     try {
       return await this.#mutate(async (state) => {
-        assertAgentConfigurationRevision(state, baseRevision);
+        assertAgentConfigurationRevision(state, baseRevision, this.#views);
         const id = `agent-provider-${this.#createId()}`;
         const normalized = normalizeProviderInput(input, this.#targetPolicy);
         const prepared = await this.#authenticationForInput(id, input);
@@ -104,8 +102,8 @@ export class AgentProviderConfiguration {
         return {
           changed: true,
           result: {
-            configuration: configurationSnapshot(state),
-            provider: providerView(provider),
+            configuration: this.#views.configurationSnapshot(state),
+            provider: this.#views.providerView(provider),
           },
         };
       });
@@ -132,7 +130,7 @@ export class AgentProviderConfiguration {
 
     try {
       const outcome = await this.#mutate(async (state) => {
-        assertAgentConfigurationRevision(state, baseRevision);
+        assertAgentConfigurationRevision(state, baseRevision, this.#views);
         const index = state.providers.findIndex(({ id }) => id === providerId);
 
         if (index < 0) {
@@ -179,8 +177,8 @@ export class AgentProviderConfiguration {
               ? previousCredential
               : null,
             value: {
-              configuration: configurationSnapshot(state),
-              provider: providerView(provider),
+              configuration: this.#views.configurationSnapshot(state),
+              provider: this.#views.providerView(provider),
             },
           },
         };
@@ -207,7 +205,7 @@ export class AgentProviderConfiguration {
 
     try {
       const outcome = await this.#mutate((state) => {
-        assertAgentConfigurationRevision(state, baseRevision);
+        assertAgentConfigurationRevision(state, baseRevision, this.#views);
         if (state.profiles.some(({ providerId: candidate }) =>
           candidate === providerId
         )) {
@@ -233,7 +231,7 @@ export class AgentProviderConfiguration {
         return {
           changed: true,
           result: {
-            configuration: configurationSnapshot(state),
+            configuration: this.#views.configurationSnapshot(state),
             credential: provider.authentication.type !== "none"
               ? provider.authentication.credential
               : null,
@@ -253,7 +251,7 @@ export class AgentProviderConfiguration {
     providerId: string,
   ): Promise<AgentConfigurationProviderChange> {
     return this.#read((state) => {
-      assertAgentConfigurationRevision(state, baseRevision);
+      assertAgentConfigurationRevision(state, baseRevision, this.#views);
       if (!state.providers.some(({ id }) => id === providerId)) {
         throw new AgentConfigurationValidationError(
           "Agent provider does not exist",
@@ -270,7 +268,7 @@ export class AgentProviderConfiguration {
     change: AgentConfigurationProviderChange | null = null,
   ) {
     const credentialVersion = await this.#read((state) => {
-      assertAgentConfigurationRevision(state, baseRevision);
+      assertAgentConfigurationRevision(state, baseRevision, this.#views);
       const provider = state.providers.find(({ id }) => id === providerId);
 
       if (!provider || provider.kind !== "codex" ||
@@ -331,7 +329,7 @@ export class AgentProviderConfiguration {
         );
       credential = activatedCredential;
       const outcome = await this.#mutate((state) => {
-        assertAgentConfigurationRevision(state, baseRevision);
+        assertAgentConfigurationRevision(state, baseRevision, this.#views);
         this.#access.assertProviderChange(activeChange, providerId);
         const provider = state.providers.find(({ id }) => id === providerId);
 
@@ -353,7 +351,7 @@ export class AgentProviderConfiguration {
         return {
           changed: true,
           result: {
-            configuration: configurationSnapshot(state),
+            configuration: this.#views.configurationSnapshot(state),
             previousCredential,
           },
         };
@@ -388,7 +386,7 @@ export class AgentProviderConfiguration {
 
     try {
       const outcome = await this.#mutate((state) => {
-        assertAgentConfigurationRevision(state, baseRevision);
+        assertAgentConfigurationRevision(state, baseRevision, this.#views);
         const provider = state.providers.find(({ id }) => id === providerId);
 
         if (!provider || provider.authentication.type === "none") {
@@ -407,7 +405,7 @@ export class AgentProviderConfiguration {
         invalidateProviderConformance(state, providerId);
         return {
           changed: true,
-          result: { configuration: configurationSnapshot(state), credential },
+          result: { configuration: this.#views.configurationSnapshot(state), credential },
         };
       });
 

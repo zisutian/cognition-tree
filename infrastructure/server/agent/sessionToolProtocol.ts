@@ -8,7 +8,9 @@ import {
   type JournalCommandIntentDto,
   type TodoCommandIntentDto,
   type WorkspaceCommandIntentDto} from "../../../contracts/content/index.ts";
-import type { AgentToolDecoder } from '../../../application/agentHost/index.ts';
+import type {
+  AgentToolDecoder,
+} from "../../../application/agentHost/index.ts";
 import {
   AgentScopeViolationError,
   type AgentRuntimeTool,

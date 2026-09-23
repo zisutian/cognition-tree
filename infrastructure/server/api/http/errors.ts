@@ -46,11 +46,13 @@ import {
   OperationAuditUnavailableError,
 } from "../../../../application/operations/index.ts";
 import {
-  AgentProposalCommitIndeterminateError,
-  AgentServiceError,
   AgentConfigurationConflictError,
   AgentConfigurationValidationError,
   AgentConfigurationAccessConflictError,
+} from "../../../../application/agentConfiguration/index.ts";
+import {
+  AgentProposalCommitIndeterminateError,
+  AgentServiceError,
   AgentProviderOperationConflictError,
 } from "../../../../application/agentHost/index.ts";
 

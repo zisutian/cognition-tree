@@ -15,12 +15,12 @@ import type { OperationLedger } from '../operations/index.ts';
 import {
   AgentService,
   AgentProposalCommitter,
-} from '../../../application/agentHost/index.ts';
+} from "../../../application/agentHost/index.ts";
 import type {
   AgentRuntimeFactory,
   AgentToolProtocolPort,
   AgentServicePolicy,
-} from '../../../application/agentHost/index.ts';
+} from "../../../application/agentHost/index.ts";
 import { serializeJsonIteratively } from '../../../contracts/common/index.ts';
 import type { AgentConfigurationStore } from '../agent/index.ts';
 import {

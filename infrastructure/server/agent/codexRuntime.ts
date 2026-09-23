@@ -20,7 +20,9 @@ import {
 import type {
   AgentScope,
 } from "../../../application/agent/index.ts";
-import type { CodexAgentProfile } from "../../../application/agentHost/index.ts";
+import type {
+  CodexAgentProfile,
+} from "../../../application/agentHost/index.ts";
 import { CodexAppServerClient } from "./codexAppServerClient.ts";
 import { resolveCodexEntrypoint } from "./codexPackage.ts";
 import { withRuntimeTimeout } from "./runtimeTimeout.ts";

@@ -345,18 +345,18 @@ describe("dependency boundaries", () => {
   it("keeps Profile configuration commands behind their store", () => {
     const violations = auditImportPolicies([
       {
-        filePath: "../../infrastructure/server/agent/configurationStore.ts",
+        filePath: "../../application/agentConfiguration/index.ts",
         importPath: "./profileConfiguration",
         targetPath:
-          "../../infrastructure/server/agent/profileConfiguration.ts",
-        targetRoot: "infrastructure",
+          "../../application/agentConfiguration/profileConfiguration.ts",
+        targetRoot: "application",
       },
       {
         filePath: "../../infrastructure/server/agent/privateIpc.ts",
         importPath: "./profileConfiguration",
         targetPath:
-          "../../infrastructure/server/agent/profileConfiguration.ts",
-        targetRoot: "infrastructure",
+          "../../application/agentConfiguration/profileConfiguration.ts",
+        targetRoot: "application",
       },
     ], dependencyImportPolicies);
 
@@ -368,18 +368,18 @@ describe("dependency boundaries", () => {
   it("keeps Provider configuration transactions behind their store", () => {
     const violations = auditImportPolicies([
       {
-        filePath: "../../infrastructure/server/agent/configurationStore.ts",
+        filePath: "../../application/agentConfiguration/index.ts",
         importPath: "./providerConfiguration",
         targetPath:
-          "../../infrastructure/server/agent/providerConfiguration.ts",
-        targetRoot: "infrastructure",
+          "../../application/agentConfiguration/providerConfiguration.ts",
+        targetRoot: "application",
       },
       {
         filePath: "../../infrastructure/server/agent/privateIpc.ts",
         importPath: "./providerConfiguration",
         targetPath:
-          "../../infrastructure/server/agent/providerConfiguration.ts",
-        targetRoot: "infrastructure",
+          "../../application/agentConfiguration/providerConfiguration.ts",
+        targetRoot: "application",
       },
     ], dependencyImportPolicies);
 

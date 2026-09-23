@@ -4,46 +4,38 @@ import type {
   AgentConfigurationSnapshot,
   AgentProfileView,
   AgentProviderView,
-} from "../../../application/agentConfiguration/index.ts";
-import {
-  agentConformanceContractVersion,
-  agentToolContractVersion,
-} from "../../../contracts/agent/index.ts";
-
-import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
-import { createStateDigest } from "../state/index.ts";
+} from "./agentConfiguration.ts";
 import type {
   AgentConfigurationState,
   StoredProfile,
   StoredProvider,
-} from "./configurationStateCodec.ts";
+} from "./configurationState.ts";
 import { requireAgentConfigurationProvider } from "./configurationStateLookup.ts";
 
-function digest(value: unknown): `sha256:${string}` {
-  return `sha256:${createStateDigest(serializeJsonIteratively(value, {
-    sortObjectKeys: true,
-  }))}`;
-}
+export function createAgentConfigurationViews(
+  digest: (value: unknown) => `sha256:${string}`,
+  contractVersions: {conformance: number; tool: number},
+) {
 
-export function stateRevision(state: AgentConfigurationState) {
+function stateRevision(state: AgentConfigurationState) {
   return digest(state);
 }
 
-export function providerDigest(provider: StoredProvider) {
+function providerDigest(provider: StoredProvider) {
   return digest(provider);
 }
 
-export function profileDigest(profile: StoredProfile) {
+function profileDigest(profile: StoredProfile) {
   const { conformance: _conformance, ...configuration } = profile;
 
   return digest({
-    agentConformanceContractVersion,
-    agentToolContractVersion,
+    agentConformanceContractVersion: contractVersions.conformance,
+    agentToolContractVersion: contractVersions.tool,
     configuration,
   });
 }
 
-export function providerView(provider: StoredProvider): AgentProviderView {
+function providerView(provider: StoredProvider): AgentProviderView {
   return {
     authenticationStatus: provider.authentication.type === "none"
       ? "not-required"
@@ -63,7 +55,7 @@ export function providerView(provider: StoredProvider): AgentProviderView {
   };
 }
 
-export function profileView(
+function profileView(
   profile: StoredProfile,
   provider: StoredProvider,
 ): AgentProfileView {
@@ -103,7 +95,7 @@ export function profileView(
   };
 }
 
-export function configurationSnapshot(
+function configurationSnapshot(
   state: AgentConfigurationState,
 ): AgentConfigurationSnapshot {
   return {
@@ -117,3 +109,15 @@ export function configurationSnapshot(
     revision: stateRevision(state),
   };
 }
+
+  return {
+    configurationSnapshot,
+    profileDigest,
+    profileView,
+    providerDigest,
+    providerView,
+    stateRevision,
+  };
+}
+
+export type AgentConfigurationViews = ReturnType<typeof createAgentConfigurationViews>;

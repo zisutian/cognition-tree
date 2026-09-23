@@ -11,7 +11,7 @@ import {
   toAgentProposalView,
 } from "../agent/index.ts";
 import type { AgentOperationReceipt } from "../operations/index.ts";
-import type { ResolvedAgentConfiguration } from "./configurationPort.ts";
+import type { ResolvedAgentConfiguration } from "../agentConfiguration/index.ts";
 import {
   AgentProposalCommitIndeterminateError,
   AgentServiceError,

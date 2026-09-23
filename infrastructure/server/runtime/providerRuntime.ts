@@ -7,7 +7,7 @@ import {
   AgentProviderOperations,
   AgentProviderProbeService,
   AgentConformanceOperations,
-} from '../../../application/agentHost/index.ts';
+} from "../../../application/agentHost/index.ts";
 import type { CommandRuntime } from '../../../application/commands/index.ts';
 import {
   ConfiguredAgentRuntimeFactory,

@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ResolvedAgentConfiguration, ResolvedAgentProvider } from '../../../application/agentHost/index.ts';
+import type {
+  ResolvedAgentConfiguration,
+  ResolvedAgentProvider,
+} from "../../../application/agentConfiguration/index.ts";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import { serializeJsonIteratively } from "../../../contracts/common/index.ts";
+import { agentConformanceContractVersion, agentToolContractVersion } from "../../../contracts/agent/index.ts";
 import type {
   AgentProfileInput,
   AgentProviderInput,
@@ -10,6 +15,7 @@ import type {
 } from "../../../application/agentConfiguration/index.ts";
 import {
   SecureJsonPartition,
+  createStateDigest,
   type SecureStateFileReplacer,
 } from "../state/index.ts";
 import {
@@ -17,25 +23,25 @@ import {
   type AgentConfigurationProfileUse,
   type AgentConfigurationProviderChange,
   type AgentConfigurationProviderUse,
-} from "../../../application/agentHost/index.ts";
+} from "../../../application/agentConfiguration/index.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import {
   AgentProviderCredentialStore,
 } from "./providerCredentialStore.ts";
 import {
+  type AgentConfigurationState,
+  type AgentConfigurationViews,
+  createAgentConfigurationViews,
+  AgentProfileConfiguration,
+  AgentProviderConfiguration,
+  requireAgentConfigurationProvider,
+} from "../../../application/agentConfiguration/index.ts";
+import {
   createInitialAgentConfigurationState,
   materializeLegacyAgentConfigurationState,
   parseAgentConfigurationState,
-  type AgentConfigurationState,
+  parseCurrentStoredAgentProfileParameters,
 } from "./configurationStateCodec.ts";
-import {
-  configurationSnapshot,
-  profileView,
-  providerView,
-} from "./configurationViews.ts";
-import { requireAgentConfigurationProvider } from "./configurationStateLookup.ts";
-import { AgentProfileConfiguration } from "./profileConfiguration.ts";
-import { AgentProviderConfiguration } from "./providerConfiguration.ts";
 
 export class AgentConfigurationStore {
   readonly access = new AgentConfigurationAccess();
@@ -44,6 +50,7 @@ export class AgentConfigurationStore {
   readonly #partition: SecureJsonPartition<AgentConfigurationState>;
   readonly #profiles: AgentProfileConfiguration;
   readonly #providers: AgentProviderConfiguration;
+  readonly #views: AgentConfigurationViews;
 
   constructor(
     stateDirectory: string,
@@ -57,6 +64,12 @@ export class AgentConfigurationStore {
       targetPolicy?: AgentProviderTargetPolicy;
     } = {},
   ) {
+    this.#views = createAgentConfigurationViews(
+      (value) => `sha256:${createStateDigest(serializeJsonIteratively(value, {
+        sortObjectKeys: true,
+      }))}`,
+      {conformance: agentConformanceContractVersion, tool: agentToolContractVersion},
+    );
     this.#credentialStore = new AgentProviderCredentialStore(stateDirectory);
     this.#partition = new SecureJsonPartition<AgentConfigurationState>({
       createInitial: createInitialAgentConfigurationState,
@@ -72,6 +85,8 @@ export class AgentConfigurationStore {
       access: this.access,
       createId,
       mutate: (operation) => this.#mutate(operation),
+      parseParameters: parseCurrentStoredAgentProfileParameters,
+      views: this.#views,
     });
     this.#providers = new AgentProviderConfiguration({
       access: this.access,
@@ -80,11 +95,12 @@ export class AgentConfigurationStore {
       mutate: (operation) => this.#mutate(operation),
       read: (project) => this.#read(project),
       targetPolicy,
+      views: this.#views,
     });
   }
 
   readSnapshot() {
-    return this.#read(configurationSnapshot);
+    return this.#read(this.#views.configurationSnapshot);
   }
 
   async resolveProfile(
@@ -107,8 +123,8 @@ export class AgentConfigurationStore {
         return {
           authentication: storedProvider.authentication,
           privateNetworkOrigin: storedProvider.privateNetworkOrigin,
-          profile: profileView(storedProfile, storedProvider),
-          provider: providerView(storedProvider),
+          profile: this.#views.profileView(storedProfile, storedProvider),
+          provider: this.#views.providerView(storedProvider),
         };
       });
 
@@ -147,7 +163,7 @@ export class AgentConfigurationStore {
         return {
           authentication: storedProvider.authentication,
           privateNetworkOrigin: storedProvider.privateNetworkOrigin,
-          provider: providerView(storedProvider),
+          provider: this.#views.providerView(storedProvider),
         };
       });
 

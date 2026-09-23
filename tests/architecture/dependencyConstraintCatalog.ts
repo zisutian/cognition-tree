@@ -108,11 +108,9 @@ const agentProposalWorkflowPath =
   "../../application/agentHost/proposalWorkflow.ts";
 const agentSessionOpenerPath = "../../application/agentHost/sessionOpener.ts";
 const agentProfileConfigurationPath =
-  "../../infrastructure/server/agent/profileConfiguration.ts";
+  "../../application/agentConfiguration/profileConfiguration.ts";
 const agentProviderConfigurationPath =
-  "../../infrastructure/server/agent/providerConfiguration.ts";
-const agentConfigurationStorePath =
-  "../../infrastructure/server/agent/configurationStore.ts";
+  "../../application/agentConfiguration/providerConfiguration.ts";
 const agentOpenAiChatProtocolPath =
   "../../infrastructure/server/agent/openAiChatProtocol.ts";
 const agentOpenAiCompatibleSessionPath =
@@ -340,12 +338,12 @@ export function createDependencyImportPolicies({
       name: "Agent session opener composition boundary",
     },
     {
-      allows: ({ filePath }) => filePath === agentConfigurationStorePath,
+      allows: ({ filePath }) => filePath === "../../application/agentConfiguration/index.ts",
       applies: ({ targetPath }) => targetPath === agentProfileConfigurationPath,
       name: "Agent Profile configuration composition boundary",
     },
     {
-      allows: ({ filePath }) => filePath === agentConfigurationStorePath,
+      allows: ({ filePath }) => filePath === "../../application/agentConfiguration/index.ts",
       applies: ({ targetPath }) =>
         targetPath === agentProviderConfigurationPath,
       name: "Agent Provider configuration composition boundary",

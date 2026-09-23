@@ -2,7 +2,7 @@
 
 import type {
   AgentConfigurationState,
-} from "./configurationStateCodec.ts";
+} from "./configurationState.ts";
 
 export function requireAgentConfigurationProvider(
   state: AgentConfigurationState,

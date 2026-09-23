@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentConfigurationProviderChange } from './configurationAccess.ts';
+import type { AgentConfigurationProviderChange } from "../agentConfiguration/index.ts";
 
 export type AgentDeviceLoginCompletion = {loginId: string | null; success: boolean; error: string | null};
 export type AgentDeviceLoginProcess = {

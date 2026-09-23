@@ -4,7 +4,7 @@ import type {
   AgentProposal,
 } from "../agent/index.ts";
 import type { AgentOperationReceipt } from '../operations/index.ts';
-import type { ResolvedAgentConfiguration } from './configurationPort.ts';
+import type { ResolvedAgentConfiguration } from "../agentConfiguration/index.ts";
 import type { AgentRuntimeProfile } from './runtimeProfiles.ts';
 
 export type AgentProposalCommitRoute = "destructive-confirmation" | "proposal-decision";

@@ -9,7 +9,7 @@ import type { CommandRuntime } from "../commands/index.ts";
 import { readCommandRuntimeNow } from "../commands/index.ts";
 import type {
   AgentConfigurationProviderChange,
-} from "./configurationAccess.ts";
+} from "../agentConfiguration/index.ts";
 import { AgentProviderOperationConflictError } from "./providerOperationErrors.ts";
 import { SecureStateCommitOutcomeUnknownError } from "../persistence/index.ts";
 

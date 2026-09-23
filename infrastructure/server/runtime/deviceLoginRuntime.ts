@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { WriteAdmissionPort } from "../../../application/runtime/index.ts";
-import { CodexDeviceLoginOperations } from "../../../application/agentHost/index.ts";
+import {
+  CodexDeviceLoginOperations,
+} from "../../../application/agentHost/index.ts";
 import { createDeviceLoginProcessPort } from "../agent/index.ts";
 import { serverApplicationScheduler } from "../platform/index.ts";
 

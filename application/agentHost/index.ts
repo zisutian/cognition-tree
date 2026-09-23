@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 export {
-  AgentConfigurationAccess,
-  AgentConfigurationAccessConflictError,
-} from "./configurationAccess.ts";
-export {
-  AgentConfigurationConflictError,
-  AgentConfigurationValidationError,
-} from "./configurationErrors.ts";
-export type {
-  AgentConfigurationProfileUse,
-  AgentConfigurationProviderChange,
-  AgentConfigurationProviderUse,
-} from "./configurationAccess.ts";
-export {
   AgentConformanceOperations,
 } from "./conformanceOperations.ts";
 export type {
@@ -67,10 +54,6 @@ export {
 export {
   JournalAgentSessionTools,
 } from "./journalSessionTools.ts";
-export type {
-  ResolvedAgentConfiguration,
-  ResolvedAgentProvider,
-} from "./configurationPort.ts";
 export {
   TodoAgentSessionTools,
 } from "./todoSessionTools.ts";

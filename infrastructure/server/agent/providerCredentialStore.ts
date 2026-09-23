@@ -18,6 +18,9 @@ import {
   writeFileDurably,
 } from "../state/index.ts";
 import {
+  type AgentCredentialReference,
+} from "../../../application/agentConfiguration/index.ts";
+import {
   agentApiKeyCredentialReference,
   agentCodexManagedCredentialReference,
   agentCodexManagedHomeReference,
@@ -33,7 +36,6 @@ import {
   parseApiKeyCredentialManifest,
   parseCodexManagedCredentialManifest,
   serializeAgentCredentialManifest,
-  type AgentCredentialReference,
   type ApiKeyCredentialManifest,
   type CodexManagedCredentialManifest,
 } from "./credentialManifest.ts";

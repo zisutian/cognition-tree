@@ -5,7 +5,7 @@ import { CodexRuntime } from "../../../../../infrastructure/server/agent/codexRu
 import {
   ConfiguredAgentRuntimeFactory,
 } from "../../../../../infrastructure/server/agent/configuredAgentRuntimeFactory.ts";
-import type { ResolvedAgentConfiguration } from "../../../../../application/agentHost/configurationPort.ts";
+import type { ResolvedAgentConfiguration } from "../../../../../application/agentConfiguration/configurationPort.ts";
 import { OllamaRuntime } from "../../../../../infrastructure/server/agent/ollamaRuntime.ts";
 import { OpenAiChatRuntime } from "../../../../../infrastructure/server/agent/openAiChatRuntime.ts";
 import {
