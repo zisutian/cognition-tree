@@ -12,6 +12,7 @@ export {
 export {
   createTodoSessionController,
 } from "./todoSessionController.ts";
+export { createTodoResourceVersions } from "./todoResourceVersions.ts";
 export {
   createTodoViewModel,
 } from "./todoViewModel.ts";

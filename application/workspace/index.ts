@@ -3,6 +3,7 @@
 export type { ActiveWorkspaceSession } from "./session/workspaceSessionApplication.ts";
 export { createEmptyNoteReferenceGraph } from "./analysis/workspaceAnalysis.ts";
 export { createInitialRepositoryContent } from "./session/initialRepository.ts";
+export { createWorkspaceResourceVersions } from "./workspaceResourceVersions.ts";
 export {
   createLocalDraftRevision,
   WorkspaceRepositoryBackendConflictError,

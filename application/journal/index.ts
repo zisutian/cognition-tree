@@ -17,6 +17,7 @@ export {
 export {
   createJournalSessionController,
 } from "./journalSessionController.ts";
+export { createJournalResourceVersions } from "./journalResourceVersions.ts";
 export {
   createJournalViewModel,
 } from "./journalViewModel.ts";
