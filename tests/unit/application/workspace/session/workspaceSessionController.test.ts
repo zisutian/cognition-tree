@@ -203,6 +203,26 @@ function updateNote(
 }
 
 describe("workspace session controller", () => {
+  it("creates consecutively numbered untitled notes through session commands", async () => {
+    const harness = createRepositoryHarness();
+    let nextNoteId = 0;
+    const controller = createController(harness.repository, {
+      createNoteId: () => `note-untitled-${++nextNoteId}`,
+    });
+
+    controller.start();
+    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
+    controller.commands.createNote(null);
+    controller.commands.createNote(null);
+    controller.commands.createNote(null);
+    await controller.flushPendingChanges();
+
+    expect(harness.getLocalContent().workspace.notes.slice(1).map((note) =>
+      readCtnCanonicalTitleHeader(note.source).title
+    )).toEqual(["未命名笔记", "未命名笔记1", "未命名笔记2"]);
+    controller.dispose();
+  });
+
   it("returns the canonical configured editor source and preserves it after an invalid title", async () => {
     const harness = createRepositoryHarness();
     const controller = createController(harness.repository);

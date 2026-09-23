@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { readFile, readdir } from "node:fs/promises";
+import path from "node:path";
 import { expect, type APIRequestContext } from "@playwright/test";
 import type { WorkspaceRepositorySnapshotDto } from "../../contracts/workspace/types";
 import { defaultDesignConfig } from "compact-ui";
@@ -26,6 +28,33 @@ test.describe("directory and structure operation flows", () => {
     api = testApi;
     await seedWorkbenchRepository(api, repositoryId);
     await seedInteractionRepository(api, interactionRepositoryId);
+  });
+
+  test("numbers newly created note files in one folder", async ({
+    page,
+    repositoryRoot,
+  }) => {
+    await openWorkbench(page, repositoryId);
+    const treeSurface = page.getByRole("tree", { name: "笔记目录" });
+    const createButton = page
+      .getByRole("complementary", { name: "上下文区域" })
+      .getByRole("button", { name: "新建笔记", exact: true });
+
+    await treeSurface.getByRole("treeitem", { name: "Gamma", exact: true }).click();
+    for (const title of ["未命名笔记", "未命名笔记1", "未命名笔记2"]) {
+      await createButton.click();
+      await expect(treeSurface.getByRole("treeitem", {
+        name: title,
+        exact: true,
+      })).toHaveAttribute("aria-level", "1");
+    }
+    const repositoryPath = path.join(repositoryRoot, repositoryId);
+
+    await expect.poll(() => readdir(repositoryPath)).toContain("未命名笔记2.ctn");
+    expect(await readFile(
+      path.join(repositoryPath, "未命名笔记2.ctn"),
+      "utf8",
+    )).toBe("未命名笔记2");
   });
 
   test("preserves directory and layout behavior across activities", async ({

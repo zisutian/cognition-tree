@@ -40,6 +40,7 @@ export {
   createWorkspaceNote,
   deleteWorkspaceFolder,
   deleteWorkspaceNote,
+  findAvailableDefaultNoteTitle,
   moveWorkspaceTreeNode,
   renameWorkspaceFolder,
   renameWorkspaceNote,

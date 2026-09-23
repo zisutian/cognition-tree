@@ -138,6 +138,23 @@ function assertNoteSiblingNameAvailable(
   }
 }
 
+export function findAvailableDefaultNoteTitle(
+  workspace: WorkspaceStructureIndex,
+  parentFolderId: FolderId | null,
+) {
+  if (parentFolderId !== null) {
+    assertWorkspaceFolderExists(workspace, parentFolderId);
+  }
+  const occupied = collectSiblingNameKeys(workspace, parentFolderId);
+
+  for (let index = 0; index <= occupied.size; index += 1) {
+    const title = index === 0 ? defaultNoteTitle : `${defaultNoteTitle}${index}`;
+
+    if (!occupied.has(createPortableNameKey(title))) return title;
+  }
+  throw new Error("Unable to allocate an untitled note name.");
+}
+
 function canonicalizeChangedWorkspaceNoteTitle(
   workspace: WorkspaceStructureIndex,
   noteId: NoteId,
@@ -188,13 +205,9 @@ export function createWorkspaceNote(
   },
 ): WorkspaceData {
   assertWorkspaceNoteIdAvailable(workspace, noteId);
-
-  if (parentFolderId !== null) {
-    assertWorkspaceFolderExists(workspace, parentFolderId);
-  }
-
+  const title = findAvailableDefaultNoteTitle(workspace, parentFolderId);
   const source = syntax
-    ? initializeCtnSourceBlockMetadata(defaultNoteTitle, syntax, {
+    ? initializeCtnSourceBlockMetadata(title, syntax, {
         createdAt: timestamp,
         createId: createBlockId,
         reservedIds: reservedBlockIds,
@@ -206,7 +219,7 @@ export function createWorkspaceNote(
           reservedBlockIds,
         ).allocate(),
         timestamp,
-        title: defaultNoteTitle,
+        title,
       });
   const note = createNoteRecord(noteId, source);
 

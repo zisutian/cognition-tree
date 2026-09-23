@@ -13,9 +13,7 @@ import type {
 } from "../../../core/workspace/index.ts";
 
 
-import {
-  defaultNoteTitle,
-} from "../../../core/workspace/index.ts";
+import { findAvailableDefaultNoteTitle } from "../../../core/workspace/index.ts";
 import type {
   CtnCompiledSyntax,
   CtnEditableSourceChange,
@@ -159,13 +157,14 @@ export function createSessionCommands({
     },
     createNote(parentFolderId) {
       const noteId = dependencies.createNoteId();
+      const title = findAvailableDefaultNoteTitle(getWorkspace(), parentFolderId);
       execute({
         body: "",
         kind: "create-note",
         noteId,
         parentFolderId,
         timestamp: dependencies.now(),
-        title: defaultNoteTitle,
+        title,
       });
       return noteId;
     },

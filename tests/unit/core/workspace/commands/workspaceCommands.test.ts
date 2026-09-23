@@ -10,6 +10,7 @@ import {
   createWorkspaceNote,
   deleteWorkspaceFolder,
   deleteWorkspaceNote,
+  findAvailableDefaultNoteTitle,
   moveWorkspaceTreeNode,
   renameWorkspaceFolder,
   renameWorkspaceNote,
@@ -140,6 +141,83 @@ describe("workspace commands", () => {
     expect(findFolderIdContainingNote(nextWorkspace, "note-new")).toBe(
       "folder-target",
     );
+  });
+
+  it("numbers untitled notes within each folder and reuses the first available name", () => {
+    let nextBlockId = 500;
+    const createUntitled = (
+      workspace: WorkspaceData,
+      noteId: string,
+      parentFolderId: string | null = null,
+    ) => createWorkspaceNote(indexWorkspace(workspace), {
+      createBlockId: () => createWorkspaceTestBlockId(nextBlockId++),
+      noteId,
+      parentFolderId,
+      reservedBlockIds: collectReservedBlockIds(workspace, null),
+      syntax: null,
+      timestamp,
+    });
+    const first = createUntitled(createInitialWorkspaceData(), "note-one");
+    const second = createUntitled(first, "note-two");
+    const third = createUntitled(second, "note-three");
+
+    expect(third.notes.map((note) => readWorkspaceNoteHeader(note).title)).toEqual([
+      "未命名笔记",
+      "未命名笔记1",
+      "未命名笔记2",
+    ]);
+
+    const renamed = renameWorkspaceNote(
+      indexWorkspace(third),
+      "note-two",
+      "其他标题",
+      nextTimestamp,
+    );
+
+    expect(findAvailableDefaultNoteTitle(indexWorkspace(renamed), null)).toBe(
+      "未命名笔记1",
+    );
+    const reused = createUntitled(renamed, "note-four");
+
+    expect(readWorkspaceNoteHeader(reused.notes[3]).title).toBe("未命名笔记1");
+
+    const withFolder = createWorkspaceFolder(indexWorkspace(reused), {
+      folderId: "folder-other",
+      parentFolderId: null,
+      title: "其他文件夹",
+    });
+    const inOtherFolder = createUntitled(withFolder, "note-five", "folder-other");
+
+    expect(readWorkspaceNoteHeader(inOtherFolder.notes[4]).title).toBe(
+      "未命名笔记",
+    );
+  });
+
+  it("skips an untitled name already used by a sibling folder", () => {
+    const workspace = createWorkspaceFolder(indexWorkspace(createInitialWorkspaceData()), {
+      folderId: "folder-untitled",
+      parentFolderId: null,
+      title: "未命名笔记",
+    });
+
+    expect(findAvailableDefaultNoteTitle(indexWorkspace(workspace), null)).toBe(
+      "未命名笔记1",
+    );
+    const existing = createCanonicalTestNote(
+      "note-compatibility-name",
+      "未命名笔记１",
+      { timestamp },
+    );
+    const withEquivalentName = {
+      ...workspace,
+      notes: [...workspace.notes, existing],
+      tree: appendNoteToWorkspaceTree(workspace.tree, existing.id, null),
+    };
+
+    expect(findAvailableDefaultNoteTitle(
+      indexWorkspace(withEquivalentName),
+      null,
+    )).toBe("未命名笔记2");
   });
 
   it("deletes notes without owning active-note selection", () => {
