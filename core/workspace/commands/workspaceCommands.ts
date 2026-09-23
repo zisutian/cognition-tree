@@ -27,7 +27,7 @@ import {
 
 import type { CtnCompiledSyntax } from "../../ctn/index.ts";
 
-import { parsePortableName } from "../../naming/index.ts";
+import { createPortableNameKey, parsePortableName } from "../../naming/index.ts";
 import {
   createNoteRecord,
   createCanonicalNoteSource,
@@ -92,7 +92,55 @@ function assertWorkspaceFolderIdAvailable(
   }
 }
 
+function collectSiblingNameKeys(
+  workspace: WorkspaceStructureIndex,
+  parentFolderId: FolderId | null,
+  exceptNoteId?: NoteId,
+) {
+  const names = new Map<string, "note" | "folder">();
+
+  for (const [siblingId, entry] of workspace.noteEntryById) {
+    if (
+      siblingId !== exceptNoteId &&
+      entry.parentFolderId === parentFolderId
+    ) {
+      names.set(createPortableNameKey(entry.header.title), "note");
+    }
+  }
+  for (const entry of workspace.folderEntryById.values()) {
+    if (entry.parentFolderId === parentFolderId) {
+      const key = createPortableNameKey(entry.node.title);
+
+      if (!names.has(key)) names.set(key, "folder");
+    }
+  }
+  return names;
+}
+
+function assertNoteSiblingNameAvailable(
+  workspace: WorkspaceStructureIndex,
+  parentFolderId: FolderId | null,
+  title: string,
+  exceptNoteId: NoteId,
+) {
+  const conflict = collectSiblingNameKeys(
+    workspace,
+    parentFolderId,
+    exceptNoteId,
+  ).get(createPortableNameKey(title));
+
+  if (conflict) {
+    throw new DomainValidationError(
+      conflict === "note"
+        ? "同一文件夹中已存在同名笔记。"
+        : "同一文件夹中已存在同名文件夹。",
+    );
+  }
+}
+
 function canonicalizeChangedWorkspaceNoteTitle(
+  workspace: WorkspaceStructureIndex,
+  noteId: NoteId,
   previousTitle: string,
   nextSource: string,
   timestamp: string,
@@ -108,6 +156,12 @@ function canonicalizeChangedWorkspaceNoteTitle(
   const canonicalTitle = parsePortableName(
     nextTitle,
     "Workspace note title",
+  );
+  assertNoteSiblingNameAvailable(
+    workspace,
+    workspace.noteEntryById.get(noteId)?.parentFolderId ?? null,
+    canonicalTitle,
+    noteId,
   );
 
   return canonicalTitle === nextTitle
@@ -220,6 +274,12 @@ export function renameWorkspaceNote(
 ): WorkspaceData {
   assertWorkspaceNoteExists(workspace, noteId);
   const nextTitle = parsePortableName(title, "Workspace note title");
+  assertNoteSiblingNameAvailable(
+    workspace,
+    workspace.noteEntryById.get(noteId)?.parentFolderId ?? null,
+    nextTitle,
+    noteId,
+  );
 
   const noteIndex = workspace.noteEntryById.get(noteId)?.noteIndex;
 
@@ -356,6 +416,8 @@ export function updateWorkspaceNoteSource(
     },
   );
   const nextSource = canonicalizeChangedWorkspaceNoteTitle(
+    workspace,
+    noteId,
     entry.header.title,
     reconciled.source,
     timestamp,
@@ -402,6 +464,8 @@ export function updateWorkspaceRawNoteSource(
   }
 
   const nextSource = canonicalizeChangedWorkspaceNoteTitle(
+    workspace,
+    noteId,
     entry.header.title,
     change.source,
     timestamp,

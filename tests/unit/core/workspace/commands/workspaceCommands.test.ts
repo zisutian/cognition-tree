@@ -308,6 +308,90 @@ describe("workspace commands", () => {
     )).toThrow("Workspace note title contains unsupported characters");
   });
 
+  it("rejects sibling title collisions before configured, raw, and tree renames", () => {
+    const workspace = createWorkspaceWithNotes();
+    const note = workspace.notes[0];
+    const duplicate = "第二篇\n概念";
+    const rawSource = replaceCtnSourceTitle(
+      note.source,
+      "第二篇",
+      nextTimestamp,
+    );
+
+    expect(() => renameWorkspaceNote(
+      indexWorkspace(workspace),
+      note.id,
+      "第二篇",
+      nextTimestamp,
+    )).toThrow("同一文件夹中已存在同名笔记");
+    expect(() => updateWorkspaceNoteSource(
+      indexWorkspace(workspace),
+      note.id,
+      analyzeWorkspaceNote(workspace, note.id),
+      sourceChange(note, duplicate),
+      nextTimestamp,
+      () => createWorkspaceTestBlockId(900),
+      collectReservedBlockIds(workspace, defaultCtnSyntax),
+    )).toThrow("同一文件夹中已存在同名笔记");
+    expect(() => updateWorkspaceRawNoteSource(
+      indexWorkspace(workspace),
+      note.id,
+      {
+        edits: [{ from: 0, insertedText: rawSource, to: note.source.length }],
+        source: rawSource,
+      },
+      nextTimestamp,
+    )).toThrow("同一文件夹中已存在同名笔记");
+    const withFolder = createWorkspaceFolder(indexWorkspace(workspace), {
+      folderId: "folder-sibling",
+      parentFolderId: null,
+      title: "目标",
+    });
+
+    expect(() => renameWorkspaceNote(
+      indexWorkspace(withFolder),
+      note.id,
+      "目标",
+      nextTimestamp,
+    )).toThrow("同一文件夹中已存在同名文件夹");
+    expect(readWorkspaceNoteHeader(workspace.notes[0]).title).toBe("第一篇");
+  });
+
+  it("uses case-insensitive sibling names but allows the same title in other folders", () => {
+    const workspace = createWorkspaceWithNotes();
+    const named = renameWorkspaceNote(
+      indexWorkspace(workspace),
+      "note-second",
+      "ALPHA",
+      nextTimestamp,
+    );
+
+    expect(() => renameWorkspaceNote(
+      indexWorkspace(named),
+      "note-first",
+      "alpha",
+      nextTimestamp,
+    )).toThrow("同一文件夹中已存在同名笔记");
+
+    const withFolder = createWorkspaceFolder(indexWorkspace(named), {
+      folderId: "folder-other",
+      parentFolderId: null,
+      title: "其他",
+    });
+    const moved = moveWorkspaceTreeNode(indexWorkspace(withFolder), {
+      destination: { folderId: "folder-other", kind: "inside" },
+      source: { kind: "note", noteId: "note-second" },
+    });
+    const renamed = renameWorkspaceNote(
+      indexWorkspace(moved),
+      "note-first",
+      "alpha",
+      nextTimestamp,
+    );
+
+    expect(readWorkspaceNoteHeader(renamed.notes[0]).title).toBe("alpha");
+  });
+
   it("canonicalizes a changed title before persisting editor source", () => {
     const workspace = createWorkspaceWithNotes();
     const note = workspace.notes[0];

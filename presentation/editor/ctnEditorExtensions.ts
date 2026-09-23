@@ -94,8 +94,12 @@ export function createCtnEditorExtensions(
     current: ((target: CtnEditorReferenceTarget) => void) | undefined;
   },
   onActiveLineChangeRef: {
-    current: (lineNumber: number) => void;
+    current: (lineNumber: number, source: string, isComposing: boolean) => void;
   },
+  onBlurRef: {
+    current: ((source: string, isComposing: boolean) => void) | undefined;
+  },
+  isCompositionPendingRef: { current: () => boolean },
   onToggleCheckableBlockRef?: {
     current: ((blockId: string) => void) | undefined;
   },
@@ -104,6 +108,7 @@ export function createCtnEditorExtensions(
   const compositionChange = createEditorCompositionChange({
     onChange: (value) => onChangeRef.current(value),
   });
+  isCompositionPendingRef.current = () => compositionChange.isPending();
   const analysisField = createCtnEditorAnalysisField();
 
   return [
@@ -139,6 +144,18 @@ export function createCtnEditorExtensions(
     EditorView.domEventHandlers({
       compositionend(_event, view) {
         compositionChange.handleCompositionEnd(() => view.state.doc.toString());
+        queueMicrotask(() => onActiveLineChangeRef.current(
+          getCtnEditorActiveLineNumber(view.state),
+          view.state.doc.toString(),
+          view.composing || compositionChange.isPending(),
+        ));
+        return false;
+      },
+      blur(_event, view) {
+        onBlurRef.current?.(
+          view.state.doc.toString(),
+          view.composing || compositionChange.isPending(),
+        );
         return false;
       },
     }),
@@ -159,6 +176,8 @@ export function createCtnEditorExtensions(
       if (update.docChanged || update.selectionSet) {
         onActiveLineChangeRef.current(
           getCtnEditorActiveLineNumber(update.state),
+          update.state.doc.toString(),
+          update.view.composing || compositionChange.isPending(),
         );
       }
     }),

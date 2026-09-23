@@ -750,6 +750,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "application/repository",
       "application/workspace",
       "core/ctn",
+      "core/naming",
       "core/workspace",
       "presentation/activities/unavailable",
       "presentation/editor",

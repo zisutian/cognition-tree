@@ -4,8 +4,9 @@ import {
   describePage,
 } from "../../../navigation/index.ts";
 import { EmptyState } from "compact-ui";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { NotesViewModel } from "../../../../application/workspace/index.ts";
+import { PortableNameValidationError } from "../../../../core/naming/index.ts";
 import {
   CtnEditor,
   CtnEditorPanel,
@@ -17,6 +18,7 @@ import {
   useFeedback,
   useReferenceNavigation,
 } from "../../../ui/index.ts";
+import { createNotesTitleEditSession } from "./notesTitleEditSession.ts";
 
 export function submitNotesEditorChange({
   authoritativeSource,
@@ -56,6 +58,14 @@ export function NoteEditorPanel({ view }: { view: NotesViewModel }) {
     source: string;
   } | null>(null);
   const [editorSyncVersion, setEditorSyncVersion] = useState(0);
+  const [editorDraftSource, setEditorDraftSource] = useState<{
+    noteId: string;
+    source: string;
+  } | null>(null);
+  const titleSessionRef = useRef<{
+    key: string;
+    session: ReturnType<typeof createNotesTitleEditSession>;
+  } | null>(null);
   const referenceNavigation = useReferenceNavigation(view.referenceNavigation);
   const activeNote = view.activeNote;
 
@@ -77,6 +87,55 @@ export function NoteEditorPanel({ view }: { view: NotesViewModel }) {
       </Page>
     );
   }
+  const noteKey = `${pages.getRepositoryId()}:${activeNote.id}`;
+
+  if (titleSessionRef.current?.key !== noteKey) {
+    const noteId = activeNote.id;
+    const updateSource = view.updateSource;
+    const synchronize = (source: string) => {
+      setEditorSyncSource({ noteId, source });
+      setEditorSyncVersion((current) => current + 1);
+    };
+
+    titleSessionRef.current = {
+      key: noteKey,
+      session: createNotesTitleEditSession({
+        initialSource: view.editor.documentText,
+        titleLineNumber: view.editor.mode === "raw" ? 2 : 1,
+        notify: feedback.notify,
+        onDraftChange: (source) => setEditorDraftSource((current) => {
+          if (source !== null) return { noteId, source };
+          return current?.noteId === noteId ? null : current;
+        }),
+        submit: (change, authoritativeSource, keepEditorDraft) =>
+          submitNotesEditorChange({
+            authoritativeSource,
+            change,
+            onNormalized: () =>
+              feedback.notify("笔记标题已按可移植名称规则规范化。"),
+            onSynchronize: keepEditorDraft ? () => undefined : synchronize,
+            runAction: (action) => feedback.runAction(action),
+            updateSource: (change) => {
+              try {
+                return updateSource(change);
+              } catch (error) {
+                if (error instanceof PortableNameValidationError) {
+                  throw Object.assign(
+                    new Error("笔记标题只能使用文字、数字、普通空格、连字符和下划线。"),
+                    { cause: error },
+                  );
+                }
+                throw error;
+              }
+            },
+          }),
+        synchronize,
+      }),
+    };
+  }
+  const titleSession = titleSessionRef.current.session;
+
+  titleSession.observeAuthoritativeSource(view.editor.documentText);
   const editorRuntime =
     view.editor.mode === "raw"
       ? {
@@ -88,12 +147,17 @@ export function NoteEditorPanel({ view }: { view: NotesViewModel }) {
           contentMode: { kind: "document" as const },
           syntax: view.editor.syntax,
         };
+  const editorValue = editorDraftSource?.noteId === activeNote.id
+    ? editorDraftSource.source
+    : editorSyncSource?.noteId === activeNote.id
+      ? editorSyncSource.source
+      : view.editor.documentText;
 
   return (
     <CtnEditorPanel ariaLabel="笔记编辑">
       <CtnEditor
         {...editorRuntime}
-        key={`${pages.getRepositoryId()}:${activeNote.id}`}
+        key={noteKey}
         sessionKey={pageKey(
           describePage(
             "notes",
@@ -104,28 +168,15 @@ export function NoteEditorPanel({ view }: { view: NotesViewModel }) {
           ).target,
         )}
         focusTarget={view.editor.focusTarget}
-        value={
-          editorSyncSource?.noteId === activeNote.id
-            ? editorSyncSource.source
-            : view.editor.documentText
-        }
+        value={editorValue}
         valueSyncVersion={editorSyncVersion}
-        onActiveLineChange={view.editor.onActiveLineChange}
-        readOnly={view.editor.readOnly}
-        onChange={(change) => {
-          submitNotesEditorChange({
-            authoritativeSource: view.editor.documentText,
-            change,
-            onNormalized: () =>
-              feedback.notify("笔记标题已按可移植名称规则规范化。"),
-            onSynchronize: (source) => {
-              setEditorSyncSource({ noteId: activeNote.id, source });
-              setEditorSyncVersion((current) => current + 1);
-            },
-            runAction: (action) => feedback.runAction(action),
-            updateSource: view.updateSource,
-          });
+        onActiveLineChange={(lineNumber, source, isComposing) => {
+          view.editor.onActiveLineChange(lineNumber);
+          titleSession.onActiveLineChange(lineNumber, source, isComposing);
         }}
+        onBlur={titleSession.onBlur}
+        readOnly={view.editor.readOnly}
+        onChange={titleSession.onChange}
         onConsumeFocusTarget={view.editor.onConsumeFocusTarget}
         onOpenReference={referenceNavigation.openReference}
       />

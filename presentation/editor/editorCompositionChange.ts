@@ -48,6 +48,9 @@ export function createEditorCompositionChange({
   };
 
   return {
+    isPending() {
+      return pendingCompositionChanges !== null;
+    },
     handleCompositionEnd(readSource: () => string) {
       if (!pendingCompositionChanges) {
         return;

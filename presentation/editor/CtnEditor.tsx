@@ -40,7 +40,8 @@ type CtnEditorBaseProps = {
   focusTarget: CtnEditorFocusTarget | null;
   value: string;
   valueSyncVersion?: number;
-  onActiveLineChange: (lineNumber: number) => void;
+  onActiveLineChange: (lineNumber: number, source: string, isComposing: boolean) => void;
+  onBlur?: (source: string, isComposing: boolean) => void;
   onChange: (change: CtnEditableSourceChange) => void;
   onConsumeFocusTarget: (requestId: number) => void;
   onOpenReference?: (target: CtnEditorReferenceTarget) => void;
@@ -95,6 +96,7 @@ export function CtnEditor(props: CtnEditorProps) {
     value,
     valueSyncVersion = 0,
     onActiveLineChange,
+    onBlur,
     onChange,
     onConsumeFocusTarget,
     onOpenReference,
@@ -108,6 +110,8 @@ export function CtnEditor(props: CtnEditorProps) {
   const editorViewRef = useRef<EditorView | null>(null);
   const initialValueRef = useRef(value);
   const onActiveLineChangeRef = useRef(onActiveLineChange);
+  const onBlurRef = useRef(onBlur);
+  const isCompositionPendingRef = useRef<() => boolean>(() => false);
   const onChangeRef = useRef(onChange);
   const onOpenReferenceRef = useRef(onOpenReference);
   const onToggleCheckableBlockRef = useRef(onToggleCheckableBlock);
@@ -116,6 +120,10 @@ export function CtnEditor(props: CtnEditorProps) {
   useEffect(() => {
     onActiveLineChangeRef.current = onActiveLineChange;
   }, [onActiveLineChange]);
+
+  useEffect(() => {
+    onBlurRef.current = onBlur;
+  }, [onBlur]);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -141,6 +149,8 @@ export function CtnEditor(props: CtnEditorProps) {
       createRuntimeOptions(props, checkableBlocks),
       onOpenReferenceRef,
       onActiveLineChangeRef,
+      onBlurRef,
+      isCompositionPendingRef,
       onToggleCheckableBlockRef,
       readOnly,
     );
@@ -184,9 +194,17 @@ export function CtnEditor(props: CtnEditorProps) {
       },
     });
     editorViewRef.current = view;
-    onActiveLineChangeRef.current(getCtnEditorActiveLineNumber(view.state));
+    onActiveLineChangeRef.current(
+      getCtnEditorActiveLineNumber(view.state),
+      view.state.doc.toString(),
+      view.composing,
+    );
 
     return () => {
+      onBlurRef.current?.(
+        view.state.doc.toString(),
+        view.composing || isCompositionPendingRef.current(),
+      );
       if (restoreFrame !== undefined) cancelAnimationFrame(restoreFrame);
       if (
         sessionKey &&
