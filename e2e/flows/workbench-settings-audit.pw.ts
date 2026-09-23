@@ -54,6 +54,18 @@ test("keeps audit selection and details together across keyboard selection and f
   await expect(technical).toBeHidden();
   await detail.locator("summary").click();
   await expect(technical).toContainText(entries[1]!.id);
+  await rows.nth(0).focus();
+  await page.keyboard.press("Space");
+  await expect(rows.nth(0)).toHaveAttribute("aria-pressed", "true");
+  await expect(technical).toBeHidden();
+  await detail.locator("summary").click();
+  await expect(technical).toContainText(entries[0]!.id);
+  await rows.nth(1).focus();
+  await page.keyboard.press("Enter");
+  await expect(rows.nth(1)).toHaveAttribute("aria-pressed", "true");
+  await expect(technical).toBeHidden();
+  await detail.locator("summary").click();
+  await expect(technical).toContainText(entries[1]!.id);
   await page.route(`**${auditPath}*`, (route) => route.abort());
   await panel.getByRole("button", { name: "刷新", exact: true }).click();
   await expect(getWorkbenchStatus(page)).toContainText(

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { List, ManagementRow } from "compact-ui";
+import { List, ListRow } from "compact-ui";
 import { StatusText as StatusBadge } from "compact-ui";
 import { Button, EmptyState } from "compact-ui";
 
@@ -63,8 +63,9 @@ export function OperationsSettingsPanel({
         ) : (
           <List aria-label="操作审计">
             {entries.map((entry) => (
-              <ManagementRow
+              <ListRow
                 key={entry.id}
+                layout="detailed"
                 onSelect={() => session.selectEntry(entry.id)}
                 selected={selectedEntryId === entry.id}
                 description={

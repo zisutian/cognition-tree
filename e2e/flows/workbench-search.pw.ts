@@ -131,7 +131,8 @@ test.describe("search activity flows", () => {
     );
 
     expect(resultScrollTop).toBeGreaterThan(0);
-    await targetHit.click();
+    await targetHit.focus();
+    await targetHit.press("Space");
     await expect(
       page.getByRole("heading", {
         name: "检索目标仓库",

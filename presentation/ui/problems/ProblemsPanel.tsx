@@ -2,7 +2,7 @@ import { Toolbar as ToolToolbar } from "compact-ui";
 import {
   ChoiceGroup,
   List,
-  ContextRow,
+  ListRow,
   EmptyState,
   Stack,
   SubButton,
@@ -10,7 +10,7 @@ import {
 } from "compact-ui";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { CircleX, TriangleAlert } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   UiWorkbenchOperationalProblem,
   UiWorkbenchProblem,
@@ -94,7 +94,8 @@ function ProblemRow({
   const operational = isOperationalProblem(problem) ? problem : null;
 
   return (
-    <ContextRow
+    <ListRow
+      layout="compact"
       selected={selected}
       actions={
         operational ? (
@@ -123,16 +124,19 @@ function ProblemRow({
       }
       icon={
         isError ? (
-          <CircleX role="img" aria-label="错误" color={colors.error} />
+          <CircleX aria-hidden="true" color={colors.error} />
         ) : (
-          <TriangleAlert role="img" aria-label="警告" color={colors.warning} />
+          <TriangleAlert aria-hidden="true" color={colors.warning} />
         )
       }
-      children={
+      title={
         <span
-          aria-label={`打开问题：${problem.message}`}
+          aria-label={`打开问题：${isError ? "错误" : "警告"} · ${problem.message} · ${problem.locationLabel}`}
           title={`${problem.message} · ${problem.locationLabel}`}
         >
+          <span className={cx("ui-visually-hidden")}>
+            {isError ? "错误" : "警告"}：
+          </span>
           {problem.message} · {getProblemSourceLabel(problem)} ·{" "}
           {problem.locationLabel}
           {operational && operational.occurrenceCount > 1
@@ -170,6 +174,40 @@ function ProblemsList({
   const visible = virtual
     ? rows.flatMap((row) => (problems[row.index] ? [problems[row.index]] : []))
     : problems;
+
+  useLayoutEffect(() => {
+    if (!virtual || rows.length === 0) return;
+    const list = scrollRef.current?.querySelector('ul[aria-label="问题列表"]');
+
+    if (!list) return;
+    const items = Array.from(list.children).filter((element) =>
+      element instanceof HTMLLIElement && element.getAttribute("role") !== "presentation"
+    );
+
+    if (items.length !== rows.length) return;
+    const indexByElement = new Map(items.map((element, position) =>
+      [element, rows[position]!.index]
+    ));
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const index = indexByElement.get(entry.target);
+
+        if (index !== undefined) {
+          virtualizer.resizeItem(index, entry.target.getBoundingClientRect().height);
+        }
+      }
+    });
+
+    for (const element of items) {
+      virtualizer.resizeItem(
+        indexByElement.get(element)!,
+        element.getBoundingClientRect().height,
+      );
+      observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, [problems, rows, virtual, virtualizer]);
+
   return (
     <div
       className={cx("problems-collection-scroll")}

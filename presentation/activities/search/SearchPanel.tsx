@@ -5,7 +5,7 @@ import {
   FormActions,
   Section,
   List,
-  ManagementRow,
+  ListRow,
 } from "compact-ui";
 import { useLayoutEffect, useRef } from "react";
 import type {
@@ -187,8 +187,9 @@ export function SearchPanel({
                         </StatusBadge>
                         <List aria-label={`${group.title}的匹配项`}>
                           {group.hits.map((hit) => (
-                            <ManagementRow
+                            <ListRow
                               key={hit.blockId ?? "document"}
+                              layout="detailed"
                               title={
                                 <span
                                   aria-label={`打开${group.title}${hit.blockId ? "中的匹配块" : "的整篇匹配"}`}

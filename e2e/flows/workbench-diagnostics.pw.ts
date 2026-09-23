@@ -68,6 +68,7 @@ test.describe("workbench diagnostics", () => {
     });
 
     await expect(rows).toHaveCount(2);
+    await expect(documentProblem).toHaveAccessibleName(/打开问题：警告/);
     expect(
       await rows.first().evaluate((element) => {
         const style = getComputedStyle(element);

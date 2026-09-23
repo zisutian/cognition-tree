@@ -1,7 +1,6 @@
 import {
   List,
-  ContextRow,
-  ManagementRow,
+  ListRow,
   Section,
   StatusText,
 } from "compact-ui";
@@ -23,8 +22,9 @@ function AdjacentReferenceGroup({
     <Section title={label}>
       <List aria-label={label}>
         {references.slice(0, 8).map((reference) => (
-          <ManagementRow
+          <ListRow
             key={reference.id}
+            layout="detailed"
             title={reference.title}
             description={`× ${reference.count}`}
           />
@@ -82,13 +82,13 @@ export function MostReferencedList({
     <Section title="引用最多">
       <List aria-label="引用排名">
         {graph.mostReferencedNodes.map((node) => (
-          <ContextRow
+          <ListRow
             key={node.id}
+            layout="compact"
             icon={<Hash aria-hidden="true" />}
             onSelect={() => onSelectNote(node.id)}
-          >
-            {node.title} <StatusText>{node.totalReferences}</StatusText>
-          </ContextRow>
+            title={<>{node.title} <StatusText>{node.totalReferences}</StatusText></>}
+          />
         ))}
       </List>
     </Section>

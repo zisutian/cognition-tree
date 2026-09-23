@@ -9,7 +9,10 @@ import { buildApiOperationPath } from "../../contracts/api/registry";
 import { e2eAgentProfileId } from "./fakeAgentRuntime";
 
 /** Prepare a real pending proposal through the deterministic model protocol. */
-export async function seedJournalProposal(api: APIRequestContext) {
+export async function seedJournalProposal(
+  api: APIRequestContext,
+  content = "创建一篇测试日记",
+) {
   const created = await api.post(buildApiOperationPath("createAgentSession"), {
     data: {
       profileId: e2eAgentProfileId,
@@ -25,7 +28,7 @@ export async function seedJournalProposal(api: APIRequestContext) {
   const sent = await api.post(
     buildApiOperationPath("sendAgentMessage", { sessionId }),
     {
-      data: { content: "创建一篇测试日记" },
+      data: { content },
     },
   );
   expect(sent.status()).toBe(202);

@@ -10,7 +10,7 @@ import {
   EmptyState,
   FormActions,
   List,
-  ManagementRow,
+  ListRow,
   Section,
   Stack,
   StatusText,
@@ -106,7 +106,8 @@ function AgentProposalReviewResource({
   const blockSummary = formatBlockSummary(resource.blockSummary);
 
   return (
-    <ManagementRow
+    <ListRow
+      layout="detailed"
       title={current?.path ?? "无法识别的资源"}
       description={
         <Stack gap="tight">
@@ -205,8 +206,9 @@ function AgentProposalTechnicalDetails({
             ) : (
               <List aria-label="资源变更">
                 {proposal.changes.resources.map((change, index) => (
-                  <ManagementRow
+                  <ListRow
                     key={`${change.resourceId}:${change.kind}:${index}`}
+                    layout="detailed"
                     title={technicalChangeLabels[change.kind]}
                     description={
                       <Stack gap="tight">
@@ -227,8 +229,9 @@ function AgentProposalTechnicalDetails({
             ) : (
               <List aria-label="块变更">
                 {proposal.changes.blocks.map((change, index) => (
-                  <ManagementRow
+                  <ListRow
                     key={`${change.blockId}:${change.kind}:${index}`}
+                    layout="detailed"
                     title={technicalChangeLabels[change.kind]}
                     description={
                       <Stack gap="tight">
@@ -248,8 +251,9 @@ function AgentProposalTechnicalDetails({
             ) : (
               <List aria-label="字符级 diff">
                 {proposal.diff.map((hunk, index) => (
-                  <ManagementRow
+                  <ListRow
                     key={`${hunk.resourceId}:${hunk.from}:${index}`}
+                    layout="detailed"
                     title={
                       <Stack direction="row" wrap>
                         <TechnicalInlineValue value={hunk.resourceId} />

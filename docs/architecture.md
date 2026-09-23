@@ -247,7 +247,7 @@ CodeMirror 任务控件通过 React bridge 渲染公开 CheckboxControl，不引
 不依赖本地兄弟目录。全局入口只补充 html/body/root 的视口几何和 CTN 语义配色，不做通用文字 reset；图谱、结构、差异
 等专用内容样式读取包配置。工具入口使用区域 toolbar 和 Button，资源目录使用 Tree。普通表单由公开 FormLayout 唯一生成；AssociatedForm 仅适配标准 form id 与区域 footer 提交关联，不持有保存状态或通用样式。架构检查约束公开导入、单向依赖、禁止变量覆写和旧通用实现。
 
-语法活动使用 Compact UI 0.3.1 的公开 List 固定六列排列规则，每条规则为一行，共享列名由 SyntaxRuleLayout 统一组合；列位和控件无障碍名称保留字段语义，不为每个字段创建独立表单。缩进字段仍使用 FormLayout/FieldRow；SyntaxDraftStatus 在区域 footer 只保留撤销无效更改操作，诊断投影进入底部问题区。预览内容拥有 CTN 配色；TonePicker 仅向公开 ColorPicker 映射既有色板与 CTN 色值，色块、选择器及浮层均由包拥有，草稿与保护规则仍只有 application/syntax 一个业务所有者。
+语法活动使用 Compact UI 0.4.0 的公开 List 固定六列排列规则，每条规则为一行，共享列名由 SyntaxRuleLayout 统一组合；列位和控件无障碍名称保留字段语义，不为每个字段创建独立表单。缩进字段仍使用 FormLayout/FieldRow；SyntaxDraftStatus 在区域 footer 只保留撤销无效更改操作，诊断投影进入底部问题区。预览内容拥有 CTN 配色；TonePicker 仅向公开 ColorPicker 映射既有色板与 CTN 色值，色块、选择器及浮层均由包拥有，草稿与保护规则仍只有 application/syntax 一个业务所有者。普通列表行统一使用 ListRow：问题与引用排名采用 compact 排布，搜索、审计、Agent 消息和资源审查采用 detailed 排布；选择、导航、审批及错误恢复仍由业务模块控制。
 
 Activity 内部仍按语义拆分独立 view：Repository 的 catalog、状态、恢复与危险操作，
 Todo 的集合、编辑与周期结构，以及 Notes 的编辑、结构与图谱不因视觉相似而共享业务

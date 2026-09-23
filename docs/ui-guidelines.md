@@ -1,10 +1,10 @@
 # 界面规范
 
-通用视觉与交互使用 Compact UI 0.3.1 的公开组件和默认配置。认知树仅拥有业务内容及其投影；模块边界见 [架构说明](architecture.md)。
+通用视觉与交互使用 Compact UI 0.4.0 的公开组件和默认配置。认知树仅拥有业务内容及其投影；模块边界见 [架构说明](architecture.md)。
 
 ## 组件与样式
 
-安装包固定在 `tooling/vendor/compact-ui-0.3.1.tgz`，通过相对文件依赖安装。不能依赖本机兄弟目录，不能导入包的私有目录或覆盖内部类名。根部 `CompactProvider` 使用 [uiConfig](../presentation/ui/foundation/config.ts)，公开 `compact-ui/styles.css` 仅在客户端入口加载一次。
+安装包固定在 `tooling/vendor/compact-ui-0.4.0.tgz`，通过相对文件依赖安装。不能依赖本机兄弟目录，不能导入包的私有目录或覆盖内部类名。根部 `CompactProvider` 使用 [uiConfig](../presentation/ui/foundation/config.ts)，公开 `compact-ui/styles.css` 仅在客户端入口加载一次。
 
 优先按功能查找包内组件，再决定是否需要业务组合；仅替换按钮并保留自绘通用布局不算接入完成。按钮、字段、表单、分组、静态属性、管理列表、状态及浮层直接使用包公开组件。工作台用 `Workbench` 和 `WorkbenchLayoutState`；活动提供 title、content、actions、toolbar、footer 和 layout，不再自行绘制分区外壳。
 
@@ -44,7 +44,7 @@ CodeMirror 使用光标、文字选区及当前行提供编辑反馈。编辑器
 
 通用尺寸、颜色和键盘交互以固定包的默认规则为准；测试不继续断言旧 UI 的尺寸。使用合成数据覆盖 1280×720、1440×900、缩放、窄分区、长标题、焦点恢复、弹层和独立滚动。业务测试保留保存、同步、审批和破坏性确认断言。
 
-设置表单通过显式 `fixedPageActions` 区域选项把本地状态驱动的按钮渲染到 footer 的 DOM 入口；页面仍独占草稿和提交回调，Shell 不保存第二份表单操作状态。搜索结果与问题列表分别直接使用 List/ManagementRow 和 List/ContextRow。问题列表的长集合只在自身内容容器维护虚拟占位。
+设置表单通过显式 `fixedPageActions` 区域选项把本地状态驱动的按钮渲染到 footer 的 DOM 入口；页面仍独占草稿和提交回调，Shell 不保存第二份表单操作状态。搜索结果直接使用 `List` / `ListRow layout="detailed"`，问题列表使用 `List` / `ListRow layout="compact"`。两种列表行都由业务控制选择和独立操作；问题列表的长集合只在自身内容容器维护虚拟占位。
 
 问题面板只提供一组 `ChoiceGroup` 筛选按钮，顺序为“全部、警告、错误”，默认选择全部；不再提供来源和可重试性筛选。收起后重新打开保留本次会话的筛选选择，问题行仍保留定位信息与已有恢复入口。
 
@@ -57,7 +57,7 @@ CodeMirror 使用光标、文字选区及当前行提供编辑反馈。编辑器
 | 页面间距、操作栏、固定操作           | Stack、Toolbar、FormActions；Page 仅保留语义、引用、滚动和 footer 接线                                                                  |
 | 普通表单与语法规则                   | FormLayout、FieldRow、公开输入控件；语法每条规则使用 List 的固定六列，共享列名；不重复渲染字段表单                                      |
 | 文档统计、图谱统计、时间             | PropertyList / PropertyRow；时间值保留 time 的机器可读日期                                                                              |
-| Agent 消息、资源审查、引用、搜索结果 | List / ManagementRow；消息换行、代码和差异正文属于内容                                                                                  |
+| Agent 消息、资源审查、关联引用、搜索和审计结果 | List / ListRow 的 detailed 排布；消息换行、代码和差异正文属于内容                                                                                  |
 | 目录、颜色预设、筛选                 | Tree、ChoiceGroup、CheckboxGroup；不以 label 包裹整个选择组，避免覆盖首项名称                                                           |
 | 登录、空状态、提示、浮层             | Panel、EmptyState、StatusText、Popover / QuickPick；StatusText 的 live 仅表示视觉状态，需要播报时由语义宿主提供 role                    |
 | 外置保存按钮的设置表单               | AssociatedForm 只把标准 DOM id 关联到公开 FormLayout 生成的 form；footer 仍使用原生提交关联，保留必填/范围校验和 Enter 提交，无嵌套表单 |

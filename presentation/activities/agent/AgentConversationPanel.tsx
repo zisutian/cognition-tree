@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { StatusText as StatusBadge } from "compact-ui";
-import { Button, EmptyState, List, ManagementRow } from "compact-ui";
+import { Button, EmptyState, List, ListRow } from "compact-ui";
 import { createClassNames } from "../../ui/index.ts";
 import agentStyles from "./agent.module.css";
 const cx = createClassNames(agentStyles);
@@ -119,8 +119,9 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
         ) : (
           <List aria-label="会话消息">
             {session.messages.map((message) => (
-              <ManagementRow
+              <ListRow
                 key={message.id}
+                layout="detailed"
                 title={message.role === "user" ? "你" : "Agent"}
                 description={
                   <span

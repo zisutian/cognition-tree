@@ -85,6 +85,7 @@ describe("ProblemsPanel", () => {
     );
 
     expect(markup).toContain('aria-label="问题列表"');
+    expect(markup).toContain('aria-label="打开问题：错误 · 缩进行必须使用已配置的行首符号。 · 示例 · L2:C2"');
     expect(markup).toContain("笔记 · 示例 · L2:C2");
     expect(markup).not.toContain("问题来源");
   });
@@ -153,6 +154,7 @@ describe("ProblemsPanel", () => {
     );
 
     expect(markup).toContain("无法解析日记引用");
+    expect(markup).toContain('aria-label="打开问题：警告 · 无法解析日记引用“missing”。 · 2026-01-02 11:04:05 · L2"');
     expect(markup).toContain("日记引用 · 2026-01-02 11:04:05 · L2");
   });
 

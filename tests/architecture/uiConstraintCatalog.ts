@@ -19,7 +19,7 @@ export function createUiTextPolicies({
     forbidTextPolicy(
       "use current Compact UI controls without compatibility parameters",
       presentationModules,
-      /\b(?:ContextList|ManagementList|ColorControl|colorControlWidth)\b|\bvariant=|\bsizing="(?:content|container)"/,
+      /\b(?:ContextList|ManagementList|ContextRow|ManagementRow|FrameButton|ContextRowProps|ManagementRowProps|FrameButtonProps|ColorControl|colorControlWidth)\b|\bvariant=|\bsizing="(?:content|container)"/,
     ),
     forbidTextPolicy(
       "syntax controls use package visuals; only preview content owns styles",
