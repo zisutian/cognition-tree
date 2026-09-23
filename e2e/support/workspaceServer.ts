@@ -38,6 +38,10 @@ import {
 } from "./fakeAgentRuntime.ts";
 import { BootstrapConfigurationStore } from "../../infrastructure/server/system/bootstrapConfigurationStore.ts";
 import { SystemAdministrationService } from "../../application/system/systemAdministrationService.ts";
+import {
+  createDevelopmentClientRuntime,
+  type ClientRuntime,
+} from "../../infrastructure/server/client/index.ts";
 
 const dataRootMigrationFileOperations = createDataRootMigrationFileOperations(
   localRepositoryWriterLockName,
@@ -278,6 +282,7 @@ export async function startE2EWorkspaceServer({
   }
 
   let vite: import("vite").ViteDevServer | null = null;
+  let clientRuntime: ClientRuntime | null = null;
   const server = http.createServer((request, response) => {
     const url = new URL(request.url ?? "/", "http://localhost");
 
@@ -302,32 +307,41 @@ export async function startE2EWorkspaceServer({
       void runtime.apiHandler(request, response);
       return;
     }
-    if (!vite) {
+    if (!clientRuntime) {
       response.writeHead(503);
       response.end("E2E client is starting");
       return;
     }
-    vite.middlewares(request, response, (error: unknown) => {
-      if (error && !response.headersSent) {
+    void clientRuntime.handle(request, response).catch(() => {
+      if (!response.headersSent) {
         response.writeHead(500);
         response.end("E2E client failed");
       }
     });
   });
 
-  async function close() {
+  let closePromise: Promise<void> | null = null;
+
+  function close() {
+    closePromise ??= closeOnce();
+    return closePromise;
+  }
+
+  async function closeOnce() {
     closing = true;
     if (restartTimer) clearTimeout(restartTimer);
     restartTimer = null;
     await resetQueue;
-    const closeLongLivedConnections = () => {
-      runtime.eventHub.dispose();
-      runtime.agentService.closeEventStreams();
-    };
+    const closeLongLivedConnections = () =>
+      settleApiServerLifecycleOperations([
+        () => runtime.eventHub.dispose(),
+        () => runtime.agentService.closeEventStreams(),
+        () => clientRuntime?.closeLongLivedConnections() ?? Promise.resolve(),
+      ]);
     const closeOwnedResources = () =>
       settleApiServerLifecycleOperations([
         () => runtime.agentService.dispose(),
-        () => vite?.close() ?? Promise.resolve(),
+        () => clientRuntime?.dispose() ?? Promise.resolve(),
       ]);
 
     await settleApiServerLifecyclePhases([
@@ -359,6 +373,7 @@ export async function startE2EWorkspaceServer({
       cacheDir: path.join(rootDirectory, "vite-cache"),
       server: { hmr: { server }, middlewareMode: { server } },
     });
+    clientRuntime = createDevelopmentClientRuntime(vite);
     // Compile the real HTML entry and its static imports before timing browser
     // interactions. Lazy activities still load through the real Vite server.
     const html = await readFile(

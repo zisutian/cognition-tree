@@ -2,8 +2,9 @@
 
 import { createReadStream } from "node:fs";
 import { realpath, stat } from "node:fs/promises";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import type { ServerResponse } from "node:http";
 import path from "node:path";
+import type { ClientRuntime } from "./clientRuntime.ts";
 
 const contentTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -52,22 +53,20 @@ async function resolveStaticFile(
   return canonical.startsWith(boundary) ? canonical : null;
 }
 
-export type StaticClientRuntime = {
-  dispose(): Promise<void>;
-  handle(request: IncomingMessage, response: ServerResponse): Promise<void>;
-};
-
 export async function createStaticClientRuntime(
   requestedRootDirectory: string,
-): Promise<StaticClientRuntime> {
+): Promise<ClientRuntime> {
   const rootDirectory = await realpath(requestedRootDirectory);
   const indexPath = await resolveStaticFile(rootDirectory, "/");
 
   if (!indexPath) {
     throw new Error("Client build is missing index.html");
   }
+  const closed = Promise.resolve();
+
   return {
-    async dispose() {},
+    closeLongLivedConnections: () => closed,
+    dispose: () => closed,
     async handle(request, response) {
       if (request.method !== "GET" && request.method !== "HEAD") {
         response.writeHead(405, { Allow: "GET, HEAD" });

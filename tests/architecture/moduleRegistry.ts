@@ -596,7 +596,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     id: "infrastructure/server/client",
-    responsibility: "Static client file serving adapter",
+    responsibility: "Static and development client serving and long-lived connection lifecycle adapters",
     scope: "tree",
     publicEntries: ["infrastructure/server/client/index.ts"],
     dependencies: [],

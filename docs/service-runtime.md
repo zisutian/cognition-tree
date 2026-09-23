@@ -138,9 +138,12 @@ Workspace 对账在同一轮内复用前后捕获并核对过的受管工作树�
     非权威观测，logger 失败不得替换或拒绝既定 API 响应；
     server/transport 独占 SSE socket 的失败与 backpressure 隔离，单个慢连接直接断开
     并依赖 checkpoint/replay 重同步，不得反向改变提交、Agent turn 或其他订阅者；
-    serverLifecycle 将关闭拆成停止接收、结束两类长连接、等待活动请求或限时强制断连、
-    最后释放请求依赖资源四个有序阶段；多项关闭失败必须全部保留，不能让资源清理与
-    尚未结束的 handler 并发；
+    server/client 统一静态与开发客户端运行时的 handle、长连接预关闭及完整释放接口；
+    开发适配器拥有 Vite 热更新 WebSocket 的关闭，组合根只在开发模式动态创建 Vite，
+    静态运行包不依赖 Vite。serverLifecycle 将关闭拆成停止接收、并行结束内容 SSE、
+    Agent SSE 与开发热更新连接、等待活动请求或限时强制断连、最后释放请求依赖资源
+    四个有序阶段；完整 Vite 释放必须在普通请求结束之后，仓库操作排空与写锁释放在
+    最后。多项关闭失败必须全部保留，不能让资源清理与尚未结束的 handler 并发；
     server/state 独占安全状态目录的类型、权限与创建持久性；首次递归创建必须从目标
     向上逐级 fsync 至原有祖先，不能只同步最终状态文件所在目录；每个安全 JSON 文件
     通过独立跨实例锁串行，持锁后刷新磁盘 authority 再执行 read/mutate，解锁失败后

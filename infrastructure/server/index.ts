@@ -2,7 +2,6 @@
 
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
-import type { IncomingMessage,Server,ServerResponse } from "node:http";
 import path from "node:path";
 import {
   agentServicePolicy,
@@ -25,7 +24,11 @@ settleApiServerLifecyclePhases,
 systemApiRuntime,
 } from "./api/http/index.ts";
 import { ApiEventHub } from "./api/sync/index.ts";
-import { createStaticClientRuntime } from "./client/index.ts";
+import {
+  createDevelopmentClientRuntime,
+  createStaticClientRuntime,
+  type ClientRuntime,
+} from "./client/index.ts";
 import { OperationLedger } from "./operations/index.ts";
 import {
 BuiltInCatalog,
@@ -42,46 +45,6 @@ runDataRootMigrationRecoveryServer,
 } from "./system/index.ts";
 
 const dataRootMigrationFileOperations = createDataRootMigrationFileOperations(localRepositoryWriterLockName);
-
-type ClientRuntime = {
-  dispose(): Promise<void>;
-  handle(request: IncomingMessage, response: ServerResponse): Promise<void>;
-};
-
-async function createDevelopmentClientRuntime(
-  server: Server,
-): Promise<ClientRuntime> {
-  const { createServer: createViteServer } = await import("vite");
-  const vite = await createViteServer({
-    appType: "spa",
-    server: {
-      hmr: { server },
-      middlewareMode: { server },
-    },
-  });
-
-  return {
-    dispose: () => vite.close(),
-    handle: (request, response) =>
-      new Promise<void>((resolve, reject) => {
-        vite.middlewares(request, response, (error: unknown) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          if (!response.headersSent) {
-            response.writeHead(404, {
-              "Content-Type": "text/plain; charset=utf-8",
-            });
-            response.end("Not found");
-          }
-          resolve();
-        });
-        response.once("finish", resolve);
-        response.once("close", resolve);
-      }),
-  };
-}
 
 const commandArguments = process.argv.slice(2);
 const development = commandArguments.length === 1 &&
@@ -234,11 +197,22 @@ if (bootstrapSnapshot !== null) {
   });
 
   try {
-    clientRuntime = development
-      ? await createDevelopmentClientRuntime(server)
-      : await createStaticClientRuntime(
+    if (development) {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        appType: "spa",
+        server: {
+          hmr: { server },
+          middlewareMode: { server },
+        },
+      });
+
+      clientRuntime = createDevelopmentClientRuntime(vite);
+    } else {
+      clientRuntime = await createStaticClientRuntime(
         path.join(projectRoot, ".artifacts", "build", "client"),
       );
+    }
   } catch (error) {
     await agentProviderOperations.dispose();
     await agentService.dispose();
@@ -251,10 +225,11 @@ if (bootstrapSnapshot !== null) {
   shutdown = () => {
     shutdownPromise ??= settleApiServerLifecyclePhases([
       [() => closeApiServer({
-        closeLongLivedConnections: () => {
-          eventHub.dispose();
-          agentService.closeEventStreams();
-        },
+        closeLongLivedConnections: () => settleApiServerLifecycleOperations([
+          () => eventHub.dispose(),
+          () => agentService.closeEventStreams(),
+          () => clientRuntime!.closeLongLivedConnections(),
+        ]),
         closeOwnedResources: () => settleApiServerLifecycleOperations([
           () => agentProviderOperations.dispose(),
           () => agentService.dispose(),

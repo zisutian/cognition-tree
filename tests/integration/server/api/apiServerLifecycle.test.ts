@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { once } from "node:events";
-import { createServer,get,type IncomingMessage } from "node:http";
+import { createServer,get,type IncomingMessage,type ServerResponse } from "node:http";
 import { describe,expect,it } from "vitest";
 import {
 ApiServerLifecycleError,
 closeApiServer,
+settleApiServerLifecycleOperations,
 settleApiServerLifecyclePhases,
 } from "../../../../infrastructure/server/api/http/serverLifecycle.ts";
 import { ApiEventHub } from "../../../../infrastructure/server/api/sync/events.ts";
@@ -90,6 +91,57 @@ describe("API server lifecycle", () => {
     expect(aborted).toBe(false);
     expect(response.complete).toBe(true);
     expect(server.listening).toBe(false);
+  });
+
+  it("closes content and Agent SSE before releasing request dependencies", async () => {
+    const eventHub = new ApiEventHub("00000000-0000-4000-8000-000000000002");
+    let agentResponse!: ServerResponse;
+    const server = createServer((request, response) => {
+      if (request.url === "/content") {
+        eventHub.connect({
+          checkpoint: {
+            journal: null,
+            sequence: 0,
+            streamId: eventHub.streamId,
+            todo: null,
+            workspaces: {},
+          },
+          headers: {},
+          response,
+        });
+        return;
+      }
+      agentResponse = response;
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write("data: agent connected\n\n");
+    });
+
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const [content, agent] = await Promise.all([
+      connect(server, "/content"),
+      connect(server, "/agent"),
+    ]);
+    const contentEnded = once(content, "end");
+    const agentEnded = once(agent, "end");
+
+    content.resume();
+    agent.resume();
+    let released = false;
+    await closeApiServer({
+      closeLongLivedConnections: () => settleApiServerLifecycleOperations([
+        () => eventHub.dispose(),
+        () => { agentResponse.end(); },
+      ]),
+      closeOwnedResources: () => { released = true; },
+      forceAfterMilliseconds: 100,
+      server,
+    });
+    await Promise.all([contentEnded, agentEnded]);
+
+    expect(content.complete).toBe(true);
+    expect(agent.complete).toBe(true);
+    expect(released).toBe(true);
   });
 
   it("force-closes an SSE connection whose owner does not release it", async () => {
@@ -210,7 +262,7 @@ describe("API server lifecycle", () => {
   });
 });
 
-async function connect(server: ReturnType<typeof createServer>) {
+async function connect(server: ReturnType<typeof createServer>, pathname = "/events") {
   const address = server.address();
 
   if (address === null || typeof address === "string") {
@@ -219,7 +271,7 @@ async function connect(server: ReturnType<typeof createServer>) {
   return await new Promise<IncomingMessage>((resolve, reject) => {
     const request = get({
       host: "127.0.0.1",
-      path: "/events",
+      path: pathname,
       port: address.port,
     }, resolve);
 
