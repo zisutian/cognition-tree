@@ -160,7 +160,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "Snapshot synchronization coordination and revision event ordering",
     scope: "tree",
     publicEntries: ["application/sync/index.ts"],
-    dependencies: ["application/commands", "application/persistence"],
+    dependencies: ["application/commands", "application/persistence", "core/sync"],
   },
   {
     id: "application/syntax",

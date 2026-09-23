@@ -6,13 +6,11 @@ ServerResponse,
 } from "node:http";
 import type {
 ApiPrincipalDto,
-ApiRevisionCheckpointDto,
 } from "../../../../contracts/api/index.ts";
 import {
 type ApiOperationDefinition,
 type ResolvedApiRoute,
 } from "../../../../contracts/api/index.ts";
-import type { DomainChangeSetDto } from "../../../../contracts/common/index.ts";
 import type {
 ApiBuiltInCatalog,
 WorkspaceRepositoryCatalog,
@@ -20,11 +18,11 @@ WorkspaceRepositoryCatalog,
 
 import {
 DomainRevisionTracker,
-type TrackedContentDomain,
+type DomainChangeCoordinator,
 } from "../../../../application/sync/index.ts";
 import type { ApiSearchService } from "../index.ts";
 import { ApiRequestError } from "../protocol/index.ts";
-import { ApiEventHub } from "../sync/index.ts";
+import { ApiEventHub, createApiChangeCoordinator } from "../sync/index.ts";
 import {
 readApiRuntimeNow,
 type ApiRuntime,
@@ -81,19 +79,6 @@ export function isOwnerPrincipal(principal: ApiPrincipalDto | null) {
   return principal?.kind === "local-owner" || principal?.kind === "owner";
 }
 
-export function createCheckpoint({
-  eventHub,
-  revisionTracker,
-}: {
-  eventHub: ApiEventHub;
-  revisionTracker: DomainRevisionTracker;
-}): ApiRevisionCheckpointDto {
-  return revisionTracker.checkpoint({
-    sequence: eventHub.sequence,
-    streamId: eventHub.streamId,
-  });
-}
-
 export type ApiHandlerContext = {
   contentService: ContentService | null;
   agentConfigurationStore: AgentConfigurationStore;
@@ -123,61 +108,12 @@ export type ApiRouteHandlerContext = Omit<ApiHandlerContext, "principal"> & {
   principal: ApiPrincipalDto | null;
 };
 
-export function publishTrackedChanges(
-  context: Pick<
-    ApiHandlerContext,
-    "eventHub" | "revisionTracker"
-  >,
-  changes: DomainChangeSetDto,
-) {
-  context.eventHub.publish(
-    createCheckpoint(context),
-    changes,
-  );
-}
-
-export function observeWorkspaceRevision(
-  context: ApiHandlerContext,
-  repositoryId: string,
-  revision: `sha256:${string}`,
-) {
-  if (
-    context.revisionTracker.observeWorkspace(repositoryId, revision) !==
-      "changed"
-  ) {
-    return;
-  }
-  publishTrackedChanges(context, {
-    blocks: [],
-    occurredAt: readApiRuntimeNow(context.runtime).timestamp,
-    resources: [{
-      domain: "workspace",
-      kind: "updated",
-      repositoryId,
-      resourceId: repositoryId,
-      version: revision,
-    }],
-  });
-}
-
-export function observeBuiltInRevision(
-  context: ApiHandlerContext,
-  domain: TrackedContentDomain,
-  revision: `sha256:${string}`,
-) {
-  if (
-    context.revisionTracker.observeDomain(domain, revision) !== "changed"
-  ) {
-    return;
-  }
-  publishTrackedChanges(context, {
-    blocks: [],
-    occurredAt: readApiRuntimeNow(context.runtime).timestamp,
-    resources: [{
-      domain,
-      kind: "updated",
-      resourceId: domain,
-      version: revision,
-    }],
+export function changeCoordinator(
+  context: Pick<ApiHandlerContext, "eventHub" | "revisionTracker" | "runtime">,
+): DomainChangeCoordinator {
+  return createApiChangeCoordinator({
+    eventHub: context.eventHub,
+    revisionTracker: context.revisionTracker,
+    now: () => readApiRuntimeNow(context.runtime).timestamp,
   });
 }

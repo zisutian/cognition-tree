@@ -17,7 +17,7 @@ synchronizeApiTodo,
 synchronizeApiWorkspace,
 } from "../sync/index.ts";
 import {
-publishTrackedChanges,
+changeCoordinator,
 requireBuiltInCatalog,
 type ApiHandlerContext,
 } from "./handlerContext.ts";
@@ -26,7 +26,7 @@ async function publishApiChanges(
   context: ApiHandlerContext,
   changes: DomainChangeSetDto,
 ) {
-  publishTrackedChanges(context, changes);
+  changeCoordinator(context).publish(changes);
 }
 
 async function handleWorkspaceSync(
@@ -40,7 +40,7 @@ async function handleWorkspaceSync(
   return synchronizeApiWorkspace({
     mode,
     observeRevision: (revision) =>
-      context.revisionTracker.observeWorkspace(repositoryId, revision),
+      changeCoordinator(context).recordWorkspace(repositoryId, revision),
     publish: (changes) => publishApiChanges(context, changes),
     readJsonBody: context.readJsonBody,
     repositoryId,
@@ -61,7 +61,7 @@ async function handleJournalSync(
   return synchronizeApiJournal({
     mode,
     observeRevision: (revision) =>
-      context.revisionTracker.observeDomain("journal", revision),
+      changeCoordinator(context).recordDomain("journal", revision),
     publish: (changes) => publishApiChanges(context, changes),
     readJsonBody: context.readJsonBody,
     runtime: context.runtime,
@@ -81,7 +81,7 @@ async function handleTodoSync(
   return synchronizeApiTodo({
     mode,
     observeRevision: (revision) =>
-      context.revisionTracker.observeDomain("todo", revision),
+      changeCoordinator(context).recordDomain("todo", revision),
     publish: (changes) => publishApiChanges(context, changes),
     readJsonBody: context.readJsonBody,
     runtime: context.runtime,

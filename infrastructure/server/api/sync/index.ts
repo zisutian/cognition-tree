@@ -3,6 +3,7 @@
 export {
   ApiEventHub,
 } from "./events.ts";
+export { createApiChangeCoordinator } from "./changeCoordinator.ts";
 export {
   synchronizeApiJournal,
   synchronizeApiTodo,

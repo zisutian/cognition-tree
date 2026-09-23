@@ -8,6 +8,8 @@ export type {
 export {
   DomainRevisionTracker,
 } from "./domainRevisionTracker.ts";
+export { DomainChangeCoordinator } from "./domainChangeCoordinator.ts";
+export type { DomainChangeCoordinatorPorts } from "./domainChangeCoordinator.ts";
 export {
   executeSnapshotSync,
   SnapshotSyncBaseRevisionError,

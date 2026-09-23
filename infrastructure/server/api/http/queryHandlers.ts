@@ -15,9 +15,7 @@ import {
   workspaceResourceVersions,
 } from "../resources/index.ts";
 import {
-observeBuiltInRevision,
-observeWorkspaceRevision,
-publishTrackedChanges,
+changeCoordinator,
 requireBuiltInCatalog,
 type ApiHandlerContext,
 } from "./handlerContext.ts";
@@ -30,22 +28,9 @@ export async function handleWorkspaceQuery(context: ApiHandlerContext) {
 
   if (operation.operationId === "listWorkspaces") {
     const repositories = await catalog.listRepositories();
-    const removed = context.revisionTracker.reconcileWorkspaceIds(
+    changeCoordinator(context).reconcileWorkspaceIds(
       new Set(repositories.repositories.map(({ id }) => id)),
     );
-
-    if (removed.length > 0) {
-      publishTrackedChanges(context, {
-        blocks: [],
-        occurredAt: readApiRuntimeNow(context.runtime).timestamp,
-        resources: removed.map((repositoryId) => ({
-          domain: "workspace",
-          kind: "deleted",
-          repositoryId,
-          resourceId: repositoryId,
-        })),
-      });
-    }
     return {
       body: {
         workspaces: repositories.repositories
@@ -60,7 +45,7 @@ export async function handleWorkspaceQuery(context: ApiHandlerContext) {
 
   const snapshot = await catalog.getStore(repositoryId)
     .then((store) => store.loadSnapshot());
-  observeWorkspaceRevision(context, repositoryId, snapshot.revision);
+  changeCoordinator(context).observeWorkspace(repositoryId, snapshot.revision);
   const preparation = snapshot.projection;
 
   if (operation.operationId === "getWorkspaceTree") {
@@ -88,7 +73,7 @@ export async function handleJournalQuery(context: ApiHandlerContext) {
   const snapshot = await catalog.getStore("journal").then((store) =>
     store.loadSnapshot()
   );
-  observeBuiltInRevision(context, "journal", snapshot.revision);
+  changeCoordinator(context).observeDomain("journal", snapshot.revision);
   const content = snapshot.content;
   const index = snapshot.projection;
 
@@ -111,7 +96,7 @@ export async function handleTodoQuery(context: ApiHandlerContext) {
   const snapshot = await catalog.getStore("todo").then((store) =>
     store.loadSnapshot()
   );
-  observeBuiltInRevision(context, "todo", snapshot.revision);
+  changeCoordinator(context).observeDomain("todo", snapshot.revision);
   const content = snapshot.content;
   const index = snapshot.projection;
 

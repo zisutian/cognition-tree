@@ -16,7 +16,7 @@ import {
 import { handleAgentOperation } from "./agentHandlers.ts";
 import {
   assertOperationAccess,
-  createCheckpoint,
+  changeCoordinator,
   requireBuiltInCatalog,
   type ApiHandlerContext,
   type ApiRouteHandlerContext,
@@ -89,10 +89,7 @@ export async function handleApiRoute(
   if (operation.operationId === "streamContentEvents") {
     requireBuiltInCatalog(authorizedContext.builtInCatalog);
     authorizedContext.eventHub.connect({
-      checkpoint: createCheckpoint({
-        eventHub: authorizedContext.eventHub,
-        revisionTracker: authorizedContext.revisionTracker,
-      }),
+      checkpoint: changeCoordinator(authorizedContext).checkpoint(),
       headers: authorizedContext.responseHeaders,
       response: authorizedContext.response,
     });
