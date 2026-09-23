@@ -25,13 +25,14 @@ import type {
 } from "../repository/index.ts";
 import type { ApiRuntime } from "../api/http/index.ts";
 import {
-  projectApiJournalEntries,
-  projectApiJournalEntry,
-  projectApiTodoCollection,
-  projectApiTodoCollections,
-  projectApiWorkspaceAnalysis,
-  projectApiWorkspaceNote,
-  projectApiWorkspaceTree,
+  readJournalEntriesResource,
+  projectJournalEntryResource,
+  readTodoCollectionsResource,
+  projectTodoCollectionResource,
+  readWorkspaceNoteResource,
+  readWorkspaceTreeResource,
+} from "../../../application/content/index.ts";
+import {
   journalResourceVersions,
   todoResourceVersions,
   workspaceResourceVersions,
@@ -57,9 +58,9 @@ export function createServerAgentTools({ builtInCatalog, catalog, runtime, searc
       digest: digestAgentProposal,
       versions: journalResourceVersions,
       resources: {
-        list: snapshot => projectApiJournalEntries(snapshot.content, snapshot.projection, snapshot.revision),
+        list: snapshot => readJournalEntriesResource(snapshot.content, snapshot.projection, snapshot.revision, journalResourceVersions),
         read: parsed => {
-          const { writingGuide: _writingGuide, ...resource } = projectApiJournalEntry(parsed);
+          const { writingGuide: _writingGuide, ...resource } = projectJournalEntryResource(parsed, journalResourceVersions);
           return resource;
         },
       },
@@ -70,9 +71,9 @@ export function createServerAgentTools({ builtInCatalog, catalog, runtime, searc
       digest: digestAgentProposal,
       versions: todoResourceVersions,
       resources: {
-        list: snapshot => projectApiTodoCollections(snapshot.content, snapshot.projection, snapshot.revision),
+        list: snapshot => readTodoCollectionsResource(snapshot.content, snapshot.projection, snapshot.revision, todoResourceVersions),
         read: (parsed, today) => {
-          const collection = projectApiTodoCollection(parsed, today);
+          const collection = projectTodoCollectionResource(parsed, today, todoResourceVersions);
           const { writingGuide: _writingGuide, ...document } = collection.document;
           return { ...collection, document };
         },
@@ -85,9 +86,9 @@ export function createServerAgentTools({ builtInCatalog, catalog, runtime, searc
       digest: digestAgentProposal,
       versions: workspaceResourceVersions,
       resources: {
-        tree: (id, snapshot) => projectApiWorkspaceTree(id, snapshot.revision, projectApiWorkspaceAnalysis(snapshot.projection)),
+        tree: (id, snapshot) => readWorkspaceTreeResource(id, snapshot.revision, snapshot.content, snapshot.projection, workspaceResourceVersions),
         note: (snapshot, id) => {
-          const note = projectApiWorkspaceNote(projectApiWorkspaceAnalysis(snapshot.projection), id);
+          const note = readWorkspaceNoteResource(snapshot.projection, id, workspaceResourceVersions);
           if (!note) return null;
           const { writingGuide: _writingGuide, ...resource } = note;
           return resource;

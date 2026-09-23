@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  projectContentDocument,
-  projectUnparsedContentDocument,
-  type ContentDocument,
-} from "../commands/index.ts";
+import type { ContentDocument } from "../commands/index.ts";
 import { projectTodoItemStates, type TodoItemState } from "../todo/index.ts";
 import type {
   CtnCanonicalSourceAnalysis,
@@ -18,6 +14,9 @@ import { isJournalEntryId } from "../../core/journal/index.ts";
 import { DomainNotFoundError } from "../../core/errors/index.ts";
 import { listWorkspaceResourcePaths } from "../../core/workspace/index.ts";
 import type { NamedContentResource } from "./targetResolution.ts";
+import { readWorkspaceNoteResource } from "./workspaceResources.ts";
+import { projectJournalEntryResource } from "./journalResources.ts";
+import { projectTodoCollectionDocument } from "./todoResources.ts";
 import type {
   ContentJournalStore,
   ContentReadBasis,
@@ -64,32 +63,15 @@ export function createWorkspaceContentReadContext(
     syntaxForFile: (id) => preparation.syntaxById.get(id)!.syntax,
     read(resource) {
       const parsed = preparation.analysisIndex?.getParsedNote(resource.id);
-      const { header, note } = preparation.workspace.noteEntryById.get(
+      const document = readWorkspaceNoteResource(
+        preparation,
         resource.id,
-      )!;
-      const metadata = {
-        createdAt: header.createdAt,
-        resourceId: resource.id,
-        textMode: "body" as const,
-        title: resource.name,
-        updatedAt: header.updatedAt,
-        version: versions.note(note.source),
-      };
-      return parsed
-        ? {
-            analysis: parsed.analysis,
-            document: projectContentDocument({
-              ...metadata,
-              analysis: parsed.analysis,
-            }),
-          }
-        : {
-            analysis: null,
-            document: projectUnparsedContentDocument({
-              ...metadata,
-              source: note.source,
-            }),
-          };
+        versions,
+        "body",
+      );
+
+      if (!document) throw new DomainNotFoundError(resource.id, "Prepared Workspace note is missing.");
+      return { analysis: parsed?.analysis ?? null, document };
     },
   };
 }
@@ -129,15 +111,7 @@ export function createJournalContentReadContext(
         );
       return {
         analysis: parsed.analysis,
-        document: projectContentDocument({
-          analysis: parsed.analysis,
-          createdAt: parsed.entry.createdAt,
-          resourceId: resource.id,
-          textMode: "body",
-          title: resource.name,
-          updatedAt: parsed.entry.updatedAt,
-          version: versions.entry(parsed.entry.source),
-        }),
+        document: projectJournalEntryResource(parsed, versions),
       };
     },
   };
@@ -181,24 +155,9 @@ export function createTodoContentReadContext(
     syntaxForFile: () => index.syntax,
     read(resource) {
       const parsed = readCollection(resource);
-      const blocks = parsed.analysis.document.blocks;
       return {
         analysis: parsed.analysis,
-        document: projectContentDocument({
-          analysis: parsed.analysis,
-          createdAt: blocks[0]!.metadata.createdAt,
-          resourceId: resource.id,
-          textMode: "body",
-          title: resource.name,
-          updatedAt: blocks.reduce(
-            (latest, block) =>
-              latest > block.metadata.updatedAt
-                ? latest
-                : block.metadata.updatedAt,
-            blocks[0]!.metadata.updatedAt,
-          ),
-          version: versions.collection(parsed),
-        }),
+        document: projectTodoCollectionDocument(parsed, versions),
       };
     },
     readTasks(resource, blockIds) {

@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { isJournalEntryId } from "../../../../core/journal/index.ts";
-import { isTodoCollectionId } from "../../../../core/todo/index.ts";
+import {
+  readJournalEntriesResource,
+  readJournalEntryResource,
+  readTodoCollectionsResource,
+  readTodoCollectionResource,
+  readWorkspaceNoteResource,
+  readWorkspaceTreeResource,
+} from "../../../../application/content/index.ts";
 import { apiNotFound } from "../protocol/index.ts";
 import {
-projectApiJournalEntries,
-projectApiJournalEntry,
-projectApiTodoCollection,
-projectApiTodoCollections,
-projectApiWorkspaceAnalysis,
-projectApiWorkspaceNote,
-projectApiWorkspaceTree,
+  journalResourceVersions,
+  todoResourceVersions,
+  workspaceResourceVersions,
 } from "../resources/index.ts";
 import {
 observeBuiltInRevision,
@@ -59,20 +61,22 @@ export async function handleWorkspaceQuery(context: ApiHandlerContext) {
   const snapshot = await catalog.getStore(repositoryId)
     .then((store) => store.loadSnapshot());
   observeWorkspaceRevision(context, repositoryId, snapshot.revision);
-  const analysis = projectApiWorkspaceAnalysis(snapshot.projection);
+  const preparation = snapshot.projection;
 
   if (operation.operationId === "getWorkspaceTree") {
     return {
-      body: projectApiWorkspaceTree(
+      body: readWorkspaceTreeResource(
         repositoryId,
         snapshot.revision,
-        analysis,
+        snapshot.content,
+        preparation,
+        workspaceResourceVersions,
       ),
       statusCode: 200,
     };
   }
   const note = route.noteId
-    ? projectApiWorkspaceNote(analysis, route.noteId)
+    ? readWorkspaceNoteResource(preparation, route.noteId, workspaceResourceVersions)
     : null;
 
   if (!note) apiNotFound("Workspace note does not exist");
@@ -90,17 +94,16 @@ export async function handleJournalQuery(context: ApiHandlerContext) {
 
   if (context.operation.operationId === "listJournalEntries") {
     return {
-      body: projectApiJournalEntries(content, index, snapshot.revision),
+      body: readJournalEntriesResource(content, index, snapshot.revision, journalResourceVersions),
       statusCode: 200,
     };
   }
   const entry = context.route.entryId
-    && isJournalEntryId(context.route.entryId)
-    ? index.getParsedEntry(context.route.entryId)
+    ? readJournalEntryResource(index, context.route.entryId, journalResourceVersions)
     : null;
 
   if (!entry) apiNotFound("Journal entry does not exist");
-  return { body: projectApiJournalEntry(entry), statusCode: 200 };
+  return { body: entry, statusCode: 200 };
 }
 
 export async function handleTodoQuery(context: ApiHandlerContext) {
@@ -114,23 +117,19 @@ export async function handleTodoQuery(context: ApiHandlerContext) {
 
   if (context.operation.operationId === "listTodoCollections") {
     return {
-      body: projectApiTodoCollections(content, index, snapshot.revision),
+      body: readTodoCollectionsResource(content, index, snapshot.revision, todoResourceVersions),
       statusCode: 200,
     };
   }
+  const { date } = readApiRuntimeNow(context.runtime);
   const collection = context.route.collectionId
-    && isTodoCollectionId(context.route.collectionId)
-    ? index.getParsedCollection(context.route.collectionId)
+    ? readTodoCollectionResource(index, context.route.collectionId, context.runtime.today(date), todoResourceVersions)
     : null;
 
   if (!collection) apiNotFound("Todo collection does not exist");
-  const { date } = readApiRuntimeNow(context.runtime);
 
   return {
-    body: projectApiTodoCollection(
-      collection,
-      context.runtime.today(date),
-    ),
+    body: collection,
     statusCode: 200,
   };
 }
