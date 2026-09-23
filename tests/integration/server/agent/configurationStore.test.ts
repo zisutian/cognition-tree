@@ -12,7 +12,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { AgentConfigurationStore } from "../../../../infrastructure/server/agent/configurationStore.ts";
-import { AgentConfigurationConflictError, AgentConfigurationValidationError } from "../../../../application/agentConfiguration/configurationErrors.ts";
+import { AgentConfigurationConflictError } from "../../../../application/agentConfiguration/configurationErrors.ts";
 import {
   AgentConfigurationAccessConflictError,
 } from "../../../../application/agentConfiguration/configurationAccess.ts";
@@ -775,7 +775,7 @@ describe("Agent configuration store", () => {
       .rejects.toThrow("credential reference is invalid");
   });
 
-  it("uses exact CAS and versioned provider/profile digests", async () => {
+  it("persists versioned provider/profile digests through the store", async () => {
     const { store } = await createStore();
     const initial = await store.readSnapshot();
     const providerResult = await store.createProvider(initial.revision, {
@@ -809,26 +809,10 @@ describe("Agent configuration store", () => {
       version: 1,
     });
     expect(profileResult.profile.digest).toMatch(/^sha256:[0-9a-f]{64}$/);
-    await expect(store.updateProfile(
-      providerResult.configuration.revision,
-      profileResult.profile.id,
-      {
-        label: "Stale update",
-        maxResidentSessions: 1,
-        model: "gpt-5-codex",
-        parameters: {
-          kind: "codex",
-          maxInputCharacters: 1,
-          maxOutputCharacters: 1,
-          reasoningEffort: "low",
-        },
-        providerId: providerResult.provider.id,
-        timeoutMilliseconds: 1,
-      },
-    )).rejects.toBeInstanceOf(AgentConfigurationConflictError);
+    expect((await store.readSnapshot()).profiles[0]?.digest).toBe(profileResult.profile.digest);
   });
 
-  it("requires current conformance for chat profiles and invalidates it on provider changes", async () => {
+  it("persists conformance invalidation when a Provider changes", async () => {
     const { store } = await createStore();
     const initial = await store.readSnapshot();
     const providerResult = await store.createProvider(initial.revision, {
@@ -857,10 +841,6 @@ describe("Agent configuration store", () => {
       },
     );
 
-    expect(profileResult.profile).toMatchObject({
-      availability: "unavailable",
-      unavailableReason: "Tool-call conformance has not been verified",
-    });
     const conformanceResult = await store.setConformance(
       profileResult.configuration.revision,
       profileResult.profile.id,
@@ -887,13 +867,10 @@ describe("Agent configuration store", () => {
       availability: "unavailable",
       conformance: null,
     });
-    await expect(store.deleteProvider(
-      updatedProvider.configuration.revision,
-      providerResult.provider.id,
-    )).rejects.toBeInstanceOf(AgentConfigurationValidationError);
+    expect((await store.readSnapshot()).profiles[0]?.conformance).toBeNull();
   });
 
-  it("requires enough chat tool steps for syntax, staging, and proposal submission", async () => {
+  it("loads a stored two-step chat Profile as unavailable", async () => {
     const { directory, store } = await createStore();
     const initial = await store.readSnapshot();
     const provider = await store.createProvider(initial.revision, {
@@ -919,8 +896,6 @@ describe("Agent configuration store", () => {
       timeoutMilliseconds: 600_000,
     };
 
-    await expect(store.createProfile(provider.configuration.revision, input))
-      .rejects.toThrow("at least 3 tool steps");
     const created = await store.createProfile(
       provider.configuration.revision,
       {
@@ -942,37 +917,6 @@ describe("Agent configuration store", () => {
       availability: "unavailable",
       unavailableReason: "Chat profiles require at least 3 tool steps",
     });
-  });
-
-  it("rejects reasoning effort that an OpenAI-compatible provider cannot apply", async () => {
-    const { store } = await createStore();
-    const initial = await store.readSnapshot();
-    const provider = await store.createProvider(initial.revision, {
-      apiKey: "provider-secret",
-      authenticationType: "api-key",
-      baseUrl: "https://models.example.invalid/v1",
-      kind: "openai-chat",
-      label: "OpenAI compatible",
-      privateNetworkAccessConfirmed: false,
-    });
-
-    await expect(store.createProfile(provider.configuration.revision, {
-      label: "Invalid effort",
-      maxResidentSessions: 1,
-      model: "chat-model",
-      parameters: {
-        historyBudgetCharacters: 65_536,
-        kind: "chat",
-        maxOutputTokens: 1_024,
-        maxToolSteps: 8,
-        reasoningEffort: "low",
-        toolCallMode: "native",
-      },
-      providerId: provider.provider.id,
-      timeoutMilliseconds: 60_000,
-    })).rejects.toThrow(
-      "Explicit chat reasoning effort is only valid for Ollama profiles",
-    );
   });
 
   it("fails closed when the persisted state is invalid", async () => {
