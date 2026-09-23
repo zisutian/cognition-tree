@@ -7,10 +7,10 @@ function getScriptKind(filePath: string) {
   return filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
 }
 
-export function readModuleImports(
+function parseSourceFile(
   modules: SourceModules,
   filePath: string,
-): readonly string[] {
+): ts.SourceFile {
   if (!(filePath in modules)) throw new Error(`Source file is missing: ${filePath}`);
   const sourceFile = ts.createSourceFile(
     filePath,
@@ -27,6 +27,29 @@ export function readModuleImports(
       ts.flattenDiagnosticMessageText(diagnostic.messageText, " ")
     ).join("; ")}`);
   }
+  return sourceFile;
+}
+
+export function readTypeOnlyModuleImports(
+  modules: SourceModules,
+  filePath: string,
+): readonly string[] {
+  const sourceFile = parseSourceFile(modules, filePath);
+
+  return sourceFile.statements.flatMap((statement) =>
+    ts.isImportDeclaration(statement) &&
+      statement.importClause?.isTypeOnly &&
+      ts.isStringLiteralLike(statement.moduleSpecifier)
+      ? [statement.moduleSpecifier.text]
+      : []
+  );
+}
+
+export function readModuleImports(
+  modules: SourceModules,
+  filePath: string,
+): readonly string[] {
+  const sourceFile = parseSourceFile(modules, filePath);
   const imports: string[] = [];
   const visit = (node: ts.Node) => {
     if (

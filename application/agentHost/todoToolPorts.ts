@@ -11,7 +11,10 @@ import type {
   TodoLocalDate,
 } from '../../core/todo/index.ts';
 import type { ContentDocument } from '../commands/index.ts';
-import type { TodoItemState } from '../todo/index.ts';
+import type {
+  TodoCollectionResource,
+  TodoCollectionsResource,
+} from '../content/index.ts';
 
 
 type Snapshot = AgentStagingFor<'todo'>['base'];
@@ -21,15 +24,10 @@ export type TodoAgentToolPorts = {
   versions: TodoDomainVersions;
   digest(value: unknown): `sha256:${string}`;
   resources: {
-    list(snapshot: Snapshot): {
-      collections: {id: string; name: string; stateVersion: `sha256:${string}`; version: `sha256:${string}`}[];
-      orderVersion: `sha256:${string}`;
-      revision: `sha256:${string}`;
-    };
-    read(parsed: ParsedTodoIndexCollection, today: TodoLocalDate): {
-      document: Omit<ContentDocument, 'writingGuide'>;
-      items: TodoItemState[];
-      stateVersion: `sha256:${string}`;
-    };
+    list(snapshot: Snapshot): TodoCollectionsResource;
+    read(parsed: ParsedTodoIndexCollection, today: TodoLocalDate):
+      Omit<TodoCollectionResource, 'document'> & {
+        document: Omit<ContentDocument, 'writingGuide'>;
+      };
   };
 };

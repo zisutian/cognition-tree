@@ -159,9 +159,9 @@ Workspace 对账在同一轮内复用前后捕获并核对过的受管工作树�
     协议；配置规则与修改事务由 application/agentConfiguration 拥有，内存会话和 Provider 操作状态由 application/agentHost 拥有。
     application/agentHost/providerOperations 组合探测、设备码登录与 conformance 用例，
     拒绝关闭后的新操作；各用例拥有自身记录、预留、执行任务和幂等释放，通过端口访问
-    配置、时钟和进程。server/runtime 负责三领域工具及平台端口的构造与接线；
-    application/agentConfiguration 的 configurationErrors、configurationInput 与 configurationViews 分别独占配置错误、
-    stored input 归一化和 digest/read-model 投影；configurationRevision 独占 revision CAS
+    配置、时钟和进程。server/runtime 负责三领域工具及平台端口的构造与接线；Agent 工具端口仅以类型导入引用 application/content 的三领域资源类型，文档输出继续省略写作指南；
+    application/agentConfiguration 的 configurationErrors、configurationInput、configurationParameters 与 configurationViews 分别独占配置错误、
+    输入归一化、当前 Profile 参数结构校验和 digest/read-model 投影；写入与当前格式解码均调用同一个参数解析入口，server/agent/configurationStateCodec 只保留旧格式转换；configurationRevision 独占 revision CAS
     断言，profileConfiguration 通过显式 mutation port 独占 Profile CRUD 与 conformance；
     providerConfiguration 通过显式 read/mutation ports 独占 Provider CRUD、认证候选、
     device-code staging/activation、change lease 与 conformance 失效；credentialManifest

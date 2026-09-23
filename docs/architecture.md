@@ -118,8 +118,10 @@ application/agent 提供 AgentRuntimePort、AgentSessionController、scope polic
 proposal state machine；application/agentHost 通过三个领域公开的 preparation 入口
 实现服务端暂存、审批与提交。二者不依赖 contracts、infrastructure、presentation 或
 application/workbench；AgentRuntimePort 定义与 Provider 无关的上下文预算耗尽语义。
-application/agentConfiguration 通过配置事务、凭据、目标地址与摘要端口表达规则，
-基础设施只实现文件、凭据、DNS 和历史格式解码。application/agentClient 的
+application/agentConfiguration 通过配置事务、凭据、目标地址与摘要端口表达规则；
+当前 Profile 参数的字段、枚举和正整数校验只有该模块的
+`parseAgentProfileParameters` 一个入口，写入与存储读取共用。基础设施只实现文件、
+凭据、DNS 和历史格式解码，旧格式参数转换后调用该入口。application/agentClient 的
 AgentClientController 只消费 wire-neutral port；
 发送、批准和 destructive confirmation 前所需的已加载 draft 同步由
 `AuthenticatedWorkbenchRoot` 在 presentation composition root 注入，避免任一应用协调根
@@ -175,7 +177,7 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 
 ## 本机内容用例
 
-application/content 是外部内容调用的显式协调根：目标解析、目录版本、一次 CAS 与操作收据由该模块协调，平台能力通过端口注入。按稳定 ID 读取的 Workspace、Journal、Todo 资源与名称选择器复用同一领域投影；HTTP 和 Agent 分别适配结果。各领域公开的中立 command preparation 与 review 同时被此模块和 Agent 使用；Agent 自己保留会话、暂存提案和审批。
+application/content 是外部内容调用的显式协调根：目标解析、目录版本、一次 CAS 与操作收据由该模块协调，平台能力通过端口注入。按稳定 ID 读取的 Workspace、Journal、Todo 资源与名称选择器复用同一领域投影；HTTP 和 Agent 分别适配结果。Agent 工具端口通过纯类型导入引用 application/content 的树、日记列表与待办集合资源类型；文档输出只去掉写作指南，资源投影函数仍由服务端组合根接线。各领域公开的中立 command preparation 与 review 同时被此模块和 Agent 使用；Agent 自己保留会话、暂存提案和审批。
 
 本机查询协调器拥有目录准入、名称解析和版本；contentReadContext 只从已准备的领域
 快照建立读模型，使用 parse index 的资源查找能力。任务状态仍委托 application/todo，

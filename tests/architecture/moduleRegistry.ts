@@ -54,6 +54,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "application/agent",
       "application/agentConfiguration",
       "application/commands",
+      "application/content",
       "application/journal",
       "application/operations",
       "application/persistence",

@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { auditModules } from "./moduleAudit.ts";
 import { moduleRegistry, type ModuleRegistration } from "./moduleRegistry.ts";
-import { readModuleImports } from "./moduleImports.ts";
+import { readModuleImports, readTypeOnlyModuleImports } from "./moduleImports.ts";
 import { listSourceImports, readInternalModuleImports } from "./sourceGraph.ts";
 import { sourceAssets, sourceModules, sourceModulesByRoot } from "./sourceCorpus.ts";
 import { sourcePathToRelative } from "./sourceArchitecture.ts";
@@ -36,6 +36,30 @@ describe("complete production module graph", () => {
   it("accounts for every source and asset on disk with exactly one owner", () => {
     expect([...Object.keys(sourceModules), ...Object.keys(sourceAssets)].map(sourcePathToRelative).sort()).toEqual(files);
     expect(auditModules(files, imports, moduleRegistry)).toEqual([]);
+  });
+
+  it("keeps Agent resource contracts as type-only imports from the shared content owner", () => {
+    const edges = imports.filter(({ filePath, targetPath }) =>
+      filePath.startsWith("application/agentHost/") &&
+      targetPath === "application/content/index.ts"
+    );
+
+    expect(edges.map(({ filePath }) => filePath).sort()).toEqual([
+      "application/agentHost/journalToolPorts.ts",
+      "application/agentHost/todoToolPorts.ts",
+      "application/agentHost/workspaceToolPorts.ts",
+    ]);
+    expect(moduleRegistry.find(({ id }) => id === "application/agentHost")?.dependencies)
+      .toContain("application/content");
+    for (const { filePath, importPath } of edges) {
+      const source = sourceModules[`../../${filePath}`]!;
+      const module = { [filePath]: source };
+
+      expect(readModuleImports(module, filePath).filter((path) => path === importPath))
+        .toEqual([importPath]);
+      expect(readTypeOnlyModuleImports(module, filePath).filter((path) => path === importPath))
+        .toEqual([importPath]);
+    }
   });
 
   it("rejects public-path escapes, undeclared dependencies and module cycles even without a file cycle", () => {

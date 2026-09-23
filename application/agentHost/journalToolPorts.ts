@@ -8,6 +8,7 @@ import type {
 
 import type { ParsedJournalIndexEntry } from '../../core/journal/index.ts';
 import type { ContentDocument } from '../commands/index.ts';
+import type { JournalEntriesResource } from '../content/index.ts';
 
 type Snapshot = AgentStagingFor<'journal'>['base'];
 export type JournalAgentToolPorts = {
@@ -16,11 +17,7 @@ export type JournalAgentToolPorts = {
   versions: JournalDomainVersions;
   digest(value: unknown): `sha256:${string}`;
   resources: {
-    list(snapshot: Snapshot): {
-      entries: {createdAt: string; id: string; title: string; updatedAt: string; version: `sha256:${string}`}[];
-      entriesVersion: `sha256:${string}`;
-      revision: `sha256:${string}`;
-    };
+    list(snapshot: Snapshot): JournalEntriesResource;
     read(parsed: ParsedJournalIndexEntry): Omit<ContentDocument, 'writingGuide'>;
   };
 };
