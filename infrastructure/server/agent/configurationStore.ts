@@ -40,7 +40,6 @@ import {
   createInitialAgentConfigurationState,
   materializeLegacyAgentConfigurationState,
   parseAgentConfigurationState,
-  parseCurrentStoredAgentProfileParameters,
 } from "./configurationStateCodec.ts";
 
 export class AgentConfigurationStore {
@@ -85,7 +84,6 @@ export class AgentConfigurationStore {
       access: this.access,
       createId,
       mutate: (operation) => this.#mutate(operation),
-      parseParameters: parseCurrentStoredAgentProfileParameters,
       views: this.#views,
     });
     this.#providers = new AgentProviderConfiguration({

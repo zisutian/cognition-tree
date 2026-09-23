@@ -30,6 +30,21 @@ describe("source ownership boundaries", () => {
     expect(auditTextPolicies(ownershipTextPolicies)).toEqual([]);
   });
 
+  it("routes current Profile parameter writes and persisted reads through the application parser", () => {
+    const input = sourceModules["../../application/agentConfiguration/configurationInput.ts"];
+    const codec = sourceModules["../../infrastructure/server/agent/configurationStateCodec.ts"];
+    const store = sourceModules["../../infrastructure/server/agent/configurationStore.ts"];
+    const profiles = sourceModules["../../application/agentConfiguration/profileConfiguration.ts"];
+
+    expect(input).toMatch(/import\s*\{[^}]*parseAgentProfileParameters[^}]*\}\s*from\s*["']\.\/configurationParameters\.ts["']/s);
+    expect(input).toMatch(/const parameters = parseAgentProfileParameters\(\s*input\.parameters/);
+    expect(codec).toMatch(/import\s*\{[^}]*parseAgentProfileParameters[^}]*\}\s*from\s*["']\.\.\/\.\.\/\.\.\/application\/agentConfiguration\/index\.ts["']/s);
+    expect(codec).toMatch(/return parseAgentProfileParameters\(value, pathLabel\)/);
+    expect(codec).not.toContain("parseCurrentStoredAgentProfileParameters");
+    expect(store).not.toContain("parseCurrentStoredAgentProfileParameters");
+    expect(profiles).not.toContain("parseParameters");
+  });
+
   it("keeps local commands, browser synchronization and owner routes distinct", () => {
     const operations = apiRouteDefinitions.flatMap((route) =>
       route.methods.map((method) => ({

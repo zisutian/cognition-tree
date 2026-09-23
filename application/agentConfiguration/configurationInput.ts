@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  AgentProfileParameters,
   AgentProfileInput,
   AgentProviderInput,
 } from "./agentConfiguration.ts";
@@ -10,6 +9,7 @@ import {
   type StoredProfile,
   type StoredProvider,
 } from "./configurationState.ts";
+import { parseAgentProfileParameters, positiveInteger } from "./configurationParameters.ts";
 
 export type AgentConfigurationTargetPolicy = {
   configurationPermission(
@@ -24,13 +24,6 @@ export function nonEmptyString(value: unknown, pathLabel: string) {
     throw new Error(`${pathLabel} must be a non-empty string.`);
   }
   return value;
-}
-
-export function positiveInteger(value: unknown, pathLabel: string) {
-  if (!Number.isSafeInteger(value) || (value as number) < 1) {
-    throw new Error(`${pathLabel} must be a positive integer.`);
-  }
-  return value as number;
 }
 
 export function parseBaseUrl(value: unknown, pathLabel: string) {
@@ -101,9 +94,8 @@ export function normalizeProviderInput(
 export function normalizeProfileInput(
   input: AgentProfileInput,
   provider: StoredProvider,
-  parseParameters: (value: unknown, pathLabel: string) => AgentProfileParameters,
 ): Omit<StoredProfile, "conformance" | "id" | "version"> {
-  const parameters = parseParameters(
+  const parameters = parseAgentProfileParameters(
     input.parameters,
     "Profile parameters",
   );

@@ -56,10 +56,10 @@ export {
   normalizeProfileInput,
   normalizeProviderInput,
   parseBaseUrl,
-  positiveInteger,
 } from "./configurationInput.ts";
 export type { AgentConfigurationTargetPolicy } from "./configurationInput.ts";
 export type { AgentConfigurationCredentialsPort } from "./configurationPorts.ts";
 export { AgentProfileConfiguration } from "./profileConfiguration.ts";
 export { AgentProviderConfiguration } from "./providerConfiguration.ts";
 export type { AgentConfigurationAdminPort } from "./configurationAdminPort.ts";
+export { parseAgentProfileParameters, positiveInteger } from "./configurationParameters.ts";

@@ -282,6 +282,12 @@ export function createOwnershipTextPolicies({
       /^application\/agentConfiguration\/configurationInput\.ts$/,
     ],
     [
+      "Agent Profile current parameter parsing",
+      sourceModules,
+      /\bexport function parseAgentProfileParameters\s*\(/,
+      /^application\/agentConfiguration\/configurationParameters\.ts$/,
+    ],
+    [
       "Agent configuration snapshot projection",
       applicationModules,
       /\bfunction configurationSnapshot\s*\(/,

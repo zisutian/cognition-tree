@@ -3,7 +3,6 @@
 import type {
   AgentConfigurationState,
   AgentCredentialReference,
-  AgentChatReasoningEffort,
   AgentProfileConformance,
   AgentProfileParameters,
   AgentProviderKind,
@@ -11,7 +10,7 @@ import type {
   StoredProfile,
   StoredProvider,
 } from "../../../application/agentConfiguration/index.ts";
-import { agentConfigurationFormatVersion, validateAgentConfigurationRelationships } from "../../../application/agentConfiguration/index.ts";
+import { agentConfigurationFormatVersion, parseAgentProfileParameters, validateAgentConfigurationRelationships } from "../../../application/agentConfiguration/index.ts";
 import {
   nonEmptyString,
   parseBaseUrl,
@@ -202,112 +201,39 @@ function parseParameters(
   legacyChatBudget: boolean,
   legacyChatReasoning: boolean,
 ): AgentProfileParameters {
+  if (!legacyChatBudget && !legacyChatReasoning) {
+    return parseAgentProfileParameters(value, pathLabel);
+  }
   const record = requireStateRecord(value, pathLabel);
-
-  if (record.kind === "codex") {
-    assertStateFields(record, [
-      "kind",
-      "maxInputCharacters",
-      "maxOutputCharacters",
-      "reasoningEffort",
-    ], pathLabel);
-    if (
-      !(["low", "medium", "high", "xhigh"] as const).includes(
-        record.reasoningEffort as "high" | "low" | "medium" | "xhigh",
-      )
-    ) {
-      throw new Error(`${pathLabel}.reasoningEffort is invalid.`);
-    }
-    return {
-      kind: "codex",
-      maxInputCharacters: positiveInteger(
-        record.maxInputCharacters,
-        `${pathLabel}.maxInputCharacters`,
-      ),
-      maxOutputCharacters: positiveInteger(
-        record.maxOutputCharacters,
-        `${pathLabel}.maxOutputCharacters`,
-      ),
-      reasoningEffort: record.reasoningEffort as
-        | "high"
-        | "low"
-        | "medium"
-        | "xhigh",
-    };
+  if (record.kind !== "chat") {
+    return parseAgentProfileParameters(value, pathLabel);
   }
-  if (record.kind === "chat") {
-    assertStateFields(
-      record,
-      [
-        legacyChatBudget
-          ? "contextWindowTokens"
-          : "historyBudgetCharacters",
-        "kind",
-        "maxOutputTokens",
-        "maxToolSteps",
-        ...(legacyChatReasoning ? [] : ["reasoningEffort"]),
-        "toolCallMode",
-      ],
-      pathLabel,
-    );
-    if (
-      record.toolCallMode !== "native" &&
-      record.toolCallMode !== "single-json"
-    ) {
-      throw new Error(`${pathLabel}.toolCallMode is invalid.`);
-    }
-    const reasoningEffort = legacyChatReasoning
-      ? "model-default"
-      : record.reasoningEffort;
-    if (
-      !(["model-default", "none", "low", "medium", "high"] as const).includes(
-        reasoningEffort as AgentChatReasoningEffort,
-      )
-    ) {
-      throw new Error(`${pathLabel}.reasoningEffort is invalid.`);
-    }
-    const storedBudget = positiveInteger(
-      legacyChatBudget
-        ? record.contextWindowTokens
-        : record.historyBudgetCharacters,
-      `${pathLabel}.${
-        legacyChatBudget
-          ? "contextWindowTokens"
-          : "historyBudgetCharacters"
-      }`,
-    );
-    const historyBudgetCharacters = legacyChatBudget
-      ? storedBudget * 4
-      : storedBudget;
-
-    if (!Number.isSafeInteger(historyBudgetCharacters)) {
-      throw new Error(
-        `${pathLabel}.historyBudgetCharacters is outside the safe integer range.`,
-      );
-    }
-    return {
-      historyBudgetCharacters,
-      kind: "chat",
-      maxOutputTokens: positiveInteger(
-        record.maxOutputTokens,
-        `${pathLabel}.maxOutputTokens`,
-      ),
-      maxToolSteps: positiveInteger(
-        record.maxToolSteps,
-        `${pathLabel}.maxToolSteps`,
-      ),
-      reasoningEffort: reasoningEffort as AgentChatReasoningEffort,
-      toolCallMode: record.toolCallMode,
-    };
+  assertStateFields(record, [
+    legacyChatBudget ? "contextWindowTokens" : "historyBudgetCharacters",
+    "kind", "maxOutputTokens", "maxToolSteps",
+    ...(legacyChatReasoning ? [] : ["reasoningEffort"]),
+    "toolCallMode",
+  ], pathLabel);
+  const current = {
+    historyBudgetCharacters: 1,
+    kind: "chat",
+    maxOutputTokens: record.maxOutputTokens,
+    maxToolSteps: record.maxToolSteps,
+    reasoningEffort: legacyChatReasoning ? "model-default" : record.reasoningEffort,
+    toolCallMode: record.toolCallMode,
+  };
+  // Preserve enum validation before the historical budget conversion.
+  parseAgentProfileParameters({ ...current, maxOutputTokens: 1, maxToolSteps: 1 }, pathLabel);
+  const budgetField = legacyChatBudget ? "contextWindowTokens" : "historyBudgetCharacters";
+  const storedBudget = positiveInteger(record[budgetField], `${pathLabel}.${budgetField}`);
+  const historyBudgetCharacters = legacyChatBudget ? storedBudget * 4 : storedBudget;
+  if (!Number.isSafeInteger(historyBudgetCharacters)) {
+    throw new Error(`${pathLabel}.historyBudgetCharacters is outside the safe integer range.`);
   }
-  throw new Error(`${pathLabel}.kind is invalid.`);
-}
-
-export function parseCurrentStoredAgentProfileParameters(
-  value: unknown,
-  pathLabel: string,
-) {
-  return parseParameters(value, pathLabel, false, false);
+  return parseAgentProfileParameters({
+    ...current,
+    historyBudgetCharacters,
+  }, pathLabel);
 }
 
 function parseConformance(

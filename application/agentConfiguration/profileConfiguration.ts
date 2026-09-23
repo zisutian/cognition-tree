@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  AgentProfileParameters,
   AgentProfileInput,
   AgentToolCallMode,
 } from "./agentConfiguration.ts";
@@ -27,25 +26,21 @@ export class AgentProfileConfiguration {
   readonly #createId: () => string;
   readonly #mutate: MutateAgentConfiguration;
   readonly #views: AgentConfigurationViews;
-  readonly #parseParameters: (value: unknown, pathLabel: string) => AgentProfileParameters;
 
   constructor({
     access,
     createId,
     mutate,
-    parseParameters,
     views,
   }: {
     access: AgentConfigurationAccess;
     createId: () => string;
     mutate: MutateAgentConfiguration;
-    parseParameters(value: unknown, pathLabel: string): AgentProfileParameters;
     views: AgentConfigurationViews;
   }) {
     this.#access = access;
     this.#createId = createId;
     this.#mutate = mutate;
-    this.#parseParameters = parseParameters;
     this.#views = views;
   }
 
@@ -58,7 +53,7 @@ export class AgentProfileConfiguration {
         throw new AgentConfigurationValidationError("Agent provider does not exist");
       }
       const profile: StoredProfile = {
-        ...normalizeProfileInput(input, provider, this.#parseParameters),
+        ...normalizeProfileInput(input, provider),
         conformance: null,
         id: `agent-profile-${this.#createId()}`,
         version: 1,
@@ -100,7 +95,7 @@ export class AgentProfileConfiguration {
         );
       }
       const profile: StoredProfile = {
-        ...normalizeProfileInput(input, provider, this.#parseParameters),
+        ...normalizeProfileInput(input, provider),
         conformance: null,
         id: previous.id,
         version: previous.version + 1,
