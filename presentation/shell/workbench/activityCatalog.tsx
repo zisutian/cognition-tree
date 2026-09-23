@@ -1,5 +1,6 @@
 import { createClientSystemNavigation } from "../../../infrastructure/client/runtime/index.ts";
 import type { ActivityInteractionState } from "../../ui/index.ts";
+import { activityMetadata } from "../../navigation/index.ts";
 const systemNavigation = createClientSystemNavigation();
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -37,7 +38,7 @@ export type ActivityDescriptor = ActivityNavigationItem & {
   >;
 };
 
-export const activityDescriptors: readonly ActivityDescriptor[] = [
+const activityBindings: readonly Pick<ActivityDescriptor, "Controller" | "icon" | "id">[] = [
   {
     Controller: lazy(async () => {
       const { NotesActivityController } = await import(
@@ -63,10 +64,8 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
         },
       };
     }),
-    group: "primary",
     icon: FileText,
     id: "notes",
-    label: "笔记",
   },
   {
     Controller: lazy(async () => {
@@ -90,10 +89,8 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
         },
       };
     }),
-    group: "primary",
     icon: CalendarDays,
     id: "journal",
-    label: "日记",
   },
   {
     Controller: lazy(async () => {
@@ -117,10 +114,8 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
         },
       };
     }),
-    group: "primary",
     icon: ListChecks,
     id: "todo",
-    label: "代办",
   },
   {
     Controller: lazy(async () => {
@@ -169,10 +164,8 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
         },
       };
     }),
-    group: "primary",
     icon: Braces,
     id: "syntax",
-    label: "语法",
   },
   {
     Controller: lazy(async () => {
@@ -193,10 +186,8 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
         },
       };
     }),
-    group: "management",
     icon: Bot,
     id: "agent",
-    label: "智能体",
   },
   {
     Controller: lazy(async () => {
@@ -222,10 +213,8 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
         },
       };
     }),
-    group: "management",
     icon: Search,
     id: "search",
-    label: "搜索",
   },
   {
     Controller: lazy(async () => {
@@ -246,10 +235,8 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
         },
       };
     }),
-    group: "management",
     icon: Archive,
     id: "repository",
-    label: "仓库",
   },
   {
     Controller: lazy(async () => {
@@ -277,23 +264,21 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
         },
       };
     }),
-    group: "management",
     icon: Settings,
     id: "settings",
-    label: "设置",
   },
 ];
+
+export const activityDescriptors: readonly ActivityDescriptor[] = activityMetadata.map(
+  (metadata) => {
+    const binding = activityBindings.find(({ id }) => id === metadata.id);
+    if (!binding) throw new Error(`Missing activity binding: ${metadata.id}`);
+    return { ...binding, ...metadata };
+  },
+);
 
 export function listActivityDescriptors(group: ActivityDescriptor["group"]) {
   return activityDescriptors.filter((descriptor) => descriptor.group === group);
 }
 
-export function isActivityId(value: string): value is ActivityId {
-  return activityDescriptors.some(({ id }) => id === value);
-}
-
-export function getActivityLabel(activityId: ActivityId) {
-  return (
-    activityDescriptors.find(({ id }) => id === activityId)?.label ?? activityId
-  );
-}
+export { getActivityLabel, isActivityId } from "../../navigation/index.ts";

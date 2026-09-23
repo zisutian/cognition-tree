@@ -3,8 +3,9 @@ export {
   pageKey,
   describePage,
 } from "./pageNavigation.ts";
+export { activityMetadata, getActivityLabel, isActivityId } from "./activityMetadata.ts";
+export type { ActivityId } from "./activityMetadata.ts";
 export type {
-  ActivityId,
   ActivityInteractionState,
   PageTarget,
   PageDescriptor,

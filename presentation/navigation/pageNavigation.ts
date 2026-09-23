@@ -1,16 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import type { OpenIntent } from "compact-ui";
 import { PageViewSessions } from "./pageViewSessions.ts";
+import { getActivityLabel, type ActivityId } from "./activityMetadata.ts";
 
-export type ActivityId =
-  | "agent"
-  | "notes"
-  | "journal"
-  | "todo"
-  | "syntax"
-  | "search"
-  | "repository"
-  | "settings";
 export type ActivityInteractionState = Readonly<{
   navigationBlocked: boolean;
   statusMessage: string;
@@ -57,16 +49,6 @@ const idle: ActivityInteractionState = {
   navigationBlocked: false,
   statusMessage: "",
 };
-const labels: Record<ActivityId, string> = {
-  notes: "笔记",
-  journal: "日记",
-  todo: "代办",
-  agent: "智能体",
-  syntax: "语法",
-  search: "搜索",
-  repository: "仓库",
-  settings: "设置",
-};
 const landing = (
   activityId: ActivityId,
   repositoryId: string | null,
@@ -75,7 +57,7 @@ const landing = (
     activityId,
     "activity",
     activityId,
-    labels[activityId],
+    getActivityLabel(activityId),
     activityId === "notes" ? repositoryId : null,
   );
 

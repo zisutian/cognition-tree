@@ -6,10 +6,10 @@ import {
   type ReactNode,
 } from "react";
 import type {
-  ActivityId,
   PageDriver,
   PageNavigation,
 } from "./pageNavigation.ts";
+import type { ActivityId } from "./activityMetadata.ts";
 const Context = createContext<PageNavigation | null>(null);
 export function PageNavigationProvider({
   navigation,
