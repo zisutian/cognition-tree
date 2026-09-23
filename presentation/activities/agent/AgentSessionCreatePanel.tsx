@@ -21,8 +21,10 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type {
   AgentApplication,
-  AgentScope,
   AgentScopeOption,
+} from "../../../application/agentClient/index.ts";
+import type {
+  AgentScope,
 } from "../../../application/agent/index.ts";
 import {
   Page,

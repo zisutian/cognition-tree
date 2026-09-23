@@ -2,7 +2,7 @@
 
 import type {
   AgentProfilePreferencePort,
-} from "../../../application/agent/index.ts";
+} from "../../../application/agentClient/index.ts";
 
 const agentProfileStorageKey = "cognition-tree.agent-profile";
 

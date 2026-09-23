@@ -17,6 +17,8 @@ import {
 
 import type {
   AgentApplication,
+} from "../../../application/agentClient/index.ts";
+import type {
   AgentProposalView,
 } from "../../../application/agent/index.ts";
 import { Page, PageBody, useFeedback } from "../../ui/index.ts";

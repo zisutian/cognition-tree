@@ -20,7 +20,9 @@ import agentStyles from "./agent.module.css";
 const cx = createClassNames(agentStyles);
 
 import { Copy } from "lucide-react";
-import type { AgentProposalView } from "../../../application/agent/index.ts";
+import type {
+  AgentProposalView,
+} from "../../../application/agent/index.ts";
 import { useFeedback } from "../../ui/index.ts";
 
 type ReviewResource = AgentProposalView["review"]["resources"][number];

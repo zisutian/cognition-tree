@@ -3,7 +3,9 @@
 import { access,lstat,readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe,expect,it } from "vitest";
-import type { AgentConfigurationSnapshot } from "../../../../application/agent/agentConfiguration.ts";
+import type {
+  AgentConfigurationSnapshot,
+} from "../../../../application/agentConfiguration/index.ts";
 import { dispatch,withHandler } from "./support/apiServerTestHarness.ts";
 
 describe("Agent configuration admin API", () => {

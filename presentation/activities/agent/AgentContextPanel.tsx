@@ -1,6 +1,8 @@
 import { Button, Tree, Stack, StatusText } from "compact-ui";
 import { MessageSquare } from "lucide-react";
-import type { AgentApplication } from "../../../application/agent/index.ts";
+import type {
+  AgentApplication,
+} from "../../../application/agentClient/index.ts";
 import { useFeedback } from "../../ui/index.ts";
 import { usePageNavigation, describePage } from "../../navigation/index.ts";
 import {

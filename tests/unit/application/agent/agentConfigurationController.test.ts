@@ -3,13 +3,15 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createAgentConfigurationController,
-  type AgentConformanceCheckStatus,
   type AgentConfigurationPort,
+} from "../../../../application/agentClient/index.ts";
+import {
+  type AgentConformanceCheckStatus,
   type AgentConfigurationSnapshot,
   type AgentOllamaDiscovery,
   type AgentProviderInput,
   type AgentProviderProbe,
-} from "../../../../application/agent/index";
+} from "../../../../application/agentConfiguration/index.ts";
 
 const revision = (value: string) =>
   `sha256:${value.repeat(64)}` as `sha256:${string}`;

@@ -1,6 +1,8 @@
 import { Tree, type TreeNode } from "compact-ui";
 import { useState } from "react";
-import type { AgentConfigurationState } from "../../../application/agent/index.ts";
+import type {
+  AgentConfigurationState,
+} from "../../../application/agentClient/index.ts";
 import {
   settingsPageLabels,
   settingsTargetKey,

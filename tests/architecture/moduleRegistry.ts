@@ -14,18 +14,35 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   {
     id: "application/agent",
     responsibility:
-      "Browser Agent session, proposal approval, profile and scope application state",
+      "Neutral Agent session, proposal, scope and runtime contracts",
     scope: "tree",
     publicEntries: ["application/agent/index.ts"],
     dependencies: [
       "application/commands",
       "application/persistence",
-      "application/problems",
-      "application/runtime",
       "core/ctn",
       "core/sync",
       "core/workspace",
     ],
+  },
+  {
+    id: "application/agentClient",
+    responsibility: "Browser Agent session and configuration controllers",
+    scope: "tree",
+    publicEntries: ["application/agentClient/index.ts"],
+    dependencies: [
+      "application/agent",
+      "application/agentConfiguration",
+      "application/problems",
+      "application/runtime",
+    ],
+  },
+  {
+    id: "application/agentConfiguration",
+    responsibility: "Agent configuration model and mutation rules",
+    scope: "tree",
+    publicEntries: ["application/agentConfiguration/index.ts"],
+    dependencies: [],
   },
   {
     id: "application/agentHost",
@@ -35,6 +52,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     publicEntries: ["application/agentHost/index.ts"],
     dependencies: [
       "application/agent",
+      "application/agentConfiguration",
       "application/commands",
       "application/journal",
       "application/operations",
@@ -364,6 +382,8 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     dependencies: [
       "contracts/content",
       "application/agent",
+      "application/agentClient",
+      "application/agentConfiguration",
       "application/journal",
       "application/operations",
       "application/persistence",
@@ -390,6 +410,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     publicEntries: ["infrastructure/client/platform/index.ts"],
     dependencies: [
       "application/agent",
+      "application/agentClient",
       "application/repository",
       "application/runtime",
       "application/todo",
@@ -423,6 +444,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     publicEntries: ["infrastructure/client/runtime/index.ts"],
     dependencies: [
       "application/agent",
+      "application/agentClient",
       "application/journal",
       "application/operations",
       "application/persistence",
@@ -450,6 +472,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     dependencies: [
       "contracts/content",
       "application/agent",
+      "application/agentConfiguration",
       "application/agentHost",
       "application/commands",
       "application/persistence",
@@ -723,6 +746,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     dependencies: [
       "presentation/navigation",
       "application/agent",
+      "application/agentClient",
       "presentation/ui",
     ],
   },
@@ -791,6 +815,8 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     dependencies: [
       "presentation/navigation",
       "application/agent",
+      "application/agentClient",
+      "application/agentConfiguration",
       "application/operations",
       "application/system",
       "presentation/ui",
@@ -864,6 +890,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     dependencies: [
       "presentation/navigation",
       "application/agent",
+      "application/agentClient",
       "application/journal",
       "application/operations",
       "application/persistence",

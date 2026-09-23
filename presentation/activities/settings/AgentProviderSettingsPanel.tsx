@@ -11,7 +11,7 @@ import { useState } from "react";
 import type {
   AgentConfigurationController,
   AgentConfigurationState,
-} from "../../../application/agent/index.ts";
+} from "../../../application/agentClient/index.ts";
 import { ConfirmAction, FormSaveActions, useFeedback } from "../../ui/index.ts";
 import { AgentProviderSettingsForm } from "./AgentProviderSettingsForm.tsx";
 import {

@@ -5,7 +5,7 @@ import type {
   AgentProfileConformance,
   AgentProfileParameters,
   AgentProviderKind,
-} from "../../../application/agent/index.ts";
+} from "../../../application/agentConfiguration/index.ts";
 import {
   assertStateFields,
   requireStateRecord,

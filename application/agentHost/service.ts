@@ -6,7 +6,7 @@ import type {
   AgentScope,
   AgentSessionSnapshot,
   AgentProposal,
-} from '../agent/index.ts';
+} from "../agent/index.ts";
 
 import type { AgentProposalCommitPort } from './proposalCommitPort.ts';
 import type {
@@ -27,7 +27,9 @@ import type { AgentServicePolicy } from "./servicePolicy.ts";
 import { AgentServiceError } from "./errors.ts";
 import { AgentProposalWorkflow } from "./proposalWorkflow.ts";
 import { AgentConversationRunner } from "./conversationRunner.ts";
-import { toAgentProposalView } from "../agent/index.ts";
+import {
+  toAgentProposalView,
+} from "../agent/index.ts";
 import { AgentSessionPool } from "./sessionPool.ts";
 import { AgentSessionOpener } from "./sessionOpener.ts";
 import type { AgentSessionRecord } from "./sessionRecord.ts";

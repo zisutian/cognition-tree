@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentApplication } from "../../../application/agent/index.ts";
+import type {
+  AgentApplication,
+} from "../../../application/agentClient/index.ts";
 import type { JournalApplication } from "../../../application/journal/index.ts";
 import type { LocalContentAccess,OperationApplication } from "../../../application/operations/index.ts";
 import type { RepositoryApplication } from "../../../application/repository/index.ts";

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { AgentRuntimeProtocolError } from "../../../application/agent/index.ts";
+import {
+  AgentRuntimeProtocolError,
+} from "../../../application/agent/index.ts";
 
 export function withRuntimeTimeout<Value>(
   promise: Promise<Value>,

@@ -3,7 +3,9 @@
 import type { WorkspaceCommandIntent } from '../workspace/index.ts';
 import type { JournalCommandIntent } from '../journal/index.ts';
 import type { TodoCommandIntent } from '../todo/index.ts';
-import type { AgentRuntimeToolCall } from '../agent/index.ts';
+import type {
+  AgentRuntimeToolCall,
+} from "../agent/index.ts";
 
 export type AgentToolRequest =
   | { kind: 'list' | 'describe-syntax' | 'submit-proposal' }

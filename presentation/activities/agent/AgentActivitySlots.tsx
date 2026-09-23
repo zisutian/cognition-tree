@@ -3,7 +3,9 @@
 import { Button } from "compact-ui";
 
 import { Plus } from "lucide-react";
-import type { AgentApplication } from "../../../application/agent/index.ts";
+import type {
+  AgentApplication,
+} from "../../../application/agentClient/index.ts";
 import { type ActivitySlots } from "../../ui/index.ts";
 import { AgentContextPanel } from "./AgentContextPanel.tsx";
 import { AgentConversationComposer } from "./AgentConversationComposer.tsx";

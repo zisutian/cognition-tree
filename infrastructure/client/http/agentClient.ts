@@ -2,10 +2,10 @@ import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-AgentClientEvent,
-AgentClientPort,
-AgentProposalView,
-AgentSessionSnapshot,
+  AgentClientEvent,
+  AgentClientPort,
+  AgentProposalView,
+  AgentSessionSnapshot,
 } from "../../../application/agent/index.ts";
 
 import {

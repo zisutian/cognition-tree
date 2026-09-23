@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type {
   AgentProfileView,
   AgentProviderView,
-} from "../../../../../application/agent/index";
+} from "../../../../../application/agentConfiguration/index.ts";
 import {
   agentProfileDraftFrom,
   agentProfileInput,

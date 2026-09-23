@@ -18,7 +18,7 @@ import type {
   AgentApplication,
   AgentConfigurationController,
   AgentConfigurationState,
-} from "../../../application/agent/index.ts";
+} from "../../../application/agentClient/index.ts";
 import { useFeedback } from "../../ui/index.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
 import {

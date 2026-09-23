@@ -5,6 +5,8 @@ import type { AgentRuntimeFactory } from './runtimePorts.ts';
 import type { ApplicationScheduler } from '../runtime/index.ts';
 import type {
   AgentConformanceCheckStatus,
+} from "../agentConfiguration/index.ts";
+import type {
   AgentRuntimeTool,
 } from "../agent/index.ts";
 

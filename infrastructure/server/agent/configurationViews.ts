@@ -4,7 +4,7 @@ import type {
   AgentConfigurationSnapshot,
   AgentProfileView,
   AgentProviderView,
-} from "../../../application/agent/index.ts";
+} from "../../../application/agentConfiguration/index.ts";
 import {
   agentConformanceContractVersion,
   agentToolContractVersion,

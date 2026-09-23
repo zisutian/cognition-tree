@@ -4,7 +4,7 @@ import type { AgentDeviceLoginConfigurationPort, AgentDeviceLoginProcess, AgentD
 import type { ApplicationScheduler, CancelScheduledTask } from '../runtime/index.ts';
 import type {
   AgentCodexDeviceLoginStatus,
-} from "../agent/index.ts";
+} from "../agentConfiguration/index.ts";
 import type { CommandRuntime } from "../commands/index.ts";
 import { readCommandRuntimeNow } from "../commands/index.ts";
 import type {

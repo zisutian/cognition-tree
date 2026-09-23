@@ -6,12 +6,12 @@ import type {
   AgentClientEventStream,
   AgentClientPort,
   AgentStatus,
-} from "./agentClientPort.ts";
+} from "../agent/index.ts";
 import type {
   AgentProposalView,
   AgentScope,
   AgentSessionSnapshot,
-} from "./agentTypes.ts";
+} from "../agent/index.ts";
 import type {
   AgentProfilePreferencePort,
 } from "./agentProfilePreference.ts";

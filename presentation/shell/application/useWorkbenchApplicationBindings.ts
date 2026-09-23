@@ -2,12 +2,12 @@
 
 import { useCallback,useEffect,useMemo,useRef } from "react";
 import type {
-AgentClientController,
-AgentClientState,
-AgentConfigurationController,
-AgentConfigurationState,
-AgentScopeCatalog,
-} from "../../../application/agent/index.ts";
+  AgentClientController,
+  AgentClientState,
+  AgentConfigurationController,
+  AgentConfigurationState,
+  AgentScopeCatalog,
+} from "../../../application/agentClient/index.ts";
 import type { JournalApplicationServices } from "../../../application/journal/index.ts";
 import type { LocalContentAccess,OperationAdministration } from "../../../application/operations/index.ts";
 import type { ProblemCenterController } from "../../../application/problems/index.ts";

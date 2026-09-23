@@ -3,6 +3,8 @@
 import {
   createAgentClientController,
   createAgentConfigurationController,
+} from "../../../application/agentClient/index.ts";
+import {
   type AgentScope,
 } from "../../../application/agent/index.ts";
 import {

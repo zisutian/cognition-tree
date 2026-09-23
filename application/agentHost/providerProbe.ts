@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentProviderProbe } from "../agent/index.ts";
+import type {
+  AgentProviderProbe,
+} from "../agentConfiguration/index.ts";
 import { readCommandRuntimeNow, type CommandRuntime } from "../commands/index.ts";
 import type { AgentConfigurationPort, ResolvedAgentProvider } from "./configurationPort.ts";
 import { AgentConfigurationValidationError } from "./configurationErrors.ts";

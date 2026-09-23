@@ -9,7 +9,9 @@ import {
 } from "../../navigation/index.ts";
 
 import { useState } from "react";
-import type { AgentApplication } from "../../../application/agent/index.ts";
+import type {
+  AgentApplication,
+} from "../../../application/agentClient/index.ts";
 import type { ActivityControllerProps } from "../../ui/index.ts";
 import { createAgentActivitySlots } from "./AgentActivitySlots.tsx";
 

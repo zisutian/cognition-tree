@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentApplication } from "../../../../application/agent/index";
+import type {
+  AgentApplication,
+} from "../../../../application/agentClient/index.ts";
 
 export function createAgentApplicationFixture(): AgentApplication {
   return {

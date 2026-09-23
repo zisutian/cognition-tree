@@ -3,7 +3,7 @@
 import type {
   AgentProfileInput,
   AgentToolCallMode,
-} from "../../../application/agent/index.ts";
+} from "../../../application/agentConfiguration/index.ts";
 import type { AgentConfigurationAccess } from "../../../application/agentHost/index.ts";
 import { AgentConfigurationValidationError } from "../../../application/agentHost/index.ts";
 import { normalizeProfileInput } from "./configurationInput.ts";

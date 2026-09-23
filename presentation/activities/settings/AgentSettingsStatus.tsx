@@ -10,10 +10,12 @@ import { Section } from "compact-ui";
 
 import type {
   AgentConfigurationState,
+} from "../../../application/agentClient/index.ts";
+import type {
   AgentOllamaResidentContext,
   AgentProfileView,
   AgentProviderView,
-} from "../../../application/agent/index.ts";
+} from "../../../application/agentConfiguration/index.ts";
 
 import type { SettingsTarget } from "./settingsTypes.ts";
 

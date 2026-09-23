@@ -2,11 +2,13 @@ import { buildApiOperationPath } from "../../../contracts/api/index.ts";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-AgentCodexDeviceLoginStatus,
-AgentConfigurationPort,
-AgentConfigurationSnapshot,
-AgentConformanceCheckStatus,
-} from "../../../application/agent/index.ts";
+  AgentConfigurationPort,
+} from "../../../application/agentClient/index.ts";
+import type {
+  AgentCodexDeviceLoginStatus,
+  AgentConfigurationSnapshot,
+  AgentConformanceCheckStatus,
+} from "../../../application/agentConfiguration/index.ts";
 import {
 AgentCodexDeviceLoginStatusSchema,
 AgentConfigurationSnapshotSchema,

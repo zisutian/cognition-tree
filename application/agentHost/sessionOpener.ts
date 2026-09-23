@@ -6,7 +6,9 @@ import {
   type AgentRuntimeToolCall,
   type AgentScope,
 } from "../agent/index.ts";
-import type { AgentSessionSnapshot } from "../agent/index.ts";
+import type {
+  AgentSessionSnapshot,
+} from "../agent/index.ts";
 import type {
   AgentHostRuntime,
   AgentAuditAvailabilityPort,

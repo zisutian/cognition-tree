@@ -7,7 +7,7 @@ import type {
   AgentProfileInput,
   AgentProviderInput,
   AgentToolCallMode,
-} from "../../../application/agent/index.ts";
+} from "../../../application/agentConfiguration/index.ts";
 import {
   SecureJsonPartition,
   type SecureStateFileReplacer,

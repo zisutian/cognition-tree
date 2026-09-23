@@ -2,7 +2,7 @@
 
 import type {
   AgentProviderInput,
-} from "../../../application/agent/index.ts";
+} from "../../../application/agentConfiguration/index.ts";
 import { SecureStateCommitOutcomeUnknownError } from "../../../application/persistence/index.ts";
 import type {
   AgentConfigurationAccess,

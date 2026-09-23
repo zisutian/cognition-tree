@@ -3,7 +3,7 @@
 import type {
   AgentOllamaDiscovery,
   AgentProviderProbe,
-} from "../../../application/agent/index.ts";
+} from "../../../application/agentConfiguration/index.ts";
 import type { AgentProviderProbeTransportPort, ResolvedAgentProvider } from "../../../application/agentHost/index.ts";
 import { AgentConfigurationValidationError } from "../../../application/agentHost/index.ts";
 import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";

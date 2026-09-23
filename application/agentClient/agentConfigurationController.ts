@@ -8,7 +8,7 @@ import type {
   AgentProfileInput,
   AgentProviderInput,
   AgentProviderProbe,
-} from "./agentConfiguration.ts";
+} from "../agentConfiguration/index.ts";
 import { LatestResourceOperationRegistry } from "./latestResourceOperationRegistry.ts";
 
 export type AgentConfigurationPort = {

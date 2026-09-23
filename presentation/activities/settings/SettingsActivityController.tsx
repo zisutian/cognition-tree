@@ -13,7 +13,9 @@ import {
   useRef,
   useState,
 } from "react";
-import type { AgentApplication } from "../../../application/agent/index.ts";
+import type {
+  AgentApplication,
+} from "../../../application/agentClient/index.ts";
 import type {
   LocalContentAccess,
   OperationApplication,

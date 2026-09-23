@@ -7,7 +7,7 @@ import type { FormEvent } from "react";
 import type {
   AgentProviderKind,
   AgentProviderView,
-} from "../../../application/agent/index.ts";
+} from "../../../application/agentConfiguration/index.ts";
 
 import type { AgentProfileDraft } from "./agentSettingsDraft.ts";
 

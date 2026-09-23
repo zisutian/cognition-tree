@@ -8,7 +8,7 @@ import {
   type AgentProposal,
   type AgentRuntimeToolCall,
   type AgentScope,
-} from '../agent/index.ts';
+} from "../agent/index.ts";
 import type {
   SearchQuery,
   SearchAccess,

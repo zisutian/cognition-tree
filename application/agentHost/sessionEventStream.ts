@@ -3,7 +3,7 @@
 import type {
   AgentClientEvent,
   AgentSessionSnapshot,
-} from '../agent/index.ts';
+} from "../agent/index.ts";
 
 
 export type AgentEventSink = {

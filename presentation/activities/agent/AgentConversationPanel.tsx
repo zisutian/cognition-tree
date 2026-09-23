@@ -13,7 +13,9 @@ import {
   pageKey,
   describePage,
 } from "../../navigation/index.ts";
-import type { AgentApplication } from "../../../application/agent/index.ts";
+import type {
+  AgentApplication,
+} from "../../../application/agentClient/index.ts";
 import { Page, PageBody, useFeedback } from "../../ui/index.ts";
 
 import {

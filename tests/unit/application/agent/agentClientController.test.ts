@@ -3,11 +3,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createAgentClientController,
+} from "../../../../application/agentClient/index.ts";
+import {
   type AgentClientEvent,
   type AgentClientPort,
   type AgentProfileSummary,
   type AgentSessionSnapshot,
-} from "../../../../application/agent/index";
+} from "../../../../application/agent/index.ts";
 
 const sessionId = "00000000-0000-4000-8000-000000000001";
 const messageId = "00000000-0000-4000-8000-000000000002";

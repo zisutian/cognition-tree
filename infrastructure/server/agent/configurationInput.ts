@@ -3,7 +3,7 @@
 import type {
   AgentProfileInput,
   AgentProviderInput,
-} from "../../../application/agent/index.ts";
+} from "../../../application/agentConfiguration/index.ts";
 import { AgentConfigurationValidationError } from "../../../application/agentHost/index.ts";
 import type { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 import {
