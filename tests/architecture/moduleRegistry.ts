@@ -78,7 +78,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   {
     id: "application/content",
     responsibility:
-      "Local content use cases, semantic targeting and exact operation coordination",
+      "Typed stable-ID reads, local semantic targeting and exact operation coordination",
     scope: "tree",
     publicEntries: ["application/content/index.ts"],
     dependencies: [
@@ -175,7 +175,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   {
     id: "application/sync",
     responsibility:
-      "Snapshot synchronization coordination and revision event ordering",
+      "Snapshot synchronization, revision observations and event checkpoint coordination",
     scope: "tree",
     publicEntries: ["application/sync/index.ts"],
     dependencies: ["application/commands", "application/persistence", "core/sync"],
@@ -532,7 +532,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     id: "infrastructure/server/api/resources",
-    responsibility: "Prepared content to wire resource projection",
+    responsibility: "Resource digest implementation and domain version policy wiring",
     scope: "tree",
     publicEntries: ["infrastructure/server/api/resources/index.ts"],
     dependencies: [
@@ -868,7 +868,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   {
     id: "presentation/navigation",
     responsibility:
-      "Login-scoped page targets, navigation admission and view sessions",
+      "Activity metadata, login-scoped page targets, navigation admission and view sessions",
     scope: "tree",
     publicEntries: ["presentation/navigation/index.ts"],
     dependencies: [],

@@ -145,28 +145,30 @@ Workspace 对账在同一轮内复用前后捕获并核对过的受管工作树�
     向上逐级 fsync 至原有祖先，不能只同步最终状态文件所在目录；每个安全 JSON 文件
     通过独立跨实例锁串行，持锁后刷新磁盘 authority 再执行 read/mutate，解锁失败后
     分区 fail closed；
-    api/resources、api/sync 分别拥有只读 wire 资源投影与同步协议适配；application/sync
-    执行普通同步用例。application/search 通过查询端口协调各来源，HTTP 仅转换协议。application/content 协调本机名称定位和一次提交；
+    application/content 拥有三领域稳定 ID 读取投影与本机名称定位、一次提交；
+    api/resources 只注入资源摘要算法与版本策略，api/sync 适配同步协议与 SSE 传输；
+    application/sync 统一协调普通同步、revision 观察、仓库删除事件及 checkpoint。
+    application/search 通过查询端口协调各来源，HTTP 仅转换协议；
     server/operations 独占统一账本、审计状态和 Agent receipt；其中
     application/operations 的 operationLedgerPort 独占公开错误与命令类型；operationLedgerState 独占
     operations-v1 严格解析与初始状态，operationLedgerProjection 独占 Agent 审计 wire 投影与稳定 operation key，operationLedgerStore 独占安全分区、串行化、
     可用性、容量与旧文件清理，contentReceiptStore 独占每操作文件、格式和旧记录导入，contentOperationLedger 独占本机操作意图、去重和终态收据，agentOperationLedger 独占 in-flight 去重、持久 receipt、
     retention 与 terminal/indeterminate 流程，operationLedger 只作为显式组合根和公开
     façade；
-    server/agent 拥有模型 runtime adapter、Provider 配置和凭据存储、私有 IPC 与子进程
-    协议；内存会话和 Provider 操作状态由 application/agentHost 拥有。
+    server/agent 拥有模型 runtime adapter、配置文件与凭据存储、历史格式解码、私有 IPC 与子进程
+    协议；配置规则与修改事务由 application/agentConfiguration 拥有，内存会话和 Provider 操作状态由 application/agentHost 拥有。
     application/agentHost/providerOperations 组合探测、设备码登录与 conformance 用例，
     拒绝关闭后的新操作；各用例拥有自身记录、预留、执行任务和幂等释放，通过端口访问
     配置、时钟和进程。server/runtime 负责三领域工具及平台端口的构造与接线；
-    configurationErrors、configurationInput 与 configurationViews 分别独占配置错误、
-    stored input 归一化和 digest/read-model 投影，configurationStore 只组合事务、
-    credential/access 生命周期与这些纯策略；configurationRevision 独占 revision CAS
+    application/agentConfiguration 的 configurationErrors、configurationInput 与 configurationViews 分别独占配置错误、
+    stored input 归一化和 digest/read-model 投影；configurationRevision 独占 revision CAS
     断言，profileConfiguration 通过显式 mutation port 独占 Profile CRUD 与 conformance；
     providerConfiguration 通过显式 read/mutation ports 独占 Provider CRUD、认证候选、
     device-code staging/activation、change lease 与 conformance 失效；credentialManifest
     独占凭据格式、引用路径、identity 解析、digest 与有界编解码，codexManagedHomeStore
     独占托管 HOME 的 prepare、递归 seal、active 校验和安全删除，providerCredentialStore
-    只编排凭据分区、manifest 生命周期与配置引用 reconciliation；
+    只编排凭据分区、manifest 生命周期与配置引用 reconciliation；服务端 configurationStore
+    组合安全文件事务、凭据实现、目标地址策略及摘要注入；
     jsonLineTransport 独占 Codex app-server、STDIO MCP 与 private IPC 共用的有界
     JSONL framing，拒绝超长行、非法 UTF-8 和 EOF 残行；privateIpc 独占 capability
     与本地监听器，并线性化并发启动和幂等关闭，client 只接受一个匹配 correlation 的
@@ -204,7 +206,7 @@ Workspace 对账在同一轮内复用前后捕获并核对过的受管工作树�
 这些模块只拆职责，不改变本地 WAL 提交点或仓库内容 schema。普通仓库没有第二种
 存储实现、组合 catalog、连接 registry 或存储回退路径。
 
-Agent 配置由 application/agent 端口协调、设置界面操作并写入独立的 versioned 服务端状态；
+Agent 配置由 application/agentConfiguration 的接口与规则协调、设置界面操作并写入独立的 versioned 服务端状态；
 session lifecycle policy 独占[产品需求](product-requirements.md#8-agent)定义的
 idle/absolute TTL 实现，审计容量来自 bootstrap 服务设置。每个 profile 显式声明
 maxResidentSessions、model、timeout 与 tool/request limit；chat profile 的

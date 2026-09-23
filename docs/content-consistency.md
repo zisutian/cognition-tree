@@ -148,7 +148,9 @@ transform 必须返回 covered unit ids，repository 在任何 rebase 前验证�
 
 `application/sync` 是通用协调器，只消费组合根注入的 `revisionOf`、`prepare`、
 `merge`、`projectChanges` 与 prepared store port，不导入三个内容领域、HTTP 或
-基础设施。本机命令先提交会使旧 Agent proposal 过期；Agent 或浏览器先提交也会使旧本机命令返回版本冲突。外部命令的意图和持久收据流程见[服务运行](service-runtime.md)，调用规则见[API 与 CLI 集成](api-integration.md)。
+基础设施。该模块还统一维护三领域 revision 观察、仓库集合删除事件和 checkpoint；
+首次观察与版本不变不产生更新事件，Agent 普通读取不观察版本。
+本机命令先提交会使旧 Agent proposal 过期；Agent 或浏览器先提交也会使旧本机命令返回版本冲突。外部命令的意图和持久收据流程见[服务运行](service-runtime.md)，调用规则见[API 与 CLI 集成](api-integration.md)。
 
 ## 仓库目录状态
 

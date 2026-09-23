@@ -20,7 +20,7 @@ core/
 
 application/
 
-    框架无关的用例、端口、session controller、read model 和问题投影。application/persistence 持有通用 VersionedRepository、保存队列和 VersionedSessionController；application/syntax 独占 UI-neutral 的 syntax draft projection，包括选项、约束、稳定 field ID、focus target 与诊断位置。跨内容领域协调集中于 application/workbench 的工作台流程和 application/agentHost 的服务端 Agent 工具流程。application/agent 拥有中立会话、硬范围与提案模型以及客户端状态；application/agentHost 拥有服务端会话生命周期、暂存、审批、exact CAS、Provider 登录、符合性检查和探测用例。application/system 只拥有启动配置用例、端口和状态机，不感知内容领域。
+    框架无关的用例、端口、session controller、read model 和问题投影。application/persistence 持有通用 VersionedRepository、保存队列和 VersionedSessionController；application/syntax 独占 UI-neutral 的 syntax draft projection，包括选项、约束、稳定 field ID、focus target 与诊断位置。跨内容领域协调集中于 application/workbench 的工作台流程和 application/agentHost 的服务端 Agent 工具流程。application/agent 拥有中立会话、硬范围与提案模型；application/agentClient 拥有浏览器会话与配置控制器；application/agentConfiguration 拥有配置模型、校验、版本、可用性投影、修改事务与凭据端口；application/agentHost 拥有服务端会话生命周期、暂存、审批、exact CAS、Provider 登录、符合性检查和探测用例。application/system 只拥有启动配置用例、端口和状态机，不感知内容领域。
 
 infrastructure/
 
@@ -118,7 +118,9 @@ application/agent 提供 AgentRuntimePort、AgentSessionController、scope polic
 proposal state machine；application/agentHost 通过三个领域公开的 preparation 入口
 实现服务端暂存、审批与提交。二者不依赖 contracts、infrastructure、presentation 或
 application/workbench；AgentRuntimePort 定义与 Provider 无关的上下文预算耗尽语义。
-浏览器的 AgentClientController 只消费 wire-neutral port；
+application/agentConfiguration 通过配置事务、凭据、目标地址与摘要端口表达规则，
+基础设施只实现文件、凭据、DNS 和历史格式解码。application/agentClient 的
+AgentClientController 只消费 wire-neutral port；
 发送、批准和 destructive confirmation 前所需的已加载 draft 同步由
 `AuthenticatedWorkbenchRoot` 在 presentation composition root 注入，避免任一应用协调根
 反向调用另一个。
@@ -147,7 +149,7 @@ Journal 只理解日记内容、仓内引用和外部引用 token；Todo 只理�
 
 application/repository/RepositoryCatalogController 独占 catalog 加载、活动仓库持久化、创建/重命名/删除期间的并发保护和 descriptor 复用。Workspace session 只管理生命周期、authoritative state 与保存队列；语法目录的创建、复制命名、启用、删除和 metadata reconcile 由独立 mutation service 计算。
 
-application/agent/AgentClientController 独占客户端 session/status authority；完整 reload
+application/agentClient/AgentClientController 独占客户端 session/status authority；完整 reload
 只能由一个循环串行执行，并发 reload、SSE event、单 session recovery 或 mutation 结果
 会废弃在途旧列表并要求最后再读一轮，陈旧响应不得覆盖较新 sequence。dispose 是不可
 恢复终态：关闭事件流、清空订阅者，拒绝后续端口操作和 Profile 偏好写入；在途响应可以
@@ -173,7 +175,7 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 
 ## 本机内容用例
 
-application/content 是外部内容调用的显式协调根：目标解析、目录版本、一次 CAS 与操作收据由该模块协调，平台能力通过端口注入。各领域公开的中立 command preparation 与 review 同时被此模块和 Agent 使用；Agent 自己保留会话、暂存提案和审批。
+application/content 是外部内容调用的显式协调根：目标解析、目录版本、一次 CAS 与操作收据由该模块协调，平台能力通过端口注入。按稳定 ID 读取的 Workspace、Journal、Todo 资源与名称选择器复用同一领域投影；HTTP 和 Agent 分别适配结果。各领域公开的中立 command preparation 与 review 同时被此模块和 Agent 使用；Agent 自己保留会话、暂存提案和审批。
 
 本机查询协调器拥有目录准入、名称解析和版本；contentReadContext 只从已准备的领域
 快照建立读模型，使用 parse index 的资源查找能力。任务状态仍委托 application/todo，
@@ -231,6 +233,7 @@ controller，重新登录不得复用终态实例。领域 session 到 view appl
 
 `presentation/navigation` 是展示层页面导航的唯一所有者。`PageTarget` 使用稳定对象 ID，
 `PageSession` 不复制业务正文；driver 通过公开接口描述和选择目标，区分暂不可用与确认删除。
+`activityMetadata` 唯一维护活动 ID、名称、分组和顺序；shell 只按 ID 绑定图标与懒加载控制器。
 Shell 注入关闭保存检查、错误报告以及仓库生命周期。活动不维护另一套当前活动状态。
 页面激活先执行离开检查和目标选择，再提交标签；异步完成必须匹配导航代次。加载占位与真实目标共享一个页面位置；较新请求被拒绝也必须收尾 pending。异步创建用导航 owner 提供的 prepareOpen 捕获请求版本，目录更新与用户导航请求分开计数，防止迟到创建抢走当前页。
 
