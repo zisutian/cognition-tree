@@ -1,10 +1,13 @@
 import { defaultDesignConfig } from "compact-ui";
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
 import { expect, type Locator } from "@playwright/test";
 
 import { test as base } from "../support/e2eTest";
 import {
   seedLargeDirectoryRepository,
   seedLargeStructureRepository,
+  seedNestedStructureRepository,
 } from "../support/repositorySeeds";
 import { openWorkbench } from "../support/workbenchPage";
 
@@ -19,7 +22,7 @@ async function expectCompactVirtualRows(tree: Locator, totalRows: number) {
         return {
           height: box.height,
           top: box.top,
-          position: Number(item.getAttribute("aria-posinset")),
+          position: Number(item.getAttribute("data-flat-index")),
         };
       })
       .sort((a, b) => a.top - b.top),
@@ -41,6 +44,7 @@ async function expectCompactVirtualRows(tree: Locator, totalRows: number) {
 const test = base.extend<{
   directoryRepository: string;
   structureRepository: string;
+  nestedStructureRepository: string;
 }>({
   directoryRepository: [
     async ({ api }, use) => {
@@ -54,6 +58,14 @@ const test = base.extend<{
     async ({ api }, use) => {
       const id = "virtual-structure";
       await seedLargeStructureRepository(api, id);
+      await use(id);
+    },
+    { timeout: 30_000 },
+  ],
+  nestedStructureRepository: [
+    async ({ api }, use) => {
+      const id = "virtual-nested-structure";
+      await seedNestedStructureRepository(api, id);
       await use(id);
     },
     { timeout: 30_000 },
@@ -142,5 +154,50 @@ test.describe("virtual collection scrolling", () => {
       structureTree.getByTitle("组分: Block 599", { exact: true }),
     ).toBeVisible();
     await expectCompactVirtualRows(structureTree, 600);
+  });
+
+  test("preserves root focus and sibling facts across the 500/501 boundary", async ({
+    nestedStructureRepository,
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await openWorkbench(page, nestedStructureRepository);
+    const tree = page.getByRole("tree", { name: "笔记结构" });
+    const parent = tree.getByRole("treeitem", { name: /Parent/ });
+    const firstChild = tree.getByRole("treeitem", { name: /Child 0 / });
+    await expect(tree).toHaveAttribute("data-virtual-row-count", "501");
+    await expect(parent).toHaveAttribute("aria-level", "1");
+    await expect(parent).toHaveAttribute("aria-setsize", "1");
+    await expect(firstChild).toHaveAttribute("aria-level", "2");
+    await expect(firstChild).toHaveAttribute("aria-posinset", "1");
+    await expect(firstChild).toHaveAttribute("aria-setsize", "500");
+    const evidenceDirectory = process.env.CTN_E2E_EVIDENCE_DIR;
+    if (evidenceDirectory) await mkdir(evidenceDirectory, { recursive: true });
+    const screenshotPath = (name: string) => evidenceDirectory
+      ? path.join(evidenceDirectory, name)
+      : testInfo.outputPath(name);
+    await tree.focus();
+    await page.screenshot({ path: screenshotPath("nested-top-wide.png") });
+    await tree.press("ArrowLeft");
+    await expect(tree).toBeFocused();
+    await expect(tree).not.toHaveAttribute("data-virtual-row-count", /.+/);
+    await expect(tree.getByRole("treeitem")).toHaveCount(1);
+    await tree.press("ArrowRight");
+    await expect(tree).toBeFocused();
+    await expect(tree).toHaveAttribute("data-virtual-row-count", "501");
+    await tree.press("End");
+    const lastChild = tree.getByRole("treeitem", { name: /Child 499/ });
+    await expect(lastChild).toBeInViewport();
+    await expect(tree).toHaveAttribute("aria-activedescendant", await lastChild.getAttribute("id") ?? "");
+    await expect(lastChild).toHaveAttribute("aria-posinset", "500");
+    await page.screenshot({ path: screenshotPath("nested-wide.png") });
+    await page.setViewportSize({ width: 880, height: 720 });
+    await tree.press("End");
+    await expect(lastChild).toBeInViewport();
+    await page.screenshot({ path: screenshotPath("nested-narrow.png") });
+    await page.evaluate(() => { document.documentElement.style.zoom = "125%"; });
+    await tree.press("End");
+    await expect(lastChild).toBeInViewport();
+    await page.screenshot({ path: screenshotPath("nested-scaled.png") });
   });
 });

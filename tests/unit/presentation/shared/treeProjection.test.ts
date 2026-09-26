@@ -3,6 +3,7 @@ import {
   defaultStructureTreeIndentUnitCount,
   defaultStructureTreeIndentWidthPx,
   flattenStructureTreeRows,
+  visibleStructureTreeRows,
   getStructureTreeIndentWidthPx,
   normalizeStructureTreeIndentUnitCount,
   type StructureTreeNode,
@@ -49,6 +50,12 @@ describe("treeProjection", () => {
       ["block-1", 0],
       ["block-2", 1],
     ]);
+    const rows = flattenStructureTreeRows(structureNodes);
+    expect(rows.map(({ parentId, position, setSize }) => [parentId, position, setSize])).toEqual([
+      [null, 1, 1],
+      ["block-1", 1, 1],
+    ]);
+    expect(visibleStructureTreeRows(rows, new Set(["block-1"])).map(({ node }) => node.id)).toEqual(["block-1"]);
   });
 
   it("flattens a 10,000-level structure tree without recursive traversal", () => {

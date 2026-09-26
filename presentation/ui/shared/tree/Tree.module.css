@@ -21,11 +21,29 @@
 }
 .ui-structure-container {
   display: grid;
+  grid-template-columns: var(--cu-rowHeight) minmax(0, 1fr);
+  align-items: center;
   min-width: 0;
   padding-left: calc(
     var(--ui-structure-depth, 0) *
       var(--ui-structure-indent-width, var(--cu-treeIndent))
   );
+}
+.ui-structure-disclosure,
+.ui-structure-disclosure-space {
+  display: inline-flex;
+  align-items: center;
+  width: var(--cu-rowHeight);
+  height: var(--cu-rowHeight);
+}
+.ui-structure-container > button:last-child {
+  min-width: 0;
+  width: 100%;
+}
+.ui-structure-container.is-active:focus-within,
+.ui-structure-tree:focus .ui-structure-container.is-active {
+  outline: var(--cu-focusRingWidth, 2px) solid var(--cu-color-accent);
+  outline-offset: calc(-1 * var(--cu-focusRingWidth, 2px));
 }
 .ui-structure-content {
   display: grid;

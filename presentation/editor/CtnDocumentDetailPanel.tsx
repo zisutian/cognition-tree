@@ -14,7 +14,7 @@ type CtnTimestampMetadata = {
 
 type CtnDocumentStructure = Pick<
   StructureTreeProps,
-  "indentUnitCount" | "nodes" | "onSelectLine" | "selectedLineNumbers"
+  "ariaLabel" | "indentUnitCount" | "nodes" | "onSelectLine" | "selectedLineNumbers" | "stateKey"
 >;
 
 const timestampFormatter = new Intl.DateTimeFormat("zh-CN", {

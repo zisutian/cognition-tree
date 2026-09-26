@@ -19,13 +19,23 @@ export type StructureTreeRowState = {
 
 export type StructureTreeRowProps = Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
-  "children" | "className" | "onClick" | "style" | "title" | "type"
+  | "children"
+  | "className"
+  | "onClick"
+  | "onContextMenu"
+  | "onFocus"
+  | "onKeyDown"
+  | "style"
+  | "tabIndex"
+  | "title"
+  | "type"
 > & {
   className?: string;
   [dataAttribute: `data-${string}`]: string | boolean | undefined;
 };
 
 export type StructureTreeProps = {
+  ariaLabel: string;
   className?: string;
   getRowProps?: (
     node: StructureTreeNode,
@@ -36,6 +46,12 @@ export type StructureTreeProps = {
   nodes: StructureTreeNode[];
   selectedLineNumbers?: ReadonlySet<number>;
   selectedRootLineNumber?: number | null;
+  stateKey: string;
+  subtreeSelection?: boolean;
+  onRequestContextMenu?: (
+    node: StructureTreeNode,
+    position: { x: number; y: number },
+  ) => void;
   onSelectLine?: (lineNumber: number) => void;
 };
 

@@ -175,10 +175,12 @@ export function JournalDetailPanel({ view }: JournalViewProps) {
       documentMetadata={view.activeEntry}
       stats={view.editor.stats}
       structure={{
+        ariaLabel: "日记结构",
         indentUnitCount: view.editor.syntax.tabDisplayWidth,
         nodes: view.outline.nodes,
         onSelectLine: view.outline.onSelectLine,
         selectedLineNumbers,
+        stateKey: `journal:${view.activeEntry.id}`,
       }}
     />
   );

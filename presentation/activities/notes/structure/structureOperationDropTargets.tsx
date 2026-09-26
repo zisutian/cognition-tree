@@ -167,6 +167,7 @@ function readStructureRowDropPosition(
 }
 
 export function StructureOperationTargetTree({
+  ariaLabel,
   activeDropPosition,
   activeTargetLineNumber,
   blockedLineNumbers,
@@ -176,6 +177,8 @@ export function StructureOperationTargetTree({
   nodes,
   selectedLineNumbers,
   selectedRootLineNumber,
+  stateKey,
+  subtreeSelection = false,
   onActivateTarget,
   onDragEnd,
   onDragStartLine,
@@ -184,6 +187,7 @@ export function StructureOperationTargetTree({
   onSelectLine,
   onSetActiveDropPosition,
 }: {
+  ariaLabel: string;
   activeDropPosition: string | null;
   activeTargetLineNumber: number | null;
   blockedLineNumbers: ReadonlySet<number>;
@@ -193,6 +197,8 @@ export function StructureOperationTargetTree({
   nodes: UiBlockNode[];
   selectedLineNumbers: ReadonlySet<number>;
   selectedRootLineNumber: number | null;
+  stateKey: string;
+  subtreeSelection?: boolean;
   onActivateTarget: (lineNumber: number | null) => void;
   onDragEnd?: () => void;
   onDragStartLine?: (lineNumber: number) => void;
@@ -234,17 +240,6 @@ export function StructureOperationTargetTree({
       "data-structure-row-drop": "true",
       draggable,
       onDragEnd,
-      onContextMenu: onRequestMoveLine
-        ? (event) => {
-            event.preventDefault();
-            const rect = event.currentTarget.getBoundingClientRect();
-
-            onRequestMoveLine(node.lineNumber, {
-              x: event.clientX || rect.left + rect.width / 2,
-              y: event.clientY || rect.bottom,
-            });
-          }
-        : undefined,
       onDragLeave: (event) => {
         const nextTarget = event.relatedTarget;
 
@@ -321,6 +316,7 @@ export function StructureOperationTargetTree({
 
   return (
     <StructureTree
+      ariaLabel={ariaLabel}
       className={cx("structure-operation-target-tree")}
       getRowProps={getRowProps}
       indentUnitCount={indentUnitCount}
@@ -328,6 +324,11 @@ export function StructureOperationTargetTree({
       nodes={nodes}
       selectedLineNumbers={selectedLineNumbers}
       selectedRootLineNumber={selectedRootLineNumber}
+      stateKey={stateKey}
+      subtreeSelection={subtreeSelection}
+      onRequestContextMenu={onRequestMoveLine
+        ? (node, position) => onRequestMoveLine(node.lineNumber, position)
+        : undefined}
       onSelectLine={onSelectLine}
     />
   );

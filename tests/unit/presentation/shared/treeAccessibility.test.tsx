@@ -124,6 +124,7 @@ describe("treeAccessibility", () => {
   it("renders structure hierarchy, text markers, and line metadata", () => {
     const markup = renderToStaticMarkup(
       <StructureTree
+        ariaLabel="测试结构"
         getRowProps={(node, state) => ({
           "data-depth": String(state.depth),
           "data-line": String(node.lineNumber),
@@ -157,6 +158,7 @@ describe("treeAccessibility", () => {
             },
           },
         ]}
+        stateKey="accessibility-structure"
       />,
     );
 
@@ -174,6 +176,7 @@ describe("treeAccessibility", () => {
   it("exposes selected structure subtrees and their root semantically", () => {
     const markup = renderToStaticMarkup(
       <StructureTree
+        ariaLabel="测试选择"
         getRowProps={(_node, state) => ({
           "data-selection-root": String(state.isSelectedRoot),
         })}
@@ -208,10 +211,14 @@ describe("treeAccessibility", () => {
           },
         ]}
         selectedRootLineNumber={1}
+        stateKey="accessibility-selection"
+        subtreeSelection
+        onSelectLine={() => undefined}
       />,
     );
 
     expect(markup.match(/aria-selected="true"/g) ?? []).toHaveLength(2);
+    expect(markup).toContain('aria-multiselectable="true"');
     expect(markup.match(/data-selection-root="true"/g) ?? []).toHaveLength(1);
   });
 });

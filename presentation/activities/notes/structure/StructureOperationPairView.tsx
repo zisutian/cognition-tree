@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 type ContextMenuPosition = ComponentProps<typeof ContextMenu>["position"];
 import { Button, Section, Stack, Toolbar } from "compact-ui";
 import { ArrowLeftRight } from "lucide-react";
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
 import {
   StructureTree,
@@ -93,20 +93,11 @@ export function StructureOperationPairView({
     finishDrag();
   };
   const openMoveContext = (
-    event: MouseEvent<HTMLButtonElement>,
     lineNumber: number,
+    position: ContextMenuPosition,
   ) => {
-    event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-
     setSourceLineNumber(String(lineNumber));
-    setMoveContext({
-      lineNumber,
-      position: {
-        x: event.clientX || rect.left + rect.width / 2,
-        y: event.clientY || rect.bottom,
-      },
-    });
+    setMoveContext({ lineNumber, position });
   };
 
   return (
@@ -135,6 +126,7 @@ export function StructureOperationPairView({
           <Section title={`源笔记 · ${view.sourceNote?.title ?? "未选择"}`}>
             {view.sourceRoots.length > 0 ? (
               <StructureTree
+                ariaLabel="源笔记结构"
                 getRowProps={(node) => ({
                   className:
                     draggingLineNumber === String(node.lineNumber)
@@ -150,14 +142,17 @@ export function StructureOperationPairView({
                     event.dataTransfer.setData("text/plain", payload);
                     startDrag(node.lineNumber);
                   },
-                  onContextMenu: (event) =>
-                    openMoveContext(event, node.lineNumber),
                 })}
                 indentUnitCount={view.indentUnitCount}
                 keepMountedLineNumbers={keepMountedLineNumbers}
                 nodes={view.sourceRoots}
                 selectedLineNumbers={selectedLineNumbers}
                 selectedRootLineNumber={sourceBlock?.lineNumber ?? null}
+                stateKey={`structure-source:${view.sourceNoteId}`}
+                subtreeSelection
+                onRequestContextMenu={(node, position) =>
+                  openMoveContext(node.lineNumber, position)
+                }
                 onSelectLine={(lineNumber) =>
                   setSourceLineNumber(String(lineNumber))
                 }
@@ -193,6 +188,8 @@ export function StructureOperationPairView({
                   nodes={view.targetRoots}
                   selectedLineNumbers={emptySelectedLineNumbers}
                   selectedRootLineNumber={null}
+                  stateKey={`structure-target:${view.targetNoteId}`}
+                  ariaLabel="目标笔记结构"
                   onActivateTarget={setActiveTargetLineNumber}
                   onDropLine={dropLine}
                   onSetActiveDropPosition={setActiveDropPosition}

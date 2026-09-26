@@ -96,6 +96,63 @@ test.describe("directory and structure operation flows", () => {
     await page.screenshot({ path: testInfo.outputPath("subtree-selected-scaled.png") });
   });
 
+  test("navigates the shared structure tree without changing selection", async ({ page }) => {
+    await openWorkbench(page, interactionRepositoryId);
+    await page.getByRole("tree", { name: "笔记目录" })
+      .getByRole("treeitem", { name: "Source", exact: true }).click();
+    const tree = page.getByRole("tree", { name: "笔记结构" });
+    const child = tree.getByRole("treeitem", { name: /Source Child/ });
+    const grandchild = tree.getByRole("treeitem", { name: /Source Grandchild/ });
+    const sibling = tree.getByRole("treeitem", { name: /Source Sibling/ });
+    await tree.focus();
+    await expect(tree).toHaveAttribute("tabindex", "0");
+    expect(await tree.locator("button:not([tabindex='-1'])").count()).toBe(0);
+    await expect(child).toHaveAttribute("aria-level", "1");
+    await expect(child).toHaveAttribute("aria-posinset", "1");
+    await expect(child).toHaveAttribute("aria-setsize", "2");
+    await expect(grandchild).toHaveAttribute("aria-posinset", "1");
+    await tree.press("ArrowRight");
+    await expect.poll(() => tree.getAttribute("aria-activedescendant"))
+      .toBe(await grandchild.getAttribute("id"));
+    await expect(child).toHaveAttribute("aria-selected", "false");
+    await tree.press("ArrowLeft");
+    await expect.poll(() => tree.getAttribute("aria-activedescendant"))
+      .toBe(await child.getAttribute("id"));
+    await tree.press("ArrowLeft");
+    await expect(grandchild).toHaveCount(0);
+    await expect(child).toHaveAttribute("aria-expanded", "false");
+    await tree.press("ArrowRight");
+    await expect(grandchild).toBeVisible();
+    await tree.press("End");
+    await expect.poll(() => tree.getAttribute("aria-activedescendant"))
+      .toBe(await sibling.getAttribute("id"));
+    await tree.press("Home");
+    await tree.press("s");
+    await expect.poll(() => tree.getAttribute("aria-activedescendant"))
+      .toBe(await grandchild.getAttribute("id"));
+    await tree.press("Enter");
+    await expect(grandchild).toHaveAttribute("aria-selected", "true");
+    await tree.press("Home");
+    await expect(grandchild).toHaveAttribute("aria-selected", "true");
+    await expect(tree).toBeFocused();
+  });
+
+  test("opens the existing structure menu from the keyboard", async ({ page }) => {
+    await openWorkbench(page, interactionRepositoryId);
+    await selectNotesMode(page, "结构");
+    const tree = page.getByRole("tree", { name: "源笔记结构" });
+    await expect(tree).toHaveAttribute("aria-multiselectable", "true");
+    await expect(page.getByRole("tree", { name: "目标笔记结构" }))
+      .not.toHaveAttribute("aria-multiselectable", /.+/);
+    await tree.focus();
+    await tree.press("Shift+F10");
+    await expect(page.getByRole("menu", { name: "结构块操作" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(tree).toBeFocused();
+    await tree.press("ContextMenu");
+    await expect(page.getByRole("menu", { name: "结构块操作" })).toBeVisible();
+  });
+
   test("closes structure menus before leaving focus mode", async ({ page }) => {
     await openWorkbench(page, interactionRepositoryId);
     await selectNotesMode(page, "结构");
@@ -113,6 +170,12 @@ test.describe("directory and structure operation flows", () => {
     await page.keyboard.press("Escape");
     await expect(menu).toHaveCount(0);
     await expect(exitFocus).toBeVisible();
+    const sourceTree = source.getByRole("tree", { name: "源笔记结构" });
+    await expect(sourceTree).toBeFocused();
+    const firstActive = await sourceTree.getAttribute("aria-activedescendant");
+    await sourceTree.press("ArrowDown");
+    await expect(sourceTree).toBeFocused();
+    await expect(sourceTree).not.toHaveAttribute("aria-activedescendant", firstActive ?? "");
 
     await sourceBlock.click({ button: "right" });
     await menu.getByRole("menuitem", { name: "移动到…" }).click();
@@ -289,7 +352,7 @@ test.describe("directory and structure operation flows", () => {
     const sourceStructureRow = sourceStructure
       .getByRole("treeitem")
       .first()
-      .getByRole("button");
+      .locator("button[title]");
     const movedStructureTitle = await sourceStructureRow.getAttribute("title");
 
     expect(movedStructureTitle).not.toBeNull();
@@ -437,5 +500,28 @@ test.describe("directory and structure operation flows", () => {
         );
       })
       .toBe(true);
+  });
+
+  test("keeps a collapsed parent available as an inside drop target", async ({ page }) => {
+    await openWorkbench(page, interactionRepositoryId);
+    await selectNotesMode(page, "结构");
+    await page.getByRole("radio", { name: "笔记内迁移", exact: true }).click();
+    await page.locator("aside[aria-label='上下文区域']")
+      .getByTitle("Source", { exact: true }).click();
+    const tree = page.getByRole("tree", { name: "笔记结构操作" });
+    const parent = tree.getByRole("treeitem", { name: /Source Child/ });
+    const sibling = tree.getByTitle("组分: Source Sibling", { exact: true });
+    await parent.getByRole("button", { name: /收起/ }).click();
+    await expect(tree.getByTitle("定义: Source Grandchild", { exact: true })).toHaveCount(0);
+    const parentBody = parent.getByTitle("组分: Source Child", { exact: true });
+    const box = await parentBody.boundingBox();
+    expect(box).not.toBeNull();
+    await sibling.dragTo(parentBody, {
+      targetPosition: { x: 12, y: Math.floor((box?.height ?? 1) / 2) },
+    });
+    await parent.getByRole("button", { name: /展开/ }).click();
+    await expect(tree.getByTitle("组分: Source Sibling", { exact: true })
+      .locator("xpath=ancestor::*[@role='treeitem'][1]"))
+      .toHaveAttribute("aria-level", "2");
   });
 });

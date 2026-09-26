@@ -97,6 +97,7 @@ export function StructureOperationStructureView({
           {view.structureRoots.length > 0 ? (
             <>
               <StructureOperationTargetTree
+                ariaLabel="笔记结构操作"
                 activeDropPosition={activeDropPosition}
                 activeTargetLineNumber={activeTargetLineNumber}
                 blockedLineNumbers={blockedLineNumbers}
@@ -106,6 +107,8 @@ export function StructureOperationStructureView({
                 nodes={view.structureRoots}
                 selectedLineNumbers={selectedLineNumbers}
                 selectedRootLineNumber={selectedBlock?.lineNumber ?? null}
+                stateKey={`structure-within:${view.structureNoteId}`}
+                subtreeSelection
                 onActivateTarget={setActiveTargetLineNumber}
                 onDragEnd={finishDrag}
                 onDragStartLine={startDrag}

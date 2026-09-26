@@ -20,10 +20,12 @@ export function NoteDetailPanel({ view }: { view: NotesViewModel }) {
       structure={
         view.editor.mode === "ctn"
           ? {
+              ariaLabel: "笔记结构",
               indentUnitCount: view.editor.syntax.tabDisplayWidth,
               nodes: view.outline.nodes,
               onSelectLine: view.outline.onSelectLine,
               selectedLineNumbers,
+              stateKey: `note:${view.activeNote.id}`,
             }
           : null
       }

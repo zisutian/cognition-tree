@@ -436,6 +436,30 @@ export async function seedLargeStructureRepository(
   });
 }
 
+export async function seedNestedStructureRepository(
+  api: APIRequestContext,
+  id: string,
+) {
+  const note: SeedNote = {
+    id: "nested-structure",
+    source: createSeedSource(
+      [
+        "Nested Structure",
+        "\t- Parent",
+        ...Array.from({ length: 500 }, (_, index) => `\t\t: Child ${index}`),
+      ].join("\n"),
+      1_100_000,
+    ),
+  };
+  await createRepository({
+    api,
+    id,
+    notes: [note],
+    tree: [{ kind: "note", noteId: note.id }],
+    workspaceName: "嵌套结构回归仓库",
+  });
+}
+
 export async function seedGraphAppearanceRepository(api: APIRequestContext, id: string) {
   const titles = [
     "认知与学习", "注意力", "工作记忆", "长期记忆", "认知负荷", "元认知",
