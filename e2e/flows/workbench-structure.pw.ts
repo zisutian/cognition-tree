@@ -96,6 +96,57 @@ test.describe("directory and structure operation flows", () => {
     await page.screenshot({ path: testInfo.outputPath("subtree-selected-scaled.png") });
   });
 
+  test("closes structure menus before leaving focus mode", async ({ page }) => {
+    await openWorkbench(page, interactionRepositoryId);
+    await selectNotesMode(page, "结构");
+    await page.getByRole("button", { name: "进入专注模式" }).click();
+    const exitFocus = page.getByRole("button", { name: "退出专注模式" });
+    await expect(exitFocus).toBeVisible();
+
+    const source = page.getByRole("region", { name: "源笔记 · Source" });
+    const sourceBlock = source.getByTitle("组分: Source Child", {
+      exact: true,
+    });
+    await sourceBlock.click({ button: "right" });
+    const menu = page.getByRole("menu", { name: "结构块操作" });
+    await expect(menu).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(menu).toHaveCount(0);
+    await expect(exitFocus).toBeVisible();
+
+    await sourceBlock.click({ button: "right" });
+    await menu.getByRole("menuitem", { name: "移动到…" }).click();
+    const pick = page.getByRole("dialog", { name: "移动结构块" });
+    await expect(pick).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(pick).toHaveCount(0);
+    await expect(exitFocus).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("aside[aria-label='上下文区域']")).toBeVisible();
+  });
+
+  test("consumes folder creation Escape after composition", async ({ page }) => {
+    await openWorkbench(page, repositoryId);
+    const context = page.getByRole("complementary", {
+      name: "上下文区域",
+    });
+    await context.getByRole("button", { name: "新建文件夹" }).click();
+    const name = context.getByRole("textbox", { name: "文件夹名称" });
+    await expect(name).toBeVisible();
+    await name.fill("临时文件夹");
+    await name.dispatchEvent("keydown", {
+      bubbles: true,
+      isComposing: true,
+      key: "Escape",
+    });
+    await expect(name).toBeVisible();
+    await name.press("Escape");
+    await expect(name).toHaveCount(0);
+    await expect(context.getByRole("treeitem", {
+      name: "临时文件夹",
+    })).toHaveCount(0);
+  });
+
   test("numbers newly created note files in one folder", async ({
     page,
     repositoryRoot,

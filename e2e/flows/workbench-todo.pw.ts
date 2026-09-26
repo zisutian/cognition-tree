@@ -177,6 +177,19 @@ test.describe("Todo activity flows", () => {
     await page.keyboard.press("Control+Shift+M");
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
 
+    await context.getByRole("button", { name: "新建事项集合" }).click();
+    const canceledName = context.getByRole("textbox", {
+      name: "新建事项集合名称",
+    });
+    await canceledName.dispatchEvent("keydown", {
+      bubbles: true,
+      isComposing: true,
+      key: "Escape",
+    });
+    await expect(canceledName).toBeVisible();
+    await canceledName.press("Escape");
+    await expect(canceledName).toHaveCount(0);
+
     await createCollection(context, "今天");
     await createCollection(context, "稍后");
     await createCollection(context, "归档");

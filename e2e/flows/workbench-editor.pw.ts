@@ -219,6 +219,53 @@ test.describe("editor workbench flows", () => {
     await expect(page.locator(".ui-notification-region")).toHaveCount(0);
   });
 
+  test("uses Escape for editor selection before leaving focus mode", async ({
+    page,
+  }) => {
+    await openWorkbench(page, repositoryId);
+    await page
+      .getByRole("tree", { name: "笔记目录" })
+      .getByRole("treeitem", { name: "Alpha", exact: true })
+      .click();
+    await page.keyboard.press("Control+K");
+    await page.keyboard.press("z");
+    const exitFocus = page.getByRole("button", { name: "退出专注模式" });
+    await expect(exitFocus).toBeVisible();
+
+    const content = page.locator(".source-editor .cm-content");
+    await content.click();
+    await page.keyboard.press("Control+A");
+    await expect.poll(() => content.evaluate(() =>
+      window.getSelection()?.toString().length ?? 0,
+    )).toBeGreaterThan(0);
+    await page.keyboard.press("Escape");
+    await expect(exitFocus).toBeVisible();
+    await expect.poll(() => content.evaluate(() =>
+      window.getSelection()?.toString().length ?? 0,
+    )).toBe(0);
+
+    await page.evaluate(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", {
+        bubbles: true,
+        isComposing: true,
+        key: "Escape",
+      }));
+    });
+    await expect(exitFocus).toBeVisible();
+
+    await page.keyboard.press("Control+K");
+    await page.keyboard.press("Escape");
+    await expect(exitFocus).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("aside[aria-label='上下文区域']")).toBeVisible();
+
+    await getActivityButton(page, "代办").click();
+    await page.keyboard.press("Control+K");
+    await page.keyboard.press("z");
+    await expect(page.getByRole("navigation", { name: "活动导航" }))
+      .toBeVisible();
+  });
+
   test("keeps undo history isolated when switching notes", async ({ page }) => {
     await openWorkbench(page, repositoryId);
     await page

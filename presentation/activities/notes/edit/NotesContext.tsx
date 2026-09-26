@@ -233,9 +233,14 @@ export function NotesContext({
                 value={folderTitle}
                 onChange={(event) => setFolderTitle(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Escape") {
-                    setCreatingFolder(false);
-                  }
+                  if (
+                    event.key !== "Escape" ||
+                    event.nativeEvent.isComposing ||
+                    event.nativeEvent.keyCode === 229
+                  ) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setCreatingFolder(false);
                 }}
               />
             )}

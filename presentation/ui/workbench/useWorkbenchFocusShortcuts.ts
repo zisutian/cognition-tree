@@ -24,6 +24,7 @@ export function useWorkbenchFocusShortcuts({
 
     let chordActive = false;
     let chordTimer: ReturnType<typeof setTimeout> | null = null;
+    const canceledChordEscapes = new WeakSet<KeyboardEvent>();
     const clearChord = () => {
       chordActive = false;
       if (chordTimer) {
@@ -31,7 +32,7 @@ export function useWorkbenchFocusShortcuts({
         chordTimer = null;
       }
     };
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleChordKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
 
       if ((event.ctrlKey || event.metaKey) && key === "k") {
@@ -47,25 +48,33 @@ export function useWorkbenchFocusShortcuts({
         if (key === "z") {
           event.preventDefault();
           actionsRef.current.onToggleFocusMode();
+        } else if (key === "escape") {
+          canceledChordEscapes.add(event);
         }
         return;
       }
+    };
 
+    const handleFocusEscape = (event: KeyboardEvent) => {
       if (
-        key === "escape" &&
+        event.key === "Escape" &&
         focusMode &&
-        !(event.target instanceof Element &&
-          event.target.closest(".ui-overlay-backdrop"))
+        !event.defaultPrevented &&
+        !event.isComposing &&
+        event.keyCode !== 229 &&
+        !canceledChordEscapes.has(event)
       ) {
         event.preventDefault();
         actionsRef.current.onExitFocusMode();
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown, true);
+    document.addEventListener("keydown", handleChordKeyDown, true);
+    document.addEventListener("keydown", handleFocusEscape);
     return () => {
       clearChord();
-      document.removeEventListener("keydown", handleKeyDown, true);
+      document.removeEventListener("keydown", handleChordKeyDown, true);
+      document.removeEventListener("keydown", handleFocusEscape);
     };
   }, [enabled, focusMode]);
 }

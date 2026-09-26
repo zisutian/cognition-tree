@@ -79,7 +79,14 @@ export function useTodoContext(view: TodoViewModel): {
                       setError("");
                     }}
                     onKeyDown={(event) => {
-                      if (event.key === "Escape") setCreating(false);
+                      if (
+                        event.key !== "Escape" ||
+                        event.nativeEvent.isComposing ||
+                        event.nativeEvent.keyCode === 229
+                      ) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setCreating(false);
                     }}
                   />
                 )}
