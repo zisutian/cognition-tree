@@ -89,6 +89,60 @@ test.describe("Todo activity flows", () => {
     await seedWorkbenchRepository(api, repositoryId);
   });
 
+  test("distinguishes selected Todo rows from keyboard focus", async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await openWorkbench(page, repositoryId);
+    await getActivityButton(page, "代办").click();
+    const context = page.getByRole("complementary", {
+      name: "上下文区域",
+      exact: true,
+    });
+    await createCollection(context, "外观检查");
+    await context.getByTitle("外观检查", { exact: true }).click();
+    const panel = page.getByRole("region", { name: "代办编辑" });
+    await panel.locator(".source-editor .cm-content").click();
+    await page.keyboard.insertText("[] 第一项\n\t[] 第二项");
+    const detail = page.getByRole("region", { name: "代办结构" });
+    const first = detail.getByRole("button", {
+      name: "第一项",
+      exact: true,
+    });
+    const second = detail.getByRole("button", {
+      name: "第二项",
+      exact: true,
+    });
+    await expect(second).toBeVisible();
+    await first.click();
+    await first.focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expect(second).toBeFocused();
+    expect(await second.evaluate((button) => getComputedStyle(button).outlineStyle))
+      .not.toBe("none");
+    const color = (button: typeof first) =>
+      button.locator("xpath=ancestor::*[@role='treeitem'][1]").evaluate((item) => {
+        const row = item.querySelector(".todo-structure-row");
+        if (!row) throw new Error("Missing Todo row");
+        return getComputedStyle(row).backgroundColor;
+      });
+    expect(await color(first)).not.toBe("rgba(0, 0, 0, 0)");
+    expect(await color(second)).toBe("rgba(0, 0, 0, 0)");
+    await expect(first.locator("xpath=ancestor::*[@role='treeitem'][1]"))
+      .toHaveAttribute("aria-selected", "true");
+    await expect(second.locator("xpath=ancestor::*[@role='treeitem'][1]"))
+      .toHaveAttribute("aria-selected", "false");
+    await page.screenshot({ path: testInfo.outputPath("todo-selected-focused.png") });
+    await page.setViewportSize({ width: 880, height: 720 });
+    await page.screenshot({ path: testInfo.outputPath("todo-selected-focused-narrow.png") });
+    await page.evaluate(() => {
+      document.documentElement.style.zoom = "125%";
+    });
+    await page.screenshot({ path: testInfo.outputPath("todo-selected-focused-scaled.png") });
+  });
+
   test("persists ordered CTN collections, hierarchy, completion sidecars, and Problems", async ({
     page,
   }) => {
@@ -208,6 +262,11 @@ test.describe("Todo activity flows", () => {
     await expect(
       detail.getByRole("checkbox", { name: "标记未完成 第一项" }),
     ).toBeChecked();
+    expect(await detail
+      .getByRole("button", { name: "第一项", exact: true })
+      .locator(".todo-completed-text")
+      .evaluate((text) => getComputedStyle(text).textDecorationLine))
+      .toBe("line-through");
     const firstDetailLabel = detail.getByRole("button", {
       exact: true,
       name: "第一项",

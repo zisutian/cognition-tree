@@ -1,7 +1,7 @@
 .todo-structure-row {
   cursor: default;
 }
-.todo-structure-row:has(:focus-visible) {
+.todo-structure-row.is-selected {
   background: var(--cu-color-selected);
 }
 .todo-completed-text {

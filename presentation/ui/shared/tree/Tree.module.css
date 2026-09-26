@@ -46,7 +46,7 @@
       var(--ui-structure-indent-width, var(--cu-treeIndent))
   );
 }
-.ui-structure-tree-item.is-selected-subtree {
+.ui-structure-container.is-selected {
   background: var(--cu-color-selected);
 }
 .ui-structure-prefix {

@@ -150,6 +150,21 @@ test.describe("Journal activity flows", () => {
     await expect(
       detail.getByTitle("组分: 完成日记界面", { exact: true }),
     ).toBeVisible();
+    await detail.getByTitle("组分: 完成日记界面", { exact: true }).click();
+    const journalSelectedRow = detail
+      .getByTitle("组分: 完成日记界面", { exact: true })
+      .locator("xpath=ancestor::*[@role='treeitem'][1]");
+    const journalUnselectedRow = detail
+      .getByTitle("正文: 今日整理", { exact: true })
+      .locator("xpath=ancestor::*[@role='treeitem'][1]");
+    await expect(journalSelectedRow).toHaveAttribute("aria-selected", "true");
+    await expect(journalUnselectedRow).toHaveAttribute("aria-selected", "false");
+    expect(await journalSelectedRow.locator(":scope > .ui-structure-container")
+      .evaluate((row) => getComputedStyle(row).backgroundColor))
+      .not.toBe("rgba(0, 0, 0, 0)");
+    expect(await journalUnselectedRow.locator(":scope > .ui-structure-container")
+      .evaluate((row) => getComputedStyle(row).backgroundColor))
+      .toBe("rgba(0, 0, 0, 0)");
     await expect(detail.getByLabel("日记统计")).toContainText("2块");
     await expect
       .poll(async () => {

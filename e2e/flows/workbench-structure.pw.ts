@@ -30,6 +30,72 @@ test.describe("directory and structure operation flows", () => {
     await seedInteractionRepository(api, interactionRepositoryId);
   });
 
+  test("colors selected structure rows without coloring an unselected child", async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await openWorkbench(page, interactionRepositoryId);
+    await page
+      .getByRole("tree", { name: "笔记目录" })
+      .getByRole("treeitem", { name: "Source", exact: true })
+      .click();
+
+    const detail = page.getByRole("region", { name: "笔记详情" });
+    const root = detail.getByTitle("组分: Source Child", { exact: true });
+    const child = detail.getByTitle("定义: Source Grandchild", { exact: true });
+    await root.click();
+    const rowColor = (title: typeof root) =>
+      title.locator("xpath=ancestor::*[@role='treeitem'][1]").evaluate((item) => {
+        const row = item.querySelector(".ui-structure-container");
+        if (!row) throw new Error("Missing structure row");
+        return {
+          item: getComputedStyle(item).backgroundColor,
+          row: getComputedStyle(row).backgroundColor,
+        };
+      });
+    const selected = await rowColor(root);
+    const unselected = await rowColor(child);
+    expect(selected.row).not.toBe("rgba(0, 0, 0, 0)");
+    expect(selected.item).toBe("rgba(0, 0, 0, 0)");
+    expect(unselected.row).toBe("rgba(0, 0, 0, 0)");
+    await page.screenshot({ path: testInfo.outputPath("note-selected-row.png") });
+
+    await selectNotesMode(page, "结构");
+    const source = page.getByRole("region", { name: "源笔记 · Source" });
+    await source.getByTitle("组分: Source Child", { exact: true }).click();
+    const selectedSubtree = source.getByRole("treeitem", {
+      selected: true,
+    });
+    await expect(selectedSubtree).toHaveCount(2);
+    const sourceRoot = await rowColor(
+      source.getByTitle("组分: Source Child", { exact: true }),
+    );
+    const sourceChild = await rowColor(
+      source.getByTitle("定义: Source Grandchild", { exact: true }),
+    );
+    const sourceSibling = await rowColor(
+      source.getByTitle("组分: Source Sibling", { exact: true }),
+    );
+    expect(sourceRoot.row).toBe(selected.row);
+    expect(sourceChild.row).toBe(selected.row);
+    expect(sourceSibling.row).toBe("rgba(0, 0, 0, 0)");
+    await page.screenshot({ path: testInfo.outputPath("subtree-selected.png") });
+    const siblingButton = source.getByTitle("组分: Source Sibling", {
+      exact: true,
+    });
+    await siblingButton.hover();
+    await expect.poll(() => siblingButton.evaluate((button) =>
+      getComputedStyle(button).backgroundColor,
+    )).not.toBe("rgba(0, 0, 0, 0)");
+    await page.screenshot({ path: testInfo.outputPath("subtree-hover.png") });
+    await page.setViewportSize({ width: 880, height: 720 });
+    await page.screenshot({ path: testInfo.outputPath("subtree-selected-narrow.png") });
+    await page.evaluate(() => {
+      document.documentElement.style.zoom = "125%";
+    });
+    await page.screenshot({ path: testInfo.outputPath("subtree-selected-scaled.png") });
+  });
+
   test("numbers newly created note files in one folder", async ({
     page,
     repositoryRoot,

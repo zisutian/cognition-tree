@@ -82,7 +82,6 @@ function StructureTreeRow({
       aria-setsize={itemSetSize}
       className={cx(
         "ui-structure-tree-item",
-        isSelected && "is-selected-subtree",
         isSelectedRoot && "is-selected-root",
         itemClassName,
       )}
@@ -100,6 +99,7 @@ function StructureTreeRow({
       >
         <Button
           {...rowAttributes}
+          appearance="plain"
           aria-pressed={isSelected}
           onClick={() => onSelectLine?.(node.lineNumber)}
           title={`${node.label}: ${node.textDisplay.displayText}`}

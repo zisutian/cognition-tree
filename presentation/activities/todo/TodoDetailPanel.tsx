@@ -88,6 +88,7 @@ function TodoStructureNodes({
                 />
               </span>
               <Button
+                appearance="plain"
                 onClick={() => view.outline.onSelectLine(node.lineNumber)}
                 title={`${node.label}: ${node.text} · L${node.lineNumber}`}
                 type="button"
