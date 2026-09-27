@@ -308,6 +308,12 @@ test("creates a Provider directly from its directory group and selects its saved
       exact: true,
     }),
   ).toHaveAttribute("aria-selected", "true");
+  const directoryLabels = () => context.getByRole("treeitem").evaluateAll((rows) =>
+    rows.map((row) => row.getAttribute("aria-label") ?? ""));
+  let labels = await directoryLabels();
+  expect(labels.indexOf("新建 Provider")).toBeGreaterThanOrEqual(0);
+  expect(labels.indexOf("Local directory provider")).toBeGreaterThanOrEqual(0);
+  expect(labels.indexOf("新建 Provider")).toBeLessThan(labels.indexOf("Local directory provider"));
   await expect(
     page
       .getByRole("region", { name: "设置状态" })
@@ -330,4 +336,9 @@ test("creates a Provider directly from its directory group and selects its saved
       exact: true,
     }),
   ).toHaveCount(0);
+  await page.getByRole("button", { name: "刷新设置状态", exact: true }).click();
+  await expect(context.getByRole("treeitem", { name: "E2E provider", exact: true })).toBeVisible();
+  labels = await directoryLabels();
+  expect(labels.indexOf("新建 Provider")).toBeGreaterThanOrEqual(0);
+  expect(labels.indexOf("新建 Provider")).toBeLessThan(labels.indexOf("E2E provider"));
 });

@@ -1,4 +1,10 @@
 import { Tree, type TreeNode } from "compact-ui";
+import {
+  Archive, ArrowLeftRight, FileClock, Folder, KeyRound, LayoutDashboard,
+  MessageSquare, Network, Plug, Plus, Radar, Server, SlidersHorizontal,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { uiConfig } from "../../ui/index.ts";
 import { useState } from "react";
 import type {
   AgentConfigurationState,
@@ -8,6 +14,28 @@ import {
   settingsTargetKey,
   type SettingsTarget,
 } from "./settingsTypes.ts";
+
+const settingsIcons: Record<SettingsTarget["kind"], LucideIcon> = {
+  interface: LayoutDashboard,
+  network: Network,
+  paths: Folder,
+  owner: KeyRound,
+  migration: ArrowLeftRight,
+  "agent-default": MessageSquare,
+  "agent-discovery": Radar,
+  provider: Server,
+  profile: SlidersHorizontal,
+  "local-api": Plug,
+  audit: FileClock,
+  "audit-retention": Archive,
+};
+
+function settingsIcon(item: SettingsTarget) {
+  const Icon = "id" in item && item.id === null
+    ? Plus
+    : settingsIcons[item.kind];
+  return <Icon aria-hidden="true" size={uiConfig.metrics.treeIconSize} />;
+}
 export function SettingsContext({
   agent,
   blocked,
@@ -35,7 +63,7 @@ export function SettingsContext({
   const row = (item: SettingsTarget, label: string): TreeNode => {
     const id = settingsTargetKey(item);
     targets.set(id, item);
-    return { id, label, disabled: blocked && id !== settingsTargetKey(target) };
+    return { id, label, icon: settingsIcon(item), disabled: blocked && id !== settingsTargetKey(target) };
   };
   const group = (
     id: string,
@@ -55,8 +83,8 @@ export function SettingsContext({
       kind,
       kind === "provider" ? "模型服务（Provider）" : "会话配置（Profile）",
       [
-        ...items.map((item) => row({ kind, id: item.id }, item.label)),
         row({ kind, id: null }, `新建 ${settingsPageLabels[kind]}`),
+        ...items.map((item) => row({ kind, id: item.id }, item.label)),
       ],
     );
   const nodes = [

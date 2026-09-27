@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { expect, type JSHandle, type Page } from "@playwright/test";
+import { expect, type JSHandle, type Locator, type Page } from "@playwright/test";
 import { seedWorkbenchRepository } from "../support/repositorySeeds";
 import { test } from "../support/e2eTest";
 import {
@@ -10,6 +10,17 @@ import {
 import { getActivityButton, openWorkbench } from "../support/workbenchPage";
 
 const syntaxRepositoryId = "workbench-syntax-view";
+
+async function expectCreationFirst(directory: Locator, creation: string, existing: string) {
+  await expect(directory.getByRole("treeitem", { name: existing, exact: true })).toBeVisible();
+  const labels = await directory.getByRole("treeitem").evaluateAll((rows) =>
+    rows.map((row) => row.getAttribute("aria-label") ?? ""));
+  const creationIndex = labels.indexOf(creation);
+  const existingIndex = labels.indexOf(existing);
+  expect(creationIndex).toBeGreaterThanOrEqual(0);
+  expect(existingIndex).toBeGreaterThanOrEqual(0);
+  expect(creationIndex).toBeLessThan(existingIndex);
+}
 
 type TextReappearanceObservation = {
   observer: MutationObserver;
@@ -61,6 +72,18 @@ test.use({ screenshot: "off", trace: "off" });
 test.describe("settings activity flows", () => {
   test.beforeEach(async ({ api }) => {
     await Promise.all([seedWorkbenchRepository(api, syntaxRepositoryId)]);
+  });
+
+  test("places creation first in each configuration group and distinguishes setting icons", async ({ page }) => {
+    await openWorkbench(page, syntaxRepositoryId);
+    await getActivityButton(page, "设置").click();
+    const directory = page.getByRole("tree", { name: "设置目录" });
+    await expectCreationFirst(directory, "新建 Provider", "E2E provider");
+    await expectCreationFirst(directory, "新建 Profile", "E2E Agent");
+    await expect(directory.getByRole("treeitem", { name: "新建 Provider", exact: true }).locator("svg.lucide-plus")).toBeVisible();
+    await expect(directory.getByRole("treeitem", { name: "E2E provider", exact: true }).locator("svg.lucide-server")).toBeVisible();
+    await expect(directory.getByRole("treeitem", { name: "工作台布局", exact: true }).locator("svg.lucide-layout-dashboard")).toBeVisible();
+    await expect(directory.getByRole("treeitem", { name: "网络访问", exact: true }).locator("svg.lucide-network")).toBeVisible();
   });
 
   test("keeps the edited provider and its details on the same object", async ({
@@ -396,6 +419,7 @@ test("discards Provider credentials and protects a new Profile draft", async ({
   await expect(
     context.getByRole("treeitem", { name: "E2E created profile", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
+  await expectCreationFirst(context, "新建 Profile", "E2E created profile");
   await expect(page.getByRole("region", { name: "设置状态" })).toContainText(
     "deterministic-e2e",
   );
@@ -408,4 +432,6 @@ test("discards Provider credentials and protects a new Profile draft", async ({
   await expect(
     context.getByRole("treeitem", { name: "E2E created profile", exact: true }),
   ).toHaveCount(0);
+  await page.getByRole("button", { name: "刷新设置状态", exact: true }).click();
+  await expectCreationFirst(context, "新建 Profile", "E2E Agent");
 });
