@@ -24,7 +24,7 @@ import {
   createWorkbenchRuntime,
 } from "../../infrastructure/client/runtime/index.ts";
 
-import { clientApplicationScheduler } from "../../infrastructure/client/platform/index.ts";
+import { clientApplicationScheduler, createClientContentTreeLabelPreference } from "../../infrastructure/client/platform/index.ts";
 import {
   ContentTreeLabelPreferenceProvider,
   RepositorySessionStateProvider,
@@ -45,6 +45,7 @@ export function AuthenticatedWorkbenchRoot({
   authenticationState: OwnerAuthenticationState;
 }) {
   const workbenchRuntime = useMemo(() => createWorkbenchRuntime(api), [api]);
+  const contentTreeLabelPreference = useMemo(() => createClientContentTreeLabelPreference(), []);
   const controller = workbenchRuntime.controller;
   const feedbackController = useMemo(
     () =>
@@ -231,7 +232,10 @@ export function AuthenticatedWorkbenchRoot({
       : null;
 
   return (
-    <ContentTreeLabelPreferenceProvider initialVisible onChange={() => undefined}>
+    <ContentTreeLabelPreferenceProvider
+      initialVisible={contentTreeLabelPreference.load()}
+      onChange={contentTreeLabelPreference.save}
+    >
     <PageNavigationProvider navigation={navigation}>
       <RepositorySessionStateProvider repositoryIds={repositorySessionIds}>
         <WorkspaceWorkbench

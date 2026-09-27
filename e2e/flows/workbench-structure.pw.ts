@@ -30,6 +30,54 @@ test.describe("directory and structure operation flows", () => {
     await seedInteractionRepository(api, interactionRepositoryId);
   });
 
+  test("shares the type label preference across content trees and restores it after refresh", async ({ page }) => {
+    await openWorkbench(page, interactionRepositoryId);
+    await page.getByRole("tree", { name: "笔记目录" })
+      .getByRole("treeitem", { name: "Source", exact: true }).click();
+    const noteDetail = page.getByRole("region", { name: "笔记详情" });
+    const noteTree = noteDetail.getByRole("tree", { name: "笔记结构" });
+    const diagnostics = noteTree.getByRole("img");
+    expect(await diagnostics.count()).toBeGreaterThan(0);
+    const diagnosticBefore = await diagnostics.first().getAttribute("aria-label");
+    const contentWrites: string[] = [];
+    page.on("request", (request) => {
+      if (!["GET", "HEAD"].includes(request.method()) && request.url().includes("/api/"))
+        contentWrites.push(`${request.method()} ${request.url()}`);
+    });
+    await noteDetail.getByRole("button", { name: "隐藏标签" }).click();
+    await expect(noteTree.getByRole("treeitem", { name: /Source Child/ })).not.toContainText("组分");
+    await expect(noteTree.getByRole("treeitem", { name: /Source Child/ })).toContainText("L2");
+    await expect(diagnostics.first()).toHaveAttribute("aria-label", diagnosticBefore ?? "");
+    await page.waitForTimeout(300);
+    expect(contentWrites).toEqual([]);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("cognition-tree.content-tree-type-labels"))).toBe("hidden");
+
+    await selectNotesMode(page, "结构");
+    const source = page.getByRole("region", { name: "源笔记 · Source" });
+    const target = page.getByRole("region", { name: "目标笔记 · Target" });
+    await expect(source.getByRole("button", { name: "显示标签" })).toBeVisible();
+    await expect(target.getByRole("button", { name: "显示标签" })).toBeVisible();
+    await target.getByRole("button", { name: "显示标签" }).click();
+    await expect(source.getByRole("button", { name: "隐藏标签" })).toBeVisible();
+    await page.getByRole("radio", { name: "笔记内迁移", exact: true }).click();
+    const within = page.getByRole("region", { name: "笔记结构 · Source" });
+    await expect(within.getByRole("button", { name: "隐藏标签" })).toBeVisible();
+    await within.getByRole("button", { name: "隐藏标签" }).click();
+    await getActivityButton(page, "日记").click();
+    await page.getByRole("complementary", { name: "上下文区域" })
+      .getByRole("button", { name: "新建日记" }).click();
+    const journalEditor = page.getByRole("region", { name: "日记编辑" }).locator(".cm-content");
+    await journalEditor.click();
+    await page.keyboard.insertText("标签共享日记");
+    await expect(page.getByRole("region", { name: "日记详情" })
+      .getByRole("button", { name: "显示标签" })).toBeVisible();
+    await page.reload();
+    await page.getByRole("tree", { name: "笔记目录" })
+      .getByRole("treeitem", { name: "Source", exact: true }).click();
+    await expect(page.getByRole("region", { name: "笔记详情" })
+      .getByRole("button", { name: "显示标签" })).toBeVisible();
+  });
+
   test("colors selected structure rows without coloring an unselected child", async ({
     page,
   }, testInfo) => {

@@ -12,3 +12,4 @@ export {
 export {
   createClientAgentProfilePreference,
 } from "./agentProfilePreference.ts";
+export { createClientContentTreeLabelPreference } from "./contentTreeLabelPreference.ts";

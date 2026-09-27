@@ -222,7 +222,7 @@ controller，重新登录不得复用终态实例。领域 session 到 view appl
 通过注入取得 scheduler。Todo 本地日期端口由 application/todo 拥有，平台只实现适配；
 初始领域内容由显式内容组合入口创建。
 
-共享 CTN 内容树的展示适配唯一位于 `presentation/ui/shared/tree`：领域投影保留完整语法诊断，该适配层转换为公开 `ContentTreeNode`。结构移动的稳定 ID 校验和当前行号解析由 `presentation/activities/notes/structure/structureMoveIntent.ts` 唯一负责，菜单与拖放共用这一入口。
+共享 CTN 内容树的展示适配唯一位于 `presentation/ui/shared/tree`：领域投影保留完整语法诊断，该适配层转换为公开 `ContentTreeNode`。结构移动的稳定 ID 校验和当前行号解析由 `presentation/activities/notes/structure/structureMoveIntent.ts` 唯一负责，菜单与拖放共用这一入口。工作台级类型标签展示偏好由 Presentation Provider 持有；`infrastructure/client/platform` 只提供浏览器存储的读写适配，在 `AuthenticatedWorkbenchRoot` 组合，不反向依赖展示层。
 
 每个 Activity 采用纵向切片：controller、context、view、局部 hook 和样式位于
 `presentation/activities/<activity>/`。跨 Activity 的组合只存在于 shell，共享交互

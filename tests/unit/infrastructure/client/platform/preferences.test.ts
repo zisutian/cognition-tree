@@ -7,6 +7,7 @@ import {
 import {
   createClientAgentProfilePreference,
 } from "../../../../../infrastructure/client/platform/agentProfilePreference";
+import { createClientContentTreeLabelPreference } from "../../../../../infrastructure/client/platform/contentTreeLabelPreference";
 import { createClientTodoApplicationServices } from "../../../../../infrastructure/client/runtime/contentServices";
 
 function createMemoryStorage(): Storage {
@@ -33,6 +34,27 @@ afterEach(() => {
 });
 
 describe("client runtime", () => {
+  it("restores the shared content tree label choice and defaults to visible for invalid storage", () => {
+    const preference = createClientContentTreeLabelPreference();
+    expect(preference.load()).toBe(true);
+    preference.save(false);
+    expect(createClientContentTreeLabelPreference().load()).toBe(false);
+    preference.save(true);
+    expect(preference.load()).toBe(true);
+    globalThis.localStorage.setItem("cognition-tree.content-tree-type-labels", "invalid");
+    expect(preference.load()).toBe(true);
+  });
+
+  it("keeps the content tree preference usable when browser storage fails", () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => { throw new Error("unavailable"); },
+      setItem: () => { throw new Error("unavailable"); },
+    });
+    const preference = createClientContentTreeLabelPreference();
+    expect(preference.load()).toBe(true);
+    expect(() => preference.save(false)).not.toThrow();
+  });
+
   it("stores repository and Agent profile preferences under separate keys", () => {
     const selection = createClientActiveRepositorySelection();
     const profile = createClientAgentProfilePreference();
