@@ -5,8 +5,8 @@ import {
   getTextColorClassName,
   getToneClassName,
 } from "./tonePresentation.ts";
-import treeStyles from "./tree/Tree.module.css";
-const cx = createClassNames(treeStyles);
+import contentStyles from "./Content.module.css";
+const cx = createClassNames(contentStyles);
 
 export type DisplayText = {
   displayText: string;

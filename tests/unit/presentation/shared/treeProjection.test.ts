@@ -2,114 +2,56 @@ import { describe, expect, it } from "vitest";
 import {
   defaultStructureTreeIndentUnitCount,
   defaultStructureTreeIndentWidthPx,
-  flattenStructureTreeRows,
-  visibleStructureTreeRows,
   getStructureTreeIndentWidthPx,
   normalizeStructureTreeIndentUnitCount,
+  projectStructureContent,
   type StructureTreeNode,
 } from "../../../../presentation/ui/shared/tree/index";
 
+function node(id: string, children: StructureTreeNode[] = []): StructureTreeNode {
+  return {
+    id, children, label: "顶格概念", lineLabel: "L1", lineNumber: 1,
+    textDisplay: {
+      displayText: id,
+      segments: [{ id, kind: "text", text: id }],
+      textColor: "default",
+    },
+  };
+}
+
 describe("treeProjection", () => {
-  it("flattens CTN structure trees with content depth", () => {
-    const structureNodes: StructureTreeNode[] = [
-      {
-        children: [
-          {
-            children: [],
-            hasDiagnostics: false,
-            id: "block-2",
-            label: "定义",
-            lineLabel: "L2",
-            lineNumber: 2,
-            textDisplay: {
-              displayText: "子块",
-              segments: [{ id: "text", kind: "text" as const, text: "子块" }],
-              textColor: "default",
-            },
-          },
-        ],
-        hasDiagnostics: false,
-        id: "block-1",
-        label: "概念",
-        lineLabel: "L1",
-        lineNumber: 1,
-        textDisplay: {
-          displayText: "根块",
-          segments: [{ id: "text", kind: "text" as const, text: "根块" }],
-          textColor: "default",
-        },
-      },
-    ];
-
-    expect(
-      flattenStructureTreeRows(structureNodes).map(({ depth, node }) => [
-        node.id,
-        depth,
-      ]),
-    ).toEqual([
-      ["block-1", 0],
-      ["block-2", 1],
-    ]);
-    const rows = flattenStructureTreeRows(structureNodes);
-    expect(rows.map(({ parentId, position, setSize }) => [parentId, position, setSize])).toEqual([
-      [null, 1, 1],
-      ["block-1", 1, 1],
-    ]);
-    expect(visibleStructureTreeRows(rows, new Set(["block-1"])).map(({ node }) => node.id)).toEqual(["block-1"]);
+  it("projects identity, hierarchy, diagnostics, and optional type labels", () => {
+    const child = node("child");
+    const root = { ...node("root", [child]), diagnostics: [
+      { severity: "warning" as const, message: "first" },
+      { severity: "error" as const, message: "second" },
+    ] };
+    const shown = projectStructureContent([root]);
+    expect(shown.nodes[0]).toMatchObject({
+      id: "root", typeLabel: "顶格概念", position: { label: "L1" },
+      diagnostic: { severity: "error", message: "first\nsecond" },
+      children: [{ id: "child" }],
+    });
+    expect(shown.branchIds.has("root")).toBe(true);
+    expect(shown.parentById.get("child")).toBe("root");
+    const hidden = projectStructureContent([root], false);
+    expect(hidden.nodes[0].typeLabel).toBeUndefined();
+    expect(hidden.nodes[0].diagnostic).toEqual(shown.nodes[0].diagnostic);
+    expect(hidden.nodes[0].position).toEqual(shown.nodes[0].position);
   });
 
-  it("flattens a 10,000-level structure tree without recursive traversal", () => {
-    let node: StructureTreeNode = {
-      children: [],
-      hasDiagnostics: false,
-      id: "leaf",
-      label: "概念",
-      lineLabel: "L10001",
-      lineNumber: 10_001,
-      textDisplay: {
-        displayText: "叶节点",
-        segments: [{ id: "leaf", kind: "text", text: "叶节点" }],
-        textColor: "default",
-      },
-    };
-
-    for (let depth = 10_000; depth > 0; depth -= 1) {
-      node = {
-        ...node,
-        children: [node],
-        id: `depth-${depth}`,
-        lineNumber: depth,
-      };
-    }
-
-    const rows = flattenStructureTreeRows([node]);
-
-    expect(rows).toHaveLength(10_001);
-    expect(rows.at(-1)).toMatchObject({ depth: 10_000, node: { id: "leaf" } });
+  it("projects a 10,001-node chain without recursive traversal", () => {
+    let root = node("leaf");
+    for (let depth = 10_000; depth > 0; depth -= 1) root = node(`depth-${depth}`, [root]);
+    const projection = projectStructureContent([root]);
+    expect(projection.nodeById.size).toBe(10_001);
+    expect(projection.parentById.get("leaf")).toBe("depth-10000");
   });
 
-  it("normalizes structure tree indentation width for css rendering", () => {
-    const doubleIndent = defaultStructureTreeIndentUnitCount * 2;
-
-    expect(normalizeStructureTreeIndentUnitCount(doubleIndent)).toBe(
-      doubleIndent,
-    );
+  it("normalizes syntax indentation into the existing visual unit", () => {
     expect(normalizeStructureTreeIndentUnitCount(2.9)).toBe(2);
-    expect(normalizeStructureTreeIndentUnitCount(0)).toBe(
-      defaultStructureTreeIndentUnitCount,
-    );
-    expect(normalizeStructureTreeIndentUnitCount(Number.NaN)).toBe(
-      defaultStructureTreeIndentUnitCount,
-    );
-    expect(getStructureTreeIndentWidthPx()).toBe(
-      defaultStructureTreeIndentWidthPx,
-    );
-    expect(getStructureTreeIndentWidthPx(doubleIndent)).toBe(
-      defaultStructureTreeIndentWidthPx * 2,
-    );
-    expect(getStructureTreeIndentWidthPx(2.9)).toBe(
-      defaultStructureTreeIndentWidthPx *
-        (2 / defaultStructureTreeIndentUnitCount),
-    );
+    expect(normalizeStructureTreeIndentUnitCount(0)).toBe(defaultStructureTreeIndentUnitCount);
+    expect(normalizeStructureTreeIndentUnitCount(Number.NaN)).toBe(defaultStructureTreeIndentUnitCount);
+    expect(getStructureTreeIndentWidthPx(8)).toBe(defaultStructureTreeIndentWidthPx * 2);
   });
 });

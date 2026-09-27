@@ -4,37 +4,26 @@ import {
   type UiBlockNode,
 } from "../../../../application/workspace/index.ts";
 
-export function findBlockByLineNumber(
-  blocks: UiBlockNode[],
-  lineNumberValue: string,
-) {
-  const lineNumber = Number(lineNumberValue);
-
-  if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-    return null;
-  }
-
-  for (const root of blocks) {
-    const matchingBlock = flattenUiBlockSubtree(root).find(
-      (block) => block.lineNumber === lineNumber,
-    );
-
-    if (matchingBlock) {
-      return matchingBlock;
+export function findBlockById(
+  blocks: readonly UiBlockNode[],
+  nodeId: string | null,
+): UiBlockNode | null {
+  if (!nodeId) return null;
+  const pending = [...blocks].reverse();
+  while (pending.length > 0) {
+    const node = pending.pop();
+    if (!node) continue;
+    if (node.id === nodeId) return node;
+    for (let index = node.children.length - 1; index >= 0; index -= 1) {
+      pending.push(node.children[index]);
     }
   }
-
   return null;
 }
 
-export function useSelectedBlockLines(block: UiBlockNode | null) {
-  return useMemo(() => {
-    if (!block) {
-      return new Set<number>();
-    }
-
-    return new Set(
-      flattenUiBlockSubtree(block).map((subtreeBlock) => subtreeBlock.lineNumber),
-    );
-  }, [block]);
+export function useSelectedBlockIds(block: UiBlockNode | null) {
+  return useMemo(
+    () => new Set(block ? flattenUiBlockSubtree(block).map((node) => node.id) : []),
+    [block],
+  );
 }

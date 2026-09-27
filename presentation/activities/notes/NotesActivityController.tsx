@@ -68,6 +68,7 @@ function ActiveNotesActivity({
     workspace: application.runtime.effectiveWorkspace,
   });
   const structure = useStructureOperationActivity({
+    repositoryId,
     runtime: application.runtime,
     selection: application.selection,
     state: structureState,
@@ -131,6 +132,7 @@ function ActiveNotesActivity({
         focusMode: controls.focusMode,
         onReload: application.reload,
         onToggleFocusMode: controls.onToggleFocusMode,
+        repositoryId,
         repositoryName,
         view,
       }),

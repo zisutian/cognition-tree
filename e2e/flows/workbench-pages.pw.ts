@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { test } from "../support/e2eTest";
 import { seedWorkbenchRepository } from "../support/repositorySeeds";
 import { createJournalSeed } from "../support/builtInSeeds";
@@ -10,6 +10,9 @@ import {
 } from "../support/workbenchPage";
 
 const repositoryId = "page-sessions";
+const noteRow = (page: Page, name: string) => page
+  .getByRole("tree", { name: "笔记目录" })
+  .getByRole("treeitem", { name, exact: true });
 test.beforeEach(async ({ api }) => {
   await seedWorkbenchRepository(api, repositoryId);
 });
@@ -183,13 +186,13 @@ test("keeps repository pages isolated and global pages fixed across repository c
   });
   await openWorkbench(page, repositoryId);
   const tabs = page.getByRole("radiogroup", { name: "打开的页面" });
-  await page.getByRole("treeitem", { name: "Alpha", exact: true }).dblclick();
+  await noteRow(page, "Alpha").dblclick();
   await getActivityButton(page, "搜索").dblclick();
   const query = page.getByRole("searchbox", { name: "搜索词" });
   await query.fill("Alpha");
   await query.press("Enter");
   await openRepositoryFromContext(page, "page-sessions-two");
-  await page.getByRole("treeitem", { name: "Beta", exact: true }).dblclick();
+  await noteRow(page, "Beta").dblclick();
   await expect(
     tabs.getByRole("radio", { name: "Alpha", exact: true }),
   ).toHaveCount(0);
@@ -215,7 +218,7 @@ test("restores a fixed document's cursor, scroll and undo after switching tabs",
   page,
 }) => {
   await openWorkbench(page, repositoryId);
-  await page.getByRole("treeitem", { name: "Alpha", exact: true }).dblclick();
+  await noteRow(page, "Alpha").dblclick();
   const editor = page.locator(".source-editor .cm-content");
   await editor.focus();
   await editor.press("Control+End");
@@ -233,7 +236,7 @@ test("restores a fixed document's cursor, scroll and undo after switching tabs",
   });
   expect(savedScroll).toBeGreaterThan(0);
   const selected = await page.locator(".cm-activeLine").textContent();
-  await page.getByRole("treeitem", { name: "Beta", exact: true }).dblclick();
+  await noteRow(page, "Beta").dblclick();
   await page
     .getByRole("radiogroup", { name: "打开的页面" })
     .getByRole("radio", { name: "Alpha", exact: true })
@@ -253,7 +256,7 @@ test("closing and reopening a document releases its previous undo session", asyn
   page,
 }) => {
   await openWorkbench(page, repositoryId);
-  await page.getByRole("treeitem", { name: "Alpha", exact: true }).dblclick();
+  await noteRow(page, "Alpha").dblclick();
   const editor = page.locator(".source-editor .cm-content");
   await editor.focus();
   await editor.press("Control+End");
@@ -264,7 +267,7 @@ test("closing and reopening a document releases its previous undo session", asyn
     .getByRole("button", { name: "关闭 Alpha", exact: true })
     .click();
   await expect(page.getByRole("main")).toContainText("从左侧打开页面");
-  await page.getByRole("treeitem", { name: "Alpha", exact: true }).click();
+  await noteRow(page, "Alpha").click();
   await expect(editor).toContainText("closed-page-edit");
   await editor.focus();
   await editor.press("Control+Z");
@@ -275,7 +278,7 @@ test("renames page titles, removes deleted resources and clears tabs on reload",
   page,
 }) => {
   await openWorkbench(page, repositoryId);
-  await page.getByRole("treeitem", { name: "Alpha", exact: true }).dblclick();
+  await noteRow(page, "Alpha").dblclick();
   await page.getByRole("button", { name: "重命名 Alpha", exact: true }).click();
   const rename = page.getByRole("textbox", {
     name: "重命名 Alpha",
@@ -287,7 +290,7 @@ test("renames page titles, removes deleted resources and clears tabs on reload",
   await expect(
     tabs.getByRole("radio", { name: "重命名后的笔记", exact: true }),
   ).toBeChecked();
-  await page.getByRole("treeitem", { name: "Beta", exact: true }).dblclick();
+  await noteRow(page, "Beta").dblclick();
   await page.getByRole("button", { name: "删除 Beta", exact: true }).click();
   await page
     .getByRole("button", { name: "确认删除 Beta", exact: true })
@@ -331,7 +334,7 @@ test("retains an unsaved preview and rejects closing it until saving recovers", 
   await expect(
     page.getByRole("contentinfo", { name: "工作台状态" }),
   ).toContainText("保存失败");
-  await page.getByRole("treeitem", { name: "Beta", exact: true }).click();
+  await noteRow(page, "Beta").click();
   const tabs = page.getByRole("radiogroup", { name: "打开的页面" });
   const alpha = tabs.getByRole("radio", { name: "Alpha", exact: true });
   await expect(alpha).toHaveAttribute("aria-description", "已固定");
@@ -362,7 +365,7 @@ test("clears fixed pages and editor undo on logout and a new login", async ({
     await route.fulfill({ json: { authenticated } });
   });
   await openWorkbench(page, repositoryId);
-  await page.getByRole("treeitem", { name: "Alpha", exact: true }).dblclick();
+  await noteRow(page, "Alpha").dblclick();
   const editor = page.locator(".source-editor .cm-content");
   await editor.focus();
   await editor.press("Control+End");

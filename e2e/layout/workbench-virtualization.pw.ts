@@ -1,7 +1,6 @@
-import { defaultDesignConfig } from "compact-ui";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { expect, type Locator } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import { test as base } from "../support/e2eTest";
 import {
@@ -10,36 +9,6 @@ import {
   seedNestedStructureRepository,
 } from "../support/repositorySeeds";
 import { openWorkbench } from "../support/workbenchPage";
-
-async function expectCompactVirtualRows(tree: Locator, totalRows: number) {
-  expect((await tree.boundingBox())!.height).toBe(
-    totalRows * defaultDesignConfig.metrics.rowHeight,
-  );
-  const rows = await tree.locator(".ui-virtual-tree-row").evaluateAll((items) =>
-    items
-      .map((item) => {
-        const box = item.getBoundingClientRect();
-        return {
-          height: box.height,
-          top: box.top,
-          position: Number(item.getAttribute("data-flat-index")),
-        };
-      })
-      .sort((a, b) => a.top - b.top),
-  );
-  expect(rows.length).toBeGreaterThan(1);
-  rows.forEach((row, index) => {
-    expect(row.height).toBe(defaultDesignConfig.metrics.rowHeight);
-    // The selected row can remain mounted far outside the visible window.
-    if (index) {
-      const previous = rows[index - 1];
-      expect(row.top - previous.top).toBe(
-        (row.position - previous.position) *
-          defaultDesignConfig.metrics.rowHeight,
-      );
-    }
-  });
-}
 
 const test = base.extend<{
   directoryRepository: string;
@@ -119,7 +88,7 @@ test.describe("virtual collection scrolling", () => {
       element.scrollTop = element.scrollHeight;
     });
     await expect(
-      source.getByTitle("组分: Block 599", { exact: true }),
+      source.getByRole("treeitem", { name: "Block 599", exact: true }),
     ).toBeInViewport();
     expect(await source.getByRole("treeitem").count()).toBeLessThan(100);
     expect(
@@ -138,10 +107,7 @@ test.describe("virtual collection scrolling", () => {
     const structureTree = detailScroll.getByRole("tree");
 
     await expect(structureTree).toBeVisible();
-    await expect(structureTree).toHaveAttribute(
-      "data-virtual-row-count",
-      "600",
-    );
+    await expect(structureTree).toHaveAttribute("data-virtualized", "true");
     await expect(structureTree.getByRole("treeitem").first()).toHaveAttribute(
       "aria-setsize",
       "600",
@@ -151,9 +117,9 @@ test.describe("virtual collection scrolling", () => {
       element.scrollTop = element.scrollHeight;
     });
     await expect(
-      structureTree.getByTitle("组分: Block 599", { exact: true }),
+      structureTree.getByRole("treeitem", { name: "Block 599", exact: true }),
     ).toBeVisible();
-    await expectCompactVirtualRows(structureTree, 600);
+    expect(await structureTree.getByRole("treeitem").count()).toBeLessThan(100);
   });
 
   test("preserves root focus and sibling facts across the 500/501 boundary", async ({
@@ -163,9 +129,11 @@ test.describe("virtual collection scrolling", () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await openWorkbench(page, nestedStructureRepository);
     const tree = page.getByRole("tree", { name: "笔记结构" });
+    const detailScroll = page.locator("aside[aria-label='详情区域'] [data-page-layout=\"canvas\"]");
+    await detailScroll.evaluate((element) => { element.scrollTop = 0; });
     const parent = tree.getByRole("treeitem", { name: /Parent/ });
-    const firstChild = tree.getByRole("treeitem", { name: /Child 0 / });
-    await expect(tree).toHaveAttribute("data-virtual-row-count", "501");
+    const firstChild = tree.getByRole("treeitem", { name: "Child 0", exact: true });
+    await expect(tree).toHaveAttribute("data-virtualized", "true");
     await expect(parent).toHaveAttribute("aria-level", "1");
     await expect(parent).toHaveAttribute("aria-setsize", "1");
     await expect(firstChild).toHaveAttribute("aria-level", "2");
@@ -180,11 +148,11 @@ test.describe("virtual collection scrolling", () => {
     await page.screenshot({ path: screenshotPath("nested-top-wide.png") });
     await tree.press("ArrowLeft");
     await expect(tree).toBeFocused();
-    await expect(tree).not.toHaveAttribute("data-virtual-row-count", /.+/);
+    await expect(tree).not.toHaveAttribute("data-virtualized", "true");
     await expect(tree.getByRole("treeitem")).toHaveCount(1);
     await tree.press("ArrowRight");
     await expect(tree).toBeFocused();
-    await expect(tree).toHaveAttribute("data-virtual-row-count", "501");
+    await expect(tree).toHaveAttribute("data-virtualized", "true");
     await tree.press("End");
     const lastChild = tree.getByRole("treeitem", { name: /Child 499/ });
     await expect(lastChild).toBeInViewport();

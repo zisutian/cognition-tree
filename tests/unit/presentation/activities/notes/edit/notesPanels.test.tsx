@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "../../../../../support/presentation/render";
 import { describe, expect, it, vi } from "vitest";
 import { NoteDetailPanel } from "../../../../../../presentation/activities/notes/edit/NoteDetailPanel";
+import { ContentTreeLabelPreferenceProvider } from "../../../../../../presentation/ui/shared/tree/ContentTreeLabelPreference";
 import { submitNotesEditorChange } from "../../../../../../presentation/activities/notes/edit/NoteEditorPanel";
 import {
   findNotesTreeAncestorFolderIds,
@@ -179,7 +180,9 @@ describe("notes panels", () => {
 
   it("shows note timestamps independently from the active block", () => {
     const markup = renderToStaticMarkup(
-      <NoteDetailPanel view={createNotesView()} />,
+      <ContentTreeLabelPreferenceProvider initialVisible onChange={() => undefined}>
+        <NoteDetailPanel repositoryId="test-repository" view={createNotesView()} />
+      </ContentTreeLabelPreferenceProvider>,
     );
 
     expect(markup).toContain('aria-label="笔记时间"');
@@ -194,7 +197,7 @@ describe("notes panels", () => {
     const activeBlock = {
       children: [],
       endLineNumber: 2,
-      hasDiagnostics: false,
+      diagnostics: [],
       id: "outline-2",
       label: "定义",
       lineLabel: "L2",
@@ -210,7 +213,9 @@ describe("notes panels", () => {
       },
     };
     const markup = renderToStaticMarkup(
+      <ContentTreeLabelPreferenceProvider initialVisible onChange={() => undefined}>
       <NoteDetailPanel
+        repositoryId="test-repository"
         view={{
           ...baseView,
           editor: {
@@ -232,7 +237,7 @@ describe("notes panels", () => {
               {
                 children: [activeBlock],
                 endLineNumber: 2,
-                hasDiagnostics: false,
+                diagnostics: [],
                 id: "outline-1",
                 label: "T",
                 lineLabel: "L1",
@@ -251,7 +256,8 @@ describe("notes panels", () => {
             onSelectLine: () => undefined,
           },
         }}
-      />,
+      />
+      </ContentTreeLabelPreferenceProvider>,
     );
 
     expect(markup).toContain("子结构");

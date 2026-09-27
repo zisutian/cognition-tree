@@ -12,10 +12,7 @@ type CtnTimestampMetadata = {
   updatedAt: string;
 };
 
-type CtnDocumentStructure = Pick<
-  StructureTreeProps,
-  "ariaLabel" | "indentUnitCount" | "nodes" | "onSelectLine" | "selectedLineNumbers" | "stateKey"
->;
+type CtnDocumentStructure = StructureTreeProps;
 
 const timestampFormatter = new Intl.DateTimeFormat("zh-CN", {
   day: "2-digit",

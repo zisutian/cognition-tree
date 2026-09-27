@@ -8,7 +8,7 @@ test("shared tree expands external selection without stealing focus", async ({ p
   const tree = page.getByRole("tree", { name: "测试结构树" });
   const parent = tree.getByRole("treeitem", { name: /parent/ });
   const grandchild = tree.getByRole("treeitem", { name: /grandchild/ });
-  await parent.getByRole("button", { name: /收起/ }).click();
+  await parent.click();
   await expect(grandchild).toHaveCount(0);
   const external = page.getByRole("button", { name: "外部选择孙节点" });
   await external.click();
@@ -35,7 +35,7 @@ test("shared tree resets expansion on document switch", async ({ page }) => {
   const tree = page.getByRole("tree", { name: "测试结构树" });
   const parent = tree.getByRole("treeitem", { name: /parent/ });
   const grandchild = tree.getByRole("treeitem", { name: /grandchild/ });
-  await parent.getByRole("button", { name: /收起/ }).click();
+  await parent.click();
   await expect(grandchild).toHaveCount(0);
   await page.getByRole("button", { name: "更新同一文档" }).click();
   await expect(grandchild).toHaveCount(0);
@@ -72,34 +72,89 @@ test("crosses exactly 500 and 501 visible rows without remounting the root", asy
   await page.getByRole("button", { name: "显示500行" }).click();
   const tree = page.getByRole("tree", { name: "测试结构树" });
   await expect(tree.getByRole("treeitem")).toHaveCount(500);
-  await expect(tree).not.toHaveAttribute("data-virtual-row-count", /.+/);
+  await expect(tree).not.toHaveAttribute("data-virtualized", "true");
   await tree.focus();
   await tree.press("End");
   const activeId = await tree.getAttribute("aria-activedescendant");
   expect(activeId).not.toBeNull();
   await page.getByRole("button", { name: "显示501行" }).evaluate((button) => (button as HTMLButtonElement).click());
   await expect(tree).toBeFocused();
-  await expect(tree).toHaveAttribute("data-virtual-row-count", "501");
+  await expect(tree).toHaveAttribute("data-virtualized", "true");
   await expect(tree).toHaveAttribute("aria-activedescendant", activeId ?? "");
   await page.getByRole("button", { name: "显示500行" }).evaluate((button) => (button as HTMLButtonElement).click());
   await expect(tree).toBeFocused();
   await expect(tree.getByRole("treeitem")).toHaveCount(500);
-  await expect(tree).not.toHaveAttribute("data-virtual-row-count", /.+/);
+  await expect(tree).not.toHaveAttribute("data-virtualized", "true");
   await expect(tree).toHaveAttribute("aria-activedescendant", activeId ?? "");
 });
 
-test("dragged descendant prevents ancestor collapse", async ({ page }) => {
+test("type label toggle keeps selection and expansion in the same tree session", async ({ page }) => {
+  await page.goto("/e2e/fixtures/structure-tree.html");
+  const tree = page.getByRole("tree", { name: "测试结构树" });
+  const parent = tree.getByRole("treeitem", { name: /parent/ });
+  await page.getByRole("button", { name: "外部选择孙节点" }).click();
+  await parent.click();
+  await expect(parent).toHaveAttribute("aria-expanded", "false");
+  await page.getByRole("button", { name: "隐藏标签" }).click();
+  await expect(tree.getByRole("treeitem", { name: /parent/ })).not.toContainText("组分");
+  await expect(parent).toHaveAttribute("aria-expanded", "false");
+  await page.getByRole("button", { name: "显示标签" }).click();
+  await expect(parent).toHaveAttribute("aria-expanded", "false");
+});
+
+test("type label toggle retains a selected long-tree row and nonzero scroll", async ({ page }) => {
+  await page.goto("/e2e/fixtures/structure-tree.html");
+  await page.getByRole("button", { name: "显示501行" }).click();
+  const tree = page.getByRole("tree", { name: "测试结构树" });
+  const host = page.getByTestId("tree-scroll-host");
+  await tree.getByRole("treeitem", { name: "long-0", exact: true }).click();
+  await expect(page.locator("#tree-state")).toHaveAttribute("data-selected", "long-0");
+  await host.evaluate((element) => { element.scrollTop = 600; });
+  await expect.poll(() => host.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  const before = await host.evaluate((element) => element.scrollTop);
+  await page.getByRole("button", { name: "隐藏标签" })
+    .evaluate((button) => (button as HTMLButtonElement).click());
+  await expect(page.locator("#tree-state")).toHaveAttribute("data-selected", "long-0");
+  expect(await host.evaluate((element) => element.scrollTop)).toBe(before);
+});
+
+test("native dragging keeps its ancestor visible and Escape cancels the request", async ({ page }) => {
   await page.goto("/e2e/fixtures/structure-tree.html");
   const tree = page.getByRole("tree", { name: "测试结构树" });
   const parent = tree.getByRole("treeitem", { name: /parent/ });
   const grandchild = tree.getByRole("treeitem", { name: /grandchild/ });
-  await page.getByRole("button", { name: "切换拖动" }).click();
-  await parent.getByRole("button", { name: /收起/ }).click();
-  await expect(grandchild).toBeVisible();
+  const box = await grandchild.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + box!.width / 2 + 18, box!.y + box!.height / 2 + 8, { steps: 8 });
+  await expect(grandchild).toHaveAttribute("data-drag-source", "true");
+  await parent.dispatchEvent("click");
   await expect(parent).toHaveAttribute("aria-expanded", "true");
-  await tree.press("ArrowLeft");
-  await expect(grandchild).toBeVisible();
-  await page.getByRole("button", { name: "切换拖动" }).click();
-  await parent.getByRole("button", { name: /收起/ }).click();
-  await expect(grandchild).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.mouse.up();
+  await expect(page.locator("#move-state")).toHaveAttribute("data-moves", "0");
+  await parent.click();
+  await expect(parent).toHaveAttribute("aria-expanded", "false");
+});
+
+test("native dragging scrolls at the host edge and can be cancelled", async ({ page }) => {
+  await page.goto("/e2e/fixtures/structure-tree.html");
+  await page.getByRole("button", { name: "显示501行" }).click();
+  const tree = page.getByRole("tree", { name: "测试结构树" });
+  const host = page.getByTestId("tree-scroll-host");
+  const source = tree.getByRole("treeitem", { name: /long-0/ });
+  const box = await source.boundingBox();
+  const hostBox = await host.boundingBox();
+  expect(box).not.toBeNull();
+  expect(hostBox).not.toBeNull();
+  await page.mouse.move(box!.x + 12, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + 25, box!.y + box!.height / 2 + 10, { steps: 8 });
+  await expect(source).toHaveAttribute("data-drag-source", "true");
+  await page.mouse.move(hostBox!.x + hostBox!.width / 2, hostBox!.y + hostBox!.height - 8, { steps: 12 });
+  await expect.poll(() => host.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await page.keyboard.press("Escape");
+  await page.mouse.up();
+  await expect(page.locator("#move-state")).toHaveAttribute("data-moves", "0");
 });

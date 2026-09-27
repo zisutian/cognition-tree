@@ -42,7 +42,7 @@ function TodoStructureNodes({
 
   return (
     <ul
-      className={cx("ui-tree ui-structure-tree todo-structure-tree")}
+      className={cx("todo-structure-tree")}
       role={depth === 0 ? "tree" : "group"}
     >
       {nodes.map((node) => {
@@ -55,7 +55,6 @@ function TodoStructureNodes({
             aria-level={depth + 1}
             aria-selected={selected}
             className={cx(
-              "ui-structure-tree-item",
               "todo-structure-item",
               node.completed && "is-completed",
             )}
@@ -64,18 +63,16 @@ function TodoStructureNodes({
           >
             <div
               className={cx(
-                "ui-tree-row",
-                "ui-structure-tree-row",
                 "todo-structure-row",
                 selected && "is-selected",
-                node.hasDiagnostics && "has-diagnostics",
+                node.hasDiagnostics && "todo-has-diagnostics",
               )}
               style={getStructureTreeRowStyle({
                 depth,
                 indentUnitCount: view.editor.syntax.tabDisplayWidth,
               })}
             >
-              <span className={cx("ui-structure-prefix")}>
+              <span className={cx("todo-structure-prefix")}>
                 <CheckboxControl
                   aria-label={`${node.completed ? "标记未完成" : "标记完成"} ${node.text}`}
                   checked={node.completed}
@@ -87,22 +84,24 @@ function TodoStructureNodes({
                   }
                 />
               </span>
-              <Button
-                appearance="plain"
-                onClick={() => view.outline.onSelectLine(node.lineNumber)}
-                title={`${node.label}: ${node.text} · L${node.lineNumber}`}
-                type="button"
-              >
-                <span
-                  className={cx(
-                    "block-text",
-                    node.completed && "todo-completed-text",
-                  )}
+              <span className={cx("todo-structure-action")}>
+                <Button
+                  appearance="plain"
+                  onClick={() => view.outline.onSelectLine(node.lineNumber)}
+                  title={`${node.label}: ${node.text} · L${node.lineNumber}`}
+                  type="button"
                 >
-                  {node.text}
-                </span>
-              </Button>
-              <span className={cx("ui-tree-meta todo-structure-meta")}>
+                  <span
+                    className={cx(
+                      "block-text",
+                      node.completed && "todo-completed-text",
+                    )}
+                  >
+                    {node.text}
+                  </span>
+                </Button>
+              </span>
+              <span className={cx("todo-structure-meta")}>
                 {node.recurrence?.progress ? (
                   <span
                     aria-label={node.recurrence.progress.ariaLabel}

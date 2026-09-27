@@ -4,6 +4,7 @@ import {
   NoteTree,
   StructureTree,
 } from "../../../../presentation/ui/shared/tree/index";
+import { ContentTreeLabelPreferenceProvider } from "../../../../presentation/ui/shared/tree/ContentTreeLabelPreference";
 
 describe("treeAccessibility", () => {
   it("hides folder children when folder collapse state is controlled", () => {
@@ -123,18 +124,18 @@ describe("treeAccessibility", () => {
 
   it("renders structure hierarchy, text markers, and line metadata", () => {
     const markup = renderToStaticMarkup(
+      <ContentTreeLabelPreferenceProvider initialVisible onChange={() => undefined}>
       <StructureTree
         ariaLabel="测试结构"
-        getRowProps={(node, state) => ({
-          "data-depth": String(state.depth),
-          "data-line": String(node.lineNumber),
-        })}
+        selectionMode="single"
+        selectedId={null}
+        onSelectNode={() => undefined}
         nodes={[
           {
             children: [
               {
                 children: [],
-                hasDiagnostics: false,
+                diagnostics: [],
                 id: "block-2",
                 label: "顶格概念",
                 lineLabel: "L2",
@@ -146,7 +147,7 @@ describe("treeAccessibility", () => {
                 },
               },
             ],
-            hasDiagnostics: true,
+            diagnostics: [{ severity: "warning", message: "提示" }],
             id: "block-1",
             label: "组分",
             lineLabel: "L1",
@@ -159,15 +160,15 @@ describe("treeAccessibility", () => {
           },
         ]}
         stateKey="accessibility-structure"
-      />,
+      />
+      </ContentTreeLabelPreferenceProvider>,
     );
 
     expect(markup).toContain('role="tree"');
     expect(markup.match(/role="treeitem"/g) ?? []).toHaveLength(2);
     expect(markup).toContain('aria-level="1"');
     expect(markup).toContain('aria-level="2"');
-    expect(markup).toContain('data-depth="1"');
-    expect(markup).toContain('data-line="2"');
+    expect(markup).toContain("提示");
     expect(markup).toContain("组分");
     expect(markup).toContain("顶格概念");
     expect(markup).toContain("L1");
@@ -175,18 +176,18 @@ describe("treeAccessibility", () => {
 
   it("exposes selected structure subtrees and their root semantically", () => {
     const markup = renderToStaticMarkup(
+      <ContentTreeLabelPreferenceProvider initialVisible onChange={() => undefined}>
       <StructureTree
         ariaLabel="测试选择"
-        getRowProps={(_node, state) => ({
-          "data-selection-root": String(state.isSelectedRoot),
-        })}
-        selectedLineNumbers={new Set([1, 2])}
+        selectionMode="collection"
+        selectedIds={new Set(["block-1", "block-2"])}
+        selectedRootId="block-1"
         nodes={[
           {
             children: [
               {
                 children: [],
-                hasDiagnostics: false,
+                diagnostics: [],
                 id: "block-2",
                 label: "定义",
                 lineLabel: "L2",
@@ -198,7 +199,7 @@ describe("treeAccessibility", () => {
                 },
               },
             ],
-            hasDiagnostics: false,
+            diagnostics: [],
             id: "block-1",
             label: "组分",
             lineLabel: "L1",
@@ -210,15 +211,13 @@ describe("treeAccessibility", () => {
             },
           },
         ]}
-        selectedRootLineNumber={1}
         stateKey="accessibility-selection"
-        subtreeSelection
-        onSelectLine={() => undefined}
-      />,
+        onSelectNode={() => undefined}
+      />
+      </ContentTreeLabelPreferenceProvider>,
     );
 
     expect(markup.match(/aria-selected="true"/g) ?? []).toHaveLength(2);
     expect(markup).toContain('aria-multiselectable="true"');
-    expect(markup.match(/data-selection-root="true"/g) ?? []).toHaveLength(1);
   });
 });

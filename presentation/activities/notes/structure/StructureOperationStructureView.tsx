@@ -1,23 +1,29 @@
-import { EmptyState } from "compact-ui";
-import { ContextMenu } from "compact-ui";
-import type { ComponentProps } from "react";
-type ContextMenuPosition = ComponentProps<typeof ContextMenu>["position"];
-import { Section, Stack } from "compact-ui";
+import {
+  ContentTreeDragScope,
+  ContextMenu,
+  EmptyState,
+  Section,
+  Stack,
+  type ContentTreeMoveRequest,
+} from "compact-ui";
 import { useEffect, useMemo, useState } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
-import { useFeedback } from "../../../ui/index.ts";
-
+import { StructureTree, useFeedback } from "../../../ui/index.ts";
 import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick.tsx";
+import { findBlockById, useSelectedBlockIds } from "./structureOperationBlocks.ts";
 import {
-  findBlockByLineNumber,
-  useSelectedBlockLines,
-} from "./structureOperationBlocks.ts";
-import {
-  DropTarget,
-  StructureOperationTargetTree,
-  canDropStructureBlockAtEnd,
-  getBlockedStructureDropLineNumbers,
-} from "./structureOperationDropTargets.tsx";
+  requireStructureMoveIntent,
+  resolveStructureMoveIntent,
+  type StructureMoveContext,
+  type StructureMoveIdentity,
+} from "./structureMoveIntent.ts";
+
+const treeId = "structure-within";
+
+type MoveSource = {
+  nodeId: string;
+  identity: StructureMoveIdentity;
+};
 
 export function StructureOperationStructureView({
   view,
@@ -25,144 +31,107 @@ export function StructureOperationStructureView({
   view: StructureOperationActivityViewModel;
 }) {
   const { runAction } = useFeedback();
-  const [selectedLineNumber, setSelectedLineNumber] = useState("");
-  const [draggingLineNumber, setDraggingLineNumber] = useState<string | null>(
-    null,
-  );
-  const [activeDropPosition, setActiveDropPosition] = useState<string | null>(
-    null,
-  );
-  const [activeTargetLineNumber, setActiveTargetLineNumber] = useState<
-    number | null
-  >(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [moveContext, setMoveContext] = useState<{
-    lineNumber: number;
-    position: ContextMenuPosition;
+    source: MoveSource;
+    position: { x: number; y: number };
   } | null>(null);
-  const [moveSourceLineNumber, setMoveSourceLineNumber] = useState<
-    number | null
-  >(null);
-  const selectedBlock = findBlockByLineNumber(
-    view.structureBlocks,
-    draggingLineNumber ?? selectedLineNumber,
-  );
-  const selectedLineNumbers = useSelectedBlockLines(selectedBlock);
-  const blockedLineNumbers = useMemo(
-    () => getBlockedStructureDropLineNumbers(selectedBlock),
-    [selectedBlock],
-  );
-  const showEndDropTarget = canDropStructureBlockAtEnd(draggingLineNumber);
+  const [moveSource, setMoveSource] = useState<MoveSource | null>(null);
+  const selectedBlock = findBlockById(view.structureRoots, selectedId);
+  const selectedIds = useSelectedBlockIds(selectedBlock);
+  const identity: StructureMoveIdentity = {
+    repositoryId: view.repositoryId,
+    sourceNoteId: view.structureNote?.id ?? null,
+    targetNoteId: view.structureNote?.id ?? null,
+  };
+  const context: StructureMoveContext = {
+    ...identity,
+    canMutate: view.canMutate,
+    sourceRoots: view.structureRoots,
+    sourceTreeId: treeId,
+    targetRoots: view.structureRoots,
+    targetTreeId: treeId,
+  };
+  const dragDrop = useMemo(() => ({
+    treeId,
+    contentKey: `${view.repositoryId}:${view.structureNoteId}`,
+    endDropLabel: "文末根块",
+    canDrag: (nodeId: string) => view.canMutate &&
+      Boolean(view.structureNote) && findBlockById(view.structureRoots, nodeId) !== null,
+    canDrop: (request: ContentTreeMoveRequest) =>
+      resolveStructureMoveIntent(request, context, identity) !== null,
+  }), [view]);
 
   useEffect(() => {
-    setSelectedLineNumber("");
-    setDraggingLineNumber(null);
-    setActiveDropPosition(null);
-    setActiveTargetLineNumber(null);
+    setSelectedId(null);
     setMoveContext(null);
-    setMoveSourceLineNumber(null);
-  }, [view.mode, view.structureNoteId]);
+    setMoveSource(null);
+  }, [view.repositoryId, view.mode, view.structureNoteId]);
 
-  const finishDrag = () => {
-    setDraggingLineNumber(null);
-    setActiveDropPosition(null);
-    setActiveTargetLineNumber(null);
+  const performMove = (
+    request: ContentTreeMoveRequest,
+    expected: StructureMoveIdentity,
+  ) => {
+    const { sourceLine, targetPosition } = requireStructureMoveIntent(
+      request,
+      context,
+      expected,
+    );
+    view.onMoveStructureBlockWithinNote(sourceLine, targetPosition);
+    setSelectedId(null);
   };
-  const startDrag = (lineNumber: number) => {
-    const lineNumberValue = String(lineNumber);
-
-    setDraggingLineNumber(lineNumberValue);
-    setSelectedLineNumber(lineNumberValue);
-  };
-  const dropLine = (lineNumber: string, position: string) => {
-    runAction(() => view.onMoveStructureBlockWithinNote(lineNumber, position));
-    setSelectedLineNumber("");
-    finishDrag();
-  };
+  const blockedIds = selectedIds;
 
   return (
-    <Stack>
-      <section
-        aria-label={`笔记结构 · ${view.structureNote?.title ?? "未选择"}`}
-      >
-        <Section title={`笔记结构 · ${view.structureNote?.title ?? "未选择"}`}>
-          {showEndDropTarget && view.structureRoots.length === 0 ? (
-            <DropTarget
-              activePosition={activeDropPosition}
-              label="文末根块"
-              position="end"
-              onDropLine={dropLine}
-              onSetActivePosition={setActiveDropPosition}
-            />
-          ) : null}
-          {view.structureRoots.length > 0 ? (
-            <>
-              <StructureOperationTargetTree
+    <ContentTreeDragScope
+      onMoveRequest={(request) => runAction(() => performMove(request, identity))}
+    >
+      <Stack>
+        <section aria-label={`笔记结构 · ${view.structureNote?.title ?? "未选择"}`}>
+          <Section title={`笔记结构 · ${view.structureNote?.title ?? "未选择"}`}>
+            {view.structureNote ? (
+              <StructureTree
                 ariaLabel="笔记结构操作"
-                activeDropPosition={activeDropPosition}
-                activeTargetLineNumber={activeTargetLineNumber}
-                blockedLineNumbers={blockedLineNumbers}
-                draggingLineNumber={draggingLineNumber}
-                draggable
+                dragDrop={dragDrop}
                 indentUnitCount={view.indentUnitCount}
                 nodes={view.structureRoots}
-                selectedLineNumbers={selectedLineNumbers}
-                selectedRootLineNumber={selectedBlock?.lineNumber ?? null}
-                stateKey={`structure-within:${view.structureNoteId}`}
-                subtreeSelection
-                onActivateTarget={setActiveTargetLineNumber}
-                onDragEnd={finishDrag}
-                onDragStartLine={startDrag}
-                onDropLine={dropLine}
-                onRequestMoveLine={(lineNumber, position) => {
-                  setSelectedLineNumber(String(lineNumber));
-                  setMoveContext({ lineNumber, position });
+                selectedIds={selectedIds}
+                selectedRootId={selectedBlock?.id ?? null}
+                selectionMode="collection"
+                stateKey={`structure-within:${view.repositoryId}:${view.structureNoteId}`}
+                onRequestContextMenu={(nodeId, position) => {
+                  setSelectedId(nodeId);
+                  setMoveContext({ source: { nodeId, identity }, position });
                 }}
-                onSelectLine={(lineNumber) =>
-                  setSelectedLineNumber(String(lineNumber))
-                }
-                onSetActiveDropPosition={setActiveDropPosition}
+                onSelectNode={(node) => setSelectedId(node.id)}
               />
-              {showEndDropTarget ? (
-                <DropTarget
-                  activePosition={activeDropPosition}
-                  label="文末根块"
-                  position="end"
-                  onDropLine={dropLine}
-                  onSetActivePosition={setActiveDropPosition}
-                />
-              ) : null}
-            </>
-          ) : (
-            <EmptyState title="当前笔记结构没有可调整块。" />
-          )}
-        </Section>
-      </section>
-      {moveContext ? (
-        <ContextMenu
-          aria-label="结构块操作"
-          items={
-            moveContext
-              ? [
-                  {
-                    id: "move-to",
-                    label: "移动到…",
-                    onSelect: () =>
-                      setMoveSourceLineNumber(moveContext.lineNumber),
-                  },
-                ]
-              : []
-          }
-          position={moveContext.position}
-          onClose={() => setMoveContext(null)}
+            ) : <EmptyState title="尚未选择笔记。" />}
+          </Section>
+        </section>
+        {moveContext && (
+          <ContextMenu
+            aria-label="结构块操作"
+            items={[{
+              id: "move-to",
+              label: "移动到…",
+              onSelect: () => setMoveSource(moveContext.source),
+            }]}
+            position={moveContext.position}
+            onClose={() => setMoveContext(null)}
+          />
+        )}
+        <StructureBlockMoveQuickPick
+          blockedIds={blockedIds}
+          nodes={view.structureRoots}
+          sourceId={moveSource?.nodeId ?? null}
+          targetTreeId={treeId}
+          onClose={() => setMoveSource(null)}
+          onMove={(target) => {
+            if (!moveSource) throw new Error("无法移动结构块：源结构块已失效。");
+            performMove({ source: { treeId, nodeId: moveSource.nodeId }, target }, moveSource.identity);
+          }}
         />
-      ) : null}
-      <StructureBlockMoveQuickPick
-        blockedLineNumbers={blockedLineNumbers}
-        nodes={view.structureRoots}
-        sourceLineNumber={moveSourceLineNumber}
-        onClose={() => setMoveSourceLineNumber(null)}
-        onMove={dropLine}
-      />
-    </Stack>
+      </Stack>
+    </ContentTreeDragScope>
   );
 }

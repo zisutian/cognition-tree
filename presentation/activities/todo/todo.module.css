@@ -1,3 +1,50 @@
+.todo-structure-tree {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cu-panelBorderWidth);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.todo-structure-row {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--cu-tightGap);
+  min-width: 0;
+  padding-left: calc(
+    var(--ui-structure-depth, 0) *
+      var(--ui-structure-indent-width, var(--cu-treeIndent))
+  );
+}
+.todo-structure-prefix {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: var(--cu-tightGap);
+  min-width: 0;
+}
+.todo-structure-action {
+  display: grid;
+  min-width: 0;
+  width: 100%;
+}
+.todo-structure-meta {
+  color: var(--cu-color-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.todo-has-diagnostics {
+  position: relative;
+}
+.todo-has-diagnostics::after {
+  position: absolute;
+  inset: var(--cu-panelBorderWidth) auto var(--cu-panelBorderWidth) 0;
+  width: calc(var(--cu-panelBorderWidth) * 3);
+  background: var(--cu-color-error);
+  content: "";
+  pointer-events: none;
+}
 .todo-structure-row {
   cursor: default;
 }

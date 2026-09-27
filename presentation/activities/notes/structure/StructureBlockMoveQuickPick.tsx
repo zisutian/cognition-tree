@@ -1,101 +1,90 @@
-import { QuickPick } from "compact-ui";
+import { QuickPick, type ContentTreeMoveRequest } from "compact-ui";
 import {
   flattenUiBlockSubtree,
   type UiBlockNode,
 } from "../../../../application/workspace/index.ts";
 import { useFeedback } from "../../../ui/index.ts";
 
+type MoveTarget = ContentTreeMoveRequest["target"];
+
 type StructureBlockMoveOption = {
   description: string;
   id: string;
   label: string;
-  position: string;
+  target: MoveTarget;
 };
 
 export function createStructureBlockMoveOptions({
-  blockedLineNumbers,
+  blockedIds,
   nodes,
+  targetTreeId,
 }: {
-  blockedLineNumbers: ReadonlySet<number>;
-  nodes: UiBlockNode[];
+  blockedIds: ReadonlySet<string>;
+  nodes: readonly UiBlockNode[];
+  targetTreeId: string;
 }): StructureBlockMoveOption[] {
-  const blockOptions = nodes
+  const options = nodes
     .flatMap(flattenUiBlockSubtree)
-    .filter((node) => !blockedLineNumbers.has(node.lineNumber))
+    .filter((node) => !blockedIds.has(node.id))
     .flatMap<StructureBlockMoveOption>((node) => {
-      const targetLabel = `${node.label} · ${node.textDisplay.displayText}`;
-
-      return [
-        {
-          description: targetLabel,
-          id: `sibling-above:${node.lineNumber}`,
-          label: "置于之前",
-          position: `sibling-above:${node.lineNumber}`,
-        },
-        {
-          description: targetLabel,
-          id: `inside:${node.lineNumber}`,
-          label: "作为子节点",
-          position: `inside:${node.lineNumber}`,
-        },
-        {
-          description: targetLabel,
-          id: `sibling-below:${node.lineNumber}`,
-          label: "置于之后",
-          position: `sibling-below:${node.lineNumber}`,
-        },
-      ];
+      const description = `${node.label} · ${node.textDisplay.displayText}`;
+      return ([
+        ["before", "置于之前"],
+        ["inside", "作为子节点"],
+        ["after", "置于之后"],
+      ] as const).map(([position, label]) => ({
+        description,
+        id: `${position}:${node.id}`,
+        label,
+        target: { treeId: targetTreeId, nodeId: node.id, position },
+      }));
     });
-
   return [
-    ...blockOptions,
+    ...options,
     {
       description: "追加为最后一个根块",
-      id: "end",
+      id: "root-end",
       label: "文末根块",
-      position: "end",
+      target: { treeId: targetTreeId, position: "root-end" },
     },
   ];
 }
 
 export function StructureBlockMoveQuickPick({
-  blockedLineNumbers,
+  blockedIds,
   nodes,
-  sourceLineNumber,
+  sourceId,
+  targetTreeId,
   onClose,
   onMove,
 }: {
-  blockedLineNumbers: ReadonlySet<number>;
-  nodes: UiBlockNode[];
-  sourceLineNumber: number | null;
+  blockedIds: ReadonlySet<string>;
+  nodes: readonly UiBlockNode[];
+  sourceId: string | null;
+  targetTreeId: string;
   onClose: () => void;
-  onMove: (lineNumber: string, position: string) => void;
+  onMove: (target: MoveTarget) => void;
 }) {
   const { runAction } = useFeedback();
   const options = createStructureBlockMoveOptions({
-    blockedLineNumbers,
+    blockedIds,
     nodes,
+    targetTreeId,
   });
-
   return (
     <QuickPick
       aria-label="移动结构块"
-      open={sourceLineNumber !== null}
+      open={sourceId !== null}
       options={options}
       onClose={onClose}
-      onSelect={(selectedOption) => {
-        const option = options.find(
-          (candidate) => candidate.id === selectedOption,
-        );
-
+      onSelect={(id) => {
+        const option = options.find((candidate) => candidate.id === id);
         runAction(() => {
-          if (!option || sourceLineNumber === null) {
+          if (!option || !sourceId) {
             throw new Error("无法移动结构块：所选目标已失效。");
           }
-
-          onMove(String(sourceLineNumber), option.position);
+          onMove(option.target);
         });
-
         onClose();
       }}
     />

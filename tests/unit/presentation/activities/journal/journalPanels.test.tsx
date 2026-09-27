@@ -10,6 +10,7 @@ import {
 import { RegionFrame } from "../../../../support/presentation/render";
 import { runFeedbackAction } from "../../../../../presentation/ui/shared/FeedbackProvider";
 import { createJournalView } from "../../../../support/presentation/fixtures/journalViewFixture";
+import { ContentTreeLabelPreferenceProvider } from "../../../../../presentation/ui/shared/tree/ContentTreeLabelPreference";
 import { expectMarkupSemantics } from "../../../../support/presentation/markupSemantics";
 
 const olderJanuaryEntry = {
@@ -145,7 +146,7 @@ describe("Journal panels", () => {
         activeBlock: {
           children: [],
           endLineNumber: 1,
-          hasDiagnostics: false,
+          diagnostics: [],
           id: "journal-block-1",
           label: "概念",
           lineLabel: "L1",
@@ -164,7 +165,11 @@ describe("Journal panels", () => {
         },
       },
     };
-    const markup = renderToStaticMarkup(<JournalDetailPanel view={view} />);
+    const markup = renderToStaticMarkup(
+      <ContentTreeLabelPreferenceProvider initialVisible onChange={() => undefined}>
+        <JournalDetailPanel view={view} />
+      </ContentTreeLabelPreferenceProvider>,
+    );
 
     expectMarkupSemantics(markup, {
       has: [

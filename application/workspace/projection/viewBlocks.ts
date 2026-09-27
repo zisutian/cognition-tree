@@ -8,7 +8,7 @@ export type UiNodeId = string;
 
 export type UiBlockNode = {
   children: UiBlockNode[];
-  hasDiagnostics: boolean;
+  diagnostics: CtnCanonicalBlock["diagnostics"];
   id: UiNodeId;
   label: string;
   lineLabel: string;
@@ -116,7 +116,7 @@ function projectUiBlockNodes(nodes: CtnCanonicalBlock[]): UiBlockNode[] {
     nodes,
     create: (block, children) => ({
       children,
-      hasDiagnostics: block.diagnostics.length > 0,
+      diagnostics: block.diagnostics,
       id: block.id,
       label: block.rule.label,
       lineLabel: getUiBlockLineLabel(block),
@@ -139,7 +139,7 @@ function projectUiOutlineNodes(
       return {
         children,
         endLineNumber,
-        hasDiagnostics: block.diagnostics.length > 0,
+        diagnostics: block.diagnostics,
         id: block.id,
         label: block.rule.label,
         lineLabel: getUiBlockLineLabel({

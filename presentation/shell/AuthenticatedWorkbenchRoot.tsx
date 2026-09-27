@@ -25,8 +25,11 @@ import {
 } from "../../infrastructure/client/runtime/index.ts";
 
 import { clientApplicationScheduler } from "../../infrastructure/client/platform/index.ts";
-import type { ActivityId } from "../ui/index.ts";
-import { RepositorySessionStateProvider } from "../ui/index.ts";
+import {
+  ContentTreeLabelPreferenceProvider,
+  RepositorySessionStateProvider,
+  type ActivityId,
+} from "../ui/index.ts";
 import { useWorkbenchApplicationBindings } from "./application/useWorkbenchApplicationBindings.ts";
 import { projectUnavailableWorkspace } from "./application/workbenchApplicationProjection.ts";
 import { WorkspaceApplicationBinding } from "./workbench/WorkspaceApplicationBinding.tsx";
@@ -228,6 +231,7 @@ export function AuthenticatedWorkbenchRoot({
       : null;
 
   return (
+    <ContentTreeLabelPreferenceProvider initialVisible onChange={() => undefined}>
     <PageNavigationProvider navigation={navigation}>
       <RepositorySessionStateProvider repositoryIds={repositorySessionIds}>
         <WorkspaceWorkbench
@@ -259,5 +263,6 @@ export function AuthenticatedWorkbenchRoot({
         />
       </RepositorySessionStateProvider>
     </PageNavigationProvider>
+    </ContentTreeLabelPreferenceProvider>
   );
 }

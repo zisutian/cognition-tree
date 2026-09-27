@@ -9,3 +9,10 @@
   white-space: nowrap;
   border: 0;
 }
+
+.block-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

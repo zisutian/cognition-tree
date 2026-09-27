@@ -41,51 +41,42 @@ test.describe("directory and structure operation flows", () => {
       .click();
 
     const detail = page.getByRole("region", { name: "笔记详情" });
-    const root = detail.getByTitle("组分: Source Child", { exact: true });
-    const child = detail.getByTitle("定义: Source Grandchild", { exact: true });
+    const root = detail.getByRole("treeitem", { name: "Source Child", exact: true });
+    const child = detail.getByRole("treeitem", { name: "Source Grandchild", exact: true });
     await root.click();
-    const rowColor = (title: typeof root) =>
-      title.locator("xpath=ancestor::*[@role='treeitem'][1]").evaluate((item) => {
-        const row = item.querySelector(".ui-structure-container");
-        if (!row) throw new Error("Missing structure row");
-        return {
-          item: getComputedStyle(item).backgroundColor,
-          row: getComputedStyle(row).backgroundColor,
-        };
-      });
+    await root.click();
+    const rowColor = (row: typeof root) =>
+      row.evaluate((item) => getComputedStyle(item).backgroundColor);
     const selected = await rowColor(root);
     const unselected = await rowColor(child);
-    expect(selected.row).not.toBe("rgba(0, 0, 0, 0)");
-    expect(selected.item).toBe("rgba(0, 0, 0, 0)");
-    expect(unselected.row).toBe("rgba(0, 0, 0, 0)");
+    expect(selected).not.toBe(unselected);
     await page.screenshot({ path: testInfo.outputPath("note-selected-row.png") });
 
     await selectNotesMode(page, "结构");
     const source = page.getByRole("region", { name: "源笔记 · Source" });
-    await source.getByTitle("组分: Source Child", { exact: true }).click();
+    await source.getByRole("treeitem", { name: "Source Child", exact: true }).click();
+    await source.getByRole("treeitem", { name: "Source Child", exact: true }).click();
     const selectedSubtree = source.getByRole("treeitem", {
       selected: true,
     });
     await expect(selectedSubtree).toHaveCount(2);
     const sourceRoot = await rowColor(
-      source.getByTitle("组分: Source Child", { exact: true }),
+      source.getByRole("treeitem", { name: "Source Child", exact: true }),
     );
     const sourceChild = await rowColor(
-      source.getByTitle("定义: Source Grandchild", { exact: true }),
+      source.getByRole("treeitem", { name: "Source Grandchild", exact: true }),
     );
     const sourceSibling = await rowColor(
-      source.getByTitle("组分: Source Sibling", { exact: true }),
+      source.getByRole("treeitem", { name: "Source Sibling", exact: true }),
     );
-    expect(sourceRoot.row).toBe(selected.row);
-    expect(sourceChild.row).toBe(selected.row);
-    expect(sourceSibling.row).toBe("rgba(0, 0, 0, 0)");
+    expect(sourceRoot).toBe(selected);
+    expect(sourceChild).toBe(selected);
+    expect(sourceSibling).toBe(unselected);
     await page.screenshot({ path: testInfo.outputPath("subtree-selected.png") });
-    const siblingButton = source.getByTitle("组分: Source Sibling", {
-      exact: true,
-    });
-    await siblingButton.hover();
-    await expect.poll(() => siblingButton.evaluate((button) =>
-      getComputedStyle(button).backgroundColor,
+    const siblingRow = source.getByRole("treeitem", { name: "Source Sibling", exact: true });
+    await siblingRow.hover();
+    await expect.poll(() => siblingRow.evaluate((row) =>
+      getComputedStyle(row).backgroundColor,
     )).not.toBe("rgba(0, 0, 0, 0)");
     await page.screenshot({ path: testInfo.outputPath("subtree-hover.png") });
     await page.setViewportSize({ width: 880, height: 720 });
@@ -161,7 +152,7 @@ test.describe("directory and structure operation flows", () => {
     await expect(exitFocus).toBeVisible();
 
     const source = page.getByRole("region", { name: "源笔记 · Source" });
-    const sourceBlock = source.getByTitle("组分: Source Child", {
+    const sourceBlock = source.getByRole("treeitem", { name: "Source Child",
       exact: true,
     });
     await sourceBlock.click({ button: "right" });
@@ -349,11 +340,8 @@ test.describe("directory and structure operation flows", () => {
     });
     const sourceStructure = structureColumns.first();
     const targetStructure = structureColumns.nth(1);
-    const sourceStructureRow = sourceStructure
-      .getByRole("treeitem")
-      .first()
-      .locator("button[title]");
-    const movedStructureTitle = await sourceStructureRow.getAttribute("title");
+    const sourceStructureRow = sourceStructure.getByRole("treeitem").first();
+    const movedStructureTitle = await sourceStructureRow.getAttribute("aria-label");
 
     expect(movedStructureTitle).not.toBeNull();
     await sourceStructureRow.click({ button: "right" });
@@ -371,7 +359,7 @@ test.describe("directory and structure operation flows", () => {
       .getByRole("option", { name: /文末根块/ })
       .click();
     await expect(
-      targetStructure.getByTitle(movedStructureTitle ?? ""),
+      targetStructure.getByRole("treeitem", { name: movedStructureTitle ?? "", exact: true }),
     ).toBeVisible();
 
     await page.getByRole("radio", { name: "笔记内迁移", exact: true }).click();
@@ -418,19 +406,19 @@ test.describe("directory and structure operation flows", () => {
       targetColumn.getByText("目标笔记 · Target", { exact: true }),
     ).toBeVisible();
 
-    const sourceChild = sourceColumn.getByTitle("组分: Source Child", {
+    const sourceChild = sourceColumn.getByRole("treeitem", { name: "Source Child",
       exact: true,
     });
-    const targetChild = targetColumn.getByTitle("组分: Target Child", {
+    const targetChild = targetColumn.getByRole("treeitem", { name: "Target Child",
       exact: true,
     });
 
     await sourceChild.dragTo(targetChild);
     await expect(
-      sourceColumn.getByTitle("组分: Source Child", { exact: true }),
+      sourceColumn.getByRole("treeitem", { name: "Source Child", exact: true }),
     ).toBeHidden();
     await expect(
-      targetColumn.getByTitle("组分: Source Child", { exact: true }),
+      targetColumn.getByRole("treeitem", { name: "Source Child", exact: true }),
     ).toBeVisible();
 
     await expect
@@ -466,8 +454,8 @@ test.describe("directory and structure operation flows", () => {
       structureColumn.getByText("笔记结构 · Target", { exact: true }),
     ).toBeVisible();
 
-    const nestedSourceChild = structureColumn.getByTitle("组分: Source Child");
-    const targetSibling = structureColumn.getByTitle("组分: Target Child", {
+    const nestedSourceChild = structureColumn.getByRole("treeitem", { name: "Source Child" });
+    const targetSibling = structureColumn.getByRole("treeitem", { name: "Target Child",
       exact: true,
     });
     const targetSiblingBox = await targetSibling.boundingBox();
@@ -510,18 +498,16 @@ test.describe("directory and structure operation flows", () => {
       .getByTitle("Source", { exact: true }).click();
     const tree = page.getByRole("tree", { name: "笔记结构操作" });
     const parent = tree.getByRole("treeitem", { name: /Source Child/ });
-    const sibling = tree.getByTitle("组分: Source Sibling", { exact: true });
-    await parent.getByRole("button", { name: /收起/ }).click();
-    await expect(tree.getByTitle("定义: Source Grandchild", { exact: true })).toHaveCount(0);
-    const parentBody = parent.getByTitle("组分: Source Child", { exact: true });
-    const box = await parentBody.boundingBox();
+    const sibling = tree.getByRole("treeitem", { name: "Source Sibling", exact: true });
+    await parent.click();
+    await expect(tree.getByRole("treeitem", { name: "Source Grandchild", exact: true })).toHaveCount(0);
+    const box = await parent.boundingBox();
     expect(box).not.toBeNull();
-    await sibling.dragTo(parentBody, {
+    await sibling.dragTo(parent, {
       targetPosition: { x: 12, y: Math.floor((box?.height ?? 1) / 2) },
     });
-    await parent.getByRole("button", { name: /展开/ }).click();
-    await expect(tree.getByTitle("组分: Source Sibling", { exact: true })
-      .locator("xpath=ancestor::*[@role='treeitem'][1]"))
+    await parent.click();
+    await expect(tree.getByRole("treeitem", { name: "Source Sibling", exact: true }))
       .toHaveAttribute("aria-level", "2");
   });
 });

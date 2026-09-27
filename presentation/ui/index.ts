@@ -36,6 +36,7 @@ export {
 } from "./shared/listDrag.ts";
 export type { ListRowDropPlacement } from "./shared/listDrag.ts";
 export { Page, PageBody } from "./shared/Page.tsx";
+export { ContentTreeLabelPreferenceProvider } from "./shared/tree/ContentTreeLabelPreference.tsx";
 export { TriggerPopover } from "./shared/TriggerPopover.tsx";
 
 export {
@@ -53,7 +54,6 @@ export {
 } from "./shared/tree/index.ts";
 export type {
   StructureTreeProps,
-  StructureTreeRowProps,
   TreeNode,
 } from "./shared/tree/index.ts";
 export { useExclusiveAsyncAction } from "./shared/useExclusiveAsyncAction.ts";

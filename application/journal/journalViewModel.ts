@@ -72,7 +72,7 @@ export type JournalTextDisplay = {
 export type JournalOutlineNode = {
   children: JournalOutlineNode[];
   endLineNumber: number;
-  hasDiagnostics: boolean;
+  diagnostics: CtnCanonicalBlock["diagnostics"];
   id: string;
   label: string;
   lineLabel: string;
@@ -332,7 +332,7 @@ function createJournalOutlineNodes(
     projectedByBlock.set(current.block, {
       children,
       endLineNumber,
-      hasDiagnostics: current.block.diagnostics.length > 0,
+      diagnostics: current.block.diagnostics,
       id: current.block.id,
       label: current.block.rule.label,
       lineLabel: lineNumber === endLineNumber

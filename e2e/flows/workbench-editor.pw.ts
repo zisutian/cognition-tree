@@ -555,7 +555,7 @@ test.describe("editor workbench flows", () => {
       .poll(async () => noteUpdatedTime.getAttribute("datetime"))
       .not.toBe(e2eTimestamp);
 
-    await detail.getByRole("treeitem").first().getByRole("button").click();
+    await detail.getByRole("treeitem").first().click();
     await expect(editor.locator(".cm-activeLine")).toContainText("[[Beta]]");
     await expect(createdTime).toHaveAttribute(
       "datetime",
@@ -586,7 +586,6 @@ test.describe("editor workbench flows", () => {
       .locator("aside[aria-label='详情区域']")
       .getByRole("treeitem")
       .first()
-      .getByRole("button")
       .click();
     await expect(page.getByLabel("块时间")).toBeVisible();
     const beforeResponse = await api.get(

@@ -1,7 +1,6 @@
 import contentStyles from "./Content.module.css";
-import treeStyles from "./tree/Tree.module.css";
 import { createClassNames as bindClassNames } from "./classNames.ts";
-const contentClasses = bindClassNames(contentStyles, treeStyles);
+const contentClasses = bindClassNames(contentStyles);
 /** Content fragments may compose only their own co-located styles. */
 export function createClassNames(
   ...modules: Readonly<Record<string, string>>[]

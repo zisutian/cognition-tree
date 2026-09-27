@@ -164,9 +164,6 @@ export function JournalDetailPanel({ view }: JournalViewProps) {
   }
 
   const selectedBlock = view.outline.activeBlock;
-  const selectedLineNumbers = selectedBlock
-    ? new Set([selectedBlock.lineNumber])
-    : undefined;
 
   return (
     <CtnDocumentDetailPanel
@@ -178,8 +175,9 @@ export function JournalDetailPanel({ view }: JournalViewProps) {
         ariaLabel: "日记结构",
         indentUnitCount: view.editor.syntax.tabDisplayWidth,
         nodes: view.outline.nodes,
-        onSelectLine: view.outline.onSelectLine,
-        selectedLineNumbers,
+        onSelectNode: (node) => view.outline.onSelectLine(node.lineNumber),
+        selectedId: selectedBlock?.id ?? null,
+        selectionMode: "single",
         stateKey: `journal:${view.activeEntry.id}`,
       }}
     />

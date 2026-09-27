@@ -26,10 +26,12 @@ import {
 import type { StructureOperationState } from "./useStructureOperationState.ts";
 
 export function useStructureOperationActivity({
+  repositoryId,
   runtime,
   selection,
   state,
 }: {
+  repositoryId: string;
   runtime: WorkspaceRuntime;
   selection: WorkspaceSelection;
   state: StructureOperationState;
@@ -193,6 +195,7 @@ export function useStructureOperationActivity({
 
   return {
     ...view,
+    canMutate: !runtime.readOnly,
     deleteFolder: selection.deleteFolder,
     deleteNote: selection.deleteNote,
     indentUnitCount: index?.syntax.tabDisplayWidth,
@@ -205,5 +208,6 @@ export function useStructureOperationActivity({
     pairSelectionPhase,
     renameFolder: selection.renameFolder,
     renameNote: selection.renameNote,
+    repositoryId,
   };
 }

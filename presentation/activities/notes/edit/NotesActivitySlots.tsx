@@ -62,12 +62,14 @@ export function createNotesWorkspaceActivitySlots({
 
 export function createNotesActivitySlots({
   onReload,
+  repositoryId,
   repositoryName,
   view,
 }: {
   focusMode: boolean;
   onReload: () => Promise<void>;
   onToggleFocusMode: () => void;
+  repositoryId: string;
   repositoryName: string;
   view: NotesViewModel;
 }): ActivitySlots {
@@ -80,7 +82,7 @@ export function createNotesActivitySlots({
       ? {
           title: "结构",
           layout: "canvas",
-          content: <NoteDetailPanel view={view} />,
+          content: <NoteDetailPanel repositoryId={repositoryId} view={view} />,
         }
       : null,
     main: {

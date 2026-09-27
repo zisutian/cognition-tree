@@ -1,9 +1,13 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ReactNode } from "react";
+import type { ContentTreeDragDrop } from "compact-ui";
 import type { DisplayText } from "../blockText.tsx";
 
 export type StructureTreeNode = {
   children: StructureTreeNode[];
-  hasDiagnostics: boolean;
+  diagnostics?: readonly {
+    severity: "error" | "warning";
+    message: string;
+  }[];
   id: string;
   label: string;
   lineLabel: string;
@@ -11,49 +15,34 @@ export type StructureTreeNode = {
   textDisplay: DisplayText;
 };
 
-export type StructureTreeRowState = {
-  depth: number;
-  isSelected: boolean;
-  isSelectedRoot: boolean;
-};
-
-export type StructureTreeRowProps = Omit<
-  ButtonHTMLAttributes<HTMLButtonElement>,
-  | "children"
-  | "className"
-  | "onClick"
-  | "onContextMenu"
-  | "onFocus"
-  | "onKeyDown"
-  | "style"
-  | "tabIndex"
-  | "title"
-  | "type"
-> & {
-  className?: string;
-  [dataAttribute: `data-${string}`]: string | boolean | undefined;
-};
-
-export type StructureTreeProps = {
+type StructureTreeBaseProps = {
   ariaLabel: string;
-  className?: string;
-  getRowProps?: (
-    node: StructureTreeNode,
-    state: StructureTreeRowState,
-  ) => StructureTreeRowProps;
+  dragDrop?: ContentTreeDragDrop;
   indentUnitCount?: number;
-  keepMountedLineNumbers?: ReadonlySet<number>;
   nodes: StructureTreeNode[];
-  selectedLineNumbers?: ReadonlySet<number>;
-  selectedRootLineNumber?: number | null;
   stateKey: string;
-  subtreeSelection?: boolean;
   onRequestContextMenu?: (
-    node: StructureTreeNode,
+    nodeId: string,
     position: { x: number; y: number },
   ) => void;
-  onSelectLine?: (lineNumber: number) => void;
 };
+
+export type StructureTreeProps = StructureTreeBaseProps & (
+  | {
+      selectionMode: "single";
+      selectedId: string | null;
+      onSelectNode: (node: StructureTreeNode) => void;
+    }
+  | {
+      selectionMode: "collection";
+      selectedIds: ReadonlySet<string>;
+      selectedRootId: string | null;
+      onSelectNode: (node: StructureTreeNode) => void;
+    }
+  | {
+      selectionMode: "none";
+    }
+);
 
 export type TreeNode =
   | {

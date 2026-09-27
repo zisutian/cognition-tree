@@ -1,15 +1,18 @@
 import type { NotesViewModel } from "../../../../application/workspace/index.ts";
 import { CtnDocumentDetailPanel } from "../../../editor/index.ts";
 
-export function NoteDetailPanel({ view }: { view: NotesViewModel }) {
+export function NoteDetailPanel({
+  repositoryId,
+  view,
+}: {
+  repositoryId: string;
+  view: NotesViewModel;
+}) {
   if (!view.activeNote) {
     return null;
   }
 
   const selectedBlock = view.outline.activeBlock;
-  const selectedLineNumbers = selectedBlock
-    ? new Set([selectedBlock.lineNumber])
-    : undefined;
 
   return (
     <CtnDocumentDetailPanel
@@ -23,9 +26,10 @@ export function NoteDetailPanel({ view }: { view: NotesViewModel }) {
               ariaLabel: "笔记结构",
               indentUnitCount: view.editor.syntax.tabDisplayWidth,
               nodes: view.outline.nodes,
-              onSelectLine: view.outline.onSelectLine,
-              selectedLineNumbers,
-              stateKey: `note:${view.activeNote.id}`,
+              onSelectNode: (node) => view.outline.onSelectLine(node.lineNumber),
+              selectedId: selectedBlock?.id ?? null,
+              selectionMode: "single",
+              stateKey: `note:${repositoryId}:${view.activeNote.id}`,
             }
           : null
       }
