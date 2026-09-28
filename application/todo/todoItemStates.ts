@@ -7,6 +7,7 @@ import {
   type TodoLocalDate,
 } from "../../core/todo/index.ts";
 import type { TodoDomainVersions } from "./todoDomainCommands.ts";
+import { getTodoSnapshotIndex } from "./todoSnapshotIndex.ts";
 
 export function projectTodoItemStates(
   parsed: ParsedTodoIndexCollection,
@@ -14,14 +15,10 @@ export function projectTodoItemStates(
   version: TodoDomainVersions["itemState"],
   onlyBlockIds?: ReadonlySet<string>,
 ) {
-  const ordinaryCompletionById = new Map(
-    parsed.collection.completions.map(({ blockId, completedAt }) => [
-      blockId,
-      completedAt,
-    ]),
-  );
+  const snapshot = getTodoSnapshotIndex(parsed.collection);
+  const ordinaryCompletionById = snapshot.lastCompletedAtById;
   const recurrenceById = new Map(
-    parsed.collection.recurrences
+    [...snapshot.lastRecurrenceById.values()]
       .filter(({ blockId }) => !onlyBlockIds || onlyBlockIds.has(blockId))
       .map((recurrence) => {
         const projection = projectTodoRecurrence(recurrence, today);

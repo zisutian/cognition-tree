@@ -13,6 +13,7 @@
   },
   "include": [
     "../../core/**/*.ts",
-    "../benchmark/workspaceCapacity.ts"
+    "../benchmark/workspaceCapacity.ts",
+    "../benchmark/overallOptimization.ts"
   ]
 }
