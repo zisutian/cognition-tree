@@ -90,8 +90,11 @@ function defaultSourceFault(source: SearchSource, error: unknown): SearchFault {
 
 export class SearchIndex<Context = void> implements SearchQuery<Context> {
   readonly #createCorpusKey: (value: unknown) => Promise<string> | string;
+  readonly #maximumConcurrentLoads: number;
   readonly #maximumCachedQueries: number;
   readonly #maximumCachedSources: number;
+  #activeLoads = 0;
+  readonly #waitingLoads: Array<() => void> = [];
   readonly #queryCache = new Map<string, SearchResult[]>();
   readonly #sourceCache = new Map<
     string,
@@ -101,16 +104,22 @@ export class SearchIndex<Context = void> implements SearchQuery<Context> {
 
   constructor({
     createCorpusKey,
+    maximumConcurrentLoads = 4,
     maximumCachedQueries = 32,
     maximumCachedSources = 64,
     sourceProvider,
   }: {
     createCorpusKey(value: unknown): Promise<string> | string;
+    maximumConcurrentLoads?: number;
     maximumCachedQueries?: number;
     maximumCachedSources?: number;
     sourceProvider: SearchSourceProvider<Context>;
   }) {
+    if (!Number.isSafeInteger(maximumConcurrentLoads) || maximumConcurrentLoads < 1) {
+      throw new RangeError("Search maximum concurrent loads must be a positive integer");
+    }
     this.#createCorpusKey = createCorpusKey;
+    this.#maximumConcurrentLoads = maximumConcurrentLoads;
     this.#maximumCachedQueries = maximumCachedQueries;
     this.#maximumCachedSources = maximumCachedSources;
     this.#sourceProvider = sourceProvider;
@@ -133,9 +142,8 @@ export class SearchIndex<Context = void> implements SearchQuery<Context> {
               : source.domain;
 
           try {
-            const batch = await source.load();
+            const batch = await this.#runLoad(() => source.load());
 
-            revisions[sourceKey] = batch.revision;
             return { batch, source, sourceKey };
           } catch (error) {
             faults.push(
@@ -146,6 +154,9 @@ export class SearchIndex<Context = void> implements SearchQuery<Context> {
         }),
       )
     ).filter((value) => value !== null);
+    for (const { batch, sourceKey } of prepared) {
+      revisions[sourceKey] = batch.revision;
+    }
     const createKey = (normalizedFaults: SearchFault[]) =>
       this.#createCorpusKey({
         domains: request.domains ?? searchDomains,
@@ -227,6 +238,21 @@ export class SearchIndex<Context = void> implements SearchQuery<Context> {
     return results;
   }
 
+  async #runLoad<T>(load: () => Promise<T>): Promise<T> {
+    if (this.#activeLoads < this.#maximumConcurrentLoads && this.#waitingLoads.length === 0) {
+      this.#activeLoads += 1;
+    } else {
+      await new Promise<void>((resolve) => this.#waitingLoads.push(resolve));
+    }
+    try {
+      return await load();
+    } finally {
+      const next = this.#waitingLoads.shift();
+      if (next) next();
+      else this.#activeLoads -= 1;
+    }
+  }
+
   async #loadSourceDocuments(sourceKey: string, batch: SearchSourceBatch) {
     const cached = this.#sourceCache.get(sourceKey);
 
@@ -235,7 +261,7 @@ export class SearchIndex<Context = void> implements SearchQuery<Context> {
       this.#sourceCache.set(sourceKey, cached);
       return cached.documents;
     }
-    const documents = await batch.loadDocuments();
+    const documents = await this.#runLoad(() => batch.loadDocuments());
 
     this.#sourceCache.delete(sourceKey);
     this.#sourceCache.set(sourceKey, {

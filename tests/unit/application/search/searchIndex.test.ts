@@ -5,6 +5,7 @@ import {
 } from "../../../../application/search/searchController";
 import {
   createSearchQuery,
+  SearchIndex,
 } from "../../../../application/search/searchIndex";
 import {
   projectSearchDocumentResults,
@@ -84,6 +85,187 @@ function corpusKey(value: unknown) {
 }
 
 describe("cross-domain search query", () => {
+  it("shares one load limit across overlapping queries and releases failed loads", async () => {
+    let active = 0;
+    let peak = 0;
+    let sourceLoads = 0;
+    let documentLoads = 0;
+    const duringLoad = async () => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      active -= 1;
+    };
+    const sources: SearchSource[] = Array.from({ length: 80 }, (_, index) => ({
+      domain: "workspace",
+      repositoryId: `repository-${index}`,
+      async load() {
+        sourceLoads += 1;
+        await duringLoad();
+        if (index === 7) throw new Error("temporary failure");
+        return {
+          revision: `revision-${index}`,
+          async loadDocuments() {
+            documentLoads += 1;
+            await duringLoad();
+            return [document({
+              blockId: `block-${index}`,
+              domain: "workspace",
+              repositoryId: `repository-${index}`,
+              resourceId: `note-${index}`,
+              text: "shared needle",
+              updatedAt: "2026-07-29T10:00:00.000Z",
+            })];
+          },
+        };
+      },
+    }));
+    const query = new SearchIndex({
+      createCorpusKey: corpusKey,
+      sourceProvider: { async listSources() { return { faults: [], sources }; } },
+    });
+    const [first, second] = await Promise.all([
+      query.search({ query: "needle", limit: 100 }, undefined),
+      query.search({ query: "shared", limit: 100 }, undefined),
+    ]);
+
+    expect(peak).toBeLessThanOrEqual(4);
+    expect(peak).toBe(4);
+    expect(active).toBe(0);
+    expect(sourceLoads).toBe(160);
+    expect(documentLoads).toBeGreaterThanOrEqual(79);
+    expect(first.results).toHaveLength(79);
+    expect(second.results).toHaveLength(79);
+    expect(first.faults).toHaveLength(1);
+    expect(second.faults).toHaveLength(1);
+    expect(() => new SearchIndex({
+      createCorpusKey: corpusKey,
+      maximumConcurrentLoads: 0,
+      sourceProvider: { async listSources() { return { faults: [], sources }; } },
+    })).toThrow(RangeError);
+  });
+
+  it("shares permits across snapshot and document phases and keeps paging stable across completion orders", async () => {
+    const run = async (reverse: boolean) => {
+      let active = 0;
+      let peak = 0;
+      let alphaDocumentActive = false;
+      let startAlphaDocument: () => void = () => undefined;
+      const alphaDocumentStarted = new Promise<void>((resolve) => {
+        startAlphaDocument = resolve;
+      });
+      let releaseAlphaDocument: () => void = () => undefined;
+      const alphaDocumentGate = new Promise<void>((resolve) => {
+        releaseAlphaDocument = resolve;
+      });
+      let observeMixedPhases: () => void = () => undefined;
+      const mixedPhases = new Promise<void>((resolve) => {
+        observeMixedPhases = resolve;
+      });
+      const load = async (delay: number, kind: "source" | "documents") => {
+        active += 1;
+        peak = Math.max(peak, active);
+        if (kind === "source" && alphaDocumentActive) observeMixedPhases();
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        active -= 1;
+      };
+      const betaSources: SearchSource[] = Array.from({ length: 3 }, (_, index) => ({
+        domain: "workspace",
+        repositoryId: `repository-${index}`,
+        async load() {
+          await load(reverse ? 2 + index * 3 : 8 - index * 3, "source");
+          return {
+            revision: `revision-${index}`,
+            async loadDocuments() {
+              await load(reverse ? 8 - index * 3 : 2 + index * 3, "documents");
+              return [document({
+                blockId: `block-${index}`,
+                domain: "workspace",
+                repositoryId: `repository-${index}`,
+                resourceId: `note-${index}`,
+                text: "beta",
+                updatedAt: `2026-07-29T0${index + 7}:00:00.000Z`,
+              })];
+            },
+          };
+        },
+      }));
+      const alphaSource: SearchSource = {
+        domain: "todo",
+        async load() {
+          return {
+            revision: "alpha-revision",
+            async loadDocuments() {
+              active += 1;
+              peak = Math.max(peak, active);
+              alphaDocumentActive = true;
+              startAlphaDocument();
+              await alphaDocumentGate;
+              alphaDocumentActive = false;
+              active -= 1;
+              return [document({
+                blockId: "alpha-block",
+                domain: "todo",
+                resourceId: "alpha-note",
+                text: "alpha",
+                updatedAt: "2026-07-29T10:00:00.000Z",
+              })];
+            },
+          };
+        },
+      };
+      const query = new SearchIndex({
+        createCorpusKey: corpusKey,
+        maximumConcurrentLoads: 2,
+        sourceProvider: {
+          async listSources(request) {
+            return {
+              faults: [],
+              sources: request.query === "alpha" ? [alphaSource] : betaSources,
+            };
+          },
+        },
+      });
+      const alpha = query.search({ query: "alpha" }, undefined);
+      await alphaDocumentStarted;
+      const beta = query.search({ query: "beta", limit: 1 }, undefined);
+      let overlapTimeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          mixedPhases,
+          new Promise<never>((_, reject) => {
+            overlapTimeout = setTimeout(
+              () => reject(new Error("load phases did not overlap")), 1_000,
+            );
+          }),
+        ]);
+      } finally {
+        clearTimeout(overlapTimeout);
+        releaseAlphaDocument();
+      }
+      const [first] = await Promise.all([beta, alpha]);
+      const second = await query.search({ query: "beta", limit: 1, cursor: first.cursor! }, undefined);
+      const third = await query.search({ query: "beta", limit: 1, cursor: second.cursor! }, undefined);
+      return {
+        cursor: first.cursor,
+        peak,
+        resourceIds: [...first.results, ...second.results, ...third.results]
+          .map(({ resourceId }) => resourceId),
+        finalCursor: third.cursor,
+      };
+    };
+
+    const first = await run(false);
+    const reversed = await run(true);
+    expect(first.peak).toBe(2);
+    expect(reversed.peak).toBe(2);
+    expect(first.resourceIds).toEqual(["note-2", "note-1", "note-0"]);
+    expect(reversed.resourceIds).toEqual(first.resourceIds);
+    expect(reversed.cursor).toBe(first.cursor);
+    expect(first.finalCursor).toBeNull();
+    expect(reversed.finalCursor).toBeNull();
+  });
+
   it("normalizes, filters and pages successful sources while retaining faults", async () => {
     const unicodeDocument = document({
       blockId: "unicode-block",
