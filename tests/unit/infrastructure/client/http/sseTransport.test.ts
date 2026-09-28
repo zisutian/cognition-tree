@@ -34,6 +34,19 @@ describe("HTTP SSE transport", () => {
     await expect(collect(response)).resolves.toEqual(["first\nsecond"]);
   });
 
+  it("removes only one ASCII space and preserves UTF-8 errors", async () => {
+    await expect(collect(responseFromChunks(["data:  value\n\ndata:\tvalue\n\n"])))
+      .resolves.toEqual([" value", "\tvalue"]);
+    const invalid = new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(Uint8Array.from([0xff]));
+        controller.close();
+      },
+    }));
+    await expect(collect(invalid)).rejects.toBeInstanceOf(TypeError);
+    await expect(collect(new Response(null))).rejects.toThrow("SSE response has no body");
+  });
+
   it("rejects oversized and incomplete frames", async () => {
     await expect(collect(responseFromChunks([
       `data: ${"x".repeat(maximumHttpSseFrameCharacters)}`,

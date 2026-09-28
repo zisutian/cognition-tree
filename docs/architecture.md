@@ -24,7 +24,7 @@ application/
 
 infrastructure/
 
-    client 侧内存 cache、HTTP/SSE 适配、Node server、本地 working-tree repository，
+    client 侧内存 cache、HTTP/SSE 适配、浏览器和 Node 共用的中立 SSE 分帧、Node server、本地 working-tree repository，
     以及 Agent profile、模型 adapter、Codex 子进程、私有 IPC、内存会话和
     operation ledger。CAS 与保存队列策略属于 application，平台层只实现端口；
     client 不直接导入任何 Server 实现。Node 是开发与生产的唯一 HTTP composition
@@ -146,8 +146,9 @@ application/search/SearchIndex 是三领域资源投影、Unicode 归一化、gr
 行号。SearchController 的响应式 state 只保存会影响渲染的查询事实；高频 scrollTop
 由独立 viewport cell 持有，切换 Activity 时显式读取，不通过静默替换 state 或每次滚动
 发布整个 Workbench snapshot。
+同一 SearchIndex 的来源快照读取和文档加载共用并发许可，默认上限为 4；重叠查询也共享该上限，失败归还许可。来源版本按来源清单顺序参与游标身份，不受异步完成顺序影响；缓存命中仍读取当前来源 revision。
 
-Journal 只理解日记内容、仓内引用和外部引用 token；Todo 只理解 CTN collection、任务结构和 completion。跨仓边不进入普通引用图谱，重命名也不跨独立 CAS 改写 Journal。
+Journal 只理解日记内容、仓内引用和外部引用 token；Todo 只理解 CTN collection、任务结构和 completion。application/todo 对不可变集合快照建立弱引用的完成与周期索引，事项状态和版本共用；新快照重建索引，诊断映射只在本次投影内使用。跨仓边不进入普通引用图谱，重命名也不跨独立 CAS 改写 Journal。
 
 application/repository/RepositoryCatalogController 独占 catalog 加载、活动仓库持久化、创建/重命名/删除期间的并发保护和 descriptor 复用。Workspace session 只管理生命周期、authoritative state 与保存队列；语法目录的创建、复制命名、启用、删除和 metadata reconcile 由独立 mutation service 计算。
 
@@ -244,6 +245,9 @@ Shell 注入关闭保存检查、错误报告以及仓库生命周期。活动�
 CodeMirror editor 的独立视图快照按完整页面标识保留在登录会话内，重新激活先重新绑定
 当前回调，再同步应用权威正文。PageViewSessions 根据导航保留集合限制写入；关闭/删除/退出登录后的卸载回调不能恢复已释放快照。只有活动内容挂载编辑器，不以后台隐藏实例保留撤销历史。输入法、撤销、光标和滚动继续由编辑内核负责。
 CodeMirror 任务控件通过 React bridge 渲染公开 CheckboxControl，不引用控件私有 CSS。
+代办勾选列表在同一解析集合及本地日期下复用；编辑器运行配置同时携带列表和摘要，普通光标、选区及滚动更新只比较摘要，不扫描整份列表。正文或代办状态变化产生新投影。
+
+`infrastructure/sse` 只负责严格 UTF-8 解码、CR/LF/CRLF 分帧、帧正文长度界限和 reader 清理；分块末尾可能属于终止符的换行不提前计入正文。浏览器 HTTP 与服务端模型适配器经其公开入口消费帧，各自保留内容类型、data 空白和错误语义。
 
 通用配置由 CompactProvider 的 `uiConfig` 唯一提供。源码和候选运行包携带固定安装归档，
 不依赖本地兄弟目录。全局入口只补充 html/body/root 的视口几何和 CTN 语义配色，不做通用文字 reset；图谱、结构、差异

@@ -6,6 +6,7 @@ import {
 } from "../../../application/agent/index.ts";
 import type { TSchema } from "@sinclair/typebox";
 import { inspectWireSchema } from "../../../contracts/common/index.ts";
+import { readSseFrames, SseFrameError } from "../../sse/index.ts";
 
 export type ChatMessage =
   | {
@@ -195,94 +196,24 @@ export async function* readOpenAiChatSse(response: Response) {
       "OpenAI-compatible response has no body",
     );
   }
-  const decoder = new TextDecoder("utf-8", { fatal: true });
-  let buffer = "";
-  let pendingCarriageReturn = false;
-  const reader = response.body.getReader();
-
-  const appendDecoded = (decoded: string, final: boolean) => {
-    let source = pendingCarriageReturn ? `\r${decoded}` : decoded;
-
-    pendingCarriageReturn = false;
-    if (!final && source.endsWith("\r")) {
-      pendingCarriageReturn = true;
-      source = source.slice(0, -1);
-    }
-    buffer += source.replace(/\r\n|\r/g, "\n");
-  };
-  const takeFrame = () => {
-    const boundary = buffer.indexOf("\n\n");
-
-    if (boundary < 0) {
-      if (buffer.length > openAiChatSseFrameCharacterLimit) {
-        throw new AgentRuntimeProtocolError(
-          "OpenAI-compatible runtime emitted an oversized SSE frame",
-        );
-      }
-      return null;
-    }
-    if (boundary > openAiChatSseFrameCharacterLimit) {
-      throw new AgentRuntimeProtocolError(
-        "OpenAI-compatible runtime emitted an oversized SSE frame",
-      );
-    }
-    const frame = buffer.slice(0, boundary);
-
-    buffer = buffer.slice(boundary + 2);
-    return frame;
-  };
-  let reachedEnd = false;
-
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) {
-        reachedEnd = true;
-        try {
-          appendDecoded(decoder.decode(), true);
-        } catch {
-          throw new AgentRuntimeProtocolError(
-            "OpenAI-compatible runtime emitted invalid UTF-8",
-          );
-        }
-      } else {
-        try {
-          appendDecoded(decoder.decode(value, { stream: true }), false);
-        } catch {
-          throw new AgentRuntimeProtocolError(
-            "OpenAI-compatible runtime emitted invalid UTF-8",
-          );
-        }
-      }
-      while (true) {
-        const frame = takeFrame();
-
-        if (frame === null) break;
-        const data = frame.split("\n")
-          .filter((line) => line.startsWith("data:"))
-          .map((line) => line.slice(5).trimStart())
-          .join("\n");
-
-        if (data) yield data;
-      }
-      if (!done) continue;
-      if (buffer.length > 0) {
-        throw new AgentRuntimeProtocolError(
-          "OpenAI-compatible runtime ended with an incomplete SSE frame",
-        );
-      }
-      break;
+    for await (const frame of readSseFrames(response.body, openAiChatSseFrameCharacterLimit)) {
+      const data = frame.split("\n")
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trimStart())
+        .join("\n");
+      if (data) yield data;
     }
-  } finally {
-    if (!reachedEnd) {
-      try {
-        await reader.cancel();
-      } catch {
-        // The original protocol or cancellation result remains authoritative.
-      }
+  } catch (error) {
+    if (error instanceof SseFrameError) {
+      const message = error.code === "invalid_utf8"
+        ? "OpenAI-compatible runtime emitted invalid UTF-8"
+        : error.code === "oversized_frame"
+          ? "OpenAI-compatible runtime emitted an oversized SSE frame"
+          : "OpenAI-compatible runtime ended with an incomplete SSE frame";
+      throw new AgentRuntimeProtocolError(message);
     }
-    reader.releaseLock();
+    throw error;
   }
 }
 

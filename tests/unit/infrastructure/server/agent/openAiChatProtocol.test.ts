@@ -41,6 +41,14 @@ describe("OpenAI-compatible SSE protocol", () => {
     await expect(collectSse(response)).resolves.toEqual(["first", "second"]);
   });
 
+  it("trims leading whitespace in model data and rejects an absent body", async () => {
+    await expect(collectSse(responseFromChunks(["data:  value\n\ndata:\tvalue\n\n"])))
+      .resolves.toEqual(["value", "value"]);
+    await expect(collectSse(new Response(null, {
+      headers: { "Content-Type": "text/event-stream" },
+    }))).rejects.toThrow(/body/i);
+  });
+
   it("rejects an SSE frame that exceeds the transport limit", async () => {
     const response = responseFromChunks([
       `data: ${"x".repeat(openAiChatSseFrameCharacterLimit)}`,

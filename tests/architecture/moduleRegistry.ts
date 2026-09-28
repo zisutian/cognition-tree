@@ -376,6 +376,13 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
     dependencies: ["core/ctn", "core/errors", "core/naming"],
   },
   {
+    id: "infrastructure/sse",
+    responsibility: "Neutral UTF-8 SSE frame decoding and reader lifecycle",
+    scope: "tree",
+    publicEntries: ["infrastructure/sse/index.ts"],
+    dependencies: [],
+  },
+  {
     id: "infrastructure/client/http",
     responsibility: "Browser HTTP and SSE transport with API registry codecs",
     scope: "tree",
@@ -401,6 +408,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "contracts/todo",
       "contracts/workspace",
       "core/naming",
+      "infrastructure/sse",
     ],
   },
   {
@@ -482,6 +490,7 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
       "contracts/common",
       "infrastructure/server/network",
       "infrastructure/server/state",
+      "infrastructure/sse",
     ],
   },
   {
@@ -968,14 +977,16 @@ export const moduleRegistry: readonly ModuleRegistration[] = [
   },
   {
     id: "tooling/benchmark",
-    responsibility: "Reproducible workspace capacity executable",
+    responsibility: "Reproducible workspace capacity and overall optimization benchmarks",
     scope: "tree",
     publicEntries: [],
     dependencies: [
       "application/search",
+      "application/todo",
       "application/workspace",
       "contracts/workspace",
       "core/ctn",
+      "core/todo",
       "core/workspace",
       "infrastructure/client/http",
       "infrastructure/client/repository",
