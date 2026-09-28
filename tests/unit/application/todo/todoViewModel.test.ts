@@ -106,6 +106,42 @@ function createView(
 }
 
 describe("Todo CTN view model", () => {
+  it("keeps the checkbox projection stable on cursor changes and refreshes it for a new snapshot", () => {
+    const content = createContent();
+    const index = createTodoParseIndex(content);
+    const build = (lineNumber: number, today: TodoLocalDate, current = content) =>
+      createTodoViewModel({
+        activeBodyPosition: { collectionId: todoCollectionId(1), lineNumber },
+        activeCollectionId: todoCollectionId(1),
+        consumeFocusRequest: vi.fn(),
+        content: current,
+        focusRequest: null,
+        index: current === content ? index : createTodoParseIndex(current, index),
+        ...createActions(),
+        openCollectionLine: vi.fn(),
+        canMutate: true,
+        persistence: { status: "saved" },
+        selectCollection: vi.fn(),
+        today,
+        updateActiveBodyLine: vi.fn(),
+      });
+
+    const first = build(2, "2026-07-18");
+    const cursorMoved = build(3, "2026-07-18");
+    expect(cursorMoved.editor.checkableBlocks).toBe(first.editor.checkableBlocks);
+    expect(build(3, "2026-07-19").editor.checkableBlocks)
+      .not.toBe(first.editor.checkableBlocks);
+    const changed = toggleTodoBlock(content, index, {
+      blockId: todoBlockId(2),
+      collectionId: todoCollectionId(1),
+      completedAt: todoTimestamp(10),
+      today: "2026-07-18",
+    });
+    const refreshed = build(3, "2026-07-18", changed);
+    expect(refreshed.editor.checkableBlocks).not.toBe(first.editor.checkableBlocks);
+    expect(refreshed.editor.checkableBlocks[1]?.checked).toBe(true);
+  });
+
   it.each([true, false])("uses session mutation capability during a conflict (allowed %s)", (canMutate) => {
     const { view } = createView(createContent(), todoCollectionId(1), "2026-07-18", {
       canMutate,

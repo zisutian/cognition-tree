@@ -26,8 +26,9 @@ import {
 import { createEditorValueSyncTransaction } from "./editorValueSync.ts";
 import type { CtnEditorReferenceTarget } from "./ctnReferenceNavigation.ts";
 import {
-  createCtnEditorCheckableBlocksKey,
+  getCtnEditorCheckableProjection,
   type CtnEditorCheckableBlock,
+  type CtnEditorCheckableProjection,
 } from "./ctnEditorCheckableBlocks.ts";
 import "./CtnEditor.css";
 
@@ -64,6 +65,8 @@ type CtnEditorProps = CtnEditorBaseProps &
 
 export type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks.ts";
 
+const emptyCheckableBlocks: readonly CtnEditorCheckableBlock[] = [];
+
 export type CtnEditorFocusTarget = {
   lineNumber: number;
   requestId: number;
@@ -71,17 +74,19 @@ export type CtnEditorFocusTarget = {
 
 function createRuntimeOptions(
   props: CtnEditorProps,
-  checkableBlocks: readonly CtnEditorCheckableBlock[],
+  checkableProjection: CtnEditorCheckableProjection,
 ): CtnEditorRuntimeOptions {
   return props.syntax === null
     ? {
-        checkableBlocks,
+        checkableBlocks: checkableProjection.blocks,
+        checkableBlocksKey: checkableProjection.key,
         contentMode: props.contentMode,
         syntax: null,
         tabDisplayWidth: props.tabDisplayWidth,
       }
     : {
-        checkableBlocks,
+        checkableBlocks: checkableProjection.blocks,
+        checkableBlocksKey: checkableProjection.key,
         contentMode: props.contentMode,
         syntax: props.syntax,
       };
@@ -89,7 +94,7 @@ function createRuntimeOptions(
 
 export function CtnEditor(props: CtnEditorProps) {
   const {
-    checkableBlocks = [],
+    checkableBlocks = emptyCheckableBlocks,
     contentMode,
     focusTarget,
     syntax,
@@ -104,6 +109,7 @@ export function CtnEditor(props: CtnEditorProps) {
     readOnly = false,
   } = props;
   const widgets = useCtnCheckboxBridge();
+  const checkableProjection = getCtnEditorCheckableProjection(checkableBlocks);
   const pageNavigation = usePageNavigation();
   const sessionKey = props.sessionKey;
   const editorHostRef = useRef<HTMLDivElement | null>(null);
@@ -146,7 +152,7 @@ export function CtnEditor(props: CtnEditorProps) {
 
     const extensions = createCtnEditorExtensions(
       onChangeRef,
-      createRuntimeOptions(props, checkableBlocks),
+      createRuntimeOptions(props, checkableProjection),
       onOpenReferenceRef,
       onActiveLineChangeRef,
       onBlurRef,
@@ -233,7 +239,7 @@ export function CtnEditor(props: CtnEditorProps) {
   const contentModeKind = contentMode.kind;
   const bodyTitle = contentMode.kind === "body" ? contentMode.title : null;
   const rawTabDisplayWidth = syntax === null ? props.tabDisplayWidth : null;
-  const checkableBlocksKey = createCtnEditorCheckableBlocksKey(checkableBlocks);
+  const checkableBlocksKey = checkableProjection.key;
 
   useEffect(() => {
     const view = editorViewRef.current;
@@ -263,10 +269,7 @@ export function CtnEditor(props: CtnEditorProps) {
 
     view.dispatch({
       effects: ctnEditorRuntimeCompartment.reconfigure(
-        createCtnEditorRuntimeExtensions({
-          ...createRuntimeOptions(props, checkableBlocks),
-          checkableBlocks: [...checkableBlocks],
-        }),
+        createCtnEditorRuntimeExtensions(createRuntimeOptions(props, checkableProjection)),
       ),
     });
   }, [

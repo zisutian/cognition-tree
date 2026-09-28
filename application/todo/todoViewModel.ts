@@ -11,6 +11,7 @@ import type {
 
 import type {
   TodoParseIndex,
+  ParsedTodoIndexCollection,
   TodoLocalDate,
   TodoRecurrenceRule,
 } from "../../core/todo/index.ts";
@@ -138,6 +139,14 @@ export type TodoViewModel = TodoMutationActions & {
     updateSource: (source: string) => void;
   };
 };
+
+const editorCheckableBlocksByCollection = new WeakMap<
+  ParsedTodoIndexCollection,
+  {
+    today: TodoLocalDate;
+    blocks: TodoViewModel["editor"]["checkableBlocks"];
+  }
+>();
 
 type TodoViewModelInput = TodoMutationActions & {
   canMutate: boolean;
@@ -334,6 +343,37 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
     openCollectionLine(collectionId, lineNumber ?? 1);
     return lineNumber !== null;
   };
+  const cachedCheckableBlocks = activeParsed
+    ? editorCheckableBlocksByCollection.get(activeParsed)
+    : undefined;
+  let checkableBlocks = cachedCheckableBlocks?.today === today
+    ? cachedCheckableBlocks.blocks
+    : null;
+  if (!checkableBlocks) {
+    checkableBlocks = activeParsed?.analysis.document.blocks
+      .filter((block) => block.rule.semanticId === todoItemSemanticType)
+      .map((block) => {
+        const recurrence = recurrenceById.get(block.id);
+
+        return {
+          blockId: block.id,
+          checked: recurrence?.occurrenceActive
+            ? recurrence.completedAt !== null
+            : completionById.has(block.id),
+          label: block.text,
+          lineNumber: projectLineNumber(block.lineNumber),
+          ...(recurrence?.progress
+            ? { recurrenceProgress: recurrence.progress }
+            : {}),
+        };
+      }) ?? [];
+    if (activeParsed) {
+      editorCheckableBlocksByCollection.set(activeParsed, {
+        blocks: checkableBlocks,
+        today,
+      });
+    }
+  }
 
   return {
     canMutate,
@@ -385,25 +425,7 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
     }),
     diagnostics: createTodoDiagnostics(index),
     editor: {
-      checkableBlocks: activeParsed?.analysis.document.blocks
-        .filter(
-          (block) => block.rule.semanticId === todoItemSemanticType,
-        )
-        .map((block) => {
-          const recurrence = recurrenceById.get(block.id);
-
-          return {
-            blockId: block.id,
-            checked: recurrence?.occurrenceActive
-              ? recurrence.completedAt !== null
-              : completionById.has(block.id),
-            label: block.text,
-            lineNumber: projectLineNumber(block.lineNumber),
-            ...(recurrence?.progress
-              ? { recurrenceProgress: recurrence.progress }
-              : {}),
-          };
-        }) ?? [],
+      checkableBlocks,
       contentMode: { kind: "body", title: activeParsed?.name ?? "" },
       documentText: activeProjection?.source ?? "",
       focusTarget: focusRequest?.collectionId === activeCollectionId

@@ -24,7 +24,6 @@ import {
   type CtnEditorAnalysisField,
 } from "./ctnEditorAnalysis.ts";
 import {
-  createCtnEditorCheckableBlocksKey,
   type CtnEditorCheckableBlock,
 } from "./ctnEditorCheckableBlocks.ts";
 import {
@@ -405,9 +404,8 @@ export function createCtnDecorationPlugin(
     current: ((blockId: string) => void) | undefined;
   } = { current: undefined },
 ): CtnEditorDecorationPlugin {
-  const getCheckableBlocks = (state: EditorState) =>
-    requireCtnEditorRuntimeConfig(state.facet(ctnEditorRuntimeConfigFacet))
-      .checkableBlocks;
+  const getCheckableConfig = (state: EditorState) =>
+    requireCtnEditorRuntimeConfig(state.facet(ctnEditorRuntimeConfigFacet));
 
   return ViewPlugin.fromClass(
     class implements CtnEditorDecorationPluginValue {
@@ -416,12 +414,11 @@ export function createCtnDecorationPlugin(
       decorations: DecorationSet;
 
       constructor(view: EditorView) {
-        const checkableBlocks = getCheckableBlocks(view.state);
+        const { checkableBlocks, checkableBlocksKey } = getCheckableConfig(view.state);
         const analysis = view.state.field(analysisField);
 
         this.analysis = analysis;
-        this.checkableBlocksKey =
-          createCtnEditorCheckableBlocksKey(checkableBlocks);
+        this.checkableBlocksKey = checkableBlocksKey;
         this.decorations = analysis.analysis
           ? buildCtnDecorations(
               view.state,
@@ -434,9 +431,8 @@ export function createCtnDecorationPlugin(
 
       update(update: ViewUpdate) {
         const nextAnalysis = update.state.field(analysisField);
-        const checkableBlocks = getCheckableBlocks(update.state);
-        const nextCheckableBlocksKey =
-          createCtnEditorCheckableBlocksKey(checkableBlocks);
+        const { checkableBlocks, checkableBlocksKey: nextCheckableBlocksKey } =
+          getCheckableConfig(update.state);
 
         if (
           nextAnalysis !== this.analysis ||

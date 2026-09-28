@@ -11,6 +11,30 @@ export type CtnEditorCheckableBlock = {
   };
 };
 
+export type CtnEditorCheckableProjection = {
+  blocks: readonly CtnEditorCheckableBlock[];
+  key: string;
+};
+
+const projectionByBlocks = new WeakMap<
+  readonly CtnEditorCheckableBlock[],
+  CtnEditorCheckableProjection
+>();
+
+export function getCtnEditorCheckableProjection(
+  blocks: readonly CtnEditorCheckableBlock[],
+): CtnEditorCheckableProjection {
+  const previous = projectionByBlocks.get(blocks);
+  if (previous) return previous;
+
+  const projection = {
+    blocks,
+    key: createCtnEditorCheckableBlocksKey(blocks),
+  };
+  projectionByBlocks.set(blocks, projection);
+  return projection;
+}
+
 export function createCtnEditorCheckableBlocksKey(
   blocks: readonly CtnEditorCheckableBlock[],
 ) {

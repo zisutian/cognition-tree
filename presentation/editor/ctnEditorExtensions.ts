@@ -126,10 +126,7 @@ export function createCtnEditorExtensions(
     highlightActiveLine(),
     createCtnIndentUnitExtension(),
     ctnEditorRuntimeCompartment.of(
-      createCtnEditorRuntimeExtensions({
-        ...runtimeOptions,
-        checkableBlocks: [...runtimeOptions.checkableBlocks],
-      }),
+      createCtnEditorRuntimeExtensions(runtimeOptions),
     ),
     ctnEditorReadOnlyCompartment.of(
       createCtnEditorReadOnlyExtensions(readOnly),
