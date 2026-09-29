@@ -1,167 +1,120 @@
 # 内容一致性
 
-本文件拥有内容格式、可信边界、保存队列、三方合并与冲突恢复。模块职责见
-[模块边界](architecture.md)，HTTP、账本及进程恢复见[服务运行](service-runtime.md)。
+本文件定义内容格式、可信边界、写入与同步、冲突恢复和目录版本。
+模块关系见[模块边界](architecture.md)，持久收据和进程恢复见[服务运行](service-runtime.md)。
 
 ## 内容 contract
 
-CTN 编译、分析、失效与 multiline 语义的专门说明见
-[CTN 分析流水线](ctn-analysis-pipeline.md)；本节只拥有各领域内容 contract 和
-跨层传递边界。
+| 领域 | 当前格式与权威 |
+|---|---|
+| Workspace v4 | 从真实目录、可见 `.ctn` 正文、隐藏 sidecar 和 `.ctn/syntax/` 重建 canonical content；`.ctn/repository.json` 的持久原子替换是提交点 |
+| Journal v3 | 按日期与当日序号组织 entry；删除最后一篇仍保留序号上界，既有身份与标题不重编号 |
+| Todo v4 | 有序 CTN collection，completion 与 recurrence 存在 sidecar，任务身份由稳定 block ID 关联 |
 
-Workspace v4：
+只有 epoch 与内容同时不存在时才初始化。缺一项、非当前 epoch、损坏或未来格式均原样保留并
+关闭写入，不使用历史内容 reader、字段别名、自动迁移或静默重置。各领域内容结构由自己的
+公开类型和 codec 拥有，不引入通用内容 union。
 
-    服务端从真实目录、可见 `.ctn` 正文、隐藏 sidecar 和 `.ctn/syntax/` 重建 canonical content；`.ctn/repository.json` 的 durable atomic replace 是提交点。
+Journal/Todo 的内部标题参与 canonical 分析，但不进入可编辑正文。数组顺序可构成领域事实；
+对象属性插入顺序不构成变化。canonical block metadata 是创建和修改时间的来源，
+Todo 正文、位置、完成与周期语义变化更新目标块修改时间；时间戳不用于并发判定。
 
-Journal v3：
-
-    { schemaVersion, syntaxSource, days }
-    day = { date, lastIssuedSequence, entries }
-    entry = { id, createdAt, updatedAt, timezoneOffsetMinutes, sequence, source }
-
-days 按日期升序，entries 按 sequence 升序。删除最后一篇仍保留空 day bucket，保证序号不复用。标题固定为 YYYY-MM-DD-0001。
-
-Todo v4：
-
-    { schemaVersion, syntaxSource, collections }
-    collection = { id, source, completions, recurrences }
-    completion = { blockId, completedAt }
-    recurrence = { blockId, stages, completions }
-    stage = { id, startsOn, endsBefore, rule }
-    recurrence completion = { stageId, occurrenceDate, completedAt }
-
-collections 数组顺序就是用户顺序。每个集合是一篇 CTN；标题是内部固定集合名，缩进形成任务树，完成状态只来自 sidecar。daily、weekly、monthly 规则只保存本地 YYYY-MM-DD，不保存时区或零点任务；当前状态、下一日期和完成/总数由运行环境本地日期投影。规则修改追加从下一天生效的阶段，停止周期也保留历史。移动与缩进保留 block ID，删除或失去 todo-item 语义的源码块清除孤立 completion 与 recurrence。
-
-Workspace v4、Journal v3 与 Todo v4 是各自唯一可运行格式。只有 epoch 与内容
-同时完全不存在时才初始化空内容；缺一项、非当前 epoch、损坏内容和未来版本
-一律原样保留并 fail closed。运行时不存在版本 reader、迁移、字段别名或自动
-重置。
-
-Journal/Todo 的 synthetic title 参与 canonical 解析，但不进入公开可编辑正文。两者分别注入 wire codec、preparation/transition policy、revision factory 和 empty-content factory；基础设施不得恢复 purpose content union 或内容类型分派。
-
+CTN 编译与分析见[CTN 分析流水线](ctn-analysis-pipeline.md)，日记与周期的用户行为见
+[产品需求](product-requirements.md#2-平级内容领域)，HTTP schema 见[API registry](../contracts/api/registry.ts)。
 
 ## 数据可信与 preparation 边界
 
-同一份内容依次经过四类边界，边界职责不得重叠：
+内容在一次信任范围内依次经过以下边界：
 
-    unknown ingress：contracts/api registry 是 HTTP request body 的唯一
-    unknown → DTO 入口；HTTP client codec 与磁盘 reader 分别负责各自来源的 wire
-    decode。内存 cache 接收 typed value，只做
-    structuredClone 隔离；未来若改为持久化 cache，必须在反序列化入口重新 decode。
+| 边界 | 输入、输出与责任 |
+|---|---|
+| 外部解码 | HTTP request 由 registry 解码，HTTP response 和磁盘数据由各自 codec 解码；内存 cache 接收 typed value 并隔离引用 |
+| 类型传递 | 解码后传递领域 Content，backend、cache、queue 和 store 写端口不重复按 unknown 解码 |
+| 语义准备 | preparation 将 Content 转为 `{ content, projection }`，projection 包含已校验的语法、分析或领域索引 |
+| 权威提交 | store 在 CAS 锁内以真实 before 和 prepared after 提交，receipt 返回实际前后快照，事件直接消费 receipt |
 
-    typed handoff：decode 后只传递领域 Content。HTTP backend、cache、save queue
-    和 store 写端口不得再次把 typed content 当 unknown 解析；外部 DTO、磁盘格式、
-    schemaVersion 与 REST response 均不包含 projection。
+客户端 local-first repository 与服务端 application 用例分别负责各自信任范围内的写入准备，
+客户端通过校验不免除服务端校验。store 读取持久 before 时准备并缓存其投影；
+写入口显式接收 `{ baseRevision, content, projection }`。projection 不序列化、不跨进程，
+不进入内容格式或 REST response；CAS 基线失效后不能复用旧准备结果。
 
-    semantic preparation：VersionedContentPreparationPolicy 把 Content 准备为
-    { content, projection }。Journal/Todo projection 是带
-    Validated…ContentAnalysis 的 parse index；Workspace projection 统一包含 syntax
-    编译结果、structure、parse index 与 context。client local-first repository 和
-    server application use case 是各自信任边界内唯一的 write preparation owner；
-    infrastructure store 只在读取持久化 before snapshot 时准备并按 SHA 缓存
-    projection，写入口必须显式携带 `{ baseRevision, content, projection }`。客户端与
-    服务端仍独立校验。projection 不序列化、不跨进程；revision/CAS 不匹配后不能
-    复用旧 projection。
+领域命令通过统一 mutation 接口返回 content 与 projection，增量索引随结果传入保存队列。
+查询、搜索和资源投影复用已准备结果，不重建全量分析；合并、恢复或工作树对账生成新内容时
+准备一次，沿用已经完成的单文档分析。提交点之前完成内容准备，提交后的读取校验不再改变内容。
 
-    transition authority：客户端 local-first repository 负责页面内 optimistic
-    transition；服务端 store 在 CAS 锁内，以真正读到的 before 和
-    待提交的 after prepared snapshot 执行 authoritative transition。commit receipt
-    携带实际 before/after，事件投影直接消费 receipt。use case 可以先读 snapshot
-    以增量准备 after projection，但该预读结果不是 authoritative before；若其后 CAS
-    发生变化，store 必须拒绝事务，调用方重新加载和准备。
-
-Agent preparation 不建立第二套领域 transition。Workspace、Journal、Todo 各自
-公开各自的中立 `prepareWorkspaceCommand`、`prepareJournalCommand` 和 `prepareTodoCommand`，只计算 staged after 和 projection，
-不访问 store。第一条 intent 固定一个 versioned store 与 base snapshot，后续 intent
-只消费前一 staged snapshot；最终 change set 和 diff 只比较原始 base 与最终
-staged content。`commitAgentProposalExactly` 只接收已批准 proposal 内冻结的
-`{ baseRevision, content, projection }` 并执行一次 CAS，禁止重新加载、重算、
-自动重试或路径级 rebase。
-
-领域命令通过 VersionedSessionController 唯一的 mutate 接口返回
-`{ content, projection }`；增量 index 必须原样进入保存队列和 stageSnapshot。
-query、search、resource projection 与 change projection 消费 store/session 已准备的
-projection，不得重新建立全量索引。merge、冲突恢复和 working-tree reconciliation
-生成新内容时只 preparation 一次，并用 analysis override 传递已经完成的单
-note/entry/collection 分析。本地 store 在发布 repository metadata 提交点前完成完整
-Workspace preparation；提交后的 validate 只检查读取完整性与 revision。
-
+Agent 使用各领域中立 preparation 入口，不建立另一套变换规则。第一条意图固定存储和原始
+base，后续意图只消费前一 staged snapshot；最终差异比较原始 base 与最终 staged content。
+review 包含资源名称、语义动作、块计数及有限上下文差异，并进入冻结提案摘要。
+批准后的提交只接受冻结的基线、内容和投影，执行一次 CAS，不重新加载后重算或路径级合并。
 
 ## 保存、同步与冲突
 
-内容写入由官方浏览器同步、本机内容命令及已批准 Agent proposal 提交。浏览器保留三方合并；本机命令与冻结 Agent proposal 都只执行一次 exact CAS，版本过期不能自动合并、重算或重试。领域 transition、preparation 和
-change projection 仍是内容语义的唯一 owner；HTTP handler、runtime、MCP、SSE、audit
-和 presentation 不重建领域命令或变化。成功且 revision 实际变化时只生成并发布一次
-DomainChangeSet；no-op、校验失败和 conflict 不发布 change event。
+### 写入入口
 
-资源版本是内容 SHA-256；canonical block metadata 是 block createdAt/updatedAt
-的唯一来源。Todo 正文、位置、completion 与 recurrence 语义变化都更新目标
-block updatedAt，但并发判断不使用时间戳。
+| 入口 | 并发语义 |
+|---|---|
+| 官方浏览器同步 | 验证 base 与 revision 后直接提交或进行三方合并 |
+| 本机内容操作 | 一次 exact CAS，基线过期返回冲突，不自动重算、合并或重放 |
+| 已批准 Agent proposal | 对冻结内容执行一次 exact CAS，基线变化使提案失效 |
 
-sync operation 接受经过验证的 base snapshot 与期望 content，先验证 base 正文与
-revision 相符，再 direct commit 或执行 `merge(base, local, current)`；响应返回服务端
-最终 snapshot 与 outcome，精确 wire schema 由 registry 独占。CAS 竞争最多重新读取并
-计算三次，耗尽后返回可重试 `resource_conflict`。Workspace 以语法、树和单篇 note
-为单元，Journal 以 entry 为单元，Todo 以 collection body、collection order、单任务
-completion 和 recurrence 为单元三方合并；不同单元可自动合并，同一单元双改或删改
-返回 `merge_conflict`。通用 merge equality 与本地优先 pending 判定共享同一结构比较
-策略：对象键插入顺序不构成内容变化，数组顺序仍是领域事实；不得以原始
-`JSON.stringify` 字节顺序制造伪冲突。
-CTN 层依据已解析的 metadata 位置比较内容，仅忽略修改时间；块 ID、创建时间、
-层级与正文差异仍参与判断。正文改回原样后可消除冲突，最终选择的内容保留同一身份的
-最新修改时间。Journal 同日序号碰撞按所选一侧保留冲突条目身份，非冲突条目保留，
-序号上界不回退，不重编号或改写既有标题。偏好本身不是已解决证明。
-语法变化是 barrier，不能跨 grammar 自动合并。
+领域 preparation、transition 与 change projection 决定内容语义，HTTP、事件、审计和界面
+不重建变化。revision 实际改变时只发布一次 DomainChangeSet；no-op、校验失败和冲突不发变更事件。
+任一入口先提交，都会使其他入口持有的旧基线过期。本机调用见[API 与 CLI 集成](api-integration.md)。
 
-浏览器发起同步时固定已提交内容 `L` 与 local revision `R`。响应 snapshot `S` 到达后，
-若本地未变则安装 `S`；若已产生 `L2`，必须执行 `merge(L, L2, S)`，再以 local-revision
-CAS 安装为基于 `S.revision` 的 pending。重叠时保存 `L/L2/S` 为本地 conflict；安装中
-再次编辑最多重新计算三次，绝不能只把 `L2` 挂到新 revision。`conflict` 状态只有在
-`base/local/remote/unitIds` 完整保存后才能发布；只取得远端 revision 或远端重读失败时
-保留原 pending snapshot 并报告 sync error，不构造不可恢复的半冲突。服务端
-`merge_conflict.currentRevision=C` 后的 GET 只有 revision 仍等于 `C` 才能使用旧冲突
-单元，否则再次把原 base/local 交给服务端计算。刷新不会恢复尚未同步的 base 或
-conflict。
+### 三方合并
 
-冲突动作先由 VersionedSessionController 冻结 mutation、排空 local stage 并等待既有
-sync，再读取完整 conflict snapshot，以其中 `{ localRevision, remoteRevision }` 作为
-exact proof。repository 在同一解决操作中校验证明、rebase 并继续同步；会话直接安装
-返回 transition chain 的最终 snapshot，不通过普通 reload 猜测结果。若 rebase 后同步
-失败，新的本地权威 snapshot 与明确 sync error 一并交接，不能退回旧 conflict；若远端
-再次形成重叠修改，则必须返回另一份完整 conflict snapshot。
+服务端以 `merge(base, local, current)` 合并，返回最终快照与 outcome；CAS 竞争采用有界重算，
+耗尽后返回可重试 `resource_conflict`。合并单元如下：
 
-远端检查点与已接受的会话 revision 一致时，该检查点已经处理。本地提交先于对应事件
-到达时，不得再次用已处理的旧检查点触发 reload；新的远端检查点仍按当前会话状态对账。
+- Workspace：语法、树和单篇笔记。
+- Journal：单篇日记。
+- Todo：集合正文、集合顺序、单任务 completion 与 recurrence。
 
-会话 ready 投影中的 `canMutate` 同时约束编辑器、目录动作、待办勾选/周期和语法控件。
-进入 reload、冲突解决或删除准备的暂停阶段时立即发布不可修改状态；安装结果或恢复队列后
-再次发布可修改状态。界面不得从 conflict 标签自行推导只读，也不得另存一份可修改状态。
+不同单元可自动合并，同一单元双改或删改形成 `merge_conflict`。语法变化是屏障，不能跨 grammar
+自动合并。内容等价比较忽略对象属性顺序，但保留数组顺序、块身份、创建时间、层级和正文差异。
+CTN 仅忽略修改时间，并为最终保留身份采用最新修改时间；正文改回原样可消除冲突。
+Journal 同日序号冲突按用户选择保留相应身份，非冲突日记和序号上界保留，不重编号。
 
-完整 conflict 发布后仍允许普通编辑与 stage；repository 接受后的 snapshot 是内容、
-revision、pending 和 conflict 的唯一权威。每次 stage 在 local-revision CAS 下重新计算
-仍未处理的单元；只有未处理集合为空才恢复同步。保存队列只负责调度和按 transition
-顺序安装结果，不保留独立旧冲突判断；过期 stage、sync 或远端事件不能重新发布旧冲突。
-“远端并另存本地”的领域
-transform 必须返回 covered unit ids，repository 在任何 rebase 前验证其与当前全部冲突
-单元完全相等；syntax、tree、identity、order、completion、recurrence、删除或混合单元
-只要无法无损表达，就整体拒绝，不允许以部分正文副本冒充成功。
+### 在途编辑与会话状态
 
-`application/sync` 是通用协调器，只消费组合根注入的 `revisionOf`、`prepare`、
-`merge`、`projectChanges` 与 prepared store port，不导入三个内容领域、HTTP 或
-基础设施。该模块还统一维护三领域 revision 观察、仓库集合删除事件和 checkpoint；
-首次观察与版本不变不产生更新事件，Agent 普通读取不观察版本。
-本机命令先提交会使旧 Agent proposal 过期；Agent 或浏览器先提交也会使旧本机命令返回版本冲突。外部命令的意图和持久收据流程见[服务运行](service-runtime.md)，调用规则见[API 与 CLI 集成](api-integration.md)。
+浏览器固定已发送内容 `L` 及 local revision。响应 `S` 到达时，若本地已经产生 `L2`，
+执行 `merge(L, L2, S)` 后用 local-revision CAS 安装，不能直接把新草稿挂到远端 revision。
+安装时再次编辑需有界重算；重叠则完整保存 `L/L2/S` 及冲突单元。
+
+只知道远端 revision 或冲突详情读取失败时，保留原 pending 并报告同步错误，不能发布半份冲突。
+服务端冲突后回读的版本必须与冲突证明匹配；若已变化，应重新计算原意图，不能套用旧冲突单元。
+已接受的远端检查点不再触发重复 reload，新检查点仍按当前会话状态对账。
+
+接受的 repository snapshot 是内容、revision、pending 和 conflict 的唯一权威。
+保存队列负责调度与按 revision 顺序交接 transition，丢弃过期分支，不另存冲突判断。
+完整冲突存在时仍允许普通编辑与 stage，逐次重新计算剩余冲突，集合为空才恢复同步。
+刷新不恢复未同步草稿、base 或 conflict。
+
+### 显式冲突解决
+
+解决动作先冻结 mutation、排空 local stage 并等待既有 sync，再取得完整冲突快照，
+用其中的 `{ localRevision, remoteRevision }` 作为精确证明。repository 在同一次操作内
+校验证明、rebase 并继续同步，会话直接接受返回 transition 的最终状态，不用普通 reload 猜测结果。
+
+rebase 后同步失败时交接新的本地快照与同步错误，不退回旧冲突；远端再次重叠时返回另一份
+完整冲突。偏好选择本身不是解决证明。“采用远端并另存本地”必须证明覆盖全部被丢弃单元，
+无法无损表达的语法、树、身份、顺序、任务状态、删除或混合冲突在写入前整体拒绝。
+
+界面统一消费 ready 投影中的 `canMutate`；reload、解决冲突或删除准备时暂停编辑，
+完成或恢复后重新开放。不能从 conflict 标签自行推导只读，也不能只禁用部分修改入口。
 
 ## 仓库目录状态
 
-仓库目录控制器拥有当前页面接受的目录。缓存可在首次加载时提供离线展示，
-但无版本的缓存不能覆盖控制器已接受的服务端目录或已提交的创建、重命名、删除结果。
-后续离线刷新保留这些对象与选择，同时将目录 revision 置空，阻止基于离线数据写入。
-重新取得有版本的服务端目录后，以该目录更新展示。缓存保存失败不改变已确认的提交结果。
+目录控制器拥有当前页面接受的 catalog。缓存仅提供离线投影，不能覆盖已接受的新目录或
+创建、重命名、删除结果。离线刷新保留对象和选择，但清除可提交的目录 revision；
+重新读取有版本的目录后恢复写入资格。缓存保存失败不改变已确认提交。
+
+目录及会话并发刷新只允许有效的新结果发布，旧生命周期不得改写活动仓选择。
+创建和管理回执保留真实提交结果，后续刷新失败另行表达；外部调用处理见 API 集成文档。
 
 ## Todo 周期查询
 
-Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前
-周期。inactive recurrence 保留 completedCount/totalCount，但完成状态与写入按
-普通任务处理并使用 occurrenceDate null；active 只能提交服务端给出的
-currentOccurrenceDate。
+recurrence 非 null 只表示存在周期历史，只有 active 才表示当前周期。
+inactive 保留完成/总数统计，写入与完成状态按普通任务处理，occurrenceDate 为 null；
+active 使用服务端返回的 currentOccurrenceDate。删除块或移除任务语义时清除孤立完成与周期记录。
+查询版本和状态基于同一不可变集合及本地日期，局部读取不计算无关任务。

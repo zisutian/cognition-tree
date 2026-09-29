@@ -22,9 +22,8 @@
 
 两个入口共用一份进程监督实现。Node 独占 HTTP 监听，网页与 API 同源。脚本不管理
 Ollama、Docker 或相邻服务。仅设置和数据迁移产生的退出状态 75 会重启；其他退出
-状态原样传播。Ctrl+C 停止接收连接，并行结束 SSE 与开发热更新 WebSocket，普通
-请求最多等待 5 秒，HTTP 关闭后释放 Agent、Provider、Vite 和仓库资源；仓库写锁
-在资源与在途操作排空后释放，浏览器保持打开也不会阻止开发服务退出。
+状态原样传播。Ctrl+C 触发受控关闭，排空请求与资源后释放仓库写锁；浏览器保持打开
+不会阻止开发服务退出。关闭顺序见[服务运行](service-runtime.md#服务端适配与生命周期)。
 
 ## 构建、更新与安装恢复
 
@@ -111,6 +110,7 @@ origin。TLS 证书仍由外部反向代理管理。
         agent-auth-v1/providers/<provider-id>/
         agent-config-v1/configuration.json
         operations-v1/operations.json
+        content-operations-v1/<摘要前缀>/<操作ID摘要>.json
 
 普通仓库只能位于服务端本地文件系统或容器持久卷。远程浏览器访问服务不等于远程
 仓库存储。
@@ -120,13 +120,17 @@ origin。TLS 证书仍由外部反向代理管理。
 迁移或配置 CAS 冲突，服务拒绝启动迁移。目标必须是不存在的绝对路径，不能与源或
 控制区重叠，也不能经过符号链接。
 
-迁移只复制以下权威分区：
+当前迁移实现枚举复制以下分区：
 
     repositories/
     server/access-v1/
     server/agent-auth-v1/
     server/agent-config-v1/
     server/operations-v1/
+
+当前限制：[迁移分区清单](../infrastructure/server/system/dataRootMigrationFiles.ts)尚未包含
+独立的 `server/content-operations-v1/`。因此当前数据根迁移不能视为完整转移内容操作收据及其
+去重依据；这些记录仍留在源目录。需要保留完整操作历史时，应先解决该迁移缺口，不要删除源目录。
 
 服务保留并完整校验权限与访问/修改时间，不遍历符号链接，并以流式 SHA-256 校验文件
 内容；目标文件和目录同步落盘后才允许切换。旧

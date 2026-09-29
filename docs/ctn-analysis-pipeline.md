@@ -1,17 +1,18 @@
 # CTN v2 分析流水线
 
+本文件定义 CTN 编译、分析、增量复用和源码呈现契约。领域内容格式与保存见
+[内容一致性](content-consistency.md)，界面控件和导航见[界面规范](ui-guidelines.md)。
+
 ## 所有权
 
-CTN 语法源码只有一个入口：`compileCtnSyntaxSource(source, owner)`。编译器负责 TOML 解码、严格字段检查、owner policy、最长 token 匹配器和稳定 key。运行时只接受 `formatVersion = 2`；不存在 v1 reader、字段别名、fallback、迁移开关或第二套 draft schema。
+`compileCtnSyntaxSource(source, owner)` 是语法源码入口，负责 TOML 解码、字段校验、owner
+policy、最长 token 匹配及稳定 key，只接受 `formatVersion = 2`。
+`analyzeCtnSource({ source, mode, syntax })` 是内容分析入口，统一生成行表、块树、行内范围、
+诊断、canonical/editable 坐标和 multiline 的 lexical 源码范围。
 
-CTN 内容只有一个分析入口：`analyzeCtnSource({ source, mode, syntax })`。它一次扫描建立 `CtnSourceAnalysis`，其中包含：
-
-- 同一个 `CtnSourceText` 行表；
-- block tree、inline span 与诊断；
-- canonical/editable 坐标投影；
-- multiline block 的 lexical 源码范围。
-
-Parser 只解释源码；presentation、导航、诊断和命令不得直接调用 parser，也不得重建行表。Multiline 范围是语法事实，只用于结构、元数据和普通源码着色，不产生第二套编辑布局。
+Parser 只解释源码，导航、诊断和命令消费分析结果，不另建 parser 调用或行表。
+canonical 页面消费 application 已准备的 syntax、document 与 parse index；未保存草稿可在
+editor analysis adapter 内分析。没有已准备语法时显式显示 raw/unavailable，不制造默认语法。
 
 ## 数据流
 
@@ -29,49 +30,49 @@ CTN source + mode + compiled syntax
        ├─ domain parse index / block-id registry
        ├─ metadata reconciliation and edit planners
        └─ CodeMirror analysis StateField
-            ├─ ordinary source decorations
+            ├─ source decorations
             ├─ diagnostics / navigation
-            └─ standard text-editor commands
+            └─ text-editor commands
 ```
 
-Workspace、Journal 和 Todo 会话各自持有 parse index 与共享 block ID registry；Workspace
-引用图缓存同样由对应 parse index 实例拥有，不建立模块级运行期 cache。单文档编辑只分析
-候选 editable 文本一次，metadata 协调器把该分析直接 canonicalize，下一索引通过 analysis
-override 差量替换对应文档。创建和结构移动同样返回已构建的 canonical analysis。未变化
-文档只能复用旧索引，不能被热编辑路径访问。
+三个领域会话各自持有 parse index，块身份通过共享 registry 机制管理，引用图缓存由对应
+Workspace parse index 实例持有。单文档编辑只分析候选文本一次，metadata 协调后将结果
+canonicalize，并通过 analysis override 更新索引；未变化文档复用旧分析，不进入热编辑扫描。
+创建和结构移动同样传递已经构建的 canonical analysis。
 
-身份注册表只由共享 block ID registry 创建与更新。增量更新核对受影响 owner 的身份集合；
-纯文字变化保留全部身份时复用原注册表，增删或跨 owner 移动仍原子登记并拒绝重复 ID。
-metadata 协调器仅在需要分配新块身份时建立分配器，分配前仍登记旧文档和外部保留身份。
-这些复用以不可变分析结果和实际身份集合为依据，不以时间戳或全局可变缓存代替校验。
+身份变更核对受影响对象的集合；纯文字变化保留身份时复用 registry，增删或跨对象移动原子登记
+并拒绝重复 ID。新身份分配以旧文档和外部保留身份为约束。复用基于不可变分析与实际身份集合，
+不以时间戳或全局可变缓存代替校验。
 
 ## 失效规则
 
-- `blockGrammarKey` 变化：重新分析并按 owner policy 重建受影响文档的 block metadata。
-- inline grammar 变化：重新分析，保留 block metadata。
-- `presentationKey` 变化：仅重投影已有 analysis 中的 rule 引用。
-- 名称、颜色、ARIA、勾选状态和 Tab 显示宽度变化：只重绘；Tab 宽度不属于解析事实。
+| 变化 | 处理 |
+|---|---|
+| blockGrammarKey | 重新分析，并按 owner policy 重建受影响文档的块元数据 |
+| inline grammar | 重新分析，保留块元数据 |
+| presentationKey | 复用源码事实，仅重投影已有 analysis 中的 rule 引用 |
+| 名称、颜色、ARIA、勾选状态、Tab 显示宽度 | 不改变解析事实；展示变化按对应投影重绘 |
 
-CodeMirror 只有一个不可变 runtime facet/compartment 和一个持久 analysis `StateField`。文档或 analysis key 变化时重分析；展示变化复用 source facts。禁止可变 syntax ref、独立保护解析、presentation 解析和 `view.setState(view.state)` 强制重绘。
+CodeMirror 通过不可变 runtime 配置与持久 analysis StateField 接受更新，
+正文或 analysis key 变化才重分析；不通过可变语法引用、第二套保护解析或强制重置编辑器状态刷新。
 
 ## 多行源码
 
-Multiline 规则仍由 parser 识别 opener、相同缩进和 token 的 closer，以及两者之间的 lexical 范围。闭合和未闭合块都保留逐字节可见、可选择、可编辑的源码；编辑器不创建卡片、隐藏范围、atomic 前缀、视觉缩进补偿或专用鼠标/键盘命令。
+Parser 根据 opener、同缩进同 token 的 closer 识别 lexical 范围。闭合和未闭合块均保持
+逐字节可见、可选择、可编辑；不创建卡片、隐藏区、atomic 前缀、视觉缩进补偿或专用输入命令。
+Tab、Enter、删除及复制粘贴遵循普通文本选区行为，使临时不完整源码也能直接修复。
 
-规则的 `tone` 和 `textColor` 通过普通 decoration 覆盖 opener、正文与 closer。`label` 仍是语法规则及结构元数据的名称，不作为额外编辑器标题插入。Tab、Shift+Tab、Enter、删除、复制和粘贴遵循 CodeMirror 的普通文本选区行为，因此任何临时不完整结构都能直接修复。
+结构移动使用完整 lexical 范围，不能只移动 opener；这是领域事务语义，不进入编辑器输入路径。
 
-行内 presentation 只消费一个有效颜色：它作用于 opener/closer 或 single marker 以及整个 span 的下划线，span 正文不覆盖所在块的文字颜色。Todo 的 owner policy 固定 `todo-item` 的名称、`[]`、line 类型和 semantic ID；其背景与内容颜色仍属于可编辑 presentation。
+### 颜色与展示
 
-所有 display/block `tone` 都允许 `default`，UI 将其命名为“背景”。预览直接读取 draft tone；保存后的 compiler presentation key 触发 analysis presentation reproject，编辑器的 title、root、line 和 multiline lexical lines 都读取重投影后的同一 rule tone，不为背景建立第二套状态。
-
-领域层按块移动或重排源码时仍使用 parser 给出的 lexical 范围，以免只移动 opener；这是结构事务语义，不进入编辑器输入路径。
+- 块的 tone 与 textColor 作用于 opener、正文和 closer；label 是规则和结构名称，不额外插入编辑器标题。
+- 行内有效颜色作用于 marker 和整个 span 的下划线，span 正文保留所在块的文字颜色。
+- display/block tone 允许 default，界面称为“背景”；草稿预览和保存后重投影消费同一 rule tone。
+- Todo owner policy 固定 todo-item 的名称“代办”、标记 `[]`、line 类型和 semantic ID，背景与内容颜色可编辑。
 
 ## 架构守卫
 
-架构测试锁定以下事实：
-
-- `smol-toml` 只能由 v2 compiler 导入；
-- `parseCtnSourceText` 只能由 analysis 层调用；
-- presentation 只有 editor analysis owner 可以调用 `analyzeCtnSource`；
-- presentation 不得存在 multiline 卡片、保护范围或专用编辑 planner；
-- 生产源码不得出现运行时格式迁移、字段别名、兼容分支或强制重绘补丁。
+结构检查约束编译器独占 TOML 解码、analysis 独占 parser、editor analysis adapter 独占展示层
+草稿分析。CTN 格式不设历史 reader、字段别名或兼容开关；源码呈现不引入隐藏和保护范围。
+这些约束与领域索引行为回归共同验证流水线，测试入口见[测试指南](testing.md)。

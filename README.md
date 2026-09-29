@@ -58,7 +58,6 @@
 - [架构边界](docs/architecture.md)
 - [界面规范](docs/ui-guidelines.md)
 - [CTN 分析流水线](docs/ctn-analysis-pipeline.md)
-- [工程原则](docs/engineering-principles.md)
 - [快速入门](docs/getting-started.md)
 - [设置操作](docs/settings.md)
 - [部署与恢复](docs/deployment.md)
