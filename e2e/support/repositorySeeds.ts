@@ -413,6 +413,33 @@ export async function seedLargeDirectoryRepository(
   });
 }
 
+export const longMoveTargetTitle =
+  `长标题目标 ${"用于验证移动目标列表换行与滚动定位".repeat(4)}`;
+
+export async function seedLargeDirectoryMoveRepository(
+  api: APIRequestContext,
+  id: string,
+) {
+  await createRepository({
+    api,
+    id,
+    notes: [{
+      id: "move-source",
+      source: createSeedSource("Move Source", 1_000_000),
+    }],
+    tree: [
+      { kind: "note", noteId: "move-source" },
+      ...Array.from({ length: 600 }, (_, index) => ({
+        kind: "folder" as const,
+        folderId: `move-target-${index}`,
+        title: index === 0 ? longMoveTargetTitle : `移动目标 ${String(index).padStart(4, "0")}`,
+        children: [],
+      })),
+    ],
+    workspaceName: "大目录移动回归仓库",
+  });
+}
+
 export async function seedLargeStructureRepository(
   api: APIRequestContext,
   id: string,

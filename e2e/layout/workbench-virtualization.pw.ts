@@ -1,10 +1,12 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import { expect } from "@playwright/test";
 
 import { test as base } from "../support/e2eTest";
 import {
+  longMoveTargetTitle,
   seedLargeDirectoryRepository,
+  seedLargeDirectoryMoveRepository,
   seedLargeStructureRepository,
   seedNestedStructureRepository,
 } from "../support/repositorySeeds";
@@ -12,6 +14,7 @@ import { openWorkbench } from "../support/workbenchPage";
 
 const test = base.extend<{
   directoryRepository: string;
+  directoryMoveRepository: string;
   structureRepository: string;
   nestedStructureRepository: string;
 }>({
@@ -19,6 +22,14 @@ const test = base.extend<{
     async ({ api }, use) => {
       const id = "virtual-directory";
       await seedLargeDirectoryRepository(api, id);
+      await use(id);
+    },
+    { timeout: 30_000 },
+  ],
+  directoryMoveRepository: [
+    async ({ api }, use) => {
+      const id = "virtual-directory-move";
+      await seedLargeDirectoryMoveRepository(api, id);
       await use(id);
     },
     { timeout: 30_000 },
@@ -42,6 +53,75 @@ const test = base.extend<{
 });
 
 test.describe("virtual collection scrolling", () => {
+  test("moves a note through a long real directory target list and restores focus on cancel", async ({
+    directoryMoveRepository,
+    page,
+    repositoryRoot,
+  }) => {
+    await page.setViewportSize({ width: 880, height: 720 });
+    await openWorkbench(page, directoryMoveRepository);
+    const tree = page.getByRole("tree", { name: "笔记目录" });
+    const source = tree.getByRole("treeitem", { name: "Move Source", exact: true });
+    const openMove = async () => {
+      await source.click({ button: "right" });
+      await page.getByRole("menu", { name: "目录操作" })
+        .getByRole("menuitem", { name: "移动到…" }).click();
+      return page.getByRole("dialog", { name: "移动到" });
+    };
+
+    const picker = await openMove();
+    const search = picker.getByRole("combobox", { name: "移动到" });
+    const list = picker.getByRole("listbox", { name: "移动到" });
+    const options = list.getByRole("option");
+    await expect(search).toBeFocused();
+    await expect.poll(() => options.count()).toBeLessThan(100);
+    await expect(options.first()).toHaveAttribute("aria-setsize", "601");
+    const longTarget = list.getByRole("option", { name: longMoveTargetTitle, exact: true });
+    await expect(longTarget).toBeVisible();
+    expect((await longTarget.boundingBox())!.height)
+      .toBeGreaterThan((await options.first().boundingBox())!.height);
+    const evidenceDirectory = process.env.CTN_E2E_EVIDENCE_DIR;
+    if (evidenceDirectory) {
+      await mkdir(evidenceDirectory, { recursive: true });
+      await page.screenshot({ path: path.join(evidenceDirectory, "directory-move-long-title.png") });
+    }
+
+    await search.fill("移动目标 0599");
+    await expect(options).toHaveCount(1);
+    await expect(options.first()).toHaveAttribute("aria-setsize", "1");
+    await search.fill("");
+    await expect.poll(() => options.count()).toBeLessThan(100);
+    await expect(options.first()).toHaveAttribute("aria-setsize", "601");
+    await search.press("ArrowUp");
+    const selected = list.getByRole("option", { selected: true });
+    await expect(selected).toHaveText("移动目标 0599");
+    await expect(selected).toHaveAttribute("aria-posinset", "601");
+    await expect(search).toHaveAttribute("aria-activedescendant", await selected.getAttribute("id") ?? "");
+    await expect.poll(async () => {
+      const bounds = await selected.boundingBox();
+      const viewport = await list.boundingBox();
+      return !!bounds && !!viewport && bounds.y >= viewport.y - 1 &&
+        bounds.y + bounds.height <= viewport.y + viewport.height + 1;
+    }).toBe(true);
+    await search.press("Escape");
+    await expect(picker).toHaveCount(0);
+    await expect(tree).toBeFocused();
+
+    const reopened = await openMove();
+    const reopenedSearch = reopened.getByRole("combobox", { name: "移动到" });
+    await reopenedSearch.press("ArrowUp");
+    await expect(reopened.getByRole("option", { selected: true }))
+      .toHaveText("移动目标 0599");
+    await reopenedSearch.press("Enter");
+    await expect(reopened).toHaveCount(0);
+    await expect.poll(() => readdir(path.join(repositoryRoot, directoryMoveRepository, "移动目标 0599")))
+      .toContain("Move Source.ctn");
+    await tree.focus();
+    await tree.press("End");
+    await expect(source).toHaveAttribute("aria-level", "2");
+    await expect(source).toBeInViewport();
+  });
+
   test("virtualizes a 601-note directory and reveals its final row", async ({
     directoryRepository,
     page,
