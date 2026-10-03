@@ -178,14 +178,14 @@ export function useNotesActivity({
         }
       : null,
     directory: {
-      activeFolderId: selection.activeFolderId,
-      activeNode: selection.activeNode,
-      clearFolderSelection: selection.clearFolderSelection,
+      focusRequest: selection.directoryFocusRequest,
+      onConsumeFocusRequest: selection.consumeDirectoryFocusRequest,
+      canMutate: !readOnly,
       createFolder: selection.createFolder,
       createNote: selection.createNote,
       deleteFolder: selection.deleteFolder,
       deleteNote: selection.deleteNote,
-      moveTreeNode: selection.moveTreeNode,
+      moveTreeNodes: selection.moveTreeNodes,
       noteTree,
       renameFolder: selection.renameFolder,
       renameNote: selection.renameNote,

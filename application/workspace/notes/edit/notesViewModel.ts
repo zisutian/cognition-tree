@@ -1,12 +1,11 @@
 import type { UiOutlineNode } from "../../projection/viewBlocks.ts";
 import type { UiEditorView } from "../../projection/viewEditor.ts";
 import type {
-  UiDirectoryActiveNode,
   UiFolderId,
   UiNoteId,
   UiTreeNode,
 } from "../../projection/viewTree.ts";
-import type { WorkspaceDirectoryMutations } from "../../selection/workspaceSelection.ts";
+import type { WorkspaceDirectoryMutations, WorkspaceSelection } from "../../selection/workspaceSelection.ts";
 import type { WorkspaceReferenceNavigationDestination } from "../../../../core/workspace/index.ts";
 import type { CtnEditableSourceChange } from "../../../../core/ctn/index.ts";
 import type { WorkspaceNoteSourceUpdateResult } from "../../session/sessionCommands.ts";
@@ -19,11 +18,11 @@ export type NotesViewModel = {
     updatedAt: string;
   } | null;
   directory: WorkspaceDirectoryMutations & {
-    activeFolderId: UiFolderId | null;
-    activeNode: UiDirectoryActiveNode | null;
-    clearFolderSelection: () => void;
+    focusRequest: WorkspaceSelection["directoryFocusRequest"];
+    onConsumeFocusRequest: WorkspaceSelection["consumeDirectoryFocusRequest"];
+    canMutate: boolean;
     createFolder: (parentFolderId: UiFolderId | null, title: string) => void;
-    createNote: () => void;
+    createNote: (parentFolderId: UiFolderId | null) => void;
     noteTree: UiTreeNode[];
     selectFolder: (folderId: UiFolderId) => void;
     selectNote: (noteId: UiNoteId) => void;

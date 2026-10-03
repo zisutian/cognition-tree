@@ -1,3 +1,4 @@
+import { createCanonicalTestNote } from "../../../../support/core/workspace/workspaceTestFixture";
 import { describe, expect, it, vi } from "vitest";
 import type {
   WorkspaceRepository,
@@ -203,6 +204,108 @@ function updateNote(
 }
 
 describe("workspace session controller", () => {
+  it.each(["note-1", "target"])("accepts a batch move to %s as one complete local change", async (targetNoteId) => {
+    const content = createContent("Batch", "Source\nParent\n\t: Child\nKeep\nLast");
+    content.workspace.notes.push(createCanonicalTestNote("target", "Target\nExisting", { idOffset: 100 }));
+    content.workspace.tree.push({ kind: "note", noteId: "target" });
+    const harness = createRepositoryHarness({ initialSnapshot: createSnapshot({ content }) });
+    const controller = createController(harness.repository);
+    controller.start();
+    const ready = await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
+    if (ready.status !== "ready") throw new Error("Session not ready");
+    const blocks = ready.analysisIndex!.getParsedNote("note-1")!.analysis.document.blocks;
+    const ids = ["Last", "Parent"].map((text) => blocks.find((block) => block.text === text)!.id);
+    const result = controller.commands.moveStructureBlocks({ sourceNoteId: "note-1", sourceBlockIds: ids, targetNoteId, target: { kind: "end" } });
+    expect(result).toEqual({ status: "moved", targetNoteId });
+    const accepted = controller.getState();
+    if (accepted.status !== "ready") throw new Error("Local change not accepted");
+    expect(accepted.analysisIndex!.getParsedNote(targetNoteId)!.analysis.document.blocks.map((block) => block.text))
+      .toEqual(targetNoteId === "note-1" ? ["Source", "Keep", "Parent", "Child", "Last"] : ["Target", "Existing", "Parent", "Child", "Last"]);
+    expect(accepted.analysisIndex!.analysisStats.runCount).toBe(0);
+    await controller.flushPendingChanges();
+    expect(harness.stagedContents).toHaveLength(1);
+    expect(harness.stagedContents[0].workspace).toEqual(accepted.workspace.data);
+    controller.dispose();
+  });
+
+  it("commits a directory batch once while preserving all note sources", async () => {
+    const content = createContent("Batch", "Source\nBody");
+    content.workspace.notes.push(createCanonicalTestNote("target", "Target", { idOffset: 100 }));
+    content.workspace.tree = [
+      { kind: "folder", folderId: "a", title: "A", children: [{ kind: "note", noteId: "note-1" }] },
+      { kind: "note", noteId: "target" },
+      { kind: "folder", folderId: "b", title: "B", children: [] },
+    ];
+    const harness = createRepositoryHarness({ initialSnapshot: createSnapshot({ content }) });
+    const controller = createController(harness.repository);
+    controller.start();
+    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
+    controller.commands.moveTreeNodes({ sources: [{ kind: "note", noteId: "target" }, { kind: "note", noteId: "note-1" }], destination: { kind: "inside", folderId: "b" } });
+    await controller.flushPendingChanges();
+    expect(harness.stagedContents).toHaveLength(1);
+    expect(harness.stagedContents[0].workspace.notes).toEqual(content.workspace.notes);
+    expect(harness.stagedContents[0].workspace.tree).toEqual([
+      { kind: "folder", folderId: "a", title: "A", children: [] },
+      { kind: "folder", folderId: "b", title: "B", children: [{ kind: "note", noteId: "note-1" }, { kind: "note", noteId: "target" }] },
+    ]);
+    controller.dispose();
+  });
+
+  it("rejects a partly stale batch without changing the accepted state or scheduling a save", async () => {
+    const harness = createRepositoryHarness({ initialSnapshot: createSnapshot({ content: createContent("Batch", "Source\nFirst\nLast") }) });
+    const controller = createController(harness.repository);
+    controller.start();
+    const before = await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
+    if (before.status !== "ready") throw new Error("Session not ready");
+    const id = before.analysisIndex!.getParsedNote("note-1")!.analysis.document.blocks[1].id;
+    expect(controller.commands.moveStructureBlocks({ sourceNoteId: "note-1", sourceBlockIds: [id, "gone"], targetNoteId: "note-1", target: { kind: "end" } }))
+      .toEqual({ status: "failed", reason: "source-block-missing" });
+    expect(controller.getState()).toEqual(before);
+    await controller.flushPendingChanges();
+    expect(harness.stagedContents).toHaveLength(0);
+    controller.dispose();
+  });
+
+  it("accepts no-op directory and content moves without a save and rejects a paused or disposed session", async () => {
+    const harness = createRepositoryHarness({ initialSnapshot: createSnapshot({ content: createContent("Batch", "Source\nFirst\nLast") }) });
+    const controller = createController(harness.repository);
+    controller.start();
+    const before = await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
+    if (before.status !== "ready") throw new Error("Session not ready");
+    const lastId = before.analysisIndex!.getParsedNote("note-1")!.analysis.document.blocks.at(-1)!.id;
+    const request = { sourceNoteId: "note-1", sourceBlockIds: [lastId], targetNoteId: "note-1", target: { kind: "end" as const } };
+    expect(controller.commands.moveStructureBlocks(request).status).toBe("moved");
+    controller.commands.moveTreeNodes({ sources: [{ kind: "note", noteId: "note-1" }], destination: { kind: "root" } });
+    expect(controller.getState()).toEqual(before);
+    await controller.flushPendingChanges();
+    expect(harness.stagedContents).toHaveLength(0);
+    const removal = await controller.prepareForRepositoryRemoval();
+    expect(() => controller.commands.moveStructureBlocks(request)).toThrow(WorkspaceSessionUnavailableError);
+    expect(() => controller.commands.moveTreeNodes({ sources: [{ kind: "note", noteId: "note-1" }], destination: { kind: "root" } }))
+      .toThrow(WorkspaceSessionUnavailableError);
+    removal.resume();
+    controller.dispose();
+    expect(() => controller.commands.moveStructureBlocks(request)).toThrow(WorkspaceSessionUnavailableError);
+  });
+
+  it("keeps an accepted batch in the existing recovery flow after asynchronous local save failure", async () => {
+    const harness = createRepositoryHarness({ initialSnapshot: createSnapshot({ content: createContent("Batch", "Source\nParent\nKeep\nLast") }) });
+    harness.repository.stageSnapshot = async () => { throw new Error("local stage failed"); };
+    const controller = createController(harness.repository);
+    controller.start();
+    const before = await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
+    if (before.status !== "ready") throw new Error("Session not ready");
+    const parentId = before.analysisIndex!.getParsedNote("note-1")!.analysis.document.blocks[1].id;
+    expect(controller.commands.moveStructureBlocks({ sourceNoteId: "note-1", sourceBlockIds: [parentId], targetNoteId: "note-1", target: { kind: "end" } }).status).toBe("moved");
+    await expect(controller.flushPendingChanges()).rejects.toThrow("local stage failed");
+    const failed = controller.getState();
+    expect(failed).toMatchObject({ status: "ready", persistence: { status: "error", phase: "local", localCopySafe: false } });
+    if (failed.status !== "ready") throw new Error("Accepted content lost");
+    expect(failed.analysisIndex!.getParsedNote("note-1")!.analysis.document.blocks.map((block) => block.text)).toEqual(["Source", "Keep", "Last", "Parent"]);
+    expect(harness.getLocalContent().workspace).toEqual(before.workspace.data);
+    controller.dispose();
+  });
+
   it("creates consecutively numbered untitled notes through session commands", async () => {
     const harness = createRepositoryHarness();
     let nextNoteId = 0;

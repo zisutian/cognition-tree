@@ -42,6 +42,7 @@ export {
   deleteWorkspaceNote,
   findAvailableDefaultNoteTitle,
   moveWorkspaceTreeNode,
+  moveWorkspaceTreeNodes,
   renameWorkspaceFolder,
   renameWorkspaceNote,
   updateWorkspaceNoteSource,
@@ -68,6 +69,7 @@ export {
 export {
   moveWorkspaceStructureBlockBetweenNotes,
   moveWorkspaceStructureBlockWithinNote,
+  moveWorkspaceStructureBlocks,
 } from "./commands/structureBlockCommands.ts";
 export type {
   MoveWorkspaceStructureBlockBetweenNotesFailureReason,
@@ -75,6 +77,10 @@ export type {
   WorkspaceStructureBlockMoveBetweenNotesRequest,
   WorkspaceStructureBlockMoveWithinNoteRequest,
   WorkspaceStructureBlockTargetPositionRequest,
+  WorkspaceStructureBlockTarget,
+  WorkspaceStructureBlocksMoveRequest,
+  WorkspaceStructureBlocksMoveFailureReason,
+  WorkspaceStructureBlocksMoveResult,
 } from "./commands/structureBlockCommands.ts";
 export type {
   NoteReferenceGraph,
@@ -83,6 +89,8 @@ export type {
 } from "./indexes/workspaceParseIndex.ts";
 export type {
   NoteTreeMoveRequest,
+  NoteTreeBatchMoveRequest,
+  NoteTreeMoveDestination,
   NoteTreeNodeReference,
 } from "./model/noteTree/types.ts";
 export {

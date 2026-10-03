@@ -257,21 +257,23 @@ function toDomainCommand({
       return {
         expectedSourceVersion: versions.note(source.source),
         expectedTargetVersion: versions.note(target.source),
-        kind: intent.kind,
-        sourceBlockId: intent.sourceBlockId,
+        kind: "move-blocks",
+        sourceBlockIds: [intent.sourceBlockId],
         sourceNoteId: intent.sourceNoteId,
         target: blockTarget(intent),
         targetNoteId: intent.targetNoteId,
         timestamp,
       };
     }
-    case "move-tree-node":
+    case "move-tree-node": {
+      const request = createTreeMoveRequest(context, intent);
       return {
         expectedTreeVersion: versions.tree(context.structure.data),
-        kind: intent.kind,
-        request: createTreeMoveRequest(context, intent),
+        kind: "move-tree-nodes",
+        request: { destination: request.destination, sources: [request.source] },
         timestamp,
       };
+    }
     case "edit-note-body": {
       const note = requireNote(context, intent.noteId);
       const parsed = context.index?.getParsedNote(intent.noteId);

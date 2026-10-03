@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Button, CompactProvider, ContentTreeDragScope } from "compact-ui";
+import { Button, CompactProvider, TreeDragScope } from "compact-ui";
 import "compact-ui/styles.css";
 import { uiConfig } from "../../presentation/ui/foundation/config.ts";
 import { StructureTree, type StructureTreeNode } from "../../presentation/ui/shared/tree/index.ts";
@@ -54,7 +54,7 @@ function StructureTreeFixture() {
         <Button onClick={() => setLargeCount(501)}>显示501行</Button>
         <output data-document={documentId} data-selected={selected ?? ""} id="tree-state">树状态</output>
         <output data-moves={moveCount} id="move-state">移动请求</output>
-        <ContentTreeDragScope onMoveRequest={() => setMoveCount((count) => count + 1)}>
+        <TreeDragScope onMoveRequest={() => { setMoveCount((count) => count + 1); return { status: "success" }; }}>
         <div data-testid="tree-scroll-host" style={{ height: 420, overflowY: "auto" }}>
         <StructureTree
           ariaLabel="测试结构树"
@@ -62,16 +62,16 @@ function StructureTreeFixture() {
             treeId: "fixture",
             contentKey: documentId,
             canDrag: () => true,
-            canDrop: (request) => request.source.nodeId !== ("nodeId" in request.target ? request.target.nodeId : null),
+            canDrop: (request) => !request.source.nodeIds.includes( ("nodeId" in request.target ? request.target.nodeId : "")),
           }}
           nodes={nodes}
-          onSelectNode={(node) => setSelected(node.id)}
-          selectedId={selected}
+          onSelectionChange={(ids) => setSelected([...ids][0] ?? null)}
+          selectedIds={new Set(selected ? [selected] : [])}
           selectionMode="single"
           stateKey={documentId}
         />
         </div>
-        </ContentTreeDragScope>
+        </TreeDragScope>
       </main>
       </ContentTreeLabelPreferenceProvider>
     </CompactProvider>

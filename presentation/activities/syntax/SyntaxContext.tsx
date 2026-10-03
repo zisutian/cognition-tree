@@ -1,3 +1,4 @@
+import { useSingleTreeSelection } from "../../ui/index.ts";
 import { Stack, Tree, type TreeNode } from "compact-ui";
 import { Button } from "compact-ui";
 import { Check, Plus } from "lucide-react";
@@ -39,6 +40,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
       })),
     },
   ];
+  const treeSelection = useSingleTreeSelection(selected);
   return (
     <Stack fill>
       <Stack direction="row">
@@ -70,10 +72,9 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
       <Tree
         aria-label="语法设置"
         nodes={nodes}
-        selectedId={selected}
         expandedIds={expanded}
         onExpandedChange={setExpanded}
-        onSelect={() => {}}
+        {...treeSelection}
         onOpen={(id, intent) => {
           const file = view.files.find((item) => item.id === id);
           const system = view.systemConfigurations.find(

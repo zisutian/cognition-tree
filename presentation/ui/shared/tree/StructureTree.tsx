@@ -38,10 +38,7 @@ function StructureTreeSession(props: StructureTreeProps) {
     [collapsedIds, projection.branchIds],
   );
   const selectedId = props.selectionMode === "single"
-    ? props.selectedId
-    : props.selectionMode === "collection"
-      ? props.selectedRootId
-      : null;
+    ? [...props.selectedIds][0] ?? null : null;
 
   useLayoutEffect(() => {
     const host = hostRef.current;
@@ -112,15 +109,8 @@ function StructureTreeSession(props: StructureTreeProps) {
     onExpandedChange: (ids: ReadonlySet<string>) => {
       setCollapsedIds(new Set([...projection.branchIds].filter((id) => !ids.has(id))));
     },
-    onRequestContextMenu: props.onRequestContextMenu
-      ? (request: { nodeId: string; position: { x: number; y: number } }) =>
-          props.onRequestContextMenu?.(request.nodeId, request.position)
-      : undefined,
+    onRequestContextMenu: props.onRequestContextMenu,
     scrollContainer,
-  };
-  const selectNode = (nodeId: string) => {
-    const node = projection.nodeById.get(nodeId);
-    if (node && props.selectionMode !== "none") props.onSelectNode(node);
   };
   return (
     <div ref={hostRef}>
@@ -131,21 +121,13 @@ function StructureTreeSession(props: StructureTreeProps) {
       ) : null}
       {props.selectionMode === "none" ? (
         <ContentTree {...common} ref={treeRef} selectionMode="none" />
-      ) : props.selectionMode === "single" ? (
-        <ContentTree
-          {...common}
-          ref={treeRef}
-          selectionMode="single"
-          selectedId={props.selectedId}
-          onSelect={selectNode}
-        />
       ) : (
         <ContentTree
           {...common}
           ref={treeRef}
-          selectionMode="collection"
+          selectionMode={props.selectionMode}
           selectedIds={props.selectedIds}
-          onSelect={selectNode}
+          onSelectionChange={props.onSelectionChange}
         />
       )}
     </div>

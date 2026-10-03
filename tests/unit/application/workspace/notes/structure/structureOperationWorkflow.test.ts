@@ -6,117 +6,56 @@ import {
   type StructureMoveFailureReason,
 } from "../../../../../../application/workspace/notes/structure/structureOperationWorkflow";
 import type { SessionCommands } from "../../../../../../application/workspace/session/sessionCommands";
-import type { WorkspaceParseIndex } from "../../../../../../core/workspace/indexes/workspaceParseIndex";
-
-const index = {} as WorkspaceParseIndex;
 
 describe("structure operation workflow", () => {
-  it("builds a between-note request and returns the moved target", () => {
-    const move = vi.fn<SessionCommands["moveStructureBlockBetweenNotes"]>(
-      () => ({ status: "moved", targetNoteId: "target" }),
-    );
-
+  it("passes stable batch identities through the between-note workflow", () => {
+    const move = vi.fn<SessionCommands["moveStructureBlocks"]>(() => ({ status: "moved", targetNoteId: "target" }));
     expect(executeStructureBlockMoveBetweenNotes({
-      index,
-      move,
-      sourceBlockLineNumberValue: "12",
-      sourceNoteId: "source",
-      targetNoteId: "target",
-      targetPositionValue: "sibling-below:24",
+      move, sourceBlockIds: ["source-a", "source-b"], sourceNoteId: "source", targetNoteId: "target",
+      target: { kind: "below", targetBlockId: "target-block" },
     })).toBe("target");
-    expect(move).toHaveBeenCalledWith(index, {
-      sourceBlockLineNumber: 12,
-      sourceNoteId: "source",
-      targetNoteId: "target",
-      targetPosition: { kind: "sibling-below", lineNumber: 24 },
+    expect(move).toHaveBeenCalledOnce();
+    expect(move).toHaveBeenCalledWith({
+      sourceBlockIds: ["source-a", "source-b"], sourceNoteId: "source", targetNoteId: "target",
+      target: { kind: "below", targetBlockId: "target-block" },
     });
   });
-
-  it("builds a within-note request and returns the moved note", () => {
-    const move = vi.fn<SessionCommands["moveStructureBlockWithinNote"]>(
-      () => ({ noteId: "structure", status: "moved" }),
-    );
-
+  it("uses the same command for within-note moves", () => {
+    const move = vi.fn<SessionCommands["moveStructureBlocks"]>(() => ({ status: "moved", targetNoteId: "note" }));
     expect(executeStructureBlockMoveWithinNote({
-      index,
-      move,
-      noteId: "structure",
-      sourceBlockLineNumberValue: "8",
-      targetPositionValue: "inside:16",
-    })).toBe("structure");
-    expect(move).toHaveBeenCalledWith(index, {
-      noteId: "structure",
-      sourceBlockLineNumber: 8,
-      targetPosition: { kind: "inside-block", lineNumber: 16 },
-    });
+      move, noteId: "note", sourceBlockIds: ["block"], target: { kind: "end" },
+    })).toBe("note");
+    expect(move).toHaveBeenCalledWith({ sourceNoteId: "note", targetNoteId: "note", sourceBlockIds: ["block"], target: { kind: "end" } });
   });
-
   it.each([
     ["missing-note", "无法移动结构块：笔记已不存在。"],
     ["parsed-note-missing", "无法移动结构块：笔记尚未完成解析。"],
     ["same-note-unsupported", "无法在跨笔记操作中选择同一笔记。"],
     ["source-block-missing", "无法移动结构块：源结构块已不存在。"],
+    ["empty-source", "无法移动结构块：请先选择源结构块。"],
     ["target-inside-source", "无法把结构块移动到自身子树中。"],
     ["target-position-missing", "无法移动结构块：目标位置已不存在。"],
-  ] satisfies Array<[StructureMoveFailureReason, string]>) (
-    "maps %s to one global-feedback message",
-    (reason, message) => {
-      expect(getStructureMoveFailureMessage(reason)).toBe(message);
-    },
-  );
-
-  it("maps command failures to thrown workflow errors", () => {
-    const moveBetween = vi.fn<
-      SessionCommands["moveStructureBlockBetweenNotes"]
-    >(() => ({ reason: "same-note-unsupported", status: "failed" }));
-    const moveWithin = vi.fn<SessionCommands["moveStructureBlockWithinNote"]>(
-      () => ({ reason: "target-inside-source", status: "failed" }),
-    );
-
-    expect(() => executeStructureBlockMoveBetweenNotes({
-      index,
-      move: moveBetween,
-      sourceBlockLineNumberValue: "4",
-      sourceNoteId: "source",
-      targetNoteId: "target",
-      targetPositionValue: "end",
-    })).toThrow("无法在跨笔记操作中选择同一笔记。");
+    ["invalid-block-range", "无法移动结构块：源码范围或块身份无效，请先修复源和目标。"],
+  ] satisfies Array<[StructureMoveFailureReason, string]>) ("maps %s to existing Chinese feedback", (reason, message) => {
+    expect(getStructureMoveFailureMessage(reason)).toBe(message);
+  });
+  it("reports a domain rejection rather than accepting an empty callback result", () => {
+    const move = vi.fn<SessionCommands["moveStructureBlocks"]>(() => ({ status: "failed", reason: "target-inside-source" }));
     expect(() => executeStructureBlockMoveWithinNote({
-      index,
-      move: moveWithin,
-      noteId: "structure",
-      sourceBlockLineNumberValue: "4",
-      targetPositionValue: "end",
+      move, noteId: "note", sourceBlockIds: ["block"], target: { kind: "end" },
     })).toThrow("无法把结构块移动到自身子树中。");
   });
-
-  it("rejects missing workflow inputs before invoking a command", () => {
-    const move = vi.fn<SessionCommands["moveStructureBlockBetweenNotes"]>();
-
+  it("rejects absent notes, empty selection and same-note pair operations before executing", () => {
+    const move = vi.fn<SessionCommands["moveStructureBlocks"]>();
     expect(() => executeStructureBlockMoveBetweenNotes({
-      index,
-      move,
-      sourceBlockLineNumberValue: "4",
-      sourceNoteId: null,
-      targetNoteId: "target",
-      targetPositionValue: "end",
-    })).toThrow("无法移动结构块：笔记已不存在。");
+      move, sourceBlockIds: ["block"], sourceNoteId: null, targetNoteId: "target", target: { kind: "end" },
+    })).toThrow("笔记已不存在");
+    expect(() => executeStructureBlockMoveWithinNote({
+      move, sourceBlockIds: [], noteId: "note", target: { kind: "end" },
+    })).toThrow("请先选择");
     expect(() => executeStructureBlockMoveBetweenNotes({
-      index: null,
-      move,
-      sourceBlockLineNumberValue: "4",
-      sourceNoteId: "source",
-      targetNoteId: "target",
-      targetPositionValue: "end",
-    })).toThrow("无法移动结构块：笔记尚未完成解析。");
-    expect(() => executeStructureBlockMoveBetweenNotes({
-      index,
-      move,
-      sourceBlockLineNumberValue: "",
-      sourceNoteId: "source",
-      targetNoteId: "target",
-      targetPositionValue: "end",
-    })).toThrow("无法移动结构块：源结构块已不存在。");
+      move, sourceBlockIds: ["block"], sourceNoteId: "note", targetNoteId: "note", target: { kind: "end" },
+    })).toThrow("同一笔记");
     expect(move).not.toHaveBeenCalled();
   });
 });

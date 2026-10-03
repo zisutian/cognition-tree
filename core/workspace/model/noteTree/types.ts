@@ -31,6 +31,11 @@ export type NoteTreeMoveRequest = {
   source: NoteTreeNodeReference;
 };
 
+export type NoteTreeBatchMoveRequest = {
+  destination: NoteTreeMoveDestination;
+  sources: readonly NoteTreeNodeReference[];
+};
+
 export type NoteTreeNodeLocation = {
   index: number;
   node: NoteTreeNode;

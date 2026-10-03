@@ -1,29 +1,26 @@
-import { useMemo } from "react";
-import {
-  flattenUiBlockSubtree,
-  type UiBlockNode,
-} from "../../../../application/workspace/index.ts";
+import { useEffect, useMemo, useState } from "react";
+import { flattenUiBlockSubtree, type UiBlockNode } from "../../../../application/workspace/index.ts";
 
-export function findBlockById(
-  blocks: readonly UiBlockNode[],
-  nodeId: string | null,
-): UiBlockNode | null {
+export function findBlockById(blocks: readonly UiBlockNode[], nodeId: string | null): UiBlockNode | null {
   if (!nodeId) return null;
-  const pending = [...blocks].reverse();
-  while (pending.length > 0) {
-    const node = pending.pop();
-    if (!node) continue;
+  const pending = [...blocks];
+  while (pending.length) {
+    const node = pending.pop()!;
     if (node.id === nodeId) return node;
-    for (let index = node.children.length - 1; index >= 0; index -= 1) {
-      pending.push(node.children[index]);
-    }
+    for (const child of node.children) pending.push(child);
   }
   return null;
 }
 
-export function useSelectedBlockIds(block: UiBlockNode | null) {
-  return useMemo(
-    () => new Set(block ? flattenUiBlockSubtree(block).map((node) => node.id) : []),
-    [block],
-  );
+/** Selection owns rows only; the domain move carries each selected root's subtree. */
+export function useStructureBlockSelection(roots: readonly UiBlockNode[]) {
+  const nodeIds = useMemo(() => new Set(roots.flatMap(flattenUiBlockSubtree).map((node) => node.id)), [roots]);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set());
+  useEffect(() => {
+    setSelectedIds((current) => {
+      const retained = new Set([...current].filter((id) => nodeIds.has(id)));
+      return retained.size === current.size ? current : retained;
+    });
+  }, [nodeIds]);
+  return { selectedIds, setSelectedIds };
 }

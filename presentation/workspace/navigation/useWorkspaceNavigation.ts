@@ -96,6 +96,7 @@ export function useWorkspaceNavigation({
       if (target.entity === "note") {
         if (findWorkspaceNote(workspace, target.noteId)) {
           selection.selectNote(target.noteId);
+          selection.requestDirectoryFocus({ kind: "note", noteId: target.noteId });
         }
         return;
       }
@@ -103,7 +104,7 @@ export function useWorkspaceNavigation({
         selection.selectFolder(target.folderId);
       }
     },
-    [selection.selectFolder, selection.selectNote, workspace],
+    [selection.requestDirectoryFocus, selection.selectFolder, selection.selectNote, workspace],
   );
   const openSyntaxField = useCallback(
     (syntaxFileId: string, fieldId: SyntaxFieldId) => {

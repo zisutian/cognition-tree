@@ -118,7 +118,7 @@ test("type label toggle retains a selected long-tree row and nonzero scroll", as
   expect(await host.evaluate((element) => element.scrollTop)).toBe(before);
 });
 
-test("native dragging keeps its ancestor visible and Escape cancels the request", async ({ page }) => {
+test("hiding the grabbed row cancels the native drag without moving content", async ({ page }) => {
   await page.goto("/e2e/fixtures/structure-tree.html");
   const tree = page.getByRole("tree", { name: "测试结构树" });
   const parent = tree.getByRole("treeitem", { name: /parent/ });
@@ -130,12 +130,11 @@ test("native dragging keeps its ancestor visible and Escape cancels the request"
   await page.mouse.move(box!.x + box!.width / 2 + 18, box!.y + box!.height / 2 + 8, { steps: 8 });
   await expect(grandchild).toHaveAttribute("data-drag-source", "true");
   await parent.dispatchEvent("click");
-  await expect(parent).toHaveAttribute("aria-expanded", "true");
+  await expect(parent).toHaveAttribute("aria-expanded", "false");
+  await expect(grandchild).toHaveCount(0);
   await page.keyboard.press("Escape");
   await page.mouse.up();
   await expect(page.locator("#move-state")).toHaveAttribute("data-moves", "0");
-  await parent.click();
-  await expect(parent).toHaveAttribute("aria-expanded", "false");
 });
 
 test("native dragging scrolls at the host edge and can be cancelled", async ({ page }) => {

@@ -43,6 +43,7 @@ export type {
 } from "./persistence/workspaceRepository.ts";
 export { mergeWorkspaceContent } from "./persistence/workspaceThreeWayMerge.ts";
 export type { NotesViewModel } from "./notes/edit/notesViewModel.ts";
+export type { WorkspaceBlockTarget } from "./commands/workspaceDomainCommands.ts";
 export { prepareWorkspaceCommand } from "./commands/workspaceCommandPreparation.ts";
 export {
   prepareWorkspaceRepositoryContent,
@@ -73,6 +74,7 @@ export {
 export type {
   SessionCommandDependencies,
   SessionCommands,
+  SessionStructureBlocksMoveResult,
 } from "./session/sessionCommands.ts";
 export { startWorkspaceAnalysisCollection } from "./analysis/workspaceAnalysisCollection.ts";
 export type { StructureOperationActivityViewModel } from "./notes/structure/structureOperationViewModel.ts";
@@ -83,6 +85,9 @@ export type {
   UiFolderId,
   UiNoteId,
   UiTreeMoveRequest,
+  UiTreeNode,
+  UiTreeNodeReference,
+  UiTreeMoveDestination,
 } from "./projection/viewTree.ts";
 export type { UiEditorFocusTarget } from "./projection/viewEditor.ts";
 export type {

@@ -69,7 +69,8 @@ describe("notes panels", () => {
     });
 
     submitNotesFolderCreation({
-      directory: { activeFolderId: "folder-parent", createFolder },
+      directory: { createFolder },
+      parentFolderId: "folder-parent",
       folderTitle: "bad/name",
       onCreated,
       runAction: (action) => runFeedbackAction(action, notifyError),

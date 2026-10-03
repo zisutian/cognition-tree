@@ -1,3 +1,4 @@
+import type { WorkspaceStructureBlockTarget } from "../../../../core/workspace/index.ts";
 import type { UiStructureOperationView } from "../../projection/viewStructureOperation.ts";
 import type { UiNoteId } from "../../projection/viewTree.ts";
 import type { WorkspaceDirectoryMutations } from "../../selection/workspaceSelection.ts";
@@ -10,12 +11,12 @@ export type StructureOperationActivityViewModel =
     indentUnitCount?: number;
     repositoryId: string;
     onMoveStructureBlockBetweenNotes: (
-      sourceBlockLineNumberValue: string,
-      targetPositionValue: string,
+      sourceBlockIds: readonly string[],
+      target: WorkspaceStructureBlockTarget,
     ) => void;
     onMoveStructureBlockWithinNote: (
-      sourceBlockLineNumberValue: string,
-      targetPositionValue: string,
+      sourceBlockIds: readonly string[],
+      target: WorkspaceStructureBlockTarget,
     ) => void;
     onSelectDirectoryNote: (noteId: UiNoteId) => void;
     onSetMode: (mode: UiStructureOperationView["mode"]) => void;

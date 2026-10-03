@@ -1,3 +1,4 @@
+import { useSingleTreeSelection } from "../../ui/index.ts";
 import { Button, Tree, Stack, StatusText } from "compact-ui";
 import { MessageSquare } from "lucide-react";
 import type {
@@ -21,6 +22,7 @@ export function AgentContextPanel({
   const feedback = useFeedback(),
     pages = usePageNavigation(),
     { state, controller } = agent;
+  const treeSelection = useSingleTreeSelection(creatingSession ? null : state.activeSessionId);
   return (
     <Stack fill>
       {state.loadStatus === "loading" ? (
@@ -37,10 +39,9 @@ export function AgentContextPanel({
           label: `${session.profileLabel} · ${formatAgentScopeLabel(session.scope)} · ${agentSessionStateLabels[session.state]}`,
           icon: <MessageSquare />,
         }))}
-        selectedId={creatingSession ? null : state.activeSessionId}
         expandedIds={new Set()}
         onExpandedChange={() => {}}
-        onSelect={() => {}}
+        {...treeSelection}
         onOpen={(id, intent) => {
           const session = state.sessions.find((s) => s.id === id);
           if (session)

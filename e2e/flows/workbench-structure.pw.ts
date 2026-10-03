@@ -1,3 +1,4 @@
+import { dragTreeRow } from "../support/treeDrag";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { readFile, readdir } from "node:fs/promises";
@@ -92,7 +93,8 @@ test.describe("directory and structure operation flows", () => {
     const root = detail.getByRole("treeitem", { name: "Source Child", exact: true });
     const child = detail.getByRole("treeitem", { name: "Source Grandchild", exact: true });
     await root.click();
-    await root.click();
+    await detail.getByRole("tree", { name: "笔记结构" }).press("ArrowRight");
+    await expect(child).toBeVisible();
     const rowColor = (row: typeof root) =>
       row.evaluate((item) => getComputedStyle(item).backgroundColor);
     const selected = await rowColor(root);
@@ -103,11 +105,12 @@ test.describe("directory and structure operation flows", () => {
     await selectNotesMode(page, "结构");
     const source = page.getByRole("region", { name: "源笔记 · Source" });
     await source.getByRole("treeitem", { name: "Source Child", exact: true }).click();
-    await source.getByRole("treeitem", { name: "Source Child", exact: true }).click();
+    await source.getByRole("tree").press("ArrowRight");
+    await expect(source.getByRole("treeitem", { name: "Source Grandchild", exact: true })).toBeVisible();
     const selectedSubtree = source.getByRole("treeitem", {
       selected: true,
     });
-    await expect(selectedSubtree).toHaveCount(2);
+    await expect(selectedSubtree).toHaveCount(1);
     const sourceRoot = await rowColor(
       source.getByRole("treeitem", { name: "Source Child", exact: true }),
     );
@@ -118,7 +121,7 @@ test.describe("directory and structure operation flows", () => {
       source.getByRole("treeitem", { name: "Source Sibling", exact: true }),
     );
     expect(sourceRoot).toBe(selected);
-    expect(sourceChild).toBe(selected);
+    expect(sourceChild).toBe(unselected);
     expect(sourceSibling).toBe(unselected);
     await page.screenshot({ path: testInfo.outputPath("subtree-selected.png") });
     const siblingRow = source.getByRole("treeitem", { name: "Source Sibling", exact: true });
@@ -304,10 +307,7 @@ test.describe("directory and structure operation flows", () => {
     await expect(alpha).toBeVisible();
     await gamma.dragTo(folder);
     await expect(gamma).toHaveAttribute("aria-level", "2");
-    const treeSurfaceBox = (await treeSurface.boundingBox())!;
-    await gamma.dragTo(treeSurface, {
-      targetPosition: { x: 12, y: treeSurfaceBox.height - 2 },
-    });
+    await dragTreeRow(page, gamma, treeSurface, 0.99);
     await expect(gamma).toHaveAttribute("aria-level", "1");
     await gamma.click({ button: "right" });
     const directoryMenu = page.getByRole("menu", { name: "目录操作" });
@@ -461,7 +461,7 @@ test.describe("directory and structure operation flows", () => {
       exact: true,
     });
 
-    await sourceChild.dragTo(targetChild);
+    await dragTreeRow(page, sourceChild, targetChild);
     await expect(
       sourceColumn.getByRole("treeitem", { name: "Source Child", exact: true }),
     ).toBeHidden();

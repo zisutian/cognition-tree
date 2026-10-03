@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { ContentTreeDragDrop } from "compact-ui";
+import type { ContentTreeContextMenuRequest, TreeDragDrop, TreeSelectionProps } from "compact-ui";
 import type { DisplayText } from "../blockText.tsx";
 
 export type StructureTreeNode = {
@@ -17,32 +17,14 @@ export type StructureTreeNode = {
 
 type StructureTreeBaseProps = {
   ariaLabel: string;
-  dragDrop?: ContentTreeDragDrop;
+  dragDrop?: TreeDragDrop;
   indentUnitCount?: number;
   nodes: StructureTreeNode[];
   stateKey: string;
-  onRequestContextMenu?: (
-    nodeId: string,
-    position: { x: number; y: number },
-  ) => void;
+  onRequestContextMenu?: (request: ContentTreeContextMenuRequest) => void;
 };
 
-export type StructureTreeProps = StructureTreeBaseProps & (
-  | {
-      selectionMode: "single";
-      selectedId: string | null;
-      onSelectNode: (node: StructureTreeNode) => void;
-    }
-  | {
-      selectionMode: "collection";
-      selectedIds: ReadonlySet<string>;
-      selectedRootId: string | null;
-      onSelectNode: (node: StructureTreeNode) => void;
-    }
-  | {
-      selectionMode: "none";
-    }
-);
+export type StructureTreeProps = StructureTreeBaseProps & TreeSelectionProps;
 
 export type TreeNode =
   | {
@@ -66,44 +48,18 @@ export type TreeNode =
     };
 
 export type TreeNodeReference =
-  | {
-      folderId: string;
-      kind: "folder";
-      parentFolderId: string | null;
-    }
-  | {
-      kind: "note";
-      noteId: string;
-      parentFolderId: string | null;
-    };
+  | { folderId: string; kind: "folder"; parentFolderId: string | null }
+  | { kind: "note"; noteId: string; parentFolderId: string | null };
 
 export type TreeMoveDestination =
-  | {
-      kind: "root";
-    }
-  | {
-      folderId: string;
-      kind: "inside";
-    }
-  | {
-      kind: "after" | "before";
-      target: TreeNodeReference;
-    };
+  | { kind: "root" }
+  | { folderId: string; kind: "inside" }
+  | { kind: "after" | "before"; target: TreeNodeReference };
 
 export type TreeMoveRequest = {
   destination: TreeMoveDestination;
-  source: TreeNodeReference;
+  sources: readonly TreeNodeReference[];
 };
-
-export type NoteTreeActiveNode =
-  | {
-      folderId: string;
-      kind: "folder";
-    }
-  | {
-      kind: "note";
-      noteId: string;
-    };
 
 export type NoteTreeNodeState = {
   hasChildren: boolean;
@@ -112,21 +68,19 @@ export type NoteTreeNodeState = {
 };
 
 export type NoteTreeProps = {
-  activeNode?: NoteTreeActiveNode | null;
+  contentKey: string;
+  selectionMode?: "single" | "multiple";
+  selectedIds: ReadonlySet<string>;
+  onSelectionChange: (ids: ReadonlySet<string>) => void;
+  canMutate?: boolean;
   canDragNode?: (node: TreeNode) => boolean;
-  canDropDestination?: (
-    source: TreeNodeReference,
-    destination: TreeMoveDestination,
-  ) => boolean;
+  canDropDestination?: (source: TreeNodeReference, destination: TreeMoveDestination) => boolean;
   collapsedFolderIds?: ReadonlySet<string>;
   nodes: TreeNode[];
   renderNodeLeading?: (node: TreeNode, state: NoteTreeNodeState) => ReactNode;
-  onClearSelection?: () => void;
   onDeleteNode?: (node: TreeNode) => void;
-  onMoveNode?: (request: TreeMoveRequest) => void;
+  onMoveNodes?: (request: TreeMoveRequest) => void;
   onRenameNode?: (node: TreeNode, title: string) => void;
-  onSelectFolder?: (folderId: string) => void;
-  onSelectNote?: (noteId: string) => void;
   onOpenNote?: (noteId: string, intent: "preview" | "pinned") => void;
   onToggleFolder?: (folderId: string) => void;
 };

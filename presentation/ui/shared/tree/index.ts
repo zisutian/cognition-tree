@@ -4,3 +4,4 @@ export * from "./StructureTree.tsx";
 export * from "./structureIndent.ts";
 export * from "./structureContentProjection.tsx";
 export * from "./types.ts";
+export { useSingleTreeSelection } from "./useSingleTreeSelection.ts";

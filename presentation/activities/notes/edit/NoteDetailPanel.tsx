@@ -26,8 +26,16 @@ export function NoteDetailPanel({
               ariaLabel: "笔记结构",
               indentUnitCount: view.editor.syntax.tabDisplayWidth,
               nodes: view.outline.nodes,
-              onSelectNode: (node) => view.outline.onSelectLine(node.lineNumber),
-              selectedId: selectedBlock?.id ?? null,
+              onSelectionChange: (ids) => {
+                const id = [...ids][0];
+                const pending = [...view.outline.nodes];
+                while (pending.length) {
+                  const node = pending.pop()!;
+                  if (node.id === id) { view.outline.onSelectLine(node.lineNumber); break; }
+                  pending.push(...node.children);
+                }
+              },
+              selectedIds: new Set(selectedBlock ? [selectedBlock.id] : []),
               selectionMode: "single",
               stateKey: `note:${repositoryId}:${view.activeNote.id}`,
             }

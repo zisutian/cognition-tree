@@ -1,3 +1,4 @@
+import { useSingleTreeSelection } from "../../ui/index.ts";
 import { Stack, Tree, type TreeNode } from "compact-ui";
 import { Button } from "compact-ui";
 import { useEffect, useRef, useState } from "react";
@@ -117,6 +118,7 @@ export function RepositoryContext({
     host.current?.querySelector<HTMLElement>('[role="tree"]')?.focus();
     onConsumeFocusRequest(focusRequest.requestId);
   }, [focusRequest]);
+  const treeSelection = useSingleTreeSelection(repositoryTargetKey(current));
   return (
     <div ref={host} style={{ height: "100%", minHeight: 0 }}>
       <Stack fill>
@@ -131,10 +133,9 @@ export function RepositoryContext({
         <Tree
           aria-label="仓库目录"
           nodes={nodes}
-          selectedId={repositoryTargetKey(current)}
           expandedIds={expanded}
           onExpandedChange={setExpanded}
-          onSelect={() => {}}
+          {...treeSelection}
           onOpen={(id, intent) => {
             const target = targets.get(id);
             if (target) onSelectionChange(target, intent);

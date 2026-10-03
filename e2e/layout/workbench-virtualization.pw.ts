@@ -240,6 +240,7 @@ test.describe("virtual collection scrolling", () => {
     await expect(lastChild).toHaveAttribute("aria-posinset", "500");
     await page.screenshot({ path: screenshotPath("nested-wide.png") });
     await page.setViewportSize({ width: 880, height: 720 });
+    await expect.poll(async () => (await detailScroll.boundingBox())?.height ?? 0).toBeLessThan(400);
     await tree.press("End");
     await expect(lastChild).toBeInViewport();
     await page.screenshot({ path: screenshotPath("nested-narrow.png") });

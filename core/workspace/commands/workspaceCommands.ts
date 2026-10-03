@@ -6,8 +6,9 @@ import {
   renameFolderInWorkspaceTree,
 } from "../model/noteTree/mutations.ts";
 import { createNoteTreeFolderNode } from "../model/noteTree/create.ts";
-import { moveNoteTreeNode } from "../model/noteTree/move.ts";
-import type { NoteTreeMoveRequest } from "../model/noteTree/types.ts";
+import { moveNoteTreeNodes } from "../model/noteTree/move.ts";
+import { findFolderNode, getNoteTreeNodeReferenceId } from "../model/noteTree/query.ts";
+import type { NoteTreeBatchMoveRequest, NoteTreeMoveRequest } from "../model/noteTree/types.ts";
 import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex.ts";
 import {
   initializeCtnSourceBlockMetadata,
@@ -371,9 +372,52 @@ export function moveWorkspaceTreeNode(
   workspace: WorkspaceStructureIndex,
   request: NoteTreeMoveRequest,
 ): WorkspaceData {
+  return moveWorkspaceTreeNodes(workspace, {
+    destination: request.destination,
+    sources: [request.source],
+  });
+}
+
+export function moveWorkspaceTreeNodes(
+  workspace: WorkspaceStructureIndex,
+  request: NoteTreeBatchMoveRequest,
+): WorkspaceData {
+  const tree = moveNoteTreeNodes(workspace.data.tree, request);
+  const destination = request.destination;
+  const parentFolderId = destination.kind === "root"
+    ? null
+    : destination.kind === "inside"
+      ? destination.folderId
+      : destination.target.kind === "folder"
+        ? workspace.folderEntryById.get(destination.target.folderId)!.parentFolderId
+        : workspace.noteEntryById.get(destination.target.noteId)!.parentFolderId;
+  const siblings = parentFolderId === null ? tree : findFolderNode(tree, parentFolderId)!.children;
+  const selected = new Set(request.sources.map((source) => `${source.kind}:${getNoteTreeNodeReferenceId(source)}`));
+  const moved = siblings.filter((node) => selected.has(`${node.kind}:${getNoteTreeNodeReferenceId(node)}`));
+  const names = new Map<string, "folder" | "note">();
+  const titleOf = (node: typeof siblings[number]) => node.kind === "folder"
+    ? node.title
+    : workspace.noteEntryById.get(node.noteId)!.header.title;
+  for (const node of siblings) {
+    if (!selected.has(`${node.kind}:${getNoteTreeNodeReferenceId(node)}`)) {
+      names.set(createPortableNameKey(titleOf(node)), node.kind);
+    }
+  }
+  for (const node of moved) {
+    const title = parsePortableName(titleOf(node), "Workspace tree node title");
+    const key = createPortableNameKey(title);
+    const conflict = names.get(key);
+    if (conflict) {
+      throw new DomainValidationError(conflict === "note"
+        ? "同一文件夹中已存在同名笔记。"
+        : "同一文件夹中已存在同名文件夹。");
+    }
+    names.set(key, node.kind);
+  }
+  if (tree === workspace.data.tree) return workspace.data;
   return {
     ...workspace.data,
-    tree: moveNoteTreeNode(workspace.data.tree, request),
+    tree,
   };
 }
 

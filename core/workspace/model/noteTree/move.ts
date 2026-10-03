@@ -2,11 +2,12 @@ import type { NoteTreeNode } from "../workspaceData.ts";
 import type {
   NoteTreeMoveDestination,
   NoteTreeMoveRequest,
+  NoteTreeBatchMoveRequest,
   NoteTreeNodeReference,
 } from "./types.ts";
 import {
   findNoteTreeNodePath,
-  insertNoteTreeNodeAtPath,
+  updateNoteTreeChildrenAtPath,
   readNoteTreeNodeAtPath,
   removeNoteTreeNodeAtPath,
 } from "./pathEditor.ts";
@@ -67,41 +68,79 @@ export function moveNoteTreeNode(
   tree: NoteTreeNode[],
   request: NoteTreeMoveRequest,
 ): NoteTreeNode[] {
-  const sourcePath = requireReferencePath(tree, request.source);
-  const sourceNode = readNoteTreeNodeAtPath(tree, sourcePath);
+  return moveNoteTreeNodes(tree, {
+    destination: request.destination,
+    sources: [request.source],
+  });
+}
+
+function comparePaths(left: readonly number[], right: readonly number[]) {
+  for (let index = 0; index < Math.min(left.length, right.length); index += 1) {
+    if (left[index] !== right[index]) return left[index] - right[index];
+  }
+  return left.length - right.length;
+}
+
+function equalTreePlacement(left: readonly NoteTreeNode[], right: readonly NoteTreeNode[]) {
+  const pending = [{ left, right }];
+  while (pending.length > 0) {
+    const pair = pending.pop()!;
+    if (pair.left.length !== pair.right.length) return false;
+    for (let index = 0; index < pair.left.length; index += 1) {
+      const before = pair.left[index];
+      const after = pair.right[index];
+      if (!isMatchingNoteTreeNode(before, after)) return false;
+      if (before.kind === "folder" && after.kind === "folder") {
+        pending.push({ left: before.children, right: after.children });
+      }
+    }
+  }
+  return true;
+}
+
+/** Resolve all identities before removing anything; overlapping children travel with their parent. */
+export function moveNoteTreeNodes(
+  tree: NoteTreeNode[],
+  request: NoteTreeBatchMoveRequest,
+): NoteTreeNode[] {
+  if (request.sources.length === 0) {
+    throw new Error("Workspace tree move requires at least one source.");
+  }
+  const paths = request.sources.map((source) => requireReferencePath(tree, source))
+    .sort(comparePaths);
+  const roots: number[][] = [];
+  for (const path of paths) {
+    const previous = roots.at(-1);
+    if (previous && (comparePaths(previous, path) === 0 || isStrictDescendantPath(previous, path))) continue;
+    roots.push(path);
+  }
+  const nodes = roots.map((path) => readNoteTreeNodeAtPath(tree, path));
   const destinationReference = getDestinationReference(request.destination);
   const destinationPath = destinationReference
     ? requireReferencePath(tree, destinationReference)
     : null;
 
-  if (
-    destinationReference &&
-    isMatchingNoteTreeNode(sourceNode, destinationReference)
-  ) {
-    throw new Error("Workspace tree node cannot be moved onto itself.");
+  for (const sourcePath of roots) {
+    if (destinationPath && comparePaths(sourcePath, destinationPath) === 0) {
+      throw new Error("Workspace tree node cannot be moved onto itself.");
+    }
+    if (destinationPath && isStrictDescendantPath(sourcePath, destinationPath)) {
+      throw new Error("Workspace folder cannot be moved into itself.");
+    }
   }
-
-  if (
-    sourceNode.kind === "folder" &&
-    destinationPath &&
-    isStrictDescendantPath(sourcePath, destinationPath)
-  ) {
-    throw new Error("Workspace folder cannot be moved into itself.");
+  let remaining = tree;
+  for (const path of roots.slice().reverse()) {
+    remaining = removeNoteTreeNodeAtPath(remaining, path).tree;
   }
-
-  const removed = removeNoteTreeNodeAtPath(tree, sourcePath);
-
-  if (request.destination.kind === "root") {
-    return insertNoteTreeNodeAtPath(removed.tree, [], removed.node);
-  }
-
+  let parentPath: number[] = [];
+  let insertionIndex: number | undefined;
   if (request.destination.kind === "inside") {
     const folderReference = {
       folderId: request.destination.folderId,
       kind: "folder" as const,
     };
-    const folderPath = requireReferencePath(removed.tree, folderReference);
-    const folder = readNoteTreeNodeAtPath(removed.tree, folderPath);
+    parentPath = requireReferencePath(remaining, folderReference);
+    const folder = readNoteTreeNodeAtPath(remaining, parentPath);
 
     if (folder.kind !== "folder") {
       throw new Error(
@@ -109,22 +148,15 @@ export function moveNoteTreeNode(
       );
     }
 
-    return insertNoteTreeNodeAtPath(removed.tree, folderPath, removed.node);
+  } else if (request.destination.kind !== "root") {
+    const targetPath = requireReferencePath(remaining, request.destination.target);
+    const targetIndex = targetPath[targetPath.length - 1];
+    parentPath = targetPath.slice(0, -1);
+    insertionIndex = request.destination.kind === "before" ? targetIndex : targetIndex + 1;
   }
-
-  const targetPath = requireReferencePath(
-    removed.tree,
-    request.destination.target,
-  );
-  const targetIndex = targetPath[targetPath.length - 1];
-  const parentPath = targetPath.slice(0, -1);
-  const insertionIndex =
-    request.destination.kind === "before" ? targetIndex : targetIndex + 1;
-
-  return insertNoteTreeNodeAtPath(
-    removed.tree,
-    parentPath,
-    removed.node,
-    insertionIndex,
-  );
+  const next = updateNoteTreeChildrenAtPath(remaining, parentPath, (children) => {
+    const index = insertionIndex ?? children.length;
+    return [...children.slice(0, index), ...nodes, ...children.slice(index)];
+  });
+  return equalTreePlacement(tree, next) ? tree : next;
 }

@@ -4,6 +4,7 @@ import type {
   UiStructureOperationView,
   UiNoteId,
   StructureOperationActivityViewModel,
+  WorkspaceBlockTarget,
 } from "../../../../application/workspace/index.ts";
 
 import type {
@@ -165,28 +166,26 @@ export function useStructureOperationActivity({
     setPairSelectionPhase("selectSource");
   };
   const moveBlockBetweenNotes = (
-    sourceBlockLineNumberValue: string,
-    targetPositionValue: string,
+    sourceBlockIds: readonly string[],
+    target: WorkspaceBlockTarget,
   ) => {
     selection.selectNote(executeStructureBlockMoveBetweenNotes({
-      index,
-      move: commands.moveStructureBlockBetweenNotes,
-      sourceBlockLineNumberValue,
+      move: commands.moveStructureBlocks,
+      sourceBlockIds,
       sourceNoteId: view.sourceNote?.id ?? null,
       targetNoteId: view.targetNote?.id ?? null,
-      targetPositionValue,
+      target,
     }));
   };
   const moveBlockWithinNote = (
-    sourceBlockLineNumberValue: string,
-    targetPositionValue: string,
+    sourceBlockIds: readonly string[],
+    target: WorkspaceBlockTarget,
   ) => {
     const noteId = executeStructureBlockMoveWithinNote({
-      index,
-      move: commands.moveStructureBlockWithinNote,
+      move: commands.moveStructureBlocks,
       noteId: view.structureNote?.id ?? null,
-      sourceBlockLineNumberValue,
-      targetPositionValue,
+      sourceBlockIds,
+      target,
     });
 
     setMode("withinNote");
@@ -199,7 +198,7 @@ export function useStructureOperationActivity({
     deleteFolder: selection.deleteFolder,
     deleteNote: selection.deleteNote,
     indentUnitCount: index?.syntax.tabDisplayWidth,
-    moveTreeNode: selection.moveTreeNode,
+    moveTreeNodes: selection.moveTreeNodes,
     onMoveStructureBlockBetweenNotes: moveBlockBetweenNotes,
     onMoveStructureBlockWithinNote: moveBlockWithinNote,
     onSelectDirectoryNote: selectDirectoryNote,

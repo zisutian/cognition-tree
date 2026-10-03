@@ -10,18 +10,18 @@ import type {
 export type WorkspaceDirectoryMutations = {
   deleteFolder: (folderId: UiFolderId) => void;
   deleteNote: (noteId: UiNoteId) => void;
-  moveTreeNode: (request: UiTreeMoveRequest) => void;
+  moveTreeNodes: (request: UiTreeMoveRequest) => void;
   renameFolder: (folderId: UiFolderId, title: string) => void;
   renameNote: (noteId: UiNoteId, title: string) => void;
 };
 
 export type WorkspaceSelection = WorkspaceDirectoryMutations & {
-  activeFolderId: UiFolderId | null;
-  activeNode: UiDirectoryActiveNode | null;
   activeNoteId: UiNoteId | null;
-  clearFolderSelection: () => void;
+  directoryFocusRequest: { requestId: number; node: UiDirectoryActiveNode } | null;
+  consumeDirectoryFocusRequest: (requestId: number) => void;
+  requestDirectoryFocus: (node: UiDirectoryActiveNode) => void;
   createFolder: (parentFolderId: UiFolderId | null, title: string) => void;
-  createNote: () => void;
+  createNote: (parentFolderId: UiFolderId | null) => void;
   selectFolder: (folderId: UiFolderId) => void;
   selectNote: (noteId: UiNoteId) => void;
 };

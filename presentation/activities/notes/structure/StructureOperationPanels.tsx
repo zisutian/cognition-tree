@@ -21,9 +21,9 @@ export function StructureOperationMainPanel({
     <Page aria-label="结构操作">
       <PageBody scroll>
         {view.mode === "withinNote" ? (
-          <StructureOperationStructureView view={view} />
+          <StructureOperationStructureView view={view} key={JSON.stringify([view.repositoryId, view.structureNoteId])} />
         ) : (
-          <StructureOperationPairView view={view} />
+          <StructureOperationPairView view={view} key={JSON.stringify([view.repositoryId, view.sourceNoteId, view.targetNoteId])} />
         )}
       </PageBody>
     </Page>

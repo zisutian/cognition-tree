@@ -10,6 +10,9 @@ describe("treeAccessibility", () => {
   it("hides folder children when folder collapse state is controlled", () => {
     const markup = renderToStaticMarkup(
       <NoteTree
+        contentKey="test"
+        selectedIds={new Set(["tree-note-1"])}
+        onSelectionChange={() => undefined}
         collapsedFolderIds={new Set(["folder-1"])}
         nodes={[
           {
@@ -43,7 +46,9 @@ describe("treeAccessibility", () => {
   it("allows empty folders to receive children using package branch semantics", () => {
     const markup = renderToStaticMarkup(
       <NoteTree
-        activeNode={{ kind: "note", noteId: "note-1" }}
+        contentKey="test"
+        selectedIds={new Set(["tree-note-1"])}
+        onSelectionChange={() => undefined}
         nodes={[
           {
             canDrag: true,
@@ -65,7 +70,9 @@ describe("treeAccessibility", () => {
   it("provides inline rename and delete entry points without inline confirmation", () => {
     const markup = renderToStaticMarkup(
       <NoteTree
-        activeNode={{ kind: "note", noteId: "note-1" }}
+        contentKey="test"
+        selectedIds={new Set(["tree-note-1"])}
+        onSelectionChange={() => undefined}
         nodes={[
           {
             canDrag: true,
@@ -91,7 +98,9 @@ describe("treeAccessibility", () => {
   it("uses active node selection to keep note and folder selection exclusive", () => {
     const markup = renderToStaticMarkup(
       <NoteTree
-        activeNode={{ kind: "note", noteId: "note-1" }}
+        contentKey="test"
+        selectedIds={new Set(["tree-note-1"])}
+        onSelectionChange={() => undefined}
         nodes={[
           {
             canDrag: true,
@@ -128,8 +137,8 @@ describe("treeAccessibility", () => {
       <StructureTree
         ariaLabel="测试结构"
         selectionMode="single"
-        selectedId={null}
-        onSelectNode={() => undefined}
+        selectedIds={new Set()}
+        onSelectionChange={() => undefined}
         nodes={[
           {
             children: [
@@ -174,14 +183,13 @@ describe("treeAccessibility", () => {
     expect(markup).toContain("L1");
   });
 
-  it("exposes selected structure subtrees and their root semantically", () => {
+  it("highlights only selected rows while the subtree remains present", () => {
     const markup = renderToStaticMarkup(
       <ContentTreeLabelPreferenceProvider initialVisible onChange={() => undefined}>
       <StructureTree
         ariaLabel="测试选择"
-        selectionMode="collection"
-        selectedIds={new Set(["block-1", "block-2"])}
-        selectedRootId="block-1"
+        selectionMode="multiple"
+        selectedIds={new Set(["block-1"])}
         nodes={[
           {
             children: [
@@ -212,12 +220,12 @@ describe("treeAccessibility", () => {
           },
         ]}
         stateKey="accessibility-selection"
-        onSelectNode={() => undefined}
+        onSelectionChange={() => undefined}
       />
       </ContentTreeLabelPreferenceProvider>,
     );
 
-    expect(markup.match(/aria-selected="true"/g) ?? []).toHaveLength(2);
+    expect(markup.match(/aria-selected="true"/g) ?? []).toHaveLength(1);
     expect(markup).toContain('aria-multiselectable="true"');
   });
 });

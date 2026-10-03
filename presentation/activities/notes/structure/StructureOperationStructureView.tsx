@@ -1,137 +1,47 @@
-import {
-  ContentTreeDragScope,
-  ContextMenu,
-  EmptyState,
-  Section,
-  Stack,
-  type ContentTreeMoveRequest,
-} from "compact-ui";
-import { useEffect, useMemo, useState } from "react";
+import { Button, ContextMenu, EmptyState, Section, Stack, Toolbar, TreeDragScope } from "compact-ui";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
-import { StructureTree, useFeedback } from "../../../ui/index.ts";
+import { StructureTree } from "../../../ui/index.ts";
 import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick.tsx";
-import { findBlockById, useSelectedBlockIds } from "./structureOperationBlocks.ts";
-import {
-  requireStructureMoveIntent,
-  resolveStructureMoveIntent,
-  type StructureMoveContext,
-  type StructureMoveIdentity,
-} from "./structureMoveIntent.ts";
+import { findBlockById, useStructureBlockSelection } from "./structureOperationBlocks.ts";
+import { structureContentKey, type StructureMoveContext } from "./structureMoveIntent.ts";
+import { useStructureMoveInteraction } from "./useStructureMoveInteraction.ts";
 
 const treeId = "structure-within";
-
-type MoveSource = {
-  nodeId: string;
-  identity: StructureMoveIdentity;
-};
-
-export function StructureOperationStructureView({
-  view,
-}: {
-  view: StructureOperationActivityViewModel;
-}) {
-  const { runAction } = useFeedback();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [moveContext, setMoveContext] = useState<{
-    source: MoveSource;
-    position: { x: number; y: number };
-  } | null>(null);
-  const [moveSource, setMoveSource] = useState<MoveSource | null>(null);
-  const selectedBlock = findBlockById(view.structureRoots, selectedId);
-  const selectedIds = useSelectedBlockIds(selectedBlock);
-  const identity: StructureMoveIdentity = {
-    repositoryId: view.repositoryId,
-    sourceNoteId: view.structureNote?.id ?? null,
-    targetNoteId: view.structureNote?.id ?? null,
-  };
+export function StructureOperationStructureView({ view }: { view: StructureOperationActivityViewModel }) {
+  const { selectedIds, setSelectedIds } = useStructureBlockSelection(view.structureRoots);
+  const contentKey = structureContentKey(view.repositoryId, view.structureNote?.id ?? null);
   const context: StructureMoveContext = {
-    ...identity,
-    canMutate: view.canMutate,
-    sourceRoots: view.structureRoots,
-    sourceTreeId: treeId,
-    targetRoots: view.structureRoots,
-    targetTreeId: treeId,
+    repositoryId: view.repositoryId, canMutate: view.canMutate,
+    sourceNoteId: view.structureNote?.id ?? null, targetNoteId: view.structureNote?.id ?? null,
+    sourceRoots: view.structureRoots, targetRoots: view.structureRoots,
+    sourceTreeId: treeId, targetTreeId: treeId,
   };
-  const dragDrop = useMemo(() => ({
-    treeId,
-    contentKey: `${view.repositoryId}:${view.structureNoteId}`,
-    endDropLabel: "文末根块",
-    canDrag: (nodeId: string) => view.canMutate &&
-      Boolean(view.structureNote) && findBlockById(view.structureRoots, nodeId) !== null,
-    canDrop: (request: ContentTreeMoveRequest) =>
-      resolveStructureMoveIntent(request, context, identity) !== null,
-  }), [view]);
-
-  useEffect(() => {
-    setSelectedId(null);
-    setMoveContext(null);
-    setMoveSource(null);
-  }, [view.repositoryId, view.mode, view.structureNoteId]);
-
-  const performMove = (
-    request: ContentTreeMoveRequest,
-    expected: StructureMoveIdentity,
-  ) => {
-    const { sourceLine, targetPosition } = requireStructureMoveIntent(
-      request,
-      context,
-      expected,
-    );
-    view.onMoveStructureBlockWithinNote(sourceLine, targetPosition);
-    setSelectedId(null);
-  };
-  const blockedIds = selectedIds;
-
-  return (
-    <ContentTreeDragScope
-      onMoveRequest={(request) => runAction(() => performMove(request, identity))}
-    >
-      <Stack>
-        <section aria-label={`笔记结构 · ${view.structureNote?.title ?? "未选择"}`}>
-          <Section title={`笔记结构 · ${view.structureNote?.title ?? "未选择"}`}>
-            {view.structureNote ? (
-              <StructureTree
-                ariaLabel="笔记结构操作"
-                dragDrop={dragDrop}
-                indentUnitCount={view.indentUnitCount}
-                nodes={view.structureRoots}
-                selectedIds={selectedIds}
-                selectedRootId={selectedBlock?.id ?? null}
-                selectionMode="collection"
-                stateKey={`structure-within:${view.repositoryId}:${view.structureNoteId}`}
-                onRequestContextMenu={(nodeId, position) => {
-                  setSelectedId(nodeId);
-                  setMoveContext({ source: { nodeId, identity }, position });
-                }}
-                onSelectNode={(node) => setSelectedId(node.id)}
-              />
-            ) : <EmptyState title="尚未选择笔记。" />}
-          </Section>
-        </section>
-        {moveContext && (
-          <ContextMenu
-            aria-label="结构块操作"
-            items={[{
-              id: "move-to",
-              label: "移动到…",
-              onSelect: () => setMoveSource(moveContext.source),
-            }]}
-            position={moveContext.position}
-            onClose={() => setMoveContext(null)}
-          />
-        )}
-        <StructureBlockMoveQuickPick
-          blockedIds={blockedIds}
-          nodes={view.structureRoots}
-          sourceId={moveSource?.nodeId ?? null}
-          targetTreeId={treeId}
-          onClose={() => setMoveSource(null)}
-          onMove={(target) => {
-            if (!moveSource) throw new Error("无法移动结构块：源结构块已失效。");
-            performMove({ source: { treeId, nodeId: moveSource.nodeId }, target }, moveSource.identity);
-          }}
-        />
-      </Stack>
-    </ContentTreeDragScope>
-  );
+  const move = useStructureMoveInteraction(context, view.onMoveStructureBlockWithinNote, () => setSelectedIds(new Set()));
+  return <TreeDragScope ref={move.scopeRef} onMoveRequest={move.performMove}>
+    <Stack>
+      <Toolbar aria-label="结构移动操作">
+        <Button type="button" appearance="plain" disabled={!view.canMutate || !view.structureNote || selectedIds.size === 0}
+          onClick={move.beginMove}>移动选中项…</Button>
+      </Toolbar>
+      <section aria-label={`笔记结构 · ${view.structureNote?.title ?? "未选择"}`}>
+        <Section title={`笔记结构 · ${view.structureNote?.title ?? "未选择"}`}>
+          {view.structureNote ? <StructureTree ariaLabel="笔记结构操作"
+            dragDrop={{ treeId, contentKey, endDropLabel: "文末根块",
+              canDrag: (id) => view.canMutate && findBlockById(view.structureRoots, id) !== null,
+              canDrop: move.canDrop,
+            }}
+            indentUnitCount={view.indentUnitCount} nodes={view.structureRoots}
+            selectedIds={selectedIds} onSelectionChange={setSelectedIds} selectionMode="multiple"
+            stateKey={contentKey} onRequestContextMenu={move.openMenu}
+          /> : <EmptyState title="尚未选择笔记。" />}
+        </Section>
+      </section>
+      {move.menu && <ContextMenu aria-label="结构块操作" position={move.menu.position}
+        items={[{ id: "move-to", label: "移动到…", disabled: !move.menu.moveSession, onSelect: move.openPickerFromMenu }]}
+        onClose={move.closeMenu} />}
+      <StructureBlockMoveQuickPick nodes={view.structureRoots}
+        session={move.pickerSession} targetTreeId={treeId} targetContentKey={contentKey}
+        canDrop={move.canDrop} onClose={move.closePicker} onMove={move.requestMove} />
+    </Stack>
+  </TreeDragScope>;
 }

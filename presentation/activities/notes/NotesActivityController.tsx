@@ -18,6 +18,7 @@ import {
   type NotesMode,
 } from "./edit/NotesActivitySlots.tsx";
 import { useNotesActivity } from "./edit/useNotesActivity.ts";
+import { useNotesDirectorySelection } from "./useNotesDirectorySelection.ts";
 import {
   useReferenceGraphSession,
   type ReferenceGraphSession,
@@ -67,6 +68,7 @@ function ActiveNotesActivity({
     notes: application.runtime.effectiveNotes,
     workspace: application.runtime.effectiveWorkspace,
   });
+  const directorySelection = useNotesDirectorySelection(view.directory.noteTree);
   const structure = useStructureOperationActivity({
     repositoryId,
     runtime: application.runtime,
@@ -129,6 +131,7 @@ function ActiveNotesActivity({
   return renderActivity((controls) =>
     createNotesWorkspaceActivitySlots({
       edit: createNotesActivitySlots({
+        directorySelection,
         focusMode: controls.focusMode,
         onReload: application.reload,
         onToggleFocusMode: controls.onToggleFocusMode,
@@ -154,6 +157,7 @@ function ActiveNotesActivity({
       },
       repositoryName,
       structure: createStructureOperationActivitySlots({
+        directorySelection,
         onConfigureSyntax: controls.onConfigureSyntax,
         shell: application.shell,
         view: structure,
@@ -188,6 +192,7 @@ export function NotesActivityController({
 
   return (
     <ActiveNotesActivity
+      key={repositoryId}
       active={active}
       application={application.workspace.application}
       mode={mode}

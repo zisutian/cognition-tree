@@ -19,14 +19,14 @@ import {
   createWorkspaceNote,
   deleteWorkspaceFolder,
   deleteWorkspaceNote,
-  moveWorkspaceTreeNode,
+  moveWorkspaceTreeNodes,
   renameWorkspaceFolder,
   renameWorkspaceNote,
   updateWorkspaceNoteSource,
   updateWorkspaceRawNoteSource,
-  moveWorkspaceStructureBlockBetweenNotes,
-  moveWorkspaceStructureBlockWithinNote,
-  type WorkspaceStructureBlockTargetPositionRequest,
+  moveWorkspaceStructureBlocks,
+  type WorkspaceStructureBlockTarget,
+  type WorkspaceStructureBlocksMoveFailureReason,
   createWorkspaceParseIndex,
   type WorkspaceParseIndex,
   createWorkspaceStructureIndex,
@@ -41,7 +41,7 @@ import type {
   FolderId,
   NoteId,
   WorkspaceData,
-  NoteTreeMoveRequest,
+  NoteTreeBatchMoveRequest,
   WorkspaceCommandOutcome,
 } from "../../../core/workspace/index.ts";
 
@@ -63,12 +63,24 @@ type ExpectedNoteVersion = {
   noteId: NoteId;
 };
 
-export type WorkspaceBlockTarget =
-  | { kind: "end" }
-  | {
-      kind: "above" | "below" | "inside";
-      targetBlockId: string;
-    };
+export type WorkspaceBlockTarget = WorkspaceStructureBlockTarget;
+
+export class WorkspaceBlockMoveNotFoundError extends DomainNotFoundError {
+  readonly reason: WorkspaceStructureBlocksMoveFailureReason;
+  constructor(reason: WorkspaceStructureBlocksMoveFailureReason, resourceId: string) {
+    super(resourceId, `Workspace block move failed: ${reason}`);
+    this.reason = reason;
+  }
+}
+
+export class WorkspaceBlockMoveValidationError extends DomainValidationError {
+  readonly reason: WorkspaceStructureBlocksMoveFailureReason;
+  constructor(reason: WorkspaceStructureBlocksMoveFailureReason) {
+    super(`Workspace block move failed: ${reason}`);
+    this.name = "WorkspaceBlockMoveValidationError";
+    this.reason = reason;
+  }
+}
 
 export type WorkspaceDomainCommand =
   | {
@@ -101,8 +113,8 @@ export type WorkspaceDomainCommand =
   | {
       expectedSourceVersion?: ResourceVersion;
       expectedTargetVersion?: ResourceVersion;
-      kind: "move-block";
-      sourceBlockId: string;
+      kind: "move-blocks";
+      sourceBlockIds: readonly string[];
       sourceNoteId: NoteId;
       target: WorkspaceBlockTarget;
       targetNoteId: NoteId;
@@ -110,8 +122,8 @@ export type WorkspaceDomainCommand =
     }
   | {
       expectedTreeVersion?: ResourceVersion;
-      kind: "move-tree-node";
-      request: NoteTreeMoveRequest;
+      kind: "move-tree-nodes";
+      request: NoteTreeBatchMoveRequest;
       timestamp: string;
     }
   | {
@@ -290,51 +302,13 @@ export function createWorkspaceSourceReplacement(
   };
 }
 
-function resolveBlockTarget(
-  context: WorkspaceDomainContext,
-  noteId: NoteId,
-  target: WorkspaceBlockTarget,
-): WorkspaceStructureBlockTargetPositionRequest {
-  if (target.kind === "end") return target;
-  const targetBlock = context.index?.getParsedNote(noteId)?.analysis.document
-    .blocks.find(({ id }) => id === target.targetBlockId);
-
-  if (!targetBlock) {
-    throw new DomainNotFoundError(
-      target.targetBlockId,
-      "Target Workspace block does not exist",
-    );
-  }
-  return {
-    kind: target.kind === "inside"
-      ? "inside-block"
-      : target.kind === "above"
-        ? "sibling-above"
-        : "sibling-below",
-    lineNumber: targetBlock.lineNumber,
-  };
-}
-
-function requireSuccessfulBlockMove(
-  result:
-    | ReturnType<typeof moveWorkspaceStructureBlockBetweenNotes>
-    | ReturnType<typeof moveWorkspaceStructureBlockWithinNote>,
-) {
+function requireSuccessfulBlockMove(result: ReturnType<typeof moveWorkspaceStructureBlocks>) {
   if (result.status === "moved") return result;
-  if (
-    result.reason === "missing-note" ||
-    result.reason === "parsed-note-missing" ||
-    result.reason === "source-block-missing" ||
-    result.reason === "target-position-missing"
-  ) {
-    throw new DomainNotFoundError(
-      result.reason,
-      `Workspace block move failed: ${result.reason}`,
-    );
+  if (result.reason === "missing-note" || result.reason === "parsed-note-missing" ||
+    result.reason === "source-block-missing" || result.reason === "target-position-missing") {
+    throw new WorkspaceBlockMoveNotFoundError(result.reason, result.resourceId ?? result.reason);
   }
-  throw new DomainValidationError(
-    `Workspace block move failed: ${result.reason}`,
-  );
+  throw new WorkspaceBlockMoveValidationError(result.reason);
 }
 
 export function prepareWorkspaceMutation({
@@ -430,84 +404,25 @@ export function prepareWorkspaceMutation({
       content = deleteWorkspaceNote(context.structure, command.noteId);
       break;
     }
-    case "move-block": {
-      if (!context.index) {
-        throw new DomainValidationError(
-          "Workspace block moves require an active valid syntax",
-        );
-      }
-      const source = context.index.getParsedNote(command.sourceNoteId);
-      const target = context.index.getParsedNote(command.targetNoteId);
-
-      if (!source) {
-        throw new DomainNotFoundError(
-          command.sourceNoteId,
-          "Source Workspace note does not exist",
-        );
-      }
-      if (!target) {
-        throw new DomainNotFoundError(
-          command.targetNoteId,
-          "Target Workspace note does not exist",
-        );
-      }
-      assertNoteVersion(
-        command.expectedSourceVersion,
-        source.note.source,
-        command.sourceNoteId,
-        versions,
-      );
-      assertNoteVersion(
-        command.expectedTargetVersion,
-        target.note.source,
-        command.targetNoteId,
-        versions,
-      );
-      const sourceBlock = source.analysis.document.blocks.find(
-        ({ id }) => id === command.sourceBlockId,
-      );
-
-      if (!sourceBlock) {
-        throw new DomainNotFoundError(
-          command.sourceBlockId,
-          "Source Workspace block does not exist",
-        );
-      }
-      const targetPosition = resolveBlockTarget(
-        context,
-        command.targetNoteId,
-        command.target,
-      );
-      const moved = command.sourceNoteId === command.targetNoteId
-        ? requireSuccessfulBlockMove(moveWorkspaceStructureBlockWithinNote(
-            context.structure,
-            context.index,
-            {
-              noteId: command.sourceNoteId,
-              sourceBlockLineNumber: sourceBlock.lineNumber,
-              targetPosition,
-            },
-            command.timestamp,
-          ))
-        : requireSuccessfulBlockMove(moveWorkspaceStructureBlockBetweenNotes(
-            context.structure,
-            context.index,
-            {
-              sourceBlockLineNumber: sourceBlock.lineNumber,
-              sourceNoteId: command.sourceNoteId,
-              targetNoteId: command.targetNoteId,
-              targetPosition,
-            },
-            command.timestamp,
-          ));
-
+    case "move-blocks": {
+      if (!context.index) throw new WorkspaceBlockMoveValidationError("parsed-note-missing");
+      const source = requireNote(context, command.sourceNoteId);
+      const target = requireNote(context, command.targetNoteId);
+      assertNoteVersion(command.expectedSourceVersion, source.note.source, command.sourceNoteId, versions);
+      assertNoteVersion(command.expectedTargetVersion, target.note.source, command.targetNoteId, versions);
+      const moved = requireSuccessfulBlockMove(moveWorkspaceStructureBlocks(
+        context.structure,
+        context.index,
+        command,
+        command.timestamp,
+      ));
       content = moved.workspaceData;
       analysisOverrides = moved.analysisOverrides;
       break;
     }
-    case "move-tree-node":
+    case "move-tree-nodes":
       assertTreeVersion(command.expectedTreeVersion, context, versions);
-      content = moveWorkspaceTreeNode(context.structure, command.request);
+      content = moveWorkspaceTreeNodes(context.structure, command.request);
       break;
     case "rename-folder": {
       const folder = requireFolder(context, command.folderId);
@@ -567,7 +482,7 @@ export function prepareWorkspaceMutation({
   return {
     analysisOverrides,
     content,
-    context: createWorkspaceDomainContext({
+    context: content === context.structure.data ? context : createWorkspaceDomainContext({
       analysisOverrides,
       previousIndex: context.index,
       syntax: context.syntax,

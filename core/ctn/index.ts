@@ -127,6 +127,9 @@ export {
 export {
   moveCtnBlockText,
   moveCtnBlockWithinText,
+  moveCtnBlocksText,
+  moveCtnBlocksWithinText,
+  CtnBlockMoveValidationError,
   moveCtnContentSubtree,
   CtnContentBlockNotFoundError,
 } from "./parser/blockTextEdit.ts";

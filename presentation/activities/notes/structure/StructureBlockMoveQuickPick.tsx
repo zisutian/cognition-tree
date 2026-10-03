@@ -1,92 +1,36 @@
-import { QuickPick, type ContentTreeMoveRequest } from "compact-ui";
-import {
-  flattenUiBlockSubtree,
-  type UiBlockNode,
-} from "../../../../application/workspace/index.ts";
-import { useFeedback } from "../../../ui/index.ts";
+import { QuickPick, type TreeMoveRequest, type TreeMoveSession } from "compact-ui";
+import { flattenUiBlockSubtree, type UiBlockNode } from "../../../../application/workspace/index.ts";
 
-type MoveTarget = ContentTreeMoveRequest["target"];
+type MoveTarget = TreeMoveRequest["target"];
+type StructureBlockMoveOption = { description: string; id: string; label: string; target: MoveTarget };
 
-type StructureBlockMoveOption = {
-  description: string;
-  id: string;
-  label: string;
-  target: MoveTarget;
-};
-
-export function createStructureBlockMoveOptions({
-  blockedIds,
-  nodes,
-  targetTreeId,
-}: {
-  blockedIds: ReadonlySet<string>;
+export function createStructureBlockMoveOptions({ nodes, targetTreeId, targetContentKey, canDrop, session }: {
   nodes: readonly UiBlockNode[];
   targetTreeId: string;
+  targetContentKey: string;
+  session: TreeMoveSession | null;
+  canDrop: (request: TreeMoveRequest) => boolean;
 }): StructureBlockMoveOption[] {
-  const options = nodes
-    .flatMap(flattenUiBlockSubtree)
-    .filter((node) => !blockedIds.has(node.id))
-    .flatMap<StructureBlockMoveOption>((node) => {
-      const description = `${node.label} · ${node.textDisplay.displayText}`;
-      return ([
-        ["before", "置于之前"],
-        ["inside", "作为子节点"],
-        ["after", "置于之后"],
-      ] as const).map(([position, label]) => ({
-        description,
-        id: `${position}:${node.id}`,
-        label,
-        target: { treeId: targetTreeId, nodeId: node.id, position },
-      }));
-    });
-  return [
-    ...options,
-    {
-      description: "追加为最后一个根块",
-      id: "root-end",
-      label: "文末根块",
-      target: { treeId: targetTreeId, position: "root-end" },
-    },
-  ];
+  const options = nodes.flatMap(flattenUiBlockSubtree).flatMap<StructureBlockMoveOption>((node) => {
+    const description = `${node.label} · ${node.textDisplay.displayText}`;
+    return ([["before", "置于之前"], ["inside", "作为子节点"], ["after", "置于之后"]] as const).map(([position, label]) => ({
+      description, id: `${position}:${node.id}`, label,
+      target: { treeId: targetTreeId, contentKey: targetContentKey, nodeId: node.id, position },
+    }));
+  });
+  options.push({ description: "追加为最后一个根块", id: "root-end", label: "文末根块",
+    target: { treeId: targetTreeId, contentKey: targetContentKey, position: "root-end" } });
+  return session ? options.filter((option) => canDrop({ ...session, target: option.target })) : [];
 }
 
-export function StructureBlockMoveQuickPick({
-  blockedIds,
-  nodes,
-  sourceId,
-  targetTreeId,
-  onClose,
-  onMove,
-}: {
-  blockedIds: ReadonlySet<string>;
-  nodes: readonly UiBlockNode[];
-  sourceId: string | null;
-  targetTreeId: string;
+export function StructureBlockMoveQuickPick(props: Parameters<typeof createStructureBlockMoveOptions>[0] & {
   onClose: () => void;
-  onMove: (target: MoveTarget) => void;
+  onMove: (request: TreeMoveRequest) => void;
 }) {
-  const { runAction } = useFeedback();
-  const options = createStructureBlockMoveOptions({
-    blockedIds,
-    nodes,
-    targetTreeId,
-  });
-  return (
-    <QuickPick
-      aria-label="移动结构块"
-      open={sourceId !== null}
-      options={options}
-      onClose={onClose}
-      onSelect={(id) => {
-        const option = options.find((candidate) => candidate.id === id);
-        runAction(() => {
-          if (!option || !sourceId) {
-            throw new Error("无法移动结构块：所选目标已失效。");
-          }
-          onMove(option.target);
-        });
-        onClose();
-      }}
-    />
-  );
+  const options = createStructureBlockMoveOptions(props);
+  return <QuickPick aria-label="移动结构块" open={props.session !== null}
+    options={options} onClose={props.onClose} onSelect={(id) => {
+      const option = options.find((candidate) => candidate.id === id);
+      if (option && props.session) props.onMove({ ...props.session, target: option.target });
+    }} />;
 }

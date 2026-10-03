@@ -9,8 +9,9 @@ import {
 import { usePageNavigation, describePage } from "../../../navigation/index.ts";
 import { Button, InputControl } from "compact-ui";
 import { FolderPlus, Plus, RefreshCw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import type { NotesViewModel } from "../../../../application/workspace/index.ts";
+import { useEffect, useState } from "react";
+import type { NotesViewModel, UiDirectoryActiveNode } from "../../../../application/workspace/index.ts";
+import type { NotesDirectorySelection } from "../useNotesDirectorySelection.ts";
 import {
   NoteTree,
   type TreeNode,
@@ -21,26 +22,28 @@ import {
 export function submitNotesFolderCreation({
   directory,
   folderTitle,
+  parentFolderId,
   onCreated,
   runAction,
 }: {
   directory: Pick<
     NotesViewModel["directory"],
-    "activeFolderId" | "createFolder"
+    "createFolder"
   >;
   folderTitle: string;
+  parentFolderId: string | null;
   onCreated: () => void;
   runAction: (action: () => void) => unknown;
 }) {
   runAction(() => {
-    directory.createFolder(directory.activeFolderId, folderTitle);
+    directory.createFolder(parentFolderId, folderTitle);
     onCreated();
   });
 }
 
 export function findNotesTreeAncestorFolderIds(
   nodes: NotesViewModel["directory"]["noteTree"],
-  activeNode: NotesViewModel["directory"]["activeNode"],
+  activeNode: UiDirectoryActiveNode | null,
 ) {
   if (!activeNode) return [];
   const pending = nodes
@@ -79,12 +82,16 @@ export function findNotesTreeAncestorFolderIds(
   return [];
 }
 
-export function NotesContext({
+function NotesContextSession({
   onReload,
   view,
+  repositoryId,
+  directorySelection,
 }: {
   onReload: () => Promise<void>;
   view: NotesViewModel;
+  repositoryId: string;
+  directorySelection: NotesDirectorySelection;
 }) {
   const feedback = useFeedback();
   const pages = usePageNavigation();
@@ -95,40 +102,35 @@ export function NotesContext({
   const [folderTitle, setFolderTitle] = useState("新文件夹");
   const reloadAction = useExclusiveAsyncAction();
   const reloading = reloadAction.busy;
-  const lastActiveNodeIdsRef = useRef<{
-    folder: string | null;
-    note: string | null;
-  }>({ folder: null, note: null });
+  const { selectedIds, onSelectionChange } = directorySelection;
   const directory = view.directory;
-
+  const nodeById = new Map<string, TreeNode>();
+  const pending = [...directory.noteTree];
+  while (pending.length) {
+    const node = pending.pop()!;
+    nodeById.set(node.id, node);
+    if (node.kind === "folder") pending.push(...node.children);
+  }
+  const selectedFolder = selectedIds.size === 1 ? nodeById.get([...selectedIds][0]) : null;
+  const parentFolderId = selectedFolder?.kind === "folder" ? selectedFolder.folderId : null;
   useEffect(() => {
-    const activeNode = directory.activeNode;
-
-    if (!activeNode) return;
-    const activeNodeId =
-      activeNode.kind === "note" ? activeNode.noteId : activeNode.folderId;
-
-    if (lastActiveNodeIdsRef.current[activeNode.kind] === activeNodeId) return;
-    lastActiveNodeIdsRef.current[activeNode.kind] = activeNodeId;
-    const ancestors = findNotesTreeAncestorFolderIds(
-      directory.noteTree,
-      activeNode,
-    );
-
-    if (ancestors.length === 0) return;
-    setCollapsedFolderIds((current) => {
-      if (!ancestors.some((folderId) => current.has(folderId))) return current;
-      const next = new Set(current);
-
-      ancestors.forEach((folderId) => next.delete(folderId));
-      return next;
-    });
-  }, [directory.activeNode, directory.noteTree]);
+    const request = directory.focusRequest;
+    if (!request) return;
+    const node = [...nodeById.values()].find((item) => item.kind === request.node.kind &&
+      (item.kind === "folder" && request.node.kind === "folder" ? item.folderId === request.node.folderId :
+        item.kind === "note" && request.node.kind === "note" && item.noteId === request.node.noteId));
+    if (!node) return;
+    onSelectionChange(new Set([node.id]));
+    const ancestors = new Set(findNotesTreeAncestorFolderIds(directory.noteTree, request.node));
+    setCollapsedFolderIds((current) => new Set([...current].filter((id) => !ancestors.has(id))));
+    directory.onConsumeFocusRequest(request.requestId);
+  }, [directory.focusRequest, directory.noteTree, directory.onConsumeFocusRequest, onSelectionChange]);
 
   const createFolder = () => {
     submitNotesFolderCreation({
       directory,
       folderTitle,
+      parentFolderId,
       onCreated: () => {
         setCreatingFolder(false);
         setFolderTitle("新文件夹");
@@ -203,7 +205,7 @@ export function NotesContext({
               disabled={reloading}
               onClick={() =>
                 pages.created("notes", () =>
-                  feedback.runAction(directory.createNote),
+                  feedback.runAction(() => directory.createNote(parentFolderId)),
                 )
               }
               title="新建笔记"
@@ -276,15 +278,16 @@ export function NotesContext({
               () => directory.selectNote(id),
             );
         }}
-        activeNode={directory.activeNode}
+        contentKey={repositoryId}
+        selectionMode="multiple"
+        selectedIds={selectedIds}
+        onSelectionChange={onSelectionChange}
+        canMutate={directory.canMutate}
         collapsedFolderIds={collapsedFolderIds}
         nodes={directory.noteTree}
-        onClearSelection={directory.clearFolderSelection}
         onDeleteNode={deleteNode}
-        onMoveNode={directory.moveTreeNode}
+        onMoveNodes={directory.moveTreeNodes}
         onRenameNode={renameNode}
-        onSelectFolder={directory.selectFolder}
-        onSelectNote={directory.selectNote}
         onToggleFolder={toggleFolder}
       />
       {directory.noteTree.length === 0 ? (
@@ -292,4 +295,8 @@ export function NotesContext({
       ) : null}
     </Stack>
   );
+}
+
+export function NotesContext(props: { onReload: () => Promise<void>; view: NotesViewModel; repositoryId: string; directorySelection: NotesDirectorySelection }) {
+  return <NotesContextSession {...props} key={props.repositoryId} />;
 }

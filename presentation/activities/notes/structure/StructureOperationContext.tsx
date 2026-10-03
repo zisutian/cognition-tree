@@ -3,6 +3,7 @@ import { FileInput, FileOutput, FileText, GitBranch } from "lucide-react";
 import { useState } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/index.ts";
 import { NoteTree, type TreeNode } from "../../../ui/index.ts";
+import type { NotesDirectorySelection } from "../useNotesDirectorySelection.ts";
 
 type StructureOperationDirectoryMode = "betweenNotes" | "withinNote";
 type StructureOperationNoteStatus = "source" | "structure" | "target" | "";
@@ -56,9 +57,12 @@ function StructureOperationDirectoryStatusIcon({
 
 export function StructureOperationContext({
   view,
+  directorySelection,
 }: {
   view: StructureOperationActivityViewModel;
+  directorySelection: NotesDirectorySelection;
 }) {
+  const { selectedIds, onSelectionChange } = directorySelection;
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -113,9 +117,6 @@ export function StructureOperationContext({
       <FileText aria-hidden="true" />
     );
   };
-  const activeNoteId =
-    view.mode === "withinNote" ? view.structureNoteId : view.sourceNoteId;
-
   return (
     <Stack fill>
       <ChoiceGroup
@@ -129,16 +130,18 @@ export function StructureOperationContext({
         onChange={view.onSetMode}
       />
       <NoteTree
-        activeNode={
-          activeNoteId ? { kind: "note", noteId: activeNoteId } : null
-        }
+        contentKey={view.repositoryId}
+        selectedIds={selectedIds}
+        onSelectionChange={onSelectionChange}
+        selectionMode="multiple"
+        canMutate={view.canMutate}
         collapsedFolderIds={collapsedFolderIds}
         nodes={view.noteTree}
         renderNodeLeading={renderNodeLeading}
         onDeleteNode={deleteNode}
-        onMoveNode={view.moveTreeNode}
+        onMoveNodes={view.moveTreeNodes}
         onRenameNode={renameNode}
-        onSelectNote={selectNote}
+        onOpenNote={selectNote}
         onToggleFolder={toggleFolder}
       />
     </Stack>

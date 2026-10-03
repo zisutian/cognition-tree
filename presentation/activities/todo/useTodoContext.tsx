@@ -1,4 +1,4 @@
-import { FieldRow, FormActions, FormLayout, Stack, Tree } from "compact-ui";
+import { FieldRow, FormActions, FormLayout, Stack, Tree, TreeDragScope, type TreeMoveRequest } from "compact-ui";
 import { Button, InputControl } from "compact-ui";
 import { ListChecks, Plus } from "lucide-react";
 import { useState } from "react";
@@ -8,6 +8,7 @@ import {
   getListReorderIndex,
   useFeedback,
   type ActivitySlots,
+  useSingleTreeSelection,
 } from "../../ui/index.ts";
 export function useTodoContext(view: TodoViewModel): {
   context: NonNullable<ActivitySlots["context"]>;
@@ -40,6 +41,19 @@ export function useTodoContext(view: TodoViewModel): {
       setCreating(false);
       setName("");
     } else setError("创建失败");
+  };
+  const treeSelection = useSingleTreeSelection(view.activeCollection?.id ?? null);
+  const treeId = "todo-collections";
+  const contentKey = "todo-collections";
+  const resolveMove = (move: TreeMoveRequest) => {
+    if (!view.canMutate || move.source.treeId !== treeId || move.target.treeId !== treeId ||
+      move.source.contentKey !== contentKey || move.target.contentKey !== contentKey ||
+      move.source.nodeIds.length !== 1 || (move.target.position !== "before" && move.target.position !== "after")) return null;
+    const sourceIndex = view.collections.findIndex((item) => item.id === move.source.nodeIds[0]);
+    const targetId = move.target.nodeId;
+    const targetIndex = view.collections.findIndex((item) => item.id === targetId);
+    if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return null;
+    return { sourceId: view.collections[sourceIndex].id, targetIndex: getListReorderIndex({ sourceIndex, targetIndex, placement: move.target.position }) };
   };
   return {
     context: {
@@ -97,6 +111,16 @@ export function useTodoContext(view: TodoViewModel): {
               </FormActions>
             </FormLayout>
           ) : null}
+          <TreeDragScope onMoveRequest={(request) => {
+            try {
+              const intent = resolveMove(request);
+              if (!intent) throw new Error("无法移动事项集合：源或目标已失效。");
+              view.moveCollection(intent.sourceId, intent.targetIndex);
+              return { status: "success" };
+            } catch (error) {
+              return { status: "failure", message: error instanceof Error ? error.message : "无法移动事项集合。" };
+            }
+          }}>
           <Tree
             aria-label="事项集合"
             nodes={view.collections.map((item) => ({
@@ -104,10 +128,9 @@ export function useTodoContext(view: TodoViewModel): {
               label: item.name,
               icon: <ListChecks />,
             }))}
-            selectedId={view.activeCollection?.id ?? null}
             expandedIds={new Set()}
             onExpandedChange={() => {}}
-            onSelect={() => {}}
+            {...treeSelection}
             onOpen={(id, intent) => {
               const item = find(id);
               if (item)
@@ -120,7 +143,6 @@ export function useTodoContext(view: TodoViewModel): {
             capabilities={{
               rename: view.canMutate,
               delete: view.canMutate,
-              drag: view.canMutate,
             }}
             onRename={(id, label) => {
               const item = find(id);
@@ -131,37 +153,13 @@ export function useTodoContext(view: TodoViewModel): {
               const item = find(id);
               if (item) view.deleteCollection(item.id);
             }}
-            canDrop={(move) =>
-              move.target.position === "before" ||
-              move.target.position === "after"
-            }
-            onMove={(move) => {
-              if (
-                move.target.position !== "before" &&
-                move.target.position !== "after"
-              )
-                return;
-              const target = move.target;
-              const sourceIndex = view.collections.findIndex(
-                  (item) => item.id === move.sourceId,
-                ),
-                targetIndex = view.collections.findIndex(
-                  (item) => item.id === target.id,
-                );
-              const source = find(move.sourceId);
-              if (source && sourceIndex >= 0 && targetIndex >= 0)
-                view.moveCollection(
-                  source.id,
-                  getListReorderIndex({
-                    sourceIndex,
-                    targetIndex,
-                    placement:
-                      target.position === "before" ? "before" : "after",
-                  }),
-                );
+            dragDrop={{ treeId, contentKey,
+              canDrag: (id) => view.canMutate && !!find(id),
+              canDrop: (request) => resolveMove(request) !== null,
             }}
             onActionError={feedback.notifyError}
           />
+          </TreeDragScope>
         </Stack>
       ),
     },

@@ -1,3 +1,4 @@
+import { useSingleTreeSelection } from "../../ui/index.ts";
 import {
   usePageNavigation,
   describePage,
@@ -79,11 +80,11 @@ export function JournalContext({ view }: JournalViewProps) {
       }),
     };
   });
+  const treeSelection = useSingleTreeSelection(view.activeEntry?.id ?? null);
   return (
     <Tree
       aria-label="日记日历"
       nodes={nodes}
-      selectedId={view.activeEntry?.id ?? null}
       expandedIds={expanded}
       onExpandedChange={(next) => {
         for (const node of nodes) {
@@ -94,7 +95,7 @@ export function JournalContext({ view }: JournalViewProps) {
               view.calendar.toggle(month.id);
         }
       }}
-      onSelect={() => {}}
+      {...treeSelection}
       onOpen={(id, intent) => {
         const entry = view.calendar.years
           .flatMap((y) => y.months.flatMap((m) => m.entries))
@@ -175,8 +176,16 @@ export function JournalDetailPanel({ view }: JournalViewProps) {
         ariaLabel: "日记结构",
         indentUnitCount: view.editor.syntax.tabDisplayWidth,
         nodes: view.outline.nodes,
-        onSelectNode: (node) => view.outline.onSelectLine(node.lineNumber),
-        selectedId: selectedBlock?.id ?? null,
+        onSelectionChange: (ids) => {
+                const id = [...ids][0];
+                const pending = [...view.outline.nodes];
+                while (pending.length) {
+                  const node = pending.pop()!;
+                  if (node.id === id) { view.outline.onSelectLine(node.lineNumber); break; }
+                  pending.push(...node.children);
+                }
+              },
+        selectedIds: new Set(selectedBlock ? [selectedBlock.id] : []),
         selectionMode: "single",
         stateKey: `journal:${view.activeEntry.id}`,
       }}

@@ -4,6 +4,7 @@ import type { ActivitySlots } from "../../../ui/index.ts";
 import { NoteDetailPanel } from "./NoteDetailPanel.tsx";
 import { NoteEditorPanel } from "./NoteEditorPanel.tsx";
 import { NotesContext } from "./NotesContext.tsx";
+import type { NotesDirectorySelection } from "../useNotesDirectorySelection.ts";
 
 export type NotesMode = "edit" | "graph" | "structure";
 
@@ -61,11 +62,13 @@ export function createNotesWorkspaceActivitySlots({
 }
 
 export function createNotesActivitySlots({
+  directorySelection,
   onReload,
   repositoryId,
   repositoryName,
   view,
 }: {
+  directorySelection: NotesDirectorySelection;
   focusMode: boolean;
   onReload: () => Promise<void>;
   onToggleFocusMode: () => void;
@@ -75,7 +78,7 @@ export function createNotesActivitySlots({
 }): ActivitySlots {
   return {
     context: {
-      content: <NotesContext onReload={onReload} view={view} />,
+      content: <NotesContext onReload={onReload} view={view} repositoryId={repositoryId} directorySelection={directorySelection} />,
       title: repositoryName,
     },
     detail: view.activeNote

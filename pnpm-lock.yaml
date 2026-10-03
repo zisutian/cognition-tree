@@ -58,8 +58,8 @@ importers:
         specifier: ^4.6.0
         version: 4.6.0(vite@7.3.3(@types/node@22.20.1)(tsx@4.23.1))
       compact-ui:
-        specifier: file:tooling/vendor/compact-ui-0.7.1.tgz
-        version: file:tooling/vendor/compact-ui-0.7.1.tgz(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        specifier: file:tooling/vendor/compact-ui-0.8.0.tgz
+        version: file:tooling/vendor/compact-ui-0.8.0.tgz(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       d3-force:
         specifier: ^3.0.0
         version: 3.0.0
@@ -844,9 +844,9 @@ packages:
     resolution: {integrity: sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg==}
     engines: {node: '>=18'}
 
-  compact-ui@file:tooling/vendor/compact-ui-0.7.1.tgz:
-    resolution: {integrity: sha512-YY+i9ywpGEktC9v2rHXvmhsn+RsxxYkCOFuL8zxdojLFzjp2rtsyD7LY2U5xJLCDnDucVoQo4OteawIpyXqs5Q==, tarball: file:tooling/vendor/compact-ui-0.7.1.tgz}
-    version: 0.7.1
+  compact-ui@file:tooling/vendor/compact-ui-0.8.0.tgz:
+    resolution: {integrity: sha512-ZyKdcivP+f/kpiR9jW3Jqlv8OC3bLwKFOsXBSsUNLprfJs3VE6Sf47YzyE4NX9A0b/K2jhBMNsZ4seXFCknEMQ==, tarball: file:tooling/vendor/compact-ui-0.8.0.tgz}
+    version: 0.8.0
     peerDependencies:
       react: ^19.2.6
       react-dom: ^19.2.6
@@ -1764,7 +1764,7 @@ snapshots:
 
   chai@6.2.2: {}
 
-  compact-ui@file:tooling/vendor/compact-ui-0.7.1.tgz(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
+  compact-ui@file:tooling/vendor/compact-ui-0.8.0.tgz(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
       '@tanstack/react-virtual': 3.14.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       lucide-react: 1.16.0(react@19.2.6)

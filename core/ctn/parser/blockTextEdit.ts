@@ -71,7 +71,22 @@ export type MoveCtnBlockWithinTextResult = {
   status: "moved";
 };
 
+export type MoveCtnBlocksTextInput = Omit<MoveCtnBlockTextInput, "sourceBlock"> & {
+  sourceBlocks: readonly CtnBlockTextRange[];
+};
+
+export type MoveCtnBlocksWithinTextInput = Omit<MoveCtnBlockWithinTextInput, "sourceBlock"> & {
+  sourceBlocks: readonly CtnBlockTextRange[];
+};
+
 const indentUnit = "\t";
+
+export class CtnBlockMoveValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CtnBlockMoveValidationError";
+  }
+}
 
 function assertValidRange(lines: readonly string[], range: BlockLineRange) {
   const lineCount = lines.length;
@@ -81,7 +96,7 @@ function assertValidRange(lines: readonly string[], range: BlockLineRange) {
     range.endLineNumber < range.startLineNumber ||
     range.endLineNumber > lineCount
   ) {
-    throw new Error(
+    throw new CtnBlockMoveValidationError(
       `Invalid block line range ${range.startLineNumber}-${range.endLineNumber}.`,
     );
   }
@@ -100,18 +115,22 @@ function extractBlockLines(lines: readonly string[], range: BlockLineRange) {
   return lines.slice(range.startLineNumber - 1, range.endLineNumber);
 }
 
-function removeBlockLines(
+function removeBlockRanges(
   sourceLines: readonly string[],
-  range: BlockLineRange,
+  ranges: readonly BlockLineRange[],
 ) {
-  assertValidRange(sourceLines, range);
-
-  const lines = [...sourceLines];
-  lines.splice(
-    range.startLineNumber - 1,
-    range.endLineNumber - range.startLineNumber + 1,
-  );
-
+  const lines: string[] = [];
+  let cursor = 0;
+  for (const range of ranges) {
+    for (let index = cursor; index < range.startLineNumber - 1; index += 1) {
+      lines.push(sourceLines[index]);
+    }
+    cursor = range.endLineNumber;
+  }
+  // Large multiline bodies can exceed the argument limit of Array.push.
+  for (let index = cursor; index < sourceLines.length; index += 1) {
+    lines.push(sourceLines[index]);
+  }
   return lines;
 }
 
@@ -288,50 +307,116 @@ function assertTargetOutsideSourceRange(
   }
 
   if (isBlockInsideLineRange(targetPosition.block, sourceRange)) {
-    throw new Error("Cannot move a CTN block into its own subtree.");
+    throw new CtnBlockMoveValidationError("Cannot move a CTN block into its own subtree.");
   }
 }
 
-function adjustInsertionLineNumberAfterRemoval(
-  insertionLineNumber: number,
-  removedRange: BlockLineRange,
+function resolveSourceRoots(
+  analysis: CtnCanonicalSourceAnalysis,
+  sourceBlocks: readonly CtnBlockTextRange[],
 ) {
-  if (insertionLineNumber > removedRange.endLineNumber) {
-    return (
-      insertionLineNumber -
-      (removedRange.endLineNumber - removedRange.startLineNumber + 1)
-    );
+  if (sourceBlocks.length === 0) throw new CtnBlockMoveValidationError("A CTN move requires at least one source block.");
+  const canonicalByStart = new Map(analysis.document.blocks.map((block) => [block.metadataLineNumber, block]));
+  const sorted = sourceBlocks.map((block) => {
+    const current = canonicalByStart.get(block.metadataLineNumber);
+    if (!current || current.lineNumber !== block.lineNumber ||
+      current.subtreeEndLineNumber !== block.subtreeEndLineNumber || current.indentText !== block.indentText) {
+      throw new CtnBlockMoveValidationError("CTN move source no longer matches the current analysis.");
+    }
+    assertValidRange(analysis.sourceText.values, getBlockLineRange(current));
+    return current;
+  }).sort((left, right) => left.metadataLineNumber - right.metadataLineNumber);
+  const roots: CtnCanonicalBlock[] = [];
+  for (const block of sorted) {
+    if (roots.at(-1) && block.metadataLineNumber <= roots.at(-1)!.subtreeEndLineNumber) continue;
+    roots.push(block);
   }
+  return roots;
+}
 
-  return insertionLineNumber;
+function collectMovedBlockIds(analysis: CtnCanonicalSourceAnalysis, ranges: readonly BlockLineRange[]) {
+  const ids = new Set<string>();
+  let rangeIndex = 0;
+  for (const block of analysis.document.blocks) {
+    while (rangeIndex < ranges.length && block.metadataLineNumber > ranges[rangeIndex].endLineNumber) rangeIndex += 1;
+    const range = ranges[rangeIndex];
+    if (!range || !isBlockInsideLineRange(block, range)) continue;
+    if (block.multilineRange?.status === "unterminated") {
+      throw new CtnBlockMoveValidationError("Repair the unclosed multiline block before moving its subtree.");
+    }
+    ids.add(block.id);
+  }
+  return ids;
+}
+
+function prepareBlockRangesMove({
+  sourceAnalysis,
+  sourceBlocks,
+  targetAnalysis,
+  targetPosition,
+  withinDocument,
+}: MoveCtnBlocksTextInput & { withinDocument: boolean }) {
+  const roots = resolveSourceRoots(sourceAnalysis, sourceBlocks);
+  const ranges = roots.map(getBlockLineRange);
+  const movedIds = collectMovedBlockIds(sourceAnalysis, ranges);
+  if (targetPosition.kind !== "end") {
+    const target = targetAnalysis.document.blocks.find((block) => block.metadataLineNumber === targetPosition.block.metadataLineNumber);
+    if (!target || target.lineNumber !== targetPosition.block.lineNumber ||
+      target.subtreeEndLineNumber !== targetPosition.block.subtreeEndLineNumber || target.indentText !== targetPosition.block.indentText ||
+      target.level !== targetPosition.block.level) {
+      throw new CtnBlockMoveValidationError("CTN move target no longer matches the current analysis.");
+    }
+    if (targetAnalysis.document.blocks.some((block) =>
+      block.metadataLineNumber >= target.metadataLineNumber && block.lineNumber <= target.subtreeEndLineNumber &&
+      block.multilineRange?.status === "unterminated")) {
+      throw new CtnBlockMoveValidationError("Repair the unclosed multiline target before moving blocks.");
+    }
+  } else if (targetAnalysis.document.blocks.some((block) => block.multilineRange?.status === "unterminated")) {
+    throw new CtnBlockMoveValidationError("Repair the unclosed multiline target before appending blocks.");
+  }
+  if (withinDocument) {
+    for (const range of ranges) assertTargetOutsideSourceRange(range, targetPosition);
+  }
+  if (!withinDocument && targetAnalysis.document.blocks.some((block) => movedIds.has(block.id))) {
+    throw new CtnBlockMoveValidationError("Moved CTN block identities already exist in the target document.");
+  }
+  const rewrittenLines = roots.flatMap((root) => rewriteBlockIndent(
+    extractBlockLines(sourceAnalysis.sourceText.values, getBlockLineRange(root)),
+    root.indentText,
+    getTargetLevel(targetPosition),
+    sourceAnalysis,
+  ));
+  const remaining = removeBlockRanges(sourceAnalysis.sourceText.values, ranges);
+  let insertionLineNumber = getTargetInsertionLineNumber(targetAnalysis, targetPosition);
+  if (withinDocument) {
+    const originalInsertionLine = insertionLineNumber;
+    for (const range of ranges) {
+      if (originalInsertionLine > range.endLineNumber) {
+        insertionLineNumber -= range.endLineNumber - range.startLineNumber + 1;
+      }
+    }
+  }
+  return {
+    sourceText: remaining.join("\n"),
+    targetText: insertBlockLinesBeforeLine(
+      withinDocument ? remaining : targetAnalysis.sourceText.values,
+      rewrittenLines,
+      insertionLineNumber,
+    ).join("\n"),
+  };
 }
 
 export function moveCtnBlockText(
   input: MoveCtnBlockTextInput,
 ): MoveCtnBlockTextResult {
-  const sourceRange = getBlockLineRange(input.sourceBlock);
-  const extractedLines = extractBlockLines(
-    input.sourceAnalysis.sourceText.values,
-    sourceRange,
-  );
-  const rewrittenLines = rewriteBlockIndent(
-    extractedLines,
-    input.sourceBlock.indentText,
-    getTargetLevel(input.targetPosition),
-    input.sourceAnalysis,
-  );
-  const movedSourceText = removeBlockLines(
-    input.sourceAnalysis.sourceText.values,
-    sourceRange,
-  ).join("\n");
-  const movedTargetText = insertBlockLinesBeforeLine(
-    input.targetAnalysis.sourceText.values,
-    rewrittenLines,
-    getTargetInsertionLineNumber(input.targetAnalysis, input.targetPosition),
-  ).join("\n");
+  return moveCtnBlocksText({ ...input, sourceBlocks: [input.sourceBlock] });
+}
+
+export function moveCtnBlocksText(input: MoveCtnBlocksTextInput): MoveCtnBlockTextResult {
+  const candidate = prepareBlockRangesMove({ ...input, withinDocument: false });
   const nextSourceAnalysis = analyzeCtnCanonicalMutation(
     input.sourceAnalysis,
-    movedSourceText,
+    candidate.sourceText,
     {
       touchTitle: true,
       updatedAt: input.updatedAt,
@@ -339,7 +424,7 @@ export function moveCtnBlockText(
   );
   const nextTargetAnalysis = analyzeCtnCanonicalMutation(
     input.targetAnalysis,
-    movedTargetText,
+    candidate.targetText,
     {
       touchTitle: true,
       updatedAt: input.updatedAt,
@@ -358,33 +443,20 @@ export function moveCtnBlockText(
 export function moveCtnBlockWithinText(
   input: MoveCtnBlockWithinTextInput,
 ): MoveCtnBlockWithinTextResult {
-  const sourceRange = getBlockLineRange(input.sourceBlock);
-  assertTargetOutsideSourceRange(sourceRange, input.targetPosition);
+  return moveCtnBlocksWithinText({ ...input, sourceBlocks: [input.sourceBlock] });
+}
 
-  const extractedLines = extractBlockLines(
-    input.analysis.sourceText.values,
-    sourceRange,
-  );
-  const rewrittenLines = rewriteBlockIndent(
-    extractedLines,
-    input.sourceBlock.indentText,
-    getTargetLevel(input.targetPosition),
-    input.analysis,
-  );
-  const insertionLineNumber = adjustInsertionLineNumberAfterRemoval(
-    getTargetInsertionLineNumber(input.analysis, input.targetPosition),
-    sourceRange,
-  );
-  const textWithoutSourceBlock = removeBlockLines(
-    input.analysis.sourceText.values,
-    sourceRange,
-  );
-  const movedText = insertBlockLinesBeforeLine(
-    textWithoutSourceBlock,
-    rewrittenLines,
-    insertionLineNumber,
-  ).join("\n");
-  const analysis = analyzeCtnCanonicalMutation(input.analysis, movedText, {
+export function moveCtnBlocksWithinText(input: MoveCtnBlocksWithinTextInput): MoveCtnBlockWithinTextResult {
+  const candidate = prepareBlockRangesMove({
+    ...input,
+    sourceAnalysis: input.analysis,
+    targetAnalysis: input.analysis,
+    withinDocument: true,
+  });
+  if (candidate.targetText === input.analysis.sourceText.source) {
+    return { analysis: input.analysis, nextText: candidate.targetText, status: "moved" };
+  }
+  const analysis = analyzeCtnCanonicalMutation(input.analysis, candidate.targetText, {
     touchTitle: input.touchTitle ?? true,
     updatedAt: input.updatedAt,
   });

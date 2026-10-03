@@ -50,10 +50,12 @@ export {
 export {
   NoteTree,
   StructureTree,
+  useSingleTreeSelection,
   getStructureTreeRowStyle,
 } from "./shared/tree/index.ts";
 export type {
   StructureTreeProps,
+  NoteTreeProps,
   TreeNode,
 } from "./shared/tree/index.ts";
 export { useExclusiveAsyncAction } from "./shared/useExclusiveAsyncAction.ts";

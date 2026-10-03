@@ -1,3 +1,4 @@
+import { useSingleTreeSelection } from "../../ui/index.ts";
 import { Tree, type TreeNode } from "compact-ui";
 import {
   Archive, ArrowLeftRight, FileClock, Folder, KeyRound, LayoutDashboard,
@@ -108,14 +109,14 @@ export function SettingsContext({
       row({ kind: "audit-retention" }, "保留策略"),
     ]),
   ];
+  const treeSelection = useSingleTreeSelection(settingsTargetKey(target));
   return (
     <Tree
       aria-label="设置目录"
       nodes={nodes}
       expandedIds={expanded}
       onExpandedChange={setExpanded}
-      selectedId={settingsTargetKey(target)}
-      onSelect={() => {}}
+      {...treeSelection}
       onOpen={(id, intent) => {
         const item = targets.get(id);
         if (item) onSelect(item, intent);

@@ -66,7 +66,7 @@ export type UiTreeMoveDestination =
     };
 export type UiTreeMoveRequest = {
   destination: UiTreeMoveDestination;
-  source: UiTreeNodeReference;
+  sources: readonly UiTreeNodeReference[];
 };
 
 function createNoteMap(notes: Pick<WorkspaceNote, "id" | "title">[]) {
